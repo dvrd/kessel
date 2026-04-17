@@ -40,6 +40,9 @@ Lexer2 :: struct {
 	// Track last emitted token type for regex context detection
 	last_token_type: TokenType,
 	
+	// ASI: track if there was a line terminator before the current token
+	had_line_terminator: bool,
+	
 	// Statistics for debugging
 	stats: LexerStats,
 }
@@ -170,7 +173,7 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 	skip_whitespace_simd_lex(l)
 	
 	if l.offset >= len(l.source) {
-		tok := add_token(&l.token_soa, .EOF, Loc{offset = l.offset, line = l.line, column = l.column}, 0)
+		tok := add_token(&l.token_soa, .EOF, Loc{offset = l.offset, line = l.line, column = l.column}, 0, l.had_line_terminator)
 		l.last_token_type = .EOF
 		return tok
 	}
@@ -248,49 +251,49 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 		
 	case '{':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .LBrace, loc, 1)
+		tok = add_token(&l.token_soa, .LBrace, loc, 1, l.had_line_terminator)
 		
 	case '}':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .RBrace, loc, 1)
+		tok = add_token(&l.token_soa, .RBrace, loc, 1, l.had_line_terminator)
 		
 	case '(':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .LParen, loc, 1)
+		tok = add_token(&l.token_soa, .LParen, loc, 1, l.had_line_terminator)
 		
 	case ')':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .RParen, loc, 1)
+		tok = add_token(&l.token_soa, .RParen, loc, 1, l.had_line_terminator)
 		
 	case '[':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .LBracket, loc, 1)
+		tok = add_token(&l.token_soa, .LBracket, loc, 1, l.had_line_terminator)
 		
 	case ']':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .RBracket, loc, 1)
+		tok = add_token(&l.token_soa, .RBracket, loc, 1, l.had_line_terminator)
 		
 	case '.':
 		tok = lex_dot_optimized(l, loc)
 		
 	case ',':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .Comma, loc, 1)
+		tok = add_token(&l.token_soa, .Comma, loc, 1, l.had_line_terminator)
 		
 	case ';':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .Semi, loc, 1)
+		tok = add_token(&l.token_soa, .Semi, loc, 1, l.had_line_terminator)
 		
 	case ':':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .Colon, loc, 1)
+		tok = add_token(&l.token_soa, .Colon, loc, 1, l.had_line_terminator)
 		
 	case '?':
 		tok = lex_question_optimized(l, loc)
 		
 	case '~':
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .BitNot, loc, 1)
+		tok = add_token(&l.token_soa, .BitNot, loc, 1, l.had_line_terminator)
 		
 	case '^':
 		tok = lex_xor_optimized(l, loc)
@@ -307,7 +310,7 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 	case:
 		// Unknown character
 		advance2(l, 1)
-		tok = add_token(&l.token_soa, .Invalid, loc, 1)
+		tok = add_token(&l.token_soa, .Invalid, loc, 1, l.had_line_terminator)
 	}
 	
 	l.last_token_type = get_token_type(tok)
@@ -319,6 +322,9 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 // ============================================================================
 
 skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
+	// Reset line terminator flag at start of whitespace skip
+	l.had_line_terminator = false
+	
 	remaining := len(l.source) - l.offset
 	
 	if remaining < 16 {
@@ -349,6 +355,7 @@ skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
 			nl_info := simd_count_newlines(chunk)
 			
 			if nl_info.count > 0 {
+				l.had_line_terminator = true
 				l.line += nl_info.count
 				l.column = ws_count - nl_info.last_nl_pos
 			} else {
@@ -361,6 +368,7 @@ skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
 			for i := 0; i < ws_count; i += 1 {
 				c := data[i]
 				if c == '\n' {
+					l.had_line_terminator = true
 					l.line += 1
 					l.column = 1
 				} else {
@@ -385,6 +393,7 @@ skip_whitespace_scalar :: proc(l: ^Lexer2) {
 		case ' ', '\t', '\r':
 			advance2(l, 1)
 		case '\n':
+			l.had_line_terminator = true
 			advance_line2(l)
 		case '/':
 			if l.offset + 1 < len(l.source) {
@@ -445,7 +454,7 @@ lex_identifier_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		tok_type = .Identifier
 	}
 	
-	return add_token(&l.token_soa, tok_type, loc, length)
+	return add_token(&l.token_soa, tok_type, loc, length, l.had_line_terminator)
 }
 
 // Number literal
@@ -503,7 +512,7 @@ lex_number_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	if l.offset < len(l.source) && l.source_bytes[l.offset] == 'n' {
 		advance2(l, 1)
 		length = l.offset - start_offset
-		return add_token(&l.token_soa, .BigInt, loc, length)
+		return add_token(&l.token_soa, .BigInt, loc, length, l.had_line_terminator)
 	}
 	
 	// Parse the number
@@ -616,7 +625,7 @@ lex_regex_literal :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	// Check if we found closing /
 	if l.offset >= len(l.source) || l.source_bytes[l.offset] != '/' {
 		// Invalid regex, treat as division
-		return add_token(&l.token_soa, .Div, loc, 1)
+		return add_token(&l.token_soa, .Div, loc, 1, l.had_line_terminator)
 	}
 	
 	// Skip closing /
@@ -661,7 +670,7 @@ lex_slash_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		switch next {
 		case '=':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .AssignDiv, loc, 2)
+			return add_token(&l.token_soa, .AssignDiv, loc, 2, l.had_line_terminator)
 		case '/':
 			skip_line_comment2(l)
 			return lex_next_compact(l)  // Return next token after comment
@@ -678,7 +687,7 @@ lex_slash_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	
 	// Division operator
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Div, loc, 1)
+	return add_token(&l.token_soa, .Div, loc, 1, l.had_line_terminator)
 }
 
 // Plus operator (+, ++, +=)
@@ -688,14 +697,14 @@ lex_plus_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		switch next {
 		case '+':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .PlusPlus, loc, 2)
+			return add_token(&l.token_soa, .PlusPlus, loc, 2, l.had_line_terminator)
 		case '=':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .AssignAdd, loc, 2)
+			return add_token(&l.token_soa, .AssignAdd, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Plus, loc, 1)
+	return add_token(&l.token_soa, .Plus, loc, 1, l.had_line_terminator)
 }
 
 // Minus operator (-, --, -=)
@@ -705,14 +714,14 @@ lex_minus_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		switch next {
 		case '-':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .MinusMinus, loc, 2)
+			return add_token(&l.token_soa, .MinusMinus, loc, 2, l.had_line_terminator)
 		case '=':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .AssignSub, loc, 2)
+			return add_token(&l.token_soa, .AssignSub, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Minus, loc, 1)
+	return add_token(&l.token_soa, .Minus, loc, 1, l.had_line_terminator)
 }
 
 // Star operator (*, **, *=, **=)
@@ -723,17 +732,17 @@ lex_star_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		case '*':
 			if l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '=' {
 				advance2(l, 3)
-				return add_token(&l.token_soa, .AssignPow, loc, 3)
+				return add_token(&l.token_soa, .AssignPow, loc, 3, l.had_line_terminator)
 			}
 			advance2(l, 2)
-			return add_token(&l.token_soa, .Pow, loc, 2)
+			return add_token(&l.token_soa, .Pow, loc, 2, l.had_line_terminator)
 		case '=':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .AssignMul, loc, 2)
+			return add_token(&l.token_soa, .AssignMul, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Mul, loc, 1)
+	return add_token(&l.token_soa, .Mul, loc, 1, l.had_line_terminator)
 }
 
 // Equals (=, ==, ===, =>)
@@ -745,17 +754,17 @@ lex_equals_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		case '=':
 			if l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '=' {
 				advance2(l, 3)
-				return add_token(&l.token_soa, .EqStrict, loc, 3)
+				return add_token(&l.token_soa, .EqStrict, loc, 3, l.had_line_terminator)
 			}
 			advance2(l, 2)
-			return add_token(&l.token_soa, .Eq, loc, 2)
+			return add_token(&l.token_soa, .Eq, loc, 2, l.had_line_terminator)
 		case '>':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .Arrow, loc, 2)
+			return add_token(&l.token_soa, .Arrow, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Assign, loc, 1)
+	return add_token(&l.token_soa, .Assign, loc, 1, l.had_line_terminator)
 }
 
 // Bang (!, !=, !==)
@@ -766,14 +775,14 @@ lex_bang_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		if next == '=' {
 			if l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '=' {
 				advance2(l, 3)
-				return add_token(&l.token_soa, .NotEqStrict, loc, 3)
+				return add_token(&l.token_soa, .NotEqStrict, loc, 3, l.had_line_terminator)
 			}
 			advance2(l, 2)
-			return add_token(&l.token_soa, .NotEq, loc, 2)
+			return add_token(&l.token_soa, .NotEq, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Not, loc, 1)
+	return add_token(&l.token_soa, .Not, loc, 1, l.had_line_terminator)
 }
 
 // Less than (<, <=, <<, <<=)
@@ -784,18 +793,18 @@ lex_less_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		switch next {
 		case '=':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .LEq, loc, 2)
+			return add_token(&l.token_soa, .LEq, loc, 2, l.had_line_terminator)
 		case '<':
 			if l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '=' {
 				advance2(l, 3)
-				return add_token(&l.token_soa, .AssignLShift, loc, 3)
+				return add_token(&l.token_soa, .AssignLShift, loc, 3, l.had_line_terminator)
 			}
 			advance2(l, 2)
-			return add_token(&l.token_soa, .LShift, loc, 2)
+			return add_token(&l.token_soa, .LShift, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .LAngle, loc, 1)
+	return add_token(&l.token_soa, .LAngle, loc, 1, l.had_line_terminator)
 }
 
 // Greater than (>, >=, >>, >>>, >>=, >>>=)
@@ -806,29 +815,29 @@ lex_greater_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		switch next {
 		case '=':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .GEq, loc, 2)
+			return add_token(&l.token_soa, .GEq, loc, 2, l.had_line_terminator)
 		case '>':
 			if l.offset + 2 < len(l.source) {
 				next2 := l.source_bytes[l.offset + 2]
 				if next2 == '=' {
 					advance2(l, 3)
-					return add_token(&l.token_soa, .AssignRShift, loc, 3)
+					return add_token(&l.token_soa, .AssignRShift, loc, 3, l.had_line_terminator)
 				}
 				if next2 == '>' {
 					if l.offset + 3 < len(l.source) && l.source_bytes[l.offset + 3] == '=' {
 						advance2(l, 4)
-						return add_token(&l.token_soa, .AssignURShift, loc, 4)
+						return add_token(&l.token_soa, .AssignURShift, loc, 4, l.had_line_terminator)
 					}
 					advance2(l, 3)
-					return add_token(&l.token_soa, .URShift, loc, 3)
+					return add_token(&l.token_soa, .URShift, loc, 3, l.had_line_terminator)
 				}
 			}
 			advance2(l, 2)
-			return add_token(&l.token_soa, .RShift, loc, 2)
+			return add_token(&l.token_soa, .RShift, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .RAngle, loc, 1)
+	return add_token(&l.token_soa, .RAngle, loc, 1, l.had_line_terminator)
 }
 
 // Logical AND (&, &&, &=)
@@ -841,17 +850,17 @@ lex_and_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 			// Check for &&= (logical AND assignment)
 			if l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '=' {
 				advance2(l, 3)
-				return add_token(&l.token_soa, .AssignLogicalAnd, loc, 3)
+				return add_token(&l.token_soa, .AssignLogicalAnd, loc, 3, l.had_line_terminator)
 			}
 			advance2(l, 2)
-			return add_token(&l.token_soa, .LogicalAnd, loc, 2)
+			return add_token(&l.token_soa, .LogicalAnd, loc, 2, l.had_line_terminator)
 		case '=':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .AssignBitAnd, loc, 2)
+			return add_token(&l.token_soa, .AssignBitAnd, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .BitAnd, loc, 1)
+	return add_token(&l.token_soa, .BitAnd, loc, 1, l.had_line_terminator)
 }
 
 // Logical OR (|, ||, |=)
@@ -864,17 +873,17 @@ lex_or_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 			// Check for ||= (logical OR assignment)
 			if l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '=' {
 				advance2(l, 3)
-				return add_token(&l.token_soa, .AssignLogicalOr, loc, 3)
+				return add_token(&l.token_soa, .AssignLogicalOr, loc, 3, l.had_line_terminator)
 			}
 			advance2(l, 2)
-			return add_token(&l.token_soa, .LogicalOr, loc, 2)
+			return add_token(&l.token_soa, .LogicalOr, loc, 2, l.had_line_terminator)
 		case '=':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .AssignBitOr, loc, 2)
+			return add_token(&l.token_soa, .AssignBitOr, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .BitOr, loc, 1)
+	return add_token(&l.token_soa, .BitOr, loc, 1, l.had_line_terminator)
 }
 
 // Dot (. or ...)
@@ -882,11 +891,11 @@ lex_dot_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	if l.offset + 2 < len(l.source) {
 		if l.source_bytes[l.offset + 1] == '.' && l.source_bytes[l.offset + 2] == '.' {
 			advance2(l, 3)
-			return add_token(&l.token_soa, .Dot3, loc, 3)
+			return add_token(&l.token_soa, .Dot3, loc, 3, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Dot, loc, 1)
+	return add_token(&l.token_soa, .Dot, loc, 1, l.had_line_terminator)
 }
 
 // Question mark (?, ?., ??, ??=)
@@ -897,38 +906,38 @@ lex_question_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		switch next {
 		case '.':
 			advance2(l, 2)
-			return add_token(&l.token_soa, .OptionalChain, loc, 2)
+			return add_token(&l.token_soa, .OptionalChain, loc, 2, l.had_line_terminator)
 		case '?':
 			if l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '=' {
 				advance2(l, 3)
-				return add_token(&l.token_soa, .AssignNullish, loc, 3)
+				return add_token(&l.token_soa, .AssignNullish, loc, 3, l.had_line_terminator)
 			}
 			advance2(l, 2)
-			return add_token(&l.token_soa, .Nullish, loc, 2)
+			return add_token(&l.token_soa, .Nullish, loc, 2, l.had_line_terminator)
 		}
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Question, loc, 1)
+	return add_token(&l.token_soa, .Question, loc, 1, l.had_line_terminator)
 }
 
 // XOR (^, ^=)
 lex_xor_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	if l.offset + 1 < len(l.source) && l.source_bytes[l.offset + 1] == '=' {
 		advance2(l, 2)
-		return add_token(&l.token_soa, .AssignBitXor, loc, 2)
+		return add_token(&l.token_soa, .AssignBitXor, loc, 2, l.had_line_terminator)
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .BitXor, loc, 1)
+	return add_token(&l.token_soa, .BitXor, loc, 1, l.had_line_terminator)
 }
 
 // Percent (%, %=)
 lex_percent_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	if l.offset + 1 < len(l.source) && l.source_bytes[l.offset + 1] == '=' {
 		advance2(l, 2)
-		return add_token(&l.token_soa, .AssignMod, loc, 2)
+		return add_token(&l.token_soa, .AssignMod, loc, 2, l.had_line_terminator)
 	}
 	advance2(l, 1)
-	return add_token(&l.token_soa, .Mod, loc, 1)
+	return add_token(&l.token_soa, .Mod, loc, 1, l.had_line_terminator)
 }
 
 // ============================================================================
@@ -1001,7 +1010,7 @@ lex_string_scalar :: proc(l: ^Lexer2, loc: Loc, quote: u8, start: int) -> Compac
 	}
 	
 	// Unterminated string
-	return add_token(&l.token_soa, .Invalid, loc, l.offset - start)
+	return add_token(&l.token_soa, .Invalid, loc, l.offset - start, l.had_line_terminator)
 }
 
 // Hex number
@@ -1024,10 +1033,10 @@ lex_hex_number :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	if l.offset < len(l.source) && l.source_bytes[l.offset] == 'n' {
 		advance2(l, 1)
 		length = l.offset - start
-		return add_token(&l.token_soa, .BigInt, loc, length)
+		return add_token(&l.token_soa, .BigInt, loc, length, l.had_line_terminator)
 	}
 	
-	return add_token(&l.token_soa, .Number, loc, length)
+	return add_token(&l.token_soa, .Number, loc, length, l.had_line_terminator)
 }
 
 // Binary number
@@ -1050,10 +1059,10 @@ lex_binary_number :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	if l.offset < len(l.source) && l.source_bytes[l.offset] == 'n' {
 		advance2(l, 1)
 		length = l.offset - start
-		return add_token(&l.token_soa, .BigInt, loc, length)
+		return add_token(&l.token_soa, .BigInt, loc, length, l.had_line_terminator)
 	}
 	
-	return add_token(&l.token_soa, .Number, loc, length)
+	return add_token(&l.token_soa, .Number, loc, length, l.had_line_terminator)
 }
 
 // Octal number
@@ -1076,10 +1085,10 @@ lex_octal_number :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	if l.offset < len(l.source) && l.source_bytes[l.offset] == 'n' {
 		advance2(l, 1)
 		length = l.offset - start
-		return add_token(&l.token_soa, .BigInt, loc, length)
+		return add_token(&l.token_soa, .BigInt, loc, length, l.had_line_terminator)
 	}
 	
-	return add_token(&l.token_soa, .Number, loc, length)
+	return add_token(&l.token_soa, .Number, loc, length, l.had_line_terminator)
 }
 
 // Private identifier (#name)
@@ -1098,7 +1107,7 @@ lex_private_identifier :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	}
 	
 	length := l.offset - start
-	return add_token(&l.token_soa, .PrivateIdentifier, loc, length)
+	return add_token(&l.token_soa, .PrivateIdentifier, loc, length, l.had_line_terminator)
 }
 
 // Template literal start
@@ -1144,7 +1153,7 @@ lex_template_start :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 			advance2(l, 2) // consume ${
 			l.in_template = true
 			
-			return add_token_literal(&l.token_soa, tok_type, loc, l.offset - start, .String, lit_val)
+			return add_token_literal(&l.token_soa, tok_type, loc, l.offset - start, .String, lit_val, l.had_line_terminator)
 		}
 		
 		// Check for closing backtick
@@ -1170,7 +1179,7 @@ lex_template_start :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 			}
 			
 			advance2(l, 1)
-			return add_token_literal(&l.token_soa, tok_type, loc, l.offset - start, .String, lit_val)
+			return add_token_literal(&l.token_soa, tok_type, loc, l.offset - start, .String, lit_val, l.had_line_terminator)
 		}
 		
 		// Handle escape sequences
@@ -1189,7 +1198,7 @@ lex_template_start :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	}
 	
 	// Unterminated template
-	return add_token(&l.token_soa, .Invalid, loc, l.offset - start)
+	return add_token(&l.token_soa, .Invalid, loc, l.offset - start, l.had_line_terminator)
 }
 
 // Resume template scanning after } - for template middle/tail
@@ -1212,7 +1221,7 @@ lex_template_resume :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 			advance2(l, 2)
 			l.in_template = true
 			
-			return add_token_literal(&l.token_soa, .TemplateMiddle, loc, l.offset - start, .String, lit_val)
+			return add_token_literal(&l.token_soa, .TemplateMiddle, loc, l.offset - start, .String, lit_val, l.had_line_terminator)
 		}
 		
 		// Check for closing backtick
@@ -1224,7 +1233,7 @@ lex_template_resume :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 			
 			l.in_template = false
 			advance2(l, 1)
-			return add_token_literal(&l.token_soa, .TemplateTail, loc, l.offset - start, .String, lit_val)
+			return add_token_literal(&l.token_soa, .TemplateTail, loc, l.offset - start, .String, lit_val, l.had_line_terminator)
 		}
 		
 		// Handle escape sequences
@@ -1242,5 +1251,5 @@ lex_template_resume :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		advance2(l, 1)
 	}
 	
-	return add_token(&l.token_soa, .Invalid, loc, l.offset - start)
+	return add_token(&l.token_soa, .Invalid, loc, l.offset - start, l.had_line_terminator)
 }

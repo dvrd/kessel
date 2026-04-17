@@ -25,6 +25,9 @@ TokenSoA :: struct {
 	cols:    [dynamic]u16,           // 2 bytes - column
 	lengths: [dynamic]u16,           // 2 bytes - token length in source
 	
+	// ASI: track if there was a line terminator before this token
+	had_line_terminator: [dynamic]bool,
+	
 	// Extended data for literals (sparse, only when needed)
 	literal_types:  [dynamic]LiteralType,  // Type of literal value
 	literal_values: [dynamic]LiteralValue, // Actual parsed value
@@ -61,6 +64,7 @@ TokenView :: struct {
 	line:    u32,
 	column:  u16,
 	length:  u16,
+	had_line_terminator: bool,
 	literal: LiteralValue,
 	literal_type: LiteralType,
 }
@@ -72,6 +76,7 @@ init_token_soa :: proc(soa: ^TokenSoA, arena: ^mem.Arena, capacity: int = 1024) 
 	soa.lines   = make([dynamic]u32, 0, capacity, mem.arena_allocator(arena))
 	soa.cols    = make([dynamic]u16, 0, capacity, mem.arena_allocator(arena))
 	soa.lengths = make([dynamic]u16, 0, capacity, mem.arena_allocator(arena))
+	soa.had_line_terminator = make([dynamic]bool, 0, capacity, mem.arena_allocator(arena))
 	soa.literal_types  = make([dynamic]LiteralType, 0, capacity, mem.arena_allocator(arena))
 	soa.literal_values = make([dynamic]LiteralValue, 0, capacity, mem.arena_allocator(arena))
 	soa.string_data = arena
@@ -79,7 +84,7 @@ init_token_soa :: proc(soa: ^TokenSoA, arena: ^mem.Arena, capacity: int = 1024) 
 }
 
 // Add a token to SoA storage, returns compact handle
-add_token :: proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int) -> CompactToken {
+add_token :: proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int, had_line_term: bool = false) -> CompactToken {
 	idx := soa.count
 	soa.count += 1
 	
@@ -89,6 +94,7 @@ add_token :: proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int) 
 	append(&soa.lines, u32(loc.line))
 	append(&soa.cols, u16(loc.column))
 	append(&soa.lengths, u16(length))
+	append(&soa.had_line_terminator, had_line_term)
 	
 	// Ensure literal arrays grow with the token arrays
 	// This is critical to prevent index out of range
@@ -102,8 +108,8 @@ add_token :: proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int) 
 
 // Add a token with literal value
 add_token_literal :: proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int, 
-                          lit_type: LiteralType, value: LiteralValue) -> CompactToken {
-	tok := add_token(soa, token_type, loc, length)
+                          lit_type: LiteralType, value: LiteralValue, had_line_term: bool = false) -> CompactToken {
+	tok := add_token(soa, token_type, loc, length, had_line_term)
 	
 	// Ensure arrays have the element at tok.index
 	// This might happen if add_token didn't populate them
@@ -134,6 +140,7 @@ get_token_view :: proc(tok: CompactToken) -> TokenView {
 		line    = soa.lines[idx],
 		column  = soa.cols[idx],
 		length  = soa.lengths[idx],
+		had_line_terminator = soa.had_line_terminator[idx],
 		literal = soa.literal_values[idx],
 		literal_type = soa.literal_types[idx],
 	}
@@ -296,5 +303,6 @@ compact_to_legacy :: proc(tok: CompactToken, source: string) -> Token {
 		loc     = Loc{offset = int(view.offset), line = int(view.line), column = int(view.column)},
 		value   = get_token_source(tok, source),
 		literal = view.literal,
+		had_line_terminator = view.had_line_terminator,
 	}
 }
