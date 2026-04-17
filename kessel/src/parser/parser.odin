@@ -1238,7 +1238,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^ast_pkg.Sta
 }
 
 parse_function_params :: proc(p: ^Parser) -> [dynamic]ast_pkg.FunctionParameter {
-	params := make([dynamic]ast_pkg.FunctionParameter, mem.arena_allocator(p.arena))
+	params := make([dynamic]ast_pkg.FunctionParameter, 0, 3, mem.arena_allocator(p.arena))
 	
 	if is_token(p, .RParen) {
 		return params
@@ -1715,7 +1715,7 @@ parse_object_pattern :: proc(p: ^Parser) -> ast_pkg.Pattern {
 	
 	obj := new_node(p, ast_pkg.ObjectPattern)
 	obj.loc = start
-	obj.properties = make([dynamic]ast_pkg.Property, mem.arena_allocator(p.arena))
+	obj.properties = make([dynamic]ast_pkg.Property, 0, 4, mem.arena_allocator(p.arena))
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prop_start := loc_from_token(get_current(p))
@@ -3009,7 +3009,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 	
 	obj := new_node(p, ast_pkg.ObjectExpression)
 	obj.loc = start
-	obj.properties = make([dynamic]ast_pkg.Property, mem.arena_allocator(p.arena))
+	obj.properties = make([dynamic]ast_pkg.Property, 0, 4, mem.arena_allocator(p.arena))
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		// Skip stray semicolons (error recovery)
@@ -3284,8 +3284,8 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^ast_pkg.Expression {
 		return nil
 	}
 	
-	args := make([dynamic]^ast_pkg.Expression, mem.arena_allocator(p.arena))
-	
+	args := make([dynamic]^ast_pkg.Expression, 0, 4, mem.arena_allocator(p.arena))
+
 	if !is_token(p, .RParen) {
 		for {
 			if is_token(p, .Dot3) {
