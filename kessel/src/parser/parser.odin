@@ -1245,6 +1245,11 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]ast_pkg.FunctionParameter 
 	}
 	
 	for {
+		// Trailing comma: if we see ')' after comma, stop
+		if is_token(p, .RParen) {
+			break
+		}
+		
 		param := parse_function_param(p)
 		if param != nil {
 			append(&params, param^)
@@ -2393,6 +2398,12 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^ast_pkg.Expre
 			break
 		}
 		
+		// Trailing comma in parenthesized expression: don't consume comma before )
+		if current.type == .Comma && is_next_token(p, .RParen) {
+			eat(p) // consume trailing comma, will be followed by )
+			break
+		}
+		
 		// Break on non-operator tokens
 		if current.type == .Semi || current.type == .EOF || current.type == .RParen || current.type == .RBrace || current.type == .RBracket || current.type == .Colon {
 			break
@@ -3001,20 +3012,39 @@ parse_object_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 	obj.properties = make([dynamic]ast_pkg.Property, mem.arena_allocator(p.arena))
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		// Skip stray semicolons (error recovery)
+		for is_token(p, .Semi) {
+			eat(p)
+		}
+		if is_token(p, .RBrace) || is_token(p, .EOF) {
+			break
+		}
+
 		prop := parse_property(p)
 		if prop != nil {
 			append(&obj.properties, prop^)
 		}
 		
 		if !match_token(p, .Comma) {
-			break
+			// Treat semicolons as property separators too (error recovery)
+			if is_token(p, .Semi) {
+				for is_token(p, .Semi) {
+					eat(p)
+				}
+			} else {
+				break
+			}
+		}
+		// Also skip stray semicolons after comma
+		for is_token(p, .Semi) {
+			eat(p)
 		}
 	}
-	
+
 	if !expect_token(p, .RBrace) {
 		return nil
 	}
-	
+
 	obj.loc.span.end = get_current(p).loc.offset
 	return expression_from(p, obj)
 }
