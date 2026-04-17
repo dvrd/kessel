@@ -534,9 +534,14 @@ parse_block_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 	block.body = make([dynamic]^ast_pkg.Statement, mem.arena_allocator(p.arena))
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		prev_offset := get_current(p).loc.offset
 		stmt := parse_statement_or_declaration(p)
 		if stmt != nil {
 			append(&block.body, stmt)
+		} else if get_current(p).loc.offset == prev_offset {
+			// Error recovery inside blocks: ensure we always consume something
+			report_error(p, "Invalid statement in block")
+			eat(p)
 		}
 	}
 	
@@ -1364,9 +1369,14 @@ parse_class_body :: proc(p: ^Parser) -> ast_pkg.ClassBody {
 	}
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		prev_offset := get_current(p).loc.offset
 		elem := parse_class_element(p)
 		if elem != nil {
 			append(&body.body, elem^)
+		} else if get_current(p).loc.offset == prev_offset {
+			// parse_class_element failed and didn't consume token - skip it to avoid infinite loop
+			report_error(p, "Invalid class element")
+			eat(p)
 		}
 	}
 	
@@ -2375,8 +2385,9 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^ast_pkg.Expre
 			break
 		}
 		
-		// Break on statement keywords (ASI applies)
-		if lexer_pkg.is_keyword(current.type) || lexer_pkg.is_contextual_keyword(current.type) {
+		// Break on statement keywords (ASI applies), but keep operator-keywords flowing
+		if (lexer_pkg.is_keyword(current.type) || lexer_pkg.is_contextual_keyword(current.type)) &&
+			current.type != .In && current.type != .Instanceof {
 			break
 		}
 		
