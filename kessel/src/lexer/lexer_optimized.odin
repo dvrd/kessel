@@ -40,6 +40,9 @@ Lexer2 :: struct {
 	// Track last emitted token type for regex context detection
 	last_token_type: TokenType,
 	
+	// Hashbang: track if we're at start of file
+	at_start_of_file: bool,
+	
 	// ASI: track if there was a line terminator before the current token
 	had_line_terminator: bool,
 	
@@ -96,6 +99,7 @@ init_lexer2 :: proc(l: ^Lexer2, source: string, arena: ^mem.Arena) {
 	l.jsx_context = false
 	l.strict_mode = false
 	l.last_token_type = .EOF  // Start of input allows regex
+	l.at_start_of_file = true
 	
 	// Pre-size token storage based on source length
 	token_capacity := estimate_token_capacity(len(source))
@@ -170,6 +174,24 @@ is2 :: proc(l: ^Lexer2, type_: TokenType) -> bool {
 
 // Main lexing function - produces compact tokens
 lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
+	// Hashbang: only valid at absolute start of file
+	if l.at_start_of_file && l.offset + 1 < len(l.source) && l.source_bytes[l.offset] == '#' && l.source_bytes[l.offset + 1] == '!' {
+		// Skip hashbang line (#! ... \n)
+		l.at_start_of_file = false
+		for l.offset < len(l.source) {
+			c := l.source_bytes[l.offset]
+			l.offset += 1
+			if c == '\n' {
+				l.line += 1
+				l.column = 1
+				break
+			}
+		}
+		// Continue to next token
+		return lex_next_compact(l)
+	}
+	l.at_start_of_file = false
+	
 	skip_whitespace_simd_lex(l)
 	
 	if l.offset >= len(l.source) {
