@@ -95,7 +95,7 @@ cd kessel/tests && ./run_tests.sh expressions
 
 ## Test Coverage
 
-- **80 test fixtures** across 8 categories:
+- **86 test fixtures** across 8 categories:
   - `basic/` — const, let, var, if/else, loops, switch, try/catch
   - `edge/` — labeled statements, comma operator, regex, IIFE variants, generators, tagged templates
   - `es2015/` — arrow functions, template literals, destructuring, spread/rest, classes
@@ -104,7 +104,7 @@ cd kessel/tests && ./run_tests.sh expressions
   - `es2025/` — logical assignment, async/await, for-await-of, error cause
   - `real/` — jQuery chains, Express routes, Redux reducers, React hooks, middleware patterns
   - `recovery/` — missing semicolons, extra semicolons, trailing commas, unicode recovery
-- **Pass rate: 100%** (80/80 tests)
+- **Pass rate: 100%** (86/86 tests)
 
 ## Architecture
 

@@ -1,7 +1,7 @@
 # Known Issues
 
-**Last updated:** 2024-04-17
-**Pass rate:** 100% (80/80)
+**Last updated:** 2026-04-17
+**Pass rate:** 100% (86/86)
 
 ## Resolved Issues
 
@@ -19,7 +19,7 @@ All previously known issues have been fixed:
 
 ## Current Status
 
-- **Total fixtures:** 80
-- **Pass:** 80 (100%)
+- **Total fixtures:** 86
+- **Pass:** 86 (100%)
 - **Fail:** 0
 - **Timeout:** 0

@@ -1,6 +1,6 @@
 # Kessel Parser Changelog
 
-## Version 1.1.0 - Mega Merge (2024-04-17)
+## Version 1.1.0 - Mega Merge (2026-04-17)
 
 ### Merged Branches
 Successfully merged 4 feature branches into main:
