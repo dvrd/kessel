@@ -3251,9 +3251,34 @@ parse_function_expression :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 }
 
 parse_class_expression :: proc(p: ^Parser) -> ^ast_pkg.Expression {
-	// Parse as class expression (not declaration)
-	// TODO: Implement
-	return nil
+	start := loc_from_token(get_current(p))
+	eat(p) // consume class
+	
+	id: Maybe(ast_pkg.BindingIdentifier)
+	if is_token(p, .Identifier) {
+		current := get_current(p)
+		id = ast_pkg.BindingIdentifier{
+			loc  = loc_from_token(current),
+			name = intern(p.interner, current.value),
+		}
+		eat(p)
+	}
+	
+	super_class: Maybe(^ast_pkg.Expression)
+	if match_token(p, .Extends) {
+		super_class = parse_left_hand_side_expr(p)
+	}
+	
+	body := parse_class_body(p)
+	
+	expr := new_node(p, ast_pkg.ClassExpression)
+	expr.loc = start
+	expr.id = id
+	expr.super_class = super_class
+	expr.body = body
+	expr.loc.span.end = get_current(p).loc.offset
+	
+	return expression_from(p, expr)
 }
 
 parse_new_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
@@ -3515,9 +3540,44 @@ parse_arrow_function :: proc(p: ^Parser, left: ^ast_pkg.Expression, is_async := 
 							pattern = rest,
 						}
 						append(&params, param)
+					case ast_pkg.ObjectExpression:
+						// Convert ObjectExpression -> ObjectPattern for destructuring
+						op := new_node(p, ast_pkg.ObjectPattern)
+						op.loc = arg.loc
+						op.properties = arg.properties
+						param := ast_pkg.FunctionParameter{
+							loc     = arg.loc,
+							pattern = op,
+						}
+						append(&params, param)
+					case ast_pkg.ArrayExpression:
+						// Convert ArrayExpression -> ArrayPattern for destructuring
+						ap := new_node(p, ast_pkg.ArrayPattern)
+						ap.loc = arg.loc
+						// Convert each element expression to pattern
+						elem_patterns := make([dynamic]Maybe(ast_pkg.Pattern), 0, len(arg.elements), mem.arena_allocator(p.arena))
+						for elem in arg.elements {
+							if elem == nil {
+								append(&elem_patterns, Maybe(ast_pkg.Pattern)(nil))
+							} else {
+								val := elem.? // unwrap Maybe(^Expression)
+								#partial switch e in val^ {
+								case ast_pkg.Identifier:
+									id_ptr := new_node(p, ast_pkg.Identifier)
+									id_ptr^ = e
+									append(&elem_patterns, id_ptr)
+								case:
+									append(&elem_patterns, Maybe(ast_pkg.Pattern)(nil))
+								}
+							}
+						}
+						ap.elements = elem_patterns[:]
+						param := ast_pkg.FunctionParameter{
+							loc     = arg.loc,
+							pattern = ap,
+						}
+						append(&params, param)
 					case:
-						// For now, only identifiers are supported in arrow params
-						// TODO: Support destructuring patterns in arrow params
 						report_error(p, "Expected identifier in arrow function parameters")
 					}
 				}
