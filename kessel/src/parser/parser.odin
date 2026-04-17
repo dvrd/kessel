@@ -2795,11 +2795,14 @@ parse_primary_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 		return expression_from(p, big)
 		
 	case .Async:
-		// async arrow function: async x => x or async () => {}
-		// Lookahead to check for arrow function pattern
+		// async function expression or arrow function
+		// Lookahead to check what follows async
 		next := peek_dispatch(p)
-		if next.type == .Identifier || next.type == .LParen {
-			// This is an async arrow function
+		if next.type == .Function {
+			// async function() {} - function expression
+			return parse_function_expression(p)
+		} else if next.type == .Identifier || next.type == .LParen {
+			// This might be an async arrow function: async x => x or async () => {}
 			if next.type == .Identifier {
 				// async x => ...
 				eat(p) // consume async
