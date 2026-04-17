@@ -164,7 +164,8 @@ parse_file :: proc(file_path: string) {
 	
 	// Print statistics
 	fmt.eprintf("\n--- Statistics ---\n")
-	fmt.eprintf("Arena used: %d bytes\n", arena.peak_used)
+	ratio := (arena.peak_used * 100) / estimated_size
+	fmt.eprintf("Arena: used=%dB allocated=%dB ratio=%d%%\n", arena.peak_used, estimated_size, ratio)
 	fmt.eprintf("Parse errors: %d\n", len(p.errors))
 }
 

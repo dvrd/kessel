@@ -153,16 +153,21 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed documentation on:
 └── ...
 ```
 
+## LLM Evaluation
+
+The `eval/` directory contains a harness for benchmarking how different LLMs solve real-world Kessel implementation tasks. This evaluates models on three challenges: octal/binary number parsing, destructuring defaults, and Unicode identifiers. See [eval/README.md](./eval/README.md) for setup and usage.
+
 ## Performance
 
-Typical throughput on modern hardware:
+Arena memory usage on modern hardware:
 
-| Input Size | Time | Memory |
-|------------|------|--------|
-| 454 B | < 1 ms | ~15 KB |
-| 1.2 KB | < 1 ms | ~20 KB |
-| 317 KB | ~53 ms | ~80 MB |
-| 1 MB | ~200 ms | ~256 MB |
+| Input Size | Time  | Arena Used | Arena Allocated | Utilization |
+|------------|-------|------------|-----------------|-------------|
+| < 1 KB     | < 1ms | ~90 KB     | 4 MB (floor)    | 1-2%        |
+| 2.6 KB     | < 1ms | 259 KB     | 4 MB (floor)    | 6%          |
+| 324 KB     | ~50ms | 41 MB      | 83 MB           | 50%         |
+
+Arena is pre-sized at 256x source bytes with a 4 MB minimum floor. The 50% utilization on large files is intentional headroom to avoid reallocation during AST growth. Small files are dominated by the 4 MB floor.
 
 Benchmark your system:
 
