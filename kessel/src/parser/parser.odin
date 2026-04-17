@@ -1419,6 +1419,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ast_pkg.ClassElement {
 	kind := ast_pkg.ClassElementKind.Method
 	is_async := false
 	is_generator := false
+	computed := false
 	is_private := false
 	
 	// Check for async keyword
@@ -1482,6 +1483,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ast_pkg.ClassElement {
 		}
 	} else if is_token(p, .LBracket) {
 		// Computed property: [expr]
+		computed = true
 		eat(p)
 		key = parse_expression(p)
 		if !expect_token(p, .RBracket) {
@@ -1565,7 +1567,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ast_pkg.ClassElement {
 	elem.key = key
 	elem.value = expression_from(p, fn_expr)
 	elem.kind = kind
-	elem.computed = false // TODO: Handle computed
+	elem.computed = computed
 	elem.static = static_
 	
 	elem.loc.span.end = get_current(p).loc.offset
