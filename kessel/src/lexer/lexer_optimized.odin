@@ -60,9 +60,9 @@ LexerStats :: struct {
 // Estimate required arena size based on source characteristics
 // Heuristic: ~128x source size for large JS to leave headroom for AST-heavy inputs
 estimate_arena_size :: proc(source_len: int) -> int {
-	// Base: 128 bytes per source byte for tokens + AST.
-	// Large concatenated fixtures can exceed the previous 64x estimate and OOM mid-parse.
-	base_size := source_len * 128
+	// Base: 256 bytes per source byte for tokens + AST.
+	// Large files with many nodes can exceed lower estimates.
+	base_size := source_len * 256
 	
 	// Minimum: 4MB for small files
 	if base_size < 4 * 1024 * 1024 {
