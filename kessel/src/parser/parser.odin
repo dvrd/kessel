@@ -2224,36 +2224,70 @@ Precedence :: enum {
 	Primary,         // literals, identifiers, ( ), [ ], { }
 }
 
-precedence_for_token :: proc(t: lexer_pkg.TokenType) -> Precedence {
-	#partial switch t {
-	case .Comma:       return .Comma
-	case .Dot3:        return .Spread
-	case .Arrow:       return .Assignment
-	case .Question:    return .Conditional
-	case .LogicalOr:   return .LogicalOr
-	case .Nullish:     return .NullishCoalescing
-	case .LogicalAnd:  return .LogicalAnd
-	case .BitOr:       return .BitwiseOr
-	case .BitXor:      return .BitwiseXor
-	case .BitAnd:      return .BitwiseAnd
-	case .Eq, .NotEq, .EqStrict, .NotEqStrict:
-		return .Equality
-	case .LAngle, .RAngle, .LEq, .GEq, .In, .Instanceof:
-		return .Relational
-	case .LShift, .RShift, .URShift:
-		return .Shift
-	case .Plus, .Minus:
-		return .Additive
-	case .Mul, .Div, .Mod:
-		return .Multiplicative
-	case .Pow:
-		return .Exponentiation
-	case:
-		if lexer_pkg.is_assignment_operator(t) {
-			return .Assignment
-		}
+// Static precedence table for O(1) token-to-precedence lookup
+// Initialized once at startup using a procedure with #init directive
+precedence_table: [len(lexer_pkg.TokenType)]Precedence
+
+@(init)
+init_precedence_table :: proc "contextless" () {
+	// Default to Primary for all tokens
+	for i in 0..<len(precedence_table) {
+		precedence_table[i] = .Primary
 	}
-	return .Primary
+	
+	// Set specific precedences
+	precedence_table[lexer_pkg.TokenType.Comma]       = .Comma
+	precedence_table[lexer_pkg.TokenType.Dot3]        = .Spread
+	precedence_table[lexer_pkg.TokenType.Arrow]       = .Assignment
+	precedence_table[lexer_pkg.TokenType.Question]    = .Conditional
+	precedence_table[lexer_pkg.TokenType.LogicalOr]   = .LogicalOr
+	precedence_table[lexer_pkg.TokenType.Nullish]     = .NullishCoalescing
+	precedence_table[lexer_pkg.TokenType.LogicalAnd]  = .LogicalAnd
+	precedence_table[lexer_pkg.TokenType.BitOr]       = .BitwiseOr
+	precedence_table[lexer_pkg.TokenType.BitXor]      = .BitwiseXor
+	precedence_table[lexer_pkg.TokenType.BitAnd]      = .BitwiseAnd
+	precedence_table[lexer_pkg.TokenType.Eq]          = .Equality
+	precedence_table[lexer_pkg.TokenType.NotEq]        = .Equality
+	precedence_table[lexer_pkg.TokenType.EqStrict]     = .Equality
+	precedence_table[lexer_pkg.TokenType.NotEqStrict]  = .Equality
+	precedence_table[lexer_pkg.TokenType.LAngle]       = .Relational
+	precedence_table[lexer_pkg.TokenType.RAngle]       = .Relational
+	precedence_table[lexer_pkg.TokenType.LEq]          = .Relational
+	precedence_table[lexer_pkg.TokenType.GEq]          = .Relational
+	precedence_table[lexer_pkg.TokenType.In]           = .Relational
+	precedence_table[lexer_pkg.TokenType.Instanceof]   = .Relational
+	precedence_table[lexer_pkg.TokenType.LShift]       = .Shift
+	precedence_table[lexer_pkg.TokenType.RShift]       = .Shift
+	precedence_table[lexer_pkg.TokenType.URShift]      = .Shift
+	precedence_table[lexer_pkg.TokenType.Plus]         = .Additive
+	precedence_table[lexer_pkg.TokenType.Minus]        = .Additive
+	precedence_table[lexer_pkg.TokenType.Mul]          = .Multiplicative
+	precedence_table[lexer_pkg.TokenType.Div]          = .Multiplicative
+	precedence_table[lexer_pkg.TokenType.Mod]          = .Multiplicative
+	precedence_table[lexer_pkg.TokenType.Pow]          = .Exponentiation
+	
+	// Assignment operators
+	precedence_table[lexer_pkg.TokenType.Assign]           = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignAdd]          = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignSub]          = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignMul]          = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignDiv]          = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignMod]          = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignPow]          = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignLShift]       = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignRShift]       = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignURShift]      = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignBitAnd]       = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignBitOr]        = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignBitXor]       = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignLogicalAnd]   = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignLogicalOr]    = .Assignment
+	precedence_table[lexer_pkg.TokenType.AssignNullish]      = .Assignment
+}
+
+// Fast O(1) precedence lookup using precomputed table
+precedence_for_token :: #force_inline proc(t: lexer_pkg.TokenType) -> Precedence {
+	return precedence_table[t]
 }
 
 // Parse expression using precedence climbing (efficient Pratt-style parsing)
