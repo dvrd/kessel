@@ -4,6 +4,7 @@ import "core:bufio"
 import "core:fmt"
 import "core:io"
 import "core:mem"
+import mvirtual "core:mem/virtual"
 import "core:os"
 import "core:strings"
 
@@ -128,23 +129,25 @@ parse_file :: proc(file_path: string) {
 	}
 	defer delete(source, context.allocator)
 	
-	// Create arena for allocations with smart pre-sizing
-	arena: mem.Arena
-	estimated_size := lexer.estimate_arena_size(len(source))
-	backing := make([]byte, estimated_size)
-	defer delete(backing, context.allocator)
-	mem.arena_init(&arena, backing)
-	arena_alloc := mem.arena_allocator(&arena)
+	// Create growing virtual arena for allocations (64KB initial block, lazy commit)
+	arena: mvirtual.Arena
+	err := mvirtual.arena_init_growing(&arena, reserved=64*1024)
+	if err != nil {
+		fmt.eprintf("Error initializing arena: %v\n", err)
+		os.exit(1)
+	}
+	defer mvirtual.arena_destroy(&arena)
+	arena_alloc := mvirtual.arena_allocator(&arena)
 	
-	fmt.eprintf("Arena pre-sized: %d bytes (source: %d bytes)\n", estimated_size, len(source))
+	fmt.eprintf("Arena initialized with 64KB reserved block (lazy commit)\n")
 	
 	// Initialize optimized lexer with compact tokens + SIMD
 	lex: lexer.LexerAdapter
-	lexer.init_adapter(&lex, string(source), &arena)
+	lexer.init_adapter(&lex, string(source), arena_alloc)
 	
 	// Initialize parser with optimized lexer
 	p: parser.Parser
-	parser.init_parser_adapter(&p, &lex, &arena)
+	parser.init_parser_adapter(&p, &lex, arena_alloc)
 	
 	// Parse program
 	program := parser.parse_program(&p, .Script)
@@ -164,8 +167,8 @@ parse_file :: proc(file_path: string) {
 	
 	// Print statistics
 	fmt.eprintf("\n--- Statistics ---\n")
-	ratio := (arena.peak_used * 100) / estimated_size
-	fmt.eprintf("Arena: used=%dB allocated=%dB ratio=%d%%\n", arena.peak_used, estimated_size, ratio)
+	ratio := (arena.total_used * 100) / arena.total_reserved
+	fmt.eprintf("Arena: used=%dB reserved=%dB ratio=%d%%\n", arena.total_used, arena.total_reserved, ratio)
 	fmt.eprintf("Parse errors: %d\n", len(p.errors))
 }
 
@@ -1204,16 +1207,19 @@ lex_file :: proc(file_path: string) {
 	}
 	defer delete(source, context.allocator)
 	
-	// Create arena with smart pre-sizing
-	arena: mem.Arena
-	estimated_size := lexer.estimate_arena_size(len(source))
-	backing := make([]byte, estimated_size)
-	defer delete(backing, context.allocator)
-	mem.arena_init(&arena, backing)
+	// Create growing virtual arena for allocations (64KB initial block, lazy commit)
+	arena: mvirtual.Arena
+	err := mvirtual.arena_init_growing(&arena, reserved=64*1024)
+	if err != nil {
+		fmt.eprintf("Error initializing arena: %v\n", err)
+		os.exit(1)
+	}
+	defer mvirtual.arena_destroy(&arena)
+	arena_alloc := mvirtual.arena_allocator(&arena)
 	
 	// Initialize optimized lexer
 	lex: lexer.LexerAdapter
-	lexer.init_adapter(&lex, string(source), &arena)
+	lexer.init_adapter(&lex, string(source), arena_alloc)
 	
 	// Tokenize and print
 	out_println("[")

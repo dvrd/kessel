@@ -95,8 +95,8 @@ Parser :: struct {
 	// Lexer reference
 	lexer: ^lexer_pkg.Lexer,
 	
-	// Arena for AST allocations
-	arena: ^mem.Arena,
+	// Allocator for AST allocations
+	allocator: mem.Allocator,
 	
 	// Error handling
 	errors: [dynamic]ParseError,
@@ -127,7 +127,7 @@ ParseError :: struct {
 
 // String interner for identifier deduplication
 StringInterner :: struct {
-	arena:   ^mem.Arena,
+	allocator: mem.Allocator,
 	entries: map[string]string,
 }
 
@@ -141,9 +141,9 @@ ParseResult :: struct {
 MAX_ERROR_RECOVERY_ITERATIONS :: 10000
 
 // Initialize string interner
-init_interner :: proc(i: ^StringInterner, arena: ^mem.Arena) {
-	i.arena = arena
-	i.entries = make(map[string]string, mem.arena_allocator(arena))
+init_interner :: proc(i: ^StringInterner, alloc: mem.Allocator) {
+	i.allocator = alloc
+	i.entries = make(map[string]string, alloc)
 }
 
 // Intern a string
@@ -152,8 +152,8 @@ intern :: proc(i: ^StringInterner, s: string) -> string {
 		return existing
 	}
 	
-	// Copy string to arena
-	bytes, _ := mem.arena_alloc_bytes(i.arena, len(s))
+	// Copy string with allocator
+	bytes, _ := mem.alloc_bytes(len(s), allocator=i.allocator)
 	copy(bytes, s)
 	interned := string(bytes)
 	i.entries[interned] = interned
@@ -161,10 +161,10 @@ intern :: proc(i: ^StringInterner, s: string) -> string {
 }
 
 // Initialize parser with legacy lexer
-init_parser :: proc(p: ^Parser, l: ^lexer_pkg.Lexer, arena: ^mem.Arena) {
+init_parser :: proc(p: ^Parser, l: ^lexer_pkg.Lexer, alloc: mem.Allocator) {
 	p.lexer = l
-	p.arena = arena
-	p.errors = make([dynamic]ParseError, mem.arena_allocator(arena))
+	p.allocator = alloc
+	p.errors = make([dynamic]ParseError, alloc)
 	p.in_function = false
 	p.in_generator = false
 	p.in_async = false
@@ -174,8 +174,8 @@ init_parser :: proc(p: ^Parser, l: ^lexer_pkg.Lexer, arena: ^mem.Arena) {
 	p.allow_jsx = false
 	
 	// Initialize interner
-	interner := new(StringInterner, mem.arena_allocator(arena))
-	init_interner(interner, arena)
+	interner := new(StringInterner, alloc)
+	init_interner(interner, alloc)
 	p.interner = interner
 }
 
@@ -196,11 +196,11 @@ ParserAdapter :: struct {
 }
 
 // Initialize parser adapter for optimized lexer
-init_parser_adapter :: proc(p: ^Parser, adapter: ^lexer_pkg.LexerAdapter, arena: ^mem.Arena) {
+init_parser_adapter :: proc(p: ^Parser, adapter: ^lexer_pkg.LexerAdapter, alloc: mem.Allocator) {
 	// Copy adapter reference - we use the adapter's functions directly
 	p.lexer = nil  // Mark as using adapter
-	p.arena = arena
-	p.errors = make([dynamic]ParseError, mem.arena_allocator(arena))
+	p.allocator = alloc
+	p.errors = make([dynamic]ParseError, alloc)
 	p.in_function = false
 	p.in_generator = false
 	p.in_async = false
@@ -210,8 +210,8 @@ init_parser_adapter :: proc(p: ^Parser, adapter: ^lexer_pkg.LexerAdapter, arena:
 	p.allow_jsx = false
 	
 	// Initialize interner
-	interner := new(StringInterner, mem.arena_allocator(arena))
-	init_interner(interner, arena)
+	interner := new(StringInterner, alloc)
+	init_interner(interner, alloc)
 	p.interner = interner
 	
 	// Store adapter reference in a global/thread-local for adapter-based functions
@@ -221,13 +221,13 @@ init_parser_adapter :: proc(p: ^Parser, adapter: ^lexer_pkg.LexerAdapter, arena:
 
 // Create a new node allocated from arena
 new_node :: proc(p: ^Parser, $T: typeid) -> ^T {
-	if p == nil || p.arena == nil {
+	if p == nil {
 		// This is a programming error - panic or return nil
 		// We can't return &T{} because it would be a dangling pointer
-		// The caller MUST ensure p and p.arena are valid
-		panic("new_node called with nil parser or arena")
+		// The caller MUST ensure p and p.allocator are valid
+		panic("new_node called with nil parser or allocator")
 	}
-	return ast_pkg.new_node(T, p.arena)
+	return ast_pkg.new_node(T, p.allocator)
 }
 
 // Helper to convert any statement node to ^Statement union
@@ -424,8 +424,8 @@ parse_program :: proc(p: ^Parser, source_type: ast_pkg.SourceType) -> ^ast_pkg.P
 	program := new_node(p, ast_pkg.Program)
 	program.loc = loc_from_token(get_current(p))
 	program.type = source_type
-	program.body = make([dynamic]^ast_pkg.Statement, mem.arena_allocator(p.arena))
-	program.directives = make([dynamic]ast_pkg.Directive, mem.arena_allocator(p.arena))
+	program.body = make([dynamic]^ast_pkg.Statement, p.allocator)
+	program.directives = make([dynamic]ast_pkg.Directive, p.allocator)
 	
 	// Parse body
 	no_progress_count := 0
@@ -544,7 +544,7 @@ parse_block_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 	
 	block := new_node(p, ast_pkg.BlockStatement)
 	block.loc = start
-	block.body = make([dynamic]^ast_pkg.Statement, mem.arena_allocator(p.arena))
+	block.body = make([dynamic]^ast_pkg.Statement, p.allocator)
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := get_current(p).loc.offset
@@ -956,7 +956,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 	switch_ := new_node(p, ast_pkg.SwitchStatement)
 	switch_.loc = start
 	switch_.discriminant = discriminant
-	switch_.cases = make([dynamic]ast_pkg.SwitchCase, mem.arena_allocator(p.arena))
+	switch_.cases = make([dynamic]ast_pkg.SwitchCase, p.allocator)
 	
 	prev_in_switch := p.in_switch
 	p.in_switch = true
@@ -999,7 +999,7 @@ parse_switch_case :: proc(p: ^Parser) -> ^ast_pkg.SwitchCase {
 	case_ := new_node(p, ast_pkg.SwitchCase)
 	case_.loc = start
 	case_.test = test
-	case_.consequent = make([dynamic]^ast_pkg.Statement, mem.arena_allocator(p.arena))
+	case_.consequent = make([dynamic]^ast_pkg.Statement, p.allocator)
 	
 	for !is_token(p, .Case) && !is_token(p, .Default) && !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		stmt := parse_statement_or_declaration(p)
@@ -1238,7 +1238,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^ast_pkg.Sta
 }
 
 parse_function_params :: proc(p: ^Parser) -> [dynamic]ast_pkg.FunctionParameter {
-	params := make([dynamic]ast_pkg.FunctionParameter, 0, 3, mem.arena_allocator(p.arena))
+	params := make([dynamic]ast_pkg.FunctionParameter, 0, 3, p.allocator)
 	
 	if is_token(p, .RParen) {
 		return params
@@ -1305,8 +1305,8 @@ parse_function_body :: proc(p: ^Parser) -> ast_pkg.FunctionBody {
 	
 	body := ast_pkg.FunctionBody{
 		loc        = start,
-		body       = make([dynamic]^ast_pkg.Statement, mem.arena_allocator(p.arena)),
-		directives = make([dynamic]ast_pkg.Directive, mem.arena_allocator(p.arena)),
+		body       = make([dynamic]^ast_pkg.Statement, p.allocator),
+		directives = make([dynamic]ast_pkg.Directive, p.allocator),
 	}
 	
 	prev_in_function := p.in_function
@@ -1383,7 +1383,7 @@ parse_class_body :: proc(p: ^Parser) -> ast_pkg.ClassBody {
 	
 	body := ast_pkg.ClassBody{
 		loc  = start,
-		body = make([dynamic]ast_pkg.ClassElement, mem.arena_allocator(p.arena)),
+		body = make([dynamic]ast_pkg.ClassElement, p.allocator),
 	}
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
@@ -1591,7 +1591,7 @@ parse_static_block :: proc(p: ^Parser, start: ast_pkg.Loc) -> ^ast_pkg.ClassElem
 	static_block := new_node(p, ast_pkg.FunctionExpression)
 	static_block.loc = start
 	static_block.id = nil
-	static_block.params = make([dynamic]ast_pkg.FunctionParameter, mem.arena_allocator(p.arena))
+	static_block.params = make([dynamic]ast_pkg.FunctionParameter, p.allocator)
 	static_block.body = ast_pkg.FunctionBody{
 		loc = block.loc,
 		body = block.body,
@@ -1638,7 +1638,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(ast_pkg.Vari
 	decl := new_node(p, ast_pkg.VariableDeclaration)
 	decl.loc = start
 	decl.kind = kind
-	decl.declarations = make([dynamic]ast_pkg.VariableDeclarator, mem.arena_allocator(p.arena))
+	decl.declarations = make([dynamic]ast_pkg.VariableDeclarator, p.allocator)
 	
 	for {
 		d := parse_variable_declarator(p, kind, in_for)
@@ -1717,7 +1717,7 @@ parse_object_pattern :: proc(p: ^Parser) -> ast_pkg.Pattern {
 	
 	obj := new_node(p, ast_pkg.ObjectPattern)
 	obj.loc = start
-	obj.properties = make([dynamic]ast_pkg.Property, 0, 4, mem.arena_allocator(p.arena))
+	obj.properties = make([dynamic]ast_pkg.Property, 0, 4, p.allocator)
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prop_start := loc_from_token(get_current(p))
@@ -1910,7 +1910,7 @@ parse_array_pattern :: proc(p: ^Parser) -> ast_pkg.Pattern {
 	arr.loc = start
 	
 	// Use dynamic array for elements - each element is Maybe(Pattern)
-	elements := make([dynamic]Maybe(ast_pkg.Pattern), mem.arena_allocator(p.arena))
+	elements := make([dynamic]Maybe(ast_pkg.Pattern), p.allocator)
 	
 	for !is_token(p, .RBracket) && !is_token(p, .EOF) {
 		// Check for elision (hole): just a comma
@@ -1999,7 +1999,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 	
 	decl := new_node(p, ast_pkg.ImportDeclaration)
 	decl.loc = start
-	decl.specifiers = make([dynamic]^ast_pkg.ImportSpecifierSpec, mem.arena_allocator(p.arena))
+	decl.specifiers = make([dynamic]^ast_pkg.ImportSpecifierSpec, p.allocator)
 	
 	if is_token(p, .String) {
 		// import "module"
@@ -2236,7 +2236,7 @@ parse_export_named :: proc(p: ^Parser, start: ast_pkg.Loc) -> ^ast_pkg.Statement
 	
 	decl := new_node(p, ast_pkg.ExportNamedDeclaration)
 	decl.loc = start
-	decl.specifiers = make([dynamic]ast_pkg.ExportSpecifier, mem.arena_allocator(p.arena))
+	decl.specifiers = make([dynamic]ast_pkg.ExportSpecifier, p.allocator)
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		start_spec := loc_from_token(get_current(p))
@@ -2898,7 +2898,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 				// This is () => ... - return a marker for empty params
 				seq := new_node(p, ast_pkg.SequenceExpression)
 				seq.loc = loc_from_token(current)
-				seq.expressions = make([dynamic]^ast_pkg.Expression, mem.arena_allocator(p.arena))
+				seq.expressions = make([dynamic]^ast_pkg.Expression, p.allocator)
 				return expression_from(p, seq)
 			}
 			// Not an arrow, return nil (empty parens not valid expression)
@@ -2975,7 +2975,7 @@ parse_array_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 	
 	arr := new_node(p, ast_pkg.ArrayExpression)
 	arr.loc = start
-	arr.elements = make([dynamic]Maybe(^ast_pkg.Expression), mem.arena_allocator(p.arena))
+	arr.elements = make([dynamic]Maybe(^ast_pkg.Expression), p.allocator)
 	
 	for !is_token(p, .RBracket) && !is_token(p, .EOF) {
 		if match_token(p, .Comma) {
@@ -3024,7 +3024,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 	
 	obj := new_node(p, ast_pkg.ObjectExpression)
 	obj.loc = start
-	obj.properties = make([dynamic]ast_pkg.Property, 0, 4, mem.arena_allocator(p.arena))
+	obj.properties = make([dynamic]ast_pkg.Property, 0, 4, p.allocator)
 	
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		// Skip stray semicolons (error recovery)
@@ -3324,7 +3324,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^ast_pkg.Expression {
 		return nil
 	}
 	
-	args := make([dynamic]^ast_pkg.Expression, 0, 4, mem.arena_allocator(p.arena))
+	args := make([dynamic]^ast_pkg.Expression, 0, 4, p.allocator)
 
 	if !is_token(p, .RParen) {
 		for {
@@ -3384,8 +3384,8 @@ parse_template_literal :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 	
 	tmpl := new_node(p, ast_pkg.TemplateLiteral)
 	tmpl.loc = start
-	tmpl.quasis = make([dynamic]ast_pkg.TemplateElement, mem.arena_allocator(p.arena))
-	tmpl.expressions = make([dynamic]^ast_pkg.Expression, mem.arena_allocator(p.arena))
+	tmpl.quasis = make([dynamic]ast_pkg.TemplateElement, p.allocator)
+	tmpl.expressions = make([dynamic]^ast_pkg.Expression, p.allocator)
 	
 	// Handle simple template: `hello`
 	if current.type == .Template {
@@ -3502,7 +3502,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^ast_pkg.Expression, is_async := 
 	p.in_async = prev_async
 	
 	// Convert left to parameters
-	params := make([dynamic]ast_pkg.FunctionParameter, mem.arena_allocator(p.arena))
+	params := make([dynamic]ast_pkg.FunctionParameter, p.allocator)
 	
 	if left != nil {
 		#partial switch e in left {
@@ -3570,7 +3570,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^ast_pkg.Expression, is_async := 
 						ap := new_node(p, ast_pkg.ArrayPattern)
 						ap.loc = arg.loc
 						// Convert each element expression to pattern
-						elem_patterns := make([dynamic]Maybe(ast_pkg.Pattern), 0, len(arg.elements), mem.arena_allocator(p.arena))
+						elem_patterns := make([dynamic]Maybe(ast_pkg.Pattern), 0, len(arg.elements), p.allocator)
 						for elem in arg.elements {
 							if elem == nil {
 								append(&elem_patterns, Maybe(ast_pkg.Pattern)(nil))
@@ -3716,7 +3716,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: ast_pkg.Identifier) -> ^as
 	p.in_async = prev_async
 	
 	// Create single param
-	params := make([dynamic]ast_pkg.FunctionParameter, mem.arena_allocator(p.arena))
+	params := make([dynamic]ast_pkg.FunctionParameter, p.allocator)
 	param_ident := new_node(p, ast_pkg.Identifier)
 	param_ident^ = param
 	fn_param := ast_pkg.FunctionParameter{

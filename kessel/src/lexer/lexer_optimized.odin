@@ -20,8 +20,8 @@ Lexer2 :: struct {
 	line:       int,
 	column:     int,
 	
-	// Arena for allocations
-	arena:      ^mem.Arena,
+	// Allocator for memory allocations
+	allocator:  mem.Allocator,
 	
 	// Token storage (SoA)
 	token_soa:  TokenSoA,
@@ -89,13 +89,13 @@ estimate_token_capacity :: proc(source_len: int) -> int {
 }
 
 // Initialize optimized lexer
-init_lexer2 :: proc(l: ^Lexer2, source: string, arena: ^mem.Arena) {
+init_lexer2 :: proc(l: ^Lexer2, source: string, alloc: mem.Allocator) {
 	l.source = source
 	l.source_bytes = transmute([]u8)source
 	l.offset = 0
 	l.line = 1
 	l.column = 1
-	l.arena = arena
+	l.allocator = alloc
 	l.jsx_context = false
 	l.strict_mode = false
 	l.last_token_type = .EOF  // Start of input allows regex
@@ -103,13 +103,13 @@ init_lexer2 :: proc(l: ^Lexer2, source: string, arena: ^mem.Arena) {
 	
 	// Pre-size token storage based on source length
 	token_capacity := estimate_token_capacity(len(source))
-	init_token_soa(&l.token_soa, arena, token_capacity)
+	init_token_soa(&l.token_soa, alloc, token_capacity)
 	
 	// Initialize token ring
 	init_token_ring(&l.ring, &l.token_soa)
 	
 	// Initialize template stack
-	l.template_stack = make([dynamic]bool, mem.arena_allocator(arena))
+	l.template_stack = make([dynamic]bool, alloc)
 	
 	// Reset stats
 	l.stats = {}

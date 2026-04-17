@@ -32,9 +32,8 @@ TokenSoA :: struct {
 	literal_types:  [dynamic]LiteralType,  // Type of literal value
 	literal_values: [dynamic]LiteralValue, // Actual parsed value
 	
-	// String storage for identifiers and string literals
-	// Uses arena allocation, stores offset into arena
-	string_data: ^mem.Arena,
+	// Allocator for any future string allocations
+	allocator: mem.Allocator,
 	
 	// Token count and capacity
 	count: u32,
@@ -70,16 +69,16 @@ TokenView :: struct {
 }
 
 // Initialize SoA token storage
-init_token_soa :: proc(soa: ^TokenSoA, arena: ^mem.Arena, capacity: int = 1024) {
-	soa.types   = make([dynamic]TokenType, 0, capacity, mem.arena_allocator(arena))
-	soa.offsets = make([dynamic]u32, 0, capacity, mem.arena_allocator(arena))
-	soa.lines   = make([dynamic]u32, 0, capacity, mem.arena_allocator(arena))
-	soa.cols    = make([dynamic]u16, 0, capacity, mem.arena_allocator(arena))
-	soa.lengths = make([dynamic]u16, 0, capacity, mem.arena_allocator(arena))
-	soa.had_line_terminator = make([dynamic]bool, 0, capacity, mem.arena_allocator(arena))
-	soa.literal_types  = make([dynamic]LiteralType, 0, capacity, mem.arena_allocator(arena))
-	soa.literal_values = make([dynamic]LiteralValue, 0, capacity, mem.arena_allocator(arena))
-	soa.string_data = arena
+init_token_soa :: proc(soa: ^TokenSoA, alloc: mem.Allocator, capacity: int = 1024) {
+	soa.types   = make([dynamic]TokenType, 0, capacity, alloc)
+	soa.offsets = make([dynamic]u32, 0, capacity, alloc)
+	soa.lines   = make([dynamic]u32, 0, capacity, alloc)
+	soa.cols    = make([dynamic]u16, 0, capacity, alloc)
+	soa.lengths = make([dynamic]u16, 0, capacity, alloc)
+	soa.had_line_terminator = make([dynamic]bool, 0, capacity, alloc)
+	soa.literal_types  = make([dynamic]LiteralType, 0, capacity, alloc)
+	soa.literal_values = make([dynamic]LiteralValue, 0, capacity, alloc)
+	soa.allocator = alloc
 	soa.count = 0
 }
 

@@ -7,14 +7,12 @@ import "core:mem"
 test_lexer :: proc() {
 	source := "const x = 1;"
 	
-	// Create arena
-	arena: mem.Arena
-	backing := make([]byte, 64 * 1024)
-	mem.arena_init(&arena, backing)
+	// Create allocator (using context default for tests)
+	alloc := context.allocator
 	
 	// Initialize lexer
 	l: Lexer2
-	init_lexer2(&l, source, &arena)
+	init_lexer2(&l, source, alloc)
 	
 	// Print first 10 tokens
 	fmt.println("=== Test Lexer ===")

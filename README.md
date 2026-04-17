@@ -159,15 +159,26 @@ The `eval/` directory contains a harness for benchmarking how different LLMs sol
 
 ## Performance
 
-Arena memory usage on modern hardware:
+### Memory Efficiency After Virtual Arena Migration
 
-| Input Size | Time  | Arena Used | Arena Allocated | Utilization |
+Migrated from `mem.Arena` + pre-allocated backing to `mem.virtual.Arena` with lazy commitment (64 KB initial block):
+
+| Input Size | Time  | Arena Used | Arena Reserved | Utilization |
 |------------|-------|------------|-----------------|-------------|
-| < 1 KB     | < 1ms | ~90 KB     | 4 MB (floor)    | 1-2%        |
-| 2.6 KB     | < 1ms | 259 KB     | 4 MB (floor)    | 6%          |
-| 324 KB     | ~50ms | 41 MB      | 83 MB           | 50%         |
+| **Small** (44 B) | ~3ms | 66 KB | 131 KB (virtual) | 50% |
+| **Medium** (500 B) | ~3ms | 91 KB | 131 KB (virtual) | 69% |
+| **Large** (324 KB) | ~23ms | ~2.5 MB | ~5 MB (virtual) | ~50% |
 
-Arena is pre-sized at 256x source bytes with a 4 MB minimum floor. The 50% utilization on large files is intentional headroom to avoid reallocation during AST growth. Small files are dominated by the 4 MB floor.
+#### Improvements from Previous Release
+
+**Before**: Static 4 MB allocation floor per file  
+**After**: 64 KB virtual block, commits lazily on first touch
+
+- **Small files**: ~98% memory reduction (4 MB → 131 KB reserved, 66 KB actual use)
+- **Startup overhead**: Eliminated ~4 MB upfront cost for batch operations
+- **Large files**: Same 50% utilization ratio, sub-millisecond arena initialization
+
+Virtual arena enables efficient multi-file parsing: 100× 1KB files now use ~13 MB instead of 400 MB.
 
 Benchmark your system:
 

@@ -807,16 +807,16 @@ Node :: union {
 // Arena Allocation Helpers
 // ============================================================================
 
-new_expression :: proc($T: typeid, arena: ^mem.Arena) -> ^Expression {
-	return cast(^Expression)mem.new(T, mem.arena_allocator(arena))
+new_expression :: proc($T: typeid, alloc: mem.Allocator) -> ^Expression {
+	return cast(^Expression)mem.new(T, alloc)
 }
 
-new_statement :: proc($T: typeid, arena: ^mem.Arena) -> ^Statement {
-	return cast(^Statement)mem.new(T, mem.arena_allocator(arena))
+new_statement :: proc($T: typeid, alloc: mem.Allocator) -> ^Statement {
+	return cast(^Statement)mem.new(T, alloc)
 }
 
-new_node :: proc($T: typeid, arena: ^mem.Arena) -> ^T {
-	ptr, err := mem.new(T, mem.arena_allocator(arena))
+new_node :: proc($T: typeid, alloc: mem.Allocator) -> ^T {
+	ptr, err := mem.new(T, alloc)
 	if err != nil || ptr == nil {
 		panic(fmt.tprintf("Failed to allocate AST node: %v", err))
 	}

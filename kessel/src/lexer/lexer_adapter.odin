@@ -28,9 +28,9 @@ LexerAdapter :: struct {
 }
 
 // Initialize adapter with optimized lexer
-init_adapter :: proc(a: ^LexerAdapter, source: string, arena: ^mem.Arena) {
+init_adapter :: proc(a: ^LexerAdapter, source: string, alloc: mem.Allocator) {
 	a.source = source
-	init_lexer2(&a.opt, source, arena)
+	init_lexer2(&a.opt, source, alloc)
 	a.current_valid = false
 	a.peek_valid = false
 	a.peek2_valid = false
