@@ -1,0 +1,11 @@
+You are working on Kessel, a JavaScript parser written in Odin.
+
+TASK: Add Unicode identifier support to the lexer. Currently `is_id_start` and `is_id_part` in kessel/src/lexer/lexer_optimized.odin only handle ASCII (a-z, A-Z, _, $, 0-9). This means identifiers like `café`, `日本語`, `π` are rejected.
+
+Look at lines ~1318 and ~1327 in kessel/src/lexer/lexer.odin for the TODO markers. The optimized lexer has the same functions.
+
+Requirements:
+- Support Unicode ID_Start and ID_Continue categories
+- Use Odin's `unicode` package from the standard library
+- Must not break ASCII fast path — keep the byte-level check as first branch
+- Keep performance reasonable (can use a lookup table or range checks)

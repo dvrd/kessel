@@ -1,0 +1,11 @@
+You are working on Kessel, a JavaScript parser written in Odin. The parser file is at kessel/src/parser/parser.odin. The lexer is at kessel/src/lexer/lexer_optimized.odin.
+
+TASK: Fix the `scan_octal_number` and `scan_binary_number` functions in kessel/src/lexer/lexer.odin (lines ~1068 and ~1075). Both currently have `// TODO: Implement` and return empty tokens. 
+
+For reference, the WORKING optimized versions are in kessel/src/lexer/lexer_optimized.odin — look at how they handle 0o/0O (octal) and 0b/0B (binary) prefixes there.
+
+Requirements:
+- Parse octal: 0o755, 0O777
+- Parse binary: 0b1010, 0B11110000
+- Set tok.type = .Number and tok.value to the parsed number
+- Handle invalid digits gracefully

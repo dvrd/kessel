@@ -1065,15 +1065,67 @@ scan_hex_number :: proc(l: ^Lexer, tok: ^Token) -> LexerError {
 
 // Scan octal number
 scan_octal_number :: proc(l: ^Lexer, tok: ^Token) -> LexerError {
-	// TODO: Implement
+	start := l.offset
+	advance(l, 2) // Skip 0o/0O
+
+	if l.offset >= len(l.source) || !is_octal_digit(l.source[l.offset]) {
+		return .InvalidNumber
+	}
+
+	for l.offset < len(l.source) && is_octal_digit(l.source[l.offset]) {
+		advance(l, 1)
+	}
+
+	// BigInt
+	if l.offset < len(l.source) && l.source[l.offset] == 'n' {
+		advance(l, 1)
+		tok.type = .BigInt
+		tok.value = l.source[start:l.offset]
+		return .None
+	}
+
+	value := l.source[start:l.offset]
+	num := 0
+	for i := start + 2; i < l.offset; i += 1 {
+		num = num * 8 + int(l.source[i] - '0')
+	}
+
 	tok.type = .Number
+	tok.value = value
+	tok.literal = f64(num)
 	return .None
 }
 
 // Scan binary number
 scan_binary_number :: proc(l: ^Lexer, tok: ^Token) -> LexerError {
-	// TODO: Implement
+	start := l.offset
+	advance(l, 2) // Skip 0b/0B
+
+	if l.offset >= len(l.source) || !is_binary_digit(l.source[l.offset]) {
+		return .InvalidNumber
+	}
+
+	for l.offset < len(l.source) && is_binary_digit(l.source[l.offset]) {
+		advance(l, 1)
+	}
+
+	// BigInt
+	if l.offset < len(l.source) && l.source[l.offset] == 'n' {
+		advance(l, 1)
+		tok.type = .BigInt
+		tok.value = l.source[start:l.offset]
+		return .None
+	}
+
+	value := l.source[start:l.offset]
+	num := 0
+	for i := start + 2; i < l.offset; i += 1 {
+		num = num * 2 + int(l.source[i] - '0')
+	}
+
 	tok.type = .Number
+	tok.value = value
+	tok.literal = f64(num)
 	return .None
 }
 
@@ -1295,6 +1347,14 @@ is_digit :: proc(c: byte) -> bool {
 
 is_hex_digit :: proc(c: byte) -> bool {
 	return is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
+is_octal_digit :: proc(c: byte) -> bool {
+	return c >= '0' && c <= '7'
+}
+
+is_binary_digit :: proc(c: byte) -> bool {
+	return c == '0' || c == '1'
 }
 
 hex_digit_value :: proc(c: byte) -> int {

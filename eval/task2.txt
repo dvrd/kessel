@@ -1,0 +1,16 @@
+You are working on Kessel, a JavaScript parser written in Odin. The parser file is at kessel/src/parser/parser.odin.
+
+TASK: Add support for default values in arrow function destructuring parameters. Currently this fails:
+```javascript
+const f = ({ x = 10 }) => x;
+const g = ([a = 5]) => a;
+```
+
+The issue is in `parse_arrow_function` (~line 3490 in parser.odin). When converting ObjectExpression/ArrayExpression to ObjectPattern/ArrayPattern for arrow params, it doesn't handle properties with default values (AssignmentExpression).
+
+Look at how `parse_assignment_expr` and `parse_binding_pattern` work. The ObjectPattern properties need to detect when a property has an `=` default and wrap it as an AssignmentPattern.
+
+Requirements:
+- `({ x = 10 }) => x` should parse with 0 errors
+- `([a = 5]) => a` should parse with 0 errors  
+- Don't break existing tests (86/86 passing)
