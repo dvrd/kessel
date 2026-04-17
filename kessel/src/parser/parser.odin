@@ -2514,6 +2514,22 @@ parse_unary_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 		
 		return expression_from(p, await)
 		
+	case .Dot3:
+		// Spread element: ...expr
+		eat(p)
+		
+		argument := parse_unary_expr(p)
+		if argument == nil {
+			return nil
+		}
+		
+		spread := new_node(p, ast_pkg.SpreadElement)
+		spread.loc = loc_from_token(current)
+		spread.argument = argument
+		spread.loc.span.end = get_current(p).loc.offset
+		
+		return expression_from(p, spread)
+		
 	case .Yield:
 		if !p.in_generator {
 			report_error(p, "yield outside of generator function")
@@ -3373,7 +3389,11 @@ parse_arrow_function :: proc(p: ^Parser, left: ^ast_pkg.Expression, is_async := 
 	// Parse body
 	body: ^ast_pkg.Expression
 	if is_token(p, .LBrace) {
+		// Block body - need to set in_function for return statement validation
+		prev_in_function := p.in_function
+		p.in_function = true
 		block_stmt := parse_block_statement(p)
+		p.in_function = prev_in_function
 		if block_stmt != nil {
 			// Block body - use transmute (arrow functions with block need special handling)
 			body = transmute(^ast_pkg.Expression)block_stmt
@@ -3412,6 +3432,30 @@ parse_arrow_function :: proc(p: ^Parser, left: ^ast_pkg.Expression, is_async := 
 						param := ast_pkg.FunctionParameter{
 							loc     = arg.loc,
 							pattern = param_ident,
+						}
+						append(&params, param)
+					case ast_pkg.SpreadElement:
+						// Rest parameter: (...rest) => ...
+						rest := new_node(p, ast_pkg.RestElement)
+						rest.loc = arg.loc
+						// SpreadElement.argument is ^Expression
+						// For arrow params, the argument should be an Identifier
+						// RestElement.argument expects Pattern (^Identifier), so we need to create a new pointer
+						ident_expr := arg.argument
+						if ident_expr != nil {
+							#partial switch id in ident_expr^ {
+							case ast_pkg.Identifier:
+								ident_ptr := new_node(p, ast_pkg.Identifier)
+								ident_ptr^ = id
+								rest.argument = ident_ptr
+							case:
+								report_error(p, "Expected identifier in rest parameter")
+							}
+						}
+						rest.loc.span.end = get_current(p).loc.offset
+						param := ast_pkg.FunctionParameter{
+							loc     = arg.loc,
+							pattern = rest,
 						}
 						append(&params, param)
 					case:
@@ -3525,7 +3569,11 @@ parse_async_arrow_function :: proc(p: ^Parser, param: ast_pkg.Identifier) -> ^as
 	// Parse body
 	body: ^ast_pkg.Expression
 	if is_token(p, .LBrace) {
+		// Block body - need to set in_function for return statement validation
+		prev_in_function := p.in_function
+		p.in_function = true
 		block_stmt := parse_block_statement(p)
+		p.in_function = prev_in_function
 		if block_stmt != nil {
 			body = transmute(^ast_pkg.Expression)block_stmt
 		}
@@ -3580,7 +3628,11 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: lexer_pkg.Token) ->
 	// Parse body
 	body: ^ast_pkg.Expression
 	if is_token(p, .LBrace) {
+		// Block body - need to set in_function for return statement validation
+		prev_in_function := p.in_function
+		p.in_function = true
 		block_stmt := parse_block_statement(p)
+		p.in_function = prev_in_function
 		if block_stmt != nil {
 			body = transmute(^ast_pkg.Expression)block_stmt
 		}
