@@ -1121,6 +1121,7 @@ get_expression_type_name :: proc(expr: ^ast.Expression) -> string {
 	case ast.AwaitExpression:       return "AwaitExpression"
 	case ast.ImportExpression:      return "ImportExpression"
 	case ast.MetaProperty:          return "MetaProperty"
+	case ast.PrivateIdentifier:     return "PrivateIdentifier"
 	}
 	return "Unknown"
 }

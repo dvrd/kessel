@@ -2775,6 +2775,19 @@ parse_primary_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 		this.loc = loc_from_token(current)
 		this.loc.span.end = get_current(p).loc.offset
 		return expression_from(p, this)
+	
+	case .PrivateIdentifier:
+		// Private field reference: #x (used in expressions like #x in this)
+		name := current.value
+		if len(name) > 0 && name[0] == '#' {
+			name = name[1:]
+		}
+		pid := new_node(p, ast_pkg.PrivateIdentifier)
+		pid.loc = loc_from_token(current)
+		pid.name = intern(p.interner, name)
+		eat(p)
+		pid.loc.span.end = get_current(p).loc.offset
+		return expression_from(p, pid)
 		
 	case .Super:
 		eat(p)
