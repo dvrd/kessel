@@ -378,6 +378,48 @@ match_semicolon_or_asi :: proc(p: ^Parser) -> bool {
 // Entry Point - Parse Program
 // ============================================================================
 
+parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^ast_pkg.Statement, start_offset: int) {
+	stmt := parse_statement_or_declaration(p)
+	if stmt != nil {
+		append(body, stmt)
+		return
+	}
+	
+	// Try to parse as expression statement (e.g., dynamic import)
+	if !is_token(p, .EOF) && get_current(p).loc.offset == start_offset {
+		// Still at same position, try expression
+		expr_stmt := parse_expression_statement(p)
+		if expr_stmt != nil {
+			append(body, expr_stmt)
+			return
+		}
+		
+		// Error recovery: we are stuck - consume tokens aggressively
+		// Skip until we find a statement boundary or EOF
+		stuck_count := 0
+		for !is_token(p, .EOF) && get_current(p).loc.offset == start_offset {
+			stuck_count += 1
+			if stuck_count > 100 {
+				// Emergency: force consume and break
+				eat(p)
+				break
+			}
+			// Try to skip to a safe token
+			if is_token(p, .Semi) || is_token(p, .RBrace) {
+				eat(p)
+				break
+			}
+			eat(p)
+		}
+		return
+	}
+	
+	// Error recovery: consume token to avoid infinite loop
+	if !is_token(p, .EOF) {
+		eat(p)
+	}
+}
+
 parse_program :: proc(p: ^Parser, source_type: ast_pkg.SourceType) -> ^ast_pkg.Program {
 	program := new_node(p, ast_pkg.Program)
 	program.loc = loc_from_token(get_current(p))
@@ -386,13 +428,9 @@ parse_program :: proc(p: ^Parser, source_type: ast_pkg.SourceType) -> ^ast_pkg.P
 	program.directives = make([dynamic]ast_pkg.Directive, mem.arena_allocator(p.arena))
 	
 	// Parse body
-	iteration_count := 0
+	no_progress_count := 0
 	for !is_token(p, .EOF) {
-		iteration_count += 1
-		if iteration_count > MAX_ERROR_RECOVERY_ITERATIONS {
-			report_error(p, "Maximum parsing iterations exceeded - possible infinite loop")
-			break
-		}
+		loop_start_offset := get_current(p).loc.offset
 		
 		if is_token(p, .String) {
 			// Check for "use strict" directive
@@ -413,46 +451,21 @@ parse_program :: proc(p: ^Parser, source_type: ast_pkg.SourceType) -> ^ast_pkg.P
 				if !match_token(p, .Semi) && !is_token(p, .EOF) {
 					report_error(p, "Expected semicolon after directive")
 				}
-				continue
+			} else {
+				parse_program_item(p, &program.body, loop_start_offset)
 			}
+		} else {
+			parse_program_item(p, &program.body, loop_start_offset)
 		}
 		
-		prev_offset := get_current(p).loc.offset
-		stmt := parse_statement_or_declaration(p)
-		if stmt != nil {
-			append(&program.body, stmt)
-		} else {
-			// Try to parse as expression statement (e.g., dynamic import)
-			if !is_token(p, .EOF) && get_current(p).loc.offset == prev_offset {
-				// Still at same position, try expression
-				expr_stmt := parse_expression_statement(p)
-				if expr_stmt != nil {
-					append(&program.body, expr_stmt)
-				} else {
-					// Error recovery: we are stuck - consume tokens aggressively
-					// Skip until we find a statement boundary or EOF
-					stuck_count := 0
-					for !is_token(p, .EOF) && get_current(p).loc.offset == prev_offset {
-						stuck_count += 1
-						if stuck_count > 100 {
-							// Emergency: force consume and break
-							eat(p)
-							break
-						}
-						// Try to skip to a safe token
-						if is_token(p, .Semi) || is_token(p, .RBrace) {
-							eat(p)
-							break
-						}
-						eat(p)
-					}
-				}
-			} else {
-				// Error recovery: consume token to avoid infinite loop
-				if !is_token(p, .EOF) {
-					eat(p)
-				}
+		if get_current(p).loc.offset == loop_start_offset {
+			no_progress_count += 1
+			if no_progress_count > MAX_ERROR_RECOVERY_ITERATIONS {
+				report_error(p, "Maximum parsing iterations exceeded - possible infinite loop")
+				break
 			}
+		} else {
+			no_progress_count = 0
 		}
 	}
 	
