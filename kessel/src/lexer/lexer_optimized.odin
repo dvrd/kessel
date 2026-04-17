@@ -469,7 +469,7 @@ lex_number_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	}
 	
 	// Decimal number
-	for l.offset < len(l.source) && (l.source_bytes[l.offset] >= '0' && l.source_bytes[l.offset] <= '9') {
+	for l.offset < len(l.source) && ((l.source_bytes[l.offset] >= '0' && l.source_bytes[l.offset] <= '9') || l.source_bytes[l.offset] == '_') {
 		advance2(l, 1)
 	}
 	
@@ -532,34 +532,45 @@ lex_string_optimized :: proc(l: ^Lexer2, loc: Loc, quote: u8) -> CompactToken {
 	remaining := l.source_bytes[l.offset:]
 	
 	if len(remaining) >= 16 {
-		// Use SIMD to find quote
+		// Use SIMD to find quote, but fall back to scalar if the candidate span
+		// contains escapes because the SIMD path does not fully validate them.
 		l.stats.simd_chunks_processed += 1
 		quote_pos := simd_find_quote(remaining, quote)
 		
 		if quote_pos < len(remaining) && remaining[quote_pos] == quote {
-			// Found closing quote
-			length := quote_pos
-			text := l.source[l.offset:l.offset+length]
-			
-			// Count newlines in string
-			nl_info := simd_count_newlines(transmute([]u8)text)
-			l.line += nl_info.count
-			if nl_info.last_nl_pos >= 0 {
-				l.column = length - nl_info.last_nl_pos
-			} else {
-				l.column += length + 2  // +2 for quotes
+			has_escape := false
+			for i := 0; i < quote_pos; i += 1 {
+				if remaining[i] == '\\' {
+					has_escape = true
+					break
+				}
 			}
 			
-			l.offset += length + 1  // +1 for closing quote
-			
-			return add_token_literal(
-				&l.token_soa,
-				.String,
-				loc,
-				length + 2,
-				.String,
-				LiteralValue(text),
-			)
+			if !has_escape {
+				// Found closing quote with no escapes in the fast path span.
+				length := quote_pos
+				text := l.source[l.offset:l.offset+length]
+				
+				// Count newlines in string
+				nl_info := simd_count_newlines(transmute([]u8)text)
+				l.line += nl_info.count
+				if nl_info.last_nl_pos >= 0 {
+					l.column = length - nl_info.last_nl_pos
+				} else {
+					l.column += length + 2  // +2 for quotes
+				}
+				
+				l.offset += length + 1  // +1 for closing quote
+				
+				return add_token_literal(
+					&l.token_soa,
+					.String,
+					loc,
+					length + 2,
+					.String,
+					LiteralValue(text),
+				)
+			}
 		}
 	} else {
 		l.stats.scalar_fallbacks += 1
@@ -997,7 +1008,24 @@ lex_string_scalar :: proc(l: ^Lexer2, loc: Loc, quote: u8, start: int) -> Compac
 		}
 		
 		if c == '\\' && l.offset + 1 < len(l.source) {
-			advance2(l, 2)  // Skip escaped char
+			next := l.source_bytes[l.offset + 1]
+			// Handle \u{...} unicode extended escapes
+			if (next == 'u' || next == 'U') && l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '{' {
+				// Skip \u{ and find closing }
+				advance2(l, 3)  // Skip \u{
+				for l.offset < len(l.source) && l.source_bytes[l.offset] != '}' {
+					if l.source_bytes[l.offset] == '\n' {
+						advance_line2(l)
+					} else {
+						advance2(l, 1)
+					}
+				}
+				if l.offset < len(l.source) && l.source_bytes[l.offset] == '}' {
+					advance2(l, 1)  // Skip }
+				}
+			} else {
+				advance2(l, 2)  // Skip escaped char
+			}
 		} else if c == '\n' {
 			advance_line2(l)
 		} else {
@@ -1016,7 +1044,7 @@ lex_hex_number :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	
 	for l.offset < len(l.source) {
 		c := l.source_bytes[l.offset]
-		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
+		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '_' {
 			advance2(l, 1)
 		} else {
 			break
@@ -1042,7 +1070,7 @@ lex_binary_number :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	
 	for l.offset < len(l.source) {
 		c := l.source_bytes[l.offset]
-		if c == '0' || c == '1' {
+		if c == '0' || c == '1' || c == '_' {
 			advance2(l, 1)
 		} else {
 			break
@@ -1068,7 +1096,7 @@ lex_octal_number :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	
 	for l.offset < len(l.source) {
 		c := l.source_bytes[l.offset]
-		if c >= '0' && c <= '7' {
+		if (c >= '0' && c <= '7') || c == '_' {
 			advance2(l, 1)
 		} else {
 			break
