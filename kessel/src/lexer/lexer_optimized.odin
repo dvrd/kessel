@@ -58,11 +58,11 @@ LexerStats :: struct {
 // ============================================================================
 
 // Estimate required arena size based on source characteristics
-// Heuristic: ~64x source size for typical JS (reduced from 256x)
+// Heuristic: ~128x source size for large JS to leave headroom for AST-heavy inputs
 estimate_arena_size :: proc(source_len: int) -> int {
-	// Base: 64 bytes per source byte for tokens + AST
-	// (Reduced from 256x - still sufficient for typical JS AST)
-	base_size := source_len * 64
+	// Base: 128 bytes per source byte for tokens + AST.
+	// Large concatenated fixtures can exceed the previous 64x estimate and OOM mid-parse.
+	base_size := source_len * 128
 	
 	// Minimum: 4MB for small files
 	if base_size < 4 * 1024 * 1024 {
@@ -80,9 +80,9 @@ estimate_arena_size :: proc(source_len: int) -> int {
 // Estimate token capacity based on source size
 // Heuristic: ~1 token per 3-4 chars on average
 estimate_token_capacity :: proc(source_len: int) -> int {
-	// Heuristic: ~1 token per 2 chars for verbose JS with many small tokens
-	// (was 1 per 3 chars, but nested structures like { n: 0, f: () => 0 * 2 } have more tokens)
-	return max(source_len / 2, 1024)
+	// Heuristic: ~1 token per source char for large, punctuation-heavy fixtures.
+	// This over-allocates slightly, but avoids repeated SoA growth across eight parallel arrays.
+	return max(source_len, 1024)
 }
 
 // Initialize optimized lexer

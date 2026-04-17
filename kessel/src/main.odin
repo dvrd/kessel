@@ -1,6 +1,8 @@
 package main
 
+import "core:bufio"
 import "core:fmt"
+import "core:io"
 import "core:mem"
 import "core:os"
 import "core:strings"
@@ -13,9 +15,47 @@ import ast "./ast"
 // Main Entry Point
 // ============================================================================
 
+stdout_writer_initialized := false
+stdout_writer: bufio.Writer
+stdout_writer_buf: [64 * 1024]byte
+stdout_stream: io.Writer
+
+init_stdout_writer :: proc() {
+	if stdout_writer_initialized {
+		return
+	}
+	bufio.writer_init_with_buf(&stdout_writer, os.to_stream(os.stdout), stdout_writer_buf[:])
+	stdout_stream = bufio.writer_to_writer(&stdout_writer)
+	stdout_writer_initialized = true
+}
+
+flush_stdout_writer :: proc() {
+	if !stdout_writer_initialized {
+		return
+	}
+	bufio.writer_flush(&stdout_writer)
+	os.flush(os.stdout)
+}
+
+out_print :: proc(args: ..any) -> int {
+	init_stdout_writer()
+	return fmt.wprint(stdout_stream, ..args, flush=false)
+}
+
+out_println :: proc(args: ..any) -> int {
+	init_stdout_writer()
+	return fmt.wprintln(stdout_stream, ..args, flush=false)
+}
+
+out_printf :: proc(format: string, args: ..any) -> int {
+	init_stdout_writer()
+	return fmt.wprintf(stdout_stream, format, ..args, flush=false)
+}
+
 main :: proc() {
 	if len(os.args) < 2 {
 		print_usage()
+		flush_stdout_writer()
 		os.exit(1)
 	}
 	
@@ -24,8 +64,9 @@ main :: proc() {
 	switch command {
 	case "parse":
 		if len(os.args) < 3 {
-			fmt.println("Error: parse command requires a file path")
-			fmt.println("Usage: kessel parse <js-file>")
+			out_println("Error: parse command requires a file path")
+			out_println("Usage: kessel parse <js-file>")
+			flush_stdout_writer()
 			os.exit(1)
 		}
 		file_path := os.args[2]
@@ -33,8 +74,9 @@ main :: proc() {
 		
 	case "lex", "tokenize":
 		if len(os.args) < 3 {
-			fmt.println("Error: lex command requires a file path")
-			fmt.println("Usage: kessel lex <js-file>")
+			out_println("Error: lex command requires a file path")
+			out_println("Usage: kessel lex <js-file>")
+			flush_stdout_writer()
 			os.exit(1)
 		}
 		file_path := os.args[2]
@@ -44,30 +86,32 @@ main :: proc() {
 		print_usage()
 		
 	case "version", "-v", "--version":
-		fmt.println("kessel version 0.1.0")
+		out_println("kessel version 0.1.0")
 		
 	case:
-		fmt.printf("Unknown command: %s\n", command)
+		out_printf("Unknown command: %s\n", command)
 		print_usage()
+		flush_stdout_writer()
 		os.exit(1)
 	}
+	flush_stdout_writer()
 }
 
 print_usage :: proc() {
-	fmt.println("Kessel - Fast JavaScript Parser")
-	fmt.println("")
-	fmt.println("Usage: kessel <command> [options]")
-	fmt.println("")
-	fmt.println("Commands:")
-	fmt.println("  parse <file>     Parse a JavaScript file and output AST as JSON")
-	fmt.println("  lex <file>       Tokenize a JavaScript file and output tokens")
-	fmt.println("  test             Run lexer debug test")
-	fmt.println("  help             Show this help message")
-	fmt.println("  version          Show version information")
-	fmt.println("")
-	fmt.println("Examples:")
-	fmt.println("  kessel parse app.js")
-	fmt.println("  kessel lex src/index.js")
+	out_println("Kessel - Fast JavaScript Parser")
+	out_println("")
+	out_println("Usage: kessel <command> [options]")
+	out_println("")
+	out_println("Commands:")
+	out_println("  parse <file>     Parse a JavaScript file and output AST as JSON")
+	out_println("  lex <file>       Tokenize a JavaScript file and output tokens")
+	out_println("  test             Run lexer debug test")
+	out_println("  help             Show this help message")
+	out_println("  version          Show version information")
+	out_println("")
+	out_println("Examples:")
+	out_println("  kessel parse app.js")
+	out_println("  kessel lex src/index.js")
 }
 
 // ============================================================================
@@ -78,7 +122,8 @@ parse_file :: proc(file_path: string) {
 	// Read file
 	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
 	if read_err != nil {
-		fmt.printf("Error: Could not read file: %s\n", file_path)
+		out_printf("Error: Could not read file: %s\n", file_path)
+		flush_stdout_writer()
 		os.exit(1)
 	}
 	defer delete(source, context.allocator)
@@ -106,16 +151,16 @@ parse_file :: proc(file_path: string) {
 	
 	// Check for errors
 	if len(p.errors) > 0 {
-		fmt.printf("Parse errors (%d):\n", len(p.errors))
+		out_printf("Parse errors (%d):\n", len(p.errors))
 		for err in p.errors {
-			fmt.printf("  Line %d, Column %d: %s\n", err.loc.line, err.loc.column, err.message)
+			out_printf("  Line %d, Column %d: %s\n", err.loc.line, err.loc.column, err.message)
 		}
 	}
 	
 	// Output AST as JSON-like structure
-	fmt.println("{")
+	out_println("{")
 	print_program_ast(program, 1)
-	fmt.println("}")
+	out_println("}")
 	
 	// Print statistics
 	fmt.eprintf("\n--- Statistics ---\n")
@@ -129,46 +174,46 @@ parse_file :: proc(file_path: string) {
 
 print_indent :: proc(indent: int) {
 	for i in 0..<indent {
-		fmt.print("  ")
+		out_print("  ")
 	}
 }
 
 print_program_ast :: proc(program: ^ast.Program, indent: int) {
 	print_indent(indent)
 	type_str := "Script" if program.type == .Script else "Module"
-	fmt.printf("\"type\": \"%s\",\n", type_str)
+	out_printf("\"type\": \"%s\",\n", type_str)
 	
 	print_indent(indent)
-	fmt.println("\"body\": [")
+	out_println("\"body\": [")
 	
 	for stmt, i in program.body {
 		print_indent(indent + 1)
-		fmt.println("{")
+		out_println("{")
 		print_statement_ast(stmt, indent + 2)
 		print_indent(indent + 1)
 		if i < len(program.body) - 1 {
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("}")
+			out_println("}")
 		}
 	}
 	
 	print_indent(indent)
-	fmt.println("]")
+	out_println("]")
 }
 
 print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 	print_indent(indent)
-	fmt.printf("\"type\": \"%s\"", get_statement_type_name(stmt))
+	out_printf("\"type\": \"%s\"", get_statement_type_name(stmt))
 	
 	#partial switch s in stmt^ {
 	case ^ast.ExpressionStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"expression\": {")
+		out_println("\"expression\": {")
 		print_expression_ast(s.expression, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 		
 	case ^ast.VariableDeclaration:
 		kind_str := "var"
@@ -176,364 +221,364 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		case .Let:   kind_str = "let"
 		case .Const: kind_str = "const"
 		}
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"kind\": \"%s\",\n", kind_str)
+		out_printf("\"kind\": \"%s\",\n", kind_str)
 		print_indent(indent)
-		fmt.println("\"declarations\": [")
+		out_println("\"declarations\": [")
 		for decl, i in s.declarations {
 			print_indent(indent + 1)
-			fmt.println("{")
+			out_println("{")
 			print_indent(indent + 2)
-			fmt.println("\"id\": {")
+			out_println("\"id\": {")
 			print_pattern_ast(decl.id, indent + 3)
 			print_indent(indent + 2)
-			fmt.println("},")
+			out_println("},")
 			print_indent(indent + 2)
-			fmt.print("\"init\": ")
+			out_print("\"init\": ")
 			if init, ok := decl.init.(^ast.Expression); ok {
-				fmt.println("{")
+				out_println("{")
 				print_expression_ast(init, indent + 3)
 				print_indent(indent + 2)
-				fmt.print("}")
+				out_print("}")
 			} else {
-				fmt.print("null")
+				out_print("null")
 			}
 			print_indent(indent + 1)
 			if i < len(s.declarations) - 1 {
-				fmt.println("},")
+				out_println("},")
 			} else {
-				fmt.println("}")
+				out_println("}")
 			}
 		}
 		print_indent(indent)
-		fmt.print("]")
+		out_print("]")
 		
 	case ^ast.FunctionDeclaration:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"id\": {")
+		out_println("\"id\": {")
 		if id, ok := s.expr.id.(ast.BindingIdentifier); ok {
 			print_indent(indent + 1)
-			fmt.printf("\"name\": \"%s\"\n", id.name)
+			out_printf("\"name\": \"%s\"\n", id.name)
 		}
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.printf("\"generator\": %v,\n", s.expr.generator)
+		out_printf("\"generator\": %v,\n", s.expr.generator)
 		print_indent(indent)
-		fmt.printf("\"async\": %v", s.expr.async)
+		out_printf("\"async\": %v", s.expr.async)
 		
 	case ^ast.BlockStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"body\": [")
+		out_println("\"body\": [")
 		for inner_stmt, i in s.body {
 			print_indent(indent + 1)
-			fmt.println("{")
+			out_println("{")
 			print_statement_ast(inner_stmt, indent + 2)
 			print_indent(indent + 1)
 			if i < len(s.body) - 1 {
-				fmt.println("},")
+				out_println("},")
 			} else {
-				fmt.println("}")
+				out_println("}")
 			}
 		}
 		print_indent(indent)
-		fmt.print("]")
+		out_print("]")
 		
 	case ^ast.ReturnStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"argument\": ")
+		out_print("\"argument\": ")
 		if arg, ok := s.argument.(^ast.Expression); ok {
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(arg, indent + 1)
 			print_indent(indent)
-			fmt.print("}")
+			out_print("}")
 		} else {
-			fmt.print("null")
+			out_print("null")
 		}
 		
 	case ^ast.IfStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"test\": {")
+		out_println("\"test\": {")
 		print_expression_ast(s.test, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"consequent\": {")
+		out_println("\"consequent\": {")
 		print_statement_ast(s.consequent, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.print("\"alternate\": ")
+		out_print("\"alternate\": ")
 		if alt, ok := s.alternate.(^ast.Statement); ok {
-			fmt.println("{")
+			out_println("{")
 			print_statement_ast(alt, indent + 1)
 			print_indent(indent)
-			fmt.print("}")
+			out_print("}")
 		} else {
-			fmt.print("null")
+			out_print("null")
 		}
 		
 	case ^ast.WhileStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"test\": {")
+		out_println("\"test\": {")
 		print_expression_ast(s.test, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"body\": {")
+		out_println("\"body\": {")
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ^ast.ForStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"init\": ")
+		out_print("\"init\": ")
 		if decl, ok := s.init_decl.(^ast.VariableDeclaration); ok {
-			fmt.println("{")
+			out_println("{")
 			print_statement_ast((^ast.Statement)(decl), indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else if expr, ok := s.init_expr.(^ast.Expression); ok {
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(expr, indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("null,")
+			out_println("null,")
 		}
 		print_indent(indent)
-		fmt.print("\"test\": ")
+		out_print("\"test\": ")
 		if test_expr, ok := s.test.(^ast.Expression); ok {
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(test_expr, indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("null,")
+			out_println("null,")
 		}
 		print_indent(indent)
-		fmt.print("\"update\": ")
+		out_print("\"update\": ")
 		if upd_expr, ok := s.update.(^ast.Expression); ok {
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(upd_expr, indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("null,")
+			out_println("null,")
 		}
 		print_indent(indent)
-		fmt.println("\"body\": {")
+		out_println("\"body\": {")
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ^ast.ClassDeclaration:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"id\": ")
+		out_print("\"id\": ")
 		if id, ok := s.id.(ast.BindingIdentifier); ok {
-			fmt.println("{")
+			out_println("{")
 			print_indent(indent + 1)
-			fmt.println("\"type\": \"Identifier\",")
+			out_println("\"type\": \"Identifier\",")
 			print_indent(indent + 1)
-			fmt.printf("\"name\": \"%s\"\n", id.name)
+			out_printf("\"name\": \"%s\"\n", id.name)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("null,")
+			out_println("null,")
 		}
 		print_indent(indent)
-		fmt.print("\"superClass\": ")
+		out_print("\"superClass\": ")
 		if super, ok := s.super_class.(^ast.Expression); ok && super != nil {
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(super, indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("null,")
+			out_println("null,")
 		}
 		print_indent(indent)
-		fmt.print("\"body\": { ... }")
+		out_print("\"body\": { ... }")
 	
 	case ^ast.TryStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"block\": { ... },")
+		out_println("\"block\": { ... },")
 		print_indent(indent)
-		fmt.print("\"handler\": ")
+		out_print("\"handler\": ")
 		if handler, ok := s.handler.(ast.CatchClause); ok {
-			fmt.println("{")
+			out_println("{")
 			print_indent(indent + 1)
-			fmt.println("\"type\": \"CatchClause\",")
+			out_println("\"type\": \"CatchClause\",")
 			print_indent(indent + 1)
-			fmt.print("\"param\": ")
+			out_print("\"param\": ")
 			if param, ok2 := handler.param.(ast.Pattern); ok2 {
-				fmt.println("{")
+				out_println("{")
 				print_pattern_ast(param, indent + 2)
 				print_indent(indent + 1)
-				fmt.println("},")
+				out_println("},")
 			} else {
-				fmt.println("null,")
+				out_println("null,")
 			}
 			print_indent(indent + 1)
-			fmt.println("\"body\": { ... }")
+			out_println("\"body\": { ... }")
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("null,")
+			out_println("null,")
 		}
 		print_indent(indent)
-		fmt.print("\"finalizer\": ")
+		out_print("\"finalizer\": ")
 		if fin, ok := s.finalizer.(ast.BlockStatement); ok {
-			fmt.println("{")
+			out_println("{")
 			print_statement_ast((^ast.Statement)(&fin), indent + 1)
 			print_indent(indent)
-			fmt.print("}")
+			out_print("}")
 		} else {
-			fmt.print("null")
+			out_print("null")
 		}
 	
 	case ^ast.ExportNamedDeclaration:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"specifiers\": [ ... ]")
+		out_print("\"specifiers\": [ ... ]")
 	
 	case ^ast.ExportDefaultDeclaration:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"declaration\": { ... }")
+		out_print("\"declaration\": { ... }")
 	
 	case ^ast.ExportAllDeclaration:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"source\": { ... }")
+		out_print("\"source\": { ... }")
 	
 	case ^ast.DoWhileStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"body\": {")
+		out_println("\"body\": {")
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.print("\"test\": { ... }")
+		out_print("\"test\": { ... }")
 	
 	case ^ast.SwitchStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"discriminant\": { ... },\n")
+		out_print("\"discriminant\": { ... },\n")
 		print_indent(indent)
-		fmt.print("\"cases\": [ ... ]")
+		out_print("\"cases\": [ ... ]")
 	
 	case ^ast.ForInStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"left\": ")
+		out_print("\"left\": ")
 		if decl, ok := s.left_decl.(^ast.VariableDeclaration); ok {
-			fmt.println("{")
+			out_println("{")
 			print_statement_ast((^ast.Statement)(decl), indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else if expr, ok := s.left_expr.(^ast.Expression); ok {
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(expr, indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("null,")
+			out_println("null,")
 		}
 		print_indent(indent)
-		fmt.println("\"right\": {")
+		out_println("\"right\": {")
 		print_expression_ast(s.right, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"body\": {")
+		out_println("\"body\": {")
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ^ast.ForOfStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"left\": ")
+		out_print("\"left\": ")
 		if decl, ok := s.left_decl.(^ast.VariableDeclaration); ok {
-			fmt.println("{")
+			out_println("{")
 			print_statement_ast((^ast.Statement)(decl), indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else if expr, ok := s.left_expr.(^ast.Expression); ok {
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(expr, indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("null,")
+			out_println("null,")
 		}
 		print_indent(indent)
-		fmt.println("\"right\": {")
+		out_println("\"right\": {")
 		print_expression_ast(s.right, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.print("\"await\": ")
+		out_print("\"await\": ")
 		if s.await {
-			fmt.println("true,")
+			out_println("true,")
 		} else {
-			fmt.println("false,")
+			out_println("false,")
 		}
 		print_indent(indent)
-		fmt.println("\"body\": {")
+		out_println("\"body\": {")
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 		print_indent(indent)
-		fmt.print("\"await\": false,\n")
+		out_print("\"await\": false,\n")
 		print_indent(indent)
-		fmt.print("\"body\": { ... }")
+		out_print("\"body\": { ... }")
 	
 	case ^ast.ThrowStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"argument\": { ... }")
+		out_print("\"argument\": { ... }")
 	
 	case ^ast.ImportDeclaration:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"specifiers\": [ ... ],\n")
+		out_print("\"specifiers\": [ ... ],\n")
 		print_indent(indent)
-		fmt.print("\"source\": { ... }")
+		out_print("\"source\": { ... }")
 	
 	case ^ast.BreakStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"label\": null")
+		out_print("\"label\": null")
 	
 	case ^ast.ContinueStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"label\": null")
+		out_print("\"label\": null")
 	
 	case ^ast.LabeledStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"label\": { ... },\n")
+		out_print("\"label\": { ... },\n")
 		print_indent(indent)
-		fmt.print("\"body\": { ... }")
+		out_print("\"body\": { ... }")
 	
 	case ^ast.WithStatement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.print("\"object\": { ... },\n")
+		out_print("\"object\": { ... },\n")
 		print_indent(indent)
-		fmt.print("\"body\": { ... }")
+		out_print("\"body\": { ... }")
 	
 	case ^ast.EmptyStatement:
 		// No additional fields
@@ -542,9 +587,9 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		// No additional fields
 		
 	case:
-		fmt.printf(",\n")
+		out_printf(",\n")
 		print_indent(indent)
-		fmt.printf("\"[UNIMPLEMENTED]\": true")
+		out_printf("\"[UNIMPLEMENTED]\": true")
 	}
 }
 
@@ -552,61 +597,61 @@ print_pattern_ast :: proc(pattern: ast.Pattern, indent: int) {
 	#partial switch p in pattern {
 	case ^ast.Identifier:
 		print_indent(indent)
-		fmt.println("\"type\": \"Identifier\",")
+		out_println("\"type\": \"Identifier\",")
 		print_indent(indent)
-		fmt.printf("\"name\": \"%s\"", p.name)
+		out_printf("\"name\": \"%s\"", p.name)
 	case ^ast.ArrayPattern:
 		print_indent(indent)
-		fmt.println("\"type\": \"ArrayPattern\",")
+		out_println("\"type\": \"ArrayPattern\",")
 		print_indent(indent)
-		fmt.println("\"elements\": [")
+		out_println("\"elements\": [")
 		for elem, i in p.elements {
 			if e, ok := elem.(ast.Pattern); ok {
 				print_pattern_ast(e, indent + 1)
 				if i < len(p.elements) - 1 {
-					fmt.println(",")
+					out_println(",")
 				}
 			}
 		}
 		print_indent(indent)
-		fmt.print("]")
+		out_print("]")
 	case ^ast.ObjectPattern:
 		print_indent(indent)
-		fmt.println("\"type\": \"ObjectPattern\",")
+		out_println("\"type\": \"ObjectPattern\",")
 		print_indent(indent)
-		fmt.println("\"properties\": [ ... ]") // Simplified for now
+		out_println("\"properties\": [ ... ]") // Simplified for now
 	case:
 		print_indent(indent)
-		fmt.print("null")
+		out_print("null")
 	}
 }
 
 print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 	print_indent(indent)
-	fmt.printf("\"type\": \"%s\"", get_expression_type_name(expr))
+	out_printf("\"type\": \"%s\"", get_expression_type_name(expr))
 	
 	#partial switch e in expr^ {
 	case ast.Identifier:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"name\": \"%s\"", e.name)
+		out_printf("\"name\": \"%s\"", e.name)
 		
 	case ast.NumericLiteral:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"value\": %v,\n", e.value)
+		out_printf("\"value\": %v,\n", e.value)
 		print_indent(indent)
-		fmt.printf("\"raw\": \"%s\"", e.raw)
+		out_printf("\"raw\": \"%s\"", e.raw)
 		
 	case ast.StringLiteral:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"value\": \"%s\"", e.value)
+		out_printf("\"value\": \"%s\"", e.value)
 		
 	case ast.BooleanLiteral:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"value\": %v", e.value)
+		out_printf("\"value\": %v", e.value)
 		
 	case ast.NullLiteral:
 		// No additional fields
@@ -615,32 +660,32 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		// No additional fields
 		
 	case ast.ArrayExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"elements\": [")
+		out_println("\"elements\": [")
 		for elem, i in e.elements {
 			if el, ok := elem.(^ast.Expression); ok {
 				print_indent(indent + 1)
-				fmt.println("{")
+				out_println("{")
 				print_expression_ast(el, indent + 2)
 				print_indent(indent + 1)
 				if i < len(e.elements) - 1 {
-					fmt.println("},")
+					out_println("},")
 				} else {
-					fmt.println("}")
+					out_println("}")
 				}
 			}
 		}
 		print_indent(indent)
-		fmt.print("]")
+		out_print("]")
 		
 	case ast.ObjectExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"properties\": [")
+		out_println("\"properties\": [")
 		for prop, i in e.properties {
 			print_indent(indent + 1)
-			fmt.println("{")
+			out_println("{")
 			print_indent(indent + 2)
 			kind_str := "init"
 			#partial switch prop.kind {
@@ -648,244 +693,244 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 			case .Set: kind_str = "set"
 			case .Method: kind_str = "method"
 			}
-			fmt.printf("\"kind\": \"%s\",\n", kind_str)
+			out_printf("\"kind\": \"%s\",\n", kind_str)
 
 			// Spread properties have nil key
 			if prop.key != nil {
 				print_indent(indent + 2)
-				fmt.println("\"key\": {")
+				out_println("\"key\": {")
 				print_expression_ast(prop.key, indent + 3)
 				print_indent(indent + 2)
-				fmt.println("},")
+				out_println("},")
 			} else {
 				print_indent(indent + 2)
-				fmt.println("\"key\": null,")
+				out_println("\"key\": null,")
 			}
 
 			if prop.value != nil {
 				print_indent(indent + 2)
-				fmt.println("\"value\": {")
+				out_println("\"value\": {")
 				print_expression_ast(prop.value, indent + 3)
 				print_indent(indent + 2)
-				fmt.print("}")
+				out_print("}")
 			} else {
 				print_indent(indent + 2)
-				fmt.print("\"value\": null")
+				out_print("\"value\": null")
 			}
 
 			print_indent(indent + 1)
 			if i < len(e.properties) - 1 {
-				fmt.println("},")
+				out_println("},")
 			} else {
-				fmt.println("}")
+				out_println("}")
 			}
 		}
 		print_indent(indent)
-		fmt.print("]")
+		out_print("]")
 		
 	case ast.BinaryExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
 		op_str := binary_op_to_string(e.operator)
-		fmt.printf("\"operator\": \"%s\",\n", op_str)
+		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
-		fmt.println("\"left\": {")
+		out_println("\"left\": {")
 		print_expression_ast(e.left, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"right\": {")
+		out_println("\"right\": {")
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 		
 	case ast.UnaryExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
 		op_str := unary_op_to_string(e.operator)
-		fmt.printf("\"operator\": \"%s\",\n", op_str)
+		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
-		fmt.printf("\"prefix\": %v,\n", e.prefix)
+		out_printf("\"prefix\": %v,\n", e.prefix)
 		print_indent(indent)
-		fmt.println("\"argument\": {")
+		out_println("\"argument\": {")
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 		
 	case ast.AssignmentExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
 		op_str := assignment_op_to_string(e.operator)
-		fmt.printf("\"operator\": \"%s\",\n", op_str)
+		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
-		fmt.println("\"left\": {")
+		out_println("\"left\": {")
 		print_expression_ast(e.left, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"right\": {")
+		out_println("\"right\": {")
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 		
 	case ast.CallExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"callee\": {")
+		out_println("\"callee\": {")
 		print_expression_ast(e.callee, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"arguments\": [")
+		out_println("\"arguments\": [")
 		for arg, i in e.arguments {
 			print_indent(indent + 1)
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(arg, indent + 2)
 			print_indent(indent + 1)
 			if i < len(e.arguments) - 1 {
-				fmt.println("},")
+				out_println("},")
 			} else {
-				fmt.println("}")
+				out_println("}")
 			}
 		}
 		print_indent(indent)
-		fmt.print("]")
+		out_print("]")
 		
 	case ast.MemberExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"computed\": %v,\n", e.computed)
+		out_printf("\"computed\": %v,\n", e.computed)
 		print_indent(indent)
-		fmt.println("\"object\": {")
+		out_println("\"object\": {")
 		print_expression_ast(e.object, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"property\": {")
+		out_println("\"property\": {")
 		print_expression_ast(e.property, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 		
 	case ast.ConditionalExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"test\": {")
+		out_println("\"test\": {")
 		print_expression_ast(e.test, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"consequent\": {")
+		out_println("\"consequent\": {")
 		print_expression_ast(e.consequent, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"alternate\": {")
+		out_println("\"alternate\": {")
 		print_expression_ast(e.alternate, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 		
 	case ast.FunctionExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"generator\": %v,\n", e.generator)
+		out_printf("\"generator\": %v,\n", e.generator)
 		print_indent(indent)
-		fmt.printf("\"async\": %v,\n", e.async)
+		out_printf("\"async\": %v,\n", e.async)
 		print_indent(indent)
-		fmt.println("\"params\": [ ... ],")
+		out_println("\"params\": [ ... ],")
 		print_indent(indent)
-		fmt.print("\"body\": { ... }")
+		out_print("\"body\": { ... }")
 		
 	case ast.ArrowFunctionExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"expression\": %v,\n", e.expression)
+		out_printf("\"expression\": %v,\n", e.expression)
 		print_indent(indent)
-		fmt.printf("\"async\": %v", e.async)
+		out_printf("\"async\": %v", e.async)
 	
 	case ast.NewExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"callee\": {")
+		out_println("\"callee\": {")
 		print_expression_ast(e.callee, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"arguments\": [")
+		out_println("\"arguments\": [")
 		for arg, i in e.arguments {
 			print_indent(indent + 1)
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(arg, indent + 2)
 			print_indent(indent + 1)
 			if i < len(e.arguments) - 1 {
-				fmt.println("},")
+				out_println("},")
 			} else {
-				fmt.println("}")
+				out_println("}")
 			}
 		}
 		print_indent(indent)
-		fmt.print("]")
+		out_print("]")
 	
 	case ast.TemplateLiteral:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"quasis\": [ ... ],")
+		out_println("\"quasis\": [ ... ],")
 		print_indent(indent)
-		fmt.print("\"expressions\": [ ... ]")
+		out_print("\"expressions\": [ ... ]")
 	
 	case ast.TaggedTemplateExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"tag\": {")
+		out_println("\"tag\": {")
 		print_expression_ast(e.tag, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"quasi\": {")
+		out_println("\"quasi\": {")
 		print_expression_ast(e.quasi, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ast.SpreadElement:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"argument\": {")
+		out_println("\"argument\": {")
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ast.BigIntLiteral:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"value\": \"%s\",\n", e.value)
+		out_printf("\"value\": \"%s\",\n", e.value)
 		print_indent(indent)
-		fmt.printf("\"raw\": \"%s\"", e.raw)
+		out_printf("\"raw\": \"%s\"", e.raw)
 	
 	case ast.RegExpLiteral:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"pattern\": \"%s\",\n", e.pattern)
+		out_printf("\"pattern\": \"%s\",\n", e.pattern)
 		print_indent(indent)
-		fmt.printf("\"flags\": \"%s\"", e.flags)
+		out_printf("\"flags\": \"%s\"", e.flags)
 	
 	case ast.UpdateExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
 		op_str := ""
 		switch e.operator {
 		case .Increment: op_str = "++"
 		case .Decrement: op_str = "--"
 		}
-		fmt.printf("\"operator\": \"%s\",\n", op_str)
+		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
-		fmt.printf("\"prefix\": %v,\n", e.prefix)
+		out_printf("\"prefix\": %v,\n", e.prefix)
 		print_indent(indent)
-		fmt.println("\"argument\": {")
+		out_println("\"argument\": {")
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ast.LogicalExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
 		op_str := ""
 		#partial switch e.operator {
@@ -893,115 +938,115 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		case .Or:  op_str = "||"
 		case .NullishCoalescing: op_str = "??"
 		}
-		fmt.printf("\"operator\": \"%s\",\n", op_str)
+		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
-		fmt.println("\"left\": {")
+		out_println("\"left\": {")
 		print_expression_ast(e.left, indent + 1)
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"right\": {")
+		out_println("\"right\": {")
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ast.SequenceExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"expressions\": [")
+		out_println("\"expressions\": [")
 		for expr_elem, i in e.expressions {
 			print_indent(indent + 1)
-			fmt.println("{")
+			out_println("{")
 			print_expression_ast(expr_elem, indent + 2)
 			print_indent(indent + 1)
 			if i < len(e.expressions) - 1 {
-				fmt.println("},")
+				out_println("},")
 			} else {
-				fmt.println("}")
+				out_println("}")
 			}
 		}
 		print_indent(indent)
-		fmt.print("]")
+		out_print("]")
 	
 	case ast.YieldExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
 		if arg, ok := e.argument.(^ast.Expression); ok && arg != nil {
-			fmt.println("\"argument\": {")
+			out_println("\"argument\": {")
 			print_expression_ast(arg, indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		} else {
-			fmt.println("\"argument\": null,")
+			out_println("\"argument\": null,")
 		}
 		print_indent(indent)
-		fmt.printf("\"delegate\": %v", e.delegate)
+		out_printf("\"delegate\": %v", e.delegate)
 	
 	case ast.AwaitExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"argument\": {")
+		out_println("\"argument\": {")
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ast.ImportExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"source\": {")
+		out_println("\"source\": {")
 		print_expression_ast(e.source, indent + 1)
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ast.MetaProperty:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.println("\"meta\": {")
+		out_println("\"meta\": {")
 		print_indent(indent + 1)
-		fmt.printf("\"type\": \"Identifier\",\n")
+		out_printf("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
-		fmt.printf("\"name\": \"import\"\n")
+		out_printf("\"name\": \"import\"\n")
 		print_indent(indent)
-		fmt.println("},")
+		out_println("},")
 		print_indent(indent)
-		fmt.println("\"property\": {")
+		out_println("\"property\": {")
 		print_indent(indent + 1)
-		fmt.printf("\"type\": \"Identifier\",\n")
+		out_printf("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
-		fmt.printf("\"name\": \"meta\"\n")
+		out_printf("\"name\": \"meta\"\n")
 		print_indent(indent)
-		fmt.print("}")
+		out_print("}")
 	
 	case ast.PrivateIdentifier:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"name\": \"%s\"", e.name)
+		out_printf("\"name\": \"%s\"", e.name)
 	
 	case ast.ClassExpression:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
 		if e.id != nil {
 			id := e.id.(ast.BindingIdentifier)
-			fmt.println("\"id\": {")
+			out_println("\"id\": {")
 			print_indent(indent + 1)
-			fmt.printf("\"type\": \"Identifier\",\n")
+			out_printf("\"type\": \"Identifier\",\n")
 			print_indent(indent + 1)
-			fmt.printf("\"name\": \"%s\"\n", id.name)
+			out_printf("\"name\": \"%s\"\n", id.name)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		}
 		if super, ok := e.super_class.(^ast.Expression); ok && super != nil {
-			fmt.println("\"superClass\": {")
+			out_println("\"superClass\": {")
 			print_expression_ast(super, indent + 1)
 			print_indent(indent)
-			fmt.println("},")
+			out_println("},")
 		}
-		fmt.println("\"body\": { ... }")
+		out_println("\"body\": { ... }")
 	
 	case:
-		fmt.println(",")
+		out_println(",")
 		print_indent(indent)
-		fmt.printf("\"[UNIMPLEMENTED]\": true")
+		out_printf("\"[UNIMPLEMENTED]\": true")
 	}
 }
 
@@ -1151,7 +1196,8 @@ lex_file :: proc(file_path: string) {
 	// Read file
 	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
 	if read_err != nil {
-		fmt.printf("Error: Could not read file: %s\n", file_path)
+		out_printf("Error: Could not read file: %s\n", file_path)
+		flush_stdout_writer()
 		os.exit(1)
 	}
 	defer delete(source, context.allocator)
@@ -1168,7 +1214,7 @@ lex_file :: proc(file_path: string) {
 	lexer.init_adapter(&lex, string(source), &arena)
 	
 	// Tokenize and print
-	fmt.println("[")
+	out_println("[")
 	
 	token_count := 0
 	for {
@@ -1179,10 +1225,10 @@ lex_file :: proc(file_path: string) {
 		}
 		
 		if token_count > 0 {
-			fmt.println(",")
+			out_println(",")
 		}
 		
-		fmt.printf("  {{\"type\": \"%s\", \"value\": ", lexer.get_token_name(tok.type))
+		out_printf("  {{\"type\": \"%s\", \"value\": ", lexer.get_token_name(tok.type))
 		
 		// Escape string value for JSON
 		escaped := tok.value
@@ -1191,9 +1237,9 @@ lex_file :: proc(file_path: string) {
 		escaped, _ = strings.replace_all(escaped, "\n", "\\n")
 		escaped, _ = strings.replace_all(escaped, "\t", "\\t")
 		escaped, _ = strings.replace_all(escaped, "\r", "\\r")
-		fmt.printf("\"%s\", ", escaped)
-		fmt.printf("\"loc\": {{\"line\": %d, \"column\": %d}}, ", tok.loc.line, tok.loc.column)
-		fmt.printf("\"lt\": %v}}", tok.had_line_terminator)
+		out_printf("\"%s\", ", escaped)
+		out_printf("\"loc\": {{\"line\": %d, \"column\": %d}}, ", tok.loc.line, tok.loc.column)
+		out_printf("\"lt\": %v}}", tok.had_line_terminator)
 		
 		token_count += 1
 		lexer.next_adapter(&lex)
@@ -1206,8 +1252,8 @@ lex_file :: proc(file_path: string) {
 	fmt.eprintf("SIMD chunks: %d\n", stats.simd_chunks_processed)
 	fmt.eprintf("Scalar fallbacks: %d\n", stats.scalar_fallbacks)
 	
-	fmt.println()
-	fmt.println("]")
+	out_println()
+	out_println("]")
 	fmt.eprintf("\nTotal tokens: %d\n", token_count)
 }
 
