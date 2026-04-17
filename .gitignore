@@ -1,8 +1,8 @@
 *.dSYM/
 node_modules/
 .firecrawl/
-kessel_bin
-kessel_test
-src
-src.bin
+/kessel_bin
+/kessel_test
+/src
+/src.bin
 *.log
