@@ -315,6 +315,66 @@ get_current :: proc(p: ^Parser) -> lexer_pkg.Token {
 }
 
 // ============================================================================
+// Automatic Semicolon Insertion (ASI)
+// ============================================================================
+
+// can_insert_semicolon checks if ASI is allowed according to ECMAScript spec
+// Rule 1: Token preceded by line terminator, or token is } or EOF
+// Special case: Don't insert semicolon if next line starts with [, (, `, +, -, /, or .
+// as these indicate expression continuation
+can_insert_semicolon :: proc(p: ^Parser) -> bool {
+	current := get_current_dispatch(p)
+	
+	
+	// Check if current token had a line terminator before it
+	if current.had_line_terminator {
+		// Check for tokens that indicate expression continuation (no ASI)
+		#partial switch current.type {
+		case .LBracket, .LParen, .Template, .TemplateHead, .Plus, .Minus, .Div, .Dot:
+			return false
+		}
+		return true
+	}
+	
+	// Check if current token is RBrace or EOF
+	if current.type == .RBrace || current.type == .EOF {
+		return true
+	}
+	
+	return false
+}
+
+// expect_semicolon_or_asi expects a semicolon or allows ASI
+expect_semicolon_or_asi :: proc(p: ^Parser) -> bool {
+	if is_token(p, .Semi) {
+		next_dispatch(p)
+		return true
+	}
+	
+	if can_insert_semicolon(p) {
+		// ASI applies - semicolon is implicitly inserted
+		return true
+	}
+	
+	report_error(p, "Expected semicolon")
+	return false
+}
+
+// match_semicolon_or_asi tries to match a semicolon or allows ASI (for optional cases)
+match_semicolon_or_asi :: proc(p: ^Parser) -> bool {
+	if is_token(p, .Semi) {
+		next_dispatch(p)
+		return true
+	}
+	
+	if can_insert_semicolon(p) {
+		return true
+	}
+	
+	return false
+}
+
+// ============================================================================
 // Entry Point - Parse Program
 // ============================================================================
 
@@ -529,7 +589,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 	expr_stmt.expression = expr
 	
 	// Consume optional semicolon
-	match_token(p, .Semi)
+	match_semicolon_or_asi(p)
 	
 	expr_stmt.loc.span.end = get_current(p).loc.offset
 	
@@ -787,7 +847,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 		argument = parse_expression(p)
 	}
 	
-	match_token(p, .Semi)
+	match_semicolon_or_asi(p)
 	
 	ret := new_node(p, ast_pkg.ReturnStatement)
 	ret.loc = start
@@ -816,7 +876,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 		eat(p)
 	}
 	
-	match_token(p, .Semi)
+	match_semicolon_or_asi(p)
 	
 	break_ := new_node(p, ast_pkg.BreakStatement)
 	break_.loc = start
@@ -844,7 +904,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 		eat(p)
 	}
 	
-	match_token(p, .Semi)
+	match_semicolon_or_asi(p)
 	
 	cont := new_node(p, ast_pkg.ContinueStatement)
 	cont.loc = start
@@ -1009,7 +1069,7 @@ parse_throw_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 		return nil
 	}
 	
-	match_token(p, .Semi)
+	match_semicolon_or_asi(p)
 	
 	throw_ := new_node(p, ast_pkg.ThrowStatement)
 	throw_.loc = start
@@ -1023,7 +1083,7 @@ parse_debugger_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 	start := loc_from_token(get_current(p))
 	eat(p) // consume debugger
 	
-	match_token(p, .Semi)
+	match_semicolon_or_asi(p)
 	
 	debugger := new_node(p, ast_pkg.DebuggerStatement)
 	debugger.loc = start
@@ -1422,7 +1482,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ast_pkg.ClassElement {
 		}
 		
 		// Consume optional semicolon
-		match_token(p, .Semi)
+		match_semicolon_or_asi(p)
 		
 		elem := new_node(p, ast_pkg.ClassElement)
 		elem.loc = start
@@ -1562,7 +1622,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(ast_pkg.Vari
 	}
 	
 	if consume_semi {
-		match_token(p, .Semi)
+		match_semicolon_or_asi(p)
 	}
 	
 	decl.loc.span.end = get_current(p).loc.offset
@@ -2015,7 +2075,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 		decl.source = parse_string_literal(p)
 	}
 	
-	match_token(p, .Semi)
+	match_semicolon_or_asi(p)
 	
 	decl.loc.span.end = get_current(p).loc.offset
 	
@@ -2096,7 +2156,7 @@ parse_export_default :: proc(p: ^Parser, start: ast_pkg.Loc) -> ^ast_pkg.Stateme
 		if expr != nil {
 			def = transmute(^ast_pkg.ExportDefaultDef)expr
 		}
-		match_token(p, .Semi)
+		match_semicolon_or_asi(p)
 	}
 	
 	decl := new_node(p, ast_pkg.ExportDefaultDeclaration)
@@ -2184,7 +2244,7 @@ parse_export_named :: proc(p: ^Parser, start: ast_pkg.Loc) -> ^ast_pkg.Statement
 		decl.source = parse_string_literal(p)
 	}
 	
-	match_token(p, .Semi)
+	match_semicolon_or_asi(p)
 	
 	decl.loc.span.end = get_current(p).loc.offset
 	
@@ -2313,6 +2373,21 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^ast_pkg.Expre
 		// Break on non-operator tokens
 		if current.type == .Semi || current.type == .EOF || current.type == .RParen || current.type == .RBrace || current.type == .RBracket || current.type == .Colon {
 			break
+		}
+		
+		// Break on statement keywords (ASI applies)
+		if lexer_pkg.is_keyword(current.type) || lexer_pkg.is_contextual_keyword(current.type) {
+			break
+		}
+		
+		// Break on identifiers with line terminator (new statement)
+		if current.type == .Identifier && current.had_line_terminator {
+			break
+		}
+		
+		// Don't break on dot - let parse_left_hand_side_expr handle member access
+		if current.type == .Dot {
+			// Continue to let the primary expression handler deal with this
 		}
 		
 		// Break on template literal parts (template boundary)
@@ -2478,6 +2553,7 @@ parse_left_hand_side_expr :: proc(p: ^Parser) -> ^ast_pkg.Expression {
 	if expr == nil {
 		return nil
 	}
+	
 	
 	for {
 		current := get_current(p)

@@ -1192,7 +1192,8 @@ lex_file :: proc(file_path: string) {
 		escaped, _ = strings.replace_all(escaped, "\t", "\\t")
 		escaped, _ = strings.replace_all(escaped, "\r", "\\r")
 		fmt.printf("\"%s\", ", escaped)
-		fmt.printf("\"loc\": {{\"line\": %d, \"column\": %d}}}", tok.loc.line, tok.loc.column)
+		fmt.printf("\"loc\": {{\"line\": %d, \"column\": %d}}, ", tok.loc.line, tok.loc.column)
+		fmt.printf("\"lt\": %v}}", tok.had_line_terminator)
 		
 		token_count += 1
 		lexer.next_adapter(&lex)

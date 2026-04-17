@@ -150,6 +150,7 @@ Token :: struct {
 	loc:      Loc,
 	value:    string,  // Raw source text
 	literal:  LiteralValue, // Parsed value for literals
+	had_line_terminator: bool, // True if there was a line terminator before this token
 }
 
 // LiteralValue holds the parsed value of a literal token
