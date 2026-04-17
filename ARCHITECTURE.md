@@ -29,7 +29,7 @@ Raw JavaScript source code is read from file or stdin. The source text is borrow
 **Files:** `src/lexer/lexer.odin`, `src/lexer/lexer_optimized.odin`
 
 The lexer transforms source code into a stream of tokens using:
-- **SIMD-accelerated whitespace skipping** (`src/lexer/simd.odin`) — uses SSE2/AVX2/NEON instructions where available
+- **SIMD-accelerated whitespace skipping** (`src/lexer/simd.odin`) — uses NEON on ARM64 (SSE2/AVX2 paths not implemented)
 - **Context-aware regex matching** — distinguishes `/` (division) from `/.../` (regex literal) based on parser context
 - **Perfect hash table for keywords** (`src/lexer/keyword_hash.odin`) — O(1) keyword lookup
 - **String interning** — identifiers are deduplicated for fast comparison
@@ -46,16 +46,18 @@ The lexer transforms source code into a stream of tokens using:
 Instead of traditional array-of-structs, Kessel uses **SoA (Structure of Arrays)** for cache efficiency:
 
 ```odin
-TokenStore :: struct {
-    types:    []TokenType,    // 1 byte per token
-    spans:    []Span,         // 8 bytes per token
-    contexts: []TokenContext, // 4 bytes per token
+TokenSoA :: struct {
+    types:   [dynamic]TokenType,    // 1 byte each (padded to 4)
+    offsets: [dynamic]u32,          // 4 bytes - source offset
+    lines:   [dynamic]u32,          // 4 bytes - line number
+    cols:    [dynamic]u16,          // 2 bytes - column
+    lengths: [dynamic]u16,          // 2 bytes - token length
 }
 ```
 
 Benefits:
-- **Cache locality**: Sequential token type access is 8x faster
-- **Compact representation**: ~13 bytes/token vs ~40 bytes traditional
+- **Cache locality**: SoA reduces token size 4.75x vs traditional AoS layout (per token_compact.odin comment)
+- **Compact representation**: ~16 bytes/token vs ~76 bytes traditional (per token_compact.odin)
 - **Prefetcher-friendly**: Linear memory access patterns
 
 ### 4. Syntactic Analysis (Parser)
@@ -90,7 +92,7 @@ PrimaryExpression (literals, identifiers, this, super, groups)
 **Key Features:**
 - **Pratt parsing** for operator precedence
 - **Automatic Semicolon Insertion (ASI)** — handles optional semicolons per ECMAScript spec
-- **Two-phase parsing**: Fast structural parse → optional semantic analysis
+- **Single-pass recursive descent parse** with inline error recovery
 - **Error recovery**: Synchronizes on statement boundaries to report multiple errors
 
 ### 5. AST Generation
@@ -211,7 +213,7 @@ kessel/
 │   │   ├── simd.odin          # SIMD whitespace scanning
 │   │   └── lexer_adapter.odin # Unified lexer interface
 │   ├── parser/
-│   │   └── parser.odin        # Recursive descent parser (~2000 lines)
+│   │   └── parser.odin        # Recursive descent parser (~3980 lines)
 │   └── ast/
 │       └── ast.odin           # AST node definitions
 ├── tests/
@@ -306,11 +308,11 @@ Create `tests/fixtures/expressions/my_new_expression.js` with examples.
 
 | Metric | Value |
 |--------|-------|
-| Lexer throughput | ~500 MB/s (SIMD paths) |
-| Parse throughput | ~100 MB/s typical JS |
-| Memory overhead | ~1.5x source size (arena) |
-| Token size | ~13 bytes (SoA compact) |
-| AST node overhead | ~24 bytes average |
+| Lexer throughput | See docs/PROFILING.md for measured baselines |
+| Parse throughput | See docs/PROFILING.md for measured baselines |
+| Memory | 4MB floor for small files, scales at 256x source_len (see docs/PROFILING.md) |
+| Token size | ~16 bytes (SoA compact) |
+| AST node overhead | Varies by node type (unions) |
 
 ## Limitations
 
@@ -318,6 +320,12 @@ Create `tests/fixtures/expressions/my_new_expression.js` with examples.
 - **No JSX support** (planned)
 - **No strict mode validation** — parses strict mode code but doesn't validate restrictions
 - **No early error checking** — some ECMAScript early errors not yet implemented
+
+## See Also
+
+- **docs/OXC_COMPARISON.md** — Detailed comparison of Kessel vs OXC approaches (dispatch, arena allocation, AST representation, configuration, safety)
+- **docs/PROFILING.md** — Benchmarking infrastructure, measured baselines, profiling workflow
+- **docs/ARCH_AUDIT.md** — Verification trail: what was verified, what was stale, what was wrong
 
 ## References
 

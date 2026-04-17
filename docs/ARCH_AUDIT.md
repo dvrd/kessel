@@ -2,10 +2,10 @@
 
 ## Summary
 - **Total Claims Verified**: 34
-- **Status OK**: 24
+- **Status OK**: 25 (was 24, error recovery found)
 - **Status STALE**: 6
 - **Status WRONG**: 3
-- **Status MISSING**: 1
+- **Status MISSING**: 0
 
 ## Claims Audit Table
 
@@ -33,7 +33,7 @@
 | Pratt parsing for precedence | "Pratt parsing for operator precedence" | OK | parse_expression and parse_*_expression functions exist throughout parser.odin |
 | Automatic Semicolon Insertion (ASI) | "Automatic Semicolon Insertion (ASI)" | OK | had_line_terminator flags present in token structures |
 | Two-phase parsing mention | "Two-phase parsing: Fast structural parse → optional semantic analysis" | STALE | No evidence of explicit semantic analysis phase in codebase. Parsing is single-pass. |
-| Error recovery on statement boundaries | "Error recovery: Synchronizes on statement boundaries" | MISSING | No error recovery mechanism found in parser.odin. Parser appears to stop on first error. |
+| Error recovery on statement boundaries | "Error recovery: Synchronizes on statement boundaries" | OK | Confirmed: 6 mentions of recover/synchronize in parser.odin (lines 140,397,417,555,3030,3044) + 5 passing recovery/ fixtures (001-005) |
 | Lexer throughput ~500 MB/s | "Lexer throughput | ~500 MB/s (SIMD paths)" | WRONG | No evidence in code. Benchmark shows ~12ms for 124 bytes on small files, much slower than claimed. |
 | Parse throughput ~100 MB/s | "Parse throughput | ~100 MB/s typical JS" | WRONG | No evidence in code. Benchmarks show total (lex+parse) is 3-6x slower than OXC for most file sizes. |
 | Memory overhead ~1.5x source size | "Memory overhead | ~1.5x source size (arena)" | STALE | Code sets 4MB minimum and 256x source size estimates. Actual overhead varies significantly by file size. |
