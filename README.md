@@ -93,13 +93,18 @@ cd kessel/tests && ./run_tests.sh
 cd kessel/tests && ./run_tests.sh expressions
 ```
 
-Test fixtures are organized by feature in `kessel/tests/fixtures/`:
-- `literals/` — Number, string, boolean, null, regex literals
-- `expressions/` — Arithmetic, logical, function calls, etc.
-- `statements/` — Variable declarations, if/while/for, etc.
-- `functions/` — Function declarations and expressions
-- `classes/` — Class declarations and methods
-- `modules/` — Import/export statements
+## Test Coverage
+
+- **80 test fixtures** across 8 categories:
+  - `basic/` — const, let, var, if/else, loops, switch, try/catch
+  - `edge/` — labeled statements, comma operator, regex, IIFE variants, generators, tagged templates
+  - `es2015/` — arrow functions, template literals, destructuring, spread/rest, classes
+  - `es2020/` — optional chaining, nullish coalescing, BigInt, dynamic import
+  - `es2022/` — class fields, private members, static blocks
+  - `es2025/` — logical assignment, async/await, for-await-of, error cause
+  - `real/` — jQuery chains, Express routes, Redux reducers, React hooks, middleware patterns
+  - `recovery/` — missing semicolons, extra semicolons, trailing commas, unicode recovery
+- **Pass rate: 100%** (80/80 tests)
 
 ## Architecture
 
@@ -154,10 +159,10 @@ Typical throughput on modern hardware:
 
 | Input Size | Time | Memory |
 |------------|------|--------|
-| 10 KB | < 1 ms | ~15 KB |
-| 100 KB | ~2 ms | ~150 KB |
-| 1 MB | ~15 ms | ~1.5 MB |
-| 10 MB | ~150 ms | ~15 MB |
+| 454 B | < 1 ms | ~15 KB |
+| 1.2 KB | < 1 ms | ~20 KB |
+| 317 KB | ~53 ms | ~80 MB |
+| 1 MB | ~200 ms | ~256 MB |
 
 Benchmark your system:
 
