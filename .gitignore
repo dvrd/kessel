@@ -6,3 +6,7 @@ node_modules/
 /src
 /src.bin
 *.log
+kessel/kessel
+kessel/kessel_test
+kessel/src.bin
+kessel/*.bin
