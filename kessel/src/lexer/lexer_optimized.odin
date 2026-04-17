@@ -322,8 +322,10 @@ skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
 	remaining := len(l.source) - l.offset
 	
 	if remaining < 16 {
-		// Scalar fallback for small inputs
-		l.stats.scalar_fallbacks += 1
+		// Scalar fallback for small inputs (< 16 bytes)
+		if remaining > 0 {
+			l.stats.scalar_fallbacks += 1
+		}
 		skip_whitespace_scalar(l)
 		return
 	}
@@ -341,35 +343,21 @@ skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
 			break
 		}
 		
-		if ws_count >= 16 {
-			l.stats.simd_chunks_processed += 1
-			
-			// Count newlines in this chunk
-			chunk := data[:ws_count]
-			nl_info := simd_count_newlines(chunk)
-			
-			if nl_info.count > 0 {
-				l.line += nl_info.count
-				l.column = ws_count - nl_info.last_nl_pos
-			} else {
-				l.column += ws_count
-			}
-			
-			l.offset += ws_count
+		// SIMD was used - count it
+		l.stats.simd_chunks_processed += 1
+		
+		// Count newlines in this chunk
+		chunk := data[:ws_count]
+		nl_info := simd_count_newlines(chunk)
+		
+		if nl_info.count > 0 {
+			l.line += nl_info.count
+			l.column = ws_count - nl_info.last_nl_pos
 		} else {
-			// Less than 16 whitespace chars, process individually
-			for i := 0; i < ws_count; i += 1 {
-				c := data[i]
-				if c == '\n' {
-					l.line += 1
-					l.column = 1
-				} else {
-					l.column += 1
-				}
-			}
-			l.offset += ws_count
+			l.column += ws_count
 		}
 		
+		l.offset += ws_count
 		remaining = len(l.source) - l.offset
 	}
 	
@@ -422,6 +410,9 @@ lex_identifier_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		data := l.source_bytes[l.offset:]
 		id_count := simd_count_ident(data)
 		
+		// SIMD was used
+		l.stats.simd_chunks_processed += 1
+		
 		// Update position
 		for i := 0; i < id_count; i += 1 {
 			l.column += 1
@@ -429,6 +420,7 @@ lex_identifier_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		l.offset += id_count
 	} else {
 		// Scalar fallback
+		l.stats.scalar_fallbacks += 1
 		for l.offset < len(l.source) && is_id_cont_fast(l.source_bytes[l.offset]) {
 			advance2(l, 1)
 		}
@@ -531,6 +523,7 @@ lex_string_optimized :: proc(l: ^Lexer2, loc: Loc, quote: u8) -> CompactToken {
 	
 	if len(remaining) >= 16 {
 		// Use SIMD to find quote
+		l.stats.simd_chunks_processed += 1
 		quote_pos := simd_find_quote(remaining, quote)
 		
 		if quote_pos < len(remaining) && remaining[quote_pos] == quote {
@@ -558,6 +551,8 @@ lex_string_optimized :: proc(l: ^Lexer2, loc: Loc, quote: u8) -> CompactToken {
 				LiteralValue(text),
 			)
 		}
+	} else {
+		l.stats.scalar_fallbacks += 1
 	}
 	
 	// Scalar fallback
