@@ -165,6 +165,8 @@ main :: proc() {
 		microbench_file(file_path, iterations)
 		
 	case "help", "-h", "--help":
+		print_usage()
+
 	case "parse-many":
 		if len(os.args) < 3 {
 			out_println("Usage: kessel parse-many <file1> [file2...] [--workers N]")
@@ -191,8 +193,6 @@ main :: proc() {
 		}
 		parse_many(files[:], workers)
 		delete(files)
-		
-		print_usage()
 
 	case "version", "-v", "--version":
 		out_println("kessel version 0.1.0")
@@ -336,6 +336,12 @@ parse_many :: proc(files: []string, n_workers: int) {
 		out_println("No files to parse.")
 		return
 	}
+
+	// Pre-initialize all thread-unsafe lazy-init global tables.
+	// Without this, workers race initializing CHAR_CLASS_TABLE and keyword_hash_table_2.
+	lexer.ensure_keyword_hash()
+	lexer.init_char_class_table()
+
 	start_time := time.tick_now()
 	actual_workers := n_workers
 	if actual_workers > len(files) { actual_workers = len(files) }

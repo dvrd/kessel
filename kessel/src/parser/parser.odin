@@ -10,27 +10,17 @@ import ast_pkg "../ast"
 // Adapter Support for Optimized Lexer
 // ============================================================================
 
-// Thread-local storage for active adapter (simplified - single threaded for now)
-active_adapter: ^lexer_pkg.LexerAdapter
-using_adapter := false
-
-set_active_adapter :: proc(adapter: ^lexer_pkg.LexerAdapter) {
-	active_adapter = adapter
-	using_adapter = true
-}
-
-clear_active_adapter :: proc() {
-	active_adapter = nil
-	using_adapter = false
-}
+// Adapter is stored per-parser (Parser.adapter) not as a global.
+// This allows parallel parsing across threads without shared mutable state.
+// See parse_many in main.odin.
 
 // Wrapper functions that dispatch to either legacy lexer or adapter
 get_current_dispatch :: proc(p: ^Parser) -> lexer_pkg.Token {
 	if p == nil {
 		return lexer_pkg.Token{type = .EOF}
 	}
-	if using_adapter && active_adapter != nil {
-		return lexer_pkg.get_current_adapter(active_adapter)
+	if p.adapter != nil {
+		return lexer_pkg.get_current_adapter(p.adapter)
 	}
 	if p.lexer == nil {
 		return lexer_pkg.Token{type = .EOF}
@@ -42,8 +32,8 @@ next_dispatch :: proc(p: ^Parser) -> lexer_pkg.Token {
 	if p == nil {
 		return lexer_pkg.Token{type = .EOF}
 	}
-	if using_adapter && active_adapter != nil {
-		return lexer_pkg.next_adapter(active_adapter)
+	if p.adapter != nil {
+		return lexer_pkg.next_adapter(p.adapter)
 	}
 	if p.lexer == nil {
 		return lexer_pkg.Token{type = .EOF}
@@ -55,8 +45,8 @@ peek_dispatch :: proc(p: ^Parser) -> lexer_pkg.Token {
 	if p == nil {
 		return lexer_pkg.Token{type = .EOF}
 	}
-	if using_adapter && active_adapter != nil {
-		return lexer_pkg.peek_adapter(active_adapter)
+	if p.adapter != nil {
+		return lexer_pkg.peek_adapter(p.adapter)
 	}
 	if p.lexer == nil {
 		return lexer_pkg.Token{type = .EOF}
@@ -68,8 +58,8 @@ is_dispatch :: proc(p: ^Parser, type_: lexer_pkg.TokenType) -> bool {
 	if p == nil {
 		return type_ == .EOF
 	}
-	if using_adapter && active_adapter != nil {
-		return lexer_pkg.is_adapter(active_adapter, type_)
+	if p.adapter != nil {
+		return lexer_pkg.is_adapter(p.adapter, type_)
 	}
 	if p.lexer == nil {
 		return type_ == .EOF
@@ -81,8 +71,8 @@ expect_dispatch :: proc(p: ^Parser, type_: lexer_pkg.TokenType) -> (lexer_pkg.To
 	if p == nil {
 		return lexer_pkg.Token{type = .EOF}, false
 	}
-	if using_adapter && active_adapter != nil {
-		return lexer_pkg.expect_adapter(active_adapter, type_)
+	if p.adapter != nil {
+		return lexer_pkg.expect_adapter(p.adapter, type_)
 	}
 	if p.lexer == nil {
 		return lexer_pkg.Token{type = .EOF}, false
@@ -94,7 +84,11 @@ expect_dispatch :: proc(p: ^Parser, type_: lexer_pkg.TokenType) -> (lexer_pkg.To
 Parser :: struct {
 	// Lexer reference
 	lexer: ^lexer_pkg.Lexer,
-	
+
+	// Lexer adapter (when using optimized lexer via adapter interface).
+	// Per-parser field (not global) so parallel parsing via parse-many works.
+	adapter: ^lexer_pkg.LexerAdapter,
+
 	// Allocator for AST allocations
 	allocator: mem.Allocator,
 	
@@ -214,9 +208,8 @@ init_parser_adapter :: proc(p: ^Parser, adapter: ^lexer_pkg.LexerAdapter, alloc:
 	init_interner(interner, alloc)
 	p.interner = interner
 	
-	// Store adapter reference in a global/thread-local for adapter-based functions
-	// This is a workaround since Odin doesn't have multiple dispatch
-	set_active_adapter(adapter)
+	// Store adapter reference in the parser struct (per-parser, thread-safe)
+	p.adapter = adapter
 }
 
 // Create a new node allocated from arena
