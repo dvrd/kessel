@@ -2,7 +2,7 @@
 
 **Last updated**: 2026-04-18  
 **Platform**: macOS arm64 (Apple Silicon M1, 4 P-cores + 4 E-cores)  
-**Kessel commit**: `e4e8ca7` (post-parse-many, thread-safe)  
+**Kessel commit**: `86065d3` (direct TokenSoA stores)  
 **OXC ref**: oxc-project/oxc `main` branch (shallow clone)  
 **Tools**: hyperfine 1.x (warmup 10, min-runs 50, shell=none)
 
@@ -54,7 +54,7 @@ of magnitude: 504 B vs 338 B for small; 6.5 MB vs 6.1 MB for large).
 |------|--------|-----|-------|
 | small (13 B) | 1.7 ms ± 0.2 | 1.7 ms ± 0.1 | **Tie** (1.00× ± 0.16) |
 | medium (2.6 KB) | 1.8 ms ± 0.2 | 1.7 ms ± 0.2 | Tie (1.04× ± 0.16) |
-| large (324 KB) | 49.2 ms ± 0.9 | 11.1 ms ± 0.3 | **OXC 5.0× faster** *(was 5.4× pre-JSON-opts)* |
+| large (324 KB) | 45.0 ms ± 0.8 | 10.1 ms ± 1.2 | **OXC 4.5× faster** *(was 5.4× pre-JSON-opts)* |
 
 ### Multi-file (50 × 324 KB = 16.3 MB total, CLI)
 
@@ -99,6 +99,7 @@ macOS scheduler doesn't allocate E-cores for user-initiated QoS by default.
 | `55fd80a` (buffer + out_s) | 53.7 ms | 10.5 ms | 5.1× (noise) |
 | `fe0b310` (out_printf → direct) | 49.2 ms | 10.6 ms | 4.6× |
 | `e4e8ca7` (thread-safe) | 49.2 ms | 11.1 ms | 5.0× |
+| `86065d3` (direct TokenSoA) | 45.0 ms | 10.1 ms | 4.5× |
 
 ### Microbench (parse cost only, P50 median)
 
@@ -106,7 +107,7 @@ macOS scheduler doesn't allocate E-cores for user-initiated QoS by default.
 |------|------------|---------|-------|
 | small (13 B) | 6.4 µs | 0.17 µs | **OXC 37.6× faster** |
 | medium (2.6 KB) | 68.5 µs | 10.4 µs | **OXC 6.6× faster** |
-| large (324 KB) | 14.3 ms | 2.2 ms | **OXC 6.5× faster** |
+| large (324 KB) | 10.7 ms | 2.3 ms | **OXC 4.6× faster** |
 
 ### Overhead decomposition (CLI − microbench)
 
@@ -156,6 +157,29 @@ Hypotheses for the 6.5× gap on large files, from reading OXC source
 | `assert_unchecked!` bounds elision | 1.1–1.2× |
 | Rust LLVM aggressive inlining + years of tuning | multiplicative |
 
+### Byte dispatch experiment (2026-04-18)
+
+Tested two approaches on `feat/byte-dispatch` branch:
+1. **Proc pointer table** (v1): +1.5% slower. Indirect call overhead exceeds benefit.
+2. **Action enum table** (v2): 0% change. LLVM already compiles byte switch to jump table.
+
+Conclusion: OXC's byte dispatch advantage comes from Rust/LLVM inlining + `unsafe`,
+not from the table structure itself. Odin's switch is already optimal for this case.
+
+### Direct TokenSoA stores (2026-04-18)
+
+The real bottleneck was `add_token` doing 8 `append()` calls per token on `[dynamic]T`
+arrays. Each append: len check + store + len increment.
+
+Replacing `[dynamic]T` with pre-allocated `[]T` raw slices enables direct stores
+with zero overhead:
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Lex-only P50 | 8485 µs | 3297 µs | **-61.2%** |
+| Full parse P50 | 16229 µs | 10728 µs | **-33.9%** |
+| CLI large | 49.2 ms | 45.0 ms | **-8.5%** |
+
 These are hypotheses, not profiled contributions. A Linux `samply` run on
 `bench_large.js` would localize the actual hotspots in Kessel.
 
@@ -178,8 +202,7 @@ not a fixed constant that larger inputs would amortize away.
 
 Ordered by expected ROI (based on OXC comparison + measurements):
 
-1. **Byte-dispatch table** replacing the class+switch lexer. ~1.3–1.5× on
-   large files, measurable with microbench. See `docs/OXC_COMPARISON.md §1`.
+1. ~~**Byte-dispatch table**~~ **Tested — no improvement**. LLVM already uses jump table for byte switches in Odin. OXC's advantage comes from Rust inlining + `unsafe`, not dispatch structure.
 2. **JSON output streaming** — write the AST as we walk it instead of
    building a string first. Targets the 30 ms output overhead on large files
    (not the parser gap).
@@ -194,4 +217,5 @@ Ordered by expected ROI (based on OXC comparison + measurements):
 |------|-----------|-----------------|-------------------|-------|
 | 2026-04-18 | `99af12f` | OXC 5.4× | OXC 6.5× | Baseline, first fair comparison |
 | 2026-04-18 | `fe0b310` | OXC 4.6× | (unchanged) | After JSON output opts (-6.3%) |
+| 2026-04-18 | `86065d3` | OXC 4.5× | OXC 4.6× | Direct []T TokenSoA stores: -33% parse, -61% lex-only |
 | 2026-04-18 | `e4e8ca7` | OXC 5.0× single / **Kessel wins multi-file via parse-many** | OXC 6.5× | parse-many scales 2.94× on 4 P-cores |
