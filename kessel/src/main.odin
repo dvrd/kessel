@@ -164,6 +164,23 @@ main :: proc() {
 		}
 		microbench_file(file_path, iterations)
 		
+	case "microbench-lex":
+		if len(os.args) < 3 {
+			out_println("Error: microbench-lex requires a file path")
+			out_println("Usage: kessel microbench-lex <file> [--iterations N]")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		lex_file_path := os.args[2]
+		lex_iterations := 2000
+		if len(os.args) >= 5 && os.args[3] == "--iterations" {
+			n, ok := strconv.parse_int(os.args[4])
+			if ok {
+				lex_iterations = n
+			}
+		}
+		microbench_lex_only(lex_file_path, lex_iterations)
+		
 	case "help", "-h", "--help":
 		print_usage()
 
@@ -215,6 +232,7 @@ print_usage :: proc() {
 	out_println("  parse <file>                    Parse a JavaScript file and output AST as JSON")
 	out_println("  lex <file>                      Tokenize a JavaScript file and output tokens")
 	out_println("  microbench <file> [--iterations N]  Run parse in-process loop (default 1000 iters)")
+	out_println("  microbench-lex <file> [--iterations N]  Run lexer-only in-process loop (default 2000)")
 	out_println("  test                            Run lexer debug test")
 	out_println("  help                            Show this help message")
 	out_println("  version                         Show version information")
@@ -398,6 +416,91 @@ parse_many :: proc(files: []string, n_workers: int) {
 }
 // Microbench Command (in-process parse measurements)
 // ============================================================================
+
+// Lexer-only microbench: tokenize without parsing.
+// Measures lexer dispatch + token emission in isolation.
+microbench_lex_only :: proc(file_path: string, iterations: int) {
+	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
+	if read_err != nil {
+		out_printf("Error: Could not read file: %s\n", file_path)
+		flush_stdout_writer()
+		os.exit(1)
+	}
+	defer delete(source, context.allocator)
+	file_size := len(source)
+
+	// Warm-up
+	{
+		arena: mvirtual.Arena
+		_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+		defer mvirtual.arena_destroy(&arena)
+		alloc := mvirtual.arena_allocator(&arena)
+		lex: lexer.Lexer2
+		lexer.init_lexer2(&lex, string(source), alloc)
+		for lexer.get_current2(&lex).index != lexer.INVALID_TOKEN_INDEX {
+			if lexer.get_token_type(lexer.get_current2(&lex)) == .EOF { break }
+			lexer.next2(&lex)
+		}
+	}
+
+	durations := make([dynamic]time.Duration, context.allocator)
+	defer delete(durations)
+
+	for i in 0..<iterations {
+		start := time.tick_now()
+
+		arena: mvirtual.Arena
+		_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+		defer mvirtual.arena_destroy(&arena)
+		alloc := mvirtual.arena_allocator(&arena)
+
+		lex: lexer.Lexer2
+		lexer.init_lexer2(&lex, string(source), alloc)
+
+		token_count: int = 0
+		for {
+			tok := lexer.get_current2(&lex)
+			if tok.index == lexer.INVALID_TOKEN_INDEX { break }
+			if lexer.get_token_type(tok) == .EOF { break }
+			token_count += 1
+			lexer.next2(&lex)
+		}
+
+		elapsed := time.tick_since(start)
+		append(&durations, elapsed)
+	}
+
+	microseconds := make([dynamic]f64, context.allocator)
+	defer delete(microseconds)
+	for d in durations {
+		append(&microseconds, f64(time.duration_microseconds(d)))
+	}
+
+	total_us := f64(0)
+	min_us := microseconds[0]
+	max_us := microseconds[0]
+	for us in microseconds {
+		total_us += us
+		if us < min_us { min_us = us }
+		if us > max_us { max_us = us }
+	}
+	mean_us := total_us / f64(len(microseconds))
+	slice.sort(microseconds[:])
+	p50_us := percentile(microseconds[:], 50)
+	p95_us := percentile(microseconds[:], 95)
+	p99_us := percentile(microseconds[:], 99)
+
+	out_printf("Lex-only bench: %s (%d bytes)\n", file_path, file_size)
+	out_printf("Iterations: %d\n", iterations)
+	out_printf("Total time:  %.2f ms\n", total_us / 1000.0)
+	out_printf("Mean:        %.3f us\n", mean_us)
+	out_printf("Min:         %.3f us\n", min_us)
+	out_printf("Max:         %.3f us\n", max_us)
+	out_printf("P50:         %.3f us\n", p50_us)
+	out_printf("P95:         %.3f us\n", p95_us)
+	out_printf("P99:         %.3f us\n", p99_us)
+	flush_stdout_writer()
+}
 
 microbench_file :: proc(file_path: string, iterations: int) {
 	// Read file once

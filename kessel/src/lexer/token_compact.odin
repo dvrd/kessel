@@ -4,6 +4,10 @@ package lexer
 // COMPACT TOKEN OPTIMIZATION
 // Structure of Arrays (SoA) instead of Array of Structures (AoS)
 // Reduces token size from ~76 bytes to 16 bytes (4.75x reduction)
+//
+// v2: Uses raw []T slices instead of [dynamic]T for zero-overhead stores.
+// Pre-allocated at estimated capacity; add_token does direct stores
+// (no append, no len check, no function call overhead).
 // ============================================================================
 
 import "core:mem"
@@ -16,27 +20,28 @@ CompactTokenIndex :: u32
 INVALID_TOKEN_INDEX :: CompactTokenIndex(max(u32))
 
 // TokenSoA - Structure of Arrays for token storage
-// All token data stored in parallel arrays for cache efficiency
+// Uses raw slices (no dynamic append overhead). Capacity pre-allocated.
 TokenSoA :: struct {
-	// Fixed-size token data (16 bytes per token)
-	types:   [dynamic]TokenType,     // 1 byte each (padded to 4)
-	offsets: [dynamic]u32,           // 4 bytes - source offset
-	lines:   [dynamic]u32,           // 4 bytes - line number
-	cols:    [dynamic]u16,           // 2 bytes - column
-	lengths: [dynamic]u16,           // 2 bytes - token length in source
+	// Fixed-size token data
+	types:   []TokenType,       // pre-allocated, direct stores
+	offsets: []u32,
+	lines:   []u32,
+	cols:    []u16,
+	lengths: []u16,
 	
 	// ASI: track if there was a line terminator before this token
-	had_line_terminator: [dynamic]bool,
+	had_line_terminator: []bool,
 	
-	// Extended data for literals (sparse, only when needed)
-	literal_types:  [dynamic]LiteralType,  // Type of literal value
-	literal_values: [dynamic]LiteralValue, // Actual parsed value
+	// Extended data for literals
+	literal_types:  []LiteralType,
+	literal_values: []LiteralValue,
 	
-	// Allocator for any future string allocations
+	// Allocator (for future growth)
 	allocator: mem.Allocator,
 	
-	// Token count and capacity
-	count: u32,
+	// Token count (acts as "length" for all parallel arrays)
+	count:    u32,
+	capacity: u32,
 }
 
 // LiteralType distinguishes what kind of literal a token holds
@@ -50,7 +55,7 @@ LiteralType :: enum u8 {
 }
 
 // CompactToken represents a lightweight token handle
-// Only 8 bytes - can be passed by value efficiently
+// Only 12 bytes - can be passed by value efficiently
 CompactToken :: struct {
 	index: CompactTokenIndex,  // Index into SoA
 	soa:   ^TokenSoA,          // Reference to storage
@@ -68,39 +73,39 @@ TokenView :: struct {
 	literal_type: LiteralType,
 }
 
-// Initialize SoA token storage
+// Initialize SoA token storage with pre-allocated raw slices
 init_token_soa :: proc(soa: ^TokenSoA, alloc: mem.Allocator, capacity: int = 1024) {
-	soa.types   = make([dynamic]TokenType, 0, capacity, alloc)
-	soa.offsets = make([dynamic]u32, 0, capacity, alloc)
-	soa.lines   = make([dynamic]u32, 0, capacity, alloc)
-	soa.cols    = make([dynamic]u16, 0, capacity, alloc)
-	soa.lengths = make([dynamic]u16, 0, capacity, alloc)
-	soa.had_line_terminator = make([dynamic]bool, 0, capacity, alloc)
-	soa.literal_types  = make([dynamic]LiteralType, 0, capacity, alloc)
-	soa.literal_values = make([dynamic]LiteralValue, 0, capacity, alloc)
+	cap := u32(capacity)
+	
+	soa.types   = make([]TokenType, cap, alloc)
+	soa.offsets = make([]u32, cap, alloc)
+	soa.lines   = make([]u32, cap, alloc)
+	soa.cols    = make([]u16, cap, alloc)
+	soa.lengths = make([]u16, cap, alloc)
+	soa.had_line_terminator = make([]bool, cap, alloc)
+	soa.literal_types  = make([]LiteralType, cap, alloc)
+	soa.literal_values = make([]LiteralValue, cap, alloc)
+	
 	soa.allocator = alloc
-	soa.count = 0
+	soa.count    = 0
+	soa.capacity = cap
 }
 
-// Add a token to SoA storage, returns compact handle
+// Add a token — direct stores, zero append overhead
 add_token :: proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int, had_line_term: bool = false) -> CompactToken {
 	idx := soa.count
 	soa.count += 1
 	
-	// Use append to handle dynamic growth
-	append(&soa.types, token_type)
-	append(&soa.offsets, u32(loc.offset))
-	append(&soa.lines, u32(loc.line))
-	append(&soa.cols, u16(loc.column))
-	append(&soa.lengths, u16(length))
-	append(&soa.had_line_terminator, had_line_term)
+	// Direct store into pre-allocated slices
+	soa.types[idx]   = token_type
+	soa.offsets[idx] = u32(loc.offset)
+	soa.lines[idx]   = u32(loc.line)
+	soa.cols[idx]    = u16(loc.column)
+	soa.lengths[idx] = u16(length)
+	soa.had_line_terminator[idx] = had_line_term
 	
-	// Ensure literal arrays grow with the token arrays
-	// This is critical to prevent index out of range
-	if len(soa.literal_types) <= int(idx) {
-		append(&soa.literal_types, LiteralType.None)
-		append(&soa.literal_values, LiteralValue{})
-	}
+	// Literal arrays already pre-allocated — default values are .None / zero
+	// No per-token append needed
 	
 	return CompactToken{index = idx, soa = soa}
 }
@@ -110,16 +115,7 @@ add_token_literal :: proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, lengt
                           lit_type: LiteralType, value: LiteralValue, had_line_term: bool = false) -> CompactToken {
 	tok := add_token(soa, token_type, loc, length, had_line_term)
 	
-	// Ensure arrays have the element at tok.index
-	// This might happen if add_token didn't populate them
-	for len(soa.literal_types) <= int(tok.index) {
-		append(&soa.literal_types, LiteralType.None)
-	}
-	for len(soa.literal_values) <= int(tok.index) {
-		append(&soa.literal_values, LiteralValue{})
-	}
-	
-	soa.literal_types[tok.index] = lit_type
+	soa.literal_types[tok.index]  = lit_type
 	soa.literal_values[tok.index] = value
 	return tok
 }
@@ -150,11 +146,11 @@ get_token_type :: proc(tok: CompactToken) -> TokenType {
 	if tok.index == INVALID_TOKEN_INDEX || tok.soa == nil {
 		return .Invalid
 	}
-	// Bounds check
-	if int(tok.index) >= len(tok.soa.types) {
+	soa := tok.soa
+	if tok.index >= soa.count {
 		return .Invalid
 	}
-	return tok.soa.types[tok.index]
+	return soa.types[tok.index]
 }
 
 // Get token location
