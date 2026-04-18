@@ -93,6 +93,27 @@ kind := handler(&lexer)
 2. Replace switch statement with table lookup
 3. Use Odin's `#no_bounds_check` directive for the lookup itself
 
+### Actual Experiment (2026-04-18)
+
+Tested two approaches on `feat/byte-dispatch` branch:
+
+1. **Proc pointer table (v1)**: `[256]proc(^Lexer2, Loc) -> CompactToken` with
+   per-byte handlers. Result: **+1.5% slower** (P50 16552→16802 µs). Indirect call
+   overhead (pointer load + branch misprediction) exceeds switch benefit.
+
+2. **Action enum table (v2)**: `[256]ByteAction` → compact switch on ~20 actions.
+   Result: **0% change** (P50 16552→16542 µs). LLVM already compiles the dense
+   byte switch to a jump table; the enum indirection adds nothing.
+
+**Conclusion**: OXC's byte dispatch advantage comes from Rust/LLVM-specific
+optimizations (`unsafe fn`, monomorphized configs, aggressive inlining), not from
+the table structure itself. Odin's LLVM backend already generates optimal jump
+tables for dense byte switches.
+
+**Verdict**: Byte dispatch rejected. The actual bottleneck was TokenSoA's 8
+`append()` calls per token — replacing `[dynamic]T` with direct `[]T` stores
+yielded **-61% lex-only, -33% full parse** (commit `86065d3`).
+
 ## 2. Arena Allocation Strategy
 
 ### OXC Approach
