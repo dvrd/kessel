@@ -21,7 +21,7 @@ import ast "./ast"
 
 stdout_writer_initialized := false
 stdout_writer: bufio.Writer
-stdout_writer_buf: [64 * 1024]byte
+stdout_writer_buf: [1 * 1024 * 1024]byte // Increased from 64KB to 1MB for JSON streaming
 stdout_stream: io.Writer
 
 init_stdout_writer :: proc() {
@@ -39,6 +39,18 @@ flush_stdout_writer :: proc() {
 	}
 	bufio.writer_flush(&stdout_writer)
 	os.flush(os.stdout)
+}
+
+// Fast-path for static strings (no reflection overhead)
+out_s :: #force_inline proc(s: string) {
+	init_stdout_writer()
+	bufio.writer_write_string(&stdout_writer, s)
+}
+
+// Fast-path for single bytes
+out_byte :: #force_inline proc(b: byte) {
+	init_stdout_writer()
+	bufio.writer_write_byte(&stdout_writer, b)
 }
 
 out_print :: proc(args: ..any) -> int {
@@ -335,22 +347,22 @@ print_program_ast :: proc(program: ^ast.Program, indent: int) {
 	out_printf("\"type\": \"%s\",\n", type_str)
 
 	print_indent(indent)
-	out_println("\"body\": [")
+	out_s("\"body\": [\n")
 
 	for stmt, i in program.body {
 		print_indent(indent + 1)
-		out_println("{")
+		out_s("{\n")
 		print_statement_ast(stmt, indent + 2)
 		print_indent(indent + 1)
 		if i < len(program.body) - 1 {
-			out_println("},")
+			out_s("},\n")
 		} else {
-			out_println("}")
+			out_s("}\n")
 		}
 	}
 
 	print_indent(indent)
-	out_println("]")
+	out_s("]\n")
 }
 
 print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
@@ -359,12 +371,12 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 
 	#partial switch s in stmt^ {
 	case ^ast.ExpressionStatement:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"expression\": {")
+		out_s("\"expression\": {\n")
 		print_expression_ast(s.expression, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ^ast.VariableDeclaration:
 		kind_str := "var"
@@ -372,106 +384,106 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		case .Let:   kind_str = "let"
 		case .Const: kind_str = "const"
 		}
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"kind\": \"%s\",\n", kind_str)
 		print_indent(indent)
-		out_println("\"declarations\": [")
+		out_s("\"declarations\": [\n")
 		for decl, i in s.declarations {
 			print_indent(indent + 1)
-			out_println("{")
+			out_s("{\n")
 			print_indent(indent + 2)
-			out_println("\"id\": {")
+			out_s("\"id\": {\n")
 			print_pattern_ast(decl.id, indent + 3)
 			print_indent(indent + 2)
-			out_println("},")
+			out_s("},\n")
 			print_indent(indent + 2)
-			out_print("\"init\": ")
+			out_s("\"init\": ")
 			if init, ok := decl.init.(^ast.Expression); ok {
-				out_println("{")
+				out_s("{\n")
 				print_expression_ast(init, indent + 3)
 				print_indent(indent + 2)
-				out_print("}")
+				out_s("}")
 			} else {
-				out_print("null")
+				out_s("null")
 			}
 			print_indent(indent + 1)
 			if i < len(s.declarations) - 1 {
-				out_println("},")
+				out_s("},\n")
 			} else {
-				out_println("}")
+				out_s("}\n")
 			}
 		}
 		print_indent(indent)
-		out_print("]")
+		out_s("]")
 
 	case ^ast.FunctionDeclaration:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"id\": {")
+		out_s("\"id\": {\n")
 		if id, ok := s.expr.id.(ast.BindingIdentifier); ok {
 			print_indent(indent + 1)
 			out_printf("\"name\": \"%s\"\n", id.name)
 		}
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
 		out_printf("\"generator\": %v,\n", s.expr.generator)
 		print_indent(indent)
 		out_printf("\"async\": %v", s.expr.async)
 
 	case ^ast.BlockStatement:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"body\": [")
+		out_s("\"body\": [\n")
 		for inner_stmt, i in s.body {
 			print_indent(indent + 1)
-			out_println("{")
+			out_s("{\n")
 			print_statement_ast(inner_stmt, indent + 2)
 			print_indent(indent + 1)
 			if i < len(s.body) - 1 {
-				out_println("},")
+				out_s("},\n")
 			} else {
-				out_println("}")
+				out_s("}\n")
 			}
 		}
 		print_indent(indent)
-		out_print("]")
+		out_s("]")
 
 	case ^ast.ReturnStatement:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_print("\"argument\": ")
+		out_s("\"argument\": ")
 		if arg, ok := s.argument.(^ast.Expression); ok {
-			out_println("{")
+			out_s("{\n")
 			print_expression_ast(arg, indent + 1)
 			print_indent(indent)
-			out_print("}")
+			out_s("}")
 		} else {
-			out_print("null")
+			out_s("null")
 		}
 
 	case ^ast.IfStatement:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"test\": {")
+		out_s("\"test\": {\n")
 		print_expression_ast(s.test, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"consequent\": {")
+		out_s("\"consequent\": {\n")
 		print_statement_ast(s.consequent, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_print("\"alternate\": ")
+		out_s("\"alternate\": ")
 		if alt, ok := s.alternate.(^ast.Statement); ok {
-			out_println("{")
+			out_s("{\n")
 			print_statement_ast(alt, indent + 1)
 			print_indent(indent)
-			out_print("}")
+			out_s("}")
 		} else {
-			out_print("null")
+			out_s("null")
 		}
 
 	case ^ast.WhileStatement:
@@ -748,32 +760,32 @@ print_pattern_ast :: proc(pattern: ast.Pattern, indent: int) {
 	#partial switch p in pattern {
 	case ^ast.Identifier:
 		print_indent(indent)
-		out_println("\"type\": \"Identifier\",")
+		out_s("\"type\": \"Identifier\",\n")
 		print_indent(indent)
 		out_printf("\"name\": \"%s\"", p.name)
 	case ^ast.ArrayPattern:
 		print_indent(indent)
-		out_println("\"type\": \"ArrayPattern\",")
+		out_s("\"type\": \"ArrayPattern\",\n")
 		print_indent(indent)
-		out_println("\"elements\": [")
+		out_s("\"elements\": [\n")
 		for elem, i in p.elements {
 			if e, ok := elem.(ast.Pattern); ok {
 				print_pattern_ast(e, indent + 1)
 				if i < len(p.elements) - 1 {
-					out_println(",")
+					out_s(",\n")
 				}
 			}
 		}
 		print_indent(indent)
-		out_print("]")
+		out_s("]")
 	case ^ast.ObjectPattern:
 		print_indent(indent)
-		out_println("\"type\": \"ObjectPattern\",")
+		out_s("\"type\": \"ObjectPattern\",\n")
 		print_indent(indent)
-		out_println("\"properties\": [ ... ]") // Simplified for now
+		out_s("\"properties\": [ ... ]\n") // Simplified for now
 	case:
 		print_indent(indent)
-		out_print("null")
+		out_s("null")
 	}
 }
 
@@ -783,24 +795,24 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 
 	#partial switch e in expr^ {
 	case ast.Identifier:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"name\": \"%s\"", e.name)
 
 	case ast.NumericLiteral:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"value\": %v,\n", e.value)
 		print_indent(indent)
 		out_printf("\"raw\": \"%s\"", e.raw)
 
 	case ast.StringLiteral:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"value\": \"%s\"", e.value)
 
 	case ast.BooleanLiteral:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"value\": %v", e.value)
 
@@ -811,32 +823,32 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		// No additional fields
 
 	case ast.ArrayExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"elements\": [")
+		out_s("\"elements\": [\n")
 		for elem, i in e.elements {
 			if el, ok := elem.(^ast.Expression); ok {
 				print_indent(indent + 1)
-				out_println("{")
+				out_s("{\n")
 				print_expression_ast(el, indent + 2)
 				print_indent(indent + 1)
 				if i < len(e.elements) - 1 {
-					out_println("},")
+					out_s("},\n")
 				} else {
-					out_println("}")
+					out_s("}\n")
 				}
 			}
 		}
 		print_indent(indent)
-		out_print("]")
+		out_s("]")
 
 	case ast.ObjectExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"properties\": [")
+		out_s("\"properties\": [\n")
 		for prop, i in e.properties {
 			print_indent(indent + 1)
-			out_println("{")
+			out_s("{\n")
 			print_indent(indent + 2)
 			kind_str := "init"
 			#partial switch prop.kind {
@@ -849,222 +861,222 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 			// Spread properties have nil key
 			if prop.key != nil {
 				print_indent(indent + 2)
-				out_println("\"key\": {")
+				out_s("\"key\": {\n")
 				print_expression_ast(prop.key, indent + 3)
 				print_indent(indent + 2)
-				out_println("},")
+				out_s("},\n")
 			} else {
 				print_indent(indent + 2)
-				out_println("\"key\": null,")
+				out_s("\"key\": null,\n")
 			}
 
 			if prop.value != nil {
 				print_indent(indent + 2)
-				out_println("\"value\": {")
+				out_s("\"value\": {\n")
 				print_expression_ast(prop.value, indent + 3)
 				print_indent(indent + 2)
-				out_print("}")
+				out_s("}")
 			} else {
 				print_indent(indent + 2)
-				out_print("\"value\": null")
+				out_s("\"value\": null")
 			}
 
 			print_indent(indent + 1)
 			if i < len(e.properties) - 1 {
-				out_println("},")
+				out_s("},\n")
 			} else {
-				out_println("}")
+				out_s("}\n")
 			}
 		}
 		print_indent(indent)
-		out_print("]")
+		out_s("]")
 
 	case ast.BinaryExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		op_str := binary_op_to_string(e.operator)
 		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
-		out_println("\"left\": {")
+		out_s("\"left\": {\n")
 		print_expression_ast(e.left, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"right\": {")
+		out_s("\"right\": {\n")
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.UnaryExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		op_str := unary_op_to_string(e.operator)
 		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
 		out_printf("\"prefix\": %v,\n", e.prefix)
 		print_indent(indent)
-		out_println("\"argument\": {")
+		out_s("\"argument\": {\n")
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.AssignmentExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		op_str := assignment_op_to_string(e.operator)
 		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
-		out_println("\"left\": {")
+		out_s("\"left\": {\n")
 		print_expression_ast(e.left, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"right\": {")
+		out_s("\"right\": {\n")
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.CallExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"callee\": {")
+		out_s("\"callee\": {\n")
 		print_expression_ast(e.callee, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"arguments\": [")
+		out_s("\"arguments\": [\n")
 		for arg, i in e.arguments {
 			print_indent(indent + 1)
-			out_println("{")
+			out_s("{\n")
 			print_expression_ast(arg, indent + 2)
 			print_indent(indent + 1)
 			if i < len(e.arguments) - 1 {
-				out_println("},")
+				out_s("},\n")
 			} else {
-				out_println("}")
+				out_s("}\n")
 			}
 		}
 		print_indent(indent)
-		out_print("]")
+		out_s("]")
 
 	case ast.MemberExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"computed\": %v,\n", e.computed)
 		print_indent(indent)
-		out_println("\"object\": {")
+		out_s("\"object\": {\n")
 		print_expression_ast(e.object, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"property\": {")
+		out_s("\"property\": {\n")
 		print_expression_ast(e.property, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.ConditionalExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"test\": {")
+		out_s("\"test\": {\n")
 		print_expression_ast(e.test, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"consequent\": {")
+		out_s("\"consequent\": {\n")
 		print_expression_ast(e.consequent, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"alternate\": {")
+		out_s("\"alternate\": {\n")
 		print_expression_ast(e.alternate, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.FunctionExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"generator\": %v,\n", e.generator)
 		print_indent(indent)
 		out_printf("\"async\": %v,\n", e.async)
 		print_indent(indent)
-		out_println("\"params\": [ ... ],")
+		out_s("\"params\": [ ... ],\n")
 		print_indent(indent)
-		out_print("\"body\": { ... }")
+		out_s("\"body\": { ... }")
 
 	case ast.ArrowFunctionExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"expression\": %v,\n", e.expression)
 		print_indent(indent)
 		out_printf("\"async\": %v", e.async)
 
 	case ast.NewExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"callee\": {")
+		out_s("\"callee\": {\n")
 		print_expression_ast(e.callee, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"arguments\": [")
+		out_s("\"arguments\": [\n")
 		for arg, i in e.arguments {
 			print_indent(indent + 1)
-			out_println("{")
+			out_s("{\n")
 			print_expression_ast(arg, indent + 2)
 			print_indent(indent + 1)
 			if i < len(e.arguments) - 1 {
-				out_println("},")
+				out_s("},\n")
 			} else {
-				out_println("}")
+				out_s("}\n")
 			}
 		}
 		print_indent(indent)
-		out_print("]")
+		out_s("]")
 
 	case ast.TemplateLiteral:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"quasis\": [ ... ],")
+		out_s("\"quasis\": [ ... ],\n")
 		print_indent(indent)
-		out_print("\"expressions\": [ ... ]")
+		out_s("\"expressions\": [ ... ]")
 
 	case ast.TaggedTemplateExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"tag\": {")
+		out_s("\"tag\": {\n")
 		print_expression_ast(e.tag, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"quasi\": {")
+		out_s("\"quasi\": {\n")
 		print_expression_ast(e.quasi, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.SpreadElement:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"argument\": {")
+		out_s("\"argument\": {\n")
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.BigIntLiteral:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"value\": \"%s\",\n", e.value)
 		print_indent(indent)
 		out_printf("\"raw\": \"%s\"", e.raw)
 
 	case ast.RegExpLiteral:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"pattern\": \"%s\",\n", e.pattern)
 		print_indent(indent)
 		out_printf("\"flags\": \"%s\"", e.flags)
 
 	case ast.UpdateExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		op_str := ""
 		switch e.operator {
@@ -1075,13 +1087,13 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_printf("\"prefix\": %v,\n", e.prefix)
 		print_indent(indent)
-		out_println("\"argument\": {")
+		out_s("\"argument\": {\n")
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.LogicalExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		op_str := ""
 		#partial switch e.operator {
@@ -1091,108 +1103,108 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		}
 		out_printf("\"operator\": \"%s\",\n", op_str)
 		print_indent(indent)
-		out_println("\"left\": {")
+		out_s("\"left\": {\n")
 		print_expression_ast(e.left, indent + 1)
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"right\": {")
+		out_s("\"right\": {\n")
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.SequenceExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"expressions\": [")
+		out_s("\"expressions\": [\n")
 		for expr_elem, i in e.expressions {
 			print_indent(indent + 1)
-			out_println("{")
+			out_s("{\n")
 			print_expression_ast(expr_elem, indent + 2)
 			print_indent(indent + 1)
 			if i < len(e.expressions) - 1 {
-				out_println("},")
+				out_s("},\n")
 			} else {
-				out_println("}")
+				out_s("}\n")
 			}
 		}
 		print_indent(indent)
-		out_print("]")
+		out_s("]")
 
 	case ast.YieldExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		if arg, ok := e.argument.(^ast.Expression); ok && arg != nil {
-			out_println("\"argument\": {")
+			out_s("\"argument\": {\n")
 			print_expression_ast(arg, indent + 1)
 			print_indent(indent)
-			out_println("},")
+			out_s("},\n")
 		} else {
-			out_println("\"argument\": null,")
+			out_s("\"argument\": null,\n")
 		}
 		print_indent(indent)
 		out_printf("\"delegate\": %v", e.delegate)
 
 	case ast.AwaitExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"argument\": {")
+		out_s("\"argument\": {\n")
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.ImportExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"source\": {")
+		out_s("\"source\": {\n")
 		print_expression_ast(e.source, indent + 1)
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.MetaProperty:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
-		out_println("\"meta\": {")
+		out_s("\"meta\": {\n")
 		print_indent(indent + 1)
 		out_printf("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
 		out_printf("\"name\": \"import\"\n")
 		print_indent(indent)
-		out_println("},")
+		out_s("},\n")
 		print_indent(indent)
-		out_println("\"property\": {")
+		out_s("\"property\": {\n")
 		print_indent(indent + 1)
 		out_printf("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
 		out_printf("\"name\": \"meta\"\n")
 		print_indent(indent)
-		out_print("}")
+		out_s("}")
 
 	case ast.PrivateIdentifier:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		out_printf("\"name\": \"%s\"", e.name)
 
 	case ast.ClassExpression:
-		out_println(",")
+		out_s(",\n")
 		print_indent(indent)
 		if e.id != nil {
 			id := e.id.(ast.BindingIdentifier)
-			out_println("\"id\": {")
+			out_s("\"id\": {\n")
 			print_indent(indent + 1)
 			out_printf("\"type\": \"Identifier\",\n")
 			print_indent(indent + 1)
 			out_printf("\"name\": \"%s\"\n", id.name)
 			print_indent(indent)
-			out_println("},")
+			out_s("},\n")
 		}
 		if super, ok := e.super_class.(^ast.Expression); ok && super != nil {
-			out_println("\"superClass\": {")
+			out_s("\"superClass\": {\n")
 			print_expression_ast(super, indent + 1)
 			print_indent(indent)
-			out_println("},")
+			out_s("},\n")
 		}
-		out_println("\"body\": { ... }")
+		out_s("\"body\": { ... }\n")
 
 	case:
 		out_println(",")
