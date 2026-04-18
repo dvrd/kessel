@@ -25,6 +25,9 @@ stdout_writer: bufio.Writer
 stdout_writer_buf: [1 * 1024 * 1024]byte // Increased from 64KB to 1MB for JSON streaming
 stdout_stream: io.Writer
 
+// Compact JSON output mode — skip indentation and newlines
+compact_json: bool
+
 init_stdout_writer :: proc() {
 	if stdout_writer_initialized {
 		return
@@ -43,8 +46,25 @@ flush_stdout_writer :: proc() {
 }
 
 // Fast-path for static strings (no reflection overhead)
+// In compact mode, strips all \n from strings
 out_s :: #force_inline proc(s: string) {
 	init_stdout_writer()
+	if compact_json && len(s) > 0 {
+		// Fast path: check if string contains newlines
+		has_nl := false
+		for i in 0..<len(s) {
+			if s[i] == '\n' { has_nl = true; break }
+		}
+		if has_nl {
+			// Write without newlines
+			for i in 0..<len(s) {
+				if s[i] != '\n' {
+					bufio.writer_write_byte(&stdout_writer, s[i])
+				}
+			}
+			return
+		}
+	}
 	bufio.writer_write_string(&stdout_writer, s)
 }
 
@@ -109,6 +129,9 @@ out_print :: proc(args: ..any) -> int {
 
 out_println :: proc(args: ..any) -> int {
 	init_stdout_writer()
+	if compact_json {
+		return fmt.wprint(stdout_stream, ..args, flush=false)
+	}
 	return fmt.wprintln(stdout_stream, ..args, flush=false)
 }
 
@@ -130,11 +153,17 @@ main :: proc() {
 	case "parse":
 		if len(os.args) < 3 {
 			out_println("Error: parse command requires a file path")
-			out_println("Usage: kessel parse <js-file>")
+			out_println("Usage: kessel parse <js-file> [--compact]")
 			flush_stdout_writer()
 			os.exit(1)
 		}
 		file_path := os.args[2]
+		compact_json = false
+		for i in 3..<len(os.args) {
+			if os.args[i] == "--compact" {
+				compact_json = true
+			}
+		}
 		parse_file(file_path)
 
 	case "lex", "tokenize":
@@ -626,6 +655,7 @@ percentile :: proc(sorted_values: []f64, p: f64) -> f64 {
 // ============================================================================
 
 print_indent :: proc(indent: int) {
+	if compact_json { return }
 	for i in 0..<indent {
 		out_print("  ")
 	}
