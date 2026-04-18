@@ -297,3 +297,68 @@ Virtual arena migration eliminated the 4 MB floor (TASK A complete).
 Remaining gap is primarily **parser overhead** + **Odin startup cost**.
 Next phase: Profile-driven parser optimization on Linux with perf/samply.
 
+
+---
+
+## Micro-Optimization Experiments (TASK F)
+
+**Date**: 2026-04-18  
+**Branch**: exp/micro-opts (experiments only, no merge)  
+**Baseline**: post-virtual-arena.json (2.51ms small, 2.09ms medium, 55.24ms large)  
+**Methodology**: 3 conservative, surgical optimizations with safety-net benchmarking
+
+### Experiment 1: #force_inline lexer helpers
+
+**Hypothesis**: Inline small hot-path functions (get_current2, peek2_compact, is2) to eliminate call overhead.
+
+**Results**:
+
+| Test | Before | After | Delta | Sigma |
+|------|--------|-------|-------|-------|
+| small (13B) | 2.51 ± 1.88 ms | 1.74 ± 0.19 ms | -30.4% | inconclusive |
+| medium (2.6KB) | 2.09 ± 0.23 ms | 2.00 ± 0.22 ms | -4.2% | inconclusive |
+| large (324KB) | 55.24 ± 6.05 ms | 55.11 ± 3.70 ms | -0.2% | inconclusive |
+
+**Decision**: Not significant. Compiler likely already inlining. No merge.
+
+### Experiment 2: Fast-path ASCII identifier dispatch
+
+**Hypothesis**: Bypass CHAR_CLASS_TABLE lookup for common ASCII cases (a-z, A-Z, _).
+
+**Results**:
+
+| Test | Before | After | Delta | Sigma |
+|------|--------|-------|-------|-------|
+| small (13B) | 2.51 ± 1.88 ms | 1.64 ± 0.16 ms | -34.5% | inconclusive |
+| medium (2.6KB) | 2.09 ± 0.23 ms | 1.81 ± 0.15 ms | -13.3% | inconclusive |
+| large (324KB) | 55.24 ± 6.05 ms | 55.17 ± 1.77 ms | -0.1% | inconclusive |
+
+**Decision**: Not significant. All within noise floor. No merge.
+
+### Experiment 3: Token capacity pre-alloc heuristic
+
+**Hypothesis**: Adjust estimate_token_capacity from max(source_len, 1024) to max(source_len / 5, 64) based on measured 5 bytes/token ratio.
+
+**Results**:
+
+| Test | Before | After | Delta | Sigma |
+|------|--------|-------|-------|-------|
+| small (13B) | 2.51 ± 1.88 ms | 1.64 ± 0.12 ms | -34.5% | inconclusive |
+| medium (2.6KB) | 2.09 ± 0.23 ms | 1.81 ± 0.17 ms | -13.3% | inconclusive |
+| large (324KB) | 55.24 ± 6.05 ms | 55.55 ± 1.93 ms | +0.6% | inconclusive |
+
+**Decision**: Not significant. All inconclusive. No merge.
+
+### Summary
+
+**Key Finding**: All 3 experiments show changes within noise floor (standard deviation of measurements).
+While small/medium suggest hints of improvement (-30% to -13%), they fail sigma-based significance test.
+
+**Conclusion**: Micro-optimizations appear ineffective against variance in tiny files. 
+Recommendation:
+1. Focus optimization effort on **parser** (40% of runtime in profiling)
+2. Avoid micro-opts targeting lexer—signal buried in noise
+3. Profile on Linux with perf/samply for cleaner results (less OS jitter)
+4. Next target: byte-dispatch table or lazy AST construction
+
+**Branch Status**: exp/micro-opts discarded (no significant improvements). Main untouched.
