@@ -28,6 +28,11 @@ stdout_stream: io.Writer
 // Compact JSON output mode — skip indentation and newlines
 compact_json: bool
 
+// Direct buffer mode — pre-allocated []byte, zero bufio overhead
+use_direct_buf: bool
+direct_buf: []byte
+direct_pos: int
+
 init_stdout_writer :: proc() {
 	if stdout_writer_initialized {
 		return
@@ -47,16 +52,33 @@ flush_stdout_writer :: proc() {
 
 // Fast-path for static strings (no reflection overhead)
 // In compact mode, strips all \n from strings
+// Helper: write string to direct buffer, skipping newlines in compact mode
+write_direct :: #force_inline proc(s: string) {
+	if compact_json {
+		for i in 0..<len(s) {
+			if s[i] != '\n' {
+				direct_buf[direct_pos] = s[i]
+				direct_pos += 1
+			}
+		}
+	} else {
+		mem.copy(&direct_buf[direct_pos], raw_data(s), len(s))
+		direct_pos += len(s)
+	}
+}
+
 out_s :: #force_inline proc(s: string) {
+	if use_direct_buf {
+		write_direct(s)
+		return
+	}
 	init_stdout_writer()
 	if compact_json && len(s) > 0 {
-		// Fast path: check if string contains newlines
 		has_nl := false
 		for i in 0..<len(s) {
 			if s[i] == '\n' { has_nl = true; break }
 		}
 		if has_nl {
-			// Write without newlines
 			for i in 0..<len(s) {
 				if s[i] != '\n' {
 					bufio.writer_write_byte(&stdout_writer, s[i])
@@ -70,12 +92,49 @@ out_s :: #force_inline proc(s: string) {
 
 // Fast-path for single bytes
 out_byte :: #force_inline proc(b: byte) {
+	if use_direct_buf {
+		direct_buf[direct_pos] = b
+		direct_pos += 1
+		return
+	}
 	init_stdout_writer()
 	bufio.writer_write_byte(&stdout_writer, b)
 }
 
 // Escape a string for JSON: quotes, backslashes, control chars
 out_string :: proc(s: string) {
+	if use_direct_buf {
+		direct_buf[direct_pos] = '"'
+		direct_pos += 1
+		for i in 0..<len(s) {
+			c := s[i]
+			switch c {
+			case '"':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = '"'; direct_pos += 2
+			case '\\':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = '\\'; direct_pos += 2
+			case '\n':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 'n'; direct_pos += 2
+			case '\r':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 'r'; direct_pos += 2
+			case '\t':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 't'; direct_pos += 2
+			case:
+				if c < 0x20 {
+					tmp: [8]byte
+					esc := fmt.bprintf(tmp[:], "\\u%04x", c)
+					mem.copy(&direct_buf[direct_pos], raw_data(esc), len(esc))
+					direct_pos += len(esc)
+				} else {
+					direct_buf[direct_pos] = c
+					direct_pos += 1
+				}
+			}
+		}
+		direct_buf[direct_pos] = '"'
+		direct_pos += 1
+		return
+	}
 	init_stdout_writer()
 	bufio.writer_write_byte(&stdout_writer, '"')
 	for i := 0; i < len(s); i += 1 {
@@ -106,6 +165,13 @@ out_string :: proc(s: string) {
 
 // Write integer as decimal ASCII (no allocation)
 out_int :: proc(n: int) {
+	if use_direct_buf {
+		tmp: [24]byte
+		s := strconv.write_int(tmp[:], i64(n), 10)
+		mem.copy(&direct_buf[direct_pos], raw_data(s), len(s))
+		direct_pos += len(s)
+		return
+	}
 	init_stdout_writer()
 	tmp: [24]byte
 	s := strconv.write_int(tmp[:], i64(n), 10)
@@ -114,6 +180,14 @@ out_int :: proc(n: int) {
 
 // Write bool as 'true' or 'false'
 out_bool :: #force_inline proc(b: bool) {
+	if use_direct_buf {
+		if b {
+			direct_buf[direct_pos] = 't'; direct_buf[direct_pos+1] = 'r'; direct_buf[direct_pos+2] = 'u'; direct_buf[direct_pos+3] = 'e'; direct_pos += 4
+		} else {
+			direct_buf[direct_pos] = 'f'; direct_buf[direct_pos+1] = 'a'; direct_buf[direct_pos+2] = 'l'; direct_buf[direct_pos+3] = 's'; direct_buf[direct_pos+4] = 'e'; direct_pos += 5
+		}
+		return
+	}
 	init_stdout_writer()
 	if b {
 		bufio.writer_write_string(&stdout_writer, "true")
@@ -123,11 +197,33 @@ out_bool :: #force_inline proc(b: bool) {
 }
 
 out_print :: proc(args: ..any) -> int {
+	if use_direct_buf {
+		// For AST emitter: all out_print calls use string args only
+		// Just concatenate directly
+		for arg in args {
+			if v, ok := arg.(string); ok {
+				write_direct(v)
+			}
+		}
+		return 0
+	}
 	init_stdout_writer()
 	return fmt.wprint(stdout_stream, ..args, flush=false)
 }
 
 out_println :: proc(args: ..any) -> int {
+	if use_direct_buf {
+		for arg in args {
+			if v, ok := arg.(string); ok {
+				write_direct(v)
+			}
+		}
+		if !compact_json {
+			direct_buf[direct_pos] = '\n'
+			direct_pos += 1
+		}
+		return 0
+	}
 	init_stdout_writer()
 	if compact_json {
 		return fmt.wprint(stdout_stream, ..args, flush=false)
@@ -136,6 +232,15 @@ out_println :: proc(args: ..any) -> int {
 }
 
 out_printf :: proc(format: string, args: ..any) -> int {
+	if use_direct_buf {
+		sb: strings.Builder
+		strings.builder_init(&sb)
+		fmt.sbprintf(&sb, format, ..args)
+		s := strings.to_string(sb)
+		write_direct(s)
+		strings.builder_destroy(&sb)
+		return len(s)
+	}
 	init_stdout_writer()
 	return fmt.wprintf(stdout_stream, format, ..args, flush=false)
 }
@@ -319,10 +424,22 @@ parse_file :: proc(file_path: string) {
 		}
 	}
 	
-	// Output AST as JSON-like structure
-	out_println("{")
+	// Output AST as JSON via direct buffer (zero bufio overhead)
+	// Pre-allocate ~12× source size for JSON output (compact ≈ 9×, pretty ≈ 20×)
+	est_size := max(len(source) * 20, 4096)  // generous: 20× source, min 4KB
+	direct_buf = make([]byte, est_size, context.allocator)
+	direct_pos = 0
+	use_direct_buf = true
+
+	out_s("{\n")
 	print_program_ast(program, 1)
-	out_println("}")
+	out_s("}\n")
+
+	// Single write to stdout
+	os.write(os.stdout, direct_buf[:direct_pos])
+	delete(direct_buf, context.allocator)
+	direct_buf = nil
+	use_direct_buf = false
 	
 	// Print statistics
 	fmt.eprintf("\n--- Statistics ---\n")
