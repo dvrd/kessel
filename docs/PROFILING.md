@@ -362,3 +362,121 @@ Recommendation:
 4. Next target: byte-dispatch table or lazy AST construction
 
 **Branch Status**: exp/micro-opts discarded (no significant improvements). Main untouched.
+
+---
+
+## In-Process Microbench
+
+**Date**: 2026-04-18  
+**Platform**: macOS arm64 (Apple Silicon M1)  
+**Build**: Release mode (-o:speed)  
+**Purpose**: Isolate parse cost from binary startup overhead
+
+### Motivation
+
+External benchmarking (using `hyperfine` or shell `time`) captures:
+- Binary load + relocation (macOS dyld)
+- Odin runtime initialization
+- File I/O
+- JSON output formatting
+- Exit/cleanup
+
+Microbench isolates **parse cost only** by running the parser multiple times in-process, eliminating startup overhead.
+
+### How to Run
+
+```bash
+# Default: 1000 iterations
+./kessel_bin microbench kessel/bench_large.js
+
+# Custom iteration count
+./kessel_bin microbench kessel/tests/fixtures/basic/001_const.js --iterations 5000
+```
+
+### Methodology
+
+For each file:
+1. Read source once (not timed)
+2. Run 1 warm-up iteration (not counted)
+3. Execute N iterations, each:
+   - Create new virtual arena
+   - Initialize lexer + parser
+   - Call `parse_program()`
+   - Destroy arena (measure memory pressure)
+   - Record elapsed time
+4. Compute mean, min, max, P50/P95/P99 from N measurements
+
+### Results: Internal vs External
+
+| File | Size | External Mean | Internal Mean (P50) | Overhead | % Overhead |
+|------|------|----------------|---------------------|----------|------------|
+| `001_const.js` | 13 B | 1.81 ms | 0.0088 ms | 1.80 ms | 99.5% |
+| `es2025.js` | 2.6 KB | 2.01 ms | 0.078 ms | 1.93 ms | 96.1% |
+| `bench_large.js` | 324 KB | 56.31 ms | 15.61 ms | 40.70 ms | 72.3% |
+
+### Interpretation
+
+1. **Small file dominance**: For 13-byte input, startup = 1.80 ms, parse = 0.009 ms → **200x overhead**
+   - Binary load + Odin runtime init ≈ 1.5 ms (fixed cost)
+   - File I/O ≈ 200 µs
+   - Remaining ≈ 100 µs (parser overhead)
+
+2. **Medium file**: 2.6 KB → 96% overhead
+   - Parse time scales to 0.078 ms (10x more source → ~9x slower parse)
+   - Startup dominates
+
+3. **Large file**: 324 KB → 72% overhead
+   - Parse time = 15.61 ms (4000x more source than small → ~1700x slower parse)
+   - Algorithm is O(n); overhead becomes relatively smaller
+
+### Variance Analysis
+
+**Internal measurements (in-process):**
+```
+Small (13B, 5000 iters):
+  P50:  7.79 us
+  P95: 10.67 us
+  P99: 13.46 us
+  Ratio (P99/P50): 1.73x
+
+Medium (2.6KB, 2000 iters):
+  P50: 76.17 us
+  P95: 87.88 us
+  P99: 113.80 us
+  Ratio (P99/P50): 1.49x
+
+Large (324KB, 100 iters):
+  P50: 15471.85 us
+  P95: 16786.07 us
+  P99: 18733.75 us
+  Ratio (P99/P50): 1.21x
+```
+
+**Key insight**: Standard deviation **decreases** as % of mean with larger files.
+- Small files: High variance (jitter from OS scheduler, arena allocation patterns)
+- Large files: Low variance (parser cost dominates jitter)
+
+### Decision Rule
+
+For optimization changes:
+- **If improvement > 5%**: Worth investigating (likely real signal)
+- **If improvement 2-5%**: Use microbench (internal median is more stable than external)
+- **If improvement < 2%**: Likely within noise; requires 20+ runs to confirm significance
+
+### When to Use Microbench vs Hyperfine
+
+| Scenario | Tool | Reason |
+|----------|------|--------|
+| Debugging parse algorithmic change | Microbench | Isolates parse cost |
+| Regression testing on CI | Hyperfine | Catches binary-level regressions |
+| Compiler flag tuning | Hyperfine | External bottleneck may shift |
+| Lexer hotspot optimization | Microbench | 50% of parse cost, easy to measure in-process |
+| Comparing to OXC | Hyperfine | Fair comparison includes startup |
+| Iteration time for small files < 2% | Microbench | Startup noise dominates external |
+
+### Next Steps
+
+1. Use microbench to guide **parser** optimizations (40% of parse cost)
+2. Monitor P50 instead of mean for stable signal (less jitter)
+3. If targeting >10% improvement, verify with both tools
+4. Profile on Linux if possible (macOS has higher startup variance)

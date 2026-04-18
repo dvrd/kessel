@@ -6,7 +6,10 @@ import "core:io"
 import "core:mem"
 import mvirtual "core:mem/virtual"
 import "core:os"
+import "core:slice"
 import "core:strings"
+import "core:time"
+import "core:strconv"
 
 import lexer "./lexer"
 import parser "./parser"
@@ -59,9 +62,9 @@ main :: proc() {
 		flush_stdout_writer()
 		os.exit(1)
 	}
-	
+
 	command := os.args[1]
-	
+
 	switch command {
 	case "parse":
 		if len(os.args) < 3 {
@@ -72,7 +75,7 @@ main :: proc() {
 		}
 		file_path := os.args[2]
 		parse_file(file_path)
-		
+
 	case "lex", "tokenize":
 		if len(os.args) < 3 {
 			out_println("Error: lex command requires a file path")
@@ -83,12 +86,29 @@ main :: proc() {
 		file_path := os.args[2]
 		lex_file(file_path)
 		
+	case "microbench":
+		if len(os.args) < 3 {
+			out_println("Error: microbench requires a file path")
+			out_println("Usage: kessel microbench <file> [--iterations N]")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		file_path := os.args[2]
+		iterations := 1000
+		if len(os.args) >= 5 && os.args[3] == "--iterations" {
+			n, ok := strconv.parse_int(os.args[4])
+			if ok {
+				iterations = n
+			}
+		}
+		microbench_file(file_path, iterations)
+		
 	case "help", "-h", "--help":
 		print_usage()
-		
+
 	case "version", "-v", "--version":
 		out_println("kessel version 0.1.0")
-		
+
 	case:
 		out_printf("Unknown command: %s\n", command)
 		print_usage()
@@ -104,20 +124,24 @@ print_usage :: proc() {
 	out_println("Usage: kessel <command> [options]")
 	out_println("")
 	out_println("Commands:")
-	out_println("  parse <file>     Parse a JavaScript file and output AST as JSON")
-	out_println("  lex <file>       Tokenize a JavaScript file and output tokens")
-	out_println("  test             Run lexer debug test")
-	out_println("  help             Show this help message")
-	out_println("  version          Show version information")
+	out_println("  parse <file>                    Parse a JavaScript file and output AST as JSON")
+	out_println("  lex <file>                      Tokenize a JavaScript file and output tokens")
+	out_println("  microbench <file> [--iterations N]  Run parse in-process loop (default 1000 iters)")
+	out_println("  test                            Run lexer debug test")
+	out_println("  help                            Show this help message")
+	out_println("  version                         Show version information")
 	out_println("")
 	out_println("Examples:")
 	out_println("  kessel parse app.js")
 	out_println("  kessel lex src/index.js")
+	out_println("  kessel microbench app.js --iterations 5000")
 }
 
 // ============================================================================
 // Parse Command
 // ============================================================================
+
+
 
 parse_file :: proc(file_path: string) {
 	// Read file
@@ -148,7 +172,7 @@ parse_file :: proc(file_path: string) {
 	// Initialize parser with optimized lexer
 	p: parser.Parser
 	parser.init_parser_adapter(&p, &lex, arena_alloc)
-	
+
 	// Parse program
 	program := parser.parse_program(&p, .Script)
 	
@@ -173,6 +197,129 @@ parse_file :: proc(file_path: string) {
 }
 
 // ============================================================================
+// Microbench Command (in-process parse measurements)
+// ============================================================================
+
+microbench_file :: proc(file_path: string, iterations: int) {
+	// Read file once
+	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
+	if read_err != nil {
+		out_printf("Error: Could not read file: %s\n", file_path)
+		flush_stdout_writer()
+		os.exit(1)
+	}
+	defer delete(source, context.allocator)
+	
+	file_size := len(source)
+	
+	// Allocate array for timing measurements
+	durations := make([dynamic]time.Duration, context.allocator)
+	defer delete(durations)
+	
+	// Warm-up run (1 iteration, not counted)
+	{
+		arena: mvirtual.Arena
+		_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+		defer mvirtual.arena_destroy(&arena)
+		arena_alloc := mvirtual.arena_allocator(&arena)
+		
+		lex: lexer.LexerAdapter
+		lexer.init_adapter(&lex, string(source), arena_alloc)
+		
+		p: parser.Parser
+		parser.init_parser_adapter(&p, &lex, arena_alloc)
+		
+		_ = parser.parse_program(&p, .Script)
+	}
+	
+	// Main benchmark loop
+	for i in 0..<iterations {
+		start := time.tick_now()
+		
+		arena: mvirtual.Arena
+		_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+		defer mvirtual.arena_destroy(&arena)
+		arena_alloc := mvirtual.arena_allocator(&arena)
+		
+		lex: lexer.LexerAdapter
+		lexer.init_adapter(&lex, string(source), arena_alloc)
+		
+		p: parser.Parser
+		parser.init_parser_adapter(&p, &lex, arena_alloc)
+		
+		_ = parser.parse_program(&p, .Script)
+		
+		elapsed := time.tick_since(start)
+		append(&durations, elapsed)
+	}
+	
+	// Convert durations to microseconds for analysis
+	microseconds := make([dynamic]f64, context.allocator)
+	defer delete(microseconds)
+	
+	for d in durations {
+		append(&microseconds, f64(time.duration_microseconds(d)))
+	}
+	
+	// Calculate statistics
+	total_us := f64(0)
+	min_us := microseconds[0]
+	max_us := microseconds[0]
+	
+	for us in microseconds {
+		total_us += us
+		if us < min_us {
+			min_us = us
+		}
+		if us > max_us {
+			max_us = us
+		}
+	}
+	
+	mean_us := total_us / f64(len(microseconds))
+	
+	// Sort for percentiles
+	slice.sort(microseconds[:])
+	
+	p50_us := percentile(microseconds[:], 50)
+	p95_us := percentile(microseconds[:], 95)
+	p99_us := percentile(microseconds[:], 99)
+	
+	total_ms := total_us / 1000.0
+	
+	// Output results
+	out_printf("Microbench: %s (%d bytes)\n", file_path, file_size)
+	out_printf("Iterations: %d\n", iterations)
+	out_printf("Total time:  %.2f ms\n", total_ms)
+	out_printf("Mean:        %.3f us\n", mean_us)
+	out_printf("Min:         %.3f us\n", min_us)
+	out_printf("Max:         %.3f us\n", max_us)
+	out_printf("P50:         %.3f us\n", p50_us)
+	out_printf("P95:         %.3f us\n", p95_us)
+	out_printf("P99:         %.3f us\n", p99_us)
+}
+
+percentile :: proc(sorted_values: []f64, p: f64) -> f64 {
+	if len(sorted_values) == 0 {
+		return 0
+	}
+	if len(sorted_values) == 1 {
+		return sorted_values[0]
+	}
+	
+	idx := (p / 100.0) * f64(len(sorted_values) - 1)
+	lower := int(idx)
+	upper := lower + 1
+	
+	if upper >= len(sorted_values) {
+		return sorted_values[len(sorted_values) - 1]
+	}
+	
+	fraction := idx - f64(lower)
+	return sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction
+}
+
+// ============================================================================
 // AST Printing (JSON-like output)
 // ============================================================================
 
@@ -186,10 +333,10 @@ print_program_ast :: proc(program: ^ast.Program, indent: int) {
 	print_indent(indent)
 	type_str := "Script" if program.type == .Script else "Module"
 	out_printf("\"type\": \"%s\",\n", type_str)
-	
+
 	print_indent(indent)
 	out_println("\"body\": [")
-	
+
 	for stmt, i in program.body {
 		print_indent(indent + 1)
 		out_println("{")
@@ -201,7 +348,7 @@ print_program_ast :: proc(program: ^ast.Program, indent: int) {
 			out_println("}")
 		}
 	}
-	
+
 	print_indent(indent)
 	out_println("]")
 }
@@ -209,7 +356,7 @@ print_program_ast :: proc(program: ^ast.Program, indent: int) {
 print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 	print_indent(indent)
 	out_printf("\"type\": \"%s\"", get_statement_type_name(stmt))
-	
+
 	#partial switch s in stmt^ {
 	case ^ast.ExpressionStatement:
 		out_println(",")
@@ -218,7 +365,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		print_expression_ast(s.expression, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		
+
 	case ^ast.VariableDeclaration:
 		kind_str := "var"
 		#partial switch s.kind {
@@ -257,7 +404,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		}
 		print_indent(indent)
 		out_print("]")
-		
+
 	case ^ast.FunctionDeclaration:
 		out_println(",")
 		print_indent(indent)
@@ -272,7 +419,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		out_printf("\"generator\": %v,\n", s.expr.generator)
 		print_indent(indent)
 		out_printf("\"async\": %v", s.expr.async)
-		
+
 	case ^ast.BlockStatement:
 		out_println(",")
 		print_indent(indent)
@@ -290,7 +437,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		}
 		print_indent(indent)
 		out_print("]")
-		
+
 	case ^ast.ReturnStatement:
 		out_println(",")
 		print_indent(indent)
@@ -303,7 +450,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		} else {
 			out_print("null")
 		}
-		
+
 	case ^ast.IfStatement:
 		out_println(",")
 		print_indent(indent)
@@ -326,7 +473,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		} else {
 			out_print("null")
 		}
-		
+
 	case ^ast.WhileStatement:
 		out_println(",")
 		print_indent(indent)
@@ -339,7 +486,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ^ast.ForStatement:
 		out_println(",")
 		print_indent(indent)
@@ -382,7 +529,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ^ast.ClassDeclaration:
 		out_println(",")
 		print_indent(indent)
@@ -410,7 +557,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		}
 		print_indent(indent)
 		out_print("\"body\": { ... }")
-	
+
 	case ^ast.TryStatement:
 		out_println(",")
 		print_indent(indent)
@@ -448,22 +595,22 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		} else {
 			out_print("null")
 		}
-	
+
 	case ^ast.ExportNamedDeclaration:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"specifiers\": [ ... ]")
-	
+
 	case ^ast.ExportDefaultDeclaration:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"declaration\": { ... }")
-	
+
 	case ^ast.ExportAllDeclaration:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"source\": { ... }")
-	
+
 	case ^ast.DoWhileStatement:
 		out_println(",")
 		print_indent(indent)
@@ -473,14 +620,14 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		out_println("},")
 		print_indent(indent)
 		out_print("\"test\": { ... }")
-	
+
 	case ^ast.SwitchStatement:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"discriminant\": { ... },\n")
 		print_indent(indent)
 		out_print("\"cases\": [ ... ]")
-	
+
 	case ^ast.ForInStatement:
 		out_println(",")
 		print_indent(indent)
@@ -508,7 +655,7 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ^ast.ForOfStatement:
 		out_println(",")
 		print_indent(indent)
@@ -547,49 +694,49 @@ print_statement_ast :: proc(stmt: ^ast.Statement, indent: int) {
 		out_print("\"await\": false,\n")
 		print_indent(indent)
 		out_print("\"body\": { ... }")
-	
+
 	case ^ast.ThrowStatement:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"argument\": { ... }")
-	
+
 	case ^ast.ImportDeclaration:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"specifiers\": [ ... ],\n")
 		print_indent(indent)
 		out_print("\"source\": { ... }")
-	
+
 	case ^ast.BreakStatement:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"label\": null")
-	
+
 	case ^ast.ContinueStatement:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"label\": null")
-	
+
 	case ^ast.LabeledStatement:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"label\": { ... },\n")
 		print_indent(indent)
 		out_print("\"body\": { ... }")
-	
+
 	case ^ast.WithStatement:
 		out_println(",")
 		print_indent(indent)
 		out_print("\"object\": { ... },\n")
 		print_indent(indent)
 		out_print("\"body\": { ... }")
-	
+
 	case ^ast.EmptyStatement:
 		// No additional fields
-		
+
 	case ^ast.DebuggerStatement:
 		// No additional fields
-		
+
 	case:
 		out_printf(",\n")
 		print_indent(indent)
@@ -633,36 +780,36 @@ print_pattern_ast :: proc(pattern: ast.Pattern, indent: int) {
 print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 	print_indent(indent)
 	out_printf("\"type\": \"%s\"", get_expression_type_name(expr))
-	
+
 	#partial switch e in expr^ {
 	case ast.Identifier:
 		out_println(",")
 		print_indent(indent)
 		out_printf("\"name\": \"%s\"", e.name)
-		
+
 	case ast.NumericLiteral:
 		out_println(",")
 		print_indent(indent)
 		out_printf("\"value\": %v,\n", e.value)
 		print_indent(indent)
 		out_printf("\"raw\": \"%s\"", e.raw)
-		
+
 	case ast.StringLiteral:
 		out_println(",")
 		print_indent(indent)
 		out_printf("\"value\": \"%s\"", e.value)
-		
+
 	case ast.BooleanLiteral:
 		out_println(",")
 		print_indent(indent)
 		out_printf("\"value\": %v", e.value)
-		
+
 	case ast.NullLiteral:
 		// No additional fields
-		
+
 	case ast.ThisExpression:
 		// No additional fields
-		
+
 	case ast.ArrayExpression:
 		out_println(",")
 		print_indent(indent)
@@ -682,7 +829,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		}
 		print_indent(indent)
 		out_print("]")
-		
+
 	case ast.ObjectExpression:
 		out_println(",")
 		print_indent(indent)
@@ -731,7 +878,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		}
 		print_indent(indent)
 		out_print("]")
-		
+
 	case ast.BinaryExpression:
 		out_println(",")
 		print_indent(indent)
@@ -747,7 +894,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		
+
 	case ast.UnaryExpression:
 		out_println(",")
 		print_indent(indent)
@@ -760,7 +907,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		
+
 	case ast.AssignmentExpression:
 		out_println(",")
 		print_indent(indent)
@@ -776,7 +923,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		
+
 	case ast.CallExpression:
 		out_println(",")
 		print_indent(indent)
@@ -799,7 +946,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		}
 		print_indent(indent)
 		out_print("]")
-		
+
 	case ast.MemberExpression:
 		out_println(",")
 		print_indent(indent)
@@ -814,7 +961,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.property, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		
+
 	case ast.ConditionalExpression:
 		out_println(",")
 		print_indent(indent)
@@ -832,7 +979,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.alternate, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		
+
 	case ast.FunctionExpression:
 		out_println(",")
 		print_indent(indent)
@@ -843,14 +990,14 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		out_println("\"params\": [ ... ],")
 		print_indent(indent)
 		out_print("\"body\": { ... }")
-		
+
 	case ast.ArrowFunctionExpression:
 		out_println(",")
 		print_indent(indent)
 		out_printf("\"expression\": %v,\n", e.expression)
 		print_indent(indent)
 		out_printf("\"async\": %v", e.async)
-	
+
 	case ast.NewExpression:
 		out_println(",")
 		print_indent(indent)
@@ -873,14 +1020,14 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		}
 		print_indent(indent)
 		out_print("]")
-	
+
 	case ast.TemplateLiteral:
 		out_println(",")
 		print_indent(indent)
 		out_println("\"quasis\": [ ... ],")
 		print_indent(indent)
 		out_print("\"expressions\": [ ... ]")
-	
+
 	case ast.TaggedTemplateExpression:
 		out_println(",")
 		print_indent(indent)
@@ -893,7 +1040,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.quasi, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ast.SpreadElement:
 		out_println(",")
 		print_indent(indent)
@@ -901,21 +1048,21 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ast.BigIntLiteral:
 		out_println(",")
 		print_indent(indent)
 		out_printf("\"value\": \"%s\",\n", e.value)
 		print_indent(indent)
 		out_printf("\"raw\": \"%s\"", e.raw)
-	
+
 	case ast.RegExpLiteral:
 		out_println(",")
 		print_indent(indent)
 		out_printf("\"pattern\": \"%s\",\n", e.pattern)
 		print_indent(indent)
 		out_printf("\"flags\": \"%s\"", e.flags)
-	
+
 	case ast.UpdateExpression:
 		out_println(",")
 		print_indent(indent)
@@ -932,7 +1079,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ast.LogicalExpression:
 		out_println(",")
 		print_indent(indent)
@@ -953,7 +1100,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.right, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ast.SequenceExpression:
 		out_println(",")
 		print_indent(indent)
@@ -971,7 +1118,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		}
 		print_indent(indent)
 		out_print("]")
-	
+
 	case ast.YieldExpression:
 		out_println(",")
 		print_indent(indent)
@@ -985,7 +1132,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		}
 		print_indent(indent)
 		out_printf("\"delegate\": %v", e.delegate)
-	
+
 	case ast.AwaitExpression:
 		out_println(",")
 		print_indent(indent)
@@ -993,7 +1140,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ast.ImportExpression:
 		out_println(",")
 		print_indent(indent)
@@ -1001,7 +1148,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_expression_ast(e.source, indent + 1)
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ast.MetaProperty:
 		out_println(",")
 		print_indent(indent)
@@ -1020,12 +1167,12 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		out_printf("\"name\": \"meta\"\n")
 		print_indent(indent)
 		out_print("}")
-	
+
 	case ast.PrivateIdentifier:
 		out_println(",")
 		print_indent(indent)
 		out_printf("\"name\": \"%s\"", e.name)
-	
+
 	case ast.ClassExpression:
 		out_println(",")
 		print_indent(indent)
@@ -1046,7 +1193,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 			out_println("},")
 		}
 		out_println("\"body\": { ... }")
-	
+
 	case:
 		out_println(",")
 		print_indent(indent)
@@ -1206,7 +1353,7 @@ lex_file :: proc(file_path: string) {
 		os.exit(1)
 	}
 	defer delete(source, context.allocator)
-	
+
 	// Create growing virtual arena for allocations (64KB initial block, lazy commit)
 	arena: mvirtual.Arena
 	err := mvirtual.arena_init_growing(&arena, reserved=64*1024)
@@ -1216,28 +1363,28 @@ lex_file :: proc(file_path: string) {
 	}
 	defer mvirtual.arena_destroy(&arena)
 	arena_alloc := mvirtual.arena_allocator(&arena)
-	
+
 	// Initialize optimized lexer
 	lex: lexer.LexerAdapter
 	lexer.init_adapter(&lex, string(source), arena_alloc)
-	
+
 	// Tokenize and print
 	out_println("[")
-	
+
 	token_count := 0
 	for {
 		tok := lexer.get_current_adapter(&lex)
-		
+
 		if tok.type == .EOF {
 			break
 		}
-		
+
 		if token_count > 0 {
 			out_println(",")
 		}
-		
+
 		out_printf("  {{\"type\": \"%s\", \"value\": ", lexer.get_token_name(tok.type))
-		
+
 		// Escape string value for JSON
 		escaped := tok.value
 		escaped, _ = strings.replace_all(escaped, "\\", "\\\\")
@@ -1248,18 +1395,18 @@ lex_file :: proc(file_path: string) {
 		out_printf("\"%s\", ", escaped)
 		out_printf("\"loc\": {{\"line\": %d, \"column\": %d}}, ", tok.loc.line, tok.loc.column)
 		out_printf("\"lt\": %v}}", tok.had_line_terminator)
-		
+
 		token_count += 1
 		lexer.next_adapter(&lex)
 	}
-	
+
 	// Print optimization stats
 	stats := lexer.get_stats(&lex)
 	fmt.eprintf("\n--- Optimization Stats ---\n")
 	fmt.eprintf("Tokens created: %d\n", stats.tokens_created)
 	fmt.eprintf("SIMD chunks: %d\n", stats.simd_chunks_processed)
 	fmt.eprintf("Scalar fallbacks: %d\n", stats.scalar_fallbacks)
-	
+
 	out_println()
 	out_println("]")
 	fmt.eprintf("\nTotal tokens: %d\n", token_count)
