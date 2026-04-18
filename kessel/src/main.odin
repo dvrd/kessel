@@ -10,6 +10,7 @@ import "core:slice"
 import "core:strings"
 import "core:time"
 import "core:strconv"
+import "core:thread"
 
 import lexer "./lexer"
 import parser "./parser"
@@ -164,6 +165,33 @@ main :: proc() {
 		microbench_file(file_path, iterations)
 		
 	case "help", "-h", "--help":
+	case "parse-many":
+		if len(os.args) < 3 {
+			out_println("Usage: kessel parse-many <file1> [file2...] [--workers N]")
+			os.flush(os.stdout)
+			os.exit(1)
+		}
+		files := make([dynamic]string)
+		workers := 0
+		i := 2
+		for i < len(os.args) {
+			arg := os.args[i]
+			if arg == "--workers" && i + 1 < len(os.args) {
+				n, _ := strconv.parse_int(os.args[i+1])
+				workers = n
+				i += 2
+				continue
+			}
+			append(&files, arg)
+			i += 1
+		}
+		if workers == 0 {
+			workers = 8
+			if workers == 0 { workers = 8 }
+		}
+		parse_many(files[:], workers)
+		delete(files)
+		
 		print_usage()
 
 	case "version", "-v", "--version":
@@ -257,6 +285,111 @@ parse_file :: proc(file_path: string) {
 }
 
 // ============================================================================
+// ============================================================================
+// parse_file_quiet: Parse without JSON output, return stats
+// ============================================================================
+
+parse_file_quiet :: proc(file_path: string) -> (bool, int, int) {
+	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
+	if read_err != nil { return false, 0, 0 }
+	defer delete(source, context.allocator)
+	file_size := len(source)
+	arena: mvirtual.Arena
+	_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+	defer mvirtual.arena_destroy(&arena)
+	arena_alloc := mvirtual.arena_allocator(&arena)
+	lex: lexer.LexerAdapter
+	lexer.init_adapter(&lex, string(source), arena_alloc)
+	p: parser.Parser
+	parser.init_parser_adapter(&p, &lex, arena_alloc)
+	_ = parser.parse_program(&p, .Script)
+	return true, file_size, len(p.errors)
+}
+
+// ============================================================================
+// parse_many: Multi-file parsing with static work division
+// ============================================================================
+
+ParseWorkerCtx :: struct {
+	files: []string,
+	start_idx: int,
+	end_idx: int,
+	parsed_count: int,
+	error_count: int,
+	total_bytes: int,
+}
+
+worker_proc :: proc(data: rawptr) {
+	ctx := (^ParseWorkerCtx)(data)
+	for i in ctx.start_idx..<ctx.end_idx {
+		success, bytes, errs := parse_file_quiet(ctx.files[i])
+		if success {
+			ctx.parsed_count += 1
+			ctx.total_bytes += bytes
+			ctx.error_count += errs
+		}
+	}
+}
+
+parse_many :: proc(files: []string, n_workers: int) {
+	if len(files) == 0 {
+		out_println("No files to parse.")
+		return
+	}
+	start_time := time.tick_now()
+	actual_workers := n_workers
+	if actual_workers > len(files) { actual_workers = len(files) }
+	if actual_workers < 1 { actual_workers = 1 }
+	threads := make([]^thread.Thread, actual_workers)
+	defer {
+		for t in threads {
+			thread.join(t)
+			thread.destroy(t)
+		}
+		delete(threads)
+	}
+	contexts := make([]ParseWorkerCtx, actual_workers)
+	defer delete(contexts)
+	files_per_worker := len(files) / actual_workers
+	remainder := len(files) % actual_workers
+	for i in 0..<actual_workers {
+		start := i * files_per_worker
+		if i < remainder { start += i } else { start += remainder }
+		end := start + files_per_worker
+		if i < remainder { end += 1 }
+		contexts[i] = ParseWorkerCtx{
+			files = files,
+			start_idx = start,
+			end_idx = end,
+		}
+		threads[i] = thread.create_and_start_with_data(&contexts[i], worker_proc)
+	}
+	for t in threads {
+		thread.join(t)
+	}
+	elapsed := time.tick_since(start_time)
+	elapsed_ms := f64(elapsed) / 1_000_000.0
+	total_parsed := 0
+	total_bytes := 0
+	total_errors := 0
+	for c in contexts {
+		total_parsed += c.parsed_count
+		total_bytes += c.total_bytes
+		total_errors += c.error_count
+	}
+	out_printf("parse-many summary:\n")
+	out_printf("  Files: %d\n", total_parsed)
+	out_printf("  Bytes: %d (%.2f MB)\n", total_bytes, f64(total_bytes) / 1e6)
+	out_printf("  Errors: %d\n", total_errors)
+	out_printf("  Time: %.2f ms\n", elapsed_ms)
+	if elapsed_ms > 0 {
+		throughput_mb := (f64(total_bytes) / 1e6) / (elapsed_ms / 1000)
+		throughput_files := f64(total_parsed) / (elapsed_ms / 1000)
+		out_printf("  Throughput: %.2f MB/s, %.1f files/s\n", throughput_mb, throughput_files)
+	}
+	out_printf("  Workers: %d\n", actual_workers)
+	os.flush(os.stdout)
+}
 // Microbench Command (in-process parse measurements)
 // ============================================================================
 
