@@ -77,6 +77,43 @@ Parse errors: 0
 ./kessel_bin tokenize file.js
 ```
 
+### Parse many files in parallel (batch mode)
+
+For bundler/linter workloads. Amortizes process startup across files and
+parallelizes via a thread pool:
+
+```bash
+# Default: auto-pick worker count (8)
+./kessel_bin parse-many src/*.js
+
+# Explicit worker count (recommended: 4 on Apple Silicon M1)
+./kessel_bin parse-many src/*.js --workers 4
+```
+
+Example output:
+
+```
+parse-many summary:
+  Files: 50
+  Bytes: 6495200 (6.50 MB)
+  Errors: 0
+  Time: 309 ms
+  Throughput: 54.32 MB/s, 167 files/s
+  Workers: 4
+```
+
+See [Performance](#performance) for scaling numbers.
+
+### In-process microbench
+
+Measures parse cost only (excludes process startup + JSON output):
+
+```bash
+./kessel_bin microbench bench_large.js --iterations 100
+```
+
+Reports Mean, Min, Max, P50, P95, P99 in microseconds.
+
 ### Show help
 
 ```bash
@@ -178,13 +215,31 @@ Isolates the parser from process startup and JSON output. Measured with
 |-----------|--------|-----|-------|
 | 13 B | 1.7 ms | 1.7 ms | Tie — macOS process startup (~1.2 ms) dominates |
 | 2.6 KB | 1.8 ms | 1.7 ms | Tie — still startup-bound |
-| 324 KB | 52.5 ms | 9.7 ms | OXC 5.4× faster (parser + JSON output) |
+| 324 KB | 49.2 ms | 11.1 ms | OXC 5.0× faster single-file |
 
-**Honest summary**: Kessel's parser is currently ~6.5× behind OXC on real
-workloads. On interactive/CLI use with small files the gap is invisible due
-to process startup floor. See [`docs/OXC_COMPARISON.md`](./docs/OXC_COMPARISON.md)
-for technique-by-technique analysis and [`docs/BENCHMARKS.md`](./docs/BENCHMARKS.md)
-for full methodology.
+### Multi-file (batch, where Kessel wins)
+
+50 × 324 KB = 16.3 MB, the kind of workload a bundler actually does:
+
+| Strategy | Time |
+|----------|------|
+| shell loop calling `oxc_cli_equiv` × 50 | 569 ms |
+| **`kessel parse-many --workers 4`** | **309 ms** (1.84× faster than OXC shell-loop) |
+| `kessel parse-many --workers 1` | 895 ms |
+
+Single-file CLI gap disappears when batching: `parse-many` amortizes process
+startup across files (1 startup total) and parallelizes via thread pool
+(2.94× scaling on 4 P-cores).
+
+**Honest summary**: On single-file **parser algorithm**, Kessel is ~6.5× behind
+OXC (measurable via microbench). On **single-file CLI** on macOS, the gap is
+5× on large files, invisible on small ones (process startup floor). On
+**multi-file CLI workloads**, Kessel's `parse-many` beats OXC's per-file
+shell-loop by ~2×. A Rust consumer using OXC as a library with its own
+threading would still be faster than Kessel.
+
+See [`docs/OXC_COMPARISON.md`](./docs/OXC_COMPARISON.md) for technique-by-technique
+analysis and [`docs/BENCHMARKS.md`](./docs/BENCHMARKS.md) for full methodology.
 
 ### Memory
 

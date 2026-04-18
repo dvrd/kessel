@@ -1,8 +1,8 @@
 # Kessel Benchmarks
 
 **Last updated**: 2026-04-18  
-**Platform**: macOS arm64 (Apple Silicon M1)  
-**Kessel commit**: 99af12f (post-virtual-arena, microbench cmd)  
+**Platform**: macOS arm64 (Apple Silicon M1, 4 P-cores + 4 E-cores)  
+**Kessel commit**: `e4e8ca7` (post-parse-many, thread-safe)  
 **OXC ref**: oxc-project/oxc `main` branch (shallow clone)  
 **Tools**: hyperfine 1.x (warmup 10, min-runs 50, shell=none)
 
@@ -48,13 +48,57 @@ of magnitude: 504 B vs 338 B for small; 6.5 MB vs 6.1 MB for large).
 
 ## Measured Results
 
-### CLI (ESTree JSON output, wall-clock)
+### CLI (ESTree JSON output, wall-clock, single file)
 
 | File | Kessel | OXC | Ratio |
 |------|--------|-----|-------|
 | small (13 B) | 1.7 ms ± 0.2 | 1.7 ms ± 0.1 | **Tie** (1.00× ± 0.16) |
 | medium (2.6 KB) | 1.8 ms ± 0.2 | 1.7 ms ± 0.2 | Tie (1.04× ± 0.16) |
-| large (324 KB) | 52.5 ms ± 1.2 | 9.7 ms ± 0.4 | **OXC 5.4× faster** |
+| large (324 KB) | 49.2 ms ± 0.9 | 11.1 ms ± 0.3 | **OXC 5.0× faster** *(was 5.4× pre-JSON-opts)* |
+
+### Multi-file (50 × 324 KB = 16.3 MB total, CLI)
+
+This matches how a bundler or linter actually invokes a parser — many files in
+a batch. Kessel's `parse-many` command amortizes the ~1.7 ms process startup
+across all files and parallelizes via a thread pool.
+
+| Strategy | Time | Notes |
+|----------|------|-------|
+| shell loop calling `kessel parse` × 50 | 2820 ms | 50× process startup |
+| shell loop calling `oxc_cli_equiv` × 50 | 569 ms | OXC 5.0× faster shell-loop |
+| `kessel parse-many --workers 1` | 895 ms | 1 startup, serial parse |
+| `kessel parse-many --workers 2` | 481 ms | 1.84× vs w=1 |
+| **`kessel parse-many --workers 4`** | **309 ms** | **1.84× faster than OXC shell-loop** |
+| `kessel parse-many --workers 8` | 299 ms | Plateau — M1 has 4 P-cores |
+
+Key insight: a fair multi-file CLI comparison depends on the consumer's
+invocation pattern. If they invoke CLI per-file (bundler calling out to
+parsers), Kessel's `parse-many` beats OXC's single-file CLI shell-loop. If the
+consumer is a Rust bundler calling OXC as a library (e.g. Rolldown),
+that's a different comparison — OXC's in-process parser still wins
+(6.5× faster per microbench) and they can do their own threading.
+
+### Scaling efficiency on Apple M1
+
+| Workers | Time | Speedup | Efficiency |
+|---------|------|---------|------------|
+| 1 | 884 ms | 1.00× | 100% |
+| 2 | 481 ms | 1.84× | 92% |
+| 4 | 301 ms | 2.94× | 73% |
+| 8 | 299 ms | 2.96× | 37% (plateau) |
+| 10 | 331 ms | 2.67× | 27% (regress) |
+
+The plateau at ~3× with 8+ workers is the 4 performance-core limit of the M1.
+macOS scheduler doesn't allocate E-cores for user-initiated QoS by default.
+
+### Historical CLI ratios (single large file, tracking progress)
+
+| Kessel commit | CLI large | OXC CLI | Ratio |
+|---------------|-----------|---------|-------|
+| `683a708` (virtual arena) | 52.5 ms | 9.7 ms | 5.4× |
+| `55fd80a` (buffer + out_s) | 53.7 ms | 10.5 ms | 5.1× (noise) |
+| `fe0b310` (out_printf → direct) | 49.2 ms | 10.6 ms | 4.6× |
+| `e4e8ca7` (thread-safe) | 49.2 ms | 11.1 ms | 5.0× |
 
 ### Microbench (parse cost only, P50 median)
 
@@ -148,4 +192,6 @@ Ordered by expected ROI (based on OXC comparison + measurements):
 
 | Date | Kessel ref | Large CLI ratio | Large parse ratio | Notes |
 |------|-----------|-----------------|-------------------|-------|
-| 2026-04-18 | 99af12f | OXC 5.4× | OXC 6.5× | Baseline, first fair comparison |
+| 2026-04-18 | `99af12f` | OXC 5.4× | OXC 6.5× | Baseline, first fair comparison |
+| 2026-04-18 | `fe0b310` | OXC 4.6× | (unchanged) | After JSON output opts (-6.3%) |
+| 2026-04-18 | `e4e8ca7` | OXC 5.0× single / **Kessel wins multi-file via parse-many** | OXC 6.5× | parse-many scales 2.94× on 4 P-cores |

@@ -88,7 +88,7 @@ out_string :: proc(s: string) {
 out_int :: proc(n: int) {
 	init_stdout_writer()
 	tmp: [24]byte
-	s := strconv.itoa(tmp[:], n)
+	s := strconv.write_int(tmp[:], i64(n), 10)
 	bufio.writer_write_string(&stdout_writer, s)
 }
 

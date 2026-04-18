@@ -437,7 +437,15 @@ CLI wall-clock (both emitting full ESTree JSON):
 |------|-----------|---------|-------|
 | small | 1.7 ms | 1.7 ms | **Tie** (dominated by macOS process startup) |
 | medium | 1.8 ms | 1.7 ms | Tie |
-| large | 52.5 ms | 9.7 ms | OXC 5.4× faster |
+| large | 49.2 ms | 11.1 ms | OXC 5.0× faster *(was 5.4× pre-JSON-opts)* |
+
+Multi-file batch (50 × 324 KB, bundler-style workload):
+
+| Strategy | Time | vs OXC shell-loop |
+|----------|------|-------------------|
+| shell loop `oxc_cli_equiv` × 50 | 569 ms | baseline |
+| **`kessel parse-many --workers 4`** | **309 ms** | **Kessel 1.84× faster** |
+| `kessel parse-many --workers 1` | 895 ms | OXC 1.57× faster |
 
 Full tables, methodology, and overhead breakdown: **see `docs/BENCHMARKS.md`**.
 
@@ -447,20 +455,25 @@ Full tables, methodology, and overhead breakdown: **see `docs/BENCHMARKS.md`**.
    Points to allocator + dispatch + codegen differences, not constants.
 2. **Small-file CLI ratio is 1.0× (tie)** — macOS ~1.7 ms process floor
    dominates anything <3 KB regardless of parser speed.
-3. **Output pipeline accounts for ~half of the large-file CLI gap** — 30.7 ms
-   of 42.8 ms CLI delta on bench_large.js is JSON serialization + stdout, not
-   parser work.
+3. **Output pipeline accounted for ~half of the large-file CLI gap** — reduced
+   from 38.2 ms to ~35 ms via fmt.wprintf elimination (commit `fe0b310`).
+4. **Multi-file CLI: Kessel wins** via `parse-many` amortized startup +
+   thread pool. A bundler invoking parsers as CLI binaries gets 1.84×
+   throughput from Kessel on Apple M1. (A bundler using OXC as a Rust
+   library with its own threading would still beat Kessel.)
 
 ## 7. Actionable Items for Kessel
 
-| # | Change | Effort | Measured/Est. Impact | Status |
-|---|--------|--------|---------------------|--------|
+| # | Change | Effort | Measured Impact | Status |
+|---|--------|--------|-----------------|--------|
 | 1 | Virtual growing arena (mem.virtual.Arena) | Small | -98% mem floor, small-file latency -40% | ✅ **Merged** `683a708` |
-| 2 | Byte dispatch jump table | Medium | Est. 1.3–1.5× lexer speedup on large | Pending — needs microbench validation |
-| 3 | JSON output streaming | Medium | ~30 ms recoverable on 324 KB CLI | Pending — attacks non-parser half of gap |
-| 4 | Compact AST union discriminants | Medium | Est. 1.1–1.3× (cache locality) | Pending |
-| 5 | `#no_bounds_check` in hot paths | Small | **No measurable impact** | ❌ **Rejected** `75d26fd` (within noise) |
-| 6 | `#force_inline` helpers | Small | **No measurable impact** | ❌ **Rejected** (within noise) |
+| 2 | JSON output: bigger buffer + `out_s` primitives | Small | Within noise alone | ✅ **Merged** `55fd80a` |
+| 3 | JSON output: replace `fmt.wprintf` hot paths | Medium | **-6.3% CLI large** (52.5 → 49.2 ms) | ✅ **Merged** `fe0b310` |
+| 4 | `parse-many` command + thread pool | Medium | **2.94× scaling on M1 P-cores, 1.84× vs OXC shell-loop** | ✅ **Merged** `e4e8ca7` |
+| 5 | Byte dispatch jump table | Medium | Est. 1.3–1.5× lexer speedup on large | Pending — needs microbench validation |
+| 6 | Compact AST union discriminants | Medium | Est. 1.1–1.3× (cache locality) | Pending |
+| 7 | `#no_bounds_check` in hot paths | Small | **No measurable impact** | ❌ **Rejected** `75d26fd` (within noise) |
+| 8 | `#force_inline` helpers | Small | **No measurable impact** | ❌ **Rejected** (within noise) |
 
 ### Recommended next steps
 
