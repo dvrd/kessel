@@ -420,37 +420,69 @@ get_char_class :: proc(b: u8) -> CharClass {
 
 **Implementation effort**: Small. Audit hot paths, add directives, verify with profiling.
 
-## 6. Summary: Actionable Items for Kessel
+## 6. Measured Gap (2026-04-18)
 
-| # | Change | Effort | Expected Impact | Rationale |
-|---|--------|--------|-----------------|-----------|
-| 1 | Byte dispatch jump table | Medium | 10-20% lexer speedup | OXC's single-indirection approach beats multi-branch switch |
-| 2 | Switch to `mem.Dynamic_Arena` | Small | -3-4 MB per small file | Eliminate 4 MB floor waste, approaches OXC's chunked allocation |
-| 3 | Add `#no_bounds_check` in hot paths | Small | 2-5% overall speedup | Bounds checks are overhead in safe-by-default Odin |
-| 4 | Monomorphize via build-time flags | Large | 5-10% (if config branch-predictable) | Match OXC's zero-cost abstractions, but adds complexity |
-| 5 | Explicit union discriminant hints | Large | <1% | Minor, mostly for memory layout parity with OXC |
+After building a head-to-head comparison harness (`bench/oxc_compare/`), the
+real ratios — not estimates — are:
 
-### Recommended Priority
+| File | Kessel parse (P50) | OXC parse (P50) | Ratio |
+|------|-------------------|-----------------|-------|
+| 13 B (small) | 6.4 µs | 0.17 µs | **OXC 37.6× faster** |
+| 2.6 KB (medium) | 68.5 µs | 10.4 µs | **OXC 6.6× faster** |
+| 324 KB (large) | 14.3 ms | 2.2 ms | **OXC 6.5× faster** |
 
-**Phase 1 (Quick wins)**:
-- Switch to Dynamic_Arena (small effort, immediate small-file speedup)
-- Add #no_bounds_check to lexer loops (profile-guided, safe)
+CLI wall-clock (both emitting full ESTree JSON):
 
-**Phase 2 (Medium effort)**:
-- Byte dispatch table (requires proc array refactor, measurable impact)
+| File | Kessel CLI | OXC CLI | Ratio |
+|------|-----------|---------|-------|
+| small | 1.7 ms | 1.7 ms | **Tie** (dominated by macOS process startup) |
+| medium | 1.8 ms | 1.7 ms | Tie |
+| large | 52.5 ms | 9.7 ms | OXC 5.4× faster |
 
-**Phase 3 (Architectural)**:
-- Build-time configuration (larger codebase, best for performance-sensitive projects)
+Full tables, methodology, and overhead breakdown: **see `docs/BENCHMARKS.md`**.
 
-### Realistic Kessel Performance Goal
+### Key findings
 
-If all Phase 1+2 changes implemented:
-- Current small files: ~12ms
-- Target small files: ~6-8ms (closer to OXC's ~2ms, but simpler codebase)
-- Medium files: ~10-12ms (from ~15ms)
-- Large files: ~50-60ms (from ~70ms, approaches OXC)
+1. **The parser gap is structural (~6.5×)** — stable across medium/large files.
+   Points to allocator + dispatch + codegen differences, not constants.
+2. **Small-file CLI ratio is 1.0× (tie)** — macOS ~1.7 ms process floor
+   dominates anything <3 KB regardless of parser speed.
+3. **Output pipeline accounts for ~half of the large-file CLI gap** — 30.7 ms
+   of 42.8 ms CLI delta on bench_large.js is JSON serialization + stdout, not
+   parser work.
 
-**Caveat**: Odin is a younger language with fewer optimizations than Rust/LLVM. Some gaps may be fundamental.
+## 7. Actionable Items for Kessel
+
+| # | Change | Effort | Measured/Est. Impact | Status |
+|---|--------|--------|---------------------|--------|
+| 1 | Virtual growing arena (mem.virtual.Arena) | Small | -98% mem floor, small-file latency -40% | ✅ **Merged** `683a708` |
+| 2 | Byte dispatch jump table | Medium | Est. 1.3–1.5× lexer speedup on large | Pending — needs microbench validation |
+| 3 | JSON output streaming | Medium | ~30 ms recoverable on 324 KB CLI | Pending — attacks non-parser half of gap |
+| 4 | Compact AST union discriminants | Medium | Est. 1.1–1.3× (cache locality) | Pending |
+| 5 | `#no_bounds_check` in hot paths | Small | **No measurable impact** | ❌ **Rejected** `75d26fd` (within noise) |
+| 6 | `#force_inline` helpers | Small | **No measurable impact** | ❌ **Rejected** (within noise) |
+
+### Recommended next steps
+
+1. **Byte dispatch table prototype** on a feature branch — with microbench as
+   safety net (now that we have one). Validate >3 % parse speedup on medium
+   or large before merging. Target: `docs/OXC_COMPARISON.md §1`.
+2. **JSON output streaming** — attacks a different gap than the parser
+   optimizations. Easy to measure via external `hyperfine` on large files.
+3. **Profile on Linux** with `samply` or `perf` to validate that the lexer is
+   actually the hot path before committing to byte-dispatch rewrite.
+
+### Realistic Kessel performance goal
+
+Closing the parser gap to ~3× of OXC (from current 6.5×) is plausible with
+byte-dispatch + AST layout work. Matching OXC 1:1 is unlikely without
+matching its allocator model (bumpalo-style chunked growth with typed
+handles), which would be an architectural rewrite.
+
+**Odin caveat**: Odin's codegen is younger than Rust's and LLVM is used in
+both, but Rust's borrow checker + lifetime annotations give the optimizer
+more information. Some fraction of the gap is fundamental to the language
+choice.
 
 ## References
 

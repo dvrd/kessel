@@ -1,0 +1,21 @@
+[workspace]
+members = ["cli", "microbench"]
+resolver = "2"
+
+# Path to a local OXC checkout. Override via env var OXC_PATH or edit below.
+# Run: OXC_PATH=/path/to/oxc cargo build --release
+#
+# To set up:
+#   git clone --depth 1 https://github.com/oxc-project/oxc.git ../oxc
+#   Then update the paths below or set OXC_PATH.
+[workspace.dependencies]
+oxc_allocator = { path = "../../../oxc/crates/oxc_allocator" }
+oxc_parser    = { path = "../../../oxc/crates/oxc_parser" }
+oxc_span      = { path = "../../../oxc/crates/oxc_span" }
+oxc_ast       = { path = "../../../oxc/crates/oxc_ast", features = ["serialize"] }
+oxc_estree    = { path = "../../../oxc/crates/oxc_estree", features = ["serialize"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1

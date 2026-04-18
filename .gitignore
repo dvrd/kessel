@@ -14,3 +14,7 @@ kessel/*.bin
 # Benchmark baselines: ignore ad-hoc runs, commit reference baselines
 bench/baselines/*.json
 !bench/baselines/post-virtual-arena.json
+
+# Rust build artifacts from bench/oxc_compare
+bench/oxc_compare/target/
+bench/oxc_compare/Cargo.lock

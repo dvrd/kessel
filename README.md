@@ -159,32 +159,54 @@ The `eval/` directory contains a harness for benchmarking how different LLMs sol
 
 ## Performance
 
-### Memory Efficiency After Virtual Arena Migration
+Two measurement modes, both reproducible (see [`docs/BENCHMARKS.md`](./docs/BENCHMARKS.md)):
 
-Migrated from `mem.Arena` + pre-allocated backing to `mem.virtual.Arena` with lazy commitment (64 KB initial block):
+### Parse cost (microbench, in-process loop)
 
-| Input Size | Time  | Arena Used | Arena Reserved | Utilization |
-|------------|-------|------------|-----------------|-------------|
-| **Small** (44 B) | ~3ms | 66 KB | 131 KB (virtual) | 50% |
-| **Medium** (500 B) | ~3ms | 91 KB | 131 KB (virtual) | 69% |
-| **Large** (324 KB) | ~23ms | ~2.5 MB | ~5 MB (virtual) | ~50% |
+Isolates the parser from process startup and JSON output. Measured with
+`./kessel_bin microbench <file> --iterations N`:
 
-#### Improvements from Previous Release
+| File size | Kessel P50 | OXC P50 | Ratio |
+|-----------|-----------|---------|-------|
+| 13 B | 6.4 µs | 0.17 µs | OXC 37.6× |
+| 2.6 KB | 68.5 µs | 10.4 µs | OXC 6.6× |
+| 324 KB | 14.3 ms | 2.2 ms | **OXC 6.5×** |
 
-**Before**: Static 4 MB allocation floor per file  
-**After**: 64 KB virtual block, commits lazily on first touch
+### CLI wall-clock (hyperfine, full ESTree JSON output)
 
-- **Small files**: ~98% memory reduction (4 MB → 131 KB reserved, 66 KB actual use)
-- **Startup overhead**: Eliminated ~4 MB upfront cost for batch operations
-- **Large files**: Same 50% utilization ratio, sub-millisecond arena initialization
+| File size | Kessel | OXC | Notes |
+|-----------|--------|-----|-------|
+| 13 B | 1.7 ms | 1.7 ms | Tie — macOS process startup (~1.2 ms) dominates |
+| 2.6 KB | 1.8 ms | 1.7 ms | Tie — still startup-bound |
+| 324 KB | 52.5 ms | 9.7 ms | OXC 5.4× faster (parser + JSON output) |
 
-Virtual arena enables efficient multi-file parsing: 100× 1KB files now use ~13 MB instead of 400 MB.
+**Honest summary**: Kessel's parser is currently ~6.5× behind OXC on real
+workloads. On interactive/CLI use with small files the gap is invisible due
+to process startup floor. See [`docs/OXC_COMPARISON.md`](./docs/OXC_COMPARISON.md)
+for technique-by-technique analysis and [`docs/BENCHMARKS.md`](./docs/BENCHMARKS.md)
+for full methodology.
 
-Benchmark your system:
+### Memory
+
+Migrated to `mem.virtual.Arena` with 64 KB lazy-committed initial block (commit [`683a708`](./CHANGELOG.md)):
+
+| Input size | Arena used | Arena reserved | Utilization |
+|------------|-----------|----------------|-------------|
+| < 1 KB | ~90 KB | 131 KB (virtual) | ~70 % |
+| 2.6 KB | 259 KB | 524 KB (virtual) | 50 % |
+| 324 KB | 41 MB | 83 MB (virtual) | 50 % |
+
+Migration eliminated the previous 4 MB floor: 100× 1 KB files now use ~13 MB
+total instead of 400 MB.
+
+### Benchmark your system
 
 ```bash
-# Run benchmark (timeout 10s per test)
-timeout 10 ./kessel_bin parse kessel/bench_large.js
+# Simple sweep (internal microbench + hyperfine on 3 sizes)
+bash kessel/bench.sh
+
+# Head-to-head vs OXC (requires cloning OXC — see bench/oxc_compare/README.md)
+bash kessel/bench_vs_oxc.sh
 ```
 
 ## License
