@@ -161,11 +161,23 @@ fast_keyword_reject :: proc(s: string) -> bool {
 
 // Ultra-fast lookup with quick reject
 lookup_keyword_ultra :: #force_inline proc(s: string) -> (TokenType, bool) {
-	// Length reject: keywords are 2-12 chars
-	if len(s) < 2 || len(s) > 12 {
+	l := len(s)
+	// 1 char: never a keyword
+	if l < 2 { return .Identifier, false }
+	if l > 12 { return .Identifier, false }
+	// 2 char: tiny inline table (only 5 keywords)
+	if l == 2 {
+		c0 := s[0]; c1 := s[1]
+		if c0 == 'a' && c1 == 's' { return .As, true }
+		if c0 == 'd' && c1 == 'o' { return .Do, true }
+		if c0 == 'i' {
+			if c1 == 'f' { return .If, true }
+			if c1 == 'n' { return .In, true }
+		}
+		if c0 == 'o' && c1 == 'f' { return .Of, true }
 		return .Identifier, false
 	}
-	// Quick reject non-starters by first char
+	// 3+ chars: quick reject by first char, then hash
 	if !fast_keyword_reject(s) {
 		return .Identifier, false
 	}
