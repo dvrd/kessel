@@ -19,15 +19,21 @@ CompactTokenIndex :: u32
 // INVALID_TOKEN_INDEX represents an invalid token
 INVALID_TOKEN_INDEX :: CompactTokenIndex(max(u32))
 
-// TokenSoA - Structure of Arrays for token storage
-// line/col removed: computed lazily from line_offsets table in parser
+// TokenSlot — packed AoS for hot data (12 bytes, ~5 tokens per cache line)
+TokenSlot :: struct {
+	offset: u32,         // byte offset in source
+	length: u16,         // token length
+	type:   TokenType,   // 1 byte enum
+	flags:  u8,          // bit 0 = had_line_terminator
+}
+
+TOKEN_FLAG_LINE_TERM :: u8(1)
+
+// TokenSoA — hybrid AoS (hot) + separate cold arrays (literals)
 TokenSoA :: struct {
-	types:   []TokenType,
-	offsets: []u32,
-	lengths: []u16,
-	had_line_terminator: []bool,
-	literal_types:  []LiteralType,
-	literal_values: []LiteralValue,
+	slots:          []TokenSlot,    // hot: 1 write + 1 read per token
+	literal_types:  []LiteralType,  // cold: written only for literals
+	literal_values: []LiteralValue, // cold
 	allocator: mem.Allocator,
 	count:    u32,
 	capacity: u32,
@@ -65,10 +71,7 @@ TokenView :: struct {
 init_token_soa :: proc(soa: ^TokenSoA, alloc: mem.Allocator, capacity: int = 1024) {
 	cap := u32(capacity)
 	
-	soa.types   = make([]TokenType, cap, alloc)
-	soa.offsets = make([]u32, cap, alloc)
-	soa.lengths = make([]u16, cap, alloc)
-	soa.had_line_terminator = make([]bool, cap, alloc)
+	soa.slots   = make([]TokenSlot, cap, alloc)
 	soa.literal_types  = make([]LiteralType, cap, alloc)
 	soa.literal_values = make([]LiteralValue, cap, alloc)
 	
@@ -81,11 +84,13 @@ init_token_soa :: proc(soa: ^TokenSoA, alloc: mem.Allocator, capacity: int = 102
 add_token :: #force_inline proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int, had_line_term: bool = false) -> CompactToken {
 	idx := soa.count
 	soa.count += 1
-	// 4 stores: type + offset + length + had_line_term (line/col computed lazily)
-	soa.types[idx]   = token_type
-	soa.offsets[idx] = u32(loc.offset)
-	soa.lengths[idx] = u16(length)
-	soa.had_line_terminator[idx] = had_line_term
+	// Single struct write (12 bytes, same cache line)
+	soa.slots[idx] = TokenSlot{
+		offset = u32(loc.offset),
+		length = u16(length),
+		type   = token_type,
+		flags  = TOKEN_FLAG_LINE_TERM if had_line_term else 0,
+	}
 	return CompactToken{index = idx, soa = soa}
 }
 
@@ -108,11 +113,12 @@ get_token_view :: proc(tok: CompactToken) -> TokenView {
 	soa := tok.soa
 	idx := tok.index
 	
+	s := soa.slots[idx]
 	return TokenView{
-		token_type = soa.types[idx],
-		offset  = soa.offsets[idx],
-		length  = soa.lengths[idx],
-		had_line_terminator = soa.had_line_terminator[idx],
+		token_type = s.type,
+		offset  = s.offset,
+		length  = s.length,
+		had_line_terminator = (s.flags & TOKEN_FLAG_LINE_TERM) != 0,
 		literal = soa.literal_values[idx],
 		literal_type = soa.literal_types[idx],
 	}
@@ -123,11 +129,10 @@ get_token_type :: #force_inline proc(tok: CompactToken) -> TokenType {
 	if tok.index == INVALID_TOKEN_INDEX || tok.soa == nil {
 		return .Invalid
 	}
-	soa := tok.soa
-	if tok.index >= soa.count {
+	if tok.index >= tok.soa.count {
 		return .Invalid
 	}
-	return soa.types[tok.index]
+	return tok.soa.slots[tok.index].type
 }
 
 // Get token location
@@ -138,9 +143,7 @@ get_token_loc :: proc(tok: CompactToken) -> Loc {
 	soa := tok.soa
 	idx := tok.index
 	return Loc{
-		offset = int(soa.offsets[idx]),
-		line   = 0,  // computed lazily from line_offsets
-		column = 0,
+		offset = int(soa.slots[idx].offset),
 	}
 }
 
@@ -149,10 +152,9 @@ get_token_source :: proc(tok: CompactToken, source: string) -> string {
 	if tok.index == INVALID_TOKEN_INDEX || tok.soa == nil {
 		return ""
 	}
-	soa := tok.soa
-	idx := tok.index
-	offset := int(soa.offsets[idx])
-	length := int(soa.lengths[idx])
+	s := tok.soa.slots[tok.index]
+	offset := int(s.offset)
+	length := int(s.length)
 	
 	if offset + length <= len(source) {
 		return source[offset:offset+length]

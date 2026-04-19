@@ -20,19 +20,19 @@ advance_token :: #force_inline proc(p: ^Parser) -> lexer_pkg.Token {
 		a.current_valid = false
 		a.peek_valid = false
 		lexer_pkg.next2(&a.opt)
-		// Read from ring (type already cached) + minimal SoA reads
+		// Read from ring (type cached) + single AoS slot read
 		ring := &a.opt.ring
-		p.cur_type = ring.cur_type  // from ring, no SoA read
+		p.cur_type = ring.cur_type
 		p.cur_tok.type = p.cur_type
 		idx := ring.cur.index
 		soa := ring.soa
-		off32 := soa.offsets[idx]
-		len16 := soa.lengths[idx]
+		slot := soa.slots[idx]  // single cache-line read
+		off32 := slot.offset
+		len16 := slot.length
 		p.cur_tok.loc.offset = int(off32)
-		// line/col computed lazily (only for errors)
 		p.cur_tok.loc.line = 0
 		p.cur_tok.loc.column = 0
-		p.cur_tok.had_line_terminator = soa.had_line_terminator[idx]
+		p.cur_tok.had_line_terminator = (slot.flags & lexer_pkg.TOKEN_FLAG_LINE_TERM) != 0
 		p.cur_len = len16
 		#partial switch p.cur_type {
 		case .LBrace, .RBrace, .LParen, .RParen, .LBracket, .RBracket,
@@ -88,15 +88,15 @@ prime_token_cache :: proc(p: ^Parser) {
 		ring := &a.opt.ring
 		idx := ring.cur.index
 		soa := ring.soa
-		p.cur_type = soa.types[idx]
+		slot := soa.slots[idx]
+		p.cur_type = slot.type
 		p.cur_tok.type = p.cur_type
-		p.cur_tok.loc.offset = int(soa.offsets[idx])
-		// line/col computed lazily (only for errors)
+		p.cur_tok.loc.offset = int(slot.offset)
 		p.cur_tok.loc.line = 0
 		p.cur_tok.loc.column = 0
-		p.cur_tok.had_line_terminator = soa.had_line_terminator[idx]
-		off32 := soa.offsets[idx]
-		len16 := soa.lengths[idx]
+		p.cur_tok.had_line_terminator = (slot.flags & lexer_pkg.TOKEN_FLAG_LINE_TERM) != 0
+		off32 := slot.offset
+		len16 := slot.length
 		p.cur_len = len16
 		p.cur_tok.value = a.source[off32:off32+u32(len16)]
 		p.cur_tok.literal = soa.literal_values[idx]

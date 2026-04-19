@@ -316,14 +316,14 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 	// ---- Identifier or keyword ----
 	if is_id_start_fast(c) {
 		tok := lex_identifier_optimized(l, loc)
-		l.last_token_type = l.token_soa.types[l.token_soa.count - 1]
+		l.last_token_type = l.token_soa.slots[l.token_soa.count - 1].type
 		return tok
 	}
 
 	// ---- Number ----
 	if c >= '0' && c <= '9' {
 		tok := lex_number_optimized(l, loc)
-		l.last_token_type = l.token_soa.types[l.token_soa.count - 1]
+		l.last_token_type = l.token_soa.slots[l.token_soa.count - 1].type
 		return tok
 	}
 
@@ -369,7 +369,7 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 		tok = add_token(&l.token_soa, .Invalid, loc, 1, l.had_line_terminator)
 	}
 
-	l.last_token_type = l.token_soa.types[l.token_soa.count - 1]
+	l.last_token_type = l.token_soa.slots[l.token_soa.count - 1].type
 	return tok
 }
 
