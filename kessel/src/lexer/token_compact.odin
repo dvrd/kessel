@@ -20,12 +20,10 @@ CompactTokenIndex :: u32
 INVALID_TOKEN_INDEX :: CompactTokenIndex(max(u32))
 
 // TokenSoA - Structure of Arrays for token storage
-// Uses raw slices (no dynamic append overhead). Capacity pre-allocated.
+// line/col removed: computed lazily from line_offsets table in parser
 TokenSoA :: struct {
 	types:   []TokenType,
 	offsets: []u32,
-	lines:   []u32,
-	cols:    []u16,
 	lengths: []u16,
 	had_line_terminator: []bool,
 	literal_types:  []LiteralType,
@@ -53,11 +51,10 @@ CompactToken :: struct {
 }
 
 // TokenView provides access to token data through the compact handle
+// Note: line/column NOT stored — computed lazily from line_offsets table
 TokenView :: struct {
 	token_type:   TokenType,
 	offset:  u32,
-	line:    u32,
-	column:  u16,
 	length:  u16,
 	had_line_terminator: bool,
 	literal: LiteralValue,
@@ -70,8 +67,6 @@ init_token_soa :: proc(soa: ^TokenSoA, alloc: mem.Allocator, capacity: int = 102
 	
 	soa.types   = make([]TokenType, cap, alloc)
 	soa.offsets = make([]u32, cap, alloc)
-	soa.lines   = make([]u32, cap, alloc)
-	soa.cols    = make([]u16, cap, alloc)
 	soa.lengths = make([]u16, cap, alloc)
 	soa.had_line_terminator = make([]bool, cap, alloc)
 	soa.literal_types  = make([]LiteralType, cap, alloc)
@@ -86,18 +81,11 @@ init_token_soa :: proc(soa: ^TokenSoA, alloc: mem.Allocator, capacity: int = 102
 add_token :: #force_inline proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int, had_line_term: bool = false) -> CompactToken {
 	idx := soa.count
 	soa.count += 1
-	
-	// Direct store into pre-allocated slices
+	// 4 stores: type + offset + length + had_line_term (line/col computed lazily)
 	soa.types[idx]   = token_type
 	soa.offsets[idx] = u32(loc.offset)
-	soa.lines[idx]   = u32(loc.line)
-	soa.cols[idx]    = u16(loc.column)
 	soa.lengths[idx] = u16(length)
 	soa.had_line_terminator[idx] = had_line_term
-	
-	// Literal arrays already pre-allocated — default values are .None / zero
-	// No per-token append needed
-	
 	return CompactToken{index = idx, soa = soa}
 }
 
@@ -123,8 +111,6 @@ get_token_view :: proc(tok: CompactToken) -> TokenView {
 	return TokenView{
 		token_type = soa.types[idx],
 		offset  = soa.offsets[idx],
-		line    = soa.lines[idx],
-		column  = soa.cols[idx],
 		length  = soa.lengths[idx],
 		had_line_terminator = soa.had_line_terminator[idx],
 		literal = soa.literal_values[idx],
@@ -153,8 +139,8 @@ get_token_loc :: proc(tok: CompactToken) -> Loc {
 	idx := tok.index
 	return Loc{
 		offset = int(soa.offsets[idx]),
-		line   = int(soa.lines[idx]),
-		column = int(soa.cols[idx]),
+		line   = 0,  // computed lazily from line_offsets
+		column = 0,
 	}
 }
 
@@ -290,7 +276,7 @@ compact_to_legacy :: proc(tok: CompactToken, source: string) -> Token {
 	view := get_token_view(tok)
 	return Token{
 		type    = view.token_type,
-		loc     = Loc{offset = int(view.offset), line = int(view.line), column = int(view.column)},
+		loc     = Loc{offset = int(view.offset), line = 0, column = 0},
 		value   = get_token_source(tok, source),
 		literal = view.literal,
 		had_line_terminator = view.had_line_terminator,

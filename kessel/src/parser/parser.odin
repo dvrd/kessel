@@ -29,8 +29,9 @@ advance_token :: #force_inline proc(p: ^Parser) -> lexer_pkg.Token {
 		off32 := soa.offsets[idx]
 		len16 := soa.lengths[idx]
 		p.cur_tok.loc.offset = int(off32)
-		p.cur_tok.loc.line = int(soa.lines[idx])
-		p.cur_tok.loc.column = int(soa.cols[idx])
+		// line/col computed lazily (only for errors)
+		p.cur_tok.loc.line = 0
+		p.cur_tok.loc.column = 0
 		p.cur_tok.had_line_terminator = soa.had_line_terminator[idx]
 		p.cur_len = len16
 		#partial switch p.cur_type {
@@ -90,8 +91,9 @@ prime_token_cache :: proc(p: ^Parser) {
 		p.cur_type = soa.types[idx]
 		p.cur_tok.type = p.cur_type
 		p.cur_tok.loc.offset = int(soa.offsets[idx])
-		p.cur_tok.loc.line = int(soa.lines[idx])
-		p.cur_tok.loc.column = int(soa.cols[idx])
+		// line/col computed lazily (only for errors)
+		p.cur_tok.loc.line = 0
+		p.cur_tok.loc.column = 0
 		p.cur_tok.had_line_terminator = soa.had_line_terminator[idx]
 		off32 := soa.offsets[idx]
 		len16 := soa.lengths[idx]
@@ -470,8 +472,15 @@ expression_from_fast :: proc(expr_ptr: ^$T) -> ^ast_pkg.Expression {
 
 // Report an error
 report_error :: proc(p: ^Parser, message: string) {
+	loc := p.cur_tok.loc
+	// Compute line/col lazily from line table (only on errors)
+	if p.adapter != nil && loc.line == 0 {
+		line, col := lexer_pkg.offset_to_line_col(p.adapter.opt.line_offsets, u32(loc.offset))
+		loc.line = int(line)
+		loc.column = int(col)
+	}
 	err := ParseError{
-		loc     = p.cur_tok.loc,
+		loc     = loc,
 		message = message,
 	}
 	append(&p.errors, err)

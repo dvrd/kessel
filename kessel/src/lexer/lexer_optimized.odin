@@ -17,6 +17,14 @@ Lexer2 :: struct {
 	source:     string,
 	source_bytes: []u8,
 	offset:     int,
+
+	// Lazy line/column: only offset tracked during lexing.
+	// line_offsets[i] = byte offset of the start of line i+1.
+	// line_offsets[0] = 0 (line 1 starts at offset 0).
+	line_offsets: []u32,
+	num_lines:   u32,
+
+	// Legacy: kept for code that still reads l.line / l.column
 	line:       int,
 	column:     int,
 	
@@ -48,6 +56,47 @@ Lexer2 :: struct {
 	
 	// Statistics for debugging
 	stats: LexerStats,
+}
+
+// Build line offset table in a single pre-pass
+build_line_table :: proc(l: ^Lexer2) {
+	src := l.source_bytes
+	src_len := len(src)
+	// Estimate: 1 line per 40 chars on average
+	cap := max(src_len / 40 + 16, 256)
+	lines := make([]u32, cap, l.allocator)
+	lines[0] = 0  // line 1 starts at offset 0
+	count: u32 = 1
+	for i := 0; i < src_len; i += 1 {
+		if src[i] == '\n' {
+			if int(count) >= len(lines) {
+				// Rare: more lines than estimate. Just stop tracking.
+				break
+			}
+			lines[count] = u32(i + 1)
+			count += 1
+		}
+	}
+	l.line_offsets = lines[:count]
+	l.num_lines = count
+}
+
+// Compute line number from byte offset using binary search on line_offsets
+offset_to_line_col :: proc(line_offsets: []u32, offset: u32) -> (line: u32, col: u32) {
+	// Binary search for the largest line_offsets[i] <= offset
+	lo : u32 = 0
+	hi := u32(len(line_offsets))
+	for lo < hi {
+		mid := lo + (hi - lo) / 2
+		if line_offsets[mid] <= offset {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+	// lo-1 is the line index (0-based), line number is lo (1-based)
+	line_idx := lo - 1 if lo > 0 else 0
+	return line_idx + 1, offset - line_offsets[line_idx] + 1
 }
 
 LexerStats :: struct {
@@ -93,8 +142,12 @@ init_lexer2 :: proc(l: ^Lexer2, source: string, alloc: mem.Allocator) {
 	l.source_bytes = transmute([]u8)source
 	l.offset = 0
 	l.line = 1
-	l.column = 1
+	
 	l.allocator = alloc
+	
+	// Build line offset table for lazy line/column computation
+	// (pre-scan ~150us for 300KB, amortized over parse)
+	build_line_table(l)
 	l.jsx_context = false
 	l.strict_mode = false
 	l.last_token_type = .EOF  // Start of input allows regex
@@ -125,8 +178,8 @@ prime_lexer :: proc(l: ^Lexer2) {
 			c := l.source_bytes[l.offset]
 			l.offset += 1
 			if c == '\n' {
-				l.line += 1
-				l.column = 1
+				
+				
 				break
 			}
 		}
@@ -211,17 +264,15 @@ init_single_char_table :: proc "contextless" () {
 // ============================================================================
 
 lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
-	// ---- Inline whitespace skip (common case: 0-2 chars) ----
+	// ---- Inline whitespace skip — only offset tracking, no line/col ----
 	l.had_line_terminator = false
 	for l.offset < len(l.source) {
 		c := l.source_bytes[l.offset]
-		if c == ' ' {
-			l.offset += 1; l.column += 1
+		if c == ' ' || c == '\t' || c == '\r' {
+			l.offset += 1
 		} else if c == '\n' {
 			l.had_line_terminator = true
-			l.offset += 1; l.line += 1; l.column = 1
-		} else if c == '\t' || c == '\r' {
-			l.offset += 1; l.column += 1
+			l.offset += 1
 		} else if c == '/' && l.offset + 1 < len(l.source) {
 			n := l.source_bytes[l.offset + 1]
 			if n == '/' { skip_line_comment2(l) }
@@ -233,7 +284,7 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 	}
 
 	if l.offset >= len(l.source) {
-		tok := add_token(&l.token_soa, .EOF, Loc{offset = l.offset, line = l.line, column = l.column}, 0, l.had_line_terminator)
+		tok := add_token(&l.token_soa, .EOF, Loc{offset = l.offset}, 0, l.had_line_terminator)
 		l.last_token_type = .EOF
 		return tok
 	}
@@ -242,20 +293,20 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 
 	// Template resume (rare)
 	if l.in_template && c == '}' {
-		l.offset += 1; l.column += 1
+		l.offset += 1; 
 		l.in_template = false
-		tok := lex_template_resume(l, Loc{offset = l.offset, line = l.line, column = l.column})
+		tok := lex_template_resume(l, Loc{offset = l.offset})
 		l.last_token_type = get_token_type(tok)
 		return tok
 	}
 
-	loc := Loc{offset = l.offset, line = l.line, column = l.column}
+	loc := Loc{offset = l.offset}
 
 	// ---- Fast path: single-char token via lookup table ----
 	if c < 128 {
 		tt := single_char_tokens[c]
 		if tt != .Invalid {
-			l.offset += 1; l.column += 1
+			l.offset += 1; 
 			tok := add_token(&l.token_soa, tt, loc, 1, l.had_line_terminator)
 			l.last_token_type = tt
 			return tok
@@ -314,7 +365,7 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 	case '`':
 		tok = lex_template_start(l, loc)
 	case:
-		l.offset += 1; l.column += 1
+		l.offset += 1; 
 		tok = add_token(&l.token_soa, .Invalid, loc, 1, l.had_line_terminator)
 	}
 
@@ -377,10 +428,6 @@ skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
 		
 		if nl_info.count > 0 {
 			l.had_line_terminator = true
-			l.line += nl_info.count
-			l.column = ws_count - nl_info.last_nl_pos
-		} else {
-			l.column += ws_count
 		}
 		
 		l.offset += ws_count
@@ -412,12 +459,12 @@ skip_whitespace_scalar :: proc(l: ^Lexer2) {
 		c = l.source_bytes[l.offset]
 		if c == ' ' || c == '\t' || c == '\r' {
 			l.offset += 1
-			l.column += 1
+			
 		} else if c == '\n' {
 			l.had_line_terminator = true
 			l.offset += 1
-			l.line += 1
-			l.column = 1
+			
+			
 		} else if c == '/' && l.offset + 1 < len(l.source) {
 			next := l.source_bytes[l.offset + 1]
 			if next == '/' {
@@ -452,7 +499,7 @@ lex_identifier_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	}
 	
 	length := l.offset - start
-	l.column += length
+	
 	
 	// Keyword check (hash table auto-initialized via @init or first call)
 	tok_type, _ := lookup_keyword_ultra(l.source[start:l.offset])
@@ -505,12 +552,12 @@ lex_number_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	}
 	
 	length := l.offset - start_offset
-	l.column += length  // update column for all digits scanned
+	  // update column for all digits scanned
 	text := l.source[start_offset:l.offset]
 	
 	// Check for BigInt suffix: 123n
 	if l.offset < len(l.source) && l.source_bytes[l.offset] == 'n' {
-		l.offset += 1; l.column += 1
+		l.offset += 1; 
 		length = l.offset - start_offset
 		return add_token(&l.token_soa, .BigInt, loc, length, l.had_line_terminator)
 	}
@@ -533,7 +580,7 @@ lex_string_optimized :: proc(l: ^Lexer2, loc: Loc, quote: u8) -> CompactToken {
 	start := l.offset
 	// Skip opening quote
 	l.offset += 1
-	l.column += 1
+	
 
 	// SIMD fast path: find first quote or backslash simultaneously
 	remaining := l.source_bytes[l.offset:]
@@ -542,7 +589,6 @@ lex_string_optimized :: proc(l: ^Lexer2, loc: Loc, quote: u8) -> CompactToken {
 	if found_quote {
 		// No escape in [offset..offset+pos) — direct fast path
 		text := l.source[l.offset:l.offset+pos]
-		l.column += pos + 1  // +1 for closing quote
 		l.offset += pos + 1
 		return add_token_literal(
 			&l.token_soa, .String, loc, pos + 2,
@@ -928,36 +974,34 @@ lex_percent_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 
 advance2 :: #force_inline proc(l: ^Lexer2, n: int) {
 	l.offset += n
-	l.column += n
+	
 }
 
 advance_line2 :: #force_inline proc(l: ^Lexer2) {
 	l.offset += 1
-	l.line += 1
-	l.column = 1
+	
+	
 }
 
 skip_line_comment2 :: proc(l: ^Lexer2) {
-	advance2(l, 2)  // Skip //
+	l.offset += 2  // Skip //
 	for l.offset < len(l.source) && l.source_bytes[l.offset] != '\n' {
-		advance2(l, 1)
+		l.offset += 1
 	}
 }
 
 skip_block_comment2 :: proc(l: ^Lexer2) {
-	advance2(l, 2)  // Skip /*
-	
+	l.offset += 2  // Skip /*
 	for l.offset + 1 < len(l.source) {
-		if l.source_bytes[l.offset] == '*' && l.source_bytes[l.offset + 1] == '/' {
-			advance2(l, 2)
+		c := l.source_bytes[l.offset]
+		if c == '*' && l.source_bytes[l.offset + 1] == '/' {
+			l.offset += 2
 			return
 		}
-		
-		if l.source_bytes[l.offset] == '\n' {
-			advance_line2(l)
-		} else {
-			advance2(l, 1)
+		if c == '\n' {
+			l.had_line_terminator = true
 		}
+		l.offset += 1
 	}
 }
 
