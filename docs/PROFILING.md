@@ -49,6 +49,7 @@ hyperfine --warmup 3 --runs 10 './kessel_bin parse kessel/tests/fixtures/basic/0
 ### Detailed benchmark with percentiles
 ```bash
 hyperfine --warmup 5 --runs 20 --show-output './kessel_bin parse kessel/bench_large.js > /dev/null'
+hyperfine --warmup 5 --runs 20 --show-output './kessel_bin parse kessel/bench_large.js --pretty > /dev/null'
 ```
 
 ### Batch benchmark (multiple files)
@@ -57,16 +58,24 @@ hyperfine --warmup 5 --runs 20 --show-output './kessel_bin parse kessel/bench_la
 bash kessel/bench.sh
 ```
 
+### Parser vs lexer split
+```bash
+./kessel_bin microbench-lex kessel/bench_large.js --iterations 30
+./kessel_bin microbench kessel/bench_large.js --iterations 30
+./kessel_bin profile-parser kessel/bench_large.js --iterations 200
+```
+
 ### CPU Profile with samply
 ```bash
 # Build with debug info
 odin build kessel -debug
 
-# Profile single run
-samply record ./kessel_bin parse kessel/bench_large.js
+# Fast parser-only-ish profile (no JSON emit)
+samply record ./kessel_bin microbench kessel/bench_large.js --iterations 1
 
-# Opens interactive flamegraph viewer
-# Navigate with arrow keys, search with /
+# Or collect a saved profile without opening the UI
+samply record --save-only --output /tmp/kessel-profile.json.gz \
+  ./kessel_bin microbench kessel/bench_large.js --iterations 1
 ```
 
 ### Compare before/after changes
@@ -81,6 +90,29 @@ odin build kessel -release
 hyperfine --export-json /tmp/after.json './kessel_bin parse kessel/bench_large.js'
 hyperfine --export-asciidoc /tmp/before.json /tmp/after.json
 ```
+
+## Current Profiling Snapshot (2026-04-18)
+
+Measured on macOS arm64 after making compact JSON the default, adding parser counters, pushing more current-token reads onto compact-token fast paths, and simplifying expression-union assignment:
+
+- `kessel parse bench_large.js > /dev/null`: **22.8 ms ± 0.4**
+- `kessel parse bench_large.js --pretty > /dev/null`: **31.2 ms ± 0.7**
+- `microbench-lex` P50: **3.42 ms**
+- `microbench` P50: **12.69 ms**
+- `profile-parser` estimated parser share: **73.5%** of full parse time
+- Parser counter sample on `bench_large.js`:
+  - AST node allocs: **135,591**
+  - `get_current`: **59,528**
+  - `next`: **111,531**
+  - `is`: **198,264**
+  - lookahead / consume: **2.31×**
+
+This confirms the parser remains the biggest in-process target, while also
+showing that a large chunk of legacy-token traffic was avoidable. Saved samply capture:
+`/tmp/kessel-final-mile.json.gz`.
+
+The next parser pass should focus on reducing `is_token` traffic and AST
+allocation pressure before attempting deeper algorithmic rewrites.
 
 ## Baseline Measurements
 

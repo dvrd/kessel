@@ -18,42 +18,24 @@ CharClass :: enum u8 {
 }
 
 // 256-byte lookup table for character classification
+// Initialized at process startup via @(init)
 CHAR_CLASS_TABLE: [256]u8
 char_table_initialized := false
 
-// Initialize character classification table
-init_char_class_table :: proc() {
-    if char_table_initialized {
-        return
-    }
-    
+@(init)
+init_char_class_table :: proc "contextless" () {
     for i in 0..<256 {
         c := u8(i)
-        
-        // Whitespace
         if c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f' {
             CHAR_CLASS_TABLE[i] = u8(CharClass.Whitespace)
-            continue
-        }
-        
-        // Identifier start: a-z, A-Z, _, $
-        if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' {
+        } else if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' {
             CHAR_CLASS_TABLE[i] = u8(CharClass.IdStart)
-            continue
-        }
-        
-        // Digit
-        if c >= '0' && c <= '9' {
+        } else if c >= '0' && c <= '9' {
             CHAR_CLASS_TABLE[i] = u8(CharClass.Digit)
-            continue
+        } else {
+            CHAR_CLASS_TABLE[i] = u8(CharClass.Other)
         }
-        
-        // Identifier continuation includes digits
-        // (handled by checking IdStart || Digit)
-        
-        CHAR_CLASS_TABLE[i] = u8(CharClass.Other)
     }
-    
     char_table_initialized = true
 }
 
@@ -74,18 +56,12 @@ is_whitespace_fast :: proc(c: u8) -> bool {
 }
 
 // Fast identifier start check  
-is_id_start_fast :: proc(c: u8) -> bool {
-    if !char_table_initialized {
-        init_char_class_table()
-    }
+// Table is guaranteed initialized by @(init) — no runtime check needed
+is_id_start_fast :: #force_inline proc(c: u8) -> bool {
     return CHAR_CLASS_TABLE[c] == u8(CharClass.IdStart)
 }
 
-// Fast identifier continuation check
-is_id_cont_fast :: proc(c: u8) -> bool {
-    if !char_table_initialized {
-        init_char_class_table()
-    }
+is_id_cont_fast :: #force_inline proc(c: u8) -> bool {
     class := CHAR_CLASS_TABLE[c]
     return class == u8(CharClass.IdStart) || class == u8(CharClass.Digit)
 }

@@ -160,22 +160,25 @@ fast_keyword_reject :: proc(s: string) -> bool {
 }
 
 // Ultra-fast lookup with quick reject
-lookup_keyword_ultra :: proc(s: string) -> (TokenType, bool) {
-	// Quick reject non-starters
+lookup_keyword_ultra :: #force_inline proc(s: string) -> (TokenType, bool) {
+	// Length reject: keywords are 2-12 chars
+	if len(s) < 2 || len(s) > 12 {
+		return .Identifier, false
+	}
+	// Quick reject non-starters by first char
 	if !fast_keyword_reject(s) {
 		return .Identifier, false
 	}
-	
 	return lookup_keyword_fast(s)
 }
 
 // ============================================================================
-// Initialization
+// Initialization (runs once at process startup via @(init))
 // ============================================================================
 
 keyword_hash_initialized := false
 
-ensure_keyword_hash :: proc() {
+ensure_keyword_hash :: #force_inline proc() {
 	if !keyword_hash_initialized {
 		init_keyword_hash_table()
 		keyword_hash_initialized = true

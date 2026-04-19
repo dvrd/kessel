@@ -9,6 +9,7 @@ import "core:os"
 import "core:slice"
 import "core:strings"
 import "core:time"
+import "core:sort"
 import "core:strconv"
 import "core:thread"
 
@@ -314,6 +315,23 @@ main :: proc() {
 			}
 		}
 		microbench_lex_only(lex_file_path, lex_iterations)
+	
+	case "profile-parser":
+		if len(os.args) < 3 {
+			out_println("Error: profile-parser requires a file path")
+			out_println("Usage: kessel profile-parser <file> [--iterations N]")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		profile_file := os.args[2]
+		profile_iters := 10
+		if len(os.args) >= 5 && os.args[3] == "--iterations" {
+			n, ok := strconv.parse_int(os.args[4])
+			if ok {
+				profile_iters = n
+			}
+		}
+		profile_parser_file(profile_file, profile_iters)
 		
 	case "help", "-h", "--help":
 		print_usage()
@@ -393,17 +411,16 @@ parse_file :: proc(file_path: string) {
 	}
 	defer delete(source, context.allocator)
 	
-	// Create growing virtual arena for allocations (64KB initial block, lazy commit)
+	// Create virtual arena for allocations (lazy commit via virtual memory)
 	arena: mvirtual.Arena
-	err := mvirtual.arena_init_growing(&arena, reserved=64*1024)
+	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
+	err := mvirtual.arena_init_static(&arena, arena_size)
 	if err != nil {
 		fmt.eprintf("Error initializing arena: %v\n", err)
 		os.exit(1)
 	}
 	defer mvirtual.arena_destroy(&arena)
 	arena_alloc := mvirtual.arena_allocator(&arena)
-	
-	fmt.eprintf("Arena initialized with 64KB reserved block (lazy commit)\n")
 	
 	// Initialize optimized lexer with compact tokens + SIMD
 	lex: lexer.LexerAdapter
@@ -459,7 +476,7 @@ parse_file_quiet :: proc(file_path: string) -> (bool, int, int) {
 	defer delete(source, context.allocator)
 	file_size := len(source)
 	arena: mvirtual.Arena
-	_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+	_ = mvirtual.arena_init_static(&arena, uint(max(file_size * 256, 16 * 1024 * 1024)))
 	defer mvirtual.arena_destroy(&arena)
 	arena_alloc := mvirtual.arena_allocator(&arena)
 	lex: lexer.LexerAdapter
@@ -578,7 +595,7 @@ microbench_lex_only :: proc(file_path: string, iterations: int) {
 	// Warm-up
 	{
 		arena: mvirtual.Arena
-		_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+		_ = mvirtual.arena_init_static(&arena, uint(max(file_size * 256, 16 * 1024 * 1024)))
 		defer mvirtual.arena_destroy(&arena)
 		alloc := mvirtual.arena_allocator(&arena)
 		lex: lexer.Lexer2
@@ -596,7 +613,7 @@ microbench_lex_only :: proc(file_path: string, iterations: int) {
 		start := time.tick_now()
 
 		arena: mvirtual.Arena
-		_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+		_ = mvirtual.arena_init_static(&arena, uint(max(file_size * 256, 16 * 1024 * 1024)))
 		defer mvirtual.arena_destroy(&arena)
 		alloc := mvirtual.arena_allocator(&arena)
 
@@ -664,10 +681,14 @@ microbench_file :: proc(file_path: string, iterations: int) {
 	durations := make([dynamic]time.Duration, context.allocator)
 	defer delete(durations)
 	
+	// Pre-compute arena reservation based on source size
+	// Token SoA + AST + dynamic arrays need ~128× source bytes
+	arena_reserve := uint(max(len(source) * 128, 16 * 1024 * 1024))
+
 	// Warm-up run (1 iteration, not counted)
 	{
 		arena: mvirtual.Arena
-		_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+		_ = mvirtual.arena_init_static(&arena, arena_reserve)
 		defer mvirtual.arena_destroy(&arena)
 		arena_alloc := mvirtual.arena_allocator(&arena)
 		
@@ -685,7 +706,7 @@ microbench_file :: proc(file_path: string, iterations: int) {
 		start := time.tick_now()
 		
 		arena: mvirtual.Arena
-		_ = mvirtual.arena_init_growing(&arena, reserved=64*1024)
+		_ = mvirtual.arena_init_static(&arena, arena_reserve)
 		defer mvirtual.arena_destroy(&arena)
 		arena_alloc := mvirtual.arena_allocator(&arena)
 		
@@ -1247,13 +1268,13 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 	out_s("\"")
 
 	#partial switch e in expr^ {
-	case ast.Identifier:
+	case ^ast.Identifier:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"name\": ")
 		out_string(e.name)
 
-	case ast.NumericLiteral:
+	case ^ast.NumericLiteral:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"value\": ")
@@ -1262,25 +1283,25 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		out_s("\"raw\": ")
 		out_string(e.raw)
 
-	case ast.StringLiteral:
+	case ^ast.StringLiteral:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"value\": ")
 		out_string(e.value)
 
-	case ast.BooleanLiteral:
+	case ^ast.BooleanLiteral:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"value\": ")
 		out_bool(e.value)
 
-	case ast.NullLiteral:
+	case ^ast.NullLiteral:
 		// No additional fields
 
-	case ast.ThisExpression:
+	case ^ast.ThisExpression:
 		// No additional fields
 
-	case ast.ArrayExpression:
+	case ^ast.ArrayExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"elements\": [\n")
@@ -1300,7 +1321,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("]")
 
-	case ast.ObjectExpression:
+	case ^ast.ObjectExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"properties\": [\n")
@@ -1351,7 +1372,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("]")
 
-	case ast.BinaryExpression:
+	case ^ast.BinaryExpression:
 		out_s(",\n")
 		print_indent(indent)
 		op_str := binary_op_to_string(e.operator)
@@ -1369,7 +1390,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.UnaryExpression:
+	case ^ast.UnaryExpression:
 		out_s(",\n")
 		print_indent(indent)
 		op_str := unary_op_to_string(e.operator)
@@ -1386,7 +1407,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.AssignmentExpression:
+	case ^ast.AssignmentExpression:
 		out_s(",\n")
 		print_indent(indent)
 		op_str := assignment_op_to_string(e.operator)
@@ -1404,7 +1425,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.CallExpression:
+	case ^ast.CallExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"callee\": {\n")
@@ -1427,7 +1448,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("]")
 
-	case ast.MemberExpression:
+	case ^ast.MemberExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"computed\": ")
@@ -1444,7 +1465,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.ConditionalExpression:
+	case ^ast.ConditionalExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"test\": {\n")
@@ -1462,7 +1483,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.FunctionExpression:
+	case ^ast.FunctionExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"generator\": ")
@@ -1477,7 +1498,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"body\": { ... }")
 
-	case ast.ArrowFunctionExpression:
+	case ^ast.ArrowFunctionExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"expression\": ")
@@ -1487,7 +1508,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		out_s("\"async\": ")
 		out_bool(e.async)
 
-	case ast.NewExpression:
+	case ^ast.NewExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"callee\": {\n")
@@ -1510,14 +1531,14 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("]")
 
-	case ast.TemplateLiteral:
+	case ^ast.TemplateLiteral:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"quasis\": [ ... ],\n")
 		print_indent(indent)
 		out_s("\"expressions\": [ ... ]")
 
-	case ast.TaggedTemplateExpression:
+	case ^ast.TaggedTemplateExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"tag\": {\n")
@@ -1530,7 +1551,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.SpreadElement:
+	case ^ast.SpreadElement:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"argument\": {\n")
@@ -1538,7 +1559,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.BigIntLiteral:
+	case ^ast.BigIntLiteral:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"value\": ")
@@ -1548,7 +1569,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		out_s("\"raw\": ")
 		out_string(e.raw)
 
-	case ast.RegExpLiteral:
+	case ^ast.RegExpLiteral:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"pattern\": ")
@@ -1558,7 +1579,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		out_s("\"flags\": ")
 		out_string(e.flags)
 
-	case ast.UpdateExpression:
+	case ^ast.UpdateExpression:
 		out_s(",\n")
 		print_indent(indent)
 		op_str := ""
@@ -1579,7 +1600,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.LogicalExpression:
+	case ^ast.LogicalExpression:
 		out_s(",\n")
 		print_indent(indent)
 		op_str := ""
@@ -1602,7 +1623,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.SequenceExpression:
+	case ^ast.SequenceExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"expressions\": [\n")
@@ -1620,7 +1641,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("]")
 
-	case ast.YieldExpression:
+	case ^ast.YieldExpression:
 		out_s(",\n")
 		print_indent(indent)
 		if arg, ok := e.argument.(^ast.Expression); ok && arg != nil {
@@ -1635,7 +1656,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		out_s("\"delegate\": ")
 		out_bool(e.delegate)
 
-	case ast.AwaitExpression:
+	case ^ast.AwaitExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"argument\": {\n")
@@ -1643,7 +1664,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.ImportExpression:
+	case ^ast.ImportExpression:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"source\": {\n")
@@ -1651,7 +1672,7 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.MetaProperty:
+	case ^ast.MetaProperty:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"meta\": {\n")
@@ -1670,13 +1691,13 @@ print_expression_ast :: proc(expr: ^ast.Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
-	case ast.PrivateIdentifier:
+	case ^ast.PrivateIdentifier:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"name\": ")
 		out_string(e.name)
 
-	case ast.ClassExpression:
+	case ^ast.ClassExpression:
 		out_s(",\n")
 		print_indent(indent)
 		if e.id != nil {
@@ -1746,38 +1767,38 @@ get_statement_type_name :: proc(stmt: ^ast.Statement) -> string {
 
 get_expression_type_name :: proc(expr: ^ast.Expression) -> string {
 	#partial switch e in expr^ {
-	case ast.NullLiteral:           return "NullLiteral"
-	case ast.BooleanLiteral:        return "BooleanLiteral"
-	case ast.NumericLiteral:        return "NumericLiteral"
-	case ast.StringLiteral:         return "StringLiteral"
-	case ast.BigIntLiteral:         return "BigIntLiteral"
-	case ast.RegExpLiteral:         return "RegExpLiteral"
-	case ast.TemplateLiteral:       return "TemplateLiteral"
-	case ast.TaggedTemplateExpression: return "TaggedTemplateExpression"
-	case ast.Identifier:            return "Identifier"
-	case ast.ThisExpression:        return "ThisExpression"
-	case ast.Super:                 return "Super"
-	case ast.ArrayExpression:       return "ArrayExpression"
-	case ast.ObjectExpression:      return "ObjectExpression"
-	case ast.FunctionExpression:    return "FunctionExpression"
-	case ast.ArrowFunctionExpression: return "ArrowFunctionExpression"
-	case ast.ClassExpression:       return "ClassExpression"
-	case ast.MemberExpression:      return "MemberExpression"
-	case ast.CallExpression:        return "CallExpression"
-	case ast.NewExpression:         return "NewExpression"
-	case ast.ConditionalExpression: return "ConditionalExpression"
-	case ast.UpdateExpression:      return "UpdateExpression"
-	case ast.UnaryExpression:       return "UnaryExpression"
-	case ast.BinaryExpression:      return "BinaryExpression"
-	case ast.LogicalExpression:     return "LogicalExpression"
-	case ast.AssignmentExpression:  return "AssignmentExpression"
-	case ast.SequenceExpression:    return "SequenceExpression"
-	case ast.SpreadElement:         return "SpreadElement"
-	case ast.YieldExpression:       return "YieldExpression"
-	case ast.AwaitExpression:       return "AwaitExpression"
-	case ast.ImportExpression:      return "ImportExpression"
-	case ast.MetaProperty:          return "MetaProperty"
-	case ast.PrivateIdentifier:     return "PrivateIdentifier"
+	case ^ast.NullLiteral:           return "NullLiteral"
+	case ^ast.BooleanLiteral:        return "BooleanLiteral"
+	case ^ast.NumericLiteral:        return "NumericLiteral"
+	case ^ast.StringLiteral:         return "StringLiteral"
+	case ^ast.BigIntLiteral:         return "BigIntLiteral"
+	case ^ast.RegExpLiteral:         return "RegExpLiteral"
+	case ^ast.TemplateLiteral:       return "TemplateLiteral"
+	case ^ast.TaggedTemplateExpression: return "TaggedTemplateExpression"
+	case ^ast.Identifier:            return "Identifier"
+	case ^ast.ThisExpression:        return "ThisExpression"
+	case ^ast.Super:                 return "Super"
+	case ^ast.ArrayExpression:       return "ArrayExpression"
+	case ^ast.ObjectExpression:      return "ObjectExpression"
+	case ^ast.FunctionExpression:    return "FunctionExpression"
+	case ^ast.ArrowFunctionExpression: return "ArrowFunctionExpression"
+	case ^ast.ClassExpression:       return "ClassExpression"
+	case ^ast.MemberExpression:      return "MemberExpression"
+	case ^ast.CallExpression:        return "CallExpression"
+	case ^ast.NewExpression:         return "NewExpression"
+	case ^ast.ConditionalExpression: return "ConditionalExpression"
+	case ^ast.UpdateExpression:      return "UpdateExpression"
+	case ^ast.UnaryExpression:       return "UnaryExpression"
+	case ^ast.BinaryExpression:      return "BinaryExpression"
+	case ^ast.LogicalExpression:     return "LogicalExpression"
+	case ^ast.AssignmentExpression:  return "AssignmentExpression"
+	case ^ast.SequenceExpression:    return "SequenceExpression"
+	case ^ast.SpreadElement:         return "SpreadElement"
+	case ^ast.YieldExpression:       return "YieldExpression"
+	case ^ast.AwaitExpression:       return "AwaitExpression"
+	case ^ast.ImportExpression:      return "ImportExpression"
+	case ^ast.MetaProperty:          return "MetaProperty"
+	case ^ast.PrivateIdentifier:     return "PrivateIdentifier"
 	}
 	return "Unknown"
 }
@@ -1859,9 +1880,9 @@ lex_file :: proc(file_path: string) {
 	}
 	defer delete(source, context.allocator)
 
-	// Create growing virtual arena for allocations (64KB initial block, lazy commit)
+	// Create virtual arena for allocations (lazy commit via virtual memory)
 	arena: mvirtual.Arena
-	err := mvirtual.arena_init_growing(&arena, reserved=64*1024)
+	err := mvirtual.arena_init_static(&arena, uint(max(len(source) * 256, 16 * 1024 * 1024)))
 	if err != nil {
 		fmt.eprintf("Error initializing arena: %v\n", err)
 		os.exit(1)
@@ -1917,3 +1938,153 @@ lex_file :: proc(file_path: string) {
 	fmt.eprintf("\nTotal tokens: %d\n", token_count)
 }
 
+
+// ============================================================================
+// Profile Parser Command
+// ============================================================================
+
+profile_parser_file :: proc(file_path: string, iterations: int) {
+	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
+	if read_err != nil {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		os.exit(1)
+	}
+	defer delete(source, context.allocator)
+	
+	file_size := len(source)
+	full_us := make([dynamic]f64, context.allocator)
+	lex_us := make([dynamic]f64, context.allocator)
+	defer delete(full_us)
+	defer delete(lex_us)
+
+	profile := parser.ParserProfile{}
+	profile_errors := 0
+
+	for i in 0..<iterations {
+		arena: mvirtual.Arena
+		_ = mvirtual.arena_init_static(&arena, uint(max(file_size * 256, 16 * 1024 * 1024)))
+		defer mvirtual.arena_destroy(&arena)
+		alloc := mvirtual.arena_allocator(&arena)
+
+		lex_start := time.tick_now()
+		lex_only: lexer.LexerAdapter
+		lexer.init_adapter(&lex_only, string(source), alloc)
+		for lexer.get_compact_current_type(&lex_only) != .EOF {
+			lexer.next_adapter(&lex_only)
+		}
+		append(&lex_us, f64(time.duration_microseconds(time.tick_since(lex_start))))
+
+		arena_parse: mvirtual.Arena
+		_ = mvirtual.arena_init_static(&arena_parse, uint(max(file_size * 256, 16 * 1024 * 1024)))
+		defer mvirtual.arena_destroy(&arena_parse)
+		parse_alloc := mvirtual.arena_allocator(&arena_parse)
+
+		full_start := time.tick_now()
+
+		lex: lexer.LexerAdapter
+		lexer.init_adapter(&lex, string(source), parse_alloc)
+
+		p: parser.Parser
+		parser.init_parser_adapter(&p, &lex, parse_alloc)
+		if i == 0 {
+			parser.enable_profiling(&p)
+		}
+		program := parser.parse_program(&p, .Script)
+
+		full_dur := f64(time.duration_microseconds(time.tick_since(full_start)))
+		append(&full_us, full_dur)
+
+		if i == 0 {
+			profile = parser.get_profile(&p)
+			profile_errors = len(p.errors)
+		}
+	}
+
+	// Sort for percentiles
+	// Simple insertion sort for small arrays
+	for i in 1..<len(full_us) {
+		key := full_us[i]
+		j := i - 1
+		for j >= 0 && full_us[j] > key {
+			full_us[j+1] = full_us[j]
+			j -= 1
+		}
+		full_us[j+1] = key
+	}
+	for i in 1..<len(lex_us) {
+		key := lex_us[i]
+		j := i - 1
+		for j >= 0 && lex_us[j] > key {
+			lex_us[j+1] = lex_us[j]
+			j -= 1
+		}
+		lex_us[j+1] = key
+	}
+
+	p50_idx := min(len(full_us) - 1, len(full_us) / 2)
+	lex_p50 := lex_us[p50_idx]
+	full_p50 := full_us[p50_idx]
+	parser_est := full_p50 - lex_p50
+	parser_pct := (parser_est / max(full_p50, 1.0)) * 100.0
+
+	fmt.eprintf("Parser profile: %s (%d bytes)\n", file_path, file_size)
+	fmt.eprintf("Iterations: %d\n", iterations)
+	fmt.eprintf("Lex P50:          %.3f us\n", lex_p50)
+	fmt.eprintf("Full parse P50:   %.3f us\n", full_p50)
+	fmt.eprintf("Parser est P50:   %.3f us (full - lex, %.1f%%)\n", parser_est, parser_pct)
+	fmt.eprintf("Profile sample:   1 parser run\n")
+	fmt.eprintf("  AST node allocs:      %d\n", profile.node_allocs)
+	fmt.eprintf("  AST node bytes:       %d\n", profile.node_alloc_bytes)
+	fmt.eprintf("  expr wrappers:        %d (%d bytes, %.1f%% of allocs)\n",
+		profile.expr_wrapper_allocs,
+		profile.expr_wrapper_allocs * u64(size_of(ast.Expression)),
+		(f64(profile.expr_wrapper_allocs) / f64(max(profile.node_allocs, 1))) * 100.0)
+	fmt.eprintf("  stmt wrappers:        %d (%d bytes, %.1f%% of allocs)\n",
+		profile.stmt_wrapper_allocs,
+		profile.stmt_wrapper_allocs * u64(size_of(ast.Statement)),
+		(f64(profile.stmt_wrapper_allocs) / f64(max(profile.node_allocs, 1))) * 100.0)
+	fmt.eprintf("  identifiers:          %d\n", profile.identifier_allocs)
+	fmt.eprintf("  member exprs:         %d\n", profile.member_expr_allocs)
+	fmt.eprintf("  call exprs:           %d\n", profile.call_expr_allocs)
+	fmt.eprintf("  binary exprs:         %d\n", profile.binary_expr_allocs)
+	fmt.eprintf("  logical exprs:        %d\n", profile.logical_expr_allocs)
+	fmt.eprintf("  properties:           %d\n", profile.property_allocs)
+	fmt.eprintf("  object exprs:         %d\n", profile.object_expr_allocs)
+	fmt.eprintf("  array exprs:          %d\n", profile.array_expr_allocs)
+	fmt.eprintf("  interner hits:        %d\n", profile.interner_hits)
+	fmt.eprintf("  interner misses:      %d\n", profile.interner_misses)
+	fmt.eprintf("  get_current calls:    %d\n", profile.get_current_calls)
+	fmt.eprintf("  next calls:           %d\n", profile.next_calls)
+	fmt.eprintf("  peek calls:           %d\n", profile.peek_calls)
+	fmt.eprintf("  is calls:             %d\n", profile.is_calls)
+	fmt.eprintf("  expect calls:         %d\n", profile.expect_calls)
+	fmt.eprintf("  expr fallbacks:       %d\n", profile.expression_fallbacks)
+	fmt.eprintf("  recovery tokens eaten:%d\n", profile.recovery_tokens_eaten)
+	fmt.eprintf("  parse errors:         %d\n", profile_errors)
+
+	wrapper_bytes := profile.expr_wrapper_allocs * u64(size_of(ast.Expression)) + profile.stmt_wrapper_allocs * u64(size_of(ast.Statement))
+	fmt.eprintf("  wrapper byte share:   %.1f%%\n", (f64(wrapper_bytes) / f64(max(profile.node_alloc_bytes, 1))) * 100.0)
+
+	fmt.eprintf("  ast.Expression union:     %d B\n", size_of(ast.Expression))
+	fmt.eprintf("  ast.Statement union:      %d B\n", size_of(ast.Statement))
+	fmt.eprintf("  ast.MemberExpression:     %d B\n", size_of(ast.MemberExpression))
+	fmt.eprintf("  ast.CallExpression:       %d B\n", size_of(ast.CallExpression))
+	fmt.eprintf("  ast.BinaryExpression:     %d B\n", size_of(ast.BinaryExpression))
+	fmt.eprintf("  ast.LogicalExpression:    %d B\n", size_of(ast.LogicalExpression))
+	fmt.eprintf("  ast.Identifier:           %d B\n", size_of(ast.Identifier))
+	fmt.eprintf("  ast.ObjectExpression:     %d B\n", size_of(ast.ObjectExpression))
+	fmt.eprintf("  ast.ArrayExpression:      %d B\n", size_of(ast.ArrayExpression))
+	fmt.eprintf("  ast.FunctionExpression:   %d B\n", size_of(ast.FunctionExpression))
+	fmt.eprintf("  ast.ClassExpression:      %d B\n", size_of(ast.ClassExpression))
+
+	lookahead := f64(profile.get_current_calls + profile.next_calls + profile.peek_calls + profile.is_calls + profile.expect_calls)
+	consume := f64(profile.next_calls)
+	fmt.eprintf("  lookahead/consume:    %.2f x\n", lookahead / max(consume, 1.0))
+	fmt.eprintf("Linux samply: samply record ./kessel_bin microbench %s --iterations 1\n", file_path)
+}
+
+cmp_f64 :: proc(x, y: f64) -> int {
+	if x < y { return -1 }
+	if x > y { return  1 }
+	return 0
+}

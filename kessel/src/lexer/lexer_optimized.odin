@@ -81,11 +81,10 @@ estimate_arena_size :: proc(source_len: int) -> int {
 }
 
 // Estimate token capacity based on source size
-// Heuristic: ~1 token per 3-4 chars on average
+// Heuristic: ~1 token per 2 chars on average for punctuation-heavy JS
 estimate_token_capacity :: proc(source_len: int) -> int {
-	// Heuristic: ~1 token per source char for large, punctuation-heavy fixtures.
-	// This over-allocates slightly, but avoids repeated SoA growth across eight parallel arrays.
-	return max(source_len, 1024)
+	// source_len / 2 gives ~2x headroom over typical usage (~source_len / 4 actual tokens)
+	return max(source_len / 2, 4096)
 }
 
 // Initialize optimized lexer
@@ -120,37 +119,55 @@ init_lexer2 :: proc(l: ^Lexer2, source: string, alloc: mem.Allocator) {
 
 // Prime the lexer with initial tokens
 prime_lexer :: proc(l: ^Lexer2) {
-	// Fill the ring buffer with initial tokens
-	for l.ring.count < TOKEN_RING_SIZE - 1 {
-		tok := lex_next_compact(l)
-		ring_push(&l.ring, tok)
-		l.stats.tokens_created += 1
-		if get_token_type(tok) == .EOF {
-			break
+	// Handle hashbang at absolute start of file
+	if l.at_start_of_file && l.offset + 1 < len(l.source) && l.source_bytes[l.offset] == '#' && l.source_bytes[l.offset + 1] == '!' {
+		for l.offset < len(l.source) {
+			c := l.source_bytes[l.offset]
+			l.offset += 1
+			if c == '\n' {
+				l.line += 1
+				l.column = 1
+				break
+			}
 		}
+	}
+	l.at_start_of_file = false
+
+	// Prime 2-slot pair: current + next
+	tok0 := lex_next_compact(l)
+	l.ring.cur = tok0
+	l.ring.cur_type = l.last_token_type
+	if l.ring.cur_type != .EOF {
+		tok1 := lex_next_compact(l)
+		l.ring.nxt = tok1
+		l.ring.nxt_type = l.last_token_type
+		l.ring.has_next = true
 	}
 }
 
 // Get current token
-get_current2 :: proc(l: ^Lexer2) -> CompactToken {
+get_current2 :: #force_inline proc(l: ^Lexer2) -> CompactToken {
 	return ring_peek(&l.ring, 0)
 }
 
-// Advance to next token
-next2 :: proc(l: ^Lexer2) -> CompactToken {
-	result := ring_pop(&l.ring)
-	
-	// Replenish the ring buffer only if we got a valid token and it's not EOF
-	// Check for valid token first (index != INVALID_TOKEN_INDEX)
-	if result.index != INVALID_TOKEN_INDEX {
-		if get_token_type(result) != .EOF {
-			tok := lex_next_compact(l)
-			ring_push(&l.ring, tok)
-			l.stats.tokens_created += 1
-		}
+// Advance to next token — shift next→current, lex new next
+next2 :: #force_inline proc(l: ^Lexer2) -> CompactToken {
+	old := l.ring.cur
+	// Shift next → current
+	l.ring.cur = l.ring.nxt
+	l.ring.cur_type = l.ring.nxt_type
+	// Lex new next (only if current wasn't EOF)
+	if l.ring.cur_type != .EOF {
+		tok := lex_next_compact(l)
+		l.ring.nxt = tok
+		l.ring.nxt_type = l.last_token_type  // already set by lex_next_compact
+		l.ring.has_next = true
+	} else {
+		l.ring.nxt = CompactToken{index = INVALID_TOKEN_INDEX, soa = l.ring.soa}
+		l.ring.nxt_type = .EOF
+		l.ring.has_next = false
 	}
-	
-	return result
+	return old
 }
 
 // Peek at next token
@@ -164,178 +181,144 @@ peek2_ahead :: proc(l: ^Lexer2) -> CompactToken {
 }
 
 // Check current token type
-is2 :: proc(l: ^Lexer2, type_: TokenType) -> bool {
+is2 :: #force_inline proc(l: ^Lexer2, type_: TokenType) -> bool {
 	return ring_peek_type(&l.ring, 0) == type_
 }
 
 // ============================================================================
-// Core Lexing with SIMD
+// Single-char token lookup table (128 ASCII entries)
 // ============================================================================
 
-// Main lexing function - produces compact tokens
+single_char_tokens: [128]TokenType
+
+@(init)
+init_single_char_table :: proc "contextless" () {
+	for i in 0..<128 { single_char_tokens[i] = .Invalid }
+	single_char_tokens['{'] = .LBrace
+	single_char_tokens['}'] = .RBrace
+	single_char_tokens['('] = .LParen
+	single_char_tokens[')'] = .RParen
+	single_char_tokens['['] = .LBracket
+	single_char_tokens[']'] = .RBracket
+	single_char_tokens[','] = .Comma
+	single_char_tokens[';'] = .Semi
+	single_char_tokens[':'] = .Colon
+	single_char_tokens['~'] = .BitNot
+}
+
+// ============================================================================
+// Core Lexing — ultra-fast main loop
+// ============================================================================
+
 lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
-	// Hashbang: only valid at absolute start of file
-	if l.at_start_of_file && l.offset + 1 < len(l.source) && l.source_bytes[l.offset] == '#' && l.source_bytes[l.offset + 1] == '!' {
-		// Skip hashbang line (#! ... \n)
-		l.at_start_of_file = false
-		for l.offset < len(l.source) {
-			c := l.source_bytes[l.offset]
-			l.offset += 1
-			if c == '\n' {
-				l.line += 1
-				l.column = 1
-				break
-			}
+	// ---- Inline whitespace skip (common case: 0-2 chars) ----
+	l.had_line_terminator = false
+	for l.offset < len(l.source) {
+		c := l.source_bytes[l.offset]
+		if c == ' ' {
+			l.offset += 1; l.column += 1
+		} else if c == '\n' {
+			l.had_line_terminator = true
+			l.offset += 1; l.line += 1; l.column = 1
+		} else if c == '\t' || c == '\r' {
+			l.offset += 1; l.column += 1
+		} else if c == '/' && l.offset + 1 < len(l.source) {
+			n := l.source_bytes[l.offset + 1]
+			if n == '/' { skip_line_comment2(l) }
+			else if n == '*' { skip_block_comment2(l) }
+			else { break }
+		} else {
+			break
 		}
-		// Continue to next token
-		return lex_next_compact(l)
 	}
-	l.at_start_of_file = false
-	
-	skip_whitespace_simd_lex(l)
-	
+
 	if l.offset >= len(l.source) {
 		tok := add_token(&l.token_soa, .EOF, Loc{offset = l.offset, line = l.line, column = l.column}, 0, l.had_line_terminator)
 		l.last_token_type = .EOF
 		return tok
 	}
-	
-	// Check if we're resuming a template after an interpolation
-	if l.in_template && l.offset < len(l.source) {
-		c := l.source_bytes[l.offset]
-		if c == '}' {
-			// End of template expression - consume } and resume template scanning
-			advance2(l, 1)
-			l.in_template = false
-			// Continue to scan the rest of the template
-			tok := lex_template_resume(l, Loc{offset = l.offset, line = l.line, column = l.column})
-			l.last_token_type = get_token_type(tok)
+
+	c := l.source_bytes[l.offset]
+
+	// Template resume (rare)
+	if l.in_template && c == '}' {
+		l.offset += 1; l.column += 1
+		l.in_template = false
+		tok := lex_template_resume(l, Loc{offset = l.offset, line = l.line, column = l.column})
+		l.last_token_type = get_token_type(tok)
+		return tok
+	}
+
+	loc := Loc{offset = l.offset, line = l.line, column = l.column}
+
+	// ---- Fast path: single-char token via lookup table ----
+	if c < 128 {
+		tt := single_char_tokens[c]
+		if tt != .Invalid {
+			l.offset += 1; l.column += 1
+			tok := add_token(&l.token_soa, tt, loc, 1, l.had_line_terminator)
+			l.last_token_type = tt
 			return tok
 		}
 	}
-	
-	start := l.offset
-	start_line := l.line
-	start_col := l.column
-	loc := Loc{offset = start, line = start_line, column = start_col}
-	
-	c := l.source_bytes[l.offset]
-	
-	// Fast path: identifier or keyword
+
+	// ---- Identifier or keyword ----
 	if is_id_start_fast(c) {
 		tok := lex_identifier_optimized(l, loc)
-		l.last_token_type = get_token_type(tok)
+		l.last_token_type = l.token_soa.types[l.token_soa.count - 1]
 		return tok
 	}
-	
-	// Fast path: number
+
+	// ---- Number ----
 	if c >= '0' && c <= '9' {
 		tok := lex_number_optimized(l, loc)
-		l.last_token_type = get_token_type(tok)
+		l.last_token_type = l.token_soa.types[l.token_soa.count - 1]
 		return tok
 	}
-	
-	// Single-char and multi-char tokens
+
+	// ---- Multi-char operators and strings ----
 	tok: CompactToken
 	switch c {
 	case '"', '\'':
 		tok = lex_string_optimized(l, loc, c)
-		
 	case '/':
 		tok = lex_slash_optimized(l, loc)
-		
 	case '+':
 		tok = lex_plus_optimized(l, loc)
-		
 	case '-':
 		tok = lex_minus_optimized(l, loc)
-		
 	case '*':
 		tok = lex_star_optimized(l, loc)
-		
 	case '=':
 		tok = lex_equals_optimized(l, loc)
-		
 	case '!':
 		tok = lex_bang_optimized(l, loc)
-		
 	case '<':
 		tok = lex_less_optimized(l, loc)
-		
 	case '>':
 		tok = lex_greater_optimized(l, loc)
-		
 	case '&':
 		tok = lex_and_optimized(l, loc)
-		
 	case '|':
 		tok = lex_or_optimized(l, loc)
-		
-	case '{':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .LBrace, loc, 1, l.had_line_terminator)
-		
-	case '}':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .RBrace, loc, 1, l.had_line_terminator)
-		
-	case '(':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .LParen, loc, 1, l.had_line_terminator)
-		
-	case ')':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .RParen, loc, 1, l.had_line_terminator)
-		
-	case '[':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .LBracket, loc, 1, l.had_line_terminator)
-		
-	case ']':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .RBracket, loc, 1, l.had_line_terminator)
-		
 	case '.':
 		tok = lex_dot_optimized(l, loc)
-		
-	case ',':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .Comma, loc, 1, l.had_line_terminator)
-		
-	case ';':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .Semi, loc, 1, l.had_line_terminator)
-		
-	case ':':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .Colon, loc, 1, l.had_line_terminator)
-		
 	case '?':
 		tok = lex_question_optimized(l, loc)
-		
-	case '~':
-		advance2(l, 1)
-		tok = add_token(&l.token_soa, .BitNot, loc, 1, l.had_line_terminator)
-		
 	case '^':
 		tok = lex_xor_optimized(l, loc)
-		
 	case '%':
 		tok = lex_percent_optimized(l, loc)
-		
 	case '#':
 		tok = lex_private_identifier(l, loc)
-		
 	case '`':
 		tok = lex_template_start(l, loc)
-		
 	case:
-		// Unknown character
-		advance2(l, 1)
+		l.offset += 1; l.column += 1
 		tok = add_token(&l.token_soa, .Invalid, loc, 1, l.had_line_terminator)
 	}
-	
-	l.last_token_type = get_token_type(tok)
+
+	l.last_token_type = l.token_soa.types[l.token_soa.count - 1]
 	return tok
 }
 
@@ -368,6 +351,18 @@ skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
 		ws_count := simd_count_whitespace(data)
 		
 		if ws_count == 0 {
+			if len(data) >= 2 && data[0] == '/' {
+				next := data[1]
+				if next == '/' {
+					skip_line_comment2(l)
+					remaining = len(l.source) - l.offset
+					continue
+				} else if next == '*' {
+					skip_block_comment2(l)
+					remaining = len(l.source) - l.offset
+					continue
+				}
+			}
 			break
 		}
 		
@@ -390,6 +385,16 @@ skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
 		
 		l.offset += ws_count
 		remaining = len(l.source) - l.offset
+		if remaining >= 2 && l.source_bytes[l.offset] == '/' {
+			next := l.source_bytes[l.offset + 1]
+			if next == '/' {
+				skip_line_comment2(l)
+				remaining = len(l.source) - l.offset
+			} else if next == '*' {
+				skip_block_comment2(l)
+				remaining = len(l.source) - l.offset
+			}
+		}
 	}
 	
 	// Handle comments and remaining whitespace scalar
@@ -397,29 +402,32 @@ skip_whitespace_simd_lex :: proc(l: ^Lexer2) {
 }
 
 skip_whitespace_scalar :: proc(l: ^Lexer2) {
+	// Fast path for 0-char whitespace (most common)
+	if l.offset >= len(l.source) { return }
+	c := l.source_bytes[l.offset]
+	// Non-whitespace fast exit: most tokens are not preceded by whitespace at scalar stage
+	if c > ' ' && c != '/' { return }
+
 	for l.offset < len(l.source) {
-		c := l.source_bytes[l.offset]
-		
-		switch c {
-		case ' ', '\t', '\r':
-			advance2(l, 1)
-		case '\n':
+		c = l.source_bytes[l.offset]
+		if c == ' ' || c == '\t' || c == '\r' {
+			l.offset += 1
+			l.column += 1
+		} else if c == '\n' {
 			l.had_line_terminator = true
-			advance_line2(l)
-		case '/':
-			if l.offset + 1 < len(l.source) {
-				next := l.source_bytes[l.offset + 1]
-				if next == '/' {
-					skip_line_comment2(l)
-				} else if next == '*' {
-					skip_block_comment2(l)
-				} else {
-					return
-				}
+			l.offset += 1
+			l.line += 1
+			l.column = 1
+		} else if c == '/' && l.offset + 1 < len(l.source) {
+			next := l.source_bytes[l.offset + 1]
+			if next == '/' {
+				skip_line_comment2(l)
+			} else if next == '*' {
+				skip_block_comment2(l)
 			} else {
 				return
 			}
-		case:
+		} else {
 			return
 		}
 	}
@@ -429,46 +437,25 @@ skip_whitespace_scalar :: proc(l: ^Lexer2) {
 // Optimized Token Lexers
 // ============================================================================
 
-// Identifier/keyword with SIMD scanning
+// Identifier/keyword — ultra-tight scalar loop
 lex_identifier_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 	start := l.offset
+	l.offset += 1  // skip first char (already verified)
 	
-	// Skip first char (already verified as id_start)
-	advance2(l, 1)
-	
-	// Use SIMD to scan identifier continuation
-	remaining := len(l.source) - l.offset
-	if remaining >= 16 {
-		data := l.source_bytes[l.offset:]
-		id_count := simd_count_ident(data)
-		
-		// SIMD was used
-		l.stats.simd_chunks_processed += 1
-		
-		// Update position
-		for i := 0; i < id_count; i += 1 {
-			l.column += 1
-		}
-		l.offset += id_count
-	} else {
-		// Scalar fallback
-		l.stats.scalar_fallbacks += 1
-		for l.offset < len(l.source) && is_id_cont_fast(l.source_bytes[l.offset]) {
-			advance2(l, 1)
-		}
+	// Tight loop: check char class table directly (no function call)
+	src := l.source_bytes
+	src_len := len(l.source)
+	for l.offset < src_len {
+		class := CHAR_CLASS_TABLE[src[l.offset]]
+		if class != u8(CharClass.IdStart) && class != u8(CharClass.Digit) { break }
+		l.offset += 1
 	}
 	
 	length := l.offset - start
+	l.column += length
 	
-	// Check if keyword using perfect hash (O(1) lookup)
-	text := l.source[start:l.offset]
-	ensure_keyword_hash()
-	tok_type, is_kw := lookup_keyword_ultra(text)
-	
-	if !is_kw {
-		tok_type = .Identifier
-	}
-	
+	// Keyword check (hash table auto-initialized via @init or first call)
+	tok_type, _ := lookup_keyword_ultra(l.source[start:l.offset])
 	return add_token(&l.token_soa, tok_type, loc, length, l.had_line_terminator)
 }
 
@@ -490,42 +477,40 @@ lex_number_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 		}
 	}
 	
-	// Decimal number
-	for l.offset < len(l.source) && ((l.source_bytes[l.offset] >= '0' && l.source_bytes[l.offset] <= '9') || l.source_bytes[l.offset] == '_') {
-		advance2(l, 1)
+	// Decimal number — tight loop, no function calls
+	src := l.source_bytes
+	for l.offset < len(src) {
+		ch := src[l.offset]
+		if (ch >= '0' && ch <= '9') || ch == '_' { l.offset += 1 }
+		else { break }
 	}
 	
 	// Decimal part
-	if l.offset < len(l.source) && l.source_bytes[l.offset] == '.' {
-		advance2(l, 1)
-		for l.offset < len(l.source) && (l.source_bytes[l.offset] >= '0' && l.source_bytes[l.offset] <= '9') {
-			advance2(l, 1)
+	if l.offset < len(src) && src[l.offset] == '.' {
+		l.offset += 1
+		for l.offset < len(src) && src[l.offset] >= '0' && src[l.offset] <= '9' {
+			l.offset += 1
 		}
 	}
 	
 	// Exponent
-	if l.offset < len(l.source) {
-		c := l.source_bytes[l.offset]
-		if c == 'e' || c == 'E' {
-			advance2(l, 1)
-			if l.offset < len(l.source) {
-				sign := l.source_bytes[l.offset]
-				if sign == '+' || sign == '-' {
-					advance2(l, 1)
-				}
-			}
-			for l.offset < len(l.source) && (l.source_bytes[l.offset] >= '0' && l.source_bytes[l.offset] <= '9') {
-				advance2(l, 1)
-			}
+	if l.offset < len(src) && (src[l.offset] == 'e' || src[l.offset] == 'E') {
+		l.offset += 1
+		if l.offset < len(src) && (src[l.offset] == '+' || src[l.offset] == '-') {
+			l.offset += 1
+		}
+		for l.offset < len(src) && src[l.offset] >= '0' && src[l.offset] <= '9' {
+			l.offset += 1
 		}
 	}
 	
 	length := l.offset - start_offset
+	l.column += length  // update column for all digits scanned
 	text := l.source[start_offset:l.offset]
 	
 	// Check for BigInt suffix: 123n
 	if l.offset < len(l.source) && l.source_bytes[l.offset] == 'n' {
-		advance2(l, 1)
+		l.offset += 1; l.column += 1
 		length = l.offset - start_offset
 		return add_token(&l.token_soa, .BigInt, loc, length, l.had_line_terminator)
 	}
@@ -546,59 +531,27 @@ lex_number_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 // String literal with SIMD quote finding
 lex_string_optimized :: proc(l: ^Lexer2, loc: Loc, quote: u8) -> CompactToken {
 	start := l.offset
-	
-	// Opening quote
-	advance2(l, 1)
-	
-	// Find closing quote
+	// Skip opening quote
+	l.offset += 1
+	l.column += 1
+
+	// SIMD fast path: find first quote or backslash simultaneously
 	remaining := l.source_bytes[l.offset:]
-	
-	if len(remaining) >= 16 {
-		// Use SIMD to find quote, but fall back to scalar if the candidate span
-		// contains escapes because the SIMD path does not fully validate them.
-		l.stats.simd_chunks_processed += 1
-		quote_pos := simd_find_quote(remaining, quote)
-		
-		if quote_pos < len(remaining) && remaining[quote_pos] == quote {
-			has_escape := false
-			for i := 0; i < quote_pos; i += 1 {
-				if remaining[i] == '\\' {
-					has_escape = true
-					break
-				}
-			}
-			
-			if !has_escape {
-				// Found closing quote with no escapes in the fast path span.
-				length := quote_pos
-				text := l.source[l.offset:l.offset+length]
-				
-				// Count newlines in string
-				nl_info := simd_count_newlines(transmute([]u8)text)
-				l.line += nl_info.count
-				if nl_info.last_nl_pos >= 0 {
-					l.column = length - nl_info.last_nl_pos
-				} else {
-					l.column += length + 2  // +2 for quotes
-				}
-				
-				l.offset += length + 1  // +1 for closing quote
-				
-				return add_token_literal(
-					&l.token_soa,
-					.String,
-					loc,
-					length + 2,
-					.String,
-					LiteralValue(text),
-				)
-			}
-		}
-	} else {
-		l.stats.scalar_fallbacks += 1
+	pos, found_quote := simd_find_string_end(remaining, quote)
+
+	if found_quote {
+		// No escape in [offset..offset+pos) — direct fast path
+		text := l.source[l.offset:l.offset+pos]
+		l.column += pos + 1  // +1 for closing quote
+		l.offset += pos + 1
+		return add_token_literal(
+			&l.token_soa, .String, loc, pos + 2,
+			.String, LiteralValue(text),
+		)
 	}
-	
-	// Scalar fallback
+
+	// Hit backslash or end of data — fall back to scalar
+	// Reset offset to after opening quote for scalar
 	return lex_string_scalar(l, loc, quote, start)
 }
 
@@ -973,12 +926,12 @@ lex_percent_optimized :: proc(l: ^Lexer2, loc: Loc) -> CompactToken {
 // Helper Functions
 // ============================================================================
 
-advance2 :: proc(l: ^Lexer2, n: int) {
+advance2 :: #force_inline proc(l: ^Lexer2, n: int) {
 	l.offset += n
 	l.column += n
 }
 
-advance_line2 :: proc(l: ^Lexer2) {
+advance_line2 :: #force_inline proc(l: ^Lexer2) {
 	l.offset += 1
 	l.line += 1
 	l.column = 1

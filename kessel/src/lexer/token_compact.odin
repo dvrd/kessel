@@ -22,24 +22,15 @@ INVALID_TOKEN_INDEX :: CompactTokenIndex(max(u32))
 // TokenSoA - Structure of Arrays for token storage
 // Uses raw slices (no dynamic append overhead). Capacity pre-allocated.
 TokenSoA :: struct {
-	// Fixed-size token data
-	types:   []TokenType,       // pre-allocated, direct stores
+	types:   []TokenType,
 	offsets: []u32,
 	lines:   []u32,
 	cols:    []u16,
 	lengths: []u16,
-	
-	// ASI: track if there was a line terminator before this token
 	had_line_terminator: []bool,
-	
-	// Extended data for literals
 	literal_types:  []LiteralType,
 	literal_values: []LiteralValue,
-	
-	// Allocator (for future growth)
 	allocator: mem.Allocator,
-	
-	// Token count (acts as "length" for all parallel arrays)
 	count:    u32,
 	capacity: u32,
 }
@@ -92,7 +83,7 @@ init_token_soa :: proc(soa: ^TokenSoA, alloc: mem.Allocator, capacity: int = 102
 }
 
 // Add a token — direct stores, zero append overhead
-add_token :: proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int, had_line_term: bool = false) -> CompactToken {
+add_token :: #force_inline proc(soa: ^TokenSoA, token_type: TokenType, loc: Loc, length: int, had_line_term: bool = false) -> CompactToken {
 	idx := soa.count
 	soa.count += 1
 	
@@ -142,7 +133,7 @@ get_token_view :: proc(tok: CompactToken) -> TokenView {
 }
 
 // Get token type quickly
-get_token_type :: proc(tok: CompactToken) -> TokenType {
+get_token_type :: #force_inline proc(tok: CompactToken) -> TokenType {
 	if tok.index == INVALID_TOKEN_INDEX || tok.soa == nil {
 		return .Invalid
 	}
@@ -220,69 +211,73 @@ is_valid_compact :: proc(tok: CompactToken) -> bool {
 }
 
 // ============================================================================
-// Token Ring Buffer for Lexer Lookahead
+// Token Pair — minimal 2-slot lookahead (replaces 8-slot ring buffer)
 // ============================================================================
 
-TOKEN_RING_SIZE :: 8  // Power of 2 for fast modulo
+TOKEN_RING_SIZE :: 8  // kept for compat; actual storage is 2 slots
 
 TokenRing :: struct {
-	tokens:   [TOKEN_RING_SIZE]CompactToken,
-	indices:  [TOKEN_RING_SIZE]CompactTokenIndex,
-	types:    [TOKEN_RING_SIZE]TokenType,
-	head:     u8,  // Next token to consume
-	tail:     u8,  // Next slot to fill
-	count:    u8,  // Current count
-	soa:      ^TokenSoA,
+	cur:       CompactToken,   // current token
+	nxt:       CompactToken,   // lookahead(1)
+	cur_type:  TokenType,
+	nxt_type:  TokenType,
+	has_next:  bool,
+	soa:       ^TokenSoA,
 }
 
-// Initialize token ring
+// Initialize token pair
 init_token_ring :: proc(ring: ^TokenRing, soa: ^TokenSoA) {
-	ring.head = 0
-	ring.tail = 0
-	ring.count = 0
 	ring.soa = soa
+	ring.cur = CompactToken{index = INVALID_TOKEN_INDEX, soa = soa}
+	ring.nxt = CompactToken{index = INVALID_TOKEN_INDEX, soa = soa}
+	ring.cur_type = .EOF
+	ring.nxt_type = .EOF
+	ring.has_next = false
 }
 
-// Push token to ring
-ring_push :: proc(ring: ^TokenRing, tok: CompactToken) {
-	ring.tokens[ring.tail] = tok
-	ring.indices[ring.tail] = tok.index
-	ring.types[ring.tail] = get_token_type(tok)
-	ring.tail = (ring.tail + 1) & (TOKEN_RING_SIZE - 1)
-	ring.count += 1
-}
-
-// Pop token from ring
-ring_pop :: proc(ring: ^TokenRing) -> CompactToken {
-	if ring.count == 0 {
-		return CompactToken{index = INVALID_TOKEN_INDEX, soa = ring.soa}
+// Push: fill next slot
+ring_push :: #force_inline proc(ring: ^TokenRing, tok: CompactToken) {
+	if ring.cur.index == INVALID_TOKEN_INDEX {
+		ring.cur = tok
+		ring.cur_type = get_token_type(tok)
+	} else {
+		ring.nxt = tok
+		ring.nxt_type = get_token_type(tok)
+		ring.has_next = true
 	}
-	tok := ring.tokens[ring.head]
-	ring.head = (ring.head + 1) & (TOKEN_RING_SIZE - 1)
-	ring.count -= 1
-	return tok
 }
 
-// Peek at token in ring (0 = current, 1 = lookahead, etc.)
-ring_peek :: proc(ring: ^TokenRing, offset: u8) -> CompactToken {
-	if offset >= ring.count {
-		return CompactToken{index = INVALID_TOKEN_INDEX, soa = ring.soa}
+// Pop current; shift next → current
+ring_pop :: #force_inline proc(ring: ^TokenRing) -> CompactToken {
+	old := ring.cur
+	if ring.has_next {
+		ring.cur = ring.nxt
+		ring.cur_type = ring.nxt_type
+		ring.has_next = false
+		ring.nxt = CompactToken{index = INVALID_TOKEN_INDEX, soa = ring.soa}
+		ring.nxt_type = .EOF
+	} else {
+		ring.cur = CompactToken{index = INVALID_TOKEN_INDEX, soa = ring.soa}
+		ring.cur_type = .EOF
 	}
-	idx := (ring.head + offset) & (TOKEN_RING_SIZE - 1)
-	return ring.tokens[idx]
+	return old
 }
 
-// Get type of token in ring (faster than full view)
-ring_peek_type :: proc(ring: ^TokenRing, offset: u8) -> TokenType {
-	if offset >= ring.count {
-		return .EOF
-	}
-	idx := (ring.head + offset) & (TOKEN_RING_SIZE - 1)
-	return ring.types[idx]
+// Peek at offset 0 (current) or 1 (next)
+ring_peek :: #force_inline proc(ring: ^TokenRing, offset: u8) -> CompactToken {
+	if offset == 0 { return ring.cur }
+	if offset == 1 && ring.has_next { return ring.nxt }
+	return CompactToken{index = INVALID_TOKEN_INDEX, soa = ring.soa}
 }
 
-// Check if ring has token of type at offset
-ring_is_type :: proc(ring: ^TokenRing, offset: u8, token_type: TokenType) -> bool {
+// Type at offset 0 or 1
+ring_peek_type :: #force_inline proc(ring: ^TokenRing, offset: u8) -> TokenType {
+	if offset == 0 { return ring.cur_type }
+	if offset == 1 { return ring.nxt_type }  // .EOF if no next
+	return .EOF
+}
+
+ring_is_type :: #force_inline proc(ring: ^TokenRing, offset: u8, token_type: TokenType) -> bool {
 	return ring_peek_type(ring, offset) == token_type
 }
 

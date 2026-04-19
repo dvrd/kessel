@@ -3,17 +3,17 @@ package ast
 import "core:mem"
 import "core:fmt"
 
-// Span represents source location information
+// Span represents source location information (u32 = up to 4GB source)
 Span :: struct {
-	start: int,
-	end:   int,
+	start: u32,
+	end:   u32,
 }
 
-// Source location with line/column
+// Source location with line/column (16 bytes, down from 32)
 Loc :: struct {
 	span:   Span,
-	line:   int,
-	column: int,
+	line:   u32,
+	column: u32,
 }
 
 // ============================================================================
@@ -394,9 +394,23 @@ Pattern :: union {
 	^MemberExpression, // Destructuring target
 }
 
+ObjectPatternPropertyKey :: union {
+	IdentifierName,
+	^StringLiteral,
+	^Expression, // computed key
+}
+
+ObjectPatternProperty :: struct {
+	loc:       Loc,
+	key:       Maybe(ObjectPatternPropertyKey),
+	value:     Pattern,
+	computed:  bool,
+	shorthand: bool,
+}
+
 ObjectPattern :: struct {
 	loc:        Loc,
-	properties: [dynamic]Property,
+	properties: [dynamic]ObjectPatternProperty,
 }
 
 ArrayPattern :: struct {
@@ -717,38 +731,38 @@ Program :: struct {
 // ============================================================================
 
 Expression :: union {
-	NullLiteral,
-	BooleanLiteral,
-	NumericLiteral,
-	StringLiteral,
-	BigIntLiteral,
-	RegExpLiteral,
-	TemplateLiteral,
-	TaggedTemplateExpression,
-	Identifier,
-	PrivateIdentifier,  // #field, #method
-	ThisExpression,
-	Super,
-	ArrayExpression,
-	ObjectExpression,
-	FunctionExpression,
-	ArrowFunctionExpression,
-	ClassExpression,
-	MemberExpression,
-	CallExpression,
-	NewExpression,
-	ConditionalExpression,
-	UpdateExpression,
-	UnaryExpression,
-	BinaryExpression,
-	LogicalExpression,
-	AssignmentExpression,
-	SequenceExpression,
-	SpreadElement,
-	YieldExpression,
-	AwaitExpression,
-	ImportExpression,
-	MetaProperty,
+	^NullLiteral,
+	^BooleanLiteral,
+	^NumericLiteral,
+	^StringLiteral,
+	^BigIntLiteral,
+	^RegExpLiteral,
+	^TemplateLiteral,
+	^TaggedTemplateExpression,
+	^Identifier,
+	^PrivateIdentifier,  // #field, #method
+	^ThisExpression,
+	^Super,
+	^ArrayExpression,
+	^ObjectExpression,
+	^FunctionExpression,
+	^ArrowFunctionExpression,
+	^ClassExpression,
+	^MemberExpression,
+	^CallExpression,
+	^NewExpression,
+	^ConditionalExpression,
+	^UpdateExpression,
+	^UnaryExpression,
+	^BinaryExpression,
+	^LogicalExpression,
+	^AssignmentExpression,
+	^SequenceExpression,
+	^SpreadElement,
+	^YieldExpression,
+	^AwaitExpression,
+	^ImportExpression,
+	^MetaProperty,
 }
 
 Statement :: union {

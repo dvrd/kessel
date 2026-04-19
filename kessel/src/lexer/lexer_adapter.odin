@@ -118,6 +118,41 @@ get_compact_current :: proc(a: ^LexerAdapter) -> CompactToken {
 	return get_current2(&a.opt)
 }
 
+get_compact_current_type :: proc(a: ^LexerAdapter) -> TokenType {
+	if a == nil {
+		return .EOF
+	}
+	return get_token_type(get_current2(&a.opt))
+}
+
+get_compact_peek_type :: proc(a: ^LexerAdapter) -> TokenType {
+	if a == nil {
+		return .EOF
+	}
+	return get_token_type(peek2_compact(&a.opt))
+}
+
+get_compact_current_loc :: proc(a: ^LexerAdapter) -> Loc {
+	if a == nil {
+		return Loc{}
+	}
+	return get_token_loc(get_current2(&a.opt))
+}
+
+get_compact_current_source :: proc(a: ^LexerAdapter) -> string {
+	if a == nil {
+		return ""
+	}
+	return get_token_source(get_current2(&a.opt), a.source)
+}
+
+get_compact_current_literal :: proc(a: ^LexerAdapter) -> (LiteralValue, LiteralType) {
+	if a == nil {
+		return LiteralValue{}, .None
+	}
+	return get_token_literal(get_current2(&a.opt))
+}
+
 // Advance and get compact token
 next_compact_adapter :: proc(a: ^LexerAdapter) -> CompactToken {
 	a.current_valid = false

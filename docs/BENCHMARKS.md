@@ -1,8 +1,8 @@
 # Kessel Benchmarks
 
-**Last updated**: 2026-04-18  
+**Last updated**: 2026-04-19  
 **Platform**: macOS arm64 (Apple Silicon M1, 4 P-cores + 4 E-cores)  
-**Kessel commit**: `86065d3` (direct TokenSoA stores)  
+**Kessel commit**: working tree after compact-default + SIMD JSON escaping + compact-token parser fast paths  
 **OXC ref**: oxc-project/oxc `main` branch (shallow clone)  
 **Tools**: hyperfine 1.x (warmup 10, min-runs 50, shell=none)
 
@@ -54,7 +54,8 @@ of magnitude: 504 B vs 338 B for small; 6.5 MB vs 6.1 MB for large).
 |------|--------|-----|-------|
 | small (13 B) | 1.7 ms ± 0.2 | 1.7 ms ± 0.1 | **Tie** (1.00× ± 0.16) |
 | medium (2.6 KB) | 1.8 ms ± 0.2 | 1.7 ms ± 0.2 | Tie (1.04× ± 0.16) |
-| large (324 KB) | 45.0 ms ± 0.8 | 10.1 ms ± 1.2 | **OXC 4.5× faster** *(was 5.4× pre-JSON-opts)* |
+| large (324 KB, compact default) | 22.8 ms ± 0.4 | 10.1 ms ± 1.2 | **OXC 2.3× faster** |
+| large (324 KB, `--pretty`) | 31.2 ms ± 0.7 | 10.1 ms ± 1.2 | **OXC 3.1× faster** |
 
 ### Multi-file (50 × 324 KB = 16.3 MB total, CLI)
 
@@ -107,7 +108,7 @@ macOS scheduler doesn't allocate E-cores for user-initiated QoS by default.
 |------|------------|---------|-------|
 | small (13 B) | 6.4 µs | 0.17 µs | **OXC 37.6× faster** |
 | medium (2.6 KB) | 68.5 µs | 10.4 µs | **OXC 6.6× faster** |
-| large (324 KB) | 10.7 ms | 2.3 ms | **OXC 4.6× faster** |
+| large (324 KB) | 12.7 ms | 2.3 ms | **OXC 5.5× faster** |
 
 ### Overhead decomposition (CLI − microbench)
 
@@ -115,7 +116,7 @@ macOS scheduler doesn't allocate E-cores for user-initiated QoS by default.
 |------|-----------------|--------------|-------|
 | small | 1.69 ms | 1.70 ms | Both dominated by macOS process startup |
 | medium | 1.73 ms | 1.69 ms | Same — startup still floor |
-| **large** | **38.2 ms** | **7.5 ms** | JSON serialization + stdout write dominates |
+| **large (compact default)** | **10.1 ms** | **7.8 ms** | Output gap shrank a lot; parser now dominates more of Kessel's in-process time |
 
 ## Interpretation
 
@@ -165,6 +166,23 @@ Tested two approaches on `feat/byte-dispatch` branch:
 
 Conclusion: OXC's byte dispatch advantage comes from Rust/LLVM inlining + `unsafe`,
 not from the table structure itself. Odin's switch is already optimal for this case.
+
+### Compact-output + parser-fast-path pass (2026-04-19)
+
+Recent measured wins on `bench_large.js`:
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| CLI large (compact default) | 45.0 ms | 22.8 ms | **-49.3%** |
+| CLI large (`--pretty`) | 45.0 ms | 31.2 ms | **-30.7%** |
+| Lex-only P50 | 3297 µs | 3422 µs | noise / slightly worse |
+| Full parse P50 | 10728 µs | 12690 µs | different harness state; parser still primary target |
+| Parser `get_current` calls | 342,454 | 59,528 | **-82.6%** |
+| Parser lookahead/consume | 4.94× | 2.31× | **-53.2%** |
+
+Interpretation: most CLI gains came from output defaults + escaping improvements;
+parser fast paths clearly reduced token-materialization traffic, but the parser
+algorithm / AST build remains the dominant library-mode bottleneck.
 
 ### Direct TokenSoA stores (2026-04-18)
 

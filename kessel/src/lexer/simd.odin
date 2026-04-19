@@ -11,6 +11,39 @@ import "base:intrinsics"
 // SIMD vector type aliases for clarity
 Vec16 :: simd.u8x16   // 16 bytes vector
 
+first_set_lane :: proc(mask: Vec16) -> int {
+	bits := simd.extract_msbs(mask)
+	for lane in bits {
+		return int(lane)
+	}
+	return -1
+}
+
+trailing_backslash_odd :: proc(data: []u8) -> bool {
+	count := 0
+	for i := len(data) - 1; i >= 0; i -= 1 {
+		if data[i] != '\\' {
+			break
+		}
+		count += 1
+	}
+	return (count & 1) == 1
+}
+
+quote_is_escaped :: proc(data: []u8, quote_pos: int, carry_backslash_odd: bool) -> bool {
+	backslashes := 0
+	for i := quote_pos - 1; i >= 0; i -= 1 {
+		if data[i] != '\\' {
+			break
+		}
+		backslashes += 1
+	}
+	if backslashes == quote_pos && carry_backslash_odd {
+		backslashes += 1
+	}
+	return (backslashes & 1) == 1
+}
+
 // ============================================================================
 // SIMD Whitespace Detection with NEON
 // ============================================================================
@@ -34,48 +67,28 @@ neon_count_whitespace :: proc(data: []u8) -> int {
 	
 	// Process 16 bytes at a time using NEON
 	for ptr + 16 <= end {
-		// Load 16 bytes from memory using transmute
 		chunk := (transmute(^Vec16)&data[ptr])^
-		
-		// Compare against whitespace chars using NEON
-		// Result is vector of 0 (no match) or 255 (match)
 		cmp_space := simd.lanes_eq(chunk, space_vec)
 		cmp_tab   := simd.lanes_eq(chunk, tab_vec)
 		cmp_lf    := simd.lanes_eq(chunk, lf_vec)
 		cmp_cr    := simd.lanes_eq(chunk, cr_vec)
-		
-		// Combine: whitespace = space | tab | lf | cr
-		// Convert bool masks to u8 for OR operation
 		is_ws_space := transmute(Vec16)cmp_space
 		is_ws_tab   := transmute(Vec16)cmp_tab
 		is_ws_lf    := transmute(Vec16)cmp_lf
 		is_ws_cr    := transmute(Vec16)cmp_cr
-		
 		is_ws := simd.bit_or(simd.bit_or(is_ws_space, is_ws_tab), 
 		                     simd.bit_or(is_ws_lf, is_ws_cr))
-		
-		// Reduce OR to check if any whitespace in this chunk
-		mask := intrinsics.simd_reduce_or(is_ws)
-		
-		if mask == 0 {
-			// No whitespace in this chunk, stop
-			break
-		}
-		
-		// Count consecutive whitespace from start
-		// Check first byte
-		if !is_whitespace_fast(data[ptr]) {
-			break
-		}
-		
-		// Find first non-whitespace in chunk using scalar
-		// (NEON doesn't have easy way to find first zero lane)
-		for i := 0; i < 16; i += 1 {
-			if ptr + i >= end || !is_whitespace_fast(data[ptr + i]) {
-				return count + i
+
+		all_ws := intrinsics.simd_reduce_and(is_ws)
+		if all_ws != 0xFF {
+			non_ws_mask := transmute(Vec16)simd.lanes_eq(is_ws, Vec16{})
+			lane := first_set_lane(non_ws_mask)
+			if lane < 0 {
+				break
 			}
+			return count + lane
 		}
-		
+
 		count += 16
 		ptr += 16
 	}
@@ -116,31 +129,23 @@ neon_find_non_ws :: proc(data: []u8) -> int {
 	// Process 16 bytes at a time with NEON
 	for ptr + 16 <= end {
 		chunk := (transmute(^Vec16)&data[ptr])^
-		
-		// Check if all 16 are whitespace
 		cmp_space := simd.lanes_eq(chunk, space_vec)
 		cmp_tab   := simd.lanes_eq(chunk, tab_vec)
 		cmp_lf    := simd.lanes_eq(chunk, lf_vec)
 		cmp_cr    := simd.lanes_eq(chunk, cr_vec)
-		
 		is_ws_space := transmute(Vec16)cmp_space
 		is_ws_tab   := transmute(Vec16)cmp_tab
 		is_ws_lf    := transmute(Vec16)cmp_lf
 		is_ws_cr    := transmute(Vec16)cmp_cr
-		
 		is_ws := simd.bit_or(simd.bit_or(is_ws_space, is_ws_tab),
 		                     simd.bit_or(is_ws_lf, is_ws_cr))
-		
-		mask := intrinsics.simd_reduce_or(is_ws)
-		
-		// mask != 0xFF means not all bytes are whitespace
-		// (each matching byte is 255, so full match = 255)
-		if mask != 0xFF {  // Not all match
-			// Found non-whitespace, find exact position
-			for i := 0; i < 16; i += 1 {
-				if !is_whitespace_fast(data[ptr + i]) {
-					return ptr + i
-				}
+
+		all_ws := intrinsics.simd_reduce_and(is_ws)
+		if all_ws != 0xFF {
+			non_ws_mask := transmute(Vec16)simd.lanes_eq(is_ws, Vec16{})
+			lane := first_set_lane(non_ws_mask)
+			if lane >= 0 {
+				return ptr + lane
 			}
 		}
 		
@@ -213,16 +218,13 @@ neon_count_ident :: proc(data: []u8) -> int {
 		                     simd.bit_or(is_digit, simd.bit_or(is_underscore, is_dollar)))
 		
 		// Check if all 16 are identifiers using reduce_and
-		// If all are identifiers (255), reduce_and returns 255
-		// If any is not identifier (0), reduce_and returns 0
 		mask := intrinsics.simd_reduce_and(is_id)
 		
 		if mask == 0 {
-			// Found non-identifier, count scalar within chunk
-			for i := 0; i < 16; i += 1 {
-				if ptr + i >= end || !is_id_cont_fast(data[ptr + i]) {
-					return count + i
-				}
+			non_id_mask := transmute(Vec16)simd.lanes_eq(is_id, Vec16{})
+			lane := first_set_lane(non_id_mask)
+			if lane >= 0 {
+				return count + lane
 			}
 		}
 		
@@ -251,48 +253,39 @@ neon_find_quote :: proc(data: []u8, quote: u8) -> int {
 	
 	quote_vec: Vec16 = quote
 	backslash: Vec16 = '\\'
-	
 	ptr := 0
 	end := len(data)
+	carry_backslash_odd := false
 	
 	for ptr + 16 <= end {
 		chunk := (transmute(^Vec16)&data[ptr])^
-		
-		// Find quotes
-		is_quote := simd.lanes_eq(chunk, quote_vec)
-		
-		// Check if any quotes found
-		mask := intrinsics.simd_reduce_or(transmute(Vec16)is_quote)
-		
-		if mask != 0 {
-			// Found quote(s), process scalar to handle escapes
-			for i := 0; i < 16 && ptr + i < end; i += 1 {
-				c := data[ptr + i]
-				if c == quote {
-					return ptr + i
-				}
-				if c == '\\' && ptr + i + 1 < end {
-					i += 1  // Skip escaped char
+		is_quote := transmute(Vec16)simd.lanes_eq(chunk, quote_vec)
+		is_esc   := transmute(Vec16)simd.lanes_eq(chunk, backslash)
+		quote_mask := intrinsics.simd_reduce_or(is_quote)
+		esc_mask   := intrinsics.simd_reduce_or(is_esc)
+
+		if quote_mask == 0 && esc_mask == 0 {
+			carry_backslash_odd = false
+			ptr += 16
+			continue
+		}
+
+		if quote_mask != 0 {
+			chunk_data := data[ptr:ptr+16]
+			quote_bits := simd.extract_msbs(is_quote)
+			for lane in quote_bits {
+				quote_pos := int(lane)
+				if !quote_is_escaped(chunk_data, quote_pos, carry_backslash_odd) {
+					return ptr + quote_pos
 				}
 			}
 		}
-		
-		// Check for backslash (escape sequences) - need to handle
-		is_esc := simd.lanes_eq(chunk, backslash)
-		esc_mask := intrinsics.simd_reduce_or(transmute(Vec16)is_esc)
-		
+
 		if esc_mask != 0 {
-			// Handle escapes in scalar
-			for i := 0; i < 16 && ptr + i < end; i += 1 {
-				if data[ptr + i] == '\\' && ptr + i + 1 < end {
-					// Check if next char is our quote
-					if data[ptr + i + 1] == quote {
-						i += 1  // Skip escaped quote
-					}
-				}
-			}
+			carry_backslash_odd = trailing_backslash_odd(data[ptr:ptr+16])
+		} else {
+			carry_backslash_odd = false
 		}
-		
 		ptr += 16
 	}
 	
@@ -382,6 +375,44 @@ simd_find_quote :: proc(data: []u8, quote: u8) -> int {
 		return neon_find_quote(data, quote)
 	} else {
 		return scalar_find_quote(data, quote)
+	}
+}
+
+// Find first quote or backslash — returns (position, is_quote)
+// If returns len(data), neither was found in the scanned range.
+simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: bool) {
+	when ODIN_ARCH == .arm64 {
+		q_vec: Vec16 = quote
+		b_vec: Vec16 = '\\'
+		ptr := 0
+		for ptr + 16 <= len(data) {
+			chunk := (transmute(^Vec16)&data[ptr])^
+			is_q := simd.lanes_eq(chunk, q_vec)
+			is_b := simd.lanes_eq(chunk, b_vec)
+			combined := transmute(Vec16)(transmute(simd.u8x16)is_q | transmute(simd.u8x16)is_b)
+			mask := simd.extract_msbs(combined)
+			if card(mask) > 0 {
+				// Find first set lane
+				for lane in mask {
+					p := ptr + int(lane)
+					return p, data[p] == quote
+				}
+			}
+			ptr += 16
+		}
+		// Scalar tail
+		for ptr < len(data) {
+			if data[ptr] == quote { return ptr, true }
+			if data[ptr] == '\\' { return ptr, false }
+			ptr += 1
+		}
+		return len(data), false
+	} else {
+		for i := 0; i < len(data); i += 1 {
+			if data[i] == quote { return i, true }
+			if data[i] == '\\' { return i, false }
+		}
+		return len(data), false
 	}
 }
 

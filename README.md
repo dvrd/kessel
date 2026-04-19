@@ -36,7 +36,8 @@ odin build ./src -out:../kessel_bin -debug
 ### Parse a JavaScript file
 
 ```bash
-./kessel_bin parse file.js
+./kessel_bin parse file.js          # compact JSON (default)
+./kessel_bin parse file.js --pretty # human-readable JSON
 ```
 
 Outputs JSON AST to stdout:
@@ -110,9 +111,28 @@ Measures parse cost only (excludes process startup + JSON output):
 
 ```bash
 ./kessel_bin microbench bench_large.js --iterations 100
+./kessel_bin microbench-lex bench_large.js --iterations 100
+./kessel_bin profile-parser bench_large.js --iterations 200
+./kessel_bin profile-layout
 ```
 
-Reports Mean, Min, Max, P50, P95, P99 in microseconds.
+`profile-parser` compares lex-only vs full parse and dumps parser counters.
+`profile-layout` prints token/AST type sizes for layout investigation.
+Current large-file sample (`bench_large.js`): parser-estimated P50 is ~73.0% of
+full parse time, with ~135k AST node allocations and ~2.62 lookahead checks per
+token consume after moving more hot current-token reads onto compact lexer
+metadata.
+
+For syntax-directed gap analysis, generate structural fixtures and compare them
+against OXC:
+
+```bash
+node kessel/bench_structural_gen.js
+bash kessel/bench_structural.sh
+```
+
+See [`docs/FUNDAMENTAL_DIFFERENCES.md`](./docs/FUNDAMENTAL_DIFFERENCES.md) for
+the investigation plan and current evidence.
 
 ### Show help
 

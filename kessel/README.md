@@ -28,7 +28,8 @@ odin build src -out:kessel -debug    # Debug
 
 ### Parse a JavaScript file
 ```bash
-./kessel parse app.js
+./kessel parse app.js          # compact JSON (default)
+./kessel parse app.js --pretty # human-readable JSON
 ```
 
 ### Tokenize a JavaScript file

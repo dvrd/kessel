@@ -35,7 +35,7 @@ File: `kessel/src/lexer/simd.odin` (NEON intrinsics)
 |----------|--------|-------|
 | `neon_count_whitespace` | ✅ Working | Falls back to scalar for newline counting inside SIMD chunk |
 | `neon_count_ident` | ✅ Working | `simd_reduce_and` then scalar fallback — could use CLZ/CTZ |
-| `neon_find_quote` | ⚠️ Suboptimal | Falls back to scalar on ANY escape, even if escape is after quote |
+| `neon_find_quote` | ✅ Improved | Tracks backslash parity per chunk; no full-chunk scalar fallback on every escape |
 | `neon_count_newlines` | ✅ Working | Good |
 | `neon_find_non_ws` | ✅ Working | Good |
 
@@ -43,8 +43,9 @@ File: `kessel/src/lexer/simd.odin` (NEON intrinsics)
 
 ### 1. Prefix-sum quote detection for string parsing
 
-**Current**: `neon_find_quote` finds ANY quote, then scalar checks if it's escaped.
-If escape exists ANYWHERE in chunk, entire chunk falls back to scalar.
+**Current**: `neon_find_quote` no longer bails out to a full scalar chunk scan on
+any backslash. It tracks trailing-backslash parity across chunks and only does a
+small local check around quote candidates.
 
 **Proposed**: Use ehsanmok's approach — bitmap of quotes, bitmap of backslashes,
 then XOR to find unescaped quotes. This is O(1) for the entire 16-byte chunk.
@@ -61,15 +62,12 @@ real_quotes: quotes & ~escaped                      // only unescaped "
 
 ### 2. SIMD structural character bitmap
 
-**Current**: `skip_whitespace_scalar` handles whitespace + comments in scalar loop.
+**Current**: whitespace and identifier scans now derive the first mismatch from
+SIMD masks instead of re-reading the whole 16-byte chunk byte-by-byte.
 
-**Proposed**: In `skip_whitespace_simd_lex`, create a NEON bitmap of:
-- Whitespace chars (space, tab, CR, LF)
-- Comment starters (`/`)
-- Everything else
-
-Then use CTZ (count trailing zeros) to find the first non-whitespace byte
-without scalar fallback.
+Implemented next step: `skip_whitespace_simd_lex` now handles `//` and `/*`
+comment starts immediately after the SIMD whitespace run instead of always
+falling back to scalar for the rest of the region.
 
 **Est. impact**: ~3-5% on whitespace-heavy files.
 **Complexity**: Low. Just need CTZ instead of scalar inner loop.
@@ -97,21 +95,29 @@ the next byte — all in the SIMD result. Avoids re-reading memory.
 
 With --compact flag, JSON emit dropped from ~35ms to ~13ms. Further gains:
 
-### Short-term: Make --compact the default
+### Short-term: Make compact the default ✅
 
-The `--compact` flag produces valid JSON that's 53% smaller.
-For CLI usage (piping to jq, etc.), compact is fine.
-Only keep pretty for `--pretty` explicit flag.
+Implemented: `kessel parse file.js` now emits compact JSON by default and
+`--pretty` opts back into human-readable output.
 
-### Medium-term: SIMD-accelerated JSON string escaping
+Measured on `bench_large.js`:
+- compact default: **21.3 ms ± 0.3**
+- `--pretty`: **28.6 ms ± 0.5**
+- compact is **1.34× faster** wall-clock and smaller on stdout
 
-Current `out_string()` escapes byte-by-byte. With NEON:
+### Medium-term: SIMD-accelerated JSON string escaping ✅ (first pass)
+
+`out_string()` now scans 16-byte chunks with NEON and memcpy-copies clean runs
+in one shot, only branching byte-by-byte at actual escape boundaries.
+
+Current shape:
 - Load 16 bytes
-- Compare against chars needing escape (`"`, `\`, control chars < 0x20)
-- For clean chunks (no escapes), memcpy directly
-- For dirty chunks, use lookup table for escape sequences
+- Compare against `"`, `\`, and control chars `< 0x20`
+- For clean chunks, memcpy directly
+- For dirty chunks, fall back only at the matched byte
 
-This would help both pretty and compact modes.
+This helps both pretty and compact modes and removes the previous pure
+byte-by-byte hot path.
 
 ### Long-term: Arena-backed string builder
 
