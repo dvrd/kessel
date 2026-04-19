@@ -440,6 +440,25 @@ new_expr :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^ast_pkg.Expressi
 	return node, expr
 }
 
+// Combined alloc: node T + Statement wrapper in one bump
+new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^ast_pkg.Statement) {
+	total_size := size_of(T) + size_of(ast_pkg.Statement)
+	align := max(align_of(T), align_of(ast_pkg.Statement))
+	ptr := bump_alloc(&p.node_pool, total_size, align)
+	if ptr != nil {
+		node := transmute(^T)ptr
+		node^ = {}
+		wrap_aligned := (uintptr(ptr) + uintptr(size_of(T)) + uintptr(align_of(ast_pkg.Statement) - 1)) & ~uintptr(align_of(ast_pkg.Statement) - 1)
+		wrap := transmute(^ast_pkg.Statement)wrap_aligned
+		wrap^ = node
+		return node, wrap
+	}
+	node, _ := mem.new(T, p.allocator)
+	stmt := new_node(p, ast_pkg.Statement)
+	stmt^ = node
+	return node, stmt
+}
+
 // Fast path for hot expression types - avoids allocation by using transmute
 // Only safe when T is exactly one of the types in the Expression union
 expression_from_fast :: proc(expr_ptr: ^$T) -> ^ast_pkg.Expression {
@@ -736,17 +755,16 @@ parse_block_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 		return nil
 	}
 
-	block := new_node(p, ast_pkg.BlockStatement)
+	block, block_stmt := new_stmt(p, ast_pkg.BlockStatement)
 	block.loc = start
 	block.body = make([dynamic]^ast_pkg.Statement, p.allocator)
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-		prev_offset := get_current(p).loc.offset
+		prev_offset := p.cur_tok.loc.offset
 		stmt := parse_statement_or_declaration(p)
 		if stmt != nil {
 			append(&block.body, stmt)
-		} else if get_current(p).loc.offset == prev_offset {
-			// Error recovery inside blocks: ensure we always consume something
+		} else if p.cur_tok.loc.offset == prev_offset {
 			report_error(p, "Invalid statement in block")
 			eat(p)
 		}
@@ -756,8 +774,8 @@ parse_block_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 		report_error(p, "Expected '}' at end of block")
 	}
 
-	block.loc.span.end = u32(get_current(p).loc.offset)
-	return statement_from(p, block)
+	block.loc.span.end = u32(p.cur_tok.loc.offset)
+	return block_stmt
 }
 
 parse_empty_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
@@ -796,18 +814,14 @@ parse_expression_statement :: proc(p: ^Parser) -> ^ast_pkg.Statement {
 		}
 	}
 
-	expr_stmt := new_node(p, ast_pkg.ExpressionStatement)
+	expr_stmt, stmt := new_stmt(p, ast_pkg.ExpressionStatement)
 	expr_stmt.loc = start
 	expr_stmt.expression = expr
 
 	// Consume optional semicolon
 	match_semicolon_or_asi(p)
 
-	expr_stmt.loc.span.end = u32(get_current(p).loc.offset)
-
-	// Create Statement union value
-	stmt := new_node(p, ast_pkg.Statement)
-	stmt^ = expr_stmt
+	expr_stmt.loc.span.end = u32(p.cur_tok.loc.offset)
 	return stmt
 }
 
@@ -1849,9 +1863,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(ast_pkg.Vari
 		match_semicolon_or_asi(p)
 	}
 
-	decl.loc.span.end = u32(get_current(p).loc.offset)
-
-	// Create Statement union value and assign VariableDeclaration
+	decl.loc.span.end = u32(p.cur_tok.loc.offset)
 	stmt := new_node(p, ast_pkg.Statement)
 	stmt^ = decl
 	return stmt
