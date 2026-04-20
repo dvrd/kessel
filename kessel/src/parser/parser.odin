@@ -11,30 +11,32 @@ import ast_pkg "../ast"
 // ============================================================================
 
 // Advance lexer and update cached token. Returns the OLD token.
-// This is the ONLY place that touches the adapter/lexer.
+// Advance: shift fast_nxt → cur, lex new nxt. Returns OLD cur as legacy Token.
+// This is the ONLY place that touches the lexer.
 advance_token :: #force_inline proc(p: ^Parser) -> lexer_pkg.Token {
 	old := p.cur_tok
 	if p.adapter != nil {
-		// Advance the underlying optimized lexer directly
 		a := p.adapter
-		a.current_valid = false
-		a.peek_valid = false
-		lexer_pkg.next2(&a.opt)
-		// Read from ring (type cached) + single AoS slot read
-		ring := &a.opt.ring
-		p.cur_type = ring.cur_type
-		p.cur_tok.type = p.cur_type
-		idx := ring.cur.index
-		soa := ring.soa
-		slot := soa.slots[idx]  // single cache-line read
-		off32 := slot.offset
-		len16 := slot.length
-		p.cur_tok.loc.offset = int(off32)
+		// Shift: cur = nxt, lex new nxt (FastToken by-value, no ring/SoA read)
+		old_fast := a.opt.fast_cur
+		a.opt.fast_cur = a.opt.fast_nxt
+		if a.opt.fast_cur.kind != .EOF {
+			a.opt.fast_nxt = lexer_pkg.lex_fast_token(&a.opt)
+		} else {
+			a.opt.fast_nxt = lexer_pkg.fast_token_eof(u32(a.opt.offset))
+		}
+		// Convert FastToken → cached parser Token fields
+		ft := a.opt.fast_cur
+		p.cur_type = ft.kind
+		p.cur_tok.type = ft.kind
+		p.cur_tok.loc.offset = int(ft.start)
 		p.cur_tok.loc.line = 0
 		p.cur_tok.loc.column = 0
-		p.cur_tok.had_line_terminator = (slot.flags & lexer_pkg.TOKEN_FLAG_LINE_TERM) != 0
-		p.cur_len = len16
-		#partial switch p.cur_type {
+		p.cur_tok.had_line_terminator = (ft.flags & lexer_pkg.FAST_FLAG_NEW_LINE) != 0
+		// Lazy value: only create string slice for non-punctuation
+		len16 := ft.end - ft.start
+		p.cur_len = u16(len16)
+		#partial switch ft.kind {
 		case .LBrace, .RBrace, .LParen, .RParen, .LBracket, .RBracket,
 		     .Semi, .Comma, .Colon, .Dot, .Dot3, .Arrow, .Question,
 		     .OptionalChain, .BitNot,
@@ -50,13 +52,11 @@ advance_token :: #force_inline proc(p: ^Parser) -> lexer_pkg.Token {
 		     .BitAnd, .BitOr, .BitXor, .Not,
 		     .LogicalAnd, .LogicalOr, .Nullish,
 		     .EOF:
-			// Pure punctuation/operator — .value never read by parser
 			p.cur_tok.value = ""
 			p.cur_tok.literal = nil
 		case:
-			// Identifiers, keywords, literals — need .value
-			p.cur_tok.value = a.source[off32:off32+u32(len16)]
-			p.cur_tok.literal = soa.literal_values[idx]
+			p.cur_tok.value = a.source[ft.start:ft.end]
+			p.cur_tok.literal = a.opt.token_soa.literal_values[a.opt.token_soa.count - 1]
 		}
 	} else if p.lexer != nil {
 		lexer_pkg.next(p.lexer)
@@ -80,26 +80,24 @@ peek_token :: #force_inline proc(p: ^Parser) -> lexer_pkg.Token {
 	return lexer_pkg.Token{type = .EOF}
 }
 
-// Prime the parser's token cache from the lexer/adapter.
+// Prime the parser's token cache from the fast path.
 prime_token_cache :: proc(p: ^Parser) {
 	if p.adapter != nil {
-		// Read directly from SoA (same path as advance_token)
-		a := p.adapter
-		ring := &a.opt.ring
-		idx := ring.cur.index
-		soa := ring.soa
-		slot := soa.slots[idx]
-		p.cur_type = slot.type
-		p.cur_tok.type = p.cur_type
-		p.cur_tok.loc.offset = int(slot.offset)
+		ft := p.adapter.opt.fast_cur
+		p.cur_type = ft.kind
+		p.cur_tok.type = ft.kind
+		p.cur_tok.loc.offset = int(ft.start)
 		p.cur_tok.loc.line = 0
 		p.cur_tok.loc.column = 0
-		p.cur_tok.had_line_terminator = (slot.flags & lexer_pkg.TOKEN_FLAG_LINE_TERM) != 0
-		off32 := slot.offset
-		len16 := slot.length
-		p.cur_len = len16
-		p.cur_tok.value = a.source[off32:off32+u32(len16)]
-		p.cur_tok.literal = soa.literal_values[idx]
+		p.cur_tok.had_line_terminator = (ft.flags & lexer_pkg.FAST_FLAG_NEW_LINE) != 0
+		len16 := ft.end - ft.start
+		p.cur_len = u16(len16)
+		if ft.kind != .EOF && ft.start < ft.end {
+			p.cur_tok.value = p.adapter.source[ft.start:ft.end]
+			if p.adapter.opt.token_soa.count > 0 {
+				p.cur_tok.literal = p.adapter.opt.token_soa.literal_values[p.adapter.opt.token_soa.count - 1]
+			}
+		}
 	} else if p.lexer != nil {
 		p.cur_tok = lexer_pkg.get_current(p.lexer)
 		p.cur_type = p.cur_tok.type
@@ -520,10 +518,10 @@ is_token :: #force_inline proc(p: ^Parser, t: lexer_pkg.TokenType) -> bool {
 	return p.cur_type == t
 }
 
-// Check if next token matches type — reads directly from ring buffer
+// Check if next token matches type — reads from fast_nxt (no indirection)
 is_next_token :: #force_inline proc(p: ^Parser, t: lexer_pkg.TokenType) -> bool {
 	if p.adapter != nil {
-		return lexer_pkg.ring_peek_type(&p.adapter.opt.ring, 1) == t
+		return p.adapter.opt.fast_nxt.kind == t
 	}
 	return peek_token(p).type == t
 }

@@ -18,43 +18,38 @@ Lexer2 :: struct {
 	source_bytes: []u8,
 	offset:     int,
 
-	// Lazy line/column: only offset tracked during lexing.
-	// line_offsets[i] = byte offset of the start of line i+1.
-	// line_offsets[0] = 0 (line 1 starts at offset 0).
+	// Line offset table for lazy line/column computation
 	line_offsets: []u32,
 	num_lines:   u32,
 
-	// Legacy: kept for code that still reads l.line / l.column
+	// Legacy line/column (kept for compat)
 	line:       int,
 	column:     int,
-	
-	// Allocator for memory allocations
+
 	allocator:  mem.Allocator,
-	
-	// Token storage (SoA)
+
+	// Legacy token storage (used by old code path)
 	token_soa:  TokenSoA,
-	
-	// Token ring buffer for lookahead
 	ring:       TokenRing,
-	
+
+	// Fast path: current + next token by-value (no SoA/ring)
+	fast_cur:   FastToken,
+	fast_nxt:   FastToken,
+	fast_nxt_valid: bool,
+
+	// Literal store for fast path (strings, numbers, regex)
+	literals:   LiteralStore,
+
 	// State for template literals
 	template_stack: [dynamic]bool,
 	in_template: bool,
-	
-	// Context flags
+
 	jsx_context: bool,
 	strict_mode: bool,
-	
-	// Track last emitted token type for regex context detection
 	last_token_type: TokenType,
-	
-	// Hashbang: track if we're at start of file
 	at_start_of_file: bool,
-	
-	// ASI: track if there was a line terminator before the current token
 	had_line_terminator: bool,
-	
-	// Statistics for debugging
+
 	stats: LexerStats,
 }
 
@@ -153,21 +148,26 @@ init_lexer2 :: proc(l: ^Lexer2, source: string, alloc: mem.Allocator) {
 	l.last_token_type = .EOF  // Start of input allows regex
 	l.at_start_of_file = true
 	
-	// Pre-size token storage based on source length
+	// Pre-size token storage (legacy path)
 	token_capacity := estimate_token_capacity(len(source))
 	init_token_soa(&l.token_soa, alloc, token_capacity)
-	
-	// Initialize token ring
 	init_token_ring(&l.ring, &l.token_soa)
-	
-	// Initialize template stack
+
+	// Fast path: literal store (~20% of tokens have literals)
+	init_literal_store(&l.literals, max(token_capacity / 4, 1024), alloc)
+
 	l.template_stack = make([dynamic]bool, alloc)
-	
-	// Reset stats
 	l.stats = {}
-	
-	// Prime the lexer with first tokens
+
+	// Prime the lexer
 	prime_lexer(l)
+
+	// Prime fast path: fill cur + nxt
+	l.fast_cur = lex_fast_token(l)
+	if l.fast_cur.kind != .EOF {
+		l.fast_nxt = lex_fast_token(l)
+		l.fast_nxt_valid = true
+	}
 }
 
 // Prime the lexer with initial tokens
@@ -371,6 +371,54 @@ lex_next_compact :: proc(l: ^Lexer2) -> CompactToken {
 
 	l.last_token_type = l.token_soa.slots[l.token_soa.count - 1].type
 	return tok
+}
+
+// ============================================================================
+// Fast Token Production — wraps lex_next_compact, returns FastToken by-value
+// ============================================================================
+
+lex_fast_token :: proc(l: ^Lexer2) -> FastToken {
+	tok := lex_next_compact(l)
+	if tok.index == INVALID_TOKEN_INDEX || tok.soa == nil {
+		return fast_token_eof(u32(l.offset))
+	}
+	s := tok.soa.slots[tok.index]
+	return FastToken{
+		start = s.offset,
+		end   = s.offset + u32(s.length),
+		kind  = s.type,
+		flags = s.flags,
+	}
+}
+
+// Advance fast path: shift nxt→cur, lex new nxt. Returns old cur.
+next_fast :: #force_inline proc(l: ^Lexer2) -> FastToken {
+	old := l.fast_cur
+	l.fast_cur = l.fast_nxt
+	if l.fast_cur.kind != .EOF {
+		l.fast_nxt = lex_fast_token(l)
+		l.fast_nxt_valid = true
+	} else {
+		l.fast_nxt = fast_token_eof(u32(l.offset))
+		l.fast_nxt_valid = false
+	}
+	return old
+}
+
+// Peek next fast token kind (no allocation, no advance)
+peek_fast_kind :: #force_inline proc(l: ^Lexer2) -> TokenType {
+	return l.fast_nxt.kind
+}
+
+// Get source text for a fast token
+fast_token_source :: #force_inline proc(l: ^Lexer2, ft: FastToken) -> string {
+	if ft.start >= ft.end { return "" }
+	return l.source[ft.start:ft.end]
+}
+
+// Get literal for a fast token
+fast_token_literal :: #force_inline proc(l: ^Lexer2, ft: FastToken) -> (LiteralValue, LiteralType) {
+	return lookup_literal(&l.literals, ft.start)
 }
 
 // ============================================================================
