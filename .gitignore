@@ -5,3 +5,4 @@ bench/
 *.dSYM/
 .task/
 AGENTS.md
+.firecrawl/
