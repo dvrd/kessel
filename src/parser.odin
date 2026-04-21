@@ -1421,10 +1421,14 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 		expr.async = async
 		expr.loc.span.end = cur_offset(p)
 
-		// For function expressions, wrap in ExpressionStatement
+		// For function expressions, wrap in ExpressionStatement. The
+		// .expression field is an ^Expression (a union ptr, not a raw ptr
+		// to the concrete variant), so box via expression_from to get a
+		// properly tagged union — a plain pointer cast produces a union
+		// with tag=0 and corrupt contents on read.
 		expr_stmt := new_node(p, ExpressionStatement)
 		expr_stmt.loc = start
-		expr_stmt.expression = (^Expression)(expr)
+		expr_stmt.expression = expression_from(p, expr)
 		expr_stmt.loc.span.end = cur_offset(p)
 
 		stmt := new_node(p, Statement)
@@ -2847,7 +2851,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		id.loc.span.end = cur_offset(p)
 		expr = id_e
 		// Inline LHS tail loop (member access, calls)
-		expr = parse_lhs_tail(p, expr)
+		expr = parse_lhs_tail(p, expr, true)
 	} else {
 		expr = parse_left_hand_side_expr(p)
 	}
@@ -2869,7 +2873,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 }
 
 // LHS tail: member access, computed access, calls, tagged templates, optional chaining
-parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression) -> ^Expression {
+parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_call: bool) -> ^Expression {
 	expr := start_expr
 	for {
 		#partial switch p.cur_type {
@@ -2888,6 +2892,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression) -> ^Ex
 			member.loc.span.end = cur_offset(p)
 			expr = member_e
 		case .OptionalChain:
+			if !allow_call {
+				return expr
+			}
 			eat(p)
 			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 				prop := parse_identifier_name(p)
@@ -2942,6 +2949,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression) -> ^Ex
 			mem2.loc.span.end = cur_offset(p)
 			expr = mem2_e
 		case .LParen:
+			if !allow_call {
+				return expr
+			}
 			args := parse_arguments(p)
 			call, call_e := new_expr(p, CallExpression)
 			call.loc = loc_from_expr(expr)
@@ -2964,12 +2974,24 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression) -> ^Ex
 	return expr
 }
 
+// parse_member_expr is parse_left_hand_side_expr with call-expressions
+// disallowed. Used for the callee position of `new EXPR(args)`, where
+// the first `(args)` must be attributed to the NewExpression, not to
+// the callee as a CallExpression.
+parse_member_expr :: proc(p: ^Parser) -> ^Expression {
+	expr := parse_primary_expr(p)
+	if expr == nil {
+		return nil
+	}
+	return parse_lhs_tail(p, expr, false)
+}
+
 parse_left_hand_side_expr :: proc(p: ^Parser) -> ^Expression {
 	expr := parse_primary_expr(p)
 	if expr == nil {
 		return nil
 	}
-	return parse_lhs_tail(p, expr)
+	return parse_lhs_tail(p, expr, true)
 }
 
 parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
@@ -3523,17 +3545,20 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 }
 
 parse_function_expression :: proc(p: ^Parser) -> ^Expression {
-	// Parse as function expression (not declaration)
+	// parse_function_declaration with is_expr=true returns a ^Statement
+	// union wrapping an ^ExpressionStatement whose .expression is the
+	// FunctionExpression (now boxed via expression_from). Extract it safely
+	// via the union cast — the old transmute(^FunctionDeclaration)stmt was
+	// undefined behavior that read the wrong struct layout.
 	stmt := parse_function_declaration(p, true)
 	if stmt == nil {
 		return nil
 	}
-	// Extract FunctionExpression from FunctionDeclaration
-	// FunctionDeclaration has 'using expr: FunctionExpression'
-	decl := transmute(^FunctionDeclaration)stmt
-	fn_expr := new_node(p, FunctionExpression)
-	fn_expr^ = decl.expr
-	return expression_from(p, fn_expr)
+	expr_stmt, ok := stmt^.(^ExpressionStatement)
+	if !ok {
+		return nil
+	}
+	return expr_stmt.expression
 }
 
 parse_class_expression :: proc(p: ^Parser) -> ^Expression {
@@ -3587,7 +3612,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 	}
 
-	callee := parse_left_hand_side_expr(p)
+	callee := parse_member_expr(p)
 	if callee == nil {
 		return nil
 	}
