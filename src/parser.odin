@@ -3831,7 +3831,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// the current token is no longer the '{' and the ESTree `expression`
 	// flag would otherwise always read false.
 	is_block_body := is_token(p, .LBrace)
-	body: ^Expression
+	body: ArrowFunctionBody
 	if is_block_body {
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
@@ -3839,11 +3839,10 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		if block_stmt != nil {
-			// Block body - use transmute (arrow functions with block need special handling)
-			body = transmute(^Expression)block_stmt
+			body = cast(^BlockStatement)block_stmt    // cast ^Statement to ^BlockStatement
 		}
 	} else {
-		body = parse_assignment_expression(p)
+		body = parse_assignment_expression(p)       // wraps into the union
 	}
 
 	p.in_async = prev_async
@@ -4048,7 +4047,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	// Parse body. Capture block-vs-expression BEFORE consuming the body,
 	// so the ESTree `expression` flag reflects the source shape.
 	is_block_body := is_token(p, .LBrace)
-	body: ^Expression
+	body: ArrowFunctionBody
 	if is_block_body {
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
@@ -4056,10 +4055,10 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		if block_stmt != nil {
-			body = transmute(^Expression)block_stmt
+			body = cast(^BlockStatement)block_stmt    // cast ^Statement to ^BlockStatement
 		}
 	} else {
-		body = parse_assignment_expression(p)
+		body = parse_assignment_expression(p)       // wraps into the union
 	}
 
 	p.in_async = prev_async
@@ -4108,7 +4107,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 
 	// Parse body. Capture block-vs-expression before consuming.
 	is_block_body := is_token(p, .LBrace)
-	body: ^Expression
+	body: ArrowFunctionBody
 	if is_block_body {
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
@@ -4116,10 +4115,10 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		if block_stmt != nil {
-			body = transmute(^Expression)block_stmt
+			body = cast(^BlockStatement)block_stmt    // cast ^Statement to ^BlockStatement
 		}
 	} else {
-		body = parse_assignment_expression(p)
+		body = parse_assignment_expression(p)       // wraps into the union
 	}
 
 	p.in_async = prev_async

@@ -460,7 +460,19 @@ rewrite_function_expression :: proc(f: ^FunctionExpression, base: uintptr, sourc
 
 rewrite_arrow_function :: proc(f: ^ArrowFunctionExpression, base: uintptr, source_base: uintptr) {
 	rewrite_function_params(&f.params, base, source_base)
-	rewrite_expr_field(f.body, &f.body, base, source_base)
+	#partial switch body in f.body {
+	case ^Expression:
+		// Expression-form body (e.g. `x => x+1`). Recurse + rewrite the
+		// expression union's own ptr, then rewrite the outer ^Expression
+		// pointer stored in the arrow body's union.
+		rewrite_expr_field(body, &f.body, base, source_base)
+	case ^BlockStatement:
+		// Block-form body (e.g. `x => { return x+1 }`). BlockStatement is
+		// a concrete struct (not a union), so walk its fields and rewrite
+		// the outer pointer directly.
+		rewrite_statement_array(&body.body, base, source_base)
+		rewrite_ptr((^rawptr)(&f.body), base)
+	}
 }
 
 rewrite_class_expression :: proc(c: ^ClassExpression, base: uintptr, source_base: uintptr) {

@@ -363,10 +363,20 @@ FunctionExpression :: struct {
 	async:        bool,
 }
 
+// ArrowFunctionBody discriminates the ESTree shape of an arrow's body.
+// When the arrow uses a concise expression body (`x => x+1`), the variant
+// is `^Expression`. When it uses a block body (`x => { return x+1 }`),
+// the variant is `^BlockStatement`. Storing a ^BlockStatement through a
+// ^Expression field previously caused UB during raw-transfer rewrite.
+ArrowFunctionBody :: union {
+	^Expression,
+	^BlockStatement,
+}
+
 ArrowFunctionExpression :: struct {
 	loc:        Loc,
 	params:     [dynamic]FunctionParameter,
-	body:       ^Expression, // Can be expression or BlockStatement
+	body:       ArrowFunctionBody,
 	expression: bool,
 	async:      bool,
 }
