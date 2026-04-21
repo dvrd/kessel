@@ -482,6 +482,25 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		end = u32(l.offset)
 		return FastToken{start = start, end = end, kind = .BigInt, flags = flags}
 	}
+
+	// Compute f64 value from hex digits [start+2, end). Underscores are
+	// separators and skipped. Parser reads last_lit_value for .Number tokens.
+	acc: u64 = 0
+	for i in int(start) + 2 ..< int(end) {
+		c := src[i]
+		if c == '_' { continue }
+		d: u64
+		switch {
+		case c >= '0' && c <= '9': d = u64(c - '0')
+		case c >= 'a' && c <= 'f': d = u64(c - 'a' + 10)
+		case c >= 'A' && c <= 'F': d = u64(c - 'A' + 10)
+		}
+		acc = acc * 16 + d
+	}
+	l.last_lit_offset = start
+	l.last_lit_value = LiteralValue(f64(acc))
+	l.last_lit_type = .Number
+
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
 
@@ -500,6 +519,17 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		end = u32(l.offset)
 		return FastToken{start = start, end = end, kind = .BigInt, flags = flags}
 	}
+
+	acc: u64 = 0
+	for i in int(start) + 2 ..< int(end) {
+		c := src[i]
+		if c == '_' { continue }
+		acc = acc * 2 + u64(c - '0')
+	}
+	l.last_lit_offset = start
+	l.last_lit_value = LiteralValue(f64(acc))
+	l.last_lit_type = .Number
+
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
 
@@ -518,6 +548,17 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		end = u32(l.offset)
 		return FastToken{start = start, end = end, kind = .BigInt, flags = flags}
 	}
+
+	acc: u64 = 0
+	for i in int(start) + 2 ..< int(end) {
+		c := src[i]
+		if c == '_' { continue }
+		acc = acc * 8 + u64(c - '0')
+	}
+	l.last_lit_offset = start
+	l.last_lit_value = LiteralValue(f64(acc))
+	l.last_lit_type = .Number
+
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
 
