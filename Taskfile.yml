@@ -1,0 +1,160 @@
+version: '3'
+
+vars:
+  BIN: bin/kessel
+  SRC: src
+  INSTALL_DIR: '{{.HOME}}/.local/bin'
+  OXC_BENCH: bench/oxc_compare/target/release/oxc_microbench
+  BENCH_FILES: bench/real_world
+  BENCH_ITERS: 20
+
+tasks:
+
+  # ============================================================
+  # Build
+  # ============================================================
+
+  build:
+    desc: Build kessel (optimized)
+    cmds:
+      - mkdir -p bin
+      - odin build {{.SRC}} -out:{{.BIN}} -o:speed -no-bounds-check
+    sources:
+      - src/*.odin
+
+  build:debug:
+    desc: Build kessel (debug, with bounds checks)
+    cmds:
+      - mkdir -p bin
+      - odin build {{.SRC}} -out:bin/kessel-debug -debug
+
+  # ============================================================
+  # Test
+  # ============================================================
+
+  test:
+    desc: Run all tests (unit + real-world)
+    deps: [build]
+    silent: true
+    cmds:
+      - task: test:unit
+      - task: test:real
+
+  test:unit:
+    desc: Run 86 unit tests
+    deps: [build]
+    silent: true
+    cmds:
+      - tests/run_tests.sh
+
+  test:real:
+    desc: Parse all 467 real-world JS files, fail on any error
+    deps: [build]
+    silent: true
+    cmds:
+      - |
+        fails=0; count=0
+        for f in $(find {{.BENCH_FILES}} -name '*.js' -o -name '*.mjs'); do
+          errs=$(timeout 30 ./{{.BIN}} parse "$f" 2>&1 | grep "Parse errors:" | awk '{print $3}')
+          count=$((count+1))
+          if [ "${errs:-0}" -gt 0 ]; then
+            echo "FAIL: $f: $errs errors"
+            fails=$((fails+1))
+          fi
+        done
+        echo "$count files parsed, $fails failures"
+        [ "$fails" -eq 0 ] || exit 1
+
+  # ============================================================
+  # Benchmark
+  # ============================================================
+
+  bench:
+    desc: Full benchmark vs OXC (all files)
+    deps: [build, bench:oxc:build]
+    cmds:
+      - |
+        faster=0; parity=0; slower=0; total=0
+        for f in $(find {{.BENCH_FILES}} -name '*.js' -o -name '*.mjs' | sort); do
+          k=$(./{{.BIN}} microbench parse "$f" --iterations {{.BENCH_ITERS}} 2>&1 | awk '/Min:/ {print $2}')
+          o=$({{.OXC_BENCH}} "$f" {{.BENCH_ITERS}} 2>&1 | awk '/Min:/ {print $2}')
+          [ -z "$k" ] || [ -z "$o" ] && continue
+          total=$((total+1))
+          r=$(python3 -c "v=float('$k')/float('$o'); print(f'{v:.3f}')" 2>/dev/null)
+          [ -z "$r" ] && continue
+          is_faster=$(python3 -c "print(1 if float('$r') <= 0.97 else 0)")
+          is_parity=$(python3 -c "print(1 if 0.97 < float('$r') <= 1.03 else 0)")
+          if [ "$is_faster" = "1" ]; then faster=$((faster+1))
+          elif [ "$is_parity" = "1" ]; then parity=$((parity+1))
+          else slower=$((slower+1)); fi
+        done
+        echo ""
+        echo "========================================"
+        echo "  $total files benchmarked"
+        echo "========================================"
+        echo "Faster (≤0.97x): $faster ($((faster*100/total))%)"
+        echo "Parity (0.97–1.03x): $parity ($((parity*100/total))%)"
+        echo "Slower (>1.03x): $slower ($((slower*100/total))%)"
+        echo "At parity or faster: $((faster+parity)) ($(((faster+parity)*100/total))%)"
+
+  bench:quick:
+    desc: Benchmark 10 key files vs OXC
+    deps: [build, bench:oxc:build]
+    cmds:
+      - |
+        for f in \
+          bench/real_world/typescript.js \
+          bench/real_world/batch2/cesium.js \
+          bench/real_world/batch2/monaco.js \
+          bench/real_world/antd.js \
+          bench/real_world/jquery.js \
+          bench/real_world/d3.js \
+          bench/real_world/react-dom.dev.js \
+          bench/real_world/batch2/preact.js \
+          bench/real_world/lodash.js \
+          bench/real_world/batch3/snabbdom.js; do
+          name=$(basename "$f")
+          k=$(./{{.BIN}} microbench parse "$f" --iterations 30 2>&1 | awk '/Min:/ {print $2}')
+          o=$({{.OXC_BENCH}} "$f" 30 2>&1 | awk '/Min:/ {print $2}')
+          r=$(python3 -c "print(f'{float(\"$k\")/float(\"$o\"):.2f}x')" 2>/dev/null)
+          printf '%-25s kessel=%-12s oxc=%-12s ratio=%s\n' "$name" "${k}us" "${o}us" "$r"
+        done
+
+  bench:oxc:build:
+    desc: Build OXC benchmark binary (Rust)
+    dir: bench/oxc_compare
+    cmds:
+      - cargo build --release -q
+    status:
+      - test -f ../../{{.OXC_BENCH}}
+    sources:
+      - bench/oxc_compare/**/*.rs
+      - bench/oxc_compare/Cargo.toml
+
+  # ============================================================
+  # Install
+  # ============================================================
+
+  install:
+    desc: Build and install kessel to ~/.local/bin
+    deps: [build]
+    cmds:
+      - mkdir -p {{.INSTALL_DIR}}
+      - cp {{.BIN}} {{.INSTALL_DIR}}/kessel
+      - echo "Installed to {{.INSTALL_DIR}}/kessel"
+
+  uninstall:
+    desc: Remove kessel from ~/.local/bin
+    cmds:
+      - rm -f {{.INSTALL_DIR}}/kessel
+      - echo "Removed {{.INSTALL_DIR}}/kessel"
+
+  # ============================================================
+  # Clean
+  # ============================================================
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf bin
+      - rm -rf tmp/ast
