@@ -168,6 +168,61 @@ function verifyStmt(off, kType, oNode, p) {
       }
       break;
     }
+    case 'WhileStatement': {
+      const testOff = u32(off + 16);
+      if (testOff > 0 && oNode.test) verifyExpr(testOff, oNode.test, `${p}.test`);
+      const bodyOff = u32(off + 24);
+      if (bodyOff > 0 && oNode.body) {
+        const su = union(bodyOff);
+        const sType = STMT[su.tag];
+        verifyStmt(su.ptr, sType, oNode.body, `${p}.body`);
+      }
+      break;
+    }
+    case 'DoWhileStatement': {
+      const bodyOff = u32(off + 16);
+      if (bodyOff > 0 && oNode.body) {
+        const su = union(bodyOff);
+        const sType = STMT[su.tag];
+        verifyStmt(su.ptr, sType, oNode.body, `${p}.body`);
+      }
+      const testOff = u32(off + 24);
+      if (testOff > 0 && oNode.test) verifyExpr(testOff, oNode.test, `${p}.test`);
+      break;
+    }
+    case 'ThrowStatement': {
+      const argOff = u32(off + 16);
+      if (argOff > 0 && oNode.argument) verifyExpr(argOff, oNode.argument, `${p}.argument`);
+      break;
+    }
+    case 'LabeledStatement': {
+      eq(`${p}.label.name`, str(off + 32), oNode.label && oNode.label.name);
+      const bodyOff = u32(off + 48);
+      if (bodyOff > 0 && oNode.body) {
+        const su = union(bodyOff);
+        const sType = STMT[su.tag];
+        verifyStmt(su.ptr, sType, oNode.body, `${p}.body`);
+      }
+      break;
+    }
+    case 'TryStatement': {
+      // block is an INLINE BlockStatement at TryStatement offset 16.
+      // Its body dyn-header is at +16+16 = +32.
+      const bdy = dyn(off + 32);
+      if (oNode.block && Array.isArray(oNode.block.body)) {
+        eq(`${p}.block.len`, bdy.len, oNode.block.body.length);
+        for (let i = 0; i < Math.min(bdy.len, oNode.block.body.length); i++) {
+          const slotOff = bdy.data + i * 8;
+          const stmtUOff = u32(slotOff);
+          if (stmtUOff === 0) continue;
+          const su = union(stmtUOff);
+          const sType = STMT[su.tag];
+          verifyStmt(su.ptr, sType, oNode.block.body[i], `${p}.block[${i}]`);
+        }
+      }
+      // handler and finalizer are intentionally not recursed (Maybe layout out of scope).
+      break;
+    }
     case 'FunctionDeclaration':
     case 'FunctionExpression_Stmt': {
       // FunctionDeclaration uses `using expr: FunctionExpression`, same
