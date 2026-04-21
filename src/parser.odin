@@ -3875,7 +3875,17 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		if block_stmt != nil {
-			body = cast(^BlockStatement)block_stmt    // cast ^Statement to ^BlockStatement
+			// parse_block_statement returns ^Statement wrapping ^BlockStatement.
+			// `cast(^BlockStatement)^Statement` here is the same UB class as Bug H:
+			// the Statement union's 16-byte header was being read as the start of
+			// BlockStatement's fields, so `body.body` iteration yielded garbage
+			// pointers (e.g. 0x14). Crash symptom: SIGSEGV in
+			// `get_statement_type_name` when emitting class methods that contain
+			// arrow functions with block bodies (tone.js and 11 others).
+			// Fix: extract the inner ^BlockStatement via union type assertion.
+			if bs, ok := block_stmt^.(^BlockStatement); ok {
+				body = bs
+			}
 		}
 	} else {
 		body = parse_assignment_expression(p)       // wraps into the union
@@ -4091,7 +4101,11 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		if block_stmt != nil {
-			body = cast(^BlockStatement)block_stmt    // cast ^Statement to ^BlockStatement
+			// Same Bug-H class as the multi-param arrow arm above. Extract the
+			// inner ^BlockStatement via type assertion, not a raw pointer cast.
+			if bs, ok := block_stmt^.(^BlockStatement); ok {
+				body = bs
+			}
 		}
 	} else {
 		body = parse_assignment_expression(p)       // wraps into the union
@@ -4151,7 +4165,12 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		if block_stmt != nil {
-			body = cast(^BlockStatement)block_stmt    // cast ^Statement to ^BlockStatement
+			// Same Bug-H class as the other two arrow-function arms above.
+			// Extract the inner ^BlockStatement via type assertion, not a raw
+			// pointer cast. prettier.js is the third-site canary.
+			if bs, ok := block_stmt^.(^BlockStatement); ok {
+				body = bs
+			}
 		}
 	} else {
 		body = parse_assignment_expression(p)       // wraps into the union

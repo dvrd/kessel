@@ -164,7 +164,170 @@ const CHECKS = [
     // 40 trivial methods must emit cleanly (previously overflowed direct_buf).
     atLeast: { 'MethodDefinition': 40 },
   },
+  {
+    name: '007_use_strict_directive',
+    // Fix 658f25f: "use strict" (and any Directive Prologue) must appear in
+    // `program.body` as an ExpressionStatement wrapping a Literal, in
+    // addition to `program.directives`. Previously the body leaked the
+    // statement — readers walking `body` diverged from OXC.
+    require: ['ExpressionStatement', 'Literal', 'VariableDeclaration', 'FunctionDeclaration'],
+    customCheck: (k, _o) => {
+      const fails = [];
+      // Top-level body must start with the "use strict" ExpressionStatement.
+      const body = Array.isArray(k.body) ? k.body : [];
+      const first = body[0];
+      if (!first || first.type !== 'ExpressionStatement') {
+        fails.push(`body[0] expected ExpressionStatement, got ${first && first.type}`);
+      } else {
+        const e = first.expression || {};
+        if (e.type !== 'Literal' || e.value !== 'use strict') {
+          fails.push(`body[0].expression expected Literal("use strict"), got ${e.type}=${JSON.stringify(e.value)}`);
+        }
+      }
+      // Inside `function f`, the nested "use strict" must ALSO appear in body[0]
+      // of the function body — same ESTree rule applies recursively.
+      const fn = body.find(s => s && s.type === 'FunctionDeclaration');
+      if (fn) {
+        const fnFirst = fn.body && Array.isArray(fn.body.body) ? fn.body.body[0] : null;
+        if (!fnFirst || fnFirst.type !== 'ExpressionStatement' ||
+            !fnFirst.expression || fnFirst.expression.value !== 'use strict') {
+          fails.push(`f.body[0] expected "use strict" ExpressionStatement, got ${fnFirst && fnFirst.type}`);
+        }
+      } else {
+        fails.push(`no FunctionDeclaration found in fixture body`);
+      }
+      return fails;
+    },
+  },
+  {
+    name: '008_export_all',
+    // Fix 75b7ada: ExportAllDeclaration must consume its trailing semicolon,
+    // otherwise a spurious EmptyStatement appears in body[] between each
+    // export. Assertion: exactly 5 real statements, ZERO EmptyStatement
+    // anywhere in the top-level body.
+    require: ['ExportAllDeclaration', 'VariableDeclaration', 'FunctionDeclaration'],
+    customCheck: (k, _o) => {
+      const fails = [];
+      const body = Array.isArray(k.body) ? k.body : [];
+      const counts = {};
+      for (const s of body) counts[s && s.type] = (counts[s && s.type] || 0) + 1;
+      if ((counts.EmptyStatement || 0) !== 0) {
+        fails.push(`body contains ${counts.EmptyStatement} EmptyStatement (expected 0)`);
+      }
+      if ((counts.ExportAllDeclaration || 0) !== 3) {
+        fails.push(`expected 3 ExportAllDeclaration, got ${counts.ExportAllDeclaration || 0}`);
+      }
+      if (body.length !== 5) {
+        fails.push(`expected body.length==5, got ${body.length}`);
+      }
+      return fails;
+    },
+  },
+  {
+    name: '009_destructure_patterns',
+    // Fix 72275c8 + follow-up: ArrayPattern/ObjectPattern emit must produce
+    // valid JSON for every variant of Pattern (including RestElement,
+    // AssignmentPattern, holes in ArrayPattern, and RestElement as a direct
+    // sibling in ObjectPattern.properties rather than wrapped in Property).
+    // The `parseKessel` call at the top of this script already runs
+    // JSON.parse — any drift that emits `{null}` or `{null}` would throw
+    // before we get here. Beyond that, assert structural completeness.
+    require: ['ArrayPattern', 'ObjectPattern', 'RestElement', 'AssignmentPattern',
+              'Identifier', 'VariableDeclaration', 'FunctionDeclaration'],
+    atLeast: {
+      'RestElement': 3,        // `...rest` in array destructure + object destructure + function param
+      'AssignmentPattern': 3,  // `q = 10`, `r: rr = 20`, `x = 1`
+    },
+    customCheck: (k, _o) => {
+      const fails = [];
+      // Walk: every ArrayPattern.elements[i] must be either `null` (hole)
+      // OR a node with a non-null type. Never the stray `{null}` bug.
+      let holeCount = 0;
+      (function walk(n) {
+        if (!n || typeof n !== 'object') return;
+        if (Array.isArray(n)) { for (const c of n) walk(c); return; }
+        if (n.type === 'ArrayPattern' && Array.isArray(n.elements)) {
+          for (let i = 0; i < n.elements.length; i++) {
+            const el = n.elements[i];
+            if (el === null) { holeCount++; continue; }
+            if (typeof el !== 'object' || typeof el.type !== 'string') {
+              fails.push(`ArrayPattern.elements[${i}] malformed: ${JSON.stringify(el)}`);
+            }
+          }
+        }
+        if (n.type === 'ObjectPattern' && Array.isArray(n.properties)) {
+          for (let i = 0; i < n.properties.length; i++) {
+            const p = n.properties[i];
+            if (!p || (p.type !== 'Property' && p.type !== 'RestElement')) {
+              fails.push(`ObjectPattern.properties[${i}].type expected Property|RestElement, got ${p && p.type}`);
+            }
+          }
+        }
+        for (const k2 of Object.keys(n)) walk(n[k2]);
+      })(k);
+      // Fixture has 2 holes: `[, , c]` and `[d, , e, ...rest]`.
+      if (holeCount < 2) fails.push(`expected >=2 ArrayPattern holes, saw ${holeCount}`);
+      return fails;
+    },
+  },
+  {
+    name: '010_arrow_block_body',
+    // Bug I-7: parse_arrow_function (3 sites) stored body via
+    // `cast(^BlockStatement)^Statement` — reading the 16-byte Statement union
+    // header as the start of BlockStatement fields, corrupting body.body so
+    // iteration yielded garbage pointers (0x14 = 20). Emit-time SIGSEGV deep
+    // inside class methods containing arrow+block bodies (tone.js and 11
+    // others, including prettier.js which was the single site that survived
+    // the first two arrow-arm fixes until the async arrow arm was also fixed).
+    //
+    // Direct signal: every ArrowFunctionExpression whose body is a
+    // BlockStatement must have a non-empty `.body` array. A zero-length
+    // body (where the source clearly has statements) is the exact corruption
+    // footprint — [dynamic] header being misread as zero length.
+    require: ['ArrowFunctionExpression', 'BlockStatement', 'ReturnStatement',
+              'VariableDeclaration', 'ForStatement', 'IfStatement'],
+    customCheck: (k, _o) => {
+      const fails = [];
+      let blockBodied = 0;
+      let nonEmptyBlockBodied = 0;
+      (function walk(n) {
+        if (!n || typeof n !== 'object') return;
+        if (Array.isArray(n)) { for (const c of n) walk(c); return; }
+        if (n.type === 'ArrowFunctionExpression') {
+          const b = n.body;
+          if (b && b.type === 'BlockStatement') {
+            blockBodied++;
+            const count = Array.isArray(b.body) ? b.body.length : 0;
+            if (count > 0) nonEmptyBlockBodied++;
+          }
+        }
+        for (const key of Object.keys(n)) walk(n[key]);
+      })(k);
+      if (blockBodied < 3) fails.push(`expected >=3 block-bodied arrows, saw ${blockBodied}`);
+      if (nonEmptyBlockBodied !== blockBodied) {
+        fails.push(`${blockBodied - nonEmptyBlockBodied} block-bodied arrow(s) have empty .body (corruption signal)`);
+      }
+      return fails;
+    },
+  },
 ];
+
+// Global assertion that runs on every fixture, regardless of per-check config:
+// no node in the emitted JSON may carry the sentinel `[UNIMPLEMENTED]: true`
+// field, and no Kessel-internal "Unknown" type name may appear. Either is a
+// sign that a switch/case fell through the default arm — silent ESTree drift
+// of the exact kind this session set out to eliminate.
+function assertNoUnknownOrUnimplemented(root) {
+  const fails = [];
+  (function walk(n) {
+    if (!n || typeof n !== 'object') return;
+    if (Array.isArray(n)) { for (const c of n) walk(c); return; }
+    if (n.type === 'Unknown')        fails.push(`found node with type "Unknown"`);
+    if (n['[UNIMPLEMENTED]'] === true) fails.push(`found [UNIMPLEMENTED] sentinel (type=${n.type})`);
+    for (const k of Object.keys(n)) walk(n[k]);
+  })(root);
+  return fails;
+}
 
 function parseKessel(file) {
   const raw = execSync(`"${KESSEL}" parse "${file}" --compact`,
@@ -216,6 +379,7 @@ for (const check of CHECKS) {
   }
 
   const customFails = check.customCheck ? check.customCheck(k, o) : [];
+  const unknownFails = assertNoUnknownOrUnimplemented(k);
 
   const pathFails = [];
   if (check.pathCheck) {
@@ -247,14 +411,16 @@ for (const check of CHECKS) {
     }
   }
 
-  if (missing.length === 0 && short.length === 0 && pathFails.length === 0 && customFails.length === 0) {
+  if (missing.length === 0 && short.length === 0 && pathFails.length === 0 &&
+      customFails.length === 0 && unknownFails.length === 0) {
     console.log(`[${check.name}] OK`);
   } else {
     failures++;
     if (missing.length)   console.log(`[${check.name}] MISSING:   ${missing.join(', ')}`);
     if (short.length)     console.log(`[${check.name}] SHORT:     ${short.join(', ')}`);
-    if (pathFails.length) for (const f of pathFails)   console.log(`[${check.name}] PATH:      ${f}`);
+    if (pathFails.length) for (const f of pathFails)     console.log(`[${check.name}] PATH:      ${f}`);
     if (customFails.length) for (const f of customFails) console.log(`[${check.name}] CUSTOM:    ${f}`);
+    if (unknownFails.length) for (const f of unknownFails) console.log(`[${check.name}] DRIFT:     ${f}`);
   }
 }
 

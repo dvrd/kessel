@@ -103,8 +103,7 @@
                     "expression": {
                       "type": "CallExpression",
                       "callee": {
-                        "type": "Super",
-                        "[UNIMPLEMENTED]": true                      },
+                        "type": "Super"                      },
                       "arguments": [
                       ]                    }                  },
                   {

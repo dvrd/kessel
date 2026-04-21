@@ -34,6 +34,34 @@ RawTransferHeader :: struct {
 RAW_TRANSFER_MAGIC :: u32(0x4B455353)
 RAW_TRANSFER_VERSION :: u32(1)
 
+// STRING_ARENA_FLAG is the high bit of a string offset. Set when the string's
+// backing bytes live in the arena (e.g. a Bug E escape-decoded cooked string)
+// rather than in the source text. Readers mask this bit off and pick the right
+// byte region:
+//
+//   bit 31 = 0 → offset relative to source_base, length bytes inside source
+//   bit 31 = 1 → offset relative to buffer base (arena), length bytes inside buffer
+//
+// The flag is 0x8000_0000 specifically so it can't collide with a legitimate
+// source offset — JS source files larger than 2 GB would break other assumptions
+// in the raw transfer format (u32 offsets for dynamic arrays, etc.) long before
+// this bit would be needed for source.
+STRING_ARENA_FLAG :: u32(0x8000_0000)
+
+// Thread-local region bounds used by rewrite_string to distinguish source-slice
+// strings from arena-slice cooked strings. Set at the top of rewrite_ast_pointers
+// before the recursive descent and read from every rewrite_string call site.
+// Thread-local because parse_many spawns N workers, each rewriting a different
+// arena+source pair concurrently; a file-global would race between workers.
+//
+// This is a deliberate TigerStyle concession: the alternative is threading
+// two extra uintptr args through 17 rewrite_* functions for what is purely
+// contextual info, and the scope here is tight — set-once at the entry point,
+// read-only in leaves, cleared at function exit.
+@(thread_local) tl_source_base: uintptr
+@(thread_local) tl_source_end:  uintptr
+@(thread_local) tl_arena_base:  uintptr
+
 // Convert a native pointer to a u32 offset relative to base.
 // Returns 0 for nil pointers.
 ptr_to_offset :: #force_inline proc(base: uintptr, ptr: rawptr) -> u32 {
@@ -45,6 +73,17 @@ ptr_to_offset :: #force_inline proc(base: uintptr, ptr: rawptr) -> u32 {
 // After this call, the arena memory is a self-contained buffer.
 rewrite_ast_pointers :: proc(program: ^Program, base: uintptr, source: string) {
 	source_base := uintptr(raw_data(source))
+	tl_source_base = source_base
+	tl_source_end  = source_base + uintptr(len(source))
+	tl_arena_base  = base
+	defer {
+		// Clear thread-locals to catch any stale use after return — a later
+		// rewrite_string call with these zeroed would produce an obviously
+		// broken u32 offset rather than silently reading neighbouring data.
+		tl_source_base = 0
+		tl_source_end  = 0
+		tl_arena_base  = 0
+	}
 	rewrite_program(program, base, source_base)
 }
 
@@ -60,18 +99,35 @@ rewrite_ptr :: #force_inline proc(field: ^rawptr, base: uintptr) {
 	}
 }
 
-// Helper: rewrite a string field in-place to (source_offset, len)
+// Helper: rewrite a string field in-place to (offset, len)
 // String in Odin = {ptr: rawptr, len: int} = 16 bytes
-// We rewrite to {offset: u32, len: u32} in the first 8 bytes
+// We rewrite to {offset: u32, len: u32} in the first 8 bytes.
+//
+// Offset encoding: the high bit discriminates source vs arena origin
+// (see STRING_ARENA_FLAG doc). `source_base` is accepted as an argument for
+// API compatibility with the 17 call sites but is cross-checked against the
+// thread-local region bounds so a mis-plumbed call site fails fast rather
+// than silently producing a wrong offset.
 rewrite_string :: #force_inline proc(field: ^string, source_base: uintptr) {
 	s := field^
 	if len(s) == 0 {
 		(^[2]u32)(field)^ = {0, 0}
 		return
 	}
-	offset := u32(uintptr(raw_data(s)) - source_base)
+	ptr := uintptr(raw_data(s))
 	length := u32(len(s))
-	(^[2]u32)(field)^ = {offset, length}
+	if ptr >= tl_source_base && ptr < tl_source_end {
+		// Common case: slice into the source text. Offset fits in 31 bits because
+		// source sizes over 2 GB would break other u32 offsets in the format.
+		offset := u32(ptr - tl_source_base)
+		(^[2]u32)(field)^ = {offset, length}
+	} else {
+		// Arena-allocated cooked string (e.g. Bug E escape-decoded). Rewrite as
+		// a buffer-relative offset with STRING_ARENA_FLAG set so readers know
+		// to read from the buffer rather than from source.
+		offset := u32(ptr - tl_arena_base) | STRING_ARENA_FLAG
+		(^[2]u32)(field)^ = {offset, length}
+	}
 }
 
 // Helper: rewrite a Maybe(string) — same layout as string, nil = empty

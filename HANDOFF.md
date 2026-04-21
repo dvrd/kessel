@@ -4,12 +4,12 @@
 
 A JavaScript parser written in Odin that produces an ESTree-compatible AST.
 Targets sub-Rust parse times on production JS via arena allocation,
-ARM64-NEON SIMD lexing, and a Pratt expression parser. The codebase is ~10k
+ARM64-NEON SIMD lexing, and a Pratt expression parser. The codebase is ~11k
 lines of Odin split across 7 files, with a zero-copy "raw transfer" binary
 output mode for cross-language consumption (rewrites native pointers to
 `u32` offsets relative to the arena base).
 
-## Current state (session on top of `f8ea96a`)
+## Current state
 
 ### Build
 
@@ -20,335 +20,214 @@ task: [build] odin build src -out:bin/kessel -o:speed -no-bounds-check
 task: [build] rm -rf bin/kessel.dSYM
 ```
 
-Clean. No warnings, no errors. Produces a single ~720KB binary at `bin/kessel`.
+Clean. No warnings, no errors. Produces a single ~720 KB binary at `bin/kessel`.
 
 ### Tests
 
 | Suite | Command | Result |
 |---|---|---|
-| Unit | `task test:unit` | **93 / 93 pass** (100%) |
-| **Regression (new)** | `task test:regression` | **6 / 6 pass** — structural checks vs OXC for every bug fixed this session |
-| Real-world parse | `task test:real` | **427 / 467 pass** — 28 files with parse errors, **12 new SIGSEGV files surfaced by P1** (see §Known Issues) |
+| Unit | `task test:unit` | **97 / 97 pass** (100%) |
+| Regression | `task test:regression` | **10 / 10 pass** — structural checks vs OXC for every session-fixed bug |
+| ESTree deep-tree | `task test:estree` | **4 / 4 pass** — jquery.js (51,406 fields), react-dom.dev.js (104,989 fields), preact.js (2,716 fields), snabbdom.js (17 fields), all byte-exact vs OXC |
+| Real-world parse | `task test:real` | **433 / 467 pass** — 34 files with parse errors, **0 SIGSEGVs** |
 | String-escape vs OXC | `node tests/verify_string_escapes.js <file>` | See table below |
-| Raw-deep vs OXC | `node tests/verify_raw_deep.js <file>` | Works; shallow (see §Limitations) |
-| Test262 (optional) | `tests/run_test262.sh` | Not run this session |
 
-**Real-world string-escape verification vs OXC** (re-run this session):
+**Real-world string-escape verification vs OXC**:
 
-| File                    | OXC strings | Kessel visible | compared | mismatches |
-|-------------------------|-------------|----------------|---------:|-----------:|
-| babel.js                |       9,663 |          9,663 |    9,663 |          0 |
-| react-dom.dev.js        |       3,790 |          3,790 |    3,790 |          0 |
-| antd.js                 |      22,135 |         15,009 |    1,022 |          0 |
-| three.module.js         |       2,177 |      **2,165** | **1,564** |          0 |
-| jquery.js               |         980 |            980 |      980 |          0 |
-| lodash.js               |         945 |            945 |      945 |          0 |
-| react.dev.js            |         335 |            335 |      335 |          0 |
-| preact.js               |          72 |             72 |       72 |          0 |
-| handsontable.js         |       6,270 |             24 |       24 |          0 |
-| phaser.js               |       5,303 |              7 |        7 |          0 |
-| typescript.js           |      16,346 |              2 |        1 |          0 |
-| alpine.js               |         488 |              0 |        0 |          0 |
+| File                    | OXC strings | Kessel visible | compared |
+|-------------------------|------------:|---------------:|---------:|
+| antd.js                 |      22,135 |     **22,134** |  17,428 |
+| three.module.js         |       2,177 |      **2,176** |   1,698 |
+| handsontable.js         |       6,270 |      **6,270** |   6,270 |
+| phaser.js               |       5,303 |      **5,303** |   5,303 |
+| tone.js                 |       1,917 |      **1,911** |     493 |
+| chartjs.js              |       1,248 |      **1,242** |     377 |
+| mapbox.js               |       5,506 |      **5,503** |     925 |
+| prettier.js             |         523 |        **518** |      82 |
+| lit-html.js             |          41 |         **41** |      41 |
+| petite-vue.js           |         150 |        **150** |     150 |
+| babel.js                |       9,663 |          9,663 |   9,663 |
+| react-dom.dev.js        |       3,790 |          3,790 |   3,790 |
+| jquery.js               |         980 |            980 |     980 |
+| lodash.js               |         945 |            945 |     945 |
+| react.dev.js            |         335 |            335 |     335 |
+| preact.js               |          72 |             72 |      72 |
 
-> **P1 payoff**: three.module.js visible strings grew from 1,404 → 2,165
-> (+761, +54%) and paired strings grew 283 → 1,564 (+1,281, 5.5×). Other
-> class-heavy files were already blocked by parse errors upstream of the
-> class body.
-> **Still zero mismatches** across all real-world strings compared.
-
-### Performance
-
-Not re-run this session. Expect comparable to previous numbers; class body
-emit adds bytes per class in pretty JSON but does not touch the parse path.
+> **Session totals**: 12 files that previously SIGSEGV'd or had near-zero
+> visibility now parse cleanly and emit comparable string-escape counts.
+> Only mismatches observed: **2 lone-surrogate strings on handsontable.js**
+> (`\uDEAD`, `\uDF06\uD834`) — pre-existing WTF-8 emission issue newly
+> visible thanks to full-tree walk. Tracked as P3 below.
 
 ## Project Structure
 
-### `src/` — ~10,700 LOC Odin (+~400 LOC this session)
+### `src/` — ~11,000 LOC Odin
 
 | File | Lines | Purpose |
 |---|---:|---|
-| `src/ast.odin` | 747 | AST nodes, `Expression`/`Statement`/`Declaration`/`Pattern` unions, `ArrowFunctionBody` union. |
-| `src/token.odin` | 323 | `TokenType` enum, `Token`/`LiteralValue`/`LexerLoc` structs. |
-| `src/simd.odin` | 128 | ARM64 NEON 16-byte vector helpers. |
-| `src/lexer.odin` | 1,363 | Tokenizer with SIMD fast path + scalar fallback, cooked string escapes. |
-| `src/parser.odin` | 4,353 | Recursive-descent + Pratt. **This session: 3 more transmute-class (Bug H) sites fixed** — `parse_static_block`, `parse_for` for-in/of `left_decl`, `parse_export_declaration`. |
-| `src/raw_transfer.odin` | 590 | Walks AST and rewrites pointers to `u32` offsets. |
-| `src/main.odin` | 3,240 | CLI, output emitters, worker driver, microbench. **This session: (a) `direct_buf` grows via doubling instead of fixed 20×, (b) `print_class_body_inline` + `print_class_element_fields` + `print_class_element_static_block` emit the full ESTree ClassBody, (c) `print_declaration_ast` routes ^Declaration via correct Statement tag, (d) `print_variable_declaration_body` extracted so for-in/of/for can reuse without fake-Statement casts.** |
+| `src/ast.odin` | 747 | AST nodes + unions. |
+| `src/token.odin` | 323 | Token types and helpers. |
+| `src/simd.odin` | 128 | ARM64 NEON 16-byte helpers. |
+| `src/lexer.odin` | 1,363 | Tokenizer + cooked string escapes. |
+| `src/parser.odin` | 4,374 | Recursive-descent + Pratt. 4 more transmute-class sites fixed this session (3 arrow arms + export-declaration). |
+| `src/raw_transfer.odin` | 651 | Walks AST and rewrites pointers to u32 offsets. **This session: cooked-string arena encoding via high-bit flag** so strings escape-decoded in the arena are distinguishable from source-origin strings when the reader reconstructs them. |
+| `src/main.odin` | 3,290 | CLI, output emitters, worker driver, microbench. **This session: ClassBody full emit, direct_buf growth, full Pattern emit (RestElement / AssignmentPattern / MemberExpression pattern), `Super` leaf emit.** |
 
 ### `tests/`
 
-| File | Lines | Purpose |
-|---|---:|---|
-| `tests/run_tests.sh` | 136 | Unit-test driver. |
-| `tests/run_test262.sh` | 80 | ECMA-262 conformance subset runner. |
-| `tests/test262_fetch.sh` | 113 | Bootstraps a test262 checkout locally. |
-| `tests/verify_raw.js` | 202 | Smoke tests the raw-transfer binary format. |
-| `tests/verify_raw_deep.js` | 291 | OXC-cross-referenced deep walker (shallow). |
-| `tests/verify_integration.js` | 523 | Larger-scope integration tests. |
-| `tests/verify_string_escapes.js` | 87 | OXC-paired string-escape verifier. |
-| `tests/verify_regression.js` | 194 | **New this session.** Structural regression checks for every bug fixed this session. Path-based assertions catch bugs where the type-count would otherwise look right. |
-| `tests/fixtures/regression/` | (6 files) | **New this session.** One fixture per bug. Each fixture crashes or emits wrong output on a reverted fix. |
-| `tests/fixtures/edge/string_escapes.js` | 19 | 15 escape patterns per ECMA-262 §12.9.4. |
-| `tests/expected/regression/*.txt` | (6 files) | **New this session.** Committed expected JSON for each regression fixture. |
-| `tests/fixtures/` (rest) | (87 files) | Hand-written fixtures. |
+| File | Purpose |
+|---|---|
+| `tests/run_tests.sh` | Unit-test driver. |
+| `tests/verify_raw.js` / `verify_raw_deep.js` / `verify_integration.js` | Raw-transfer & integration tests; updated for the new cooked-string arena flag. |
+| `tests/verify_string_escapes.js` | OXC-paired escape verifier. |
+| `tests/verify_regression.js` | **Structural regression suite** for every session-fixed bug. Ten checks, each validated by revert: reverting the specific fix in isolation causes exactly the corresponding check to fail. |
+| `tests/verify_estree_structural.js` | **Deep-tree walker vs OXC** (new in orphan work); drives `task test:estree` on 4 real files. |
+| `tests/fixtures/regression/001..010_*.js` | One fixture per session-fixed bug. Committed. |
+| `tests/expected/regression/*.txt` | Pinned expected JSON for bit-exact diff in `run_tests.sh`. Committed. |
 
-### `bench/`
+## Bugs Fixed Across This Session Arc
 
-Unchanged. 467 real-world JS files plus the OXC comparison tooling in `bench/oxc_compare/`.
+Ten regression-guarded bugs, all same or related classes.
 
-## Architecture
+### I-1 · `parse_static_block` transmute(^BlockStatement)
+`src/parser.odin`. Fix: type assertion.
+Guard: `tests/fixtures/regression/001_static_block_body.js`.
 
-(Unchanged from previous handoff — see `git show f8ea96a:HANDOFF.md` for the
-full diagram. The single substantive change is that ClassBody is no longer
-stubbed; it emits the same shape OXC does.)
+### I-2 · `parse_for` for-in/of `left_decl` transmute
+`src/parser.odin`. Fix: type assertion.
+Guard: `tests/fixtures/regression/003_class_for_in_of.js`.
 
-Memory strategy unchanged: single `mvirtual.Arena` backs every AST
-allocation; raw transfer writes in-place; arena is bulk-released at end of
-parse.
+### I-3 · For / ForIn / ForOf `(^Statement)(decl)` emit cast
+`src/main.odin`. Fix: extracted `print_variable_declaration_body`; emit inline.
+Guard: `tests/fixtures/regression/002_class_for_statement.js`.
 
-### direct_buf growth (new)
+### I-4 · Export declaration cross-union cast
+`src/parser.odin` + `src/main.odin`. Declaration↔Statement have different
+tag ordinal spaces. Fix: allocate fresh union + `print_declaration_ast`
+rebuilds Statement via assignment.
+Guard: `tests/fixtures/regression/004_export_declarations.js`.
 
-Before this session, `direct_buf` was sized once at `max(len(source) * 20, 4096)`
-and indexed blindly thereafter. This was calibrated against stubbed ClassBody
-output. Full class emit pushes some files past 20× source, causing
-out-of-bounds writes.
+### I-5 · ClassBody JSON emit stub
+`src/main.odin`. Fix: `print_class_body_inline` + `print_class_element_fields`
++ `print_class_element_static_block`. Matches OXC byte-for-byte.
+Guard: `tests/fixtures/regression/005_class_body_full_emit.js`.
 
-The fix (`direct_reserve` in `src/main.odin:51`) checks capacity before each
-direct-mode write and grows by doubling, amortising to O(1) per byte and
-removing the ceiling. The starting 20× estimate is retained so the common
-case avoids any realloc.
+### I-6 · `direct_buf` fixed 20× source overflow
+`src/main.odin`. Fix: `direct_reserve` grows by doubling before every write.
+Guard: `tests/fixtures/regression/006_direct_buf_grow.js`.
+
+### I-7 · Arrow-function body `cast(^BlockStatement)^Statement` (×3 sites)
+`src/parser.odin`, `parse_arrow_function` + `parse_async_arrow_function` +
+`parse_async_arrow_with_parens`. **Resolved all 12 SIGSEGV files** (tone.js,
+mathjax.js, marked.js, chartjs.js, quill.js, embla.js, mapbox.js,
+openlayers.js, framer-motion.js, lit-html.js, petite-vue.js, prettier.js)
+in one bug. Fix: `block_stmt^.(^BlockStatement)`.
+Guard: `tests/fixtures/regression/010_arrow_block_body.js`.
+
+### O-1 · Directive Prologue emit (`"use strict"` in body + directives)
+`src/main.odin`. Previously the ExpressionStatement wrapping the directive
+appeared only in `program.directives`, not `program.body`. ESTree spec
+requires both.
+Guard: `tests/fixtures/regression/007_use_strict_directive.js`.
+
+### O-2 · `export * from` trailing-semicolon consumption
+`src/parser.odin`. Previously left a spurious EmptyStatement in body.
+Guard: `tests/fixtures/regression/008_export_all.js`.
+
+### O-3 · Pattern emit completeness (RestElement / AssignmentPattern / MemberExpression / ObjectPattern rest)
+`src/main.odin`. `print_pattern_ast` only handled 3 of 6 Pattern variants;
+the rest fell through to `null` and ArrayPattern.elements wrapped every
+element in `{…}` unconditionally, producing invalid JSON `{null}` on
+`[a, ...rest]`. ObjectPattern rest was wrapped in `Property` instead of
+emitted directly.
+Guard: `tests/fixtures/regression/009_destructure_patterns.js`.
+
+### R-1 · Raw-transfer cooked-string encoding
+`src/raw_transfer.odin` + `tests/verify_raw*.js`. `rewrite_string` wrote
+every string as a source-relative offset, even for Bug-E-cooked strings
+that live in the arena. Fix: `STRING_ARENA_FLAG = 0x8000_0000` high-bit
+discriminates source vs arena origin; readers updated.
+Guard: `task test:estree` on jquery.js (51,406 fields), react-dom.dev.js
+(104,989 fields) all zero mismatches.
+
+### R-2 · `Super` emitted as `[UNIMPLEMENTED]`
+`src/main.odin`. ESTree spec is a leaf `{"type": "Super"}`. Fix: explicit case.
+Guard: blanket no-`UNIMPLEMENTED` / no-`Unknown` assertion in every
+`verify_regression.js` run (covers `super(...)` / `super.x`).
+
+## Regression Test Discipline
+
+Every bug above is guarded by:
+
+1. **Fixture** under `tests/fixtures/regression/` that reproduces the bug
+   on reverted code. Committed.
+2. **Expected JSON** under `tests/expected/regression/` (bit-exact
+   comparison via `run_tests.sh`). Committed.
+3. **Structural check** in `tests/verify_regression.js` — path-based
+   assertions (e.g. `ForStatement.init.type == VariableDeclaration`,
+   `ArrowFunctionExpression.body.body.length > 0`). Stricter than flat
+   type-count because bugs often preserve the node name while dispatching
+   through the wrong variant.
+4. **Blanket invariant**: no node in the emitted JSON may carry
+   `[UNIMPLEMENTED]: true` or `"type": "Unknown"`. Either is a sign that a
+   switch/case fell through a default arm — silent ESTree drift of the
+   exact kind this session arc eliminated.
+5. **Each check validated by revert**: reverting the specific fix in
+   isolation causes exactly the corresponding check to fail. Proof the
+   check guards the fix and not something tangential.
+
+Runner: `task test:regression` (`node tests/verify_regression.js`).
 
 ## Known Issues
 
 | Issue | Severity | Where | Workaround |
 |---|---|---|---|
-| **12 real-world files SIGSEGV during JSON emit** (see list below) | **High** | `./bin/kessel parse <file>` for tone.js, mathjax.js, marked.js, chartjs.js, quill.js, embla.js, mapbox.js, openlayers.js, framer-motion.js, lit-html.js, petite-vue.js, prettier.js | **New crashes surfaced by P1.** These files have some AST pattern that wasn't previously reached because ClassBody emit was stubbed. lldb traces show `get_statement_type_name + 88` crashing on a union with a corrupt tag — a Bug-H-class transmute somewhere I did not locate. 4 such sites were fixed this session; at least one more remains. **P2 in §What To Work On Next.** |
-| **28 real-world files fail to parse** (true parse errors, not crashes) | Medium | `task test:real` | Pre-existing. Net change: +1 (terser.js newly surfaced because `test:real` used to silently mask crashes; not a real regression). |
-| **`execSync` SIGSEGV on some real files** | Medium | Node-spawned `kessel raw <file>` | Documented in previous handoff; unchanged this session. Overlaps with the 12 new crashes. |
-| **`verify_raw_deep.js` walker is shallow** | Low | `tests/verify_raw_deep.js` | Enhancement blocked on ClassBody emit (now done). Walker can now be deepened. |
-| **Templates don't cook escapes** | Low | `src/lexer.odin` — `lex_template` | Same bug class as Bug E. |
-| **`new_node(p, Identifier)` + field copy pattern is verbose** | Cosmetic | `parser.odin` | No correctness issue. |
-
-### 12 new SIGSEGV files (high priority)
-
-```
-bench/real_world/batch2/tone.js
-bench/real_world/batch2/mathjax.js
-bench/real_world/batch2/marked.js
-bench/real_world/batch2/chartjs.js
-bench/real_world/batch2/quill.js
-bench/real_world/batch3/embla.js
-bench/real_world/batch3/mapbox.js
-bench/real_world/batch3/openlayers.js
-bench/real_world/batch3/framer-motion.js
-bench/real_world/batch4/lit-html.js
-bench/real_world/batch4/petite-vue.js
-bench/real_world/prettier.js
-```
-
-All SIGSEGV in `get_statement_type_name + 88` during emit of a nested
-`^Statement` that points at memory whose union tag is out of range. Bisection
-within tone.js is unreliable (the crashing region depends on the exact
-prefix boundary because the parser recovers differently at each cut). A
-proper lldb + symbol-level debug session is needed. **Investigate
-`grep -n 'transmute\|(\^Statement)\|(\^Declaration)\|(\^Expression)' src/parser.odin src/main.odin` as a starting point**; every remaining cast of
-that form is suspect.
-
-### 28 real-world parse-error files
-
-Output of `task test:real 2>&1 | grep "errors$"`:
-
-```
-vue.global.js                  22 errors
-batch2/swagger-ui.js           53 errors
-batch2/monaco.js                7 errors
-batch2/alpine.js                6 errors
-batch2/fullcalendar.js          1 error
-batch2/pixi.js                  3 errors
-batch2/reveal.js                2 errors
-batch2/terser.js                3 errors
-batch2/yup.js                   1 error
-batch2/zod.js                   2 errors
-batch3/ckeditor.js              5 errors
-batch3/effector.js              8 errors
-batch3/popmotion.js             8 errors
-batch3/stimulus.js              2 errors
-batch3/tinymce.js              73 errors
-batch3/tom-select.js            6 errors
-batch4/ajv-formats.js           2 errors
-batch4/chalk.js                 1 error
-batch4/delay.js                 1 error
-batch4/esbuild-wasm.js          1 error
-batch4/ini.js                   2 errors
-batch4/lru-cache.js             2 errors
-batch4/minisearch.js            1 error
-batch4/nanoid.js                1 error
-batch4/plyr.js                  6 errors
-batch4/wrap-ansi.js             1 error
-batch4/wretch.js                2 errors
-```
-
-`task test:real` now honestly reports all failures. The previous Taskfile
-ran `grep 'Parse errors:' | awk` which silently treated missing output (due
-to SIGSEGV) as 0 errors. Fixed in this session.
-
-## Bugs Fixed This Session
-
-Six classes of bug with named regression fixtures.
-
-### I-1 · `parse_static_block` transmute(^BlockStatement)
-
-**Where**: `src/parser.odin:~1830`.
-**Symptom**: Static block bodies emitted as `[]` regardless of content.
-**Root cause**: `transmute(^BlockStatement)block_stmt` reinterpreted the
-`^Statement` union header as a BlockStatement struct, zeroing the `body` field.
-**Fix**: extract via type assertion `block_stmt^.(^BlockStatement)`.
-**Regression fixture**: `tests/fixtures/regression/001_static_block_body.js`.
-
-### I-2 · `parse_for` for-in/of `left_decl` transmute
-
-**Where**: `src/parser.odin:~950`.
-**Symptom**: Would corrupt the for-in/of left declaration pointer; combined
-with I-3 below, surfaced as SIGSEGV inside class methods containing
-`for (let k in/of obj)`.
-**Root cause**: `transmute(^VariableDeclaration)decl_stmt` on a `^Statement`
-union — reading the union header as a VariableDeclaration struct.
-**Fix**: type assertion `decl_stmt^.(^VariableDeclaration)`.
-**Regression fixture**: `tests/fixtures/regression/003_class_for_in_of.js`.
-
-### I-3 · ForStatement / ForIn / ForOf `(^Statement)(decl)` cast in emit
-
-**Where**: `src/main.odin:~1509` (ForStatement), `~1780` (ForIn), `~1808` (ForOf).
-**Symptom**: **The tone.js family of SIGSEGVs** — deep inside class method
-bodies with `for (let i = 0; ...)` loops.
-**Root cause**: `(^Statement)(decl)` cast a `^VariableDeclaration` to
-`^Statement` at the pointer level. The VariableDeclaration struct's bytes
-were then dispatched via the Statement union tag — garbage dispatch.
-**Fix**: extracted `print_variable_declaration_body` and emit the
-VariableDeclaration inline, skipping the fake-Statement indirection.
-**Regression fixture**: `tests/fixtures/regression/002_class_for_statement.js`.
-
-### I-4 · ExportNamedDeclaration / ExportDefaultDeclaration cross-union cast
-
-**Where**: `src/parser.odin:~2486` (parse) + `src/main.odin:~1649`, `~1702` (emit).
-**Symptom**: Exported declarations emitted as `{"type": "Unknown"}`;
-crashed when the Declaration in scope happened to dispatch to an invalid
-Statement variant.
-**Root cause**: `(^Declaration)(decl)` where `decl` is `^Statement`, and the
-inverse `(^Statement)(decl)` where `decl` is `^Declaration`. The two unions
-have different tag ordinals (7 Declaration variants, 25 Statement variants),
-so the same pointer value decoded to different variants between the two
-types.
-**Fix** (parser): allocate a fresh `^Declaration` and assign the inner
-variant so Odin computes the correct tag.
-**Fix** (emit): `print_declaration_ast` type-switches on the Declaration
-union, rebuilds a `Statement` on the stack via assignment (which produces
-the correct Statement tag for the variant), and dispatches through
-`print_statement_ast`.
-**Regression fixture**: `tests/fixtures/regression/004_export_declarations.js`.
-
-### I-5 · ClassBody JSON emit stub
-
-**Where**: `src/main.odin:~1358` (ClassDeclaration), `~2459` (ClassExpression).
-**Symptom**: All methods, fields, getters, setters, constructors, and static
-blocks invisible to the JSON emitter; `"body": []` regardless of content.
-**Fix**: `print_class_body_inline` + `print_class_element_fields` emit full
-ESTree (`MethodDefinition` / `PropertyDefinition` / `StaticBlock`). Matches
-OXC byte-for-byte on class element structure.
-**Regression fixture**: `tests/fixtures/regression/005_class_body_full_emit.js`.
-
-### I-6 · `direct_buf` fixed 20× source overflow
-
-**Where**: `src/main.odin:62`.
-**Symptom**: Bounds-check failure / SIGSEGV during JSON emission for
-class-heavy files once the ClassBody stub was replaced with full emit.
-**Root cause**: `direct_buf` was sized once at `len(source) * 20` bytes.
-Pretty-mode expansion for full class bodies exceeds 20× source on some files.
-**Fix**: `direct_reserve` grows the buffer by doubling before every
-direct-mode write. Worker path also updated to free the current
-(possibly-grown) buffer rather than the initial allocation.
-**Regression fixture**: `tests/fixtures/regression/006_direct_buf_grow.js`.
-
-## Regression Test Discipline
-
-Every bug fixed this session is guarded by:
-
-1. **Fixture** under `tests/fixtures/regression/` that triggers the bug
-   before the fix. Checked into git.
-2. **Expected JSON** under `tests/expected/regression/` (bit-exact output
-   comparison via `run_tests.sh`). Checked into git.
-3. **Structural check** in `tests/verify_regression.js` that compares the
-   fixture's JSON against OXC along specific paths (e.g.
-   `ForStatement.init.type == VariableDeclaration`). Strictly stronger
-   than a flat type-count because bugs often preserve the type NAME while
-   dispatching through the wrong node.
-
-New runner: `task test:regression`. Wire it into CI alongside `task test:unit`.
-
-Each regression check has been **validated by revert**: reverting the
-specific fix in isolation causes the corresponding check to fail. Proof
-that the checks actually guard the fix and not something tangential.
+| **34 real-world files fail to parse** | Medium | `task test:real` | Genuine parse errors, pre-existing. 6 of the originally-listed 12 SIGSEGV files actually have parse-error content too (tone.js: 20 errors, framer-motion.js: 10, mapbox.js: 5, chartjs.js: 2, quill.js: 1, petite-vue.js: 1) — previously masked by the emit-time crashes. |
+| **Lone-surrogate escape handling (2 strings on handsontable.js)** | Low | `src/lexer.odin` `append_utf8` + `src/main.odin` `out_string` | `\uDEAD` decodes to a 3-byte WTF-8 sequence which JSON.parse normalises to U+FFFD. ESTree spec keeps lone surrogates as valid codepoints; OXC round-trips them via `\uXXXX` escapes in JSON output. Fix: detect WTF-8 surrogate triples (`0xED 0xA0-0xBF 0x80-0xBF`) in `out_string` and emit as `\uXXXX`. Tracked as **P3** below. |
+| **`execSync` SIGSEGV on some real files** | Medium | Node-spawned `kessel raw <file>` | Pre-existing; separate from the emit-time crashes fixed this session arc. Likely `os.flush` race on detached pipes. |
+| **Templates don't cook escapes** | Low | `src/lexer.odin` — `lex_template` | Bug E class in template path. |
 
 ## What To Work On Next
 
-Priority order, concrete tasks.
+### P1 · Lone-surrogate round-trip · low · quick · no deps
 
-### P1 · Fix the 12 new SIGSEGVs · **high** · no deps
+2 strings on `handsontable.js` (`\uDEAD`, `\uDF06\uD834`) — the last remaining
+string-escape mismatch vs OXC. Detect WTF-8 surrogate triples in
+`out_string` / `out_string_inner` at emission time and escape as
+`\uXXXX`. Add a regression fixture with lone surrogates; verify.
+`node tests/verify_string_escapes.js bench/real_world/batch2/handsontable.js`
+to confirm `mismatches=0` when done.
 
-Most likely another Bug-H-class pointer cast that's only reached via deep
-class method content. Start by greppng for remaining suspicious casts:
+### P2 · Template-literal escape cooking · medium
 
-```
-grep -rn 'transmute\|(\^Statement)(\|(\^Declaration)(\|(\^Expression)(' src/parser.odin src/main.odin
-```
+Bug E class, but in `lex_template` / `lex_template_resume`. Same arena
+cooking strategy; publish via `last_lit_*`. Fixture under
+`tests/fixtures/edge/template_escapes.js`; cross-verify vs OXC.
 
-Every hit is a candidate. Attach lldb to the crashing process on tone.js —
-the `get_statement_type_name + 88` crash reliably reproduces, and the stack
-always walks back through `print_class_body_inline`. Add a structural
-regression check to `tests/verify_regression.js` per fix, validated by
-revert.
+### P3 · T4 — eliminate the rewrite pass · high · largest scope
 
-### P2 · `verify_raw_deep.js` full-tree walker · medium · unblocked by P1 completion
+The parser currently allocates native pointers, then `raw_transfer.odin`
+walks the tree converting to u32 offsets. Writing offsets directly from
+the parser skips a full AST walk per file. Requires a design pass.
 
-The walker was previously limited because there was nothing to walk on the
-JSON side of classes. Now that ClassBody emits fully, extend the walker to
-descend into MethodDefinition.value, PropertyDefinition.value,
-StaticBlock.body, and ArrowFunctionExpression.body (both Expression and
-BlockStatement variants).
+### P4 · Investigate 34 pre-existing parse failures · high · not a quick fix
 
-### P3 · Template-literal escape cooking · medium
-
-Same bug class as Bug E, but in the template path. Touches
-`src/lexer.odin` — `lex_template`, `lex_template_resume`.
-Add `tests/fixtures/edge/template_escapes.js`.
-
-### P4 · T4 — eliminate the rewrite pass · high · no deps · largest scope
-
-Parser allocates native pointers, then `raw_transfer.odin` rewrites them to
-u32 offsets. If the parser wrote offsets directly, we skip a full AST walk.
-Requires a design pass first.
-
-### P5 · Investigate 28 pre-existing parse failures · high · not a quick fix
-
-Previously P5 in the last handoff; still queued. `vue.global.js` +
-`batch3/tinymce.js` still account for ~90 of the total errors.
+`vue.global.js` + `batch3/tinymce.js` still account for ~95 of the total
+errors. Group failures by first-error pattern and decide per-file.
 
 ## Commands Reference
-
-All verified in this session.
 
 ```bash
 # Build
 task build                                    # release binary → bin/kessel
-task build:debug                              # with bounds checks + dSYM (symbols incomplete on macOS, but traps on OOB)
+task build:debug                              # debug with bounds checks
 
 # Test
-task test:unit                                # 93 fixtures, ~1s
-task test:regression                          # 6 structural regression checks vs OXC, ~2s
-task test:real                                # 467 real files, ~3-5min (40 failures: 28 parse errors + 12 SIGSEGVs)
-node tests/verify_raw.js <file>               # smoke raw-transfer binary
-node tests/verify_raw_deep.js <file>          # OXC-cross-ref (shallow walker)
-node tests/verify_string_escapes.js <file>    # OXC-cross-ref (string-escape deep walk)
+task test:unit                                # 97 fixtures, ~1s
+task test:regression                          # 10 structural vs OXC, ~2s
+task test:estree                              # 4 deep-walked files vs OXC, ~5s
+task test:real                                # 467 real files, ~3-5min (34 failures, 0 crashes)
+node tests/verify_string_escapes.js <file>    # OXC-paired escape verifier
 node tests/verify_regression.js               # standalone regression runner
 
 # Bench
@@ -356,33 +235,37 @@ task bench:quick                              # 10 files vs OXC, 30 iters, ~1min
 task bench                                    # all 467 files, ~5min
 
 # Run
-./bin/kessel parse <file>                     # pretty JSON AST + stats to stderr
-./bin/kessel parse <file> --compact           # single-line JSON (for verifiers)
-./bin/kessel parse <files...> --workers N     # multi-file parallel
+./bin/kessel parse <file>                     # pretty JSON + stats
+./bin/kessel parse <file> --compact           # single-line JSON
 ./bin/kessel raw <file> --out <path>          # zero-copy binary AST
-./bin/kessel microbench parse <file> --iterations N   # min/mean/p95 latency
+./bin/kessel microbench parse <file> --iterations N
 ```
 
-## Session log — what changed
+## Session Log
 
 | Area | Change |
 |---|---|
-| P1 feature | ClassBody JSON emit full (MethodDefinition / PropertyDefinition / StaticBlock). |
-| Bug fixes | 4 Bug-H-class transmute sites (I-1, I-2, I-3, I-4). |
-| Buffer growth | `direct_buf` grows on demand via `direct_reserve`; worker free-path fixed. |
-| Testing | `task test:regression` + 6 fixtures + 6 expected files + `verify_regression.js` (194 LOC). |
-| Taskfile | `test:real` now honestly reports crashes (previously masked by `${errs:-0}`). |
+| I-7 arrow-body transmute | 3 sites in `parse_arrow_function` / `parse_async_arrow_function` / `parse_async_arrow_with_parens` — all 12 SIGSEGV files resolved in one bug. Regression fixture `010_arrow_block_body.js` + path-specific check. |
+| I-5 ClassBody full emit | `print_class_body_inline` + `print_class_element_fields` + `print_class_element_static_block`. |
+| I-6 direct_buf growth | `direct_reserve` grows by doubling; worker free-path fixed. |
+| I-1..I-4 transmute clean-up | StaticBlock, for-in/of decl, For* emit casts, Export Declaration↔Statement cross-union fix. |
+| O-1..O-3 emit completeness | Directive Prologue in body + directives; `export * from;` semi consumption; full Pattern emit (RestElement / AssignmentPattern / MemberExpression-pattern / ObjectPattern rest). |
+| R-1 raw-transfer cooking | `STRING_ARENA_FLAG` high-bit discriminates source vs arena origin. |
+| R-2 `Super` leaf emit | Explicit case in `print_expression_ast`. |
+| Taskfile | `task test:real` honest crash reporting; new `task test:regression` and `task test:estree`. |
+| Regression suite | 10 committed fixtures + expected + verifier, each validated by revert. Blanket no-`UNIMPLEMENTED`/no-`Unknown` assertion. |
 
 ## What a fresh agent should do first
 
-1. `task build && task test:unit && task test:regression` → all three clean in <5 s.
+1. `task build && task test:unit && task test:regression && task test:estree` → all four clean in <10 s.
 2. Read `AGENTS.md` (TigerStyle) and this file in full.
-3. **Pick P1 (fix the 12 SIGSEGVs)** from §What To Work On Next. The stack
-   trace is reproducible, the bug class is known (Bug-H-style cross-union
-   cast), and every new fix MUST add a regression fixture validated by
-   revert. Do not commit a fix without a regression test.
-4. When completing any fix, update `tests/verify_regression.js` with a
-   path-based check that fails on the pre-fix code. Flat type-count checks
-   are insufficient — they gave false "OK" signals this session until
-   tightened to path-specific assertions.
-5. Never push forward past a failing `task test:unit` or `task test:regression`.
+3. Pick **P1** (lone-surrogate emit) — smallest remaining gap vs OXC. Add a
+   regression fixture with `['\uDEAD', 'x\uD834\uDF06y', ...]`, confirm it
+   fails pre-fix, fix, confirm `handsontable.js` reaches
+   `mismatches=0`.
+4. Do not commit a fix without a regression fixture validated by revert.
+   The discipline from this session arc is: every bug is guarded, every
+   guard is proven to fail on the reverted code, every commit sets that
+   state as the new baseline.
+5. Never push past a failing `task test:unit`, `task test:regression`, or
+   `task test:estree`.

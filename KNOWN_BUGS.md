@@ -59,7 +59,55 @@ on the exact prefix boundary). lldb attach is the way.
 
 ---
 
-## Fixed (session after f8ea96a)
+## Fixed (audit follow-up, after f8ea96a + earlier I-series)
+
+- **Raw-transfer cooked-string encoding**: `rewrite_string` wrote every string
+  as a source-relative offset, even for cooked strings (Bug E escape-decoded)
+  that live in the arena. The computed offset (arena_ptr - source_base) was
+  a huge u32 that JS readers silently clamped to empty. Symptom:
+  `verify_integration.js bench/real_world/jquery.js` → 38 empty-string
+  mismatches; `react-dom.dev.js` → 90. Fix: high-bit encoding
+  (`STRING_ARENA_FLAG = 0x8000_0000`) discriminates source vs arena origin;
+  thread-local region bounds set in `rewrite_ast_pointers` let
+  `rewrite_string` pick the right base. Readers (`verify_integration.js`,
+  `verify_raw.js`, `verify_raw_deep.js`) updated to mask the high bit and
+  read from the correct region. Verified: jquery.js, react-dom.dev.js,
+  preact.js, snabbdom.js all at zero mismatches vs OXC.
+  Guard: `task test:estree`.
+
+- **`Super` emitted as `[UNIMPLEMENTED]`**: ESTree spec is a leaf node
+  `{"type": "Super"}` with no other fields; Kessel fell through the
+  `print_expression_ast` default arm. Same class as the wider
+  UNIMPLEMENTED-drift problem; fixed by adding an explicit `case ^Super:`.
+  Guard: blanket no-Unknown/no-UNIMPLEMENTED assertion in every
+  `verify_regression.js` fixture run (includes class-extends fixtures that
+  exercise `super(...)` / `super.x`).
+
+- **`ArrayPattern` / `ObjectPattern` emit incomplete**: `print_pattern_ast`
+  only had cases for `^Identifier / ^ArrayPattern / ^ObjectPattern`. The
+  other three Pattern variants (`^RestElement`, `^AssignmentPattern`,
+  `^MemberExpression`) fell through to `null`. ArrayPattern.elements
+  wrapped every element in `{…}` unconditionally, producing invalid JSON
+  `{null}` on any `[..., ...rest]`. Additionally, ObjectPattern wrapped its
+  rest element in a `Property` instead of emitting it as a direct ESTree
+  sibling. Fixed: add emit cases for all three missing variants; detect
+  ObjectPattern rest at emit time and unwrap the Property container.
+  Guard: `tests/fixtures/regression/009_destructure_patterns.js` + its
+  `customCheck` in `verify_regression.js`.
+
+- **ESTree-drift gates not wired into Taskfile**: `task test` ran only
+  `test:unit` (script-level expected-file diff) and `test:real` (zero-crash
+  check) — none of the OXC-compared verifiers (`verify_regression.js`,
+  `verify_integration.js`, `verify_string_escapes.js`) were in the chain,
+  so an ESTree regression would ship green unless someone ran them by hand.
+  Fix: new `test:regression` and `test:estree` tasks, both invoked by
+  `task test`. `verify_regression.js` also extended with a blanket
+  assertion that no emitted node carries `type: "Unknown"` or
+  `[UNIMPLEMENTED]: true` — this single check catches any future switch
+  fallthrough without needing a dedicated fixture per variant. Plus three
+  new fixtures (007 use-strict prologue-in-body, 008 ExportAll semicolon,
+  009 destructure patterns) for the session commits that previously lacked
+  them.
 
 - **I-1: `parse_static_block` transmute(^BlockStatement)**. Static block
   bodies emitted as `[]` regardless of contents. Fix: extract via

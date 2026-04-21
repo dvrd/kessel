@@ -37,9 +37,23 @@ const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 function u32(off) { return view.getUint32(off, true); }
 function u8(off)  { return view.getUint8(off); }
 function f64(off) { return view.getFloat64(off, true); }
-// Strings are byte offsets into source. Use Buffer to handle multi-byte UTF-8.
+// Strings are byte offsets into source OR into the arena buffer. The high bit
+// (STRING_ARENA_FLAG = 0x8000_0000) discriminates:
+//   bit 31 = 0 → offset relative to source text
+//   bit 31 = 1 → offset relative to `buf` (arena, post-header) — cooked strings
+//                from Bug E / other arena-allocated places
+// See src/raw_transfer.odin for the encoding definition.
+const STRING_ARENA_FLAG = 0x80000000;
 const sourceBuf = Buffer.from(source, 'utf8');
-function str(off) { const o = u32(off), l = u32(off + 4); return (l > 0 && l < 1e6) ? sourceBuf.toString('utf8', o, o + l) : ''; }
+function str(off) {
+  const raw = u32(off), l = u32(off + 4);
+  if (l === 0 || l >= 1e6) return '';
+  if (raw & STRING_ARENA_FLAG) {
+    const arenaOff = raw & 0x7fffffff;
+    return buf.toString('utf8', arenaOff, arenaOff + l);
+  }
+  return sourceBuf.toString('utf8', raw, raw + l);
+}
 function dyn(off) { return { data: u32(off), len: u32(off + 4) }; }
 function union(off) { return { ptr: u32(off), tag: u8(off + 8) }; }
 

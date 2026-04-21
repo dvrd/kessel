@@ -1,0 +1,61 @@
+{
+  "type": "Script",
+  "body": [
+    {
+      "type": "ExportAllDeclaration",
+      "source": {
+        "type": "Literal",
+        "value": "./a",
+        "raw": "\"./a\""
+      }    },
+    {
+      "type": "ExportAllDeclaration",
+      "source": {
+        "type": "Literal",
+        "value": "./b",
+        "raw": "\"./b\""
+      }    },
+    {
+      "type": "ExportAllDeclaration",
+      "source": {
+        "type": "Literal",
+        "value": "./c",
+        "raw": "\"./c\""
+      }    },
+    {
+      "type": "VariableDeclaration",
+      "kind": "const",
+      "declarations": [
+        {
+          "id": {
+            "type": "Identifier",
+            "name": "sentinel"          },
+          "init": {
+            "type": "Literal",
+            "value": 42,
+            "raw": "42"          }        }
+      ]    },
+    {
+      "type": "FunctionDeclaration",
+      "id": {
+        "name": "f"
+      },
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "Identifier",
+              "name": "sentinel"            }          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=12904B reserved=16777216B ratio=0%
+Parse errors: 0

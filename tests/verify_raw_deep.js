@@ -46,10 +46,20 @@ const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 function u32(off) { return view.getUint32(off, true); }
 function u8(off) { return view.getUint8(off); }
 function f64(off) { return view.getFloat64(off, true); }
+// STRING_ARENA_FLAG encoding — see src/raw_transfer.odin. High bit set → the
+// string's bytes live in the buffer (arena), not in source; used for cooked
+// strings from Bug E escape decoding.
+const STRING_ARENA_FLAG = 0x80000000;
+const sourceBuf = Buffer.from(source, 'utf8');
 function str(off) {
-  const o = u32(off), l = u32(off + 4);
-  if (l === 0 || l > source.length) return '';
-  return source.substring(o, o + l);
+  const raw = u32(off), l = u32(off + 4);
+  if (l === 0) return '';
+  if (raw & STRING_ARENA_FLAG) {
+    const arenaOff = raw & 0x7fffffff;
+    return buf.toString('utf8', arenaOff, arenaOff + l);
+  }
+  if (l > sourceBuf.length) return '';
+  return sourceBuf.toString('utf8', raw, raw + l);
 }
 function dynHeader(off) { return { data: u32(off), len: u32(off + 4) }; }
 function readUnion(off) { return { ptr: u32(off), tag: u8(off + 8) }; }

@@ -35,12 +35,14 @@ tasks:
   # ============================================================
 
   test:
-    desc: Run all tests (unit + real-world)
+    desc: Run all tests (unit + real-world + estree drift)
     deps: [build]
     silent: true
     cmds:
       - task: test:unit
+      - task: test:regression
       - task: test:real
+      - task: test:estree
 
   test:unit:
     desc: Run 86 unit tests
@@ -51,10 +53,32 @@ tasks:
 
   test:regression:
     desc: Structural regression checks for session-fixed bugs vs OXC
-    deps: [build]
+    deps: [build, bench:oxc:build]
     silent: true
     cmds:
       - node tests/verify_regression.js
+
+  test:estree:
+    desc: ESTree-drift gates — string escape decoding + deep integration walk vs OXC
+    deps: [build, bench:oxc:build]
+    silent: true
+    cmds:
+      # String-escape decoding (Bug E): compares every kessel-emitted
+      # `StringLiteral.value` to OXC's across a representative set of real
+      # files covering single-char escapes, \xHH, \uHHHH, \u{H...H},
+      # line continuations, and identity fallback.
+      - node tests/verify_string_escapes.js bench/real_world/jquery.js
+      - node tests/verify_string_escapes.js bench/real_world/react.dev.js
+      - node tests/verify_string_escapes.js bench/real_world/lodash.js
+      - node tests/verify_string_escapes.js bench/real_world/babel.js
+      # Deep integration walk over the raw binary buffer vs OXC's parseSync.
+      # Covers: arrow block bodies, function bodies inside IIFEs, for-loop
+      # init/left slots, try/catch blocks, template literals, destructuring,
+      # and — post-fix — cooked escape strings encoded via STRING_ARENA_FLAG.
+      - node tests/verify_integration.js bench/real_world/jquery.js
+      - node tests/verify_integration.js bench/real_world/react-dom.dev.js
+      - node tests/verify_integration.js bench/real_world/batch2/preact.js
+      - node tests/verify_integration.js bench/real_world/batch3/snabbdom.js
 
   test:real:
     desc: Parse all 467 real-world JS files, fail on any error

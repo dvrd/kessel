@@ -43,12 +43,22 @@ function readU32(offset) { return view.getUint32(offset, true); }
 function readU8(offset) { return view.getUint8(offset); }
 function readF64(offset) { return view.getFloat64(offset, true); }
 
-// Read rewritten string: {u32 source_offset, u32 len} at struct offset
+// Read rewritten string: {u32 offset, u32 len} at struct offset.
+// High bit of offset (STRING_ARENA_FLAG) discriminates source vs arena origin
+// — cooked strings (Bug E escape-decoded, etc.) live in the buffer, not source.
+const STRING_ARENA_FLAG = 0x80000000;
+const sourceBuf = Buffer.from(source, 'utf8');
 function readString(offset) {
-  const srcOff = readU32(offset);
+  const raw = readU32(offset);
   const len = readU32(offset + 4);
   if (len === 0) return '';
-  return source.substring(srcOff, srcOff + len);
+  if (raw & STRING_ARENA_FLAG) {
+    const arenaOff = raw & 0x7fffffff;
+    return buf.toString('utf8', arenaOff, arenaOff + len);
+  }
+  // source.substring uses character offsets, not byte offsets — for multi-byte
+  // UTF-8 files (e.g. lodash.js with `é`, `à`) we'd misread. Use the Buffer view.
+  return sourceBuf.toString('utf8', raw, raw + len);
 }
 
 // Read rewritten dynamic array header: {u32 data_offset, u32 len}

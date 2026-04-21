@@ -2018,6 +2018,44 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		print_indent(indent)
 		out_s("\"name\": ")
 		out_string(p.name)
+	case ^RestElement:
+		// ESTree `RestElement { argument: Pattern }` — the `...x` inside
+		// `[a, ...x]` or `{ a, ...x }`. Prior to this case the fallthrough
+		// `case:` produced bare `null`, which the ArrayPattern.elements loop
+		// wrapped in `{…}` — emitting invalid `{null}` JSON.
+		print_indent(indent)
+		out_s("\"type\": \"RestElement\",\n")
+		print_indent(indent)
+		out_s("\"argument\": {\n")
+		print_pattern_ast(p.argument, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	case ^AssignmentPattern:
+		// ESTree `AssignmentPattern { left: Pattern, right: Expression }` —
+		// the `x = 1` inside `{ x = 1 }` or `[x = 1]`. Same JSON-validity
+		// rationale as RestElement above.
+		print_indent(indent)
+		out_s("\"type\": \"AssignmentPattern\",\n")
+		print_indent(indent)
+		out_s("\"left\": {\n")
+		print_pattern_ast(p.left, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"right\": {\n")
+		print_expression_ast(p.right, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	case ^MemberExpression:
+		// Destructuring target like `({a} = obj, foo.bar = 1)`. ESTree emits
+		// the MemberExpression inline in the pattern position. Rebuild a local
+		// Expression union — we can't take `&pattern` (procedure parameter), so
+		// allocate on the stack.
+		expr: Expression = p
+		print_expression_ast(&expr, indent)
 	case ^ArrayPattern:
 		print_indent(indent)
 		out_s("\"type\": \"ArrayPattern\",\n")
@@ -2054,6 +2092,21 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		} else {
 			out_s("\n")
 			for prop, i in p.properties {
+				// ESTree: `ObjectPattern.properties` is a heterogeneous list of
+				// `Property` OR `RestElement`. Our parser stashes the rest element
+				// as an `ObjectPatternProperty { key: nil, value: ^RestElement }`
+				// because it reuses the same struct — but the emit must unwrap
+				// it: emit a bare `RestElement`, NOT a `Property` wrapper with a
+				// `RestElement` value. Detected by the prop.key being nil.
+				if _, is_rest := prop.value.(^RestElement); is_rest {
+					print_indent(indent + 1)
+					out_s("{\n")
+					print_pattern_ast(prop.value, indent + 2)
+					out_s("\n")
+					print_indent(indent + 1)
+					if i < len(p.properties) - 1 { out_s("},\n") } else { out_s("}\n") }
+					continue
+				}
 				print_indent(indent + 1)
 				out_s("{\n")
 				print_indent(indent + 2)
@@ -2067,23 +2120,15 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				out_bool(prop.computed)
 				out_s(",\n")
 				print_indent(indent + 2)
-				// `prop.value` is a Pattern union. print_pattern_ast only has
-				// emit cases for ^Identifier / ^ArrayPattern / ^ObjectPattern;
-				// for the other variants it falls through to a bare `null`.
-				// Wrap the value in `{…}` only when the inner emit will
-				// actually produce JSON fields, otherwise emit unwrapped `null`
-				// so we don't end up with invalid `{null}`.
-				#partial switch pv in prop.value {
-				case ^Identifier, ^ArrayPattern, ^ObjectPattern:
-					out_s("\"value\": {\n")
-					print_pattern_ast(prop.value, indent + 3)
-					out_s("\n")
-					print_indent(indent + 2)
-					out_s("}\n")
-					_ = pv
-				case:
-					out_s("\"value\": null\n")
-				}
+				// Every remaining Pattern variant has a real emit case in
+				// print_pattern_ast now (Identifier / ArrayPattern / ObjectPattern
+				// / AssignmentPattern / MemberExpression), so wrapping in `{…}`
+				// is always safe.
+				out_s("\"value\": {\n")
+				print_pattern_ast(prop.value, indent + 3)
+				out_s("\n")
+				print_indent(indent + 2)
+				out_s("}\n")
 				print_indent(indent + 1)
 				if i < len(p.properties) - 1 { out_s("},\n") } else { out_s("}\n") }
 			}
@@ -2213,6 +2258,12 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 
 	case ^ThisExpression:
 		// No additional fields
+
+	case ^Super:
+		// No additional fields — ESTree Super is a leaf node with only `type`.
+		// Previously fell through to the `case:` UNIMPLEMENTED arm, producing
+		// `{"type":"Super","[UNIMPLEMENTED]":true}` — invalid JSON-drift against
+		// OXC, which emits plain `{"type":"Super"}`.
 
 	case ^ArrayExpression:
 		out_s(",\n")
