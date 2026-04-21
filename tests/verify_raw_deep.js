@@ -15,18 +15,12 @@ if (!file) {
 const kesselBin = path.resolve(__dirname, '../bin/kessel');
 const source = fs.readFileSync(file, 'utf8');
 
-// Get JSON AST.
-// The JSON emitter uses literal `[ ... ]` and `{ ... }` placeholders in deep
-// positions (e.g. FunctionDeclaration.body, TryStatement.block) to cap output
-// size. Those are not valid JSON; collapse them to `[]` / `{}` before parsing
-// so the reachable top-level tree still parses. The verifier only descends
-// into fields it knows about, so the truncated subtrees produce no false
-// positives — they just contribute fewer checked fields.
+// Get JSON AST. `--compact` output: JSON on line 1, then any number of
+// diagnostic/stat lines. Take line 1 exactly — anything after it is not
+// part of the JSON. (The legacy `{ ... }` / `[ ... ]` placeholders were
+// removed when the JSON emitter became fully recursive.)
 const jsonOut = execSync(`${kesselBin} parse "${file}" --compact`, { encoding: 'utf8', maxBuffer: 500 * 1024 * 1024 });
-const jsonBody = jsonOut.split('\n--- Statistics ---')[0]
-  .replace(/\{ \.\.\. \}/g, '{}')
-  .replace(/\[ \.\.\. \]/g, '[]');
-const jsonAst = JSON.parse(jsonBody);
+const jsonAst = JSON.parse(jsonOut.split('\n')[0]);
 
 // OXC-style ESTree collapses NullLiteral/BooleanLiteral/NumericLiteral/
 // StringLiteral/BigIntLiteral/RegExpLiteral into `type: "Literal"`, and

@@ -87,6 +87,60 @@ out_s :: #force_inline proc(s: string) {
 	bufio.writer_write_string(&stdout_writer, s)
 }
 
+// Escape a string for JSON without the surrounding quotes. Used when we
+// need to splice escaped content inside a larger quoted string (e.g. the
+// regex `raw` field `"/<pattern>/<flags>"`), so we can emit the opening
+// quote, multiple escaped chunks, and the closing quote around them all.
+out_string_inner :: proc(s: string) {
+	if use_direct_buf {
+		for i in 0..<len(s) {
+			c := s[i]
+			switch c {
+			case '"':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = '"'; direct_pos += 2
+			case '\\':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = '\\'; direct_pos += 2
+			case '\n':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 'n'; direct_pos += 2
+			case '\r':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 'r'; direct_pos += 2
+			case '\t':
+				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 't'; direct_pos += 2
+			case:
+				if c < 0x20 {
+					tmp: [8]byte
+					esc := fmt.bprintf(tmp[:], "\\u%04x", c)
+					mem.copy(&direct_buf[direct_pos], raw_data(esc), len(esc))
+					direct_pos += len(esc)
+				} else {
+					direct_buf[direct_pos] = c
+					direct_pos += 1
+				}
+			}
+		}
+		return
+	}
+	init_stdout_writer()
+	for i := 0; i < len(s); i += 1 {
+		c := s[i]
+		switch c {
+		case '"':  bufio.writer_write_string(&stdout_writer, "\\\"")
+		case '\\': bufio.writer_write_string(&stdout_writer, "\\\\")
+		case '\n': bufio.writer_write_string(&stdout_writer, "\\n")
+		case '\r': bufio.writer_write_string(&stdout_writer, "\\r")
+		case '\t': bufio.writer_write_string(&stdout_writer, "\\t")
+		case:
+			if c < 0x20 {
+				tmp: [8]byte
+				sx := fmt.bprintf(tmp[:], "\\u%04x", c)
+				bufio.writer_write_string(&stdout_writer, sx)
+			} else {
+				bufio.writer_write_byte(&stdout_writer, c)
+			}
+		}
+	}
+}
+
 // Escape a string for JSON: quotes, backslashes, control chars
 out_string :: proc(s: string) {
 	if use_direct_buf {
@@ -439,14 +493,6 @@ parse_file :: proc(file_path: string) {
 	// Parse program
 	program := parse_program(&p, .Script)
 	
-	// Check for errors
-	if len(p.errors) > 0 {
-		out_printf("Parse errors (%d):\n", len(p.errors))
-		for err in p.errors {
-			out_printf("  Line %d, Column %d: %s\n", err.loc.line, err.loc.column, err.message)
-		}
-	}
-	
 	// Output AST as JSON via direct buffer (zero bufio overhead)
 	// Pre-allocate ~12× source size for JSON output (compact ≈ 9×, pretty ≈ 20×)
 	est_size := max(len(source) * 20, 4096)  // generous: 20× source, min 4KB
@@ -458,8 +504,27 @@ parse_file :: proc(file_path: string) {
 	print_program_ast(program, 1)
 	out_s("}\n")
 
-	// Single write to stdout
+	// Single write to stdout for the JSON body first. Diagnostic lines
+	// (parse errors, stats) must follow the JSON on separate lines so
+	// downstream consumers can split on the first newline and JSON.parse
+	// the line without stripping error preambles. Previously errors were
+	// emitted through the bufio writer BEFORE this direct write; the
+	// bufio writer only flushed at process exit, so its bytes actually
+	// appeared on stdout AFTER the JSON bytes — and without the
+	// intervening newline the JSON and the error header ran together
+	// (…]}}}Parse errors (6):…), breaking every downstream JSON.parse.
 	os.write(os.stdout, direct_buf[:direct_pos])
+
+	// Now emit parse-error diagnostics through the bufio writer. They
+	// will appear on subsequent lines of stdout; Statistics below go to
+	// stderr as before.
+	if len(p.errors) > 0 {
+		out_printf("Parse errors (%d):\n", len(p.errors))
+		for err in p.errors {
+			out_printf("  Line %d, Column %d: %s\n", err.loc.line, err.loc.column, err.message)
+		}
+		flush_stdout_writer()
+	}
 	delete(direct_buf, context.allocator)
 	direct_buf = nil
 	use_direct_buf = false
@@ -971,6 +1036,85 @@ print_program_ast :: proc(program: ^Program, indent: int) {
 	out_s("]\n")
 }
 
+// Emit a BlockStatement body as inline JSON fields ("type" + "body" array).
+// Walks `block.body` via print_statement_ast on each inner statement, producing
+// a valid ESTree BlockStatement shape. Used wherever the AST holds a
+// BlockStatement by value (TryStatement.block, TryStatement.finalizer,
+// CatchClause.body) rather than through a ^Statement union — casting to
+// ^Statement would re-interpret the BlockStatement bytes as a union header
+// and corrupt output (same UB class as Bug H).
+print_block_statement_inline :: proc(block: ^BlockStatement, indent: int) {
+	print_indent(indent)
+	out_s("\"type\": \"BlockStatement\",\n")
+	print_indent(indent)
+	out_s("\"body\": [\n")
+	for inner_stmt, i in block.body {
+		print_indent(indent + 1)
+		out_s("{\n")
+		print_statement_ast(inner_stmt, indent + 2)
+		print_indent(indent + 1)
+		if i < len(block.body) - 1 {
+			out_s("},\n")
+		} else {
+			out_s("}\n")
+		}
+	}
+	print_indent(indent)
+	out_s("]")
+}
+
+// Emit a FunctionBody as inline BlockStatement. FunctionBody differs from
+// BlockStatement by carrying directives; we flatten the directives into the
+// body array as expression statements the same way OXC does, which keeps
+// the ESTree shape uniform for consumers.
+print_function_body_inline :: proc(body: ^FunctionBody, indent: int) {
+	print_indent(indent)
+	out_s("\"type\": \"BlockStatement\",\n")
+	print_indent(indent)
+	out_s("\"body\": [\n")
+	total := len(body.directives) + len(body.body)
+	emitted := 0
+	for dir, i in body.directives {
+		print_indent(indent + 1)
+		out_s("{\n")
+		print_indent(indent + 2)
+		out_s("\"type\": \"ExpressionStatement\",\n")
+		print_indent(indent + 2)
+		out_s("\"expression\": {\n")
+		print_indent(indent + 3)
+		out_s("\"type\": \"Literal\",\n")
+		print_indent(indent + 3)
+		out_s("\"value\": ")
+		out_string(dir.value.value)
+		out_s(",\n")
+		print_indent(indent + 3)
+		out_s("\"raw\": ")
+		out_string(dir.value.raw)
+		out_s("\n")
+		print_indent(indent + 2)
+		out_s("},\n")
+		print_indent(indent + 2)
+		out_s("\"directive\": ")
+		out_string(dir.raw)
+		out_s("\n")
+		print_indent(indent + 1)
+		emitted += 1
+		if emitted < total { out_s("},\n") } else { out_s("}\n") }
+		_ = i
+	}
+	for inner_stmt, i in body.body {
+		print_indent(indent + 1)
+		out_s("{\n")
+		print_statement_ast(inner_stmt, indent + 2)
+		print_indent(indent + 1)
+		emitted += 1
+		if emitted < total { out_s("},\n") } else { out_s("}\n") }
+		_ = i
+	}
+	print_indent(indent)
+	out_s("]")
+}
+
 print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	print_indent(indent)
 	out_s("\"type\": \"")
@@ -1046,6 +1190,32 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("\"async\": ")
 		out_bool(s.expr.async)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"params\": [")
+		if len(s.expr.params) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for param, i in s.expr.params {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_pattern_ast(param.pattern, indent + 2)
+				out_s("\n")
+				print_indent(indent + 1)
+				if i < len(s.expr.params) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
+		out_s(",\n")
+		print_indent(indent)
+		out_println("\"body\": {")
+		fn_body := &s.expr.body
+		print_function_body_inline(fn_body, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_print("}")
 
 	case ^BlockStatement:
 		out_s(",\n")
@@ -1185,12 +1355,25 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_println("null,")
 		}
 		print_indent(indent)
-		out_print("\"body\": { ... }")
+		out_println("\"body\": {")
+		print_indent(indent + 1)
+		out_s("\"type\": \"ClassBody\",\n")
+		print_indent(indent + 1)
+		// Same follow-up note as ClassExpression above — class element emit is
+		// a separate change. Emit a valid empty body for now.
+		out_s("\"body\": []\n")
+		print_indent(indent)
+		out_print("}")
 
 	case ^TryStatement:
 		out_println(",")
 		print_indent(indent)
-		out_println("\"block\": { ... },")
+		out_println("\"block\": {")
+		block := &s.block
+		print_block_statement_inline(block, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_println("},")
 		print_indent(indent)
 		out_print("\"handler\": ")
 		if handler, ok := s.handler.(CatchClause); ok {
@@ -1208,7 +1391,12 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 				out_println("null,")
 			}
 			print_indent(indent + 1)
-			out_println("\"body\": { ... }")
+			out_println("\"body\": {")
+			body := handler.body
+			print_block_statement_inline(&body, indent + 2)
+			out_s("\n")
+			print_indent(indent + 1)
+			out_println("}")
 			print_indent(indent)
 			out_println("},")
 		} else {
@@ -1218,7 +1406,8 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_print("\"finalizer\": ")
 		if fin, ok := s.finalizer.(BlockStatement); ok {
 			out_println("{")
-			print_statement_ast((^Statement)(&fin), indent + 1)
+			print_block_statement_inline(&fin, indent + 1)
+			out_s("\n")
 			print_indent(indent)
 			out_print("}")
 		} else {
@@ -1228,17 +1417,96 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	case ^ExportNamedDeclaration:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"specifiers\": [ ... ]")
+		out_print("\"declaration\": ")
+		if decl, ok := s.declaration.(^Declaration); ok && decl != nil {
+			out_println("{")
+			// Cast ^Declaration (a union-pointer) back to ^Statement for reuse.
+			// All Declaration variants are a subset of Statement variants with
+			// identical memory layout (^FunctionDeclaration, ^VariableDeclaration,
+			// ^ClassDeclaration, etc.), so the union pointer value is valid in
+			// both.
+			stmt_ptr := (^Statement)(decl)
+			print_statement_ast(stmt_ptr, indent + 1)
+			print_indent(indent)
+			out_println("},")
+		} else {
+			out_println("null,")
+		}
+		print_indent(indent)
+		out_s("\"specifiers\": [")
+		if len(s.specifiers) == 0 {
+			out_s("],\n")
+		} else {
+			out_s("\n")
+			for spec, i in s.specifiers {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"ExportSpecifier\",\n")
+				print_indent(indent + 2)
+				out_s("\"local\": { \"type\": \"Identifier\", \"name\": ")
+				out_string(spec.local.name)
+				out_s(" },\n")
+				print_indent(indent + 2)
+				out_s("\"exported\": { \"type\": \"Identifier\", \"name\": ")
+				out_string(spec.exported.name)
+				out_s(" }\n")
+				print_indent(indent + 1)
+				if i < len(s.specifiers) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("],\n")
+		}
+		print_indent(indent)
+		out_s("\"source\": ")
+		if src, ok := s.source.(StringLiteral); ok {
+			out_s("{ \"type\": \"Literal\", \"value\": ")
+			out_string(src.value)
+			out_s(", \"raw\": ")
+			out_string(src.raw)
+			out_s(" }")
+		} else {
+			out_s("null")
+		}
 
 	case ^ExportDefaultDeclaration:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"declaration\": { ... }")
+		out_s("\"declaration\": ")
+		if def := s.declaration; def != nil {
+			out_s("{\n")
+			switch kind in def^ {
+			case ^Declaration:
+				if kind != nil {
+					print_statement_ast((^Statement)(kind), indent + 1)
+				}
+			case ^Expression:
+				if kind != nil {
+					print_expression_ast(kind, indent + 1)
+				}
+			}
+			print_indent(indent)
+			out_s("}")
+		} else {
+			out_s("null")
+		}
 
 	case ^ExportAllDeclaration:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"source\": { ... }")
+		out_println("\"source\": {")
+		print_indent(indent + 1)
+		out_s("\"type\": \"Literal\",\n")
+		print_indent(indent + 1)
+		out_s("\"value\": ")
+		out_string(s.source.value)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"raw\": ")
+		out_string(s.source.raw)
+		out_s("\n")
+		print_indent(indent)
+		out_print("}")
 
 	case ^DoWhileStatement:
 		out_println(",")
@@ -1248,14 +1516,61 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_println("},")
 		print_indent(indent)
-		out_print("\"test\": { ... }")
+		out_println("\"test\": {")
+		print_expression_ast(s.test, indent + 1)
+		print_indent(indent)
+		out_print("}")
 
 	case ^SwitchStatement:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"discriminant\": { ... },\n")
+		out_println("\"discriminant\": {")
+		print_expression_ast(s.discriminant, indent + 1)
 		print_indent(indent)
-		out_print("\"cases\": [ ... ]")
+		out_println("},")
+		print_indent(indent)
+		out_s("\"cases\": [")
+		if len(s.cases) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for c, i in s.cases {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"SwitchCase\",\n")
+				print_indent(indent + 2)
+				out_s("\"test\": ")
+				if test_expr, ok := c.test.(^Expression); ok && test_expr != nil {
+					out_s("{\n")
+					print_expression_ast(test_expr, indent + 3)
+					print_indent(indent + 2)
+					out_s("},\n")
+				} else {
+					out_s("null,\n")
+				}
+				print_indent(indent + 2)
+				out_s("\"consequent\": [")
+				if len(c.consequent) == 0 {
+					out_s("]\n")
+				} else {
+					out_s("\n")
+					for cs, j in c.consequent {
+						print_indent(indent + 3)
+						out_s("{\n")
+						print_statement_ast(cs, indent + 4)
+						print_indent(indent + 3)
+						if j < len(c.consequent) - 1 { out_s("},\n") } else { out_s("}\n") }
+					}
+					print_indent(indent + 2)
+					out_s("]\n")
+				}
+				print_indent(indent + 1)
+				if i < len(s.cases) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
 
 	case ^ForInStatement:
 		out_println(",")
@@ -1319,22 +1634,69 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_statement_ast(s.body, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		print_indent(indent)
-		out_print("\"await\": false,\n")
-		print_indent(indent)
-		out_print("\"body\": { ... }")
+		// (pre-refactor dead code that emitted a second "await"/"body" pair
+		// has been removed; it was unreachable after the body emit above.)
 
 	case ^ThrowStatement:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"argument\": { ... }")
+		out_println("\"argument\": {")
+		print_expression_ast(s.argument, indent + 1)
+		print_indent(indent)
+		out_print("}")
 
 	case ^ImportDeclaration:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"specifiers\": [ ... ],\n")
+		out_s("\"specifiers\": [")
+		if len(s.specifiers) == 0 {
+			out_s("],\n")
+		} else {
+			out_s("\n")
+			for spec_ptr, i in s.specifiers {
+				print_indent(indent + 1)
+				out_s("{\n")
+				if spec_ptr != nil {
+					switch v in spec_ptr^ {
+					case ImportSpecifier:
+						print_indent(indent + 2)
+						out_s("\"type\": \"ImportSpecifier\",\n")
+						print_indent(indent + 2)
+						out_s("\"local\": { \"type\": \"Identifier\", \"name\": ")
+						out_string(v.local.name)
+						out_s(" },\n")
+						print_indent(indent + 2)
+						out_s("\"imported\": { \"type\": \"Identifier\", \"name\": ")
+						out_string(v.imported.name)
+						out_s(" }\n")
+					case ImportDefaultSpecifier:
+						print_indent(indent + 2)
+						out_s("\"type\": \"ImportDefaultSpecifier\",\n")
+						print_indent(indent + 2)
+						out_s("\"local\": { \"type\": \"Identifier\", \"name\": ")
+						out_string(v.local.name)
+						out_s(" }\n")
+					case ImportNamespaceSpecifier:
+						print_indent(indent + 2)
+						out_s("\"type\": \"ImportNamespaceSpecifier\",\n")
+						print_indent(indent + 2)
+						out_s("\"local\": { \"type\": \"Identifier\", \"name\": ")
+						out_string(v.local.name)
+						out_s(" }\n")
+					}
+				}
+				print_indent(indent + 1)
+				if i < len(s.specifiers) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("],\n")
+		}
 		print_indent(indent)
-		out_print("\"source\": { ... }")
+		out_s("\"source\": { \"type\": \"Literal\", \"value\": ")
+		out_string(s.source.value)
+		out_s(", \"raw\": ")
+		out_string(s.source.raw)
+		out_s(" }")
 
 	case ^BreakStatement:
 		out_println(",")
@@ -1349,16 +1711,33 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	case ^LabeledStatement:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"label\": { ... },\n")
+		out_println("\"label\": {")
+		print_indent(indent + 1)
+		out_s("\"type\": \"Identifier\",\n")
+		print_indent(indent + 1)
+		out_s("\"name\": ")
+		out_string(s.label.name)
+		out_s("\n")
 		print_indent(indent)
-		out_print("\"body\": { ... }")
+		out_println("},")
+		print_indent(indent)
+		out_println("\"body\": {")
+		print_statement_ast(s.body, indent + 1)
+		print_indent(indent)
+		out_print("}")
 
 	case ^WithStatement:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"object\": { ... },\n")
+		out_println("\"object\": {")
+		print_expression_ast(s.object, indent + 1)
 		print_indent(indent)
-		out_print("\"body\": { ... }")
+		out_println("},")
+		print_indent(indent)
+		out_println("\"body\": {")
+		print_statement_ast(s.body, indent + 1)
+		print_indent(indent)
+		out_print("}")
 
 	case ^EmptyStatement:
 		// No additional fields
@@ -1400,7 +1779,36 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"ObjectPattern\",\n")
 		print_indent(indent)
-		out_s("\"properties\": [ ... ]\n") // Simplified for now
+		out_s("\"properties\": [")
+		if len(p.properties) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for prop, i in p.properties {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"Property\",\n")
+				print_indent(indent + 2)
+				out_s("\"shorthand\": ")
+				out_bool(prop.shorthand)
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"computed\": ")
+				out_bool(prop.computed)
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"value\": {\n")
+				print_pattern_ast(prop.value, indent + 3)
+				out_s("\n")
+				print_indent(indent + 2)
+				out_s("}\n")
+				print_indent(indent + 1)
+				if i < len(p.properties) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
 	case:
 		print_indent(indent)
 		out_s("null")
@@ -1485,10 +1893,14 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"value\": null,\n")
 		print_indent(indent)
+		// Splice pattern/flags inside the quoted raw to get e.g. `"/\\D/g"`.
+		// A naive out_s would leave literal backslashes unescaped and break
+		// downstream JSON.parse; out_string_inner escapes each chunk without
+		// emitting its own surrounding quotes.
 		out_s("\"raw\": \"/")
-		out_s(e.pattern)
+		out_string_inner(e.pattern)
 		out_s("/")
-		out_s(e.flags)
+		out_string_inner(e.flags)
 		out_s("\",\n")
 		print_indent(indent)
 		out_s("\"regex\": {\n")
@@ -1714,9 +2126,30 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_bool(e.async)
 		out_s(",\n")
 		print_indent(indent)
-		out_s("\"params\": [ ... ],\n")
+		out_s("\"params\": [")
+		if len(e.params) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for param, i in e.params {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_pattern_ast(param.pattern, indent + 2)
+				out_s("\n")
+				print_indent(indent + 1)
+				if i < len(e.params) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
+		out_s(",\n")
 		print_indent(indent)
-		out_s("\"body\": { ... }")
+		out_println("\"body\": {")
+		fn_body := &e.body
+		print_function_body_inline(fn_body, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_print("}")
 
 	case ^ArrowFunctionExpression:
 		out_s(",\n")
@@ -1727,6 +2160,45 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"async\": ")
 		out_bool(e.async)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"params\": [")
+		if len(e.params) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for param, i in e.params {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_pattern_ast(param.pattern, indent + 2)
+				out_s("\n")
+				print_indent(indent + 1)
+				if i < len(e.params) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"body\": ")
+		// ArrowFunctionBody is union { ^Expression, ^BlockStatement }. The
+		// variant was previously emitted as a "..." placeholder due to the
+		// pre-Bug-H transmute UB; post-fix we can switch cleanly on the tag.
+		switch body in e.body {
+		case ^Expression:
+			out_s("{\n")
+			print_expression_ast(body, indent + 1)
+			print_indent(indent)
+			out_s("}")
+		case ^BlockStatement:
+			out_s("{\n")
+			print_block_statement_inline(body, indent + 1)
+			out_s("\n")
+			print_indent(indent)
+			out_s("}")
+		case:
+			out_s("null")
+		}
 
 	case ^NewExpression:
 		out_s(",\n")
@@ -1754,9 +2226,52 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 	case ^TemplateLiteral:
 		out_s(",\n")
 		print_indent(indent)
-		out_s("\"quasis\": [ ... ],\n")
+		out_s("\"quasis\": [")
+		if len(e.quasis) == 0 {
+			out_s("],\n")
+		} else {
+			out_s("\n")
+			for q, i in e.quasis {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"TemplateElement\",\n")
+				print_indent(indent + 2)
+				out_s("\"tail\": ")
+				out_bool(q.tail)
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"value\": { \"raw\": ")
+				out_string(q.raw)
+				out_s(", \"cooked\": ")
+				if cooked, ok := q.cooked.(string); ok {
+					out_string(cooked)
+				} else {
+					out_s("null")
+				}
+				out_s(" }\n")
+				print_indent(indent + 1)
+				if i < len(e.quasis) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("],\n")
+		}
 		print_indent(indent)
-		out_s("\"expressions\": [ ... ]")
+		out_s("\"expressions\": [")
+		if len(e.expressions) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for ex, i in e.expressions {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_expression_ast(ex, indent + 2)
+				print_indent(indent + 1)
+				if i < len(e.expressions) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
 
 	case ^TaggedTemplateExpression:
 		out_s(",\n")
@@ -1918,7 +2433,12 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent)
 			out_s("},\n")
 		}
-		out_s("\"body\": { ... }\n")
+		// ClassBody.body is a [dynamic]ClassElement. Full emit of class elements
+		// (methods, getters, setters, constructors, static blocks, decorators)
+		// is a follow-up; emit an empty-but-valid shell so downstream JSON
+		// parsers don't choke. If the class has elements, they will not appear
+		// in the output yet — track via `len(e.body.body)` in a future PR.
+		out_s("\"body\": { \"type\": \"ClassBody\", \"body\": [] }\n")
 
 	case:
 		out_println(",")

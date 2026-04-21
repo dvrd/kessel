@@ -26,9 +26,10 @@ if (!fs.existsSync(oxcBin))    { console.error('missing', oxcBin);    process.ex
 // subtrees are invisible here, but for the verifier's purpose (detecting
 // escape bugs) any one reachable literal is enough to see the bug shape.
 const kRaw = execSync(`${kesselBin} parse "${file}" --compact`, { encoding: 'utf8', maxBuffer: 500*1024*1024 });
-const kBody = kRaw.split('\n--- Statistics ---')[0]
-  .replace(/\{ \.\.\. \}/g, '{}')
-  .replace(/\[ \.\.\. \]/g, '[]');
+// `--compact` output: JSON on line 1, then any number of diagnostic/stat
+// lines. Take line 1 exactly — anything after it is not part of the JSON.
+// (Legacy `{ ... }` / `[ ... ]` placeholders removed; no longer strip them.)
+const kBody = kRaw.split('\n')[0];
 let kessel;
 try { kessel = JSON.parse(kBody); }
 catch (e) { console.error('kessel json parse failed:', e.message); process.exit(2); }
