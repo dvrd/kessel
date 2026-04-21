@@ -119,6 +119,8 @@ function verifyProgram() {
 
 function verifyStmt(off, kType, oNode, p) {
   if (!kType || !oNode) return;
+  // Check bounds before proceeding
+  if (off < 0 || off >= buf.length) return;
   switch (kType) {
     case 'VariableDeclaration': {
       const kinds = ['var','let','const'];
@@ -188,6 +190,74 @@ function verifyStmt(off, kType, oNode, p) {
       }
       const testOff = u32(off + 24);
       if (testOff > 0 && oNode.test) verifyExpr(testOff, oNode.test, `${p}.test`);
+      break;
+    }
+    case 'ForStatement': {
+      if (off + 56 > buf.length) break;
+      const initDeclOff = u32(off + 16);
+      const initExprOff = u32(off + 24);
+      if (oNode.init) {
+        if (initDeclOff > 0) {
+          const su = union(initDeclOff);
+          verifyStmt(su.ptr, STMT[su.tag], oNode.init, `${p}.init`);
+        } else if (initExprOff > 0) {
+          verifyExpr(initExprOff, oNode.init, `${p}.init`);
+        }
+      } else if (initDeclOff > 0 || initExprOff > 0) {
+        fail(`${p}.init`, `kessel has init but oxc null`);
+      }
+      const testOff = u32(off + 32);
+      if (testOff > 0 && oNode.test) verifyExpr(testOff, oNode.test, `${p}.test`);
+      const updOff = u32(off + 40);
+      if (updOff > 0 && oNode.update) verifyExpr(updOff, oNode.update, `${p}.update`);
+      const bodyOff = u32(off + 48);
+      if (bodyOff > 0 && oNode.body) {
+        const su = union(bodyOff);
+        verifyStmt(su.ptr, STMT[su.tag], oNode.body, `${p}.body`);
+      }
+      break;
+    }
+    case 'ForInStatement': {
+      if (off + 48 > buf.length) break;
+      const leftDeclOff = u32(off + 16);
+      const leftExprOff = u32(off + 24);
+      if (oNode.left) {
+        if (leftDeclOff > 0) {
+          const su = union(leftDeclOff);
+          verifyStmt(su.ptr, STMT[su.tag], oNode.left, `${p}.left`);
+        } else if (leftExprOff > 0) {
+          verifyExpr(leftExprOff, oNode.left, `${p}.left`);
+        }
+      }
+      const rightOff = u32(off + 32);
+      if (rightOff > 0 && oNode.right) verifyExpr(rightOff, oNode.right, `${p}.right`);
+      const bodyOff = u32(off + 40);
+      if (bodyOff > 0 && oNode.body) {
+        const su = union(bodyOff);
+        verifyStmt(su.ptr, STMT[su.tag], oNode.body, `${p}.body`);
+      }
+      break;
+    }
+    case 'ForOfStatement': {
+      if (off + 56 > buf.length) break;
+      const leftDeclOff = u32(off + 16);
+      const leftExprOff = u32(off + 24);
+      if (oNode.left) {
+        if (leftDeclOff > 0) {
+          const su = union(leftDeclOff);
+          verifyStmt(su.ptr, STMT[su.tag], oNode.left, `${p}.left`);
+        } else if (leftExprOff > 0) {
+          verifyExpr(leftExprOff, oNode.left, `${p}.left`);
+        }
+      }
+      const rightOff = u32(off + 32);
+      if (rightOff > 0 && oNode.right) verifyExpr(rightOff, oNode.right, `${p}.right`);
+      const bodyOff = u32(off + 40);
+      if (bodyOff > 0 && oNode.body) {
+        const su = union(bodyOff);
+        verifyStmt(su.ptr, STMT[su.tag], oNode.body, `${p}.body`);
+      }
+      eq(`${p}.await`, u8(off + 48) === 1, !!oNode.await);
       break;
     }
     case 'ThrowStatement': {
