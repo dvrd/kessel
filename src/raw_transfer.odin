@@ -221,10 +221,7 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 	case ^SequenceExpression:
 		rewrite_expression_array(&v.expressions, base, source_base)
 	case ^YieldExpression:
-		if arg, ok := v.argument.?; ok {
-			rewrite_expression(arg, base, source_base)
-			rewrite_union_ptr(arg, base)
-		}
+		rewrite_maybe_expr(&v.argument, base, source_base)
 	case ^AwaitExpression:
 		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^ImportExpression:
@@ -254,10 +251,7 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 	case ^DebuggerStatement:
 		// nothing
 	case ^ReturnStatement:
-		if arg, ok := v.argument.?; ok {
-			rewrite_expression(arg, base, source_base)
-			rewrite_union_ptr(arg, base)
-		}
+		rewrite_maybe_expr(&v.argument, base, source_base)
 	case ^BreakStatement:
 		if label, ok := v.label.(LabelIdentifier); ok {
 			rewrite_string(&label.name, source_base)
@@ -268,34 +262,24 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 		}
 	case ^LabeledStatement:
 		rewrite_string(&v.label.name, source_base)
-		rewrite_statement(v.body, base, source_base)
-		rewrite_ptr((^rawptr)(&v.body), base)
+		rewrite_stmt_field(v.body, &v.body, base, source_base)
 	case ^IfStatement:
 		rewrite_expr_field(v.test, &v.test, base, source_base)
-		rewrite_statement(v.consequent, base, source_base)
-		rewrite_ptr((^rawptr)(&v.consequent), base)
-		if alt, ok := v.alternate.?; ok {
-			rewrite_statement(alt, base, source_base)
-			rewrite_ptr((^rawptr)(&v.alternate), base)
-		}
+		rewrite_stmt_field(v.consequent, &v.consequent, base, source_base)
+		rewrite_maybe_stmt(&v.alternate, base, source_base)
 	case ^SwitchStatement:
 		rewrite_expr_field(v.discriminant, &v.discriminant, base, source_base)
 		for i in 0..<len(v.cases) {
 			c := &v.cases[i]
-			if test, ok := c.test.?; ok {
-				rewrite_expression(test, base, source_base)
-				rewrite_union_ptr(test, base)
-			}
+			rewrite_maybe_expr(&c.test, base, source_base)
 			rewrite_statement_array(&c.consequent, base, source_base)
 		}
 		rewrite_dynamic_header(&v.cases, base, len(v.cases))
 	case ^WhileStatement:
 		rewrite_expr_field(v.test, &v.test, base, source_base)
-		rewrite_statement(v.body, base, source_base)
-		rewrite_ptr((^rawptr)(&v.body), base)
+		rewrite_stmt_field(v.body, &v.body, base, source_base)
 	case ^DoWhileStatement:
-		rewrite_statement(v.body, base, source_base)
-		rewrite_ptr((^rawptr)(&v.body), base)
+		rewrite_stmt_field(v.body, &v.body, base, source_base)
 		rewrite_expr_field(v.test, &v.test, base, source_base)
 	case ^ForStatement:
 		// init_decl/init_expr are transmuted ^Statement pointers (parser quirk)
@@ -309,16 +293,9 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 			rewrite_union_ptr(transmute(^Expression)init_ptr, base)
 			(^u32)(&v.init_expr)^ = ptr_to_offset(base, init_ptr)
 		}
-		if test, ok := v.test.?; ok {
-			rewrite_expression(test, base, source_base)
-			rewrite_union_ptr(test, base)
-		}
-		if upd, ok := v.update.?; ok {
-			rewrite_expression(upd, base, source_base)
-			rewrite_union_ptr(upd, base)
-		}
-		rewrite_statement(v.body, base, source_base)
-		rewrite_ptr((^rawptr)(&v.body), base)
+		rewrite_maybe_expr(&v.test, base, source_base)
+		rewrite_maybe_expr(&v.update, base, source_base)
+		rewrite_stmt_field(v.body, &v.body, base, source_base)
 	case ^ForInStatement:
 		if ptr := (^rawptr)(&v.left_decl)^; ptr != nil {
 			rewrite_statement(transmute(^Statement)ptr, base, source_base)
@@ -330,8 +307,7 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 			(^u32)(&v.left_expr)^ = ptr_to_offset(base, ptr)
 		}
 		rewrite_expr_field(v.right, &v.right, base, source_base)
-		rewrite_statement(v.body, base, source_base)
-		rewrite_ptr((^rawptr)(&v.body), base)
+		rewrite_stmt_field(v.body, &v.body, base, source_base)
 	case ^ForOfStatement:
 		if ptr := (^rawptr)(&v.left_decl)^; ptr != nil {
 			rewrite_statement(transmute(^Statement)ptr, base, source_base)
@@ -343,12 +319,10 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 			(^u32)(&v.left_expr)^ = ptr_to_offset(base, ptr)
 		}
 		rewrite_expr_field(v.right, &v.right, base, source_base)
-		rewrite_statement(v.body, base, source_base)
-		rewrite_ptr((^rawptr)(&v.body), base)
+		rewrite_stmt_field(v.body, &v.body, base, source_base)
 	case ^WithStatement:
 		rewrite_expr_field(v.object, &v.object, base, source_base)
-		rewrite_statement(v.body, base, source_base)
-		rewrite_ptr((^rawptr)(&v.body), base)
+		rewrite_stmt_field(v.body, &v.body, base, source_base)
 	case ^ThrowStatement:
 		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^TryStatement:
@@ -466,10 +440,7 @@ rewrite_function_params :: proc(params: ^[dynamic]FunctionParameter, base: uintp
 	for i in 0..<len(params) {
 		p := &params[i]
 		rewrite_binding_pattern(&p.pattern, base, source_base)
-		if def, ok := p.default_val.(^Expression); ok {
-			rewrite_expression(def, base, source_base)
-			rewrite_union_ptr(def, base)
-		}
+		rewrite_maybe_expr(&p.default_val, base, source_base)
 	}
 	rewrite_dynamic_header(params, base, len(params))
 }
@@ -489,23 +460,15 @@ rewrite_function_expression :: proc(f: ^FunctionExpression, base: uintptr, sourc
 
 rewrite_arrow_function :: proc(f: ^ArrowFunctionExpression, base: uintptr, source_base: uintptr) {
 	rewrite_function_params(&f.params, base, source_base)
-	rewrite_expression(f.body, base, source_base)
-	rewrite_union_ptr(f.body, base)
+	rewrite_expr_field(f.body, &f.body, base, source_base)
 }
 
 rewrite_class_expression :: proc(c: ^ClassExpression, base: uintptr, source_base: uintptr) {
-	if sc, ok := c.super_class.(^Expression); ok {
-		rewrite_expression(sc, base, source_base)
-		rewrite_union_ptr(sc, base)
-	}
+	rewrite_maybe_expr(&c.super_class, base, source_base)
 	for i in 0..<len(c.body.body) {
 		elem := &c.body.body[i]
-		rewrite_expression(elem.key, base, source_base)
-		rewrite_union_ptr(elem.key, base)
-		if val, ok := elem.value.?; ok {
-			rewrite_expression(val, base, source_base)
-			rewrite_union_ptr(val, base)
-		}
+		rewrite_expr_field(elem.key, &elem.key, base, source_base)
+		rewrite_maybe_expr(&elem.value, base, source_base)
 	}
 	rewrite_dynamic_header(&c.body.body, base, len(c.body.body))
 }
@@ -515,6 +478,8 @@ rewrite_array_expression :: proc(a: ^ArrayExpression, base: uintptr, source_base
 		if elem, ok := a.elements[i].(^Expression); ok {
 			rewrite_expression(elem, base, source_base)
 			rewrite_union_ptr(elem, base)
+			// Rewrite the Maybe slot itself
+			rewrite_ptr((^rawptr)(&a.elements[i]), base)
 		}
 	}
 	rewrite_dynamic_header(&a.elements, base, len(a.elements))
@@ -523,10 +488,8 @@ rewrite_array_expression :: proc(a: ^ArrayExpression, base: uintptr, source_base
 rewrite_object_expression :: proc(o: ^ObjectExpression, base: uintptr, source_base: uintptr) {
 	for i in 0..<len(o.properties) {
 		prop := &o.properties[i]
-		rewrite_expression(prop.key, base, source_base)
-		rewrite_union_ptr(prop.key, base)
-		rewrite_expression(prop.value, base, source_base)
-		rewrite_union_ptr(prop.value, base)
+		rewrite_expr_field(prop.key, &prop.key, base, source_base)
+		rewrite_expr_field(prop.value, &prop.value, base, source_base)
 	}
 	rewrite_dynamic_header(&o.properties, base, len(o.properties))
 }
