@@ -628,6 +628,15 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 					raw = current.value,
 				}
 				append(&program.directives, directive)
+				// Also emit as ExpressionStatement in body (ESTree compat)
+				str_lit := new_node(p, StringLiteral)
+				str_lit.loc = loc_from_token(current)
+				str_lit.value = current.literal.(string) or_else ""
+				str_lit.raw = current.value
+				expr_stmt, expr_stmt_s := new_stmt(p, ExpressionStatement)
+				expr_stmt.loc = directive.loc
+				expr_stmt.expression = expression_from(p, str_lit)
+				append(&program.body, expr_stmt_s)
 				eat(p)
 				match_semicolon_or_asi(p)
 			} else {
