@@ -1,20 +1,7 @@
+bin/
+tmp/
+_archive/
+bench/
 *.dSYM/
-node_modules/
-.firecrawl/
-/kessel_bin
-/kessel_test
-/src
-/src.bin
-*.log
-kessel/kessel
-kessel/kessel_test
-kessel/src.bin
-kessel/*.bin
-
-# Benchmark baselines: ignore ad-hoc runs, commit reference baselines
-bench/baselines/*.json
-!bench/baselines/post-virtual-arena.json
-
-# Rust build artifacts from bench/oxc_compare
-bench/oxc_compare/target/
-bench/oxc_compare/Cargo.lock
+.task/
+AGENTS.md
