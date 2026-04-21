@@ -1226,14 +1226,22 @@ parse_try_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume try
 
+	// parse_block_statement returns a ^Statement union wrapping a
+	// ^BlockStatement. The old transmute(^BlockStatement)block read the
+	// Statement union's 16 bytes as if they were the BlockStatement
+	// struct — UB that silently truncated the block body.
 	block := parse_block_statement(p)
 	if block == nil {
+		return nil
+	}
+	block_ptr, ok := block^.(^BlockStatement)
+	if !ok {
 		return nil
 	}
 
 	try_ := new_node(p, TryStatement)
 	try_.loc = start
-	try_.block = (transmute(^BlockStatement)block)^
+	try_.block = block_ptr^
 
 	if match_token(p, .Catch) {
 		handler := parse_catch_clause(p)
@@ -1243,7 +1251,9 @@ parse_try_statement :: proc(p: ^Parser) -> ^Statement {
 	if match_token(p, .Finally) {
 		finalizer := parse_block_statement(p)
 		if finalizer != nil {
-			try_.finalizer = (transmute(^BlockStatement)finalizer)^
+			if fin_ptr, fin_ok := finalizer^.(^BlockStatement); fin_ok {
+				try_.finalizer = fin_ptr^
+			}
 		}
 	}
 
@@ -1276,11 +1286,15 @@ parse_catch_clause :: proc(p: ^Parser) -> Maybe(CatchClause) {
 	if body == nil {
 		return nil
 	}
+	body_ptr, body_ok := body^.(^BlockStatement)
+	if !body_ok {
+		return nil
+	}
 
 	clause := CatchClause{
 		loc   = start,
 		param = param,
-		body  = (transmute(^BlockStatement)body)^,
+		body  = body_ptr^,
 	}
 	clause.loc.span.end = cur_offset(p)
 
