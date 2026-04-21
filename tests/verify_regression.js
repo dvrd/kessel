@@ -310,6 +310,58 @@ const CHECKS = [
       return fails;
     },
   },
+  {
+    name: '011_lone_surrogate_emit',
+    // Bug: lex_string_scalar's append_utf8 WTF-8-encoded lone surrogates
+    // (0xED 0xA0-BF 0x80-BF), and out_string streamed those bytes raw.
+    // JSON forbids raw surrogate bytes; JSON.parse normalises the invalid
+    // UTF-8 triple to U+FFFD. Surfaced as the last 2 mismatches on
+    // handsontable.js after ClassBody emit made all strings visible.
+    //
+    // Fix: wtf8_surrogate_at detects the triple at emit time; out_string
+    // / out_string_inner escape as \uXXXX (lowercase hex, matching OXC).
+    // ECMA-262 permits lone surrogates in string literals — the ESTree
+    // `value` must round-trip through JSON as a 1-codepoint string whose
+    // codePointAt(0) is still in 0xD800..0xDFFF.
+    require: ['Literal', 'VariableDeclaration', 'ObjectExpression'],
+    customCheck: (k, _o) => {
+      const fails = [];
+      const literals = [];
+      (function walk(n) {
+        if (!n || typeof n !== 'object') return;
+        if (Array.isArray(n)) { for (const c of n) walk(c); return; }
+        if (n.type === 'Literal' && typeof n.value === 'string') {
+          literals.push(n);
+        }
+        for (const key of Object.keys(n)) walk(n[key]);
+      })(k);
+
+      // Every code unit must be a valid UTF-16 code unit. If any value
+      // contains U+FFFD where the source had `\uXXXX`, the fix regressed.
+      // We can't diff against the source directly, but we CAN look for the
+      // specific patterns we put in the fixture.
+      const expectedSurrogates = [
+        0xDEAD, 0xD834, 0xDF06, 0xD800, 0xDC00, 0xDFFF,
+      ];
+      const seen = new Set();
+      for (const lit of literals) {
+        for (const ch of lit.value) {
+          const cp = ch.codePointAt(0);
+          if (cp >= 0xD800 && cp <= 0xDFFF) seen.add(cp);
+          if (cp === 0xFFFD) {
+            fails.push(`Literal "${lit.raw}" contains U+FFFD — lone surrogate got normalised (fix regressed)`);
+          }
+        }
+      }
+      // Sanity: the fixture includes at least 4 distinct lone-surrogate
+      // codepoints across its literals.
+      const surrogateCount = seen.size;
+      if (surrogateCount < 4) {
+        fails.push(`expected >=4 distinct lone surrogates in Literal.value, saw ${surrogateCount}`);
+      }
+      return fails;
+    },
+  },
 ];
 
 // Global assertion that runs on every fixture, regardless of per-check config:

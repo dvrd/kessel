@@ -1,43 +1,73 @@
 {
-  "type": "Script",
+  "type": "Program",
+  "start": 483,
+  "end": 610,
+  "sourceType": "script",
+  "hashbang": null,
   "body": [
     {
       "type": "ExportAllDeclaration",
+      "start": 483,
+      "end": 502,
       "source": {
         "type": "Literal",
+        "start": 497,
+        "end": 502,
         "value": "./a",
         "raw": "\"./a\""
       }    },
     {
       "type": "ExportAllDeclaration",
+      "start": 504,
+      "end": 523,
       "source": {
         "type": "Literal",
+        "start": 518,
+        "end": 523,
         "value": "./b",
         "raw": "\"./b\""
       }    },
     {
       "type": "ExportAllDeclaration",
+      "start": 525,
+      "end": 550,
       "source": {
         "type": "Literal",
+        "start": 545,
+        "end": 550,
         "value": "./c",
         "raw": "\"./c\""
       }    },
     {
       "type": "VariableDeclaration",
+      "start": 553,
+      "end": 574,
       "kind": "const",
       "declarations": [
         {
+          "type": "VariableDeclarator",
+          "start": 559,
+          "end": 572,
           "id": {
             "type": "Identifier",
+            "start": 559,
+            "end": 567,
             "name": "sentinel"          },
           "init": {
             "type": "Literal",
+            "start": 570,
+            "end": 572,
             "value": 42,
             "raw": "42"          }        }
       ]    },
     {
       "type": "FunctionDeclaration",
+      "start": 574,
+      "end": 610,
       "id": {
+        "type": "Identifier",
+        "start": 583,
+        "end": 584,
         "name": "f"
       },
       "generator": false,
@@ -45,11 +75,17 @@
       "params": [],
       "body": {
         "type": "BlockStatement",
+        "start": 587,
+        "end": 610,
         "body": [
           {
             "type": "ReturnStatement",
+            "start": 591,
+            "end": 608,
             "argument": {
               "type": "Identifier",
+              "start": 598,
+              "end": 606,
               "name": "sentinel"            }          }
         ]
       }    }

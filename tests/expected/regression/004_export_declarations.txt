@@ -1,18 +1,33 @@
 {
-  "type": "Script",
+  "type": "Program",
+  "start": 722,
+  "end": 1092,
+  "sourceType": "script",
+  "hashbang": null,
   "body": [
     {
       "type": "ExportNamedDeclaration",
+      "start": 722,
+      "end": 750,
       "declaration": {
         "type": "VariableDeclaration",
+        "start": 729,
+        "end": 750,
         "kind": "const",
         "declarations": [
           {
+            "type": "VariableDeclarator",
+            "start": 735,
+            "end": 748,
             "id": {
               "type": "Identifier",
+              "start": 735,
+              "end": 744,
               "name": "REG_CONST"            },
             "init": {
               "type": "Literal",
+              "start": 747,
+              "end": 748,
               "value": 1,
               "raw": "1"            }          }
         ]      },
@@ -20,16 +35,27 @@
       "source": null    },
     {
       "type": "ExportNamedDeclaration",
+      "start": 750,
+      "end": 773,
       "declaration": {
         "type": "VariableDeclaration",
+        "start": 757,
+        "end": 773,
         "kind": "let",
         "declarations": [
           {
+            "type": "VariableDeclarator",
+            "start": 761,
+            "end": 771,
             "id": {
               "type": "Identifier",
+              "start": 761,
+              "end": 767,
               "name": "regLet"            },
             "init": {
               "type": "Literal",
+              "start": 770,
+              "end": 771,
               "value": 2,
               "raw": "2"            }          }
         ]      },
@@ -37,16 +63,27 @@
       "source": null    },
     {
       "type": "ExportNamedDeclaration",
+      "start": 773,
+      "end": 796,
       "declaration": {
         "type": "VariableDeclaration",
+        "start": 780,
+        "end": 796,
         "kind": "var",
         "declarations": [
           {
+            "type": "VariableDeclarator",
+            "start": 784,
+            "end": 794,
             "id": {
               "type": "Identifier",
+              "start": 784,
+              "end": 790,
               "name": "regVar"            },
             "init": {
               "type": "Literal",
+              "start": 793,
+              "end": 794,
               "value": 3,
               "raw": "3"            }          }
         ]      },
@@ -54,9 +91,16 @@
       "source": null    },
     {
       "type": "ExportNamedDeclaration",
+      "start": 796,
+      "end": 868,
       "declaration": {
         "type": "FunctionDeclaration",
+        "start": 803,
+        "end": 868,
         "id": {
+          "type": "Identifier",
+          "start": 812,
+          "end": 823,
           "name": "regFunction"
         },
         "generator": false,
@@ -64,23 +108,37 @@
         "params": [],
         "body": {
           "type": "BlockStatement",
+          "start": 826,
+          "end": 868,
           "body": [
             {
               "type": "ReturnStatement",
+              "start": 830,
+              "end": 866,
               "argument": {
                 "type": "BinaryExpression",
+                "start": 837,
+                "end": 864,
                 "operator": "+",
                 "left": {
                   "type": "BinaryExpression",
+                  "start": 837,
+                  "end": 856,
                   "operator": "+",
                   "left": {
                     "type": "Identifier",
+                    "start": 837,
+                    "end": 847,
                     "name": "REG_CONST"                  },
                   "right": {
                     "type": "Identifier",
+                    "start": 849,
+                    "end": 856,
                     "name": "regLet"                  }                },
                 "right": {
                   "type": "Identifier",
+                  "start": 858,
+                  "end": 864,
                   "name": "regVar"                }              }            }
           ]
         }      },
@@ -88,47 +146,77 @@
       "source": null    },
     {
       "type": "ExportNamedDeclaration",
+      "start": 868,
+      "end": 997,
       "declaration": {
         "type": "ClassDeclaration",
+        "start": 875,
+        "end": 997,
         "id": {
           "type": "Identifier",
+          "start": 881,
+          "end": 889,
           "name": "RegClass"
         },
         "superClass": null,
         "body": {
           "type": "ClassBody",
+          "start": 890,
+          "end": 997,
           "body": [
             {
               "type": "MethodDefinition",
-              "key": {
+              "start": 894,
+              "end": 948,
+                            "key": {
                 "type": "Identifier",
+                "start": 894,
+                "end": 905,
                 "name": "constructor"
               },
               "value": {
                 "type": "FunctionExpression",
+                "start": 894,
+                "end": 948,
                 "generator": false,
                 "async": false,
                 "params": [],
                 "body": {
                   "type": "BlockStatement",
+                  "start": 908,
+                  "end": 948,
                   "body": [
                     {
                       "type": "ExpressionStatement",
+                      "start": 914,
+                      "end": 944,
                       "expression": {
                         "type": "AssignmentExpression",
+                        "start": 914,
+                        "end": 940,
                         "operator": "=",
                         "left": {
                           "type": "MemberExpression",
+                          "start": 914,
+                          "end": 925,
                           "computed": false,
                           "object": {
-                            "type": "ThisExpression"                          },
+                            "type": "ThisExpression",
+                            "start": 914,
+                            "end": 918                          },
                           "property": {
                             "type": "Identifier",
+                            "start": 919,
+                            "end": 924,
                             "name": "value"                          }                        },
                         "right": {
                           "type": "CallExpression",
+                          "start": 927,
+                          "end": 940,
                           "callee": {
                             "type": "Identifier",
+                            "start": 927,
+                            "end": 938,
                             "name": "regFunction"                          },
                           "arguments": [
                           ]                        }                      }                    }
@@ -141,33 +229,53 @@
             },
             {
               "type": "MethodDefinition",
-              "key": {
+              "start": 948,
+              "end": 995,
+                            "key": {
                 "type": "Identifier",
+                "start": 952,
+                "end": 959,
                 "name": "doubled"
               },
               "value": {
                 "type": "FunctionExpression",
+                "start": 948,
+                "end": 995,
                 "generator": false,
                 "async": false,
                 "params": [],
                 "body": {
                   "type": "BlockStatement",
+                  "start": 962,
+                  "end": 995,
                   "body": [
                     {
                       "type": "ReturnStatement",
+                      "start": 968,
+                      "end": 993,
                       "argument": {
                         "type": "BinaryExpression",
+                        "start": 975,
+                        "end": 989,
                         "operator": "*",
                         "left": {
                           "type": "MemberExpression",
+                          "start": 975,
+                          "end": 986,
                           "computed": false,
                           "object": {
-                            "type": "ThisExpression"                          },
+                            "type": "ThisExpression",
+                            "start": 975,
+                            "end": 979                          },
                           "property": {
                             "type": "Identifier",
+                            "start": 980,
+                            "end": 985,
                             "name": "value"                          }                        },
                         "right": {
                           "type": "Literal",
+                          "start": 988,
+                          "end": 989,
                           "value": 2,
                           "raw": "2"                        }                      }                    }
                   ]
@@ -183,41 +291,67 @@
       "source": null    },
     {
       "type": "ExportDefaultDeclaration",
+      "start": 997,
+      "end": 1092,
       "declaration": {
         "type": "ClassDeclaration",
+        "start": 1012,
+        "end": 1092,
         "id": {
           "type": "Identifier",
+          "start": 1018,
+          "end": 1028,
           "name": "RegDefault"
         },
         "superClass": {
           "type": "Identifier",
+          "start": 1037,
+          "end": 1046,
           "name": "RegClass"        },
         "body": {
           "type": "ClassBody",
+          "start": 1046,
+          "end": 1092,
           "body": [
             {
               "type": "MethodDefinition",
-              "key": {
+              "start": 1050,
+              "end": 1090,
+                            "key": {
                 "type": "Identifier",
+                "start": 1050,
+                "end": 1056,
                 "name": "method"
               },
               "value": {
                 "type": "FunctionExpression",
+                "start": 1050,
+                "end": 1090,
                 "generator": false,
                 "async": false,
                 "params": [],
                 "body": {
                   "type": "BlockStatement",
+                  "start": 1059,
+                  "end": 1090,
                   "body": [
                     {
                       "type": "ReturnStatement",
+                      "start": 1065,
+                      "end": 1088,
                       "argument": {
                         "type": "MemberExpression",
+                        "start": 1072,
+                        "end": 1084,
                         "computed": false,
                         "object": {
-                          "type": "ThisExpression"                        },
+                          "type": "ThisExpression",
+                          "start": 1072,
+                          "end": 1076                        },
                         "property": {
                           "type": "Identifier",
+                          "start": 1077,
+                          "end": 1084,
                           "name": "doubled"                        }                      }                    }
                   ]
                 }

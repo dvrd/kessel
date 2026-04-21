@@ -1,69 +1,117 @@
 {
-  "type": "Script",
+  "type": "Program",
+  "start": 285,
+  "end": 503,
+  "sourceType": "script",
+  "hashbang": null,
   "body": [
     {
       "type": "ClassDeclaration",
+      "start": 285,
+      "end": 503,
       "id": {
         "type": "Identifier",
+        "start": 291,
+        "end": 304,
         "name": "Regression001"
       },
       "superClass": null,
       "body": {
         "type": "ClassBody",
+        "start": 305,
+        "end": 503,
         "body": [
           {
             "type": "StaticBlock",
-            "body": [
+            "start": 309,
+            "end": 388,
+                        "body": [
               {
                 "type": "ExpressionStatement",
+                "start": 322,
+                "end": 338,
                 "expression": {
                   "type": "AssignmentExpression",
+                  "start": 322,
+                  "end": 332,
                   "operator": "=",
                   "left": {
                     "type": "MemberExpression",
+                    "start": 322,
+                    "end": 329,
                     "computed": false,
                     "object": {
-                      "type": "ThisExpression"                    },
+                      "type": "ThisExpression",
+                      "start": 322,
+                      "end": 326                    },
                     "property": {
                       "type": "Identifier",
+                      "start": 327,
+                      "end": 328,
                       "name": "a"                    }                  },
                   "right": {
                     "type": "Literal",
+                    "start": 331,
+                    "end": 332,
                     "value": 1,
                     "raw": "1"                  }                }              },
               {
                 "type": "ExpressionStatement",
+                "start": 338,
+                "end": 354,
                 "expression": {
                   "type": "AssignmentExpression",
+                  "start": 338,
+                  "end": 348,
                   "operator": "=",
                   "left": {
                     "type": "MemberExpression",
+                    "start": 338,
+                    "end": 345,
                     "computed": false,
                     "object": {
-                      "type": "ThisExpression"                    },
+                      "type": "ThisExpression",
+                      "start": 338,
+                      "end": 342                    },
                     "property": {
                       "type": "Identifier",
+                      "start": 343,
+                      "end": 344,
                       "name": "b"                    }                  },
                   "right": {
                     "type": "Literal",
+                    "start": 347,
+                    "end": 348,
                     "value": 2,
                     "raw": "2"                  }                }              },
               {
                 "type": "ExpressionStatement",
+                "start": 354,
+                "end": 384,
                 "expression": {
                   "type": "CallExpression",
+                  "start": 354,
+                  "end": 380,
                   "callee": {
                     "type": "MemberExpression",
+                    "start": 354,
+                    "end": 365,
                     "computed": false,
                     "object": {
                       "type": "Identifier",
+                      "start": 354,
+                      "end": 361,
                       "name": "console"                    },
                     "property": {
                       "type": "Identifier",
+                      "start": 362,
+                      "end": 365,
                       "name": "log"                    }                  },
                   "arguments": [
                     {
                       "type": "Literal",
+                      "start": 366,
+                      "end": 379,
                       "value": "initialised",
                       "raw": "\"initialised\""                    }
                   ]                }              }
@@ -71,12 +119,18 @@
           },
           {
             "type": "PropertyDefinition",
-            "key": {
+            "start": 388,
+            "end": 405,
+                        "key": {
               "type": "Identifier",
+              "start": 395,
+              "end": 396,
               "name": "x"
             },
             "value": {
               "type": "Literal",
+              "start": 399,
+              "end": 401,
               "value": 42,
               "raw": "42"
             },
@@ -85,65 +139,110 @@
           },
           {
             "type": "StaticBlock",
-            "body": [
+            "start": 405,
+            "end": 501,
+                        "body": [
               {
                 "type": "VariableDeclaration",
+                "start": 418,
+                "end": 451,
                 "kind": "const",
                 "declarations": [
                   {
+                    "type": "VariableDeclarator",
+                    "start": 424,
+                    "end": 445,
                     "id": {
                       "type": "Identifier",
+                      "start": 424,
+                      "end": 427,
                       "name": "tmp"                    },
                     "init": {
                       "type": "BinaryExpression",
+                      "start": 430,
+                      "end": 445,
                       "operator": "+",
                       "left": {
                         "type": "MemberExpression",
+                        "start": 430,
+                        "end": 437,
                         "computed": false,
                         "object": {
-                          "type": "ThisExpression"                        },
+                          "type": "ThisExpression",
+                          "start": 430,
+                          "end": 434                        },
                         "property": {
                           "type": "Identifier",
+                          "start": 435,
+                          "end": 436,
                           "name": "a"                        }                      },
                       "right": {
                         "type": "MemberExpression",
+                        "start": 439,
+                        "end": 445,
                         "computed": false,
                         "object": {
-                          "type": "ThisExpression"                        },
+                          "type": "ThisExpression",
+                          "start": 439,
+                          "end": 443                        },
                         "property": {
                           "type": "Identifier",
+                          "start": 444,
+                          "end": 445,
                           "name": "b"                        }                      }                    }                  }
                 ]              },
               {
                 "type": "IfStatement",
+                "start": 451,
+                "end": 499,
                 "test": {
                   "type": "BinaryExpression",
+                  "start": 455,
+                  "end": 462,
                   "operator": ">",
                   "left": {
                     "type": "Identifier",
+                    "start": 455,
+                    "end": 459,
                     "name": "tmp"                  },
                   "right": {
                     "type": "Literal",
+                    "start": 461,
+                    "end": 462,
                     "value": 0,
                     "raw": "0"                  }                },
                 "consequent": {
                   "type": "BlockStatement",
+                  "start": 464,
+                  "end": 499,
                   "body": [
                     {
                       "type": "ExpressionStatement",
+                      "start": 472,
+                      "end": 495,
                       "expression": {
                         "type": "AssignmentExpression",
+                        "start": 472,
+                        "end": 489,
                         "operator": "=",
                         "left": {
                           "type": "MemberExpression",
+                          "start": 472,
+                          "end": 483,
                           "computed": false,
                           "object": {
-                            "type": "ThisExpression"                          },
+                            "type": "ThisExpression",
+                            "start": 472,
+                            "end": 476                          },
                           "property": {
                             "type": "Identifier",
+                            "start": 477,
+                            "end": 482,
                             "name": "ready"                          }                        },
                         "right": {
                           "type": "Literal",
+                          "start": 485,
+                          "end": 489,
                           "value": true,
                           "raw": "true"                        }                      }                    }
                   ]                },

@@ -108,91 +108,160 @@ out_s :: #force_inline proc(s: string) {
 	bufio.writer_write_string(&stdout_writer, s)
 }
 
+// wtf8_surrogate_at checks if bytes starting at s[i] form a 3-byte WTF-8
+// encoding of a lone UTF-16 surrogate (U+D800–U+DFFF). Returns the decoded
+// codepoint and true on match.
+//
+// ECMA-262 permits lone surrogates in string literals (the `value` of
+// `'\uDEAD'` is a 1-character string whose single codepoint is U+DEAD).
+// The lexer's append_utf8 encodes these in WTF-8 — valid UTF-8 it is not,
+// because the Unicode Standard reserves 0xED 0xA0–0xBF 0x80–0xBF. Emitting
+// those raw bytes to stdout produces JSON that JSON.parse normalises to
+// U+FFFD (the replacement character), diverging from OXC which emits the
+// surrogate as a JSON `\uXXXX` escape. We mirror OXC on emit.
+//
+// Triple layout:
+//   byte0: 0xED
+//   byte1: 0xA0..0xBF  (bit 5 = 1 ↔ high nibble of cp is 0xD8..0xDF)
+//   byte2: 0x80..0xBF
+// Decoded: cp = ((b0 & 0x0F) << 12) | ((b1 & 0x3F) << 6) | (b2 & 0x3F)
+// Range:   0xD800..0xDFFF.
+wtf8_surrogate_at :: #force_inline proc(s: string, i: int) -> (cp: u32, ok: bool) {
+	if i + 2 >= len(s) { return 0, false }
+	b0 := s[i]
+	if b0 != 0xED { return 0, false }
+	b1 := s[i + 1]
+	if b1 < 0xA0 || b1 > 0xBF { return 0, false }
+	b2 := s[i + 2]
+	if b2 < 0x80 || b2 > 0xBF { return 0, false }
+	cp = (u32(b0 & 0x0F) << 12) | (u32(b1 & 0x3F) << 6) | u32(b2 & 0x3F)
+	return cp, true
+}
+
 // Escape a string for JSON without the surrounding quotes. Used when we
 // need to splice escaped content inside a larger quoted string (e.g. the
 // regex `raw` field `"/<pattern>/<flags>"`), so we can emit the opening
 // quote, multiple escaped chunks, and the closing quote around them all.
 out_string_inner :: proc(s: string) {
 	if use_direct_buf {
-		// Worst case: every byte escapes to `\u00xx` (6 bytes).
+		// Worst case: every byte escapes to `\u00xx` (6 bytes). WTF-8 surrogate
+		// triples (3 bytes → 6-byte \uXXXX) stay inside that bound.
 		direct_reserve(len(s) * 6)
-		for i in 0..<len(s) {
+		i := 0
+		for i < len(s) {
 			c := s[i]
 			switch c {
 			case '"':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = '"'; direct_pos += 2
+				i += 1
 			case '\\':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = '\\'; direct_pos += 2
+				i += 1
 			case '\n':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 'n'; direct_pos += 2
+				i += 1
 			case '\r':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 'r'; direct_pos += 2
+				i += 1
 			case '\t':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 't'; direct_pos += 2
+				i += 1
 			case:
 				if c < 0x20 {
 					tmp: [8]byte
 					esc := fmt.bprintf(tmp[:], "\\u%04x", c)
 					mem.copy(&direct_buf[direct_pos], raw_data(esc), len(esc))
 					direct_pos += len(esc)
+					i += 1
+				} else if cp, ok := wtf8_surrogate_at(s, i); ok {
+					// Lone surrogate: emit \uXXXX (lowercase hex matches OXC).
+					tmp: [8]byte
+					esc := fmt.bprintf(tmp[:], "\\u%04x", cp)
+					mem.copy(&direct_buf[direct_pos], raw_data(esc), len(esc))
+					direct_pos += len(esc)
+					i += 3
 				} else {
 					direct_buf[direct_pos] = c
 					direct_pos += 1
+					i += 1
 				}
 			}
 		}
 		return
 	}
 	init_stdout_writer()
-	for i := 0; i < len(s); i += 1 {
+	i := 0
+	for i < len(s) {
 		c := s[i]
 		switch c {
-		case '"':  bufio.writer_write_string(&stdout_writer, "\\\"")
-		case '\\': bufio.writer_write_string(&stdout_writer, "\\\\")
-		case '\n': bufio.writer_write_string(&stdout_writer, "\\n")
-		case '\r': bufio.writer_write_string(&stdout_writer, "\\r")
-		case '\t': bufio.writer_write_string(&stdout_writer, "\\t")
+		case '"':  bufio.writer_write_string(&stdout_writer, "\\\""); i += 1
+		case '\\': bufio.writer_write_string(&stdout_writer, "\\\\"); i += 1
+		case '\n': bufio.writer_write_string(&stdout_writer, "\\n"); i += 1
+		case '\r': bufio.writer_write_string(&stdout_writer, "\\r"); i += 1
+		case '\t': bufio.writer_write_string(&stdout_writer, "\\t"); i += 1
 		case:
 			if c < 0x20 {
 				tmp: [8]byte
 				sx := fmt.bprintf(tmp[:], "\\u%04x", c)
 				bufio.writer_write_string(&stdout_writer, sx)
+				i += 1
+			} else if cp, ok := wtf8_surrogate_at(s, i); ok {
+				tmp: [8]byte
+				sx := fmt.bprintf(tmp[:], "\\u%04x", cp)
+				bufio.writer_write_string(&stdout_writer, sx)
+				i += 3
 			} else {
 				bufio.writer_write_byte(&stdout_writer, c)
+				i += 1
 			}
 		}
 	}
 }
 
-// Escape a string for JSON: quotes, backslashes, control chars
+// Escape a string for JSON: quotes, backslashes, control chars, lone
+// surrogates. See `wtf8_surrogate_at` for the surrogate rationale.
 out_string :: proc(s: string) {
 	if use_direct_buf {
 		// Worst case: 2 surrounding quotes + every byte escapes to `\u00xx`.
 		direct_reserve(len(s) * 6 + 2)
 		direct_buf[direct_pos] = '"'
 		direct_pos += 1
-		for i in 0..<len(s) {
+		i := 0
+		for i < len(s) {
 			c := s[i]
 			switch c {
 			case '"':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = '"'; direct_pos += 2
+				i += 1
 			case '\\':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = '\\'; direct_pos += 2
+				i += 1
 			case '\n':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 'n'; direct_pos += 2
+				i += 1
 			case '\r':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 'r'; direct_pos += 2
+				i += 1
 			case '\t':
 				direct_buf[direct_pos] = '\\'; direct_buf[direct_pos+1] = 't'; direct_pos += 2
+				i += 1
 			case:
 				if c < 0x20 {
 					tmp: [8]byte
 					esc := fmt.bprintf(tmp[:], "\\u%04x", c)
 					mem.copy(&direct_buf[direct_pos], raw_data(esc), len(esc))
 					direct_pos += len(esc)
+					i += 1
+				} else if cp, ok := wtf8_surrogate_at(s, i); ok {
+					tmp: [8]byte
+					esc := fmt.bprintf(tmp[:], "\\u%04x", cp)
+					mem.copy(&direct_buf[direct_pos], raw_data(esc), len(esc))
+					direct_pos += len(esc)
+					i += 3
 				} else {
 					direct_buf[direct_pos] = c
 					direct_pos += 1
+					i += 1
 				}
 			}
 		}
@@ -202,26 +271,34 @@ out_string :: proc(s: string) {
 	}
 	init_stdout_writer()
 	bufio.writer_write_byte(&stdout_writer, '"')
-	for i := 0; i < len(s); i += 1 {
+	i := 0
+	for i < len(s) {
 		c := s[i]
 		switch c {
 		case '"':
-			bufio.writer_write_string(&stdout_writer, "\\\"")
+			bufio.writer_write_string(&stdout_writer, "\\\""); i += 1
 		case '\\':
-			bufio.writer_write_string(&stdout_writer, "\\\\")
+			bufio.writer_write_string(&stdout_writer, "\\\\"); i += 1
 		case '\n':
-			bufio.writer_write_string(&stdout_writer, "\\n")
+			bufio.writer_write_string(&stdout_writer, "\\n"); i += 1
 		case '\r':
-			bufio.writer_write_string(&stdout_writer, "\\r")
+			bufio.writer_write_string(&stdout_writer, "\\r"); i += 1
 		case '\t':
-			bufio.writer_write_string(&stdout_writer, "\\t")
+			bufio.writer_write_string(&stdout_writer, "\\t"); i += 1
 		case:
 			if c < 0x20 {
 				tmp: [8]byte
-				s := fmt.bprintf(tmp[:], "\\u%04x", c)
-				bufio.writer_write_string(&stdout_writer, s)
+				sx := fmt.bprintf(tmp[:], "\\u%04x", c)
+				bufio.writer_write_string(&stdout_writer, sx)
+				i += 1
+			} else if cp, ok := wtf8_surrogate_at(s, i); ok {
+				tmp: [8]byte
+				sx := fmt.bprintf(tmp[:], "\\u%04x", cp)
+				bufio.writer_write_string(&stdout_writer, sx)
+				i += 3
 			} else {
 				bufio.writer_write_byte(&stdout_writer, c)
+				i += 1
 			}
 		}
 	}
@@ -1039,12 +1116,29 @@ print_indent :: proc(indent: int) {
 	}
 }
 
+// ESTree-compatible root node emission.
+//
+// Drifts closed here:
+//   * type: "Script"/"Module" → type: "Program" + sourceType: "script"/"module".
+//     Every standard ESTree parser (acorn, babel, espree, oxc) uses "Program"
+//     as the root node type; "Script" was a Kessel-internal name that no
+//     downstream consumer recognises.
+//   * Add start/end: byte offsets covering the entire source. Acorn/OXC/Babel
+//     all emit these; Kessel previously emitted no position info at all.
+//   * hashbang: emit "hashbang" field with null when absent (OXC shape). The
+//     lexer currently skips shebang lines without preserving content — we
+//     still declare the field so consumers don't see it as "missing".
 print_program_ast :: proc(program: ^Program, indent: int) {
+	source_type_str := "script" if program.type == .Script else "module"
 	print_indent(indent)
-	type_str := "Script" if program.type == .Script else "Module"
-	out_s("\"type\": \"")
-	out_s(type_str)
+	out_s("\"type\": \"Program\",\n")
+	print_indent(indent)
+	emit_span_leading(program.loc, indent)
+	out_s("\"sourceType\": \"")
+	out_s(source_type_str)
 	out_s("\",\n")
+	print_indent(indent)
+	out_s("\"hashbang\": null,\n")
 
 	print_indent(indent)
 	out_s("\"body\": [\n")
@@ -1065,6 +1159,232 @@ print_program_ast :: proc(program: ^Program, indent: int) {
 	out_s("]\n")
 }
 
+// emit_identifier_name_object writes a full `{"type":"Identifier","start":N,
+// "end":N,"name":"..."}` object for an `IdentifierName` or `BindingIdentifier`
+// value. Used wherever ESTree expects an Identifier node inline — e.g.
+// ExportSpecifier.local, ImportSpecifier.imported, ClassDeclaration.id. Emits
+// with the caller-supplied indent on each line; the opening `{` is written
+// here, the closing `}` too. Callers handle leading field name and trailing
+// comma.
+emit_identifier_name_object :: proc(id: IdentifierName, indent: int) {
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"Identifier\",\n")
+	print_indent(indent + 1)
+	emit_span_leading(id.loc, indent + 1)
+	out_s("\"name\": ")
+	out_string(id.name)
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
+// emit_binding_identifier_object is a convenience alias for BindingIdentifier,
+// which has the same layout. Odin treats them as distinct types so we give it
+// its own entry point rather than cast at every call site.
+emit_binding_identifier_object :: proc(id: BindingIdentifier, indent: int) {
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"Identifier\",\n")
+	print_indent(indent + 1)
+	emit_span_leading(id.loc, indent + 1)
+	out_s("\"name\": ")
+	out_string(id.name)
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
+// emit_string_literal_object writes a full ESTree Literal object for a
+// StringLiteral value — used inline by ImportDeclaration.source and
+// ExportAllDeclaration.source, which previously emitted a compact one-line
+// `{"type":"Literal","value":"...","raw":"..."}` with no start/end.
+emit_string_literal_object :: proc(s: StringLiteral, indent: int) {
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"Literal\",\n")
+	print_indent(indent + 1)
+	emit_span_leading(s.loc, indent + 1)
+	out_s("\"value\": ")
+	out_string(s.value)
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"raw\": ")
+	out_string(s.raw)
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
+// out_u32 writes an unsigned 32-bit integer to the output, fast-pathing through
+// the direct buffer to avoid `strings.Builder` allocation in out_printf. Used
+// on every single emitted node for start/end offsets — millions of calls on a
+// large file — so the allocation-free path is worth the ~40 lines.
+out_u32 :: #force_inline proc(n: u32) {
+	if use_direct_buf {
+		direct_reserve(10) // u32 max is 4,294,967,295 — 10 digits
+		if n == 0 {
+			direct_buf[direct_pos] = '0'
+			direct_pos += 1
+			return
+		}
+		v := n
+		buf: [10]byte
+		i := 0
+		for v > 0 {
+			buf[i] = byte('0' + v % 10)
+			v /= 10
+			i += 1
+		}
+		// buf holds digits in reverse; flip into direct_buf.
+		for j := i - 1; j >= 0; j -= 1 {
+			direct_buf[direct_pos] = buf[j]
+			direct_pos += 1
+		}
+	} else {
+		out_printf("%d", n)
+	}
+}
+
+// emit_span_fields writes `,\n<indent>"start": N,\n<indent>"end": N` — a
+// LEADING comma (no trailing one), designed to slot between the `"type": "X"`
+// line and whatever the case emits next (which still starts with its own
+// `,\n<indent>"field": ...`). This is the one-call-per-node invariant that
+// closes the ESTree position-info drift uniformly.
+//
+// Accepts loc by value (16B) rather than by pointer so there's no risk of
+// accidental mutation. Hot path: inlined. Invariant: start <= end (asserted;
+// an inverted span is a parser bug and we'd rather crash than emit nonsense).
+emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
+	assert(loc.span.start <= loc.span.end)
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"start\": ")
+	out_u32(loc.span.start)
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"end\": ")
+	out_u32(loc.span.end)
+}
+
+// emit_span_leading writes `"start": N,\n<indent>"end": N,\n<indent>` — a
+// TRAILING comma, used when the caller has JUST printed `"type": "X",\n` +
+// print_indent(indent). Convenient for inline emitters (SwitchCase, Property,
+// ImportSpecifier, CatchClause, Directive, etc.) that don't use `emit_span_fields`'s
+// leading-comma pattern.
+emit_span_leading :: #force_inline proc(loc: Loc, indent: int) {
+	assert(loc.span.start <= loc.span.end)
+	out_s("\"start\": ")
+	out_u32(loc.span.start)
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"end\": ")
+	out_u32(loc.span.end)
+	out_s(",\n")
+	print_indent(indent)
+}
+
+// get_statement_loc / get_expression_loc / get_declaration_loc / get_pattern_loc
+// extract the `loc: Loc` header that every AST struct shares as its first field.
+// Returned by value; zero-allocation. Used by the top-level print_*_ast procs to
+// emit start/end without threading a loc argument through every variant's case.
+get_statement_loc :: proc(stmt: ^Statement) -> Loc {
+	if stmt == nil { return Loc{} }
+	#partial switch s in stmt^ {
+	case ^ExpressionStatement:      return s.loc
+	case ^EmptyStatement:            return s.loc
+	case ^BlockStatement:            return s.loc
+	case ^DebuggerStatement:         return s.loc
+	case ^ReturnStatement:           return s.loc
+	case ^BreakStatement:            return s.loc
+	case ^ContinueStatement:         return s.loc
+	case ^LabeledStatement:          return s.loc
+	case ^IfStatement:                return s.loc
+	case ^SwitchStatement:           return s.loc
+	case ^WhileStatement:            return s.loc
+	case ^DoWhileStatement:          return s.loc
+	case ^ForStatement:              return s.loc
+	case ^ForInStatement:            return s.loc
+	case ^ForOfStatement:            return s.loc
+	case ^WithStatement:             return s.loc
+	case ^ThrowStatement:            return s.loc
+	case ^TryStatement:              return s.loc
+	case ^FunctionDeclaration:       return s.loc
+	case ^VariableDeclaration:       return s.loc
+	case ^ClassDeclaration:          return s.loc
+	case ^ImportDeclaration:         return s.loc
+	case ^ExportNamedDeclaration:    return s.loc
+	case ^ExportDefaultDeclaration:  return s.loc
+	case ^ExportAllDeclaration:      return s.loc
+	}
+	return Loc{}
+}
+
+get_expression_loc :: proc(expr: ^Expression) -> Loc {
+	if expr == nil { return Loc{} }
+	#partial switch e in expr^ {
+	case ^NullLiteral:              return e.loc
+	case ^BooleanLiteral:           return e.loc
+	case ^NumericLiteral:           return e.loc
+	case ^StringLiteral:            return e.loc
+	case ^BigIntLiteral:            return e.loc
+	case ^RegExpLiteral:            return e.loc
+	case ^TemplateLiteral:          return e.loc
+	case ^TaggedTemplateExpression: return e.loc
+	case ^Identifier:                return e.loc
+	case ^ThisExpression:            return e.loc
+	case ^Super:                     return e.loc
+	case ^ArrayExpression:           return e.loc
+	case ^ObjectExpression:          return e.loc
+	case ^FunctionExpression:        return e.loc
+	case ^ArrowFunctionExpression:   return e.loc
+	case ^ClassExpression:           return e.loc
+	case ^MemberExpression:          return e.loc
+	case ^CallExpression:            return e.loc
+	case ^NewExpression:             return e.loc
+	case ^ConditionalExpression:     return e.loc
+	case ^UpdateExpression:          return e.loc
+	case ^UnaryExpression:           return e.loc
+	case ^BinaryExpression:          return e.loc
+	case ^LogicalExpression:         return e.loc
+	case ^AssignmentExpression:      return e.loc
+	case ^SequenceExpression:        return e.loc
+	case ^SpreadElement:             return e.loc
+	case ^YieldExpression:           return e.loc
+	case ^AwaitExpression:           return e.loc
+	case ^ImportExpression:          return e.loc
+	case ^MetaProperty:              return e.loc
+	case ^PrivateIdentifier:         return e.loc
+	}
+	return Loc{}
+}
+
+get_declaration_loc :: proc(decl: ^Declaration) -> Loc {
+	if decl == nil { return Loc{} }
+	#partial switch d in decl^ {
+	case ^FunctionDeclaration:       return d.loc
+	case ^VariableDeclaration:       return d.loc
+	case ^ClassDeclaration:          return d.loc
+	case ^ImportDeclaration:         return d.loc
+	case ^ExportNamedDeclaration:    return d.loc
+	case ^ExportDefaultDeclaration:  return d.loc
+	case ^ExportAllDeclaration:      return d.loc
+	}
+	return Loc{}
+}
+
+get_pattern_loc :: proc(pattern: Pattern) -> Loc {
+	#partial switch p in pattern {
+	case ^Identifier:         return p.loc
+	case ^ObjectPattern:       return p.loc
+	case ^ArrayPattern:        return p.loc
+	case ^AssignmentPattern:   return p.loc
+	case ^RestElement:         return p.loc
+	case ^MemberExpression:    return p.loc
+	}
+	return Loc{}
+}
+
 // Emit a BlockStatement body as inline JSON fields ("type" + "body" array).
 // Walks `block.body` via print_statement_ast on each inner statement, producing
 // a valid ESTree BlockStatement shape. Used wherever the AST holds a
@@ -1076,6 +1396,7 @@ print_block_statement_inline :: proc(block: ^BlockStatement, indent: int) {
 	print_indent(indent)
 	out_s("\"type\": \"BlockStatement\",\n")
 	print_indent(indent)
+	emit_span_leading(block.loc, indent)
 	out_s("\"body\": [\n")
 	for inner_stmt, i in block.body {
 		print_indent(indent + 1)
@@ -1100,6 +1421,7 @@ print_function_body_inline :: proc(body: ^FunctionBody, indent: int) {
 	print_indent(indent)
 	out_s("\"type\": \"BlockStatement\",\n")
 	print_indent(indent)
+	emit_span_leading(body.loc, indent)
 	out_s("\"body\": [\n")
 	total := len(body.directives) + len(body.body)
 	emitted := 0
@@ -1109,10 +1431,12 @@ print_function_body_inline :: proc(body: ^FunctionBody, indent: int) {
 		print_indent(indent + 2)
 		out_s("\"type\": \"ExpressionStatement\",\n")
 		print_indent(indent + 2)
+		emit_span_leading(dir.loc, indent + 2)
 		out_s("\"expression\": {\n")
 		print_indent(indent + 3)
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent + 3)
+		emit_span_leading(dir.value.loc, indent + 3)
 		out_s("\"value\": ")
 		out_string(dir.value.value)
 		out_s(",\n")
@@ -1206,6 +1530,9 @@ print_variable_declaration_body :: proc(s: ^VariableDeclaration, indent: int) {
 		print_indent(indent + 1)
 		out_s("{\n")
 		print_indent(indent + 2)
+		out_s("\"type\": \"VariableDeclarator\",\n")
+		print_indent(indent + 2)
+		emit_span_leading(decl.loc, indent + 2)
 		out_s("\"id\": {\n")
 		print_pattern_ast(decl.id, indent + 3)
 		print_indent(indent + 2)
@@ -1245,6 +1572,7 @@ print_class_body_inline :: proc(body: ^ClassBody, indent: int) {
 	print_indent(indent)
 	out_s("\"type\": \"ClassBody\",\n")
 	print_indent(indent)
+	emit_span_leading(body.loc, indent)
 	if len(body.body) == 0 {
 		out_s("\"body\": []\n")
 		return
@@ -1300,7 +1628,7 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 	// parser stashes its statements inside a FunctionExpression.body.body
 	// (see parse_static_block), so we unwrap that container here.
 	if elem.kind == .StaticBlock {
-		print_class_element_static_block(value_expr, indent)
+		print_class_element_static_block(value_expr, indent, elem.loc)
 		return
 	}
 
@@ -1315,6 +1643,8 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 	out_s("\"type\": \"")
 	out_s(type_name)
 	out_s("\",\n")
+	print_indent(indent)
+	emit_span_leading(elem.loc, indent)
 
 	// key: ^Expression. MethodDefinition and PropertyDefinition both carry
 	// a non-null key (Identifier, PrivateIdentifier, Literal, or an
@@ -1375,9 +1705,11 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 // parser wraps the block's statement list inside a FunctionExpression.body
 // (see parse_static_block in src/parser.odin); we unwrap that one level so
 // the JSON matches OXC's `{"type":"StaticBlock","body":[<stmt>,...]}`.
-print_class_element_static_block :: proc(value_expr: ^Expression, indent: int) {
+print_class_element_static_block :: proc(value_expr: ^Expression, indent: int, static_loc: Loc) {
 	print_indent(indent)
 	out_s("\"type\": \"StaticBlock\",\n")
+	print_indent(indent)
+	emit_span_leading(static_loc, indent)
 
 	stmts: ^[dynamic]^Statement = nil
 	if value_expr != nil {
@@ -1413,6 +1745,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	out_s("\"type\": \"")
 	out_s(get_statement_type_name(stmt))
 	out_s("\"")
+	emit_span_fields(get_statement_loc(stmt), indent)
 
 	#partial switch s in stmt^ {
 	case ^ExpressionStatement:
@@ -1432,6 +1765,9 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_s("\"id\": {\n")
 		if id, ok := s.expr.id.(BindingIdentifier); ok {
 			print_indent(indent + 1)
+			out_s("\"type\": \"Identifier\",\n")
+			print_indent(indent + 1)
+			emit_span_leading(id.loc, indent + 1)
 			out_s("\"name\": ")
 			out_string(id.name)
 			out_s("\n")
@@ -1552,6 +1888,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_println("{")
 			print_indent(indent + 1)
 			out_s("\"type\": \"VariableDeclaration\"")
+			emit_span_fields(decl.loc, indent + 1)
 			print_variable_declaration_body(decl, indent + 1)
 			out_s("\n")
 			print_indent(indent)
@@ -1599,6 +1936,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent + 1)
 			out_s("\"type\": \"Identifier\",\n")
 			print_indent(indent + 1)
+			emit_span_leading(id.loc, indent + 1)
 			out_s("\"name\": ")
 			out_string(id.name)
 			out_s("\n")
@@ -1639,6 +1977,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent + 1)
 			out_println("\"type\": \"CatchClause\",")
 			print_indent(indent + 1)
+			emit_span_leading(handler.loc, indent + 1)
 			out_print("\"param\": ")
 			if param, ok2 := handler.param.(Pattern); ok2 {
 				out_println("{")
@@ -1696,13 +2035,14 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 				print_indent(indent + 2)
 				out_s("\"type\": \"ExportSpecifier\",\n")
 				print_indent(indent + 2)
-				out_s("\"local\": { \"type\": \"Identifier\", \"name\": ")
-				out_string(spec.local.name)
-				out_s(" },\n")
+				emit_span_leading(spec.loc, indent + 2)
+				out_s("\"local\": ")
+				emit_identifier_name_object(spec.local, indent + 2)
+				out_s(",\n")
 				print_indent(indent + 2)
-				out_s("\"exported\": { \"type\": \"Identifier\", \"name\": ")
-				out_string(spec.exported.name)
-				out_s(" }\n")
+				out_s("\"exported\": ")
+				emit_identifier_name_object(spec.exported, indent + 2)
+				out_s("\n")
 				print_indent(indent + 1)
 				if i < len(s.specifiers) - 1 { out_s("},\n") } else { out_s("}\n") }
 			}
@@ -1750,6 +2090,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent + 1)
+		emit_span_leading(s.source.loc, indent + 1)
 		out_s("\"value\": ")
 		out_string(s.source.value)
 		out_s(",\n")
@@ -1792,6 +2133,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 				print_indent(indent + 2)
 				out_s("\"type\": \"SwitchCase\",\n")
 				print_indent(indent + 2)
+				emit_span_leading(c.loc, indent + 2)
 				out_s("\"test\": ")
 				if test_expr, ok := c.test.(^Expression); ok && test_expr != nil {
 					out_s("{\n")
@@ -1832,6 +2174,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_println("{")
 			print_indent(indent + 1)
 			out_s("\"type\": \"VariableDeclaration\"")
+			emit_span_fields(decl.loc, indent + 1)
 			print_variable_declaration_body(decl, indent + 1)
 			out_s("\n")
 			print_indent(indent)
@@ -1863,6 +2206,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_println("{")
 			print_indent(indent + 1)
 			out_s("\"type\": \"VariableDeclaration\"")
+			emit_span_fields(decl.loc, indent + 1)
 			print_variable_declaration_body(decl, indent + 1)
 			out_s("\n")
 			print_indent(indent)
@@ -1920,27 +2264,30 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 						print_indent(indent + 2)
 						out_s("\"type\": \"ImportSpecifier\",\n")
 						print_indent(indent + 2)
-						out_s("\"local\": { \"type\": \"Identifier\", \"name\": ")
-						out_string(v.local.name)
-						out_s(" },\n")
+						emit_span_leading(v.loc, indent + 2)
+						out_s("\"local\": ")
+						emit_binding_identifier_object(v.local, indent + 2)
+						out_s(",\n")
 						print_indent(indent + 2)
-						out_s("\"imported\": { \"type\": \"Identifier\", \"name\": ")
-						out_string(v.imported.name)
-						out_s(" }\n")
+						out_s("\"imported\": ")
+						emit_identifier_name_object(v.imported, indent + 2)
+						out_s("\n")
 					case ImportDefaultSpecifier:
 						print_indent(indent + 2)
 						out_s("\"type\": \"ImportDefaultSpecifier\",\n")
 						print_indent(indent + 2)
-						out_s("\"local\": { \"type\": \"Identifier\", \"name\": ")
-						out_string(v.local.name)
-						out_s(" }\n")
+						emit_span_leading(v.loc, indent + 2)
+						out_s("\"local\": ")
+						emit_binding_identifier_object(v.local, indent + 2)
+						out_s("\n")
 					case ImportNamespaceSpecifier:
 						print_indent(indent + 2)
 						out_s("\"type\": \"ImportNamespaceSpecifier\",\n")
 						print_indent(indent + 2)
-						out_s("\"local\": { \"type\": \"Identifier\", \"name\": ")
-						out_string(v.local.name)
-						out_s(" }\n")
+						emit_span_leading(v.loc, indent + 2)
+						out_s("\"local\": ")
+						emit_binding_identifier_object(v.local, indent + 2)
+						out_s("\n")
 					}
 				}
 				print_indent(indent + 1)
@@ -1950,11 +2297,8 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_s("],\n")
 		}
 		print_indent(indent)
-		out_s("\"source\": { \"type\": \"Literal\", \"value\": ")
-		out_string(s.source.value)
-		out_s(", \"raw\": ")
-		out_string(s.source.raw)
-		out_s(" }")
+		out_s("\"source\": ")
+		emit_string_literal_object(s.source, indent)
 
 	case ^BreakStatement:
 		out_println(",")
@@ -1973,6 +2317,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
+		emit_span_leading(s.label.loc, indent + 1)
 		out_s("\"name\": ")
 		out_string(s.label.name)
 		out_s("\n")
@@ -2011,11 +2356,14 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 }
 
 print_pattern_ast :: proc(pattern: Pattern, indent: int) {
+	// MemberExpression delegates to print_expression_ast which has its own
+	// span emission; every other pattern variant emits type + span here.
 	#partial switch p in pattern {
 	case ^Identifier:
 		print_indent(indent)
 		out_s("\"type\": \"Identifier\",\n")
 		print_indent(indent)
+		emit_span_leading(p.loc, indent)
 		out_s("\"name\": ")
 		out_string(p.name)
 	case ^RestElement:
@@ -2026,6 +2374,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"RestElement\",\n")
 		print_indent(indent)
+		emit_span_leading(p.loc, indent)
 		out_s("\"argument\": {\n")
 		print_pattern_ast(p.argument, indent + 1)
 		out_s("\n")
@@ -2038,6 +2387,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"AssignmentPattern\",\n")
 		print_indent(indent)
+		emit_span_leading(p.loc, indent)
 		out_s("\"left\": {\n")
 		print_pattern_ast(p.left, indent + 1)
 		out_s("\n")
@@ -2060,6 +2410,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"ArrayPattern\",\n")
 		print_indent(indent)
+		emit_span_leading(p.loc, indent)
 		out_s("\"elements\": [")
 		if len(p.elements) == 0 {
 			out_s("]")
@@ -2086,6 +2437,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"ObjectPattern\",\n")
 		print_indent(indent)
+		emit_span_leading(p.loc, indent)
 		out_s("\"properties\": [")
 		if len(p.properties) == 0 {
 			out_s("]")
@@ -2112,6 +2464,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				print_indent(indent + 2)
 				out_s("\"type\": \"Property\",\n")
 				print_indent(indent + 2)
+				emit_span_leading(prop.loc, indent + 2)
 				out_s("\"shorthand\": ")
 				out_bool(prop.shorthand)
 				out_s(",\n")
@@ -2144,11 +2497,14 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 print_expression_ast :: proc(expr: ^Expression, indent: int) {
 	// ESTree Literal short-circuit: collapse six OXC-style literal types into one.
 	// ESTree spec uses a single "Literal" node for Numeric/String/Boolean/Null/BigInt/RegExp.
+	// Every branch emits start/end via emit_span_fields or emit_span_leading so
+	// downstream consumers get position info uniformly.
 	#partial switch e in expr^ {
 	case ^NumericLiteral:
 		print_indent(indent)
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent)
+		emit_span_leading(e.loc, indent)
 		out_s("\"value\": ")
 		out_printf("%v,\n", e.value)
 		print_indent(indent)
@@ -2160,6 +2516,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent)
+		emit_span_leading(e.loc, indent)
 		out_s("\"value\": ")
 		out_string(e.value)
 		out_s(",\n")
@@ -2172,6 +2529,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent)
+		emit_span_leading(e.loc, indent)
 		out_s("\"value\": ")
 		out_bool(e.value)
 		out_s(",\n")
@@ -2188,6 +2546,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent)
+		emit_span_leading(e.loc, indent)
 		out_s("\"value\": null,\n")
 		print_indent(indent)
 		out_s("\"raw\": \"null\"")
@@ -2197,6 +2556,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent)
+		emit_span_leading(e.loc, indent)
 		out_s("\"value\": ")
 		out_string(e.value)
 		out_s(",\n")
@@ -2217,6 +2577,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent)
+		emit_span_leading(e.loc, indent)
 		out_s("\"value\": null,\n")
 		print_indent(indent)
 		// Splice pattern/flags inside the quoted raw to get e.g. `"/\\D/g"`.
@@ -2248,6 +2609,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 	out_s("\"type\": \"")
 	out_s(get_expression_type_name(expr))
 	out_s("\"")
+	emit_span_fields(get_expression_loc(expr), indent)
 
 	#partial switch e in expr^ {
 	case ^Identifier:
@@ -2569,6 +2931,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 				print_indent(indent + 2)
 				out_s("\"type\": \"TemplateElement\",\n")
 				print_indent(indent + 2)
+				emit_span_leading(q.loc, indent + 2)
 				out_s("\"tail\": ")
 				out_bool(q.tail)
 				out_s(",\n")
@@ -2726,6 +3089,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
+		emit_span_leading(e.meta.loc, indent + 1)
 		out_s("\"name\": \"import\"\n")
 		print_indent(indent)
 		out_s("},\n")
@@ -2734,6 +3098,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
+		emit_span_leading(e.property.loc, indent + 1)
 		out_s("\"name\": \"meta\"\n")
 		print_indent(indent)
 		out_s("}")
@@ -2753,6 +3118,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent + 1)
 			out_s("\"type\": \"Identifier\",\n")
 			print_indent(indent + 1)
+			emit_span_leading(id.loc, indent + 1)
 			out_s("\"name\": ")
 			out_string(id.name)
 			out_s("\n")

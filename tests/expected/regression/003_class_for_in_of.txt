@@ -1,214 +1,353 @@
 {
-  "type": "Script",
+  "type": "Program",
+  "start": 506,
+  "end": 881,
+  "sourceType": "script",
+  "hashbang": null,
   "body": [
     {
       "type": "ClassDeclaration",
+      "start": 506,
+      "end": 881,
       "id": {
         "type": "Identifier",
+        "start": 512,
+        "end": 525,
         "name": "Regression003"
       },
       "superClass": null,
       "body": {
         "type": "ClassBody",
+        "start": 526,
+        "end": 881,
         "body": [
           {
             "type": "MethodDefinition",
-            "key": {
+            "start": 530,
+            "end": 879,
+                        "key": {
               "type": "Identifier",
+              "start": 530,
+              "end": 537,
               "name": "iterate"
             },
             "value": {
               "type": "FunctionExpression",
+              "start": 530,
+              "end": 879,
               "generator": false,
               "async": false,
               "params": [
                 {
                   "type": "Identifier",
+                  "start": 538,
+                  "end": 541,
                   "name": "obj"
                 },
                 {
                   "type": "Identifier",
+                  "start": 543,
+                  "end": 546,
                   "name": "arr"
                 }
               ],
               "body": {
                 "type": "BlockStatement",
+                "start": 548,
+                "end": 879,
                 "body": [
                   {
                     "type": "VariableDeclaration",
+                    "start": 554,
+                    "end": 575,
                     "kind": "const",
                     "declarations": [
                       {
+                        "type": "VariableDeclarator",
+                        "start": 560,
+                        "end": 569,
                         "id": {
                           "type": "Identifier",
+                          "start": 560,
+                          "end": 564,
                           "name": "keys"                        },
                         "init": {
                           "type": "ArrayExpression",
+                          "start": 567,
+                          "end": 569,
                           "elements": [
                           ]                        }                      }
                     ]                  },
                   {
                     "type": "ForInStatement",
+                    "start": 575,
+                    "end": 626,
                     "left": {
                       "type": "VariableDeclaration",
+                      "start": 580,
+                      "end": 586,
                       "kind": "let",
                       "declarations": [
                         {
+                          "type": "VariableDeclarator",
+                          "start": 584,
+                          "end": 586,
                           "id": {
                             "type": "Identifier",
+                            "start": 584,
+                            "end": 585,
                             "name": "k"                          },
                           "init": null                        }
                       ]
                     },
                     "right": {
                       "type": "Identifier",
+                      "start": 589,
+                      "end": 592,
                       "name": "obj"                    },
                     "body": {
                       "type": "BlockStatement",
+                      "start": 594,
+                      "end": 626,
                       "body": [
                         {
                           "type": "ExpressionStatement",
+                          "start": 602,
+                          "end": 620,
                           "expression": {
                             "type": "CallExpression",
+                            "start": 602,
+                            "end": 614,
                             "callee": {
                               "type": "MemberExpression",
+                              "start": 602,
+                              "end": 611,
                               "computed": false,
                               "object": {
                                 "type": "Identifier",
+                                "start": 602,
+                                "end": 606,
                                 "name": "keys"                              },
                               "property": {
                                 "type": "Identifier",
+                                "start": 607,
+                                "end": 611,
                                 "name": "push"                              }                            },
                             "arguments": [
                               {
                                 "type": "Identifier",
+                                "start": 612,
+                                "end": 613,
                                 "name": "k"                              }
                             ]                          }                        }
                       ]                    }                  },
                   {
                     "type": "ForOfStatement",
+                    "start": 626,
+                    "end": 746,
                     "left": {
                       "type": "VariableDeclaration",
+                      "start": 631,
+                      "end": 639,
                       "kind": "const",
                       "declarations": [
                         {
+                          "type": "VariableDeclarator",
+                          "start": 637,
+                          "end": 639,
                           "id": {
                             "type": "Identifier",
+                            "start": 637,
+                            "end": 638,
                             "name": "v"                          },
                           "init": null                        }
                       ]
                     },
                     "right": {
                       "type": "Identifier",
+                      "start": 642,
+                      "end": 645,
                       "name": "arr"                    },
                     "await": false,
                     "body": {
                       "type": "BlockStatement",
+                      "start": 647,
+                      "end": 746,
                       "body": [
                         {
                           "type": "ExpressionStatement",
+                          "start": 655,
+                          "end": 673,
                           "expression": {
                             "type": "CallExpression",
+                            "start": 655,
+                            "end": 667,
                             "callee": {
                               "type": "MemberExpression",
+                              "start": 655,
+                              "end": 664,
                               "computed": false,
                               "object": {
                                 "type": "Identifier",
+                                "start": 655,
+                                "end": 659,
                                 "name": "keys"                              },
                               "property": {
                                 "type": "Identifier",
+                                "start": 660,
+                                "end": 664,
                                 "name": "push"                              }                            },
                             "arguments": [
                               {
                                 "type": "Identifier",
+                                "start": 665,
+                                "end": 666,
                                 "name": "v"                              }
                             ]                          }                        }
                       ]                    }                  },
                   {
                     "type": "VariableDeclaration",
+                    "start": 746,
+                    "end": 757,
                     "kind": "let",
                     "declarations": [
                       {
+                        "type": "VariableDeclarator",
+                        "start": 750,
+                        "end": 751,
                         "id": {
                           "type": "Identifier",
+                          "start": 750,
+                          "end": 751,
                           "name": "x"                        },
                         "init": null                      }
                     ]                  },
                   {
                     "type": "ForInStatement",
+                    "start": 757,
+                    "end": 804,
                     "left": {
                       "type": "Identifier",
+                      "start": 762,
+                      "end": 764,
                       "name": "x"                    },
                     "right": {
                       "type": "Identifier",
+                      "start": 767,
+                      "end": 770,
                       "name": "obj"                    },
                     "body": {
                       "type": "BlockStatement",
+                      "start": 772,
+                      "end": 804,
                       "body": [
                         {
                           "type": "ExpressionStatement",
+                          "start": 780,
+                          "end": 798,
                           "expression": {
                             "type": "CallExpression",
+                            "start": 780,
+                            "end": 792,
                             "callee": {
                               "type": "MemberExpression",
+                              "start": 780,
+                              "end": 789,
                               "computed": false,
                               "object": {
                                 "type": "Identifier",
+                                "start": 780,
+                                "end": 784,
                                 "name": "keys"                              },
                               "property": {
                                 "type": "Identifier",
+                                "start": 785,
+                                "end": 789,
                                 "name": "push"                              }                            },
                             "arguments": [
                               {
                                 "type": "Identifier",
+                                "start": 790,
+                                "end": 791,
                                 "name": "x"                              }
                             ]                          }                        }
                       ]                    }                  },
                   {
                     "type": "VariableDeclaration",
+                    "start": 804,
+                    "end": 815,
                     "kind": "let",
                     "declarations": [
                       {
+                        "type": "VariableDeclarator",
+                        "start": 808,
+                        "end": 809,
                         "id": {
                           "type": "Identifier",
+                          "start": 808,
+                          "end": 809,
                           "name": "y"                        },
                         "init": null                      }
                     ]                  },
                   {
                     "type": "ForOfStatement",
+                    "start": 815,
+                    "end": 862,
                     "left": {
                       "type": "Identifier",
+                      "start": 820,
+                      "end": 822,
                       "name": "y"                    },
                     "right": {
                       "type": "Identifier",
+                      "start": 825,
+                      "end": 828,
                       "name": "arr"                    },
                     "await": false,
                     "body": {
                       "type": "BlockStatement",
+                      "start": 830,
+                      "end": 862,
                       "body": [
                         {
                           "type": "ExpressionStatement",
+                          "start": 838,
+                          "end": 856,
                           "expression": {
                             "type": "CallExpression",
+                            "start": 838,
+                            "end": 850,
                             "callee": {
                               "type": "MemberExpression",
+                              "start": 838,
+                              "end": 847,
                               "computed": false,
                               "object": {
                                 "type": "Identifier",
+                                "start": 838,
+                                "end": 842,
                                 "name": "keys"                              },
                               "property": {
                                 "type": "Identifier",
+                                "start": 843,
+                                "end": 847,
                                 "name": "push"                              }                            },
                             "arguments": [
                               {
                                 "type": "Identifier",
+                                "start": 848,
+                                "end": 849,
                                 "name": "y"                              }
                             ]                          }                        }
                       ]                    }                  },
                   {
                     "type": "ReturnStatement",
+                    "start": 862,
+                    "end": 877,
                     "argument": {
                       "type": "Identifier",
+                      "start": 869,
+                      "end": 873,
                       "name": "keys"                    }                  }
                 ]
               }

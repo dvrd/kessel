@@ -26,10 +26,11 @@ Clean. No warnings, no errors. Produces a single ~720 KB binary at `bin/kessel`.
 
 | Suite | Command | Result |
 |---|---|---|
-| Unit | `task test:unit` | **97 / 97 pass** (100%) |
-| Regression | `task test:regression` | **10 / 10 pass** — structural checks vs OXC for every session-fixed bug |
+| Unit | `task test:unit` | **98 / 98 pass** (100%) |
+| Regression | `task test:regression` | **11 / 11 pass** — structural checks vs OXC for every session-fixed bug |
 | ESTree deep-tree | `task test:estree` | **4 / 4 pass** — jquery.js (51,406 fields), react-dom.dev.js (104,989 fields), preact.js (2,716 fields), snabbdom.js (17 fields), all byte-exact vs OXC |
 | Real-world parse | `task test:real` | **433 / 467 pass** — 34 files with parse errors, **0 SIGSEGVs** |
+| String-escape mismatches | 17 real files compared vs OXC | **0 mismatches across all files** (was 2 on handsontable.js pre-fix) |
 | String-escape vs OXC | `node tests/verify_string_escapes.js <file>` | See table below |
 
 **Real-world string-escape verification vs OXC**:
@@ -55,9 +56,9 @@ Clean. No warnings, no errors. Produces a single ~720 KB binary at `bin/kessel`.
 
 > **Session totals**: 12 files that previously SIGSEGV'd or had near-zero
 > visibility now parse cleanly and emit comparable string-escape counts.
-> Only mismatches observed: **2 lone-surrogate strings on handsontable.js**
-> (`\uDEAD`, `\uDF06\uD834`) — pre-existing WTF-8 emission issue newly
-> visible thanks to full-tree walk. Tracked as P3 below.
+> The 2 lone-surrogate mismatches on handsontable.js (`\uDEAD`,
+> `\uDF06\uD834`) are also **resolved** via I-8 below. Every real-world
+> file in the verifier corpus is at `mismatches=0` vs OXC.
 
 ## Project Structure
 
@@ -115,6 +116,27 @@ Guard: `tests/fixtures/regression/005_class_body_full_emit.js`.
 ### I-6 · `direct_buf` fixed 20× source overflow
 `src/main.odin`. Fix: `direct_reserve` grows by doubling before every write.
 Guard: `tests/fixtures/regression/006_direct_buf_grow.js`.
+
+### I-8 · Lone-surrogate WTF-8 round-trip through JSON
+
+`src/main.odin` `out_string` / `out_string_inner`. ECMA-262 permits lone
+surrogates in string literals (e.g. `"\uDEAD"`); the lexer's `append_utf8`
+encodes them in WTF-8 (0xED 0xA0–0xBF 0x80–0xBF), but out_string streamed
+those raw bytes to stdout — JSON forbids raw surrogate bytes, so JSON.parse
+normalised the invalid-UTF-8 triple to three U+FFFD chars.
+
+Fix: `wtf8_surrogate_at` detects the 3-byte WTF-8 triple at emit time;
+both `out_string` and `out_string_inner` escape as `\uXXXX` (lowercase
+hex, matching OXC). ECMA-262-compliant: the ESTree `value` field
+round-trips through JSON.parse as a 1-codepoint string whose codePointAt
+still lies in 0xD800–0xDFFF.
+
+Guard: `tests/fixtures/regression/011_lone_surrogate_emit.js` exercises
+bare lone low/high surrogates, mixed contexts, reversed "pairs" (low+high
+which don't combine), valid surrogate pairs that must NOT be escaped, and
+object-literal values. Check asserts no U+FFFD ever appears in any
+`Literal.value`, validated by revert (reverting the direct_buf surrogate
+handling produces exactly the regression fail pattern).
 
 ### I-7 · Arrow-function body `cast(^BlockStatement)^Statement` (×3 sites)
 `src/parser.odin`, `parse_arrow_function` + `parse_async_arrow_function` +
@@ -183,22 +205,12 @@ Runner: `task test:regression` (`node tests/verify_regression.js`).
 | Issue | Severity | Where | Workaround |
 |---|---|---|---|
 | **34 real-world files fail to parse** | Medium | `task test:real` | Genuine parse errors, pre-existing. 6 of the originally-listed 12 SIGSEGV files actually have parse-error content too (tone.js: 20 errors, framer-motion.js: 10, mapbox.js: 5, chartjs.js: 2, quill.js: 1, petite-vue.js: 1) — previously masked by the emit-time crashes. |
-| **Lone-surrogate escape handling (2 strings on handsontable.js)** | Low | `src/lexer.odin` `append_utf8` + `src/main.odin` `out_string` | `\uDEAD` decodes to a 3-byte WTF-8 sequence which JSON.parse normalises to U+FFFD. ESTree spec keeps lone surrogates as valid codepoints; OXC round-trips them via `\uXXXX` escapes in JSON output. Fix: detect WTF-8 surrogate triples (`0xED 0xA0-0xBF 0x80-0xBF`) in `out_string` and emit as `\uXXXX`. Tracked as **P3** below. |
 | **`execSync` SIGSEGV on some real files** | Medium | Node-spawned `kessel raw <file>` | Pre-existing; separate from the emit-time crashes fixed this session arc. Likely `os.flush` race on detached pipes. |
 | **Templates don't cook escapes** | Low | `src/lexer.odin` — `lex_template` | Bug E class in template path. |
 
 ## What To Work On Next
 
-### P1 · Lone-surrogate round-trip · low · quick · no deps
-
-2 strings on `handsontable.js` (`\uDEAD`, `\uDF06\uD834`) — the last remaining
-string-escape mismatch vs OXC. Detect WTF-8 surrogate triples in
-`out_string` / `out_string_inner` at emission time and escape as
-`\uXXXX`. Add a regression fixture with lone surrogates; verify.
-`node tests/verify_string_escapes.js bench/real_world/batch2/handsontable.js`
-to confirm `mismatches=0` when done.
-
-### P2 · Template-literal escape cooking · medium
+### P1 · Template-literal escape cooking · medium
 
 Bug E class, but in `lex_template` / `lex_template_resume`. Same arena
 cooking strategy; publish via `last_lit_*`. Fixture under

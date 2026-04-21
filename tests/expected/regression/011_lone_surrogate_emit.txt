@@ -1,0 +1,271 @@
+{
+  "type": "Program",
+  "start": 1343,
+  "end": 2647,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 1343,
+      "end": 1393,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1349,
+          "end": 1361,
+          "id": {
+            "type": "Identifier",
+            "start": 1349,
+            "end": 1350,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 1353,
+            "end": 1361,
+            "value": "\udead",
+            "raw": "\"\\uDEAD\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1393,
+      "end": 1469,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1399,
+          "end": 1411,
+          "id": {
+            "type": "Identifier",
+            "start": 1399,
+            "end": 1400,
+            "name": "b"          },
+          "init": {
+            "type": "Literal",
+            "start": 1403,
+            "end": 1411,
+            "value": "\ud834",
+            "raw": "\"\\uD834\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1469,
+      "end": 1630,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1475,
+          "end": 1489,
+          "id": {
+            "type": "Identifier",
+            "start": 1475,
+            "end": 1476,
+            "name": "c"          },
+          "init": {
+            "type": "Literal",
+            "start": 1479,
+            "end": 1489,
+            "value": "x\udeady",
+            "raw": "\"x\\uDEADy\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1630,
+      "end": 1919,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1636,
+          "end": 1654,
+          "id": {
+            "type": "Identifier",
+            "start": 1636,
+            "end": 1637,
+            "name": "d"          },
+          "init": {
+            "type": "Literal",
+            "start": 1640,
+            "end": 1654,
+            "value": "\udf06\ud834",
+            "raw": "\"\\uDF06\\uD834\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1919,
+      "end": 2012,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1925,
+          "end": 1943,
+          "id": {
+            "type": "Identifier",
+            "start": 1925,
+            "end": 1926,
+            "name": "e"          },
+          "init": {
+            "type": "Literal",
+            "start": 1929,
+            "end": 1943,
+            "value": "\ud834\udf06",
+            "raw": "\"\\uD834\\uDF06\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2012,
+      "end": 2108,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2018,
+          "end": 2063,
+          "id": {
+            "type": "Identifier",
+            "start": 2018,
+            "end": 2019,
+            "name": "f"          },
+          "init": {
+            "type": "Literal",
+            "start": 2022,
+            "end": 2063,
+            "value": "hi \ud834\udf06 and \udead plus ☃!",
+            "raw": "\"hi \\uD834\\uDF06 and \\uDEAD plus \\u2603!\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2108,
+      "end": 2285,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2114,
+          "end": 2138,
+          "id": {
+            "type": "Identifier",
+            "start": 2114,
+            "end": 2115,
+            "name": "g"          },
+          "init": {
+            "type": "Literal",
+            "start": 2118,
+            "end": 2138,
+            "value": "\ud800\ud801\udfff",
+            "raw": "\"\\uD800\\uD801\\uDFFF\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2285,
+      "end": 2512,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2291,
+          "end": 2318,
+          "id": {
+            "type": "Identifier",
+            "start": 2291,
+            "end": 2292,
+            "name": "h"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 2295,
+            "end": 2318,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 2295,
+                "end": 2318,
+                "tail": true,
+                "value": { "raw": "`plain \\uDEAD template`", "cooked": "plain \\uDEAD template" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2512,
+      "end": 2647,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2518,
+          "end": 2645,
+          "id": {
+            "type": "Identifier",
+            "start": 2518,
+            "end": 2535,
+            "name": "objWithSurrogates"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 2538,
+            "end": 2645,
+            "properties": [
+              {
+                "kind": "init",
+                "key": {
+                  "type": "Identifier",
+                  "start": 2542,
+                  "end": 2546,
+                  "name": "key1"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 2548,
+                  "end": 2556,
+                  "value": "\udead",
+                  "raw": "\"\\uDEAD\""                }              },
+              {
+                "kind": "init",
+                "key": {
+                  "type": "Identifier",
+                  "start": 2560,
+                  "end": 2564,
+                  "name": "key2"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 2566,
+                  "end": 2574,
+                  "value": "normal",
+                  "raw": "\"normal\""                }              },
+              {
+                "kind": "init",
+                "key": {
+                  "type": "Identifier",
+                  "start": 2578,
+                  "end": 2582,
+                  "name": "key3"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 2584,
+                  "end": 2598,
+                  "value": "\ud834\udf06",
+                  "raw": "\"\\uD834\\uDF06\""                }              },
+              {
+                "kind": "init",
+                "key": {
+                  "type": "Identifier",
+                  "start": 2617,
+                  "end": 2621,
+                  "name": "key4"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 2623,
+                  "end": 2642,
+                  "value": "mix \udc00 middle",
+                  "raw": "\"mix \\uDC00 middle\""                }              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=54672B reserved=16777216B ratio=0%
+Parse errors: 0

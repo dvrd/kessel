@@ -1,28 +1,50 @@
 {
-  "type": "Script",
+  "type": "Program",
+  "start": 794,
+  "end": 866,
+  "sourceType": "script",
+  "hashbang": null,
   "body": [
     {
       "type": "ExpressionStatement",
+      "start": 794,
+      "end": 806,
       "expression": {
         "type": "Literal",
+        "start": 794,
+        "end": 806,
         "value": "use strict",
         "raw": "\"use strict\""      }    },
     {
       "type": "VariableDeclaration",
+      "start": 808,
+      "end": 821,
       "kind": "const",
       "declarations": [
         {
+          "type": "VariableDeclarator",
+          "start": 814,
+          "end": 819,
           "id": {
             "type": "Identifier",
+            "start": 814,
+            "end": 815,
             "name": "x"          },
           "init": {
             "type": "Literal",
+            "start": 818,
+            "end": 819,
             "value": 1,
             "raw": "1"          }        }
       ]    },
     {
       "type": "FunctionDeclaration",
+      "start": 821,
+      "end": 866,
       "id": {
+        "type": "Identifier",
+        "start": 830,
+        "end": 831,
         "name": "f"
       },
       "generator": false,
@@ -30,17 +52,27 @@
       "params": [],
       "body": {
         "type": "BlockStatement",
+        "start": 834,
+        "end": 866,
         "body": [
           {
             "type": "ExpressionStatement",
+            "start": 838,
+            "end": 854,
             "expression": {
               "type": "Literal",
+              "start": 838,
+              "end": 850,
               "value": "use strict",
               "raw": "\"use strict\""            }          },
           {
             "type": "ReturnStatement",
+            "start": 854,
+            "end": 864,
             "argument": {
               "type": "Identifier",
+              "start": 861,
+              "end": 862,
               "name": "x"            }          }
         ]
       }    }
