@@ -2502,6 +2502,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	decl.loc.span.end = cur_offset(p)
 
 	// Allocate Statement union and store the pointer
+	match_semicolon_or_asi(p)
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportAllDeclaration)(decl)
 	return stmt
@@ -2708,6 +2709,22 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		if cur_type == .Comma && is_next_token(p, .RParen) {
 			eat(p)
 			break
+		}
+
+		// Comma operator → SequenceExpression
+		if cur_type == .Comma {
+			seq, seq_e := new_expr(p, SequenceExpression)
+			seq.loc = loc_from_expr(left)
+			seq.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
+			append(&seq.expressions, left)
+			for match_token(p, .Comma) {
+				expr := parse_assignment_expression(p)
+				if expr == nil { break }
+				append(&seq.expressions, expr)
+			}
+			seq.loc.span.end = cur_offset(p)
+			left = seq_e
+			continue
 		}
 
 		// Binary/logical operator
