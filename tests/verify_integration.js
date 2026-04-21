@@ -37,7 +37,9 @@ const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
 function u32(off) { return view.getUint32(off, true); }
 function u8(off)  { return view.getUint8(off); }
 function f64(off) { return view.getFloat64(off, true); }
-function str(off) { const o = u32(off), l = u32(off + 4); return (l > 0 && l < 1e6) ? source.substring(o, o + l) : ''; }
+// Strings are byte offsets into source. Use Buffer to handle multi-byte UTF-8.
+const sourceBuf = Buffer.from(source, 'utf8');
+function str(off) { const o = u32(off), l = u32(off + 4); return (l > 0 && l < 1e6) ? sourceBuf.toString('utf8', o, o + l) : ''; }
 function dyn(off) { return { data: u32(off), len: u32(off + 4) }; }
 function union(off) { return { ptr: u32(off), tag: u8(off + 8) }; }
 
