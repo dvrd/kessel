@@ -15,9 +15,29 @@ if (!file) {
 const kesselBin = path.resolve(__dirname, '../bin/kessel');
 const source = fs.readFileSync(file, 'utf8');
 
-// Get JSON AST
+// Get JSON AST.
+// The JSON emitter uses literal `[ ... ]` and `{ ... }` placeholders in deep
+// positions (e.g. FunctionDeclaration.body, TryStatement.block) to cap output
+// size. Those are not valid JSON; collapse them to `[]` / `{}` before parsing
+// so the reachable top-level tree still parses. The verifier only descends
+// into fields it knows about, so the truncated subtrees produce no false
+// positives — they just contribute fewer checked fields.
 const jsonOut = execSync(`${kesselBin} parse "${file}" --compact`, { encoding: 'utf8', maxBuffer: 500 * 1024 * 1024 });
-const jsonAst = JSON.parse(jsonOut.split('\n--- Statistics ---')[0]);
+const jsonBody = jsonOut.split('\n--- Statistics ---')[0]
+  .replace(/\{ \.\.\. \}/g, '{}')
+  .replace(/\[ \.\.\. \]/g, '[]');
+const jsonAst = JSON.parse(jsonBody);
+
+// OXC-style ESTree collapses NullLiteral/BooleanLiteral/NumericLiteral/
+// StringLiteral/BigIntLiteral/RegExpLiteral into `type: "Literal"`, and
+// Kessel's JSON emitter does the same (commit 6fc0990). The raw buffer
+// however still tags each literal with its specific union variant, so the
+// verifier must normalize before comparing type names.
+const LITERAL_VARIANTS = new Set([
+  'NullLiteral', 'BooleanLiteral', 'NumericLiteral',
+  'StringLiteral', 'BigIntLiteral', 'RegExpLiteral',
+]);
+function normType(t) { return LITERAL_VARIANTS.has(t) ? 'Literal' : t; }
 
 // Get raw buffer
 execSync(`${kesselBin} raw "${file}" --out /tmp/_verify_raw.bin`, { stdio: 'pipe' });
@@ -83,6 +103,13 @@ function check(path, raw, json) {
   return true;
 }
 
+// Like check(), but normalizes literal subtype names on both sides before
+// comparing so a raw `NumericLiteral` tag compares equal to a JSON `Literal`
+// type. Used on every `.type` field the verifier checks.
+function checkType(path, raw, json) {
+  return check(path, normType(raw), normType(json));
+}
+
 // Verify Program.body — walk each statement and compare type + span
 function verifyProgram(rawOff, json) {
   const rawSpanStart = u32(rawOff);
@@ -99,7 +126,7 @@ function verifyProgram(rawOff, json) {
     const union = readUnion(stmtUnionOff);
     const rawType = STMT_TAGS[union.tag];
     const jsonType = json.body[i].type;
-    check(`body[${i}].type`, rawType, jsonType);
+    checkType(`body[${i}].type`, rawType, jsonType);
 
     if (union.ptr > 0 && union.ptr < buf.length) {
       const rawStart = u32(union.ptr);
@@ -183,7 +210,7 @@ function verifyExprFromUnion(unionOff, json, path) {
   if (unionOff === 0 || unionOff >= buf.length) return;
   const union = readUnion(unionOff);
   const rawType = EXPR_TAGS[union.tag];
-  check(`${path}.type`, rawType, json.type);
+  checkType(`${path}.type`, rawType, json.type);
 
   if (!rawType || union.ptr === 0 || union.ptr >= buf.length) return;
 

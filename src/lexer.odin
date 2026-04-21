@@ -584,37 +584,192 @@ lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 	return lex_string_scalar(l, start, flags, quote)
 }
 
+// Helper: convert a codepoint to UTF-8 bytes and append to buffer
+append_utf8 :: #force_inline proc(cook_buf: ^[dynamic]u8, cp: u32) {
+	if cp < 0x80 {
+		append(cook_buf, u8(cp))
+	} else if cp < 0x800 {
+		append(cook_buf, u8(0xC0 | (cp >> 6)))
+		append(cook_buf, u8(0x80 | (cp & 0x3F)))
+	} else if cp < 0x10000 {
+		append(cook_buf, u8(0xE0 | (cp >> 12)))
+		append(cook_buf, u8(0x80 | ((cp >> 6) & 0x3F)))
+		append(cook_buf, u8(0x80 | (cp & 0x3F)))
+	} else {
+		append(cook_buf, u8(0xF0 | (cp >> 18)))
+		append(cook_buf, u8(0x80 | ((cp >> 12) & 0x3F)))
+		append(cook_buf, u8(0x80 | ((cp >> 6) & 0x3F)))
+		append(cook_buf, u8(0x80 | (cp & 0x3F)))
+	}
+}
+
+// Helper: get the value of a hex digit, or -1 if not hex
+hex_val :: #force_inline proc(c: u8) -> i32 {
+	switch {
+	case c >= '0' && c <= '9': return i32(c - '0')
+	case c >= 'a' && c <= 'f': return i32(c - 'a') + 10
+	case c >= 'A' && c <= 'F': return i32(c - 'A') + 10
+	case: return -1
+	}
+}
+
 lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
-	content_start := l.offset // already past opening quote
+
+	// Cook buffer is allocated on the lexer's arena. No `defer delete` — the
+	// slice exposed via `string(cook_buf[:])` on the return path is published
+	// to `l.last_lit_value` and read by the parser AFTER this proc returns.
+	// Bulk arena reset at the end of the parse owns the lifetime of the
+	// backing memory; an individual delete here would dangle the published
+	// string if the allocator ever stops no-op'ing frees.
+	cook_buf := make([dynamic]u8, l.allocator)
 
 	for l.offset < src_len {
 		c := src[l.offset]
+
+		// Closing quote found
 		if c == quote {
-			// literal derived in parser from source[start+1:end-1]
 			l.offset += 1 // skip closing quote
 			end := u32(l.offset)
+
+			// Publish the cooked value
+			l.last_lit_offset = start
+			l.last_lit_value = LiteralValue(string(cook_buf[:]))
+			l.last_lit_type = .String
+
 			return FastToken{start = start, end = end, kind = .String, flags = flags}
 		}
+
+		// Escape sequence
 		if c == '\\' && l.offset + 1 < src_len {
 			next := src[l.offset + 1]
-			if (next == 'u' || next == 'U') && l.offset + 2 < src_len && src[l.offset + 2] == '{' {
-				l.offset += 3 // skip \u{
-				for l.offset < src_len && src[l.offset] != '}' { l.offset += 1 }
-				if l.offset < src_len && src[l.offset] == '}' { l.offset += 1 }
-			} else {
+
+			switch next {
+			// Single-char escapes
+			case 'n':
+				append(&cook_buf, u8(0x0A))
+				l.offset += 2
+			case 'r':
+				append(&cook_buf, u8(0x0D))
+				l.offset += 2
+			case 't':
+				append(&cook_buf, u8(0x09))
+				l.offset += 2
+			case 'b':
+				append(&cook_buf, u8(0x08))
+				l.offset += 2
+			case 'f':
+				append(&cook_buf, u8(0x0C))
+				l.offset += 2
+			case 'v':
+				append(&cook_buf, u8(0x0B))
+				l.offset += 2
+			case '\'', '"', '\\', '/':
+				append(&cook_buf, next)
+				l.offset += 2
+			case '0':
+				// \0 only if not followed by a digit
+				if l.offset + 2 < src_len && src[l.offset + 2] >= '0' && src[l.offset + 2] <= '9' {
+					// Followed by digit; fallback to identity
+					append(&cook_buf, next)
+					l.offset += 2
+				} else {
+					append(&cook_buf, u8(0x00))
+					l.offset += 2
+				}
+			case 'x':
+				// \xHH — hex escape, treating value as codepoint
+				if l.offset + 3 < src_len {
+					h1 := hex_val(src[l.offset + 2])
+					h2 := hex_val(src[l.offset + 3])
+					if h1 >= 0 && h2 >= 0 {
+						cp := u32(h1 * 16 + h2)
+						append_utf8(&cook_buf, cp)
+						l.offset += 4
+					} else {
+						// Invalid hex; fallback: append backslash and next char as-is
+						append(&cook_buf, '\\')
+						append(&cook_buf, next)
+						l.offset += 2
+					}
+				} else {
+					// Not enough chars; fallback
+					append(&cook_buf, '\\')
+					append(&cook_buf, next)
+					l.offset += 2
+				}
+			case 'u', 'U':
+				// Check for \u{ form
+				if l.offset + 2 < src_len && src[l.offset + 2] == '{' {
+					// \u{H...H} — variable-length hex inside braces
+					l.offset += 3 // skip \u{
+					cp: u32 = 0
+					got_hex := false
+					for l.offset < src_len && src[l.offset] != '}' {
+						hval := hex_val(src[l.offset])
+						if hval < 0 { break }
+						cp = cp * 16 + u32(hval)
+						got_hex = true
+						l.offset += 1
+					}
+					if l.offset < src_len && src[l.offset] == '}' {
+						l.offset += 1 // skip }
+						if got_hex {
+							append_utf8(&cook_buf, cp)
+						}
+					}
+				} else if l.offset + 5 < src_len {
+					// \uHHHH — exactly 4 hex digits
+					h1 := hex_val(src[l.offset + 2])
+					h2 := hex_val(src[l.offset + 3])
+					h3 := hex_val(src[l.offset + 4])
+					h4 := hex_val(src[l.offset + 5])
+					if h1 >= 0 && h2 >= 0 && h3 >= 0 && h4 >= 0 {
+						cp := u32(h1*4096 + h2*256 + h3*16 + h4)
+						append_utf8(&cook_buf, cp)
+						l.offset += 6
+					} else {
+						// Invalid hex; fallback
+						append(&cook_buf, '\\')
+						append(&cook_buf, next)
+						l.offset += 2
+					}
+				} else {
+					// Not enough chars for \uHHHH; fallback
+					append(&cook_buf, '\\')
+					append(&cook_buf, next)
+					l.offset += 2
+				}
+			case '\n':
+				// Line continuation: \<LF> produces nothing
+				l.had_line_terminator = true
+				l.offset += 2
+			case '\r':
+				// Line continuation: \<CR> or \<CR><LF> produces nothing
+				l.had_line_terminator = true
+				l.offset += 2
+				if l.offset < src_len && src[l.offset] == '\n' {
+					l.offset += 1
+				}
+			case:
+				// Any other char after backslash: identity fallback
+				append(&cook_buf, next)
 				l.offset += 2
 			}
 		} else if c == '\n' {
+			// Unescaped newline in string
 			l.had_line_terminator = true
+			append(&cook_buf, c)
 			l.offset += 1
 		} else {
+			// Regular character
+			append(&cook_buf, c)
 			l.offset += 1
 		}
 	}
 
-	// Unterminated string
+	// Unterminated string — do NOT publish cooked value
 	end := u32(l.offset)
 	return FastToken{start = start, end = end, kind = .Invalid, flags = flags}
 }

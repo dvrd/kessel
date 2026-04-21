@@ -26,7 +26,9 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		if ft.kind < .LBrace {
 			p.cur_tok.value = a.source[ft.start:ft.end]
 			if ft.kind == .String {
-				if ft.end - ft.start >= 2 {
+				if a.last_lit_offset == ft.start && a.last_lit_type == .String {
+					p.cur_tok.literal = a.last_lit_value
+				} else if ft.end - ft.start >= 2 {
 					p.cur_tok.literal = LiteralValue(a.source[ft.start+1:ft.end-1])
 				} else {
 					p.cur_tok.literal = LiteralValue(string(""))
@@ -69,7 +71,9 @@ prime_token_cache :: proc(p: ^Parser) {
 			a := p.lexer
 			p.cur_tok.value = a.source[ft.start:ft.end]
 			if ft.kind == .String {
-				if ft.end - ft.start >= 2 {
+				if a.last_lit_offset == ft.start && a.last_lit_type == .String {
+					p.cur_tok.literal = a.last_lit_value
+				} else if ft.end - ft.start >= 2 {
 					p.cur_tok.literal = LiteralValue(a.source[ft.start+1:ft.end-1])
 				}
 			} else if ft.kind <= .TemplateTail {
