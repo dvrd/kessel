@@ -19,6 +19,7 @@ tasks:
     cmds:
       - mkdir -p bin
       - odin build {{.SRC}} -out:{{.BIN}} -o:speed -no-bounds-check
+      - rm -rf {{.BIN}}.dSYM
     sources:
       - src/*.odin
 
@@ -27,6 +28,7 @@ tasks:
     cmds:
       - mkdir -p bin
       - odin build {{.SRC}} -out:bin/kessel-debug -debug
+      # dSYM kept for debug — lldb needs it for line-level stack traces
 
   # ============================================================
   # Test
