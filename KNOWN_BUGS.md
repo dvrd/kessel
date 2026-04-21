@@ -4,18 +4,6 @@ Divergences between Kessel and OXC ESTree output discovered during the
 deep verification pass. Fixed items are listed at the bottom with their
 commit hashes; open items are tracked here.
 
-## Bug E — StringLiteral values are not escape-decoded
-
-For `"[\\x20\\t]"` in source, OXC returns `value: "[\x20\t]"` (decoded:
-space + tab). Kessel returns `value: "[\\x20\\t]"` (raw source bytes).
-
-**Where**: `lex_string` / string cook path in `src/lexer.odin`. The
-`.value` field is populated from raw source bytes instead of the cooked
-(escape-decoded) form. `.raw` is correct.
-
-**Impact**: jquery.js shows ~30 mismatches, all of this shape. Any tool
-that consumes `value` gets wrong data.
-
 ## Bug H — Arrow function block body is transmuted into Expression union
 
 `parse_arrow_function` (and the two async variants) parse the block
@@ -69,6 +57,14 @@ from the ESTree correctness pass.
 
 ## Fixed
 
+- **Bug E** (9935fa8): `lex_string` published raw source bytes as
+  `StringLiteral.value`, so `"\x20\t"` produced the 4-char source
+  string instead of the decoded space+tab. Fix: escape-decode in
+  `lex_string_scalar` (ECMA-262 §12.9.4) into an arena-allocated
+  dynamic buffer, publish via `last_lit_*`, dispatch in
+  `advance_token`/`prime_token_cache`. Verified against
+  `tests/fixtures/edge/string_escapes.js` (15/15) and jquery.js.
+
 - **Bug A** (5d1f49…b80382e): `lex_hex` / `lex_binary` / `lex_octal`
   tokenized the literal but never computed its value. `0xff` parsed as
   `value: 0` instead of `255`. Fix: decode digits and populate
@@ -93,3 +89,15 @@ from the ESTree correctness pass.
   `transmute(^FunctionDeclaration)stmt`, and `parse_function_declaration`
   boxed via `(^Expression)(expr)` pointer cast instead of
   `expression_from(p, expr)`. Fixed together.
+
+## Related tooling fixes (in 9935fa8)
+
+- `tests/verify_raw_deep.js` was silently unusable: literal `[ ... ]` /
+  `{ ... }` placeholders in the JSON emitter broke `JSON.parse`, and
+  literal type names weren't normalized against OXC's `"Literal"`.
+  Both fixed; verifier now runs green on fixtures.
+- `tests/verify_string_escapes.js` added: walks Kessel's truncated JSON
+  and OXC's full ESTree in parallel, pairs strings by `raw`, compares
+  `value` after escape decoding. Use for string-escape regressions.
+- `tests/fixtures/edge/string_escapes.js` added: 15 escape patterns
+  covering every shape in ECMA-262 §12.9.4.
