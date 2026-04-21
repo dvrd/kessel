@@ -107,6 +107,40 @@ rewrite_union_ptr :: #force_inline proc(field: rawptr, base: uintptr) {
 	}
 }
 
+// Helper: fully rewrite an Expression field — recurse + union ptr + field ptr
+rewrite_expr_field :: #force_inline proc(expr: ^Expression, field_addr: rawptr, base: uintptr, source_base: uintptr) {
+	if expr == nil { return }
+	rewrite_expression(expr, base, source_base)  // recurse into contents
+	rewrite_union_ptr(expr, base)                // rewrite union's inner ptr
+	rewrite_ptr((^rawptr)(field_addr), base)     // rewrite the field itself
+}
+
+// Helper: fully rewrite a Statement field — recurse + union ptr + field ptr  
+rewrite_stmt_field :: #force_inline proc(stmt: ^Statement, field_addr: rawptr, base: uintptr, source_base: uintptr) {
+	if stmt == nil { return }
+	rewrite_statement(stmt, base, source_base)
+	rewrite_union_ptr(stmt, base)
+	rewrite_ptr((^rawptr)(field_addr), base)
+}
+
+// Helper: rewrite a Maybe(^Expression) field
+rewrite_maybe_expr :: #force_inline proc(field: ^Maybe(^Expression), base: uintptr, source_base: uintptr) {
+	if expr, ok := field.?; ok {
+		rewrite_expression(expr, base, source_base)
+		rewrite_union_ptr(expr, base)
+		rewrite_ptr((^rawptr)(field), base)
+	}
+}
+
+// Helper: rewrite a Maybe(^Statement) field
+rewrite_maybe_stmt :: #force_inline proc(field: ^Maybe(^Statement), base: uintptr, source_base: uintptr) {
+	if stmt, ok := field.?; ok {
+		rewrite_statement(stmt, base, source_base)
+		rewrite_union_ptr(stmt, base)
+		rewrite_ptr((^rawptr)(field), base)
+	}
+}
+
 // ============================================================================
 // Expression rewriter
 // ============================================================================
@@ -140,17 +174,14 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 	case ^TemplateLiteral:
 		rewrite_template_literal(v, base, source_base)
 	case ^TaggedTemplateExpression:
-		rewrite_expression(v.tag, base, source_base)
-		rewrite_union_ptr(v.tag, base)  // the ^Expression itself
-		rewrite_expression(v.quasi, base, source_base)
-		rewrite_union_ptr(v.quasi, base)
+		rewrite_expr_field(v.tag, &v.tag, base, source_base)  // the ^Expression itself
+		rewrite_expr_field(v.quasi, &v.quasi, base, source_base)
 	case ^ThisExpression:
 		// no pointer fields
 	case ^Super:
 		// no pointer fields
 	case ^SpreadElement:
-		rewrite_expression(v.argument, base, source_base)
-		rewrite_union_ptr(v.argument, base)
+		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^ArrayExpression:
 		rewrite_array_expression(v, base, source_base)
 	case ^ObjectExpression:
@@ -162,46 +193,31 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 	case ^ClassExpression:
 		rewrite_class_expression(v, base, source_base)
 	case ^MemberExpression:
-		rewrite_expression(v.object, base, source_base)
-		rewrite_union_ptr(v.object, base)
-		rewrite_expression(v.property, base, source_base)
-		rewrite_union_ptr(v.property, base)
+		rewrite_expr_field(v.object, &v.object, base, source_base)
+		rewrite_expr_field(v.property, &v.property, base, source_base)
 	case ^CallExpression:
-		rewrite_expression(v.callee, base, source_base)
-		rewrite_union_ptr(v.callee, base)
+		rewrite_expr_field(v.callee, &v.callee, base, source_base)
 		rewrite_expression_array(&v.arguments, base, source_base)
 	case ^NewExpression:
-		rewrite_expression(v.callee, base, source_base)
-		rewrite_union_ptr(v.callee, base)
+		rewrite_expr_field(v.callee, &v.callee, base, source_base)
 		rewrite_expression_array(&v.arguments, base, source_base)
 	case ^ConditionalExpression:
-		rewrite_expression(v.test, base, source_base)
-		rewrite_union_ptr(v.test, base)
-		rewrite_expression(v.consequent, base, source_base)
-		rewrite_union_ptr(v.consequent, base)
-		rewrite_expression(v.alternate, base, source_base)
-		rewrite_union_ptr(v.alternate, base)
+		rewrite_expr_field(v.test, &v.test, base, source_base)
+		rewrite_expr_field(v.consequent, &v.consequent, base, source_base)
+		rewrite_expr_field(v.alternate, &v.alternate, base, source_base)
 	case ^UpdateExpression:
-		rewrite_expression(v.argument, base, source_base)
-		rewrite_union_ptr(v.argument, base)
+		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^UnaryExpression:
-		rewrite_expression(v.argument, base, source_base)
-		rewrite_union_ptr(v.argument, base)
+		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^BinaryExpression:
-		rewrite_expression(v.left, base, source_base)
-		rewrite_union_ptr(v.left, base)
-		rewrite_expression(v.right, base, source_base)
-		rewrite_union_ptr(v.right, base)
+		rewrite_expr_field(v.left, &v.left, base, source_base)
+		rewrite_expr_field(v.right, &v.right, base, source_base)
 	case ^LogicalExpression:
-		rewrite_expression(v.left, base, source_base)
-		rewrite_union_ptr(v.left, base)
-		rewrite_expression(v.right, base, source_base)
-		rewrite_union_ptr(v.right, base)
+		rewrite_expr_field(v.left, &v.left, base, source_base)
+		rewrite_expr_field(v.right, &v.right, base, source_base)
 	case ^AssignmentExpression:
-		rewrite_expression(v.left, base, source_base)
-		rewrite_union_ptr(v.left, base)
-		rewrite_expression(v.right, base, source_base)
-		rewrite_union_ptr(v.right, base)
+		rewrite_expr_field(v.left, &v.left, base, source_base)
+		rewrite_expr_field(v.right, &v.right, base, source_base)
 	case ^SequenceExpression:
 		rewrite_expression_array(&v.expressions, base, source_base)
 	case ^YieldExpression:
@@ -210,11 +226,9 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 			rewrite_union_ptr(arg, base)
 		}
 	case ^AwaitExpression:
-		rewrite_expression(v.argument, base, source_base)
-		rewrite_union_ptr(v.argument, base)
+		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^ImportExpression:
-		rewrite_expression(v.source, base, source_base)
-		rewrite_union_ptr(v.source, base)
+		rewrite_expr_field(v.source, &v.source, base, source_base)
 	case ^MetaProperty:
 		rewrite_string(&v.meta.name, source_base)
 		rewrite_string(&v.property.name, source_base)
@@ -232,8 +246,7 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 	
 	#partial switch v in stmt {
 	case ^ExpressionStatement:
-		rewrite_expression(v.expression, base, source_base)
-		rewrite_union_ptr(v.expression, base)
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
 	case ^BlockStatement:
 		rewrite_statement_array(&v.body, base, source_base)
 	case ^EmptyStatement:
@@ -258,8 +271,7 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 		rewrite_statement(v.body, base, source_base)
 		rewrite_ptr((^rawptr)(&v.body), base)
 	case ^IfStatement:
-		rewrite_expression(v.test, base, source_base)
-		rewrite_union_ptr(v.test, base)
+		rewrite_expr_field(v.test, &v.test, base, source_base)
 		rewrite_statement(v.consequent, base, source_base)
 		rewrite_ptr((^rawptr)(&v.consequent), base)
 		if alt, ok := v.alternate.?; ok {
@@ -267,8 +279,7 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 			rewrite_ptr((^rawptr)(&v.alternate), base)
 		}
 	case ^SwitchStatement:
-		rewrite_expression(v.discriminant, base, source_base)
-		rewrite_union_ptr(v.discriminant, base)
+		rewrite_expr_field(v.discriminant, &v.discriminant, base, source_base)
 		for i in 0..<len(v.cases) {
 			c := &v.cases[i]
 			if test, ok := c.test.?; ok {
@@ -279,15 +290,13 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 		}
 		rewrite_dynamic_header(&v.cases, base, len(v.cases))
 	case ^WhileStatement:
-		rewrite_expression(v.test, base, source_base)
-		rewrite_union_ptr(v.test, base)
+		rewrite_expr_field(v.test, &v.test, base, source_base)
 		rewrite_statement(v.body, base, source_base)
 		rewrite_ptr((^rawptr)(&v.body), base)
 	case ^DoWhileStatement:
 		rewrite_statement(v.body, base, source_base)
 		rewrite_ptr((^rawptr)(&v.body), base)
-		rewrite_expression(v.test, base, source_base)
-		rewrite_union_ptr(v.test, base)
+		rewrite_expr_field(v.test, &v.test, base, source_base)
 	case ^ForStatement:
 		// init_decl/init_expr are transmuted ^Statement pointers (parser quirk)
 		// Treat as ^Statement for rewriting
@@ -320,8 +329,7 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 			rewrite_union_ptr(transmute(^Expression)ptr, base)
 			(^u32)(&v.left_expr)^ = ptr_to_offset(base, ptr)
 		}
-		rewrite_expression(v.right, base, source_base)
-		rewrite_union_ptr(v.right, base)
+		rewrite_expr_field(v.right, &v.right, base, source_base)
 		rewrite_statement(v.body, base, source_base)
 		rewrite_ptr((^rawptr)(&v.body), base)
 	case ^ForOfStatement:
@@ -334,18 +342,15 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 			rewrite_union_ptr(transmute(^Expression)ptr, base)
 			(^u32)(&v.left_expr)^ = ptr_to_offset(base, ptr)
 		}
-		rewrite_expression(v.right, base, source_base)
-		rewrite_union_ptr(v.right, base)
+		rewrite_expr_field(v.right, &v.right, base, source_base)
 		rewrite_statement(v.body, base, source_base)
 		rewrite_ptr((^rawptr)(&v.body), base)
 	case ^WithStatement:
-		rewrite_expression(v.object, base, source_base)
-		rewrite_union_ptr(v.object, base)
+		rewrite_expr_field(v.object, &v.object, base, source_base)
 		rewrite_statement(v.body, base, source_base)
 		rewrite_ptr((^rawptr)(&v.body), base)
 	case ^ThrowStatement:
-		rewrite_expression(v.argument, base, source_base)
-		rewrite_union_ptr(v.argument, base)
+		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^TryStatement:
 		rewrite_statement_array(&v.block.body, base, source_base)
 		if handler, ok := v.handler.(CatchClause); ok {
@@ -414,12 +419,7 @@ rewrite_program :: proc(p: ^Program, base: uintptr, source_base: uintptr) {
 	rewrite_dynamic_header(rawptr(&p.directives), base, dir_len)
 
 	// Rewrite body
-	body_len := len(p.body)
-	for i in 0..<body_len {
-		rewrite_statement(p.body[i], base, source_base)
-		rewrite_union_ptr(p.body[i], base)
-	}
-	rewrite_dynamic_header(rawptr(&p.body), base, body_len)
+	rewrite_statement_array(&p.body, base, source_base)
 }
 
 rewrite_template_literal :: proc(t: ^TemplateLiteral, base: uintptr, source_base: uintptr) {
@@ -439,6 +439,8 @@ rewrite_variable_declaration :: proc(v: ^VariableDeclaration, base: uintptr, sou
 		if init_expr, has_init := d.init.?; has_init {
 			rewrite_expression(init_expr, base, source_base)
 			rewrite_union_ptr(init_expr, base)
+			// Rewrite the Maybe(^Expression) slot itself
+			rewrite_ptr((^rawptr)(&d.init), base)
 		}
 	}
 	rewrite_dynamic_header(&v.declarations, base, len(v.declarations))
@@ -454,9 +456,10 @@ rewrite_binding_pattern :: proc(pat: ^Pattern, base: uintptr, source_base: uintp
 	case ^ArrayPattern:
 		// elements is []Maybe(Pattern) — slice, not dynamic
 	case ^AssignmentPattern:
-		rewrite_expression(v.right, base, source_base)
-		rewrite_union_ptr(v.right, base)
+		rewrite_expr_field(v.right, &v.right, base, source_base)
 	}
+	// Rewrite the Pattern union's own pointer field
+	rewrite_union_ptr(pat, base)
 }
 
 rewrite_function_params :: proc(params: ^[dynamic]FunctionParameter, base: uintptr, source_base: uintptr) {
