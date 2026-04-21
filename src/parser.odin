@@ -2472,24 +2472,38 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 }
 
 parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
-	def: ^ExportDefaultDef
+	// ExportDefaultDef is union { ^Declaration, ^Expression }. The old code
+	// did transmute(^ExportDefaultDef)decl on a ^Statement union, which
+	// reinterpreted 16 bytes of Statement-union layout as a 16-byte
+	// ExportDefaultDef union — UB that happened to not crash only because
+	// the union tag slots sometimes aligned. Same class as the FunctionExpression
+	// and TryStatement UB fixes.
+	def := new_node(p, ExportDefaultDef)
 
 	if is_token(p, .Function) || (is_token(p, .Async) && is_next_token(p, .Function)) {
-		// export default function() {} or export default async function() {}
-		// Anonymous functions are valid here (is_expr=true)
-		decl := parse_function_declaration(p, true)
-		if decl != nil {
-			def = transmute(^ExportDefaultDef)decl
+		// export default [async] function() {}  — parsed as expression form.
+		// parse_function_declaration(is_expr=true) returns a ^Statement union
+		// wrapping a ^ExpressionStatement whose .expression is the FunctionExpression.
+		fn_stmt := parse_function_declaration(p, true)
+		if fn_stmt != nil {
+			if expr_stmt, ok := fn_stmt^.(^ExpressionStatement); ok {
+				def^ = expr_stmt.expression
+			}
 		}
 	} else if is_token(p, .Class) {
-		decl := parse_statement_or_declaration(p)
-		if decl != nil {
-			def = transmute(^ExportDefaultDef)decl
+		cls_stmt := parse_statement_or_declaration(p)
+		if cls_stmt != nil {
+			if cls_decl, ok := cls_stmt^.(^ClassDeclaration); ok {
+				// ^ClassDeclaration assigns into the ^Declaration variant.
+				decl_union := new_node(p, Declaration)
+				decl_union^ = cls_decl
+				def^ = decl_union
+			}
 		}
 	} else {
 		expr := parse_assignment_expression(p)
 		if expr != nil {
-			def = transmute(^ExportDefaultDef)expr
+			def^ = expr
 		}
 		match_semicolon_or_asi(p)
 	}
@@ -2499,7 +2513,6 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	decl.declaration = def
 	decl.loc.span.end = cur_offset(p)
 
-	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportDefaultDeclaration)(decl)
 	return stmt
@@ -3809,9 +3822,13 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		p.in_async = true
 	}
 
-	// Parse body
+	// Parse body. Capture block-vs-expression BEFORE consuming either,
+	// because after parse_block_statement / parse_assignment_expression
+	// the current token is no longer the '{' and the ESTree `expression`
+	// flag would otherwise always read false.
+	is_block_body := is_token(p, .LBrace)
 	body: ^Expression
-	if is_token(p, .LBrace) {
+	if is_block_body {
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
@@ -3931,7 +3948,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	arrow.loc = start
 	arrow.params = params
 	arrow.body = body
-	arrow.expression = !is_token(p, .LBrace) // Simple expression or block
+	arrow.expression = !is_block_body
 	arrow.async = false
 	arrow.loc.span.end = cur_offset(p)
 
@@ -4024,9 +4041,11 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	prev_async := p.in_async
 	p.in_async = true
 
-	// Parse body
+	// Parse body. Capture block-vs-expression BEFORE consuming the body,
+	// so the ESTree `expression` flag reflects the source shape.
+	is_block_body := is_token(p, .LBrace)
 	body: ^Expression
-	if is_token(p, .LBrace) {
+	if is_block_body {
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
@@ -4055,7 +4074,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	arrow.loc = start
 	arrow.params = params
 	arrow.body = body
-	arrow.expression = !is_token(p, .LBrace)
+	arrow.expression = !is_block_body
 	arrow.async = true
 	arrow.loc.span.end = cur_offset(p)
 
@@ -4083,9 +4102,10 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	prev_async := p.in_async
 	p.in_async = true
 
-	// Parse body
+	// Parse body. Capture block-vs-expression before consuming.
+	is_block_body := is_token(p, .LBrace)
 	body: ^Expression
-	if is_token(p, .LBrace) {
+	if is_block_body {
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
@@ -4104,7 +4124,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	arrow.loc = start
 	arrow.params = params
 	arrow.body = body
-	arrow.expression = !is_token(p, .LBrace)
+	arrow.expression = !is_block_body
 	arrow.async = true
 	arrow.loc.span.end = cur_offset(p)
 
