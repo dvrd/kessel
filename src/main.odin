@@ -269,6 +269,20 @@ main :: proc() {
 		}
 		delete(parse_files)
 
+	case "raw":
+		// Produce raw transfer buffer — for testing/benchmarking the zero-copy path
+		if len(os.args) < 3 {
+			out_println("Usage: kessel raw <file> [--out file.bin]")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		raw_file := os.args[2]
+		raw_out := ""
+		if len(os.args) >= 5 && os.args[3] == "--out" {
+			raw_out = os.args[4]
+		}
+		raw_transfer_file(raw_file, raw_out)
+
 	case "lex", "tokenize":
 		if len(os.args) < 3 {
 			out_println("Error: lex command requires a file path")
@@ -439,6 +453,53 @@ parse_file :: proc(file_path: string) {
 	ratio := (arena.total_used * 100) / arena.total_reserved
 	fmt.eprintf("Arena: used=%dB reserved=%dB ratio=%d%%\n", arena.total_used, arena.total_reserved, ratio)
 	fmt.eprintf("Parse errors: %d\n", len(p.errors))
+}
+
+// ============================================================================
+// Raw transfer: parse and produce binary AST buffer
+// ============================================================================
+
+raw_transfer_file :: proc(file_path: string, out_path: string) {
+	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
+	if read_err != nil {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		os.exit(1)
+	}
+	defer delete(source, context.allocator)
+
+	arena: mvirtual.Arena
+	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
+	err := mvirtual.arena_init_static(&arena, arena_size)
+	if err != nil {
+		fmt.eprintf("Error initializing arena: %v\n", err)
+		os.exit(1)
+	}
+	defer mvirtual.arena_destroy(&arena)
+	arena_alloc := mvirtual.arena_allocator(&arena)
+
+	start := time.tick_now()
+	result := produce_raw_buffer(string(source), &arena, arena_alloc)
+	elapsed := time.tick_since(start)
+
+	if out_path != "" {
+		ok := write_raw_buffer(result, out_path)
+		if !ok {
+			fmt.eprintf("Error: Could not write to %s\n", out_path)
+			os.exit(1)
+		}
+	}
+
+	fmt.eprintf("Raw transfer: %s\n", file_path)
+	fmt.eprintf("  Source:      %d bytes\n", len(source))
+	fmt.eprintf("  Buffer:      %d bytes (%.1fx source)\n", len(result.buffer), f64(len(result.buffer)) / f64(max(len(source), 1)))
+	fmt.eprintf("  Program at:  offset %d\n", result.header.program_offset)
+	fmt.eprintf("  Parse errors: %d\n", result.error_count)
+	fmt.eprintf("  Time:        %.3f ms\n", f64(time.duration_microseconds(elapsed)) / 1000.0)
+	if out_path != "" {
+		fmt.eprintf("  Written to:  %s (%d bytes = header %d + buffer %d)\n",
+			out_path, size_of(RawTransferHeader) + len(result.buffer),
+			size_of(RawTransferHeader), len(result.buffer))
+	}
 }
 
 // ============================================================================
