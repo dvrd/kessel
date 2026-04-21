@@ -3,6 +3,7 @@ package main
 import "core:bufio"
 import "core:fmt"
 import "core:io"
+import "core:math"
 import "core:mem"
 import mvirtual "core:mem/virtual"
 import "core:os"
@@ -619,15 +620,19 @@ parse_file :: proc(file_path: string) {
 	// (…]}}}Parse errors (6):…), breaking every downstream JSON.parse.
 	os.write(os.stdout, direct_buf[:direct_pos])
 
-	// Now emit parse-error diagnostics through the bufio writer. They
-	// will appear on subsequent lines of stdout; Statistics below go to
-	// stderr as before.
+	// Now emit parse-error diagnostics. Bypass out_printf (which would
+	// append to direct_buf, and direct_buf is not written to stdout again
+	// after the JSON flush above — the error lines would be lost). Instead
+	// write directly to stdout via core:fmt.printf so they appear on
+	// subsequent lines of stdout as intended. Previously these error
+	// messages silently disappeared whenever the JSON emitter was active,
+	// leaving `task test:real` to see only "Parse errors: N" in stderr
+	// without any line/column/message to triage.
 	if len(p.errors) > 0 {
-		out_printf("Parse errors (%d):\n", len(p.errors))
+		fmt.printf("Parse errors (%d):\n", len(p.errors))
 		for err in p.errors {
-			out_printf("  Line %d, Column %d: %s\n", err.loc.line, err.loc.column, err.message)
+			fmt.printf("  Line %d, Column %d: %s\n", err.loc.line, err.loc.column, err.message)
 		}
-		flush_stdout_writer()
 	}
 	delete(direct_buf, context.allocator)
 	direct_buf = nil
@@ -1179,6 +1184,19 @@ emit_identifier_name_object :: proc(id: IdentifierName, indent: int) {
 	out_s("}")
 }
 
+// emit_export_specifier_name dispatches the ExportSpecifierName union to the
+// right leaf emitter: IdentifierName -> inline Identifier object; ^StringLiteral
+// -> Literal object. Used for both `local` and `exported` positions of an
+// ExportSpecifier, since ES2022 permits string literals on either side.
+emit_export_specifier_name :: proc(name: ExportSpecifierName, indent: int) {
+	switch n in name {
+	case IdentifierName:
+		emit_identifier_name_object(n, indent)
+	case ^StringLiteral:
+		emit_string_literal_object(n^, indent)
+	}
+}
+
 // emit_binding_identifier_object is a convenience alias for BindingIdentifier,
 // which has the same layout. Odin treats them as distinct types so we give it
 // its own entry point rather than cast at every call site.
@@ -1417,6 +1435,35 @@ print_block_statement_inline :: proc(block: ^BlockStatement, indent: int) {
 // BlockStatement by carrying directives; we flatten the directives into the
 // body array as expression statements the same way OXC does, which keeps
 // the ESTree shape uniform for consumers.
+// print_function_parameter emits a single FunctionParameter as an ESTree
+// pattern node. When `default_val` is present (e.g. `x = 1`), ESTree wraps
+// the pattern in an AssignmentPattern { left: pattern, right: expression }.
+// Previously the emit ignored default_val entirely, silently dropping every
+// default-argument string literal (e.g. `constructor(msg = "Unspecified")`
+// in assertion-error.js, and all the RHS expressions in chance.js /
+// prettier.js / chartjs.js defaults).
+print_function_parameter :: proc(param: FunctionParameter, indent: int) {
+	if def, ok := param.default_val.(^Expression); ok && def != nil {
+		print_indent(indent)
+		out_s("\"type\": \"AssignmentPattern\",\n")
+		print_indent(indent)
+		emit_span_leading(param.loc, indent)
+		out_s("\"left\": {\n")
+		print_pattern_ast(param.pattern, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"right\": {\n")
+		print_expression_ast(def, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	} else {
+		print_pattern_ast(param.pattern, indent)
+	}
+}
+
 print_function_body_inline :: proc(body: ^FunctionBody, indent: int) {
 	print_indent(indent)
 	out_s("\"type\": \"BlockStatement\",\n")
@@ -1755,6 +1802,16 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_expression_ast(s.expression, indent + 1)
 		print_indent(indent)
 		out_s("}")
+		// ESTree: ExpressionStatement in a directive prologue gets a
+		// `directive: "<content>"` field. The parser marks these by setting
+		// `directive` to the unquoted literal value; regular expression
+		// statements leave it empty (len==0).
+		if len(s.directive) > 0 {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"directive\": ")
+			out_string(s.directive)
+		}
 
 	case ^VariableDeclaration:
 		print_variable_declaration_body(s, indent)
@@ -1775,6 +1832,9 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("},\n")
 		print_indent(indent)
+		// expression: false — FunctionDeclaration always has a block body.
+		out_s("\"expression\": false,\n")
+		print_indent(indent)
 		out_s("\"generator\": ")
 		out_bool(s.expr.generator)
 		out_s(",\n")
@@ -1791,7 +1851,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			for param, i in s.expr.params {
 				print_indent(indent + 1)
 				out_s("{\n")
-				print_pattern_ast(param.pattern, indent + 2)
+				print_function_parameter(param, indent + 2)
 				out_s("\n")
 				print_indent(indent + 1)
 				if i < len(s.expr.params) - 1 { out_s("},\n") } else { out_s("}\n") }
@@ -2037,11 +2097,11 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 				print_indent(indent + 2)
 				emit_span_leading(spec.loc, indent + 2)
 				out_s("\"local\": ")
-				emit_identifier_name_object(spec.local, indent + 2)
+				emit_export_specifier_name(spec.local, indent + 2)
 				out_s(",\n")
 				print_indent(indent + 2)
 				out_s("\"exported\": ")
-				emit_identifier_name_object(spec.exported, indent + 2)
+				emit_export_specifier_name(spec.exported, indent + 2)
 				out_s("\n")
 				print_indent(indent + 1)
 				if i < len(s.specifiers) - 1 { out_s("},\n") } else { out_s("}\n") }
@@ -2052,11 +2112,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("\"source\": ")
 		if src, ok := s.source.(StringLiteral); ok {
-			out_s("{ \"type\": \"Literal\", \"value\": ")
-			out_string(src.value)
-			out_s(", \"raw\": ")
-			out_string(src.raw)
-			out_s(" }")
+			emit_string_literal_object(src, indent)
 		} else {
 			out_s("null")
 		}
@@ -2086,20 +2142,18 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	case ^ExportAllDeclaration:
 		out_println(",")
 		print_indent(indent)
-		out_println("\"source\": {")
-		print_indent(indent + 1)
-		out_s("\"type\": \"Literal\",\n")
-		print_indent(indent + 1)
-		emit_span_leading(s.source.loc, indent + 1)
-		out_s("\"value\": ")
-		out_string(s.source.value)
+		// ESTree ExportAllDeclaration has an `exported` field: null for
+		// `export * from "x"`, an Identifier for `export * as ns from "x"`.
+		out_s("\"exported\": ")
+		if exp, ok := s.exported.(IdentifierName); ok {
+			emit_identifier_name_object(exp, indent)
+		} else {
+			out_s("null")
+		}
 		out_s(",\n")
-		print_indent(indent + 1)
-		out_s("\"raw\": ")
-		out_string(s.source.raw)
-		out_s("\n")
 		print_indent(indent)
-		out_print("}")
+		out_s("\"source\": ")
+		emit_string_literal_object(s.source, indent)
 
 	case ^DoWhileStatement:
 		out_println(",")
@@ -2472,6 +2526,44 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				out_s("\"computed\": ")
 				out_bool(prop.computed)
 				out_s(",\n")
+				// key: ObjectPatternPropertyKey is a union of IdentifierName,
+				// ^StringLiteral, or ^Expression (for computed). Previously omitted
+				// entirely — OXC emits the key as an Identifier/Literal/Expression
+				// inline, so the prior output silently dropped 1 string literal
+				// per `{ 'aria-label': x }`-style destructure (antd.js et al.).
+				print_indent(indent + 2)
+				out_s("\"key\": ")
+				if key, ok := prop.key.(ObjectPatternPropertyKey); ok {
+					switch k in key {
+					case IdentifierName:
+						// emit_identifier_name_object writes its own opening/closing braces.
+						emit_identifier_name_object(k, indent + 2)
+					case ^StringLiteral:
+						out_s("{\n")
+						print_indent(indent + 3)
+						out_s("\"type\": \"Literal\",\n")
+						print_indent(indent + 3)
+						emit_span_leading(k.loc, indent + 3)
+						out_s("\"value\": ")
+						out_string(k.value)
+						out_s(",\n")
+						print_indent(indent + 3)
+						out_s("\"raw\": ")
+						out_string(k.raw)
+						out_s("\n")
+						print_indent(indent + 2)
+						out_s("}")
+					case ^Expression:
+						out_s("{\n")
+						print_expression_ast(k, indent + 3)
+						out_s("\n")
+						print_indent(indent + 2)
+						out_s("}")
+					}
+				} else {
+					out_s("null")
+				}
+				out_s(",\n")
 				print_indent(indent + 2)
 				// Every remaining Pattern variant has a real emit case in
 				// print_pattern_ast now (Identifier / ArrayPattern / ObjectPattern
@@ -2506,7 +2598,23 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		emit_span_leading(e.loc, indent)
 		out_s("\"value\": ")
-		out_printf("%v,\n", e.value)
+		// JSON forbids Infinity and NaN (they're not grammatical number
+		// literals); Odin's %v format emits "+Inf", "-Inf", "NaN" for those
+		// cases, which break downstream JSON.parse. Substitute JSON-safe
+		// equivalents that still round-trip via JSON.parse in Node/V8:
+		//   +Inf -> 1e+400  (parses as Number.POSITIVE_INFINITY)
+		//   -Inf -> -1e+400 (parses as Number.NEGATIVE_INFINITY)
+		//   NaN  -> null    (no JSON escape exists; null is the canonical
+		//                    ESTree fallback, also what acorn/meriyah emit)
+		// OXC picks the same 1e+400 encoding for overflow literals.
+		if math.classify_f64(e.value) == .Inf {
+			out_s(e.value > 0 ? "1e+400" : "-1e+400")
+			out_s(",\n")
+		} else if math.classify_f64(e.value) == .NaN {
+			out_s("null,\n")
+		} else {
+			out_printf("%v,\n", e.value)
+		}
 		print_indent(indent)
 		out_s("\"raw\": ")
 		out_string(e.raw)
@@ -2648,24 +2756,56 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("]")
 
 	case ^ObjectExpression:
+		// ESTree ObjectExpression.properties is a heterogeneous array of
+		// Property | SpreadElement. Spread properties have `kind: nil` and
+		// `key: nil` in Kessel's AST — emit them as SpreadElement, not as a
+		// malformed Property.
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"properties\": [\n")
 		for prop, i in e.properties {
 			print_indent(indent + 1)
 			out_s("{\n")
+			// SpreadElement path: no key AND no explicit kind — Kessel stores it
+			// with key:nil, value:^SpreadElement (already the right ESTree node).
+			if prop.key == nil && prop.value != nil {
+				if _, is_spread := prop.value^.(^SpreadElement); is_spread {
+					print_expression_ast(prop.value, indent + 2)
+					out_s("\n")
+					print_indent(indent + 1)
+					if i < len(e.properties) - 1 { out_s("},\n") } else { out_s("}\n") }
+					continue
+				}
+			}
 			print_indent(indent + 2)
+			out_s("\"type\": \"Property\",\n")
+			print_indent(indent + 2)
+			emit_span_leading(prop.loc, indent + 2)
+			// ESTree kind: "init" | "get" | "set". OXC treats methods as
+			// kind:"init" with method:true — follow that convention here.
 			kind_str := "init"
+			is_method := false
 			#partial switch prop.kind {
 			case .Get: kind_str = "get"
 			case .Set: kind_str = "set"
-			case .Method: kind_str = "method"
+			case .Method: is_method = true   // kind stays "init"
 			}
 			out_s("\"kind\": \"")
 			out_s(kind_str)
 			out_s("\",\n")
+			print_indent(indent + 2)
+			out_s("\"method\": ")
+			out_bool(is_method)
+			out_s(",\n")
+			print_indent(indent + 2)
+			out_s("\"shorthand\": ")
+			out_bool(prop.shorthand)
+			out_s(",\n")
+			print_indent(indent + 2)
+			out_s("\"computed\": ")
+			out_bool(prop.computed)
+			out_s(",\n")
 
-			// Spread properties have nil key
 			if prop.key != nil {
 				print_indent(indent + 2)
 				out_s("\"key\": {\n")
@@ -2682,10 +2822,10 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 				out_s("\"value\": {\n")
 				print_expression_ast(prop.value, indent + 3)
 				print_indent(indent + 2)
-				out_s("}")
+				out_s("}\n")
 			} else {
 				print_indent(indent + 2)
-				out_s("\"value\": null")
+				out_s("\"value\": null\n")
 			}
 
 			print_indent(indent + 1)
@@ -2810,7 +2950,22 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("}")
 
 	case ^FunctionExpression:
+		// ESTree FunctionExpression.id is `Identifier | null` — for anonymous
+		// functions (the common IIFE case) it's null. OXC always emits it, so
+		// does Kessel (null fallback).
 		out_s(",\n")
+		print_indent(indent)
+		out_s("\"id\": ")
+		if id, ok := e.id.(BindingIdentifier); ok {
+			emit_binding_identifier_object(id, indent)
+		} else {
+			out_s("null")
+		}
+		out_s(",\n")
+		print_indent(indent)
+		// expression: false — FunctionExpression always has a block body. OXC
+		// emits this for symmetry with ArrowFunctionExpression.
+		out_s("\"expression\": false,\n")
 		print_indent(indent)
 		out_s("\"generator\": ")
 		out_bool(e.generator)
@@ -2828,7 +2983,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			for param, i in e.params {
 				print_indent(indent + 1)
 				out_s("{\n")
-				print_pattern_ast(param.pattern, indent + 2)
+				print_function_parameter(param, indent + 2)
 				out_s("\n")
 				print_indent(indent + 1)
 				if i < len(e.params) - 1 { out_s("},\n") } else { out_s("}\n") }
@@ -2846,11 +3001,19 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_print("}")
 
 	case ^ArrowFunctionExpression:
+		// OXC emits `id: null` and `generator: false` on ArrowFunctionExpression
+		// too, even though the grammar never allows either (arrows are always
+		// anonymous non-generators). Emitted for structural uniformity with
+		// FunctionExpression so consumers can walk either with the same shape.
 		out_s(",\n")
+		print_indent(indent)
+		out_s("\"id\": null,\n")
 		print_indent(indent)
 		out_s("\"expression\": ")
 		out_bool(e.expression)
 		out_s(",\n")
+		print_indent(indent)
+		out_s("\"generator\": false,\n")
 		print_indent(indent)
 		out_s("\"async\": ")
 		out_bool(e.async)
@@ -2864,7 +3027,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			for param, i in e.params {
 				print_indent(indent + 1)
 				out_s("{\n")
-				print_pattern_ast(param.pattern, indent + 2)
+				print_function_parameter(param, indent + 2)
 				out_s("\n")
 				print_indent(indent + 1)
 				if i < len(e.params) - 1 { out_s("},\n") } else { out_s("}\n") }

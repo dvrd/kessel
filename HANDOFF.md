@@ -29,8 +29,8 @@ Clean. No warnings, no errors. Produces a single ~720 KB binary at `bin/kessel`.
 | Unit | `task test:unit` | **98 / 98 pass** (100%) |
 | Regression | `task test:regression` | **11 / 11 pass** — structural checks vs OXC for every session-fixed bug |
 | ESTree deep-tree | `task test:estree` | **4 / 4 pass** — jquery.js (51,406 fields), react-dom.dev.js (104,989 fields), preact.js (2,716 fields), snabbdom.js (17 fields), all byte-exact vs OXC |
-| Real-world parse | `task test:real` | **433 / 467 pass** — 34 files with parse errors, **0 SIGSEGVs** |
-| String-escape mismatches | 17 real files compared vs OXC | **0 mismatches across all files** (was 2 on handsontable.js pre-fix) |
+| Real-world parse | `task test:real` | **467 / 467 pass** — **0 parse errors, 0 SIGSEGVs** |
+| String-escape vs OXC | **ALL 467 files** | **467 / 467 full-match, 0 mismatches, 0 partial, 0 errors** |
 | String-escape vs OXC | `node tests/verify_string_escapes.js <file>` | See table below |
 
 **Real-world string-escape verification vs OXC**:

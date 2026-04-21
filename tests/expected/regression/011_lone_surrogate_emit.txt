@@ -1,6 +1,6 @@
 {
   "type": "Program",
-  "start": 1343,
+  "start": 0,
   "end": 2647,
   "sourceType": "script",
   "hashbang": null,
@@ -8,7 +8,7 @@
     {
       "type": "VariableDeclaration",
       "start": 1343,
-      "end": 1393,
+      "end": 1362,
       "kind": "const",
       "declarations": [
         {
@@ -30,7 +30,7 @@
     {
       "type": "VariableDeclaration",
       "start": 1393,
-      "end": 1469,
+      "end": 1412,
       "kind": "const",
       "declarations": [
         {
@@ -52,7 +52,7 @@
     {
       "type": "VariableDeclaration",
       "start": 1469,
-      "end": 1630,
+      "end": 1490,
       "kind": "const",
       "declarations": [
         {
@@ -74,7 +74,7 @@
     {
       "type": "VariableDeclaration",
       "start": 1630,
-      "end": 1919,
+      "end": 1655,
       "kind": "const",
       "declarations": [
         {
@@ -96,7 +96,7 @@
     {
       "type": "VariableDeclaration",
       "start": 1919,
-      "end": 2012,
+      "end": 1944,
       "kind": "const",
       "declarations": [
         {
@@ -118,7 +118,7 @@
     {
       "type": "VariableDeclaration",
       "start": 2012,
-      "end": 2108,
+      "end": 2064,
       "kind": "const",
       "declarations": [
         {
@@ -140,7 +140,7 @@
     {
       "type": "VariableDeclaration",
       "start": 2108,
-      "end": 2285,
+      "end": 2139,
       "kind": "const",
       "declarations": [
         {
@@ -162,7 +162,7 @@
     {
       "type": "VariableDeclaration",
       "start": 2285,
-      "end": 2512,
+      "end": 2319,
       "kind": "const",
       "declarations": [
         {
@@ -192,7 +192,7 @@
     {
       "type": "VariableDeclaration",
       "start": 2512,
-      "end": 2647,
+      "end": 2646,
       "kind": "const",
       "declarations": [
         {
@@ -210,7 +210,13 @@
             "end": 2645,
             "properties": [
               {
+                "type": "Property",
+                "start": 2542,
+                "end": 2556,
                 "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
                 "key": {
                   "type": "Identifier",
                   "start": 2542,
@@ -221,9 +227,16 @@
                   "start": 2548,
                   "end": 2556,
                   "value": "\udead",
-                  "raw": "\"\\uDEAD\""                }              },
+                  "raw": "\"\\uDEAD\""                }
+              },
               {
+                "type": "Property",
+                "start": 2560,
+                "end": 2574,
                 "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
                 "key": {
                   "type": "Identifier",
                   "start": 2560,
@@ -234,9 +247,16 @@
                   "start": 2566,
                   "end": 2574,
                   "value": "normal",
-                  "raw": "\"normal\""                }              },
+                  "raw": "\"normal\""                }
+              },
               {
+                "type": "Property",
+                "start": 2578,
+                "end": 2598,
                 "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
                 "key": {
                   "type": "Identifier",
                   "start": 2578,
@@ -247,9 +267,16 @@
                   "start": 2584,
                   "end": 2598,
                   "value": "\ud834\udf06",
-                  "raw": "\"\\uD834\\uDF06\""                }              },
+                  "raw": "\"\\uD834\\uDF06\""                }
+              },
               {
+                "type": "Property",
+                "start": 2617,
+                "end": 2642,
                 "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
                 "key": {
                   "type": "Identifier",
                   "start": 2617,
@@ -260,7 +287,8 @@
                   "start": 2623,
                   "end": 2642,
                   "value": "mix \udc00 middle",
-                  "raw": "\"mix \\uDC00 middle\""                }              }
+                  "raw": "\"mix \\uDC00 middle\""                }
+              }
             ]          }        }
       ]    }
   ]

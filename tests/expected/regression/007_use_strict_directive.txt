@@ -1,6 +1,6 @@
 {
   "type": "Program",
-  "start": 794,
+  "start": 0,
   "end": 866,
   "sourceType": "script",
   "hashbang": null,
@@ -8,17 +8,18 @@
     {
       "type": "ExpressionStatement",
       "start": 794,
-      "end": 806,
+      "end": 807,
       "expression": {
         "type": "Literal",
         "start": 794,
         "end": 806,
         "value": "use strict",
-        "raw": "\"use strict\""      }    },
+        "raw": "\"use strict\""      },
+      "directive": "use strict"    },
     {
       "type": "VariableDeclaration",
       "start": 808,
-      "end": 821,
+      "end": 820,
       "kind": "const",
       "declarations": [
         {
@@ -40,35 +41,37 @@
     {
       "type": "FunctionDeclaration",
       "start": 821,
-      "end": 866,
+      "end": 865,
       "id": {
         "type": "Identifier",
         "start": 830,
         "end": 831,
         "name": "f"
       },
+      "expression": false,
       "generator": false,
       "async": false,
       "params": [],
       "body": {
         "type": "BlockStatement",
         "start": 834,
-        "end": 866,
+        "end": 865,
         "body": [
           {
             "type": "ExpressionStatement",
             "start": 838,
-            "end": 854,
+            "end": 851,
             "expression": {
               "type": "Literal",
               "start": 838,
               "end": 850,
               "value": "use strict",
-              "raw": "\"use strict\""            }          },
+              "raw": "\"use strict\""            },
+            "directive": "use strict"          },
           {
             "type": "ReturnStatement",
             "start": 854,
-            "end": 864,
+            "end": 863,
             "argument": {
               "type": "Identifier",
               "start": 861,

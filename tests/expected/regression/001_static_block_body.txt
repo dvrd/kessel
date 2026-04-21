@@ -1,6 +1,6 @@
 {
   "type": "Program",
-  "start": 285,
+  "start": 0,
   "end": 503,
   "sourceType": "script",
   "hashbang": null,
@@ -8,7 +8,7 @@
     {
       "type": "ClassDeclaration",
       "start": 285,
-      "end": 503,
+      "end": 502,
       "id": {
         "type": "Identifier",
         "start": 291,
@@ -19,17 +19,17 @@
       "body": {
         "type": "ClassBody",
         "start": 305,
-        "end": 503,
+        "end": 502,
         "body": [
           {
             "type": "StaticBlock",
             "start": 309,
-            "end": 388,
+            "end": 385,
                         "body": [
               {
                 "type": "ExpressionStatement",
                 "start": 322,
-                "end": 338,
+                "end": 333,
                 "expression": {
                   "type": "AssignmentExpression",
                   "start": 322,
@@ -38,7 +38,7 @@
                   "left": {
                     "type": "MemberExpression",
                     "start": 322,
-                    "end": 329,
+                    "end": 328,
                     "computed": false,
                     "object": {
                       "type": "ThisExpression",
@@ -58,7 +58,7 @@
               {
                 "type": "ExpressionStatement",
                 "start": 338,
-                "end": 354,
+                "end": 349,
                 "expression": {
                   "type": "AssignmentExpression",
                   "start": 338,
@@ -67,7 +67,7 @@
                   "left": {
                     "type": "MemberExpression",
                     "start": 338,
-                    "end": 345,
+                    "end": 344,
                     "computed": false,
                     "object": {
                       "type": "ThisExpression",
@@ -87,7 +87,7 @@
               {
                 "type": "ExpressionStatement",
                 "start": 354,
-                "end": 384,
+                "end": 381,
                 "expression": {
                   "type": "CallExpression",
                   "start": 354,
@@ -120,7 +120,7 @@
           {
             "type": "PropertyDefinition",
             "start": 388,
-            "end": 405,
+            "end": 402,
                         "key": {
               "type": "Identifier",
               "start": 395,
@@ -140,12 +140,12 @@
           {
             "type": "StaticBlock",
             "start": 405,
-            "end": 501,
+            "end": 500,
                         "body": [
               {
                 "type": "VariableDeclaration",
                 "start": 418,
-                "end": 451,
+                "end": 446,
                 "kind": "const",
                 "declarations": [
                   {
@@ -165,7 +165,7 @@
                       "left": {
                         "type": "MemberExpression",
                         "start": 430,
-                        "end": 437,
+                        "end": 436,
                         "computed": false,
                         "object": {
                           "type": "ThisExpression",
@@ -194,7 +194,7 @@
               {
                 "type": "IfStatement",
                 "start": 451,
-                "end": 499,
+                "end": 496,
                 "test": {
                   "type": "BinaryExpression",
                   "start": 455,
@@ -203,7 +203,7 @@
                   "left": {
                     "type": "Identifier",
                     "start": 455,
-                    "end": 459,
+                    "end": 458,
                     "name": "tmp"                  },
                   "right": {
                     "type": "Literal",
@@ -214,12 +214,12 @@
                 "consequent": {
                   "type": "BlockStatement",
                   "start": 464,
-                  "end": 499,
+                  "end": 496,
                   "body": [
                     {
                       "type": "ExpressionStatement",
                       "start": 472,
-                      "end": 495,
+                      "end": 490,
                       "expression": {
                         "type": "AssignmentExpression",
                         "start": 472,
@@ -228,7 +228,7 @@
                         "left": {
                           "type": "MemberExpression",
                           "start": 472,
-                          "end": 483,
+                          "end": 482,
                           "computed": false,
                           "object": {
                             "type": "ThisExpression",

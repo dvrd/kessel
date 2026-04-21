@@ -63,9 +63,18 @@ Lexer :: struct {
 
 	// === WARM FIELDS (accessed frequently but not every token) ===
 	source:     string,               // 16B
-	last_lit_offset: u32,             // 4B  — write on literal tokens
+	last_lit_offset: u32,             // 4B  — write on literal tokens (reflects the LAST lex_token call — i.e. `nxt`)
 	last_lit_value:  LiteralValue,    // 16B
 	last_lit_type:   LiteralType,     // 1B
+	// Parallel slot shadowing the literal data for the CURRENT token (`cur`).
+	// advance_token copies last_lit_* → cur_lit_* BEFORE the next lex_token call
+	// overwrites last_lit_*. Without this, a literal followed by another
+	// cooking literal (e.g. string inside template `${...}`, number after
+	// escape-cooked string) would drop the first literal's cooked value
+	// on the floor and fall back to the raw source slice.
+	cur_lit_offset:  u32,
+	cur_lit_value:   LiteralValue,
+	cur_lit_type:    LiteralType,
 
 	// === COLD FIELDS (rarely accessed) ===
 	line_offsets: []u32,
@@ -141,6 +150,15 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator) {
 	// Prime: fill cur + nxt
 	l.cur.kind = .EOF
 	l.cur = lex_token(l)
+	// Capture cur's literal slot BEFORE lex_token is called for nxt — that
+	// call may overwrite last_lit_* with nxt's cooked value (e.g. when nxt
+	// is a number or another cooking literal). advance_token captures the
+	// same way on every subsequent swap; priming has to do it manually
+	// because there's no prior `cur = nxt` step. See comment on cur_lit_*
+	// in the Lexer struct.
+	l.cur_lit_offset = l.last_lit_offset
+	l.cur_lit_value  = l.last_lit_value
+	l.cur_lit_type   = l.last_lit_type
 	if l.cur.kind != .EOF {
 		l.nxt = lex_token(l)
 	}

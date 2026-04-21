@@ -11,7 +11,22 @@ import "core:fmt"
 advance_token :: #force_inline proc(p: ^Parser) {
 	if p.lexer != nil {
 		a := p.lexer
+		// Remember the end of the token we're about to consume. `a.cur` is the
+		// current token BEFORE this advance — after the swap it will be gone.
+		// `prev_token_end` lets `prev_end_offset` return the end of the last
+		// consumed meaningful token (excluding trailing whitespace/comments),
+		// which matches OXC/Acorn/Babel span semantics.
+		p.prev_token_end = a.cur.end
 		a.cur = a.nxt
+		// Snapshot the literal slot that was written when a.nxt (now a.cur)
+		// was lexed on the previous advance. The upcoming lex_token for the
+		// NEW a.nxt will overwrite last_lit_* — we must capture it first or
+		// we'll lose the cooked value and fall back to raw source for cur
+		// (broke any string-with-escape followed by another cooking literal,
+		// e.g. a string inside template `${...}`).
+		a.cur_lit_offset = a.last_lit_offset
+		a.cur_lit_value  = a.last_lit_value
+		a.cur_lit_type   = a.last_lit_type
 		if a.cur.kind != .EOF {
 			a.nxt = lex_token(a)
 		} else {
@@ -26,16 +41,16 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		if ft.kind < .LBrace {
 			p.cur_tok.value = a.source[ft.start:ft.end]
 			if ft.kind == .String {
-				if a.last_lit_offset == ft.start && a.last_lit_type == .String {
-					p.cur_tok.literal = a.last_lit_value
+				if a.cur_lit_offset == ft.start && a.cur_lit_type == .String {
+					p.cur_tok.literal = a.cur_lit_value
 				} else if ft.end - ft.start >= 2 {
 					p.cur_tok.literal = LiteralValue(a.source[ft.start+1:ft.end-1])
 				} else {
 					p.cur_tok.literal = LiteralValue(string(""))
 				}
 			} else if ft.kind <= .TemplateTail {
-				if a.last_lit_offset == ft.start && a.last_lit_type != .None {
-					p.cur_tok.literal = a.last_lit_value
+				if a.cur_lit_offset == ft.start && a.cur_lit_type != .None {
+					p.cur_tok.literal = a.cur_lit_value
 				}
 			}
 		}
@@ -59,7 +74,9 @@ peek_token :: #force_inline proc(p: ^Parser) -> Token {
 	return Token{type = .EOF}
 }
 
-// Prime the parser's token cache.
+// Prime the parser's token cache. init_lexer has already captured the
+// literal slot for cur (into cur_lit_*) before lexing nxt overwrote
+// last_lit_*, so the lookup here mirrors advance_token's path.
 prime_token_cache :: proc(p: ^Parser) {
 	if p.lexer != nil {
 		ft := p.lexer.cur
@@ -71,14 +88,14 @@ prime_token_cache :: proc(p: ^Parser) {
 			a := p.lexer
 			p.cur_tok.value = a.source[ft.start:ft.end]
 			if ft.kind == .String {
-				if a.last_lit_offset == ft.start && a.last_lit_type == .String {
-					p.cur_tok.literal = a.last_lit_value
+				if a.cur_lit_offset == ft.start && a.cur_lit_type == .String {
+					p.cur_tok.literal = a.cur_lit_value
 				} else if ft.end - ft.start >= 2 {
 					p.cur_tok.literal = LiteralValue(a.source[ft.start+1:ft.end-1])
 				}
 			} else if ft.kind <= .TemplateTail {
-				if a.last_lit_offset == ft.start && a.last_lit_type != .None {
-					p.cur_tok.literal = a.last_lit_value
+				if a.cur_lit_offset == ft.start && a.cur_lit_type != .None {
+					p.cur_tok.literal = a.cur_lit_value
 				}
 			}
 		}
@@ -131,6 +148,22 @@ Parser :: struct {
 	// Cached current token — updated ONLY by advance_token()
 	cur_tok:  Token,
 	cur_type: TokenType,
+
+	// End offset of the LAST consumed token. Used by `prev_end_offset` to
+	// produce ESTree-correct span.end values that don't include trailing
+	// whitespace or comments (which `cur_offset` would include because it
+	// returns the start of the NEXT token). Updated at the top of
+	// `advance_token` before the cur/nxt swap.
+	prev_token_end: u32,
+
+	// Remembered `(` position for arrow-function parameter parens — used
+	// when a parenthesized expression turns out to be arrow-function
+	// parameters. ESTree spans the full `(x, y) => ...` starting AT the
+	// opening paren, not at the first parameter. Set by parse_primary_expr
+	// when it opens a `(` that could be an arrow param list; consumed (and
+	// cleared) by parse_arrow_function. max(u32) = "unset" sentinel so
+	// position 0 (file start) is a valid stamped value.
+	pending_paren_start: u32,
 
 	// Token length (always set, even for punctuation where .value is skipped)
 	cur_len: u16,
@@ -285,6 +318,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator) {
 	p.in_switch = false
 	p.strict_mode = false
 	p.allow_jsx = false
+	p.pending_paren_start = max(u32) // sentinel: "no `(` pending"
 
 	// Initialize interner — pre-allocate capacity based on source size
 	// Small files: minimal map; large files: ~1 unique identifier per 30 bytes
@@ -602,7 +636,11 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 
 parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	program := new_node(p, Program)
-	program.loc = cur_loc(p)
+	// Program span always starts at byte 0 (even if the source begins with a
+	// shebang, comments, or whitespace) to match ESTree/OXC/Acorn semantics.
+	// `cur_loc` would return the start of the FIRST token, which skips over
+	// leading comments and shebang lines.
+	program.loc = Loc{span = Span{start = 0, end = 0}}
 	program.type = source_type
 	// Pre-size body based on source length: ~1 top-level statement per 50 bytes
 	body_cap := 16
@@ -632,7 +670,9 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 					raw = current.value,
 				}
 				append(&program.directives, directive)
-				// Also emit as ExpressionStatement in body (ESTree compat)
+				// Also emit as ExpressionStatement in body (ESTree compat). Mark
+				// the ExpressionStatement as a directive prologue via its `directive`
+				// field so the emitter writes ESTree's `directive: "use strict"`.
 				str_lit := new_node(p, StringLiteral)
 				str_lit.loc = loc_from_token(current)
 				str_lit.value = current.literal.(string) or_else ""
@@ -640,9 +680,11 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 				expr_stmt, expr_stmt_s := new_stmt(p, ExpressionStatement)
 				expr_stmt.loc = directive.loc
 				expr_stmt.expression = expression_from(p, str_lit)
+				expr_stmt.directive = "use strict"
 				append(&program.body, expr_stmt_s)
 				eat(p)
 				match_semicolon_or_asi(p)
+				expr_stmt.loc.span.end = prev_end_offset(p)
 			} else {
 				parse_program_item(p, &program.body, loop_start_offset)
 			}
@@ -661,7 +703,30 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		}
 	}
 
-	program.loc.span.end = cur_offset(p)
+	// Program.end covers the ENTIRE source (including any trailing whitespace
+	// after the last token). OXC/Acorn/Babel all end Program at source.length;
+	// `prev_end_offset` would stop at the last consumed token, which may be
+	// earlier when the file has trailing newlines or comments.
+	program.loc.span.end = u32(p.source_len)
+
+	// Auto-detect module vs script sourceType: any top-level import/export makes
+	// this a module per ECMA-262 §16.2. We do this after parse so the body is
+	// already populated; callers that want to force a source type can still pass
+	// `.Module` explicitly (upgrade-only — we never downgrade Module → Script).
+	// Matches OXC / Acorn / Babel auto-detection behaviour.
+	if source_type == .Script {
+		for stmt in program.body {
+			if stmt == nil { continue }
+			#partial switch _ in stmt^ {
+			case ^ImportDeclaration, ^ExportNamedDeclaration,
+			     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
+				program.type = .Module
+				break
+			}
+			if program.type == .Module { break }
+		}
+	}
+
 	return program
 }
 
@@ -768,7 +833,7 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Expected '}' at end of block")
 	}
 
-	block.loc.span.end = cur_offset(p)
+	block.loc.span.end = prev_end_offset(p)
 	return block_stmt
 }
 
@@ -778,7 +843,7 @@ parse_empty_statement :: proc(p: ^Parser) -> ^Statement {
 
 	empty := new_node(p, EmptyStatement)
 	empty.loc = start
-	empty.loc.span.end = cur_offset(p)
+	empty.loc.span.end = prev_end_offset(p)
 	return statement_from(p, empty)
 }
 
@@ -815,7 +880,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	// Consume optional semicolon
 	match_semicolon_or_asi(p)
 
-	expr_stmt.loc.span.end = cur_offset(p)
+	expr_stmt.loc.span.end = prev_end_offset(p)
 	return stmt
 }
 
@@ -851,7 +916,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		if_.alternate = parse_statement_or_declaration(p)
 	}
 
-	if_.loc.span.end = cur_offset(p)
+	if_.loc.span.end = prev_end_offset(p)
 	return statement_from(p, if_)
 }
 
@@ -881,7 +946,7 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 	while_.loc = start
 	while_.test = test
 	while_.body = body
-	while_.loc.span.end = cur_offset(p)
+	while_.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, while_)
 }
@@ -918,7 +983,7 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 	do_.loc = start
 	do_.body = body
 	do_.test = test
-	do_.loc.span.end = cur_offset(p)
+	do_.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, do_)
 }
@@ -1001,7 +1066,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 			for_in.right = right
 			for_in.body = body
-			for_in.loc.span.end = cur_offset(p)
+			for_in.loc.span.end = prev_end_offset(p)
 			return statement_from(p, for_in)
 		} else {
 			// for-of or for-await-of - use separate fields
@@ -1015,7 +1080,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for_of.right = right
 			for_of.body = body
 			for_of.await = await
-			for_of.loc.span.end = cur_offset(p)
+			for_of.loc.span.end = prev_end_offset(p)
 			return statement_from(p, for_of)
 		}
 	}
@@ -1066,7 +1131,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	for_.test = test
 	for_.update = update
 	for_.body = body
-	for_.loc.span.end = cur_offset(p)
+	for_.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, for_)
 }
@@ -1090,7 +1155,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	ret := new_node(p, ReturnStatement)
 	ret.loc = start
 	ret.argument = argument
-	ret.loc.span.end = cur_offset(p)
+	ret.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, ret)
 }
@@ -1117,7 +1182,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	break_ := new_node(p, BreakStatement)
 	break_.loc = start
 	break_.label = label
-	break_.loc.span.end = cur_offset(p)
+	break_.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, break_)
 }
@@ -1146,7 +1211,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	cont := new_node(p, ContinueStatement)
 	cont.loc = start
 	cont.label = label
-	cont.loc.span.end = cur_offset(p)
+	cont.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, cont)
 }
@@ -1196,7 +1261,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Expected '}' at end of switch statement")
 	}
 
-	switch_.loc.span.end = cur_offset(p)
+	switch_.loc.span.end = prev_end_offset(p)
 	return statement_from(p, switch_)
 }
 
@@ -1233,7 +1298,7 @@ parse_switch_case :: proc(p: ^Parser) -> ^SwitchCase {
 		}
 	}
 
-	case_.loc.span.end = cur_offset(p)
+	case_.loc.span.end = prev_end_offset(p)
 	return case_
 }
 
@@ -1258,8 +1323,13 @@ parse_try_statement :: proc(p: ^Parser) -> ^Statement {
 	try_.loc = start
 	try_.block = block_ptr^
 
-	if match_token(p, .Catch) {
-		handler := parse_catch_clause(p)
+	if is_token(p, .Catch) {
+		// CatchClause.start must point at the `catch` keyword, not at the
+		// `(` or `{` that follows — matches OXC/Acorn/Babel. Capture the
+		// position BEFORE consuming `catch` and pass it through.
+		catch_start := cur_loc(p)
+		eat(p) // consume `catch`
+		handler := parse_catch_clause(p, catch_start)
 		try_.handler = handler
 	}
 
@@ -1276,13 +1346,14 @@ parse_try_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Try statement must have catch or finally clause")
 	}
 
-	try_.loc.span.end = cur_offset(p)
+	try_.loc.span.end = prev_end_offset(p)
 	return statement_from(p, try_)
 }
 
-parse_catch_clause :: proc(p: ^Parser) -> Maybe(CatchClause) {
-	start := cur_loc(p)
-
+parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
+	// `start` is the position of the `catch` keyword, already consumed by the
+	// caller. We pass it in because the ESTree spec puts the CatchClause span
+	// at the keyword, not the opening paren/brace that begins our local work.
 	param: Maybe(Pattern)
 
 	// Optional catch binding: try {} catch {} or try {} catch (e) {}
@@ -1311,7 +1382,7 @@ parse_catch_clause :: proc(p: ^Parser) -> Maybe(CatchClause) {
 		param = param,
 		body  = body_ptr^,
 	}
-	clause.loc.span.end = cur_offset(p)
+	clause.loc.span.end = prev_end_offset(p)
 
 	return clause
 }
@@ -1331,7 +1402,7 @@ parse_throw_statement :: proc(p: ^Parser) -> ^Statement {
 	throw_ := new_node(p, ThrowStatement)
 	throw_.loc = start
 	throw_.argument = argument
-	throw_.loc.span.end = cur_offset(p)
+	throw_.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, throw_)
 }
@@ -1344,7 +1415,7 @@ parse_debugger_statement :: proc(p: ^Parser) -> ^Statement {
 
 	debugger := new_node(p, DebuggerStatement)
 	debugger.loc = start
-	debugger.loc.span.end = cur_offset(p)
+	debugger.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, debugger)
 }
@@ -1377,7 +1448,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	with_.loc = start
 	with_.object = object
 	with_.body = body
-	with_.loc.span.end = cur_offset(p)
+	with_.loc.span.end = prev_end_offset(p)
 
 	return statement_from(p, with_)
 }
@@ -1448,7 +1519,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 		expr.body = body
 		expr.generator = generator
 		expr.async = async
-		expr.loc.span.end = cur_offset(p)
+		expr.loc.span.end = prev_end_offset(p)
 
 		// For function expressions, wrap in ExpressionStatement. The
 		// .expression field is an ^Expression (a union ptr, not a raw ptr
@@ -1458,7 +1529,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 		expr_stmt := new_node(p, ExpressionStatement)
 		expr_stmt.loc = start
 		expr_stmt.expression = expression_from(p, expr)
-		expr_stmt.loc.span.end = cur_offset(p)
+		expr_stmt.loc.span.end = prev_end_offset(p)
 
 		stmt := new_node(p, Statement)
 		stmt^ = expr_stmt
@@ -1474,7 +1545,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 		generator = generator,
 		async = async,
 	}
-	decl.expr.loc.span.end = cur_offset(p)
+	decl.expr.loc.span.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -1521,12 +1592,12 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		// Parse the argument (identifier or destructuring pattern)
 		arg_pattern := parse_binding_pattern(p)
 		rest.argument = arg_pattern
-		rest.loc.span.end = cur_offset(p)
+		rest.loc.span.end = prev_end_offset(p)
 
 		// Store RestElement as the pattern
 		param.pattern = rest
 		// Rest parameters cannot have default values
-		param.loc.span.end = cur_offset(p)
+		param.loc.span.end = prev_end_offset(p)
 		return param
 	}
 
@@ -1537,7 +1608,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		param.default_val = parse_assignment_expression(p)
 	}
 
-	param.loc.span.end = cur_offset(p)
+	param.loc.span.end = prev_end_offset(p)
 	return param
 }
 
@@ -1571,6 +1642,23 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		}
 	}
 
+	// Mark directive-prologue ExpressionStatements. Per ECMA-262 §14.1.1 the
+	// prologue is the leading sequence of ExpressionStatement whose expression
+	// is an unparenthesised StringLiteral. Each such statement carries a
+	// `directive: <raw>` field in ESTree; everything after the first non-
+	// directive statement is regular code even if it looks like a string.
+	for stmt_ptr in body.body {
+		if stmt_ptr == nil { break }
+		es, ok := stmt_ptr^.(^ExpressionStatement)
+		if !ok { break }
+		if es == nil { break }
+		str_lit, is_str := es.expression.(^StringLiteral)
+		if !is_str || str_lit == nil { break }
+		// Mark as directive — ESTree's `directive` field is the unquoted
+		// content, e.g. `"use strict"` token → `directive: "use strict"`.
+		es.directive = str_lit.value
+	}
+
 	p.in_function = prev_in_function
 	p.in_generator = prev_in_generator
 	p.in_async = prev_in_async
@@ -1580,7 +1668,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		report_error(p, "Expected '}' at end of function body")
 	}
 
-	body.loc.span.end = cur_offset(p)
+	body.loc.span.end = prev_end_offset(p)
 	return body
 }
 
@@ -1613,7 +1701,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		super_class = super_class,
 		body        = body,
 	}
-	decl.expr.loc.span.end = cur_offset(p)
+	decl.expr.loc.span.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -1653,7 +1741,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 		report_error(p, "Expected '}' at end of class body")
 	}
 
-	body.loc.span.end = cur_offset(p)
+	body.loc.span.end = prev_end_offset(p)
 	return body
 }
 
@@ -1724,8 +1812,31 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		private_ident.name = name
 		key = expression_from(p, private_ident)
 		eat(p)
-	} else if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
-	          is_keyword_usable_as_property_name(p.cur_type) {
+	} else if is_token(p, .String) {
+		// String key: `get 'trusting-append'()` / `'method-name'()`. ESTree emits
+		// this as a Literal key, not an Identifier. Previously stuffed into
+		// new_identifier which copied the quoted raw source into `name`,
+		// hiding the real string from downstream walkers (ember.js etc.).
+		current := get_current(p)
+		str_lit := new_node(p, StringLiteral)
+		str_lit.loc = loc_from_token(current)
+		str_lit.value = current.literal.(string) or_else ""
+		str_lit.raw = current.value
+		key = expression_from(p, str_lit)
+		eat(p)
+	} else if is_token(p, .Number) {
+		// Numeric key: `1234()`. Similarly emit as NumericLiteral-backed Literal
+		// rather than an Identifier whose name is the numeric text.
+		current := get_current(p)
+		num_lit := new_node(p, NumericLiteral)
+		num_lit.loc = loc_from_token(current)
+		num_lit.raw = current.value
+		if v, ok := current.literal.(f64); ok {
+			num_lit.value = v
+		}
+		key = expression_from(p, num_lit)
+		eat(p)
+	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 		current := get_current(p)
 		key = expression_from(p, new_identifier(p, current))
 		eat(p)
@@ -1775,7 +1886,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.computed = false
 		elem.static = static_
 
-		elem.loc.span.end = cur_offset(p)
+		elem.loc.span.end = prev_end_offset(p)
 		return elem
 	}
 
@@ -1813,7 +1924,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	fn_expr.body = body
 	fn_expr.generator = is_generator
 	fn_expr.async = is_async
-	fn_expr.loc.span.end = cur_offset(p)
+	fn_expr.loc.span.end = prev_end_offset(p)
 
 	elem := new_node(p, ClassElement)
 	elem.loc = start
@@ -1823,7 +1934,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	elem.computed = computed
 	elem.static = static_
 
-	elem.loc.span.end = cur_offset(p)
+	elem.loc.span.end = prev_end_offset(p)
 	return elem
 }
 
@@ -1856,7 +1967,7 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	}
 	static_block.generator = false
 	static_block.async = false
-	static_block.loc.span.end = cur_offset(p)
+	static_block.loc.span.end = prev_end_offset(p)
 
 	elem := new_node(p, ClassElement)
 	elem.loc = start
@@ -1866,7 +1977,7 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	elem.computed = false
 	elem.static = false  // Not marked as static - the kind implies it
 
-	elem.loc.span.end = cur_offset(p)
+	elem.loc.span.end = prev_end_offset(p)
 	return elem
 }
 
@@ -1913,7 +2024,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		match_semicolon_or_asi(p)
 	}
 
-	decl.loc.span.end = cur_offset(p)
+	decl.loc.span.end = prev_end_offset(p)
 	stmt := new_node(p, Statement)
 	stmt^ = decl
 	return stmt
@@ -1935,7 +2046,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	decl.loc = start
 	decl.id = pattern
 	decl.init = init
-	decl.loc.span.end = cur_offset(p)
+	decl.loc.span.end = prev_end_offset(p)
 
 	return decl
 }
@@ -2029,9 +2140,23 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			if !expect_token(p, .RBracket) {
 				return nil
 			}
-		} else if is_token(p, .Identifier) || is_token(p, .String) ||
-		          is_keyword_usable_as_property_name(p.cur_type) {
-			// Identifier, string, or keyword used as key
+		} else if is_token(p, .String) {
+			// String key: `{ 'aria-label': x }`. Store as ^StringLiteral so
+			// the emitter can render a Literal node — previously stuffed into
+			// an IdentifierName whose `name` field contained the quoted raw
+			// source (`'aria-label'` literally), producing an Identifier with
+			// quoted name in the JSON and hiding the real string value from
+			// every downstream string-walker.
+			current := get_current(p)
+			str_lit := new_node(p, StringLiteral)
+			str_lit.loc = loc_from_token(current)
+			str_lit.value = current.literal.(string) or_else ""
+			str_lit.raw = current.value
+			str_lit.loc.span.end = cur_offset(p) + u32(len(current.value))
+			key = str_lit
+			eat(p)
+		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+			// Identifier or keyword used as key.
 			id_name := IdentifierName{
 				loc  = cur_loc(p),
 				name = cur_value(p),
@@ -2063,7 +2188,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					assign.loc = prop_start
 					assign.left = value_ident
 					assign.right = default_val
-					assign.loc.span.end = cur_offset(p)
+					assign.loc.span.end = prev_end_offset(p)
 
 					prop := ObjectPatternProperty{
 						loc       = prop_start,
@@ -2096,7 +2221,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					assign.loc = prop_start
 					assign.left = nested
 					assign.right = default_val
-					assign.loc.span.end = cur_offset(p)
+					assign.loc.span.end = prev_end_offset(p)
 					val = assign
 				}
 				prop := ObjectPatternProperty{
@@ -2120,7 +2245,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					assign.loc = prop_start
 					assign.left = nested
 					assign.right = default_val
-					assign.loc.span.end = cur_offset(p)
+					assign.loc.span.end = prev_end_offset(p)
 					val = assign
 				}
 				prop := ObjectPatternProperty{
@@ -2150,7 +2275,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					assign.loc = prop_start
 					assign.left = left_ident
 					assign.right = default_val
-					assign.loc.span.end = cur_offset(p)
+					assign.loc.span.end = prev_end_offset(p)
 					
 					prop := ObjectPatternProperty{
 						loc       = prop_start,
@@ -2193,7 +2318,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 		return nil
 	}
 
-	obj.loc.span.end = cur_offset(p)
+	obj.loc.span.end = prev_end_offset(p)
 	return obj
 }
 
@@ -2242,7 +2367,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			rest_ident.loc = arl
 			rest_ident.name = arn
 			rest.argument = rest_ident
-			rest.loc.span.end = cur_offset(p)
+			rest.loc.span.end = prev_end_offset(p)
 
 			append(&elements, Maybe(Pattern)(rest))
 
@@ -2269,7 +2394,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				assign.loc = eil
 				assign.left = ident
 				assign.right = default_val
-				assign.loc.span.end = cur_offset(p)
+				assign.loc.span.end = prev_end_offset(p)
 				append(&elements, Maybe(Pattern)(assign))
 			} else {
 				append(&elements, Maybe(Pattern)(ident))
@@ -2303,7 +2428,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 	}
 
 	arr.elements = elements[:]
-	arr.loc.span.end = cur_offset(p)
+	arr.loc.span.end = prev_end_offset(p)
 	return arr
 }
 
@@ -2359,7 +2484,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			loc  = local.loc,
 			name = local.name,
 		}
-		spec.loc.span.end = cur_offset(p)
+		spec.loc.span.end = prev_end_offset(p)
 		append(&decl.specifiers, (^ImportSpecifierSpec)(spec))
 
 		if !expect_token(p, .From) {
@@ -2376,7 +2501,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			loc  = local.loc,
 			name = local.name,
 		}
-		spec.loc.span.end = cur_offset(p)
+		spec.loc.span.end = prev_end_offset(p)
 		append(&decl.specifiers, (^ImportSpecifierSpec)(spec))
 
 		// Check for comma followed by named imports
@@ -2411,7 +2536,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 					loc  = local2.loc,
 					name = local2.name,
 				}
-				ns_spec.loc.span.end = cur_offset(p)
+				ns_spec.loc.span.end = prev_end_offset(p)
 				append(&decl.specifiers, (^ImportSpecifierSpec)(ns_spec))
 			}
 		}
@@ -2425,7 +2550,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 
 	match_semicolon_or_asi(p)
 
-	decl.loc.span.end = cur_offset(p)
+	decl.loc.span.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -2453,7 +2578,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		loc  = local.loc,
 		name = local.name,
 	}
-	spec.loc.span.end = cur_offset(p)
+	spec.loc.span.end = prev_end_offset(p)
 
 	return spec
 }
@@ -2503,7 +2628,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	export_decl := new_node(p, ExportNamedDeclaration)
 	export_decl.loc = start
 	export_decl.declaration = decl_union
-	export_decl.loc.span.end = cur_offset(p)
+	export_decl.loc.span.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -2551,7 +2676,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	decl := new_node(p, ExportDefaultDeclaration)
 	decl.loc = start
 	decl.declaration = def
-	decl.loc.span.end = cur_offset(p)
+	decl.loc.span.end = prev_end_offset(p)
 
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportDefaultDeclaration)(decl)
@@ -2579,10 +2704,12 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	decl.loc = start
 	decl.source = source
 	decl.exported = exported
-	decl.loc.span.end = cur_offset(p)
 
-	// Allocate Statement union and store the pointer
+	// Consume the trailing semicolon BEFORE stamping the span end so the
+	// ExportAllDeclaration includes its own `;` — matches ESTree/OXC/Acorn
+	// semantics. Previously the span stopped at the last token of `source`.
 	match_semicolon_or_asi(p)
+	decl.loc.span.end = prev_end_offset(p)
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportAllDeclaration)(decl)
 	return stmt
@@ -2599,25 +2726,35 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		start_spec := cur_loc(p)
-		local := parse_identifier_name(p)
 
+		// ES2022 allows either an identifier OR a string literal on either
+		// side of `as`. Parse each slot independently.
+		parse_spec_name :: proc(p: ^Parser) -> ExportSpecifierName {
+			if is_token(p, .String) {
+				current := get_current(p)
+				str_lit := new_node(p, StringLiteral)
+				str_lit.loc = loc_from_token(current)
+				str_lit.value = current.literal.(string) or_else ""
+				str_lit.raw = current.value
+				eat(p)
+				return str_lit
+			}
+			id := parse_identifier_name(p)
+			return IdentifierName{loc = id.loc, name = id.name}
+		}
+
+		local := parse_spec_name(p)
 		exported := local
 		if match_token(p, .As) {
-			exported = parse_identifier_name(p)
+			exported = parse_spec_name(p)
 		}
 
 		spec := ExportSpecifier{
 			loc = start_spec,
-			local = IdentifierName{
-				loc  = local.loc,
-				name = local.name,
-			},
-			exported = IdentifierName{
-				loc  = exported.loc,
-				name = exported.name,
-			},
+			local = local,
+			exported = exported,
 		}
-		spec.loc.span.end = cur_offset(p)
+		spec.loc.span.end = prev_end_offset(p)
 		append(&decl.specifiers, spec)
 
 		if !match_token(p, .Comma) {
@@ -2635,7 +2772,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 
 	match_semicolon_or_asi(p)
 
-	decl.loc.span.end = cur_offset(p)
+	decl.loc.span.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -2802,7 +2939,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				if expr == nil { break }
 				append(&seq.expressions, expr)
 			}
-			seq.loc.span.end = cur_offset(p)
+			seq.loc.span.end = prev_end_offset(p)
 			left = seq_e
 			continue
 		}
@@ -2824,7 +2961,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			logical.operator = token_to_logical_op(cur_type)
 			logical.left = left
 			logical.right = right
-			logical.loc.span.end = cur_offset(p)
+			logical.loc.span.end = prev_end_offset(p)
 
 			left = logical_e
 			continue
@@ -2836,7 +2973,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		binary.operator = token_to_binary_op(cur_type)
 		binary.left = left
 		binary.right = right
-		binary.loc.span.end = cur_offset(p)
+		binary.loc.span.end = prev_end_offset(p)
 
 		left = binary_e
 	}
@@ -2857,7 +2994,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		unary.operator = token_to_unary_op(current.type)
 		unary.argument = argument
 		unary.prefix = true
-		unary.loc.span.end = cur_offset(p)
+		unary.loc.span.end = prev_end_offset(p)
 		return expression_from(p, unary)
 
 	case .PlusPlus, .MinusMinus:
@@ -2870,7 +3007,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.operator = .Increment if current.type == .PlusPlus else .Decrement
 		update.argument = argument
 		update.prefix = true
-		update.loc.span.end = cur_offset(p)
+		update.loc.span.end = prev_end_offset(p)
 		return expression_from(p, update)
 
 	case .Await:
@@ -2884,7 +3021,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		await := new_node(p, AwaitExpression)
 		await.loc = loc_from_token(current)
 		await.argument = argument
-		await.loc.span.end = cur_offset(p)
+		await.loc.span.end = prev_end_offset(p)
 		return expression_from(p, await)
 
 	case .Dot3:
@@ -2895,7 +3032,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		spread := new_node(p, SpreadElement)
 		spread.loc = loc_from_token(current)
 		spread.argument = argument
-		spread.loc.span.end = cur_offset(p)
+		spread.loc.span.end = prev_end_offset(p)
 		return expression_from(p, spread)
 
 	case .Yield:
@@ -2915,7 +3052,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		id, id_e := new_expr(p, Identifier)
 		id.loc = loc_from_token(id_tok)
 		id.name = id_tok.value
-		id.loc.span.end = cur_offset(p)
+		id.loc.span.end = prev_end_offset(p)
 		expr = id_e
 		// Inline LHS tail loop (member access, calls)
 		expr = parse_lhs_tail(p, expr, true)
@@ -2932,7 +3069,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.operator = .Increment if current.type == .PlusPlus else .Decrement
 		update.argument = expr
 		update.prefix = false
-		update.loc.span.end = cur_offset(p)
+		update.loc.span.end = prev_end_offset(p)
 		return expression_from(p, update)
 	}
 
@@ -2956,7 +3093,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			member.property = id_e
 			member.computed = false
 			member.optional = false
-			member.loc.span.end = cur_offset(p)
+			member.loc.span.end = prev_end_offset(p)
 			expr = member_e
 		case .OptionalChain:
 			if !allow_call {
@@ -2974,7 +3111,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				member.property = expression_from(p, ident)
 				member.computed = false
 				member.optional = true
-				member.loc.span.end = cur_offset(p)
+				member.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, member)
 			} else if is_token(p, .LBracket) {
 				eat(p)
@@ -2987,7 +3124,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				member.property = prop
 				member.computed = true
 				member.optional = true
-				member.loc.span.end = cur_offset(p)
+				member.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, member)
 			} else if is_token(p, .LParen) {
 				args := parse_arguments(p)
@@ -2996,7 +3133,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.callee = expr
 				call.arguments = args
 				call.optional = true
-				call.loc.span.end = cur_offset(p)
+				call.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else {
 				report_error(p, "Unexpected token after ?.")
@@ -3013,9 +3150,11 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			mem2.property = prop
 			mem2.computed = true
 			mem2.optional = false
-			mem2.loc.span.end = cur_offset(p)
+			mem2.loc.span.end = prev_end_offset(p)
 			expr = mem2_e
 		case .LParen:
+			// Identical recording path for the had-line-terminator branch below;
+			// see the main .LParen case above for the rationale.
 			if !allow_call {
 				return expr
 			}
@@ -3025,14 +3164,14 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			call.callee = expr
 			call.arguments = args
 			call.optional = false
-			call.loc.span.end = cur_offset(p)
+			call.loc.span.end = prev_end_offset(p)
 			expr = call_e
 		case .TemplateHead, .Template:
 			tagged := new_node(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
 			tagged.quasi = parse_template_literal(p)
-			tagged.loc.span.end = cur_offset(p)
+			tagged.loc.span.end = prev_end_offset(p)
 			expr = expression_from(p, tagged)
 		case:
 			return expr
@@ -3088,7 +3227,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				loc  = meta_name.loc,
 				name = meta_name.name,
 			}
-			meta_prop.loc.span.end = cur_offset(p)
+			meta_prop.loc.span.end = prev_end_offset(p)
 			return expression_from(p, meta_prop)
 		}
 		// Static import - not valid in expression context
@@ -3099,7 +3238,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		this := new_node(p, ThisExpression)
 		this.loc = loc_from_token(current)
-		this.loc.span.end = cur_offset(p)
+		this.loc.span.end = prev_end_offset(p)
 		return expression_from(p, this)
 
 	case .PrivateIdentifier:
@@ -3112,21 +3251,21 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		pid.loc = loc_from_token(current)
 		pid.name = name
 		eat(p)
-		pid.loc.span.end = cur_offset(p)
+		pid.loc.span.end = prev_end_offset(p)
 		return expression_from(p, pid)
 
 	case .Super:
 		eat(p)
 		super := new_node(p, Super)
 		super.loc = loc_from_token(current)
-		super.loc.span.end = cur_offset(p)
+		super.loc.span.end = prev_end_offset(p)
 		return expression_from(p, super)
 
 	case .Null:
 		eat(p)
 		nl, nl_e := new_expr(p, NullLiteral)
 		nl.loc = loc_from_token(current)
-		nl.loc.span.end = cur_offset(p)
+		nl.loc.span.end = prev_end_offset(p)
 		return nl_e
 
 	case .True, .False:
@@ -3134,7 +3273,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		bl, bl_e := new_expr(p, BooleanLiteral)
 		bl.loc = loc_from_token(current)
 		bl.value = current.type == .True
-		bl.loc.span.end = cur_offset(p)
+		bl.loc.span.end = prev_end_offset(p)
 		return bl_e
 
 	case .Number:
@@ -3145,7 +3284,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if val, ok := current.literal.(f64); ok {
 			num.value = val
 		}
-		num.loc.span.end = cur_offset(p)
+		num.loc.span.end = prev_end_offset(p)
 		return num_e
 
 	case .String:
@@ -3156,7 +3295,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if val, ok := current.literal.(string); ok {
 			str.value = val
 		}
-		str.loc.span.end = cur_offset(p)
+		str.loc.span.end = prev_end_offset(p)
 		return str_e
 
 	case .BigInt:
@@ -3165,7 +3304,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		big.loc = loc_from_token(current)
 		big.raw = current.value
 		big.value = current.value  // Store as string
-		big.loc.span.end = cur_offset(p)
+		big.loc.span.end = prev_end_offset(p)
 		return expression_from(p, big)
 
 	case .Async:
@@ -3188,7 +3327,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				ident := new_node(p, Identifier)
 				ident.loc = loc_from_token(current)
 				ident.name = "async"
-				ident.loc.span.end = cur_offset(p)
+				ident.loc.span.end = prev_end_offset(p)
 				return expression_from(p, ident)
 			} else if next.type == .LParen {
 				// async () => ...
@@ -3201,7 +3340,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		ident := new_node(p, Identifier)
 		ident.loc = loc_from_token(current)
 		ident.name = "async"
-		ident.loc.span.end = cur_offset(p)
+		ident.loc.span.end = prev_end_offset(p)
 		return expression_from(p, ident)
 
 	case .Identifier, .Get, .Set, .From, .Of, .As, .Let, .Static, .Constructor:
@@ -3210,7 +3349,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		id, id_expr := new_expr(p, Identifier)
 		id.loc = loc_from_token(current)
 		id.name = current.value
-		id.loc.span.end = cur_offset(p)
+		id.loc.span.end = prev_end_offset(p)
 		return id_expr
 
 	case .LParen:
@@ -3230,9 +3369,20 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			return nil
 		}
 
-		// Regular parenthesized expression
-		// Use Comma precedence to handle (x, y) => ... arrow function case
+		// Regular parenthesized expression. Use Comma precedence to handle
+		// (x, y) => ... arrow function case.
+		//
+		// Record the `(` position BEFORE eating it. parse_arrow_function reads
+		// pending_paren_start when the next token turns out to be `=>` so the
+		// arrow span starts AT the paren, matching OXC/Acorn/Babel. A nested
+		// `(` would overwrite the outer's stamp — harmless because the inner
+		// is consumed and cleared before the outer reaches `=>`.
+		paren_start := cur_loc(p).span.start
 		eat(p)
+		// Stamp; max(u32) is the "unset" sentinel so a file starting with `(`
+		// at offset 0 still works. We use 0xFFFF_FFFF rather than `Maybe(u32)`
+		// because the stamp sits on the hot path of every parenthesised group.
+		p.pending_paren_start = paren_start
 		prev_no_in := p.no_in
 		p.no_in = false  // 'in' is always valid inside parentheses
 		expr := parse_expr_with_prec(p, .Comma)
@@ -3285,7 +3435,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				}
 			}
 		}
-		regex.loc.span.end = cur_offset(p)
+		regex.loc.span.end = prev_end_offset(p)
 		return expression_from(p, regex)
 
 	case:
@@ -3320,7 +3470,7 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 				spread := new_node(p, SpreadElement)
 				spread.loc = loc_from_expr(arg)
 				spread.argument = arg
-				spread.loc.span.end = cur_offset(p)
+				spread.loc.span.end = prev_end_offset(p)
 				append(&arr.elements, Maybe(^Expression)(expression_from(p, spread)))
 			}
 		} else {
@@ -3339,7 +3489,7 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 		return nil
 	}
 
-	arr.loc.span.end = cur_offset(p)
+	arr.loc.span.end = prev_end_offset(p)
 	return expression_from(p, arr)
 }
 
@@ -3388,7 +3538,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 		return nil
 	}
 
-	obj.loc.span.end = cur_offset(p)
+	obj.loc.span.end = prev_end_offset(p)
 	return expression_from(p, obj)
 }
 
@@ -3413,7 +3563,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		prop.kind = .Init
 		prop.computed = false
 		prop.shorthand = false
-		prop.loc.span.end = cur_offset(p)
+		prop.loc.span.end = prev_end_offset(p)
 		return prop
 	}
 
@@ -3537,7 +3687,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		assign.operator = .Assign
 		assign.left = key
 		assign.right = default_val
-		assign.loc.span.end = cur_offset(p)
+		assign.loc.span.end = prev_end_offset(p)
 		shorthand = true
 		value = expression_from(p, assign)
 	} else {
@@ -3558,7 +3708,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	prop.kind = kind
 	prop.computed = computed
 	prop.shorthand = shorthand
-	prop.loc.span.end = cur_offset(p)
+	prop.loc.span.end = prev_end_offset(p)
 
 	return prop
 }
@@ -3572,7 +3722,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		ident := new_node(p, Identifier)
 		ident.loc = loc_from_token(current)
 		ident.name = current.value
-		ident.loc.span.end = cur_offset(p)
+		ident.loc.span.end = prev_end_offset(p)
 		return expression_from(p, ident)
 
 	case .String:
@@ -3583,7 +3733,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		if val, ok := current.literal.(string); ok {
 			str.value = val
 		}
-		str.loc.span.end = cur_offset(p)
+		str.loc.span.end = prev_end_offset(p)
 		return expression_from(p, str)
 
 	case .Number:
@@ -3594,7 +3744,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		if val, ok := current.literal.(f64); ok {
 			num.value = val
 		}
-		num.loc.span.end = cur_offset(p)
+		num.loc.span.end = prev_end_offset(p)
 		return expression_from(p, num)
 
 	case:
@@ -3604,7 +3754,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 			ident := new_node(p, Identifier)
 			ident.loc = loc_from_token(current)
 			ident.name = current.value
-			ident.loc.span.end = cur_offset(p)
+			ident.loc.span.end = prev_end_offset(p)
 			return expression_from(p, ident)
 		}
 		return nil
@@ -3654,7 +3804,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	expr.id = id
 	expr.super_class = super_class
 	expr.body = body
-	expr.loc.span.end = cur_offset(p)
+	expr.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, expr)
 }
@@ -3674,7 +3824,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			meta.loc = start
 			meta.meta = Identifier{loc = start, name = "new"}
 			meta.property = Identifier{loc = loc_from_token(target_tok), name = "target"}
-			meta.loc.span.end = cur_offset(p)
+			meta.loc.span.end = prev_end_offset(p)
 			return expression_from(p, meta)
 		}
 	}
@@ -3693,7 +3843,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	new_.loc = start
 	new_.callee = callee
 	new_.arguments = args
-	new_.loc.span.end = cur_offset(p)
+	new_.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, new_)
 }
@@ -3714,7 +3864,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 					spread := new_node(p, SpreadElement)
 					spread.loc = loc_from_expr(arg)
 					spread.argument = arg
-					spread.loc.span.end = cur_offset(p)
+					spread.loc.span.end = prev_end_offset(p)
 					append(&args, expression_from(p, spread))
 				}
 			} else {
@@ -3752,7 +3902,7 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	yield.loc = start
 	yield.argument = argument
 	yield.delegate = delegate
-	yield.loc.span.end = cur_offset(p)
+	yield.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, yield)
 }
@@ -3778,7 +3928,7 @@ parse_template_literal :: proc(p: ^Parser) -> ^Expression {
 		}
 		append(&tmpl.quasis, elem)
 		eat(p)
-		tmpl.loc.span.end = cur_offset(p)
+		tmpl.loc.span.end = prev_end_offset(p)
 		return expression_from(p, tmpl)
 	}
 
@@ -3836,7 +3986,7 @@ parse_template_literal :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 
-		tmpl.loc.span.end = cur_offset(p)
+		tmpl.loc.span.end = prev_end_offset(p)
 		return expression_from(p, tmpl)
 	}
 
@@ -3844,13 +3994,173 @@ parse_template_literal :: proc(p: ^Parser) -> ^Expression {
 	return nil
 }
 
+// expr_to_pattern converts an Expression that's actually been parsed as the
+// destructuring-target side of an arrow parameter default into the matching
+// Pattern variant. Covers the simple targets required by real-world code
+// (Identifier, ObjectExpression→ObjectPattern, ArrayExpression→ArrayPattern);
+// returns `false` for anything else so the caller can emit a clean error
+// rather than silently accepting invalid input.
+//
+// Deep-conversion of object/array destructuring internals (e.g. nested
+// `{a: {b}} = {}`) is handled by later parse passes — this helper only needs
+// to produce the outer Pattern wrapper.
+expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
+	if expr == nil { return nil, false }
+	#partial switch e in expr^ {
+	case ^Identifier:
+		id_ptr := new_node(p, Identifier)
+		id_ptr^ = e^
+		return id_ptr, true
+	case ^ObjectExpression:
+		// Convert each ObjectExpression.Property into an ObjectPatternProperty.
+		// Previously this dropped properties on the floor — emitting an empty
+		// `ObjectPattern { properties: [] }` for every arrow-function param of
+		// the form `({a, b: c = 1, ...rest}) => ...`. Symptom: every nested
+		// default string / identifier inside destructured arrow params was
+		// invisible to downstream walkers (framer-motion.js, swagger-ui.js).
+		op := new_node(p, ObjectPattern)
+		op.loc = e.loc
+		op.properties = make([dynamic]ObjectPatternProperty, 0, len(e.properties), p.allocator)
+		for prop in e.properties {
+			// Spread element in object expression -> RestElement in pattern.
+			// Detected by nil key + SpreadElement value (parse_object_expression
+			// stashes the SpreadElement in the value slot with key=nil).
+			if prop.key == nil {
+				if spread, ok := prop.value.(^SpreadElement); ok {
+					inner, inner_ok := expr_to_pattern(p, spread.argument)
+					if inner_ok {
+						rest := new_node(p, RestElement)
+						rest.loc = spread.loc
+						rest.argument = inner
+						pp := ObjectPatternProperty{
+							loc = spread.loc,
+							key = nil,
+							value = rest,
+						}
+						append(&op.properties, pp)
+					}
+				}
+				continue
+			}
+
+			// Convert value:
+			//   - AssignmentExpression (x = default) -> AssignmentPattern
+			//   - anything else -> recurse via expr_to_pattern
+			// Special case shorthand `{x}` where key == value == Identifier: the
+			// parser may point both at the same node; either path converts
+			// correctly below.
+			value_pat: Pattern
+			if ae, is_assign := prop.value.(^AssignmentExpression); is_assign && ae.operator == .Assign {
+				lhs_pat, lhs_ok := expr_to_pattern(p, ae.left)
+				if lhs_ok {
+					asn := new_node(p, AssignmentPattern)
+					asn.loc = ae.loc
+					asn.left = lhs_pat
+					asn.right = ae.right
+					value_pat = asn
+				}
+			} else {
+				inner, inner_ok := expr_to_pattern(p, prop.value)
+				if inner_ok {
+					value_pat = inner
+				}
+			}
+
+			// Convert key: Property.key is ^Expression (Identifier / StringLiteral
+			// / NumericLiteral / computed Expression). Map to
+			// ObjectPatternPropertyKey (IdentifierName / ^StringLiteral /
+			// ^Expression).
+			pp_key: Maybe(ObjectPatternPropertyKey)
+			if prop.computed {
+				pp_key = prop.key
+			} else if prop.key != nil {
+				#partial switch k in prop.key^ {
+				case ^Identifier:
+					pp_key = IdentifierName{loc = k.loc, name = k.name}
+				case ^StringLiteral:
+					pp_key = k
+				case:
+					// Numeric / other literal keys: store as ^Expression via computed.
+					pp_key = prop.key
+				}
+			}
+
+			pp := ObjectPatternProperty{
+				loc = prop.loc,
+				key = pp_key,
+				value = value_pat,
+				computed = prop.computed,
+				shorthand = prop.shorthand,
+			}
+			append(&op.properties, pp)
+		}
+		return op, true
+	case ^ArrayExpression:
+		// Convert each ArrayExpression.element into an ArrayPattern element.
+		// Same empty-pattern bug as ObjectExpression above.
+		ap := new_node(p, ArrayPattern)
+		ap.loc = e.loc
+		elems := make([]Maybe(Pattern), len(e.elements), p.allocator)
+		for i := 0; i < len(e.elements); i += 1 {
+			elem, has_elem := e.elements[i].(^Expression)
+			if !has_elem || elem == nil {
+				continue // sparse hole — leave as nil Maybe
+			}
+			// Spread element -> RestElement (must be last, but we don't enforce here).
+			if spread, is_spread := elem^.(^SpreadElement); is_spread {
+				inner, ok := expr_to_pattern(p, spread.argument)
+				if ok {
+					rest := new_node(p, RestElement)
+					rest.loc = spread.loc
+					rest.argument = inner
+					elems[i] = rest
+				}
+				continue
+			}
+			// AssignmentExpression -> AssignmentPattern.
+			if ae, is_assign := elem^.(^AssignmentExpression); is_assign && ae.operator == .Assign {
+				lhs_pat, lhs_ok := expr_to_pattern(p, ae.left)
+				if lhs_ok {
+					asn := new_node(p, AssignmentPattern)
+					asn.loc = ae.loc
+					asn.left = lhs_pat
+					asn.right = ae.right
+					elems[i] = asn
+				}
+				continue
+			}
+			if p_inner, ok := expr_to_pattern(p, elem); ok {
+				elems[i] = p_inner
+			}
+		}
+		ap.elements = elems
+		return ap, true
+	case ^MemberExpression:
+		// ESTree allows MemberExpression as a destructure target.
+		return e, true
+	}
+	return nil, false
+}
+
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
 	start: Loc
 	if left != nil {
 		start = loc_from_expr(left)
+		// If a `(` was opened immediately before this expression, use its
+		// position as the arrow's start — matches ESTree/OXC/Acorn span
+		// semantics (`(x, y) => ...` spans the entire parenthesised form).
+		// A stamp of 0 means no paren was seen (bare identifier arrow
+		// `x => ...`); in that case keep the identifier's own start.
+		if p.pending_paren_start != max(u32) && p.pending_paren_start <= start.span.start {
+			start.span.start = p.pending_paren_start
+		}
 	} else {
 		start = cur_loc(p)
 	}
+	// Clear the stamp so a subsequent non-arrow `(expr)` doesn't retroactively
+	// shift another node's start. ASSERTION: arrows are the only consumer of
+	// pending_paren_start, and they clear it on entry.
+	p.pending_paren_start = max(u32)
 
 	// left should be parameters (identifier or parenthesized expression)
 	// nil left means empty params: () => ...
@@ -3906,6 +4216,36 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				pattern = ident,
 			}
 			append(&params, param)
+		case ^AssignmentExpression:
+			// Single-param default: `(x = 1) => ...` arrives as AssignmentExpression
+			// when the parens don't produce a SequenceExpression (only one arg).
+			if e.operator == .Assign {
+				assign_pat := new_node(p, AssignmentPattern)
+				assign_pat.loc = e.loc
+				assign_pat.right = e.right
+				lhs_pat, lhs_ok := expr_to_pattern(p, e.left)
+				if lhs_ok {
+					assign_pat.left = lhs_pat
+					param := FunctionParameter{ loc = e.loc, pattern = assign_pat }
+					append(&params, param)
+				}
+			}
+		case ^ObjectExpression:
+			// Single destructure param: `({a, b}) => ...`. Route through
+			// expr_to_pattern so the properties are carried across; previously
+			// this allocated an empty ObjectPattern, silently dropping every
+			// destructured binding (and every nested default value with it).
+			if pat, ok := expr_to_pattern(p, left); ok {
+				param := FunctionParameter{ loc = e.loc, pattern = pat }
+				append(&params, param)
+			}
+		case ^ArrayExpression:
+			// Single destructure param: `([a, b]) => ...` — same fix as
+			// ObjectExpression above.
+			if pat, ok := expr_to_pattern(p, left); ok {
+				param := FunctionParameter{ loc = e.loc, pattern = pat }
+				append(&params, param)
+			}
 		case ^SequenceExpression:
 			if len(e.expressions) == 0 {
 				// Empty parameters: () => ... (marker from parse_primary_expr)
@@ -3941,47 +4281,58 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 								report_error(p, "Expected identifier in rest parameter")
 							}
 						}
-						rest.loc.span.end = cur_offset(p)
+						rest.loc.span.end = prev_end_offset(p)
 						param := FunctionParameter{
 							loc     = arg.loc,
 							pattern = rest,
 						}
 						append(&params, param)
 					case ^ObjectExpression:
-						// Convert ObjectExpression -> ObjectPattern for destructuring
-						op := new_node(p, ObjectPattern)
-						op.loc = arg.loc
-						// skip property copy - different types
-						param := FunctionParameter{
-							loc     = arg.loc,
-							pattern = op,
+						// Convert ObjectExpression -> ObjectPattern via expr_to_pattern
+						// so nested properties, defaults, and rest elements are all
+						// carried through. The old path allocated an empty pattern,
+						// silently dropping every destructured field in multi-arrow
+						// params like `(a, {x=1}, b) => ...`.
+						if pat, ok := expr_to_pattern(p, expr_ptr); ok {
+							param := FunctionParameter{ loc = arg.loc, pattern = pat }
+							append(&params, param)
 						}
-						append(&params, param)
 					case ^ArrayExpression:
-						// Convert ArrayExpression -> ArrayPattern for destructuring
-						ap := new_node(p, ArrayPattern)
-						ap.loc = arg.loc
-						// Convert each element expression to pattern
-						elem_patterns := make([dynamic]Maybe(Pattern), 0, len(arg.elements), p.allocator)
-						for elem in arg.elements {
-							if elem == nil {
-								append(&elem_patterns, Maybe(Pattern)(nil))
-							} else {
-								val := elem.? // unwrap Maybe(^Expression)
-								#partial switch e in val^ {
-								case ^Identifier:
-									id_ptr := new_node(p, Identifier)
-									id_ptr^ = e^
-									append(&elem_patterns, id_ptr)
-								case:
-									append(&elem_patterns, Maybe(Pattern)(nil))
-								}
-							}
+						// Same fix as ObjectExpression above. The prior inline loop
+						// only understood bare Identifier elements, dropping any
+						// nested AssignmentExpression / SpreadElement / Pattern.
+						if pat, ok := expr_to_pattern(p, expr_ptr); ok {
+							param := FunctionParameter{ loc = arg.loc, pattern = pat }
+							append(&params, param)
 						}
-						ap.elements = elem_patterns[:]
+					case ^AssignmentExpression:
+						// Default parameter: `(a = 1, b = 2) => ...`. The sequence
+						// parser sees `a = 1` as an AssignmentExpression (operator `=`)
+						// which we convert into an ESTree AssignmentPattern whose
+						// `left` is the identifier/pattern and `right` is the default
+						// value. Previously this fell through to the "Expected
+						// identifier" error branch — breaking 34+ real-world files
+						// (chalk.js, zod.js, vue.global.js, tinymce.js, etc.) which
+						// use default params on arrow functions.
+						if arg.operator != .Assign {
+							report_error(p, "Arrow parameter default must use '=' operator")
+							continue
+						}
+						assign_pat := new_node(p, AssignmentPattern)
+						assign_pat.loc = arg.loc
+						assign_pat.right = arg.right
+						// Left side: Identifier, ObjectPattern (from ObjectExpression),
+						// or ArrayPattern (from ArrayExpression). Convert via the same
+						// Expression→Pattern promotion the outer arms use.
+						lhs_pat, lhs_ok := expr_to_pattern(p, arg.left)
+						if !lhs_ok {
+							report_error(p, "Invalid target in arrow parameter default")
+							continue
+						}
+						assign_pat.left = lhs_pat
 						param := FunctionParameter{
 							loc     = arg.loc,
-							pattern = ap,
+							pattern = assign_pat,
 						}
 						append(&params, param)
 					case:
@@ -3999,7 +4350,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	arrow.body = body
 	arrow.expression = !is_block_body
 	arrow.async = false
-	arrow.loc.span.end = cur_offset(p)
+	arrow.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, arrow)
 }
@@ -4027,7 +4378,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	cond.test = test
 	cond.consequent = consequent
 	cond.alternate = alternate
-	cond.loc.span.end = cur_offset(p)
+	cond.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, cond)
 }
@@ -4050,7 +4401,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	assign.operator = op
 	assign.left = left
 	assign.right = right
-	assign.loc.span.end = cur_offset(p)
+	assign.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, assign)
 }
@@ -4129,7 +4480,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	arrow.body = body
 	arrow.expression = !is_block_body
 	arrow.async = true
-	arrow.loc.span.end = cur_offset(p)
+	arrow.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, arrow)
 }
@@ -4184,7 +4535,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	arrow.body = body
 	arrow.expression = !is_block_body
 	arrow.async = true
-	arrow.loc.span.end = cur_offset(p)
+	arrow.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, arrow)
 }
@@ -4220,7 +4571,7 @@ parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
 	import_expr := new_node(p, ImportExpression)
 	import_expr.loc = start
 	import_expr.source = specifier
-	import_expr.loc.span.end = cur_offset(p)
+	import_expr.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, import_expr)
 }
@@ -4235,6 +4586,19 @@ cur_offset :: #force_inline proc(p: ^Parser) -> u32 {
 		return p.lexer.cur.start
 	}
 	return u32(p.cur_tok.loc.offset)
+}
+
+// prev_end_offset returns the end offset of the LAST consumed token. Use this
+// for `loc.span.end` to match ESTree/OXC/Acorn/Babel span semantics, which
+// END a node at the last character of its last token — excluding any trailing
+// whitespace, newlines, or comments that precede the NEXT token.
+//
+// Example: for `export * from "./a";\nconst x = 1;`, the ExportAllDeclaration
+// must span [0, 20) — through the `;`, not including the `\n`. `cur_offset`
+// after parsing the export would be 21 (start of `const`); `prev_end_offset`
+// correctly returns 20.
+prev_end_offset :: #force_inline proc(p: ^Parser) -> u32 {
+	return p.prev_token_end
 }
 
 cur_value :: #force_inline proc(p: ^Parser) -> string {

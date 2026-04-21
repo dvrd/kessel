@@ -424,6 +424,13 @@ StaticBlock :: struct {
 ExpressionStatement :: struct {
 	loc:        Loc,
 	expression: ^Expression,
+	// Directive prologue raw string (e.g. `"use strict"` including quotes).
+	// Non-empty only when this ExpressionStatement is part of a prologue
+	// (sequence of unparenthesised string-literal statements at the top of a
+	// Program or function body). ESTree emits `directive: <raw>` on such
+	// statements — a flag the spec uses to preserve directive intent across
+	// source transformations. Empty string for regular `"hello";` statements.
+	directive:  string,
 }
 
 EmptyStatement :: struct {
@@ -610,10 +617,19 @@ ImportSpecifierSpec :: union {
 	ImportNamespaceSpecifier,
 }
 
+// ES2022 string-literal exports (`export { x as "string-name" }`) allow
+// either a bare IdentifierName or a StringLiteral in both positions; the
+// union picks one without an extra heap allocation for the common
+// identifier case.
+ExportSpecifierName :: union {
+	IdentifierName,
+	^StringLiteral,
+}
+
 ExportSpecifier :: struct {
 	loc:       Loc,
-	local:     IdentifierName,
-	exported:  IdentifierName,
+	local:     ExportSpecifierName,
+	exported:  ExportSpecifierName,
 }
 
 ExportNamedDeclaration :: struct {
