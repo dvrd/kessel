@@ -1,0 +1,90 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 43,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 42,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 10,
+        "name": "f"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "AssignmentPattern",
+          "start": 11,
+          "end": 16,
+          "left": {
+            "type": "Identifier",
+            "start": 11,
+            "end": 12,
+            "name": "x"
+          },
+          "right": {
+            "type": "Literal",
+            "start": 15,
+            "end": 16,
+            "value": 1,
+            "raw": "1"
+          }
+        },
+        {
+          "type": "AssignmentPattern",
+          "start": 18,
+          "end": 23,
+          "left": {
+            "type": "Identifier",
+            "start": 18,
+            "end": 19,
+            "name": "y"
+          },
+          "right": {
+            "type": "Literal",
+            "start": 22,
+            "end": 23,
+            "value": 2,
+            "raw": "2"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 25,
+        "end": 42,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 27,
+            "end": 40,
+            "argument": {
+              "type": "BinaryExpression",
+              "start": 34,
+              "end": 39,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 34,
+                "end": 35,
+                "name": "x"              },
+              "right": {
+                "type": "Identifier",
+                "start": 38,
+                "end": 39,
+                "name": "y"              }            }          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4720B reserved=16777216B ratio=0%
+Parse errors: 0

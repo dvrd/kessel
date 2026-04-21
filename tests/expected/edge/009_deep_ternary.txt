@@ -1,0 +1,242 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 375,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 34,
+      "end": 239,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 40,
+          "end": 238,
+          "id": {
+            "type": "Identifier",
+            "start": 40,
+            "end": 46,
+            "name": "result"          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 49,
+            "end": 238,
+            "test": {
+              "type": "BinaryExpression",
+              "start": 49,
+              "end": 54,
+              "operator": ">",
+              "left": {
+                "type": "Identifier",
+                "start": 49,
+                "end": 50,
+                "name": "a"              },
+              "right": {
+                "type": "Literal",
+                "start": 53,
+                "end": 54,
+                "value": 0,
+                "raw": "0"              }            },
+            "consequent": {
+              "type": "ConditionalExpression",
+              "start": 59,
+              "end": 221,
+              "test": {
+                "type": "BinaryExpression",
+                "start": 59,
+                "end": 64,
+                "operator": ">",
+                "left": {
+                  "type": "Identifier",
+                  "start": 59,
+                  "end": 60,
+                  "name": "b"                },
+                "right": {
+                  "type": "Literal",
+                  "start": 63,
+                  "end": 64,
+                  "value": 0,
+                  "raw": "0"                }              },
+              "consequent": {
+                "type": "ConditionalExpression",
+                "start": 71,
+                "end": 202,
+                "test": {
+                  "type": "BinaryExpression",
+                  "start": 71,
+                  "end": 76,
+                  "operator": ">",
+                  "left": {
+                    "type": "Identifier",
+                    "start": 71,
+                    "end": 72,
+                    "name": "c"                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 75,
+                    "end": 76,
+                    "value": 0,
+                    "raw": "0"                  }                },
+                "consequent": {
+                  "type": "ConditionalExpression",
+                  "start": 85,
+                  "end": 181,
+                  "test": {
+                    "type": "BinaryExpression",
+                    "start": 85,
+                    "end": 90,
+                    "operator": ">",
+                    "left": {
+                      "type": "Identifier",
+                      "start": 85,
+                      "end": 86,
+                      "name": "d"                    },
+                    "right": {
+                      "type": "Literal",
+                      "start": 89,
+                      "end": 90,
+                      "value": 0,
+                      "raw": "0"                    }                  },
+                  "consequent": {
+                    "type": "ConditionalExpression",
+                    "start": 101,
+                    "end": 158,
+                    "test": {
+                      "type": "BinaryExpression",
+                      "start": 101,
+                      "end": 106,
+                      "operator": ">",
+                      "left": {
+                        "type": "Identifier",
+                        "start": 101,
+                        "end": 102,
+                        "name": "e"                      },
+                      "right": {
+                        "type": "Literal",
+                        "start": 105,
+                        "end": 106,
+                        "value": 0,
+                        "raw": "0"                      }                    },
+                    "consequent": {
+                      "type": "Literal",
+                      "start": 119,
+                      "end": 133,
+                      "value": "all positive",
+                      "raw": "'all positive'"                    },
+                    "alternate": {
+                      "type": "Literal",
+                      "start": 146,
+                      "end": 158,
+                      "value": "e negative",
+                      "raw": "'e negative'"                    }                  },
+                  "alternate": {
+                    "type": "Literal",
+                    "start": 169,
+                    "end": 181,
+                    "value": "d negative",
+                    "raw": "'d negative'"                  }                },
+                "alternate": {
+                  "type": "Literal",
+                  "start": 190,
+                  "end": 202,
+                  "value": "c negative",
+                  "raw": "'c negative'"                }              },
+              "alternate": {
+                "type": "Literal",
+                "start": 209,
+                "end": 221,
+                "value": "b negative",
+                "raw": "'b negative'"              }            },
+            "alternate": {
+              "type": "Literal",
+              "start": 226,
+              "end": 238,
+              "value": "a negative",
+              "raw": "'a negative'"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 241,
+      "end": 374,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 247,
+          "end": 373,
+          "id": {
+            "type": "Identifier",
+            "start": 247,
+            "end": 252,
+            "name": "value"          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 255,
+            "end": 373,
+            "test": {
+              "type": "Identifier",
+              "start": 255,
+              "end": 265,
+              "name": "condition1"            },
+            "consequent": {
+              "type": "ConditionalExpression",
+              "start": 271,
+              "end": 355,
+              "test": {
+                "type": "Identifier",
+                "start": 271,
+                "end": 281,
+                "name": "condition2"              },
+              "consequent": {
+                "type": "ConditionalExpression",
+                "start": 289,
+                "end": 317,
+                "test": {
+                  "type": "Identifier",
+                  "start": 289,
+                  "end": 299,
+                  "name": "condition3"                },
+                "consequent": {
+                  "type": "Identifier",
+                  "start": 302,
+                  "end": 308,
+                  "name": "value3"                },
+                "alternate": {
+                  "type": "Identifier",
+                  "start": 311,
+                  "end": 317,
+                  "name": "value2"                }              },
+              "alternate": {
+                "type": "ConditionalExpression",
+                "start": 326,
+                "end": 354,
+                "test": {
+                  "type": "Identifier",
+                  "start": 326,
+                  "end": 336,
+                  "name": "condition4"                },
+                "consequent": {
+                  "type": "Identifier",
+                  "start": 339,
+                  "end": 345,
+                  "name": "value4"                },
+                "alternate": {
+                  "type": "Identifier",
+                  "start": 348,
+                  "end": 354,
+                  "name": "value1"                }              }            },
+            "alternate": {
+              "type": "Identifier",
+              "start": 361,
+              "end": 373,
+              "name": "defaultValue"            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=8024B reserved=16777216B ratio=0%
+Parse errors: 0

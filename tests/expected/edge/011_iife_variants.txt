@@ -1,0 +1,535 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 442,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 30,
+      "end": 74,
+      "expression": {
+        "type": "CallExpression",
+        "start": 31,
+        "end": 73,
+        "callee": {
+          "type": "FunctionExpression",
+          "start": 31,
+          "end": 70,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 42,
+            "end": 70,
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "start": 44,
+                "end": 68,
+                "expression": {
+                  "type": "CallExpression",
+                  "start": 44,
+                  "end": 67,
+                  "callee": {
+                    "type": "MemberExpression",
+                    "start": 44,
+                    "end": 55,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 44,
+                      "end": 51,
+                      "name": "console"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 52,
+                      "end": 55,
+                      "name": "log"                    }                  },
+                  "arguments": [
+                    {
+                      "type": "Literal",
+                      "start": 56,
+                      "end": 66,
+                      "value": "standard",
+                      "raw": "'standard'"                    }
+                  ]                }              }
+            ]
+          }        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 75,
+      "end": 120,
+      "expression": {
+        "type": "CallExpression",
+        "start": 76,
+        "end": 118,
+        "callee": {
+          "type": "FunctionExpression",
+          "start": 76,
+          "end": 116,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 87,
+            "end": 116,
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "start": 89,
+                "end": 114,
+                "expression": {
+                  "type": "CallExpression",
+                  "start": 89,
+                  "end": 113,
+                  "callee": {
+                    "type": "MemberExpression",
+                    "start": 89,
+                    "end": 100,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 89,
+                      "end": 96,
+                      "name": "console"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 97,
+                      "end": 100,
+                      "name": "log"                    }                  },
+                  "arguments": [
+                    {
+                      "type": "Literal",
+                      "start": 101,
+                      "end": 112,
+                      "value": "standard2",
+                      "raw": "'standard2'"                    }
+                  ]                }              }
+            ]
+          }        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 122,
+      "end": 161,
+      "expression": {
+        "type": "CallExpression",
+        "start": 123,
+        "end": 160,
+        "callee": {
+          "type": "FunctionExpression",
+          "start": 123,
+          "end": 157,
+          "id": {
+            "type": "Identifier",
+            "start": 132,
+            "end": 137,
+            "name": "named"
+          },
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 140,
+            "end": 157,
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "start": 142,
+                "end": 155,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 149,
+                  "end": 154,
+                  "name": "named"                }              }
+            ]
+          }        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 163,
+      "end": 204,
+      "expression": {
+        "type": "CallExpression",
+        "start": 163,
+        "end": 203,
+        "callee": {
+          "type": "ArrowFunctionExpression",
+          "start": 163,
+          "end": 200,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 170,
+            "end": 200,
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "start": 172,
+                "end": 198,
+                "expression": {
+                  "type": "CallExpression",
+                  "start": 172,
+                  "end": 197,
+                  "callee": {
+                    "type": "MemberExpression",
+                    "start": 172,
+                    "end": 183,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 172,
+                      "end": 179,
+                      "name": "console"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 180,
+                      "end": 183,
+                      "name": "log"                    }                  },
+                  "arguments": [
+                    {
+                      "type": "Literal",
+                      "start": 184,
+                      "end": 196,
+                      "value": "arrow IIFE",
+                      "raw": "'arrow IIFE'"                    }
+                  ]                }              }
+            ]
+          }        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 206,
+      "end": 256,
+      "expression": {
+        "type": "CallExpression",
+        "start": 207,
+        "end": 255,
+        "callee": {
+          "type": "FunctionExpression",
+          "start": 207,
+          "end": 252,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": true,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 224,
+            "end": 252,
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "start": 226,
+                "end": 250,
+                "expression": {
+                  "type": "AwaitExpression",
+                  "start": 226,
+                  "end": 249,
+                  "argument": {
+                    "type": "CallExpression",
+                    "start": 232,
+                    "end": 249,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 232,
+                      "end": 247,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 232,
+                        "end": 239,
+                        "name": "Promise"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 240,
+                        "end": 247,
+                        "name": "resolve"                      }                    },
+                    "arguments": [
+                    ]                  }                }              }
+            ]
+          }        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 258,
+      "end": 307,
+      "expression": {
+        "type": "CallExpression",
+        "start": 259,
+        "end": 306,
+        "callee": {
+          "type": "FunctionExpression",
+          "start": 259,
+          "end": 299,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [
+            {
+              "type": "Identifier",
+              "start": 268,
+              "end": 274,
+              "name": "global"
+            }
+          ],
+          "body": {
+            "type": "BlockStatement",
+            "start": 276,
+            "end": 299,
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "start": 278,
+                "end": 297,
+                "expression": {
+                  "type": "AssignmentExpression",
+                  "start": 278,
+                  "end": 296,
+                  "operator": "=",
+                  "left": {
+                    "type": "MemberExpression",
+                    "start": 278,
+                    "end": 289,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 278,
+                      "end": 284,
+                      "name": "global"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 285,
+                      "end": 289,
+                      "name": "test"                    }                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 292,
+                    "end": 296,
+                    "value": true,
+                    "raw": "true"                  }                }              }
+            ]
+          }        },
+        "arguments": [
+          {
+            "type": "ThisExpression",
+            "start": 301,
+            "end": 305          }
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 309,
+      "end": 351,
+      "expression": {
+        "type": "UnaryExpression",
+        "start": 309,
+        "end": 350,
+        "operator": "!",
+        "prefix": true,
+        "argument": {
+          "type": "CallExpression",
+          "start": 310,
+          "end": 350,
+          "callee": {
+            "type": "FunctionExpression",
+            "start": 310,
+            "end": 348,
+            "id": null,
+            "expression": false,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "BlockStatement",
+              "start": 321,
+              "end": 348,
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "start": 323,
+                  "end": 346,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 323,
+                    "end": 345,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 323,
+                      "end": 334,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 323,
+                        "end": 330,
+                        "name": "console"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 331,
+                        "end": 334,
+                        "name": "log"                      }                    },
+                    "arguments": [
+                      {
+                        "type": "Literal",
+                        "start": 335,
+                        "end": 344,
+                        "value": "negated",
+                        "raw": "'negated'"                      }
+                    ]                  }                }
+              ]
+            }          },
+          "arguments": [
+          ]        }      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 352,
+      "end": 397,
+      "expression": {
+        "type": "UnaryExpression",
+        "start": 352,
+        "end": 396,
+        "operator": "+",
+        "prefix": true,
+        "argument": {
+          "type": "CallExpression",
+          "start": 353,
+          "end": 396,
+          "callee": {
+            "type": "FunctionExpression",
+            "start": 353,
+            "end": 394,
+            "id": null,
+            "expression": false,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "BlockStatement",
+              "start": 364,
+              "end": 394,
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "start": 366,
+                  "end": 392,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 366,
+                    "end": 391,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 366,
+                      "end": 377,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 366,
+                        "end": 373,
+                        "name": "console"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 374,
+                        "end": 377,
+                        "name": "log"                      }                    },
+                    "arguments": [
+                      {
+                        "type": "Literal",
+                        "start": 378,
+                        "end": 390,
+                        "value": "unary plus",
+                        "raw": "'unary plus'"                      }
+                    ]                  }                }
+              ]
+            }          },
+          "arguments": [
+          ]        }      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 398,
+      "end": 441,
+      "expression": {
+        "type": "UnaryExpression",
+        "start": 398,
+        "end": 440,
+        "operator": "void",
+        "prefix": true,
+        "argument": {
+          "type": "CallExpression",
+          "start": 403,
+          "end": 440,
+          "callee": {
+            "type": "FunctionExpression",
+            "start": 403,
+            "end": 438,
+            "id": null,
+            "expression": false,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "BlockStatement",
+              "start": 414,
+              "end": 438,
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "start": 416,
+                  "end": 436,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 416,
+                    "end": 435,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 416,
+                      "end": 427,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 416,
+                        "end": 423,
+                        "name": "console"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 424,
+                        "end": 427,
+                        "name": "log"                      }                    },
+                    "arguments": [
+                      {
+                        "type": "Literal",
+                        "start": 428,
+                        "end": 434,
+                        "value": "void",
+                        "raw": "'void'"                      }
+                    ]                  }                }
+              ]
+            }          },
+          "arguments": [
+          ]        }      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=12080B reserved=16777216B ratio=0%
+Parse errors: 0

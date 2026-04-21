@@ -1,0 +1,235 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 428,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 33,
+      "end": 63,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 39,
+          "end": 62,
+          "id": {
+            "type": "Identifier",
+            "start": 39,
+            "end": 45,
+            "name": "single"          },
+          "init": {
+            "type": "Literal",
+            "start": 48,
+            "end": 62,
+            "value": "It's a test",
+            "raw": "'It\\'s a test'"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 64,
+      "end": 99,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 70,
+          "end": 98,
+          "id": {
+            "type": "Identifier",
+            "start": 70,
+            "end": 76,
+            "name": "double"          },
+          "init": {
+            "type": "Literal",
+            "start": 79,
+            "end": 98,
+            "value": "He said \"Hello\"",
+            "raw": "\"He said \\\"Hello\\\"\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 100,
+      "end": 151,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 106,
+          "end": 150,
+          "id": {
+            "type": "Identifier",
+            "start": 106,
+            "end": 113,
+            "name": "escaped"          },
+          "init": {
+            "type": "Literal",
+            "start": 116,
+            "end": 150,
+            "value": "Line1\nLine2\tTabbed\r\rCarriage",
+            "raw": "'Line1\\nLine2\\tTabbed\\r\\rCarriage'"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 152,
+      "end": 186,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 158,
+          "end": 185,
+          "id": {
+            "type": "Identifier",
+            "start": 158,
+            "end": 165,
+            "name": "unicode"          },
+          "init": {
+            "type": "Literal",
+            "start": 168,
+            "end": 185,
+            "value": "A😀",
+            "raw": "'\\u0041\\u{1F600}'"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 187,
+      "end": 220,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 193,
+          "end": 219,
+          "id": {
+            "type": "Identifier",
+            "start": 193,
+            "end": 202,
+            "name": "hexEscape"          },
+          "init": {
+            "type": "Literal",
+            "start": 205,
+            "end": 219,
+            "value": "ABC",
+            "raw": "'\\x41\\x42\\x43'"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 222,
+      "end": 266,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 228,
+          "end": 265,
+          "id": {
+            "type": "Identifier",
+            "start": 228,
+            "end": 236,
+            "name": "backtick"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 239,
+            "end": 265,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 239,
+                "end": 265,
+                "tail": true,
+                "value": { "raw": "`Template with \\` escaped`", "cooked": "Template with \\` escaped" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 267,
+      "end": 369,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 273,
+          "end": 368,
+          "id": {
+            "type": "Identifier",
+            "start": 273,
+            "end": 282,
+            "name": "multiline"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 285,
+            "end": 368,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 285,
+                "end": 368,
+                "tail": true,
+                "value": { "raw": "`\n  First line\n  Second line with \\n literal\n  Third with \\t tab and \\\\ backslash\n`", "cooked": "\n  First line\n  Second line with \\n literal\n  Third with \\t tab and \\\\ backslash\n" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 371,
+      "end": 392,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 377,
+          "end": 391,
+          "id": {
+            "type": "Identifier",
+            "start": 377,
+            "end": 382,
+            "name": "regex"          },
+          "init": {
+            "type": "Literal",
+            "start": 385,
+            "end": 391,
+            "value": null,
+            "raw": "/\\d+/g",
+            "regex": {
+              "pattern": "\\d+",
+              "flags": "g"
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 393,
+      "end": 427,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 399,
+          "end": 426,
+          "id": {
+            "type": "Identifier",
+            "start": 399,
+            "end": 411,
+            "name": "regexEscaped"          },
+          "init": {
+            "type": "Literal",
+            "start": 414,
+            "end": 426,
+            "value": null,
+            "raw": "/\\/\\[\\]\\(\\)/",
+            "regex": {
+              "pattern": "\\/\\[\\]\\(\\)",
+              "flags": ""
+            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=13122B reserved=16777216B ratio=0%
+Parse errors: 0

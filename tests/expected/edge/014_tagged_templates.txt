@@ -1,0 +1,461 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 447,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 38,
+      "end": 129,
+      "id": {
+        "type": "Identifier",
+        "start": 47,
+        "end": 50,
+        "name": "sql"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 51,
+          "end": 58,
+          "name": "strings"
+        },
+        {
+          "type": "RestElement",
+          "start": 60,
+          "end": 69,
+          "argument": {
+            "type": "Identifier",
+            "start": 63,
+            "end": 69,
+            "name": "values"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 71,
+        "end": 129,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 75,
+            "end": 127,
+            "argument": {
+              "type": "ObjectExpression",
+              "start": 82,
+              "end": 126,
+              "properties": [
+                {
+                  "type": "Property",
+                  "start": 84,
+                  "end": 108,
+                  "kind": "init",
+                  "method": false,
+                  "shorthand": false,
+                  "computed": false,
+                  "key": {
+                    "type": "Identifier",
+                    "start": 84,
+                    "end": 89,
+                    "name": "query"                  },
+                  "value": {
+                    "type": "CallExpression",
+                    "start": 91,
+                    "end": 108,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 91,
+                      "end": 103,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 91,
+                        "end": 98,
+                        "name": "strings"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 99,
+                        "end": 103,
+                        "name": "join"                      }                    },
+                    "arguments": [
+                      {
+                        "type": "Literal",
+                        "start": 104,
+                        "end": 107,
+                        "value": "?",
+                        "raw": "'?'"                      }
+                    ]                  }
+                },
+                {
+                  "type": "Property",
+                  "start": 110,
+                  "end": 124,
+                  "kind": "init",
+                  "method": false,
+                  "shorthand": false,
+                  "computed": false,
+                  "key": {
+                    "type": "Identifier",
+                    "start": 110,
+                    "end": 116,
+                    "name": "params"                  },
+                  "value": {
+                    "type": "Identifier",
+                    "start": 118,
+                    "end": 124,
+                    "name": "values"                  }
+                }
+              ]            }          }
+        ]
+      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 131,
+      "end": 145,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 137,
+          "end": 144,
+          "id": {
+            "type": "Identifier",
+            "start": 137,
+            "end": 139,
+            "name": "id"          },
+          "init": {
+            "type": "Literal",
+            "start": 142,
+            "end": 144,
+            "value": 42,
+            "raw": "42"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 146,
+      "end": 166,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 152,
+          "end": 165,
+          "id": {
+            "type": "Identifier",
+            "start": 152,
+            "end": 156,
+            "name": "name"          },
+          "init": {
+            "type": "Literal",
+            "start": 159,
+            "end": 165,
+            "value": "test",
+            "raw": "'test'"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 167,
+      "end": 242,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 173,
+          "end": 241,
+          "id": {
+            "type": "Identifier",
+            "start": 173,
+            "end": 178,
+            "name": "query"          },
+          "init": {
+            "type": "TaggedTemplateExpression",
+            "start": 181,
+            "end": 241,
+            "tag": {
+              "type": "Identifier",
+              "start": 181,
+              "end": 184,
+              "name": "sql"            },
+            "quasi": {
+              "type": "TemplateLiteral",
+              "start": 184,
+              "end": 241,
+              "quasis": [
+                {
+                  "type": "TemplateElement",
+                  "start": 184,
+                  "end": 218,
+                  "tail": false,
+                  "value": { "raw": "`SELECT * FROM users WHERE id = ${", "cooked": "SELECT * FROM users WHERE id = " }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 220,
+                  "end": 235,
+                  "tail": false,
+                  "value": { "raw": "} AND name = ${", "cooked": " AND name = " }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 239,
+                  "end": 241,
+                  "tail": true,
+                  "value": { "raw": "}`", "cooked": "" }
+                }
+              ],
+              "expressions": [
+                {
+                  "type": "Identifier",
+                  "start": 218,
+                  "end": 220,
+                  "name": "id"                },
+                {
+                  "type": "Identifier",
+                  "start": 235,
+                  "end": 239,
+                  "name": "name"                }
+              ]            }          }        }
+      ]    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 244,
+      "end": 360,
+      "id": {
+        "type": "Identifier",
+        "start": 253,
+        "end": 259,
+        "name": "styled"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 260,
+          "end": 267,
+          "name": "strings"
+        },
+        {
+          "type": "RestElement",
+          "start": 269,
+          "end": 278,
+          "argument": {
+            "type": "Identifier",
+            "start": 272,
+            "end": 278,
+            "name": "values"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 280,
+        "end": 360,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 284,
+            "end": 358,
+            "argument": {
+              "type": "CallExpression",
+              "start": 291,
+              "end": 357,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 291,
+                "end": 305,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 291,
+                  "end": 298,
+                  "name": "strings"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 299,
+                  "end": 305,
+                  "name": "reduce"                }              },
+              "arguments": [
+                {
+                  "type": "ArrowFunctionExpression",
+                  "start": 306,
+                  "end": 352,
+                  "id": null,
+                  "expression": true,
+                  "generator": false,
+                  "async": false,
+                  "params": [
+                    {
+                      "type": "Identifier",
+                      "start": 307,
+                      "end": 310,
+                      "name": "acc"
+                    },
+                    {
+                      "type": "Identifier",
+                      "start": 312,
+                      "end": 315,
+                      "name": "str"
+                    },
+                    {
+                      "type": "Identifier",
+                      "start": 317,
+                      "end": 318,
+                      "name": "i"
+                    }
+                  ],
+                  "body": {
+                    "type": "BinaryExpression",
+                    "start": 323,
+                    "end": 352,
+                    "operator": "+",
+                    "left": {
+                      "type": "BinaryExpression",
+                      "start": 323,
+                      "end": 332,
+                      "operator": "+",
+                      "left": {
+                        "type": "Identifier",
+                        "start": 323,
+                        "end": 326,
+                        "name": "acc"                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 329,
+                        "end": 332,
+                        "name": "str"                      }                    },
+                    "right": {
+                      "type": "LogicalExpression",
+                      "start": 336,
+                      "end": 351,
+                      "operator": "||",
+                      "left": {
+                        "type": "MemberExpression",
+                        "start": 336,
+                        "end": 345,
+                        "computed": true,
+                        "object": {
+                          "type": "Identifier",
+                          "start": 336,
+                          "end": 342,
+                          "name": "values"                        },
+                        "property": {
+                          "type": "Identifier",
+                          "start": 343,
+                          "end": 344,
+                          "name": "i"                        }                      },
+                      "right": {
+                        "type": "Literal",
+                        "start": 349,
+                        "end": 351,
+                        "value": "",
+                        "raw": "''"                      }                    }                  }                },
+                {
+                  "type": "Literal",
+                  "start": 354,
+                  "end": 356,
+                  "value": "",
+                  "raw": "''"                }
+              ]            }          }
+        ]
+      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 362,
+      "end": 382,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 368,
+          "end": 381,
+          "id": {
+            "type": "Identifier",
+            "start": 368,
+            "end": 373,
+            "name": "color"          },
+          "init": {
+            "type": "Literal",
+            "start": 376,
+            "end": 381,
+            "value": "red",
+            "raw": "'red'"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 383,
+      "end": 446,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 389,
+          "end": 445,
+          "id": {
+            "type": "Identifier",
+            "start": 389,
+            "end": 392,
+            "name": "css"          },
+          "init": {
+            "type": "TaggedTemplateExpression",
+            "start": 395,
+            "end": 445,
+            "tag": {
+              "type": "Identifier",
+              "start": 395,
+              "end": 401,
+              "name": "styled"            },
+            "quasi": {
+              "type": "TemplateLiteral",
+              "start": 401,
+              "end": 445,
+              "quasis": [
+                {
+                  "type": "TemplateElement",
+                  "start": 401,
+                  "end": 414,
+                  "tail": false,
+                  "value": { "raw": "`\n  color: ${", "cooked": "\n  color: " }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 419,
+                  "end": 437,
+                  "tail": false,
+                  "value": { "raw": "};\n  font-size: ${", "cooked": ";\n  font-size: " }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 439,
+                  "end": 445,
+                  "tail": true,
+                  "value": { "raw": "}px;\n`", "cooked": "px;\n" }
+                }
+              ],
+              "expressions": [
+                {
+                  "type": "Identifier",
+                  "start": 414,
+                  "end": 419,
+                  "name": "color"                },
+                {
+                  "type": "Literal",
+                  "start": 437,
+                  "end": 439,
+                  "value": 16,
+                  "raw": "16"                }
+              ]            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=11264B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -1,0 +1,57 @@
+{
+  "edge": {
+    "pass": 9,
+    "fail": 10,
+    "total": 19
+  },
+  "es2015": {
+    "pass": 1,
+    "fail": 9,
+    "total": 10
+  },
+  "es2016": {
+    "pass": 1,
+    "fail": 1,
+    "total": 2
+  },
+  "es2017": {
+    "pass": 1,
+    "fail": 1,
+    "total": 2
+  },
+  "es2018": {
+    "pass": 2,
+    "fail": 1,
+    "total": 3
+  },
+  "es2019": {
+    "pass": 2,
+    "fail": 0,
+    "total": 2
+  },
+  "es2020": {
+    "pass": 1,
+    "fail": 5,
+    "total": 6
+  },
+  "es2021": {
+    "pass": 1,
+    "fail": 1,
+    "total": 2
+  },
+  "es2022": {
+    "pass": 3,
+    "fail": 3,
+    "total": 6
+  },
+  "es2024": {
+    "pass": 1,
+    "fail": 1,
+    "total": 2
+  },
+  "es2025": {
+    "pass": 2,
+    "fail": 0,
+    "total": 2
+  }
+}

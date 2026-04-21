@@ -1,0 +1,43 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 41,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 40,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 39,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "mod"          },
+          "init": {
+            "type": "AwaitExpression",
+            "start": 12,
+            "end": 39,
+            "argument": {
+              "type": "ImportExpression",
+              "start": 18,
+              "end": 39,
+              "source": {
+                "type": "Literal",
+                "start": 25,
+                "end": 38,
+                "value": "./module.js",
+                "raw": "\"./module.js\""              }            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4536B reserved=16777216B ratio=0%
+Parse errors: 0

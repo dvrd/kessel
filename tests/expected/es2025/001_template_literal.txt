@@ -1,0 +1,108 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 94,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 35,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 34,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 14,
+            "name": "greeting"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 17,
+            "end": 34,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 17,
+                "end": 27,
+                "tail": false,
+                "value": { "raw": "`Hello, ${", "cooked": "Hello, " }
+              },
+              {
+                "type": "TemplateElement",
+                "start": 31,
+                "end": 34,
+                "tail": true,
+                "value": { "raw": "}!`", "cooked": "!" }
+              }
+            ],
+            "expressions": [
+              {
+                "type": "Identifier",
+                "start": 27,
+                "end": 31,
+                "name": "name"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 36,
+      "end": 93,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 42,
+          "end": 92,
+          "id": {
+            "type": "Identifier",
+            "start": 42,
+            "end": 48,
+            "name": "tagged"          },
+          "init": {
+            "type": "TaggedTemplateExpression",
+            "start": 51,
+            "end": 92,
+            "tag": {
+              "type": "Identifier",
+              "start": 51,
+              "end": 54,
+              "name": "sql"            },
+            "quasi": {
+              "type": "TemplateLiteral",
+              "start": 54,
+              "end": 92,
+              "quasis": [
+                {
+                  "type": "TemplateElement",
+                  "start": 54,
+                  "end": 88,
+                  "tail": false,
+                  "value": { "raw": "`SELECT * FROM users WHERE id = ${", "cooked": "SELECT * FROM users WHERE id = " }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 90,
+                  "end": 92,
+                  "tail": true,
+                  "value": { "raw": "}`", "cooked": "" }
+                }
+              ],
+              "expressions": [
+                {
+                  "type": "Identifier",
+                  "start": 88,
+                  "end": 90,
+                  "name": "id"                }
+              ]            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5200B reserved=16777216B ratio=0%
+Parse errors: 0

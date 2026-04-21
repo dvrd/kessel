@@ -1,0 +1,186 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 138,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 137,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 7,
+        "name": "A"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 8,
+        "end": 137,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+            "start": 12,
+            "end": 19,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 12,
+              "end": 14,
+              "name": "x"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 17,
+              "end": 18,
+              "value": 1,
+              "raw": "1"
+            },
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 22,
+            "end": 65,
+                        "key": {
+              "type": "Identifier",
+              "start": 29,
+              "end": 32,
+              "name": "has"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 22,
+              "end": 65,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 33,
+                  "end": 36,
+                  "name": "obj"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 38,
+                "end": 65,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 44,
+                    "end": 61,
+                    "argument": {
+                      "type": "BinaryExpression",
+                      "start": 51,
+                      "end": 60,
+                      "operator": "in",
+                      "left": {
+                        "type": "PrivateIdentifier",
+                        "start": 51,
+                        "end": 53,
+                        "name": "x"                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 57,
+                        "end": 60,
+                        "name": "obj"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 68,
+            "end": 135,
+                        "key": {
+              "type": "Identifier",
+              "start": 68,
+              "end": 70,
+              "name": "eq"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 68,
+              "end": 135,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 71,
+                  "end": 76,
+                  "name": "other"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 78,
+                "end": 135,
+                "body": [
+                  {
+                    "type": "IfStatement",
+                    "start": 84,
+                    "end": 113,
+                    "test": {
+                      "type": "BinaryExpression",
+                      "start": 88,
+                      "end": 99,
+                      "operator": "in",
+                      "left": {
+                        "type": "PrivateIdentifier",
+                        "start": 88,
+                        "end": 90,
+                        "name": "x"                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 94,
+                        "end": 99,
+                        "name": "other"                      }                    },
+                    "consequent": {
+                      "type": "ReturnStatement",
+                      "start": 101,
+                      "end": 113,
+                      "argument": {
+                        "type": "Literal",
+                        "start": 108,
+                        "end": 112,
+                        "value": true,
+                        "raw": "true"                      }                    },
+                    "alternate": null                  },
+                  {
+                    "type": "ReturnStatement",
+                    "start": 118,
+                    "end": 131,
+                    "argument": {
+                      "type": "Literal",
+                      "start": 125,
+                      "end": 130,
+                      "value": false,
+                      "raw": "false"                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5688B reserved=16777216B ratio=0%
+Parse errors: 0

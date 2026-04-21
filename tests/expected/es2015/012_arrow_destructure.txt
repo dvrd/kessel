@@ -1,0 +1,352 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 217,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 45,
+      "end": 75,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 51,
+          "end": 74,
+          "id": {
+            "type": "Identifier",
+            "start": 51,
+            "end": 52,
+            "name": "f"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 55,
+            "end": 74,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "ObjectPattern",
+                "start": 56,
+                "end": 64,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 58,
+                    "end": 59,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 58,
+                      "end": 59,
+                      "name": "a"
+                    },
+                    "value": {
+                      "type": "Identifier",
+                      "start": 58,
+                      "end": 59,
+                      "name": "a"
+                    }
+                  },
+                  {
+                    "type": "Property",
+                    "start": 61,
+                    "end": 62,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 61,
+                      "end": 62,
+                      "name": "b"
+                    },
+                    "value": {
+                      "type": "Identifier",
+                      "start": 61,
+                      "end": 62,
+                      "name": "b"
+                    }
+                  }
+                ]
+              }
+            ],
+            "body": {
+              "type": "BinaryExpression",
+              "start": 69,
+              "end": 74,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 69,
+                "end": 70,
+                "name": "a"              },
+              "right": {
+                "type": "Identifier",
+                "start": 73,
+                "end": 74,
+                "name": "b"              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 76,
+      "end": 104,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 82,
+          "end": 103,
+          "id": {
+            "type": "Identifier",
+            "start": 82,
+            "end": 83,
+            "name": "g"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 86,
+            "end": 103,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "ArrayPattern",
+                "start": 87,
+                "end": 93,
+                "elements": [
+                  {
+                    "type": "Identifier",
+                    "start": 88,
+                    "end": 89,
+                    "name": "x"
+                  },
+                  {
+                    "type": "Identifier",
+                    "start": 91,
+                    "end": 92,
+                    "name": "y"
+                  }
+                ]
+              }
+            ],
+            "body": {
+              "type": "BinaryExpression",
+              "start": 98,
+              "end": 103,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 98,
+                "end": 99,
+                "name": "x"              },
+              "right": {
+                "type": "Identifier",
+                "start": 102,
+                "end": 103,
+                "name": "y"              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 105,
+      "end": 135,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 111,
+          "end": 134,
+          "id": {
+            "type": "Identifier",
+            "start": 111,
+            "end": 112,
+            "name": "h"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 115,
+            "end": 134,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "ObjectPattern",
+                "start": 116,
+                "end": 128,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 118,
+                    "end": 126,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 118,
+                      "end": 119,
+                      "name": "a"
+                    },
+                    "value": {
+                      "type": "ObjectPattern",
+                      "start": 121,
+                      "end": 126,
+                      "properties": [
+                        {
+                          "type": "Property",
+                          "start": 123,
+                          "end": 124,
+                          "shorthand": true,
+                          "computed": false,
+                          "key": {
+                            "type": "Identifier",
+                            "start": 123,
+                            "end": 124,
+                            "name": "b"
+                          },
+                          "value": {
+                            "type": "Identifier",
+                            "start": 123,
+                            "end": 124,
+                            "name": "b"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ],
+            "body": {
+              "type": "Identifier",
+              "start": 133,
+              "end": 134,
+              "name": "b"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 136,
+      "end": 169,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 142,
+          "end": 168,
+          "id": {
+            "type": "Identifier",
+            "start": 142,
+            "end": 143,
+            "name": "i"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 146,
+            "end": 168,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "ArrayPattern",
+                "start": 147,
+                "end": 159,
+                "elements": [
+                  {
+                    "type": "Identifier",
+                    "start": 148,
+                    "end": 149,
+                    "name": "a"
+                  },
+                  {
+                    "type": "RestElement",
+                    "start": 154,
+                    "end": 158,
+                    "argument": {
+                      "type": "Identifier",
+                      "start": 154,
+                      "end": 158,
+                      "name": "rest"
+                    }
+                  }
+                ]
+              }
+            ],
+            "body": {
+              "type": "Identifier",
+              "start": 164,
+              "end": 168,
+              "name": "rest"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 170,
+      "end": 216,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 176,
+          "end": 215,
+          "id": {
+            "type": "Identifier",
+            "start": 176,
+            "end": 177,
+            "name": "k"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 180,
+            "end": 215,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "ArrayPattern",
+                "start": 181,
+                "end": 197,
+                "elements": [
+                  {
+                    "type": "Identifier",
+                    "start": 182,
+                    "end": 187,
+                    "name": "first"
+                  },
+                  null,
+                  {
+                    "type": "Identifier",
+                    "start": 191,
+                    "end": 196,
+                    "name": "third"
+                  }
+                ]
+              }
+            ],
+            "body": {
+              "type": "BinaryExpression",
+              "start": 202,
+              "end": 215,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 202,
+                "end": 207,
+                "name": "first"              },
+              "right": {
+                "type": "Identifier",
+                "start": 210,
+                "end": 215,
+                "name": "third"              }            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7192B reserved=16777216B ratio=0%
+Parse errors: 0

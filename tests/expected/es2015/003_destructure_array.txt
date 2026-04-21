@@ -1,0 +1,118 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 55,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 22,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 21,
+          "id": {
+            "type": "ArrayPattern",
+            "start": 6,
+            "end": 12,
+            "elements": [
+              {
+                "type": "Identifier",
+                "start": 7,
+                "end": 8,
+                "name": "a"
+              },
+              {
+                "type": "Identifier",
+                "start": 10,
+                "end": 11,
+                "name": "b"
+              }
+            ]          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 15,
+            "end": 21,
+            "elements": [
+              {
+                "type": "Literal",
+                "start": 16,
+                "end": 17,
+                "value": 1,
+                "raw": "1"              },
+              {
+                "type": "Literal",
+                "start": 19,
+                "end": 20,
+                "value": 2,
+                "raw": "2"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 23,
+      "end": 54,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 29,
+          "end": 53,
+          "id": {
+            "type": "ArrayPattern",
+            "start": 29,
+            "end": 41,
+            "elements": [
+              {
+                "type": "Identifier",
+                "start": 30,
+                "end": 31,
+                "name": "x"
+              },
+              {
+                "type": "RestElement",
+                "start": 36,
+                "end": 40,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 36,
+                  "end": 40,
+                  "name": "rest"
+                }
+              }
+            ]          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 44,
+            "end": 53,
+            "elements": [
+              {
+                "type": "Literal",
+                "start": 45,
+                "end": 46,
+                "value": 1,
+                "raw": "1"              },
+              {
+                "type": "Literal",
+                "start": 48,
+                "end": 49,
+                "value": 2,
+                "raw": "2"              },
+              {
+                "type": "Literal",
+                "start": 51,
+                "end": 52,
+                "value": 3,
+                "raw": "3"              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5128B reserved=16777216B ratio=0%
+Parse errors: 0

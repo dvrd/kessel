@@ -1,0 +1,93 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 20,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 8,
+      "expression": {
+        "type": "MemberExpression",
+        "start": 0,
+        "end": 7,
+        "computed": false,
+        "object": {
+          "type": "MemberExpression",
+          "start": 0,
+          "end": 5,
+          "computed": false,
+          "object": {
+            "type": "MemberExpression",
+            "start": 0,
+            "end": 3,
+            "computed": false,
+            "object": {
+              "type": "Identifier",
+              "start": 0,
+              "end": 1,
+              "name": "a"            },
+            "property": {
+              "type": "Identifier",
+              "start": 2,
+              "end": 3,
+              "name": "b"            }          },
+          "property": {
+            "type": "Identifier",
+            "start": 4,
+            "end": 5,
+            "name": "c"          }        },
+        "property": {
+          "type": "Identifier",
+          "start": 6,
+          "end": 7,
+          "name": "d"        }      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 9,
+      "end": 19,
+      "expression": {
+        "type": "MemberExpression",
+        "start": 9,
+        "end": 18,
+        "computed": false,
+        "object": {
+          "type": "CallExpression",
+          "start": 9,
+          "end": 16,
+          "callee": {
+            "type": "MemberExpression",
+            "start": 9,
+            "end": 14,
+            "computed": false,
+            "object": {
+              "type": "CallExpression",
+              "start": 9,
+              "end": 12,
+              "callee": {
+                "type": "Identifier",
+                "start": 9,
+                "end": 10,
+                "name": "a"              },
+              "arguments": [
+              ]            },
+            "property": {
+              "type": "Identifier",
+              "start": 13,
+              "end": 14,
+              "name": "b"            }          },
+          "arguments": [
+          ]        },
+        "property": {
+          "type": "Identifier",
+          "start": 17,
+          "end": 18,
+          "name": "c"        }      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4520B reserved=16777216B ratio=0%
+Parse errors: 0

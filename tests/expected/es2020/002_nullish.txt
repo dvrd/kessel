@@ -1,0 +1,77 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 47,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 17,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 16,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "x"          },
+          "init": {
+            "type": "LogicalExpression",
+            "start": 10,
+            "end": 16,
+            "operator": "??",
+            "left": {
+              "type": "Identifier",
+              "start": 10,
+              "end": 11,
+              "name": "a"            },
+            "right": {
+              "type": "Identifier",
+              "start": 15,
+              "end": 16,
+              "name": "b"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 18,
+      "end": 46,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 24,
+          "end": 45,
+          "id": {
+            "type": "Identifier",
+            "start": 24,
+            "end": 25,
+            "name": "y"          },
+          "init": {
+            "type": "LogicalExpression",
+            "start": 28,
+            "end": 45,
+            "operator": "??",
+            "left": {
+              "type": "Literal",
+              "start": 28,
+              "end": 32,
+              "value": null,
+              "raw": "null"            },
+            "right": {
+              "type": "Literal",
+              "start": 36,
+              "end": 45,
+              "value": "default",
+              "raw": "\"default\""            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4616B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -1,0 +1,105 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 134,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 33,
+      "end": 133,
+      "id": {
+        "type": "Identifier",
+        "start": 48,
+        "end": 55,
+        "name": "process"
+      },
+      "expression": false,
+      "generator": false,
+      "async": true,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 56,
+          "end": 62,
+          "name": "stream"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 64,
+        "end": 133,
+        "body": [
+          {
+            "type": "ForOfStatement",
+            "start": 68,
+            "end": 131,
+            "left": {
+              "type": "VariableDeclaration",
+              "start": 79,
+              "end": 90,
+              "kind": "const",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 85,
+                  "end": 90,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 85,
+                    "end": 90,
+                    "name": "chunk"                  },
+                  "init": null                }
+              ]
+            },
+            "right": {
+              "type": "Identifier",
+              "start": 94,
+              "end": 100,
+              "name": "stream"            },
+            "await": true,
+            "body": {
+              "type": "BlockStatement",
+              "start": 102,
+              "end": 131,
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "start": 108,
+                  "end": 127,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 108,
+                    "end": 126,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 108,
+                      "end": 119,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 108,
+                        "end": 115,
+                        "name": "console"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 116,
+                        "end": 119,
+                        "name": "log"                      }                    },
+                    "arguments": [
+                      {
+                        "type": "Identifier",
+                        "start": 120,
+                        "end": 125,
+                        "name": "chunk"                      }
+                    ]                  }                }
+              ]            }          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4896B reserved=16777216B ratio=0%
+Parse errors: 0

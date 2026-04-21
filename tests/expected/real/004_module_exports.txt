@@ -1,0 +1,329 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 326,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 27,
+      "end": 52,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 33,
+          "end": 51,
+          "id": {
+            "type": "Identifier",
+            "start": 33,
+            "end": 35,
+            "name": "fs"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 38,
+            "end": 51,
+            "callee": {
+              "type": "Identifier",
+              "start": 38,
+              "end": 45,
+              "name": "require"            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 46,
+                "end": 50,
+                "value": "fs",
+                "raw": "'fs'"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 53,
+      "end": 82,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 59,
+          "end": 81,
+          "id": {
+            "type": "Identifier",
+            "start": 59,
+            "end": 63,
+            "name": "path"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 66,
+            "end": 81,
+            "callee": {
+              "type": "Identifier",
+              "start": 66,
+              "end": 73,
+              "name": "require"            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 74,
+                "end": 80,
+                "value": "path",
+                "raw": "'path'"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 84,
+      "end": 227,
+      "id": {
+        "type": "Identifier",
+        "start": 93,
+        "end": 103,
+        "name": "readConfig"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 104,
+          "end": 112,
+          "name": "filePath"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 114,
+        "end": 227,
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "start": 118,
+            "end": 169,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 124,
+                "end": 168,
+                "id": {
+                  "type": "Identifier",
+                  "start": 124,
+                  "end": 132,
+                  "name": "fullPath"                },
+                "init": {
+                  "type": "CallExpression",
+                  "start": 135,
+                  "end": 168,
+                  "callee": {
+                    "type": "MemberExpression",
+                    "start": 135,
+                    "end": 147,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 135,
+                      "end": 139,
+                      "name": "path"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 140,
+                      "end": 147,
+                      "name": "resolve"                    }                  },
+                  "arguments": [
+                    {
+                      "type": "Identifier",
+                      "start": 148,
+                      "end": 157,
+                      "name": "__dirname"                    },
+                    {
+                      "type": "Identifier",
+                      "start": 159,
+                      "end": 167,
+                      "name": "filePath"                    }
+                  ]                }              }
+            ]          },
+          {
+            "type": "ReturnStatement",
+            "start": 172,
+            "end": 225,
+            "argument": {
+              "type": "CallExpression",
+              "start": 179,
+              "end": 224,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 179,
+                "end": 189,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 179,
+                  "end": 183,
+                  "name": "JSON"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 184,
+                  "end": 189,
+                  "name": "parse"                }              },
+              "arguments": [
+                {
+                  "type": "CallExpression",
+                  "start": 190,
+                  "end": 223,
+                  "callee": {
+                    "type": "MemberExpression",
+                    "start": 190,
+                    "end": 205,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 190,
+                      "end": 192,
+                      "name": "fs"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 193,
+                      "end": 205,
+                      "name": "readFileSync"                    }                  },
+                  "arguments": [
+                    {
+                      "type": "Identifier",
+                      "start": 206,
+                      "end": 214,
+                      "name": "fullPath"                    },
+                    {
+                      "type": "Literal",
+                      "start": 216,
+                      "end": 222,
+                      "value": "utf8",
+                      "raw": "'utf8'"                    }
+                  ]                }
+              ]            }          }
+        ]
+      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 229,
+      "end": 261,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 229,
+        "end": 260,
+        "operator": "=",
+        "left": {
+          "type": "MemberExpression",
+          "start": 229,
+          "end": 243,
+          "computed": false,
+          "object": {
+            "type": "Identifier",
+            "start": 229,
+            "end": 235,
+            "name": "module"          },
+          "property": {
+            "type": "Identifier",
+            "start": 236,
+            "end": 243,
+            "name": "exports"          }        },
+        "right": {
+          "type": "ObjectExpression",
+          "start": 246,
+          "end": 260,
+          "properties": [
+            {
+              "type": "Property",
+              "start": 248,
+              "end": 258,
+              "kind": "init",
+              "method": false,
+              "shorthand": true,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 248,
+                "end": 258,
+                "name": "readConfig"              },
+              "value": {
+                "type": "Identifier",
+                "start": 248,
+                "end": 258,
+                "name": "readConfig"              }
+            }
+          ]        }      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 262,
+      "end": 298,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 262,
+        "end": 297,
+        "operator": "=",
+        "left": {
+          "type": "MemberExpression",
+          "start": 262,
+          "end": 284,
+          "computed": false,
+          "object": {
+            "type": "MemberExpression",
+            "start": 262,
+            "end": 276,
+            "computed": false,
+            "object": {
+              "type": "Identifier",
+              "start": 262,
+              "end": 268,
+              "name": "module"            },
+            "property": {
+              "type": "Identifier",
+              "start": 269,
+              "end": 276,
+              "name": "exports"            }          },
+          "property": {
+            "type": "Identifier",
+            "start": 277,
+            "end": 284,
+            "name": "default"          }        },
+        "right": {
+          "type": "Identifier",
+          "start": 287,
+          "end": 297,
+          "name": "readConfig"        }      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 299,
+      "end": 325,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 299,
+        "end": 324,
+        "operator": "=",
+        "left": {
+          "type": "MemberExpression",
+          "start": 299,
+          "end": 314,
+          "computed": false,
+          "object": {
+            "type": "Identifier",
+            "start": 299,
+            "end": 306,
+            "name": "exports"          },
+          "property": {
+            "type": "Identifier",
+            "start": 307,
+            "end": 314,
+            "name": "version"          }        },
+        "right": {
+          "type": "Literal",
+          "start": 317,
+          "end": 324,
+          "value": "1.0.0",
+          "raw": "'1.0.0'"        }      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7736B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -1,0 +1,356 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 332,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 42,
+      "end": 82,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 48,
+          "end": 81,
+          "id": {
+            "type": "Identifier",
+            "start": 48,
+            "end": 49,
+            "name": "A"          },
+          "init": {
+            "type": "ClassExpression",
+            "start": 52,
+            "end": 81,
+            "body": {
+              "type": "ClassBody",
+              "start": 58,
+              "end": 81,
+              "body": [
+                {
+                  "type": "MethodDefinition",
+                  "start": 60,
+                  "end": 79,
+                                    "key": {
+                    "type": "Identifier",
+                    "start": 60,
+                    "end": 63,
+                    "name": "foo"
+                  },
+                  "value": {
+                    "type": "FunctionExpression",
+                    "start": 60,
+                    "end": 79,
+                    "id": null,
+                    "expression": false,
+                    "generator": false,
+                    "async": false,
+                    "params": [],
+                    "body": {
+                      "type": "BlockStatement",
+                      "start": 66,
+                      "end": 79,
+                      "body": [
+                        {
+                          "type": "ReturnStatement",
+                          "start": 68,
+                          "end": 77,
+                          "argument": {
+                            "type": "Literal",
+                            "start": 75,
+                            "end": 76,
+                            "value": 1,
+                            "raw": "1"                          }                        }
+                      ]
+                    }
+                  },
+                  "kind": "method",
+                  "computed": false,
+                  "static": false
+                }
+              ]
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 83,
+      "end": 152,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 89,
+          "end": 151,
+          "id": {
+            "type": "Identifier",
+            "start": 89,
+            "end": 90,
+            "name": "B"          },
+          "init": {
+            "type": "ClassExpression",
+            "start": 93,
+            "end": 151,
+            "id": {
+              "type": "Identifier",
+              "start": 99,
+              "end": 106,
+              "name": "MyClass"
+            },
+"superClass": {
+              "type": "Identifier",
+              "start": 115,
+              "end": 120,
+              "name": "Error"            },
+"body": {
+              "type": "ClassBody",
+              "start": 121,
+              "end": 151,
+              "body": [
+                {
+                  "type": "MethodDefinition",
+                  "start": 123,
+                  "end": 149,
+                                    "key": {
+                    "type": "Identifier",
+                    "start": 123,
+                    "end": 134,
+                    "name": "constructor"
+                  },
+                  "value": {
+                    "type": "FunctionExpression",
+                    "start": 123,
+                    "end": 149,
+                    "id": null,
+                    "expression": false,
+                    "generator": false,
+                    "async": false,
+                    "params": [],
+                    "body": {
+                      "type": "BlockStatement",
+                      "start": 137,
+                      "end": 149,
+                      "body": [
+                        {
+                          "type": "ExpressionStatement",
+                          "start": 139,
+                          "end": 147,
+                          "expression": {
+                            "type": "CallExpression",
+                            "start": 139,
+                            "end": 146,
+                            "callee": {
+                              "type": "Super",
+                              "start": 139,
+                              "end": 144                            },
+                            "arguments": [
+                            ]                          }                        }
+                      ]
+                    }
+                  },
+                  "kind": "constructor",
+                  "computed": false,
+                  "static": false
+                }
+              ]
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 153,
+      "end": 234,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 159,
+          "end": 233,
+          "id": {
+            "type": "Identifier",
+            "start": 159,
+            "end": 160,
+            "name": "C"          },
+          "init": {
+            "type": "ClassExpression",
+            "start": 163,
+            "end": 233,
+            "superClass": {
+              "type": "Identifier",
+              "start": 177,
+              "end": 182,
+              "name": "Array"            },
+"body": {
+              "type": "ClassBody",
+              "start": 183,
+              "end": 233,
+              "body": [
+                {
+                  "type": "MethodDefinition",
+                  "start": 185,
+                  "end": 231,
+                                    "key": {
+                    "type": "MemberExpression",
+                    "start": 193,
+                    "end": 211,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 193,
+                      "end": 199,
+                      "name": "Symbol"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 200,
+                      "end": 211,
+                      "name": "hasInstance"                    }
+                  },
+                  "value": {
+                    "type": "FunctionExpression",
+                    "start": 185,
+                    "end": 231,
+                    "id": null,
+                    "expression": false,
+                    "generator": false,
+                    "async": false,
+                    "params": [],
+                    "body": {
+                      "type": "BlockStatement",
+                      "start": 215,
+                      "end": 231,
+                      "body": [
+                        {
+                          "type": "ReturnStatement",
+                          "start": 217,
+                          "end": 229,
+                          "argument": {
+                            "type": "Literal",
+                            "start": 224,
+                            "end": 228,
+                            "value": true,
+                            "raw": "true"                          }                        }
+                      ]
+                    }
+                  },
+                  "kind": "method",
+                  "computed": true,
+                  "static": true
+                }
+              ]
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 235,
+      "end": 289,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 241,
+          "end": 288,
+          "id": {
+            "type": "Identifier",
+            "start": 241,
+            "end": 248,
+            "name": "classes"          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 251,
+            "end": 288,
+            "elements": [
+              {
+                "type": "ClassExpression",
+                "start": 252,
+                "end": 261,
+                "body": {
+                  "type": "ClassBody",
+                  "start": 258,
+                  "end": 261,
+                  "body": []
+                }
+              },
+              {
+                "type": "ClassExpression",
+                "start": 263,
+                "end": 287,
+                "superClass": {
+                  "type": "Identifier",
+                  "start": 277,
+                  "end": 283,
+                  "name": "Object"                },
+"body": {
+                  "type": "ClassBody",
+                  "start": 284,
+                  "end": 287,
+                  "body": []
+                }
+              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 290,
+      "end": 331,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 296,
+          "end": 330,
+          "id": {
+            "type": "Identifier",
+            "start": 296,
+            "end": 305,
+            "name": "makeClass"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 308,
+            "end": 330,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "ClassExpression",
+              "start": 314,
+              "end": 330,
+              "body": {
+                "type": "ClassBody",
+                "start": 320,
+                "end": 330,
+                "body": [
+                  {
+                    "type": "PropertyDefinition",
+                    "start": 322,
+                    "end": 328,
+                                        "key": {
+                      "type": "Identifier",
+                      "start": 322,
+                      "end": 323,
+                      "name": "x"
+                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 326,
+                      "end": 327,
+                      "value": 1,
+                      "raw": "1"
+                    },
+                    "computed": false,
+                    "static": false
+                  }
+                ]
+              }
+            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=12704B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -1,0 +1,372 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 308,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 33,
+      "end": 208,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 39,
+          "end": 207,
+          "id": {
+            "type": "Identifier",
+            "start": 39,
+            "end": 45,
+            "name": "result"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 48,
+            "end": 207,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 48,
+              "end": 205,
+              "computed": false,
+              "object": {
+                "type": "CallExpression",
+                "start": 48,
+                "end": 196,
+                "callee": {
+                  "type": "MemberExpression",
+                  "start": 48,
+                  "end": 184,
+                  "computed": false,
+                  "object": {
+                    "type": "CallExpression",
+                    "start": 48,
+                    "end": 173,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 48,
+                      "end": 154,
+                      "computed": false,
+                      "object": {
+                        "type": "CallExpression",
+                        "start": 48,
+                        "end": 143,
+                        "callee": {
+                          "type": "MemberExpression",
+                          "start": 48,
+                          "end": 99,
+                          "computed": false,
+                          "object": {
+                            "type": "CallExpression",
+                            "start": 48,
+                            "end": 92,
+                            "callee": {
+                              "type": "MemberExpression",
+                              "start": 48,
+                              "end": 71,
+                              "computed": false,
+                              "object": {
+                                "type": "CallExpression",
+                                "start": 48,
+                                "end": 61,
+                                "callee": {
+                                  "type": "MemberExpression",
+                                  "start": 48,
+                                  "end": 55,
+                                  "computed": false,
+                                  "object": {
+                                    "type": "Identifier",
+                                    "start": 48,
+                                    "end": 49,
+                                    "name": "_"                                  },
+                                  "property": {
+                                    "type": "Identifier",
+                                    "start": 50,
+                                    "end": 55,
+                                    "name": "chain"                                  }                                },
+                                "arguments": [
+                                  {
+                                    "type": "Identifier",
+                                    "start": 56,
+                                    "end": 60,
+                                    "name": "data"                                  }
+                                ]                              },
+                              "property": {
+                                "type": "Identifier",
+                                "start": 65,
+                                "end": 71,
+                                "name": "filter"                              }                            },
+                            "arguments": [
+                              {
+                                "type": "ArrowFunctionExpression",
+                                "start": 72,
+                                "end": 91,
+                                "id": null,
+                                "expression": true,
+                                "generator": false,
+                                "async": false,
+                                "params": [
+                                  {
+                                    "type": "Identifier",
+                                    "start": 72,
+                                    "end": 76,
+                                    "name": "item"
+                                  }
+                                ],
+                                "body": {
+                                  "type": "MemberExpression",
+                                  "start": 80,
+                                  "end": 91,
+                                  "computed": false,
+                                  "object": {
+                                    "type": "Identifier",
+                                    "start": 80,
+                                    "end": 84,
+                                    "name": "item"                                  },
+                                  "property": {
+                                    "type": "Identifier",
+                                    "start": 85,
+                                    "end": 91,
+                                    "name": "active"                                  }                                }                              }
+                            ]                          },
+                          "property": {
+                            "type": "Identifier",
+                            "start": 96,
+                            "end": 99,
+                            "name": "map"                          }                        },
+                        "arguments": [
+                          {
+                            "type": "ArrowFunctionExpression",
+                            "start": 100,
+                            "end": 142,
+                            "id": null,
+                            "expression": true,
+                            "generator": false,
+                            "async": false,
+                            "params": [
+                              {
+                                "type": "Identifier",
+                                "start": 100,
+                                "end": 104,
+                                "name": "item"
+                              }
+                            ],
+                            "body": {
+                              "type": "ObjectExpression",
+                              "start": 109,
+                              "end": 141,
+                              "properties": [
+                                {
+                                  "type": "Property",
+                                  "start": 111,
+                                  "end": 122,
+                                  "kind": "init",
+                                  "method": false,
+                                  "shorthand": false,
+                                  "computed": false,
+                                  "key": {
+                                    "type": "Identifier",
+                                    "start": 111,
+                                    "end": 113,
+                                    "name": "id"                                  },
+                                  "value": {
+                                    "type": "MemberExpression",
+                                    "start": 115,
+                                    "end": 122,
+                                    "computed": false,
+                                    "object": {
+                                      "type": "Identifier",
+                                      "start": 115,
+                                      "end": 119,
+                                      "name": "item"                                    },
+                                    "property": {
+                                      "type": "Identifier",
+                                      "start": 120,
+                                      "end": 122,
+                                      "name": "id"                                    }                                  }
+                                },
+                                {
+                                  "type": "Property",
+                                  "start": 124,
+                                  "end": 139,
+                                  "kind": "init",
+                                  "method": false,
+                                  "shorthand": false,
+                                  "computed": false,
+                                  "key": {
+                                    "type": "Identifier",
+                                    "start": 124,
+                                    "end": 128,
+                                    "name": "name"                                  },
+                                  "value": {
+                                    "type": "MemberExpression",
+                                    "start": 130,
+                                    "end": 139,
+                                    "computed": false,
+                                    "object": {
+                                      "type": "Identifier",
+                                      "start": 130,
+                                      "end": 134,
+                                      "name": "item"                                    },
+                                    "property": {
+                                      "type": "Identifier",
+                                      "start": 135,
+                                      "end": 139,
+                                      "name": "name"                                    }                                  }
+                                }
+                              ]                            }                          }
+                        ]                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 147,
+                        "end": 154,
+                        "name": "orderBy"                      }                    },
+                    "arguments": [
+                      {
+                        "type": "ArrayExpression",
+                        "start": 155,
+                        "end": 163,
+                        "elements": [
+                          {
+                            "type": "Literal",
+                            "start": 156,
+                            "end": 162,
+                            "value": "name",
+                            "raw": "'name'"                          }
+                        ]                      },
+                      {
+                        "type": "ArrayExpression",
+                        "start": 165,
+                        "end": 172,
+                        "elements": [
+                          {
+                            "type": "Literal",
+                            "start": 166,
+                            "end": 171,
+                            "value": "asc",
+                            "raw": "'asc'"                          }
+                        ]                      }
+                    ]                  },
+                  "property": {
+                    "type": "Identifier",
+                    "start": 177,
+                    "end": 184,
+                    "name": "groupBy"                  }                },
+                "arguments": [
+                  {
+                    "type": "Literal",
+                    "start": 185,
+                    "end": 195,
+                    "value": "category",
+                    "raw": "'category'"                  }
+                ]              },
+              "property": {
+                "type": "Identifier",
+                "start": 200,
+                "end": 205,
+                "name": "value"              }            },
+            "arguments": [
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 210,
+      "end": 258,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 216,
+          "end": 257,
+          "id": {
+            "type": "Identifier",
+            "start": 216,
+            "end": 225,
+            "name": "debounced"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 228,
+            "end": 257,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 228,
+              "end": 238,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 228,
+                "end": 229,
+                "name": "_"              },
+              "property": {
+                "type": "Identifier",
+                "start": 230,
+                "end": 238,
+                "name": "debounce"              }            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 239,
+                "end": 251,
+                "name": "handleSearch"              },
+              {
+                "type": "Literal",
+                "start": 253,
+                "end": 256,
+                "value": 300,
+                "raw": "300"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 259,
+      "end": 307,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 265,
+          "end": 306,
+          "id": {
+            "type": "Identifier",
+            "start": 265,
+            "end": 274,
+            "name": "throttled"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 277,
+            "end": 306,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 277,
+              "end": 287,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 277,
+                "end": 278,
+                "name": "_"              },
+              "property": {
+                "type": "Identifier",
+                "start": 279,
+                "end": 287,
+                "name": "throttle"              }            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 288,
+                "end": 300,
+                "name": "handleScroll"              },
+              {
+                "type": "Literal",
+                "start": 302,
+                "end": 305,
+                "value": 100,
+                "raw": "100"              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7656B reserved=16777216B ratio=0%
+Parse errors: 0

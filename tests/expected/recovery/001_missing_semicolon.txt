@@ -1,0 +1,198 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 198,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 46,
+      "end": 57,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 52,
+          "end": 57,
+          "id": {
+            "type": "Identifier",
+            "start": 52,
+            "end": 53,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 56,
+            "end": 57,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 58,
+      "end": 69,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 64,
+          "end": 69,
+          "id": {
+            "type": "Identifier",
+            "start": 64,
+            "end": 65,
+            "name": "b"          },
+          "init": {
+            "type": "Literal",
+            "start": 68,
+            "end": 69,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 71,
+      "end": 101,
+      "id": {
+        "type": "Identifier",
+        "start": 80,
+        "end": 84,
+        "name": "test"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 87,
+        "end": 101,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 91,
+            "end": 99,
+            "argument": {
+              "type": "Literal",
+              "start": 98,
+              "end": 99,
+              "value": 1,
+              "raw": "1"            }          }
+        ]
+      }    },
+    {
+      "type": "IfStatement",
+      "start": 103,
+      "end": 136,
+      "test": {
+        "type": "Literal",
+        "start": 107,
+        "end": 111,
+        "value": true,
+        "raw": "true"      },
+      "consequent": {
+        "type": "BlockStatement",
+        "start": 113,
+        "end": 136,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 117,
+            "end": 134,
+            "expression": {
+              "type": "CallExpression",
+              "start": 117,
+              "end": 134,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 117,
+                "end": 128,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 117,
+                  "end": 124,
+                  "name": "console"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 125,
+                  "end": 128,
+                  "name": "log"                }              },
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "start": 129,
+                  "end": 133,
+                  "value": "ok",
+                  "raw": "'ok'"                }
+              ]            }          }
+        ]      },
+      "alternate": null    },
+    {
+      "type": "VariableDeclaration",
+      "start": 167,
+      "end": 197,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 173,
+          "end": 197,
+          "id": {
+            "type": "Identifier",
+            "start": 173,
+            "end": 176,
+            "name": "obj"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 179,
+            "end": 197,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 183,
+                "end": 187,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 183,
+                  "end": 184,
+                  "name": "a"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 186,
+                  "end": 187,
+                  "value": 1,
+                  "raw": "1"                }
+              },
+              {
+                "type": "Property",
+                "start": 191,
+                "end": 195,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 191,
+                  "end": 192,
+                  "name": "b"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 194,
+                  "end": 195,
+                  "value": 2,
+                  "raw": "2"                }
+              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5248B reserved=16777216B ratio=0%
+Parse errors: 0

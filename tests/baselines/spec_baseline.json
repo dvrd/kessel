@@ -1,0 +1,62 @@
+{
+  "bench/real_world/batch3/snabbdom.js": {
+    "oxc": 0,
+    "acorn": 0,
+    "babel": 0
+  },
+  "bench/real_world/batch2/preact.js": {
+    "oxc": 38,
+    "acorn": 39,
+    "babel": 245
+  },
+  "bench/real_world/jquery.js": {
+    "oxc": 192,
+    "acorn": 192,
+    "babel": 5526
+  },
+  "bench/real_world/react.dev.js": {
+    "oxc": 17,
+    "acorn": 18,
+    "babel": 4930
+  },
+  "bench/real_world/lodash.js": {
+    "oxc": 11162,
+    "acorn": 11163,
+    "babel": 12748
+  },
+  "bench/real_world/batch2/acorn.js": {
+    "oxc": 57045,
+    "acorn": 57046,
+    "babel": 15756
+  },
+  "bench/real_world/react-dom.dev.js": {
+    "oxc": 97457,
+    "acorn": 97458,
+    "babel": 40544
+  },
+  "bench/real_world/antd.js": {
+    "oxc": 963936,
+    "acorn": 963937,
+    "babel": 107201
+  },
+  "bench/real_world/d3.js": {
+    "oxc": 227268,
+    "acorn": 227269,
+    "babel": 52424
+  },
+  "bench/real_world/batch4/chalk.js": {
+    "oxc": 1603,
+    "acorn": 1603,
+    "babel": 1329
+  },
+  "bench/real_world/batch4/petite-vue.js": {
+    "oxc": 245,
+    "acorn": 245,
+    "babel": 612
+  },
+  "bench/real_world/batch2/zod.js": {
+    "oxc": 27733,
+    "acorn": 27733,
+    "babel": 9789
+  }
+}

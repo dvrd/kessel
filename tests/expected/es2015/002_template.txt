@@ -1,0 +1,108 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 82,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 21,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 20,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 10,
+            "name": "name"          },
+          "init": {
+            "type": "Literal",
+            "start": 13,
+            "end": 20,
+            "value": "world",
+            "raw": "\"world\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 22,
+      "end": 52,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 28,
+          "end": 51,
+          "id": {
+            "type": "Identifier",
+            "start": 28,
+            "end": 31,
+            "name": "msg"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 34,
+            "end": 51,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 34,
+                "end": 44,
+                "tail": false,
+                "value": { "raw": "`Hello, ${", "cooked": "Hello, " }
+              },
+              {
+                "type": "TemplateElement",
+                "start": 48,
+                "end": 51,
+                "tail": true,
+                "value": { "raw": "}!`", "cooked": "!" }
+              }
+            ],
+            "expressions": [
+              {
+                "type": "Identifier",
+                "start": 44,
+                "end": 48,
+                "name": "name"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 53,
+      "end": 81,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 59,
+          "end": 80,
+          "id": {
+            "type": "Identifier",
+            "start": 59,
+            "end": 64,
+            "name": "multi"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 67,
+            "end": 80,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 67,
+                "end": 80,
+                "tail": true,
+                "value": { "raw": "`line1\nline2`", "cooked": "line1\nline2" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5280B reserved=16777216B ratio=0%
+Parse errors: 0

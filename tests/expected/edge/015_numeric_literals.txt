@@ -1,0 +1,299 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 383,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 58,
+      "end": 75,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 64,
+          "end": 74,
+          "id": {
+            "type": "Identifier",
+            "start": 64,
+            "end": 67,
+            "name": "hex"          },
+          "init": {
+            "type": "Literal",
+            "start": 70,
+            "end": 74,
+            "value": 255,
+            "raw": "0xFF"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 76,
+      "end": 100,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 82,
+          "end": 99,
+          "id": {
+            "type": "Identifier",
+            "start": 82,
+            "end": 86,
+            "name": "hex2"          },
+          "init": {
+            "type": "Literal",
+            "start": 89,
+            "end": 99,
+            "value": 3.735928559e+09,
+            "raw": "0xDEADBEEF"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 101,
+      "end": 123,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 107,
+          "end": 122,
+          "id": {
+            "type": "Identifier",
+            "start": 107,
+            "end": 113,
+            "name": "binary"          },
+          "init": {
+            "type": "Literal",
+            "start": 116,
+            "end": 122,
+            "value": 10,
+            "raw": "0b1010"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 124,
+      "end": 151,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 130,
+          "end": 150,
+          "id": {
+            "type": "Identifier",
+            "start": 130,
+            "end": 137,
+            "name": "binary2"          },
+          "init": {
+            "type": "Literal",
+            "start": 140,
+            "end": 150,
+            "value": 240,
+            "raw": "0b11110000"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 152,
+      "end": 172,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 158,
+          "end": 171,
+          "id": {
+            "type": "Identifier",
+            "start": 158,
+            "end": 163,
+            "name": "octal"          },
+          "init": {
+            "type": "Literal",
+            "start": 166,
+            "end": 171,
+            "value": 493,
+            "raw": "0o755"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 173,
+      "end": 194,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 179,
+          "end": 193,
+          "id": {
+            "type": "Identifier",
+            "start": 179,
+            "end": 185,
+            "name": "octal2"          },
+          "init": {
+            "type": "Literal",
+            "start": 188,
+            "end": 193,
+            "value": 511,
+            "raw": "0o777"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 196,
+      "end": 213,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 202,
+          "end": 212,
+          "id": {
+            "type": "Identifier",
+            "start": 202,
+            "end": 205,
+            "name": "exp"          },
+          "init": {
+            "type": "Literal",
+            "start": 208,
+            "end": 212,
+            "value": 1e+10,
+            "raw": "1e10"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 214,
+      "end": 234,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 220,
+          "end": 233,
+          "id": {
+            "type": "Identifier",
+            "start": 220,
+            "end": 226,
+            "name": "expNeg"          },
+          "init": {
+            "type": "Literal",
+            "start": 229,
+            "end": 233,
+            "value": 1e-05,
+            "raw": "1e-5"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 235,
+      "end": 257,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 241,
+          "end": 256,
+          "id": {
+            "type": "Identifier",
+            "start": 241,
+            "end": 247,
+            "name": "expPos"          },
+          "init": {
+            "type": "Literal",
+            "start": 250,
+            "end": 256,
+            "value": 1500,
+            "raw": "1.5e+3"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 258,
+      "end": 282,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 264,
+          "end": 281,
+          "id": {
+            "type": "Identifier",
+            "start": 264,
+            "end": 271,
+            "name": "decimal"          },
+          "init": {
+            "type": "Literal",
+            "start": 274,
+            "end": 281,
+            "value": 3.1415899999999999,
+            "raw": "3.14159"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 283,
+      "end": 311,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 289,
+          "end": 310,
+          "id": {
+            "type": "Identifier",
+            "start": 289,
+            "end": 301,
+            "name": "decimalSmall"          },
+          "init": {
+            "type": "Literal",
+            "start": 304,
+            "end": 310,
+            "value": 0.0001,
+            "raw": "0.0001"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 312,
+      "end": 346,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 318,
+          "end": 345,
+          "id": {
+            "type": "Identifier",
+            "start": 318,
+            "end": 333,
+            "name": "withUnderscores"          },
+          "init": {
+            "type": "Literal",
+            "start": 336,
+            "end": 345,
+            "value": 1e+06,
+            "raw": "1_000_000"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 347,
+      "end": 382,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 353,
+          "end": 381,
+          "id": {
+            "type": "Identifier",
+            "start": 353,
+            "end": 371,
+            "name": "hexWithUnderscores"          },
+          "init": {
+            "type": "Literal",
+            "start": 374,
+            "end": 381,
+            "value": 65535,
+            "raw": "0xFF_FF"          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9064B reserved=16777216B ratio=0%
+Parse errors: 0

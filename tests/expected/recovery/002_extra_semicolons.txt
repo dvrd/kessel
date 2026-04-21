@@ -1,0 +1,230 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 176,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 36,
+      "end": 48,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 42,
+          "end": 47,
+          "id": {
+            "type": "Identifier",
+            "start": 42,
+            "end": 43,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 46,
+            "end": 47,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "EmptyStatement",
+      "start": 48,
+      "end": 49    },
+    {
+      "type": "EmptyStatement",
+      "start": 49,
+      "end": 50    },
+    {
+      "type": "VariableDeclaration",
+      "start": 51,
+      "end": 63,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 57,
+          "end": 62,
+          "id": {
+            "type": "Identifier",
+            "start": 57,
+            "end": 58,
+            "name": "b"          },
+          "init": {
+            "type": "Literal",
+            "start": 61,
+            "end": 62,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    },
+    {
+      "type": "EmptyStatement",
+      "start": 63,
+      "end": 64    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 66,
+      "end": 98,
+      "id": {
+        "type": "Identifier",
+        "start": 75,
+        "end": 79,
+        "name": "test"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 82,
+        "end": 98,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 86,
+            "end": 95,
+            "argument": {
+              "type": "Literal",
+              "start": 93,
+              "end": 94,
+              "value": 1,
+              "raw": "1"            }          },
+          {
+            "type": "EmptyStatement",
+            "start": 95,
+            "end": 96          }
+        ]
+      }    },
+    {
+      "type": "EmptyStatement",
+      "start": 100,
+      "end": 101    },
+    {
+      "type": "EmptyStatement",
+      "start": 101,
+      "end": 102    },
+    {
+      "type": "EmptyStatement",
+      "start": 102,
+      "end": 103    },
+    {
+      "type": "IfStatement",
+      "start": 105,
+      "end": 140,
+      "test": {
+        "type": "Literal",
+        "start": 109,
+        "end": 113,
+        "value": true,
+        "raw": "true"      },
+      "consequent": {
+        "type": "BlockStatement",
+        "start": 115,
+        "end": 140,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 119,
+            "end": 137,
+            "expression": {
+              "type": "CallExpression",
+              "start": 119,
+              "end": 136,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 119,
+                "end": 130,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 119,
+                  "end": 126,
+                  "name": "console"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 127,
+                  "end": 130,
+                  "name": "log"                }              },
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "start": 131,
+                  "end": 135,
+                  "value": "ok",
+                  "raw": "'ok'"                }
+              ]            }          },
+          {
+            "type": "EmptyStatement",
+            "start": 137,
+            "end": 138          }
+        ]      },
+      "alternate": null    },
+    {
+      "type": "VariableDeclaration",
+      "start": 142,
+      "end": 175,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 148,
+          "end": 174,
+          "id": {
+            "type": "Identifier",
+            "start": 148,
+            "end": 151,
+            "name": "obj"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 154,
+            "end": 174,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 158,
+                "end": 162,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 158,
+                  "end": 159,
+                  "name": "a"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 161,
+                  "end": 162,
+                  "value": 1,
+                  "raw": "1"                }
+              },
+              {
+                "type": "Property",
+                "start": 168,
+                "end": 172,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 168,
+                  "end": 169,
+                  "name": "b"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 171,
+                  "end": 172,
+                  "value": 2,
+                  "raw": "2"                }
+              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5248B reserved=16777216B ratio=0%
+Parse errors: 0

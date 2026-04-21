@@ -1,0 +1,90 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 55,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 54,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 9,
+        "name": "Foo"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 10,
+        "end": 54,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+            "start": 14,
+            "end": 27,
+                        "key": {
+              "type": "Identifier",
+              "start": 21,
+              "end": 22,
+              "name": "x"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 25,
+              "end": 26,
+              "value": 1,
+              "raw": "1"
+            },
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "PropertyDefinition",
+            "start": 30,
+            "end": 52,
+                        "key": {
+              "type": "Identifier",
+              "start": 37,
+              "end": 38,
+              "name": "y"
+            },
+            "value": {
+              "type": "BinaryExpression",
+              "start": 41,
+              "end": 51,
+              "operator": "+",
+              "left": {
+                "type": "MemberExpression",
+                "start": 41,
+                "end": 47,
+                "computed": false,
+                "object": {
+                  "type": "ThisExpression",
+                  "start": 41,
+                  "end": 45                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 46,
+                  "end": 47,
+                  "name": "x"                }              },
+              "right": {
+                "type": "Literal",
+                "start": 50,
+                "end": 51,
+                "value": 1,
+                "raw": "1"              }
+            },
+            "computed": false,
+            "static": true
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5160B reserved=16777216B ratio=0%
+Parse errors: 0

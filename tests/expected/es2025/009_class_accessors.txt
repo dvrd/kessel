@@ -1,0 +1,146 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 82,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 81,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 9,
+        "name": "Foo"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 10,
+        "end": 81,
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "start": 16,
+            "end": 46,
+                        "key": {
+              "type": "Identifier",
+              "start": 20,
+              "end": 25,
+              "name": "value"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 16,
+              "end": 46,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 28,
+                "end": 46,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 30,
+                    "end": 44,
+                    "argument": {
+                      "type": "MemberExpression",
+                      "start": 37,
+                      "end": 43,
+                      "computed": false,
+                      "object": {
+                        "type": "ThisExpression",
+                        "start": 37,
+                        "end": 41                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 42,
+                        "end": 43,
+                        "name": "x"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "get",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 51,
+            "end": 79,
+                        "key": {
+              "type": "Identifier",
+              "start": 55,
+              "end": 60,
+              "name": "value"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 51,
+              "end": 79,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 61,
+                  "end": 62,
+                  "name": "v"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 64,
+                "end": 79,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 66,
+                    "end": 77,
+                    "expression": {
+                      "type": "AssignmentExpression",
+                      "start": 66,
+                      "end": 76,
+                      "operator": "=",
+                      "left": {
+                        "type": "MemberExpression",
+                        "start": 66,
+                        "end": 72,
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression",
+                          "start": 66,
+                          "end": 70                        },
+                        "property": {
+                          "type": "Identifier",
+                          "start": 71,
+                          "end": 72,
+                          "name": "x"                        }                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 75,
+                        "end": 76,
+                        "name": "v"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "set",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5688B reserved=16777216B ratio=0%
+Parse errors: 0

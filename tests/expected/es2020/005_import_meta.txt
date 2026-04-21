@@ -1,0 +1,55 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 29,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 28,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 27,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "url"          },
+          "init": {
+            "type": "MemberExpression",
+            "start": 12,
+            "end": 27,
+            "computed": false,
+            "object": {
+              "type": "MetaProperty",
+              "start": 12,
+              "end": 23,
+              "meta": {
+                "type": "Identifier",
+                "start": 12,
+                "end": 18,
+                "name": "import"
+              },
+              "property": {
+                "type": "Identifier",
+                "start": 19,
+                "end": 23,
+                "name": "meta"
+              }            },
+            "property": {
+              "type": "Identifier",
+              "start": 24,
+              "end": 27,
+              "name": "url"            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4536B reserved=16777216B ratio=0%
+Parse errors: 0

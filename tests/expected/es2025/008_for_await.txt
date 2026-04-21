@@ -1,0 +1,104 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 98,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 97,
+      "id": {
+        "type": "Identifier",
+        "start": 15,
+        "end": 22,
+        "name": "consume"
+      },
+      "expression": false,
+      "generator": false,
+      "async": true,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 25,
+        "end": 97,
+        "body": [
+          {
+            "type": "ForOfStatement",
+            "start": 31,
+            "end": 95,
+            "left": {
+              "type": "VariableDeclaration",
+              "start": 42,
+              "end": 51,
+              "kind": "const",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 48,
+                  "end": 51,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 48,
+                    "end": 51,
+                    "name": "val"                  },
+                  "init": null                }
+              ]
+            },
+            "right": {
+              "type": "CallExpression",
+              "start": 55,
+              "end": 60,
+              "callee": {
+                "type": "Identifier",
+                "start": 55,
+                "end": 58,
+                "name": "gen"              },
+              "arguments": [
+              ]            },
+            "await": true,
+            "body": {
+              "type": "BlockStatement",
+              "start": 62,
+              "end": 95,
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "start": 72,
+                  "end": 89,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 72,
+                    "end": 88,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 72,
+                      "end": 83,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 72,
+                        "end": 79,
+                        "name": "console"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 80,
+                        "end": 83,
+                        "name": "log"                      }                    },
+                    "arguments": [
+                      {
+                        "type": "Identifier",
+                        "start": 84,
+                        "end": 87,
+                        "name": "val"                      }
+                    ]                  }                }
+              ]            }          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4928B reserved=16777216B ratio=0%
+Parse errors: 0

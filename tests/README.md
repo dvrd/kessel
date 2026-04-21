@@ -1,133 +1,113 @@
 # Kessel Test Suite
 
-Automated test suite for the Kessel JavaScript parser.
-
-## Structure
+## Directory Structure
 
 ```
 tests/
-├── fixtures/           # JavaScript test files
-│   ├── basic/         # Basic JS features (const, let, if, loops, etc.)
-│   ├── es2015/        # ES6 features (arrow, classes, spread, etc.)
-│   ├── es2020/        # ES2020 features (optional chain, nullish, BigInt)
-│   ├── es2022/        # ES2022 features (class fields, private, static)
-│   ├── es2025/        # ES2025 features (template literals, logical assign)
-│   └── edge/          # Edge cases (labeled, comma, regex, destructuring)
-├── test262_subset/    # Official Test262 suite (60 tests from tc39)
-├── expected/          # Expected parser outputs (optional)
-├── run_tests.sh       # Test runner for kessel fixtures
-├── test262_fetch.sh   # Download Test262 subset from tc39/test262
-├── run_test262.sh     # Test runner for Test262 subset
-└── README.md          # This file
+├── runners/                 # Test harnesses and orchestration scripts
+│   ├── run_tests.sh         # Unit test driver (fixtures/ → expected/)
+│   ├── run_test262.sh       # ECMA-262 conformance subset runner
+│   ├── run_spec_fixtures.js # ES spec fixtures vs OXC, baseline-locked
+│   └── test262_fetch.sh     # Bootstrap a local test262 checkout
+│
+├── verifiers/               # JS scripts that compare Kessel vs reference parsers
+│   ├── verify_regression.js # Structural regression checks (11 checks, OXC cross-ref)
+│   ├── verify_string_escapes.js  # String Literal.value round-trip vs OXC
+│   ├── verify_integration.js     # Deep raw-transfer walk vs OXC parseSync
+│   ├── verify_json_deep.js       # Full JSON tree diff vs OXC/Acorn/Babel
+│   ├── verify_raw.js             # Raw transfer buffer smoke test
+│   ├── verify_raw_deep.js        # Raw transfer deep walk
+│   ├── verify_invariants.js      # Structural ESTree invariants (467-file corpus)
+│   ├── verify_spec_compliance.js # Deep compare vs OXC, baseline-locked
+│   ├── estree_nodes_coverage.js  # Node-type coverage matrix (1 fixture per type)
+│   └── fuzz_diff.js              # Differential fuzzer (Kessel vs OXC)
+│
+├── fixtures/                # Hand-authored JS inputs
+│   ├── basic/               # Core language: const, let, if, while, for, switch, try
+│   ├── edge/                # Edge cases: regex, ternary, IIFE, generators, templates
+│   ├── es2015/              # ES2015: classes, arrows, destructuring, templates
+│   ├── es2020/              # ES2020: optional chaining, nullish, BigInt
+│   ├── es2022/              # ES2022: class fields, private, static blocks, top-level await
+│   ├── es2025/              # ES2025: decorators, pipeline, pattern matching
+│   ├── real/                # Realistic patterns: Redux, Express, React hooks, etc.
+│   ├── recovery/            # Error recovery: extra semicolons, trailing commas
+│   └── regression/          # Bug-specific regression fixtures (one per fix)
+│
+├── expected/                # Pinned expected outputs (mirrors fixtures/)
+│   └── <same dirs as fixtures>/
+│
+├── baselines/               # JSON baseline files for gated tests
+│   ├── invariants_baseline.json
+│   ├── spec_baseline.json
+│   └── spec_fixtures_baseline.json
+│
+└── test262/                 # ECMA-262 conformance subset (60 curated tests)
 ```
 
 ## Running Tests
 
-### Kessel Fixture Tests
+All tests are wired through the Taskfile. From the project root:
 
 ```bash
-# Run all kessel fixture tests
-./run_tests.sh
-
-# Update expected outputs (creates expected files for new tests)
-./run_tests.sh --update
+task test              # Run everything (unit + regression + real-world + estree + more)
+task test:unit         # 98 fixtures, bit-exact JSON comparison (~1s)
+task test:regression   # 11 structural checks vs OXC, revert-validated (~2s)
+task test:estree       # String-escape + deep tree walk vs OXC (~5s)
+task test:real         # 467 real-world files, crash + parse-error detection (~3min)
+task test:test262      # ECMA-262 conformance subset (60 tests)
+task test:invariants   # Structural ESTree invariants across 467-file corpus
+task test:nodes        # Node-type coverage (1 fixture per emit path)
+task test:fuzz         # Differential fuzzer (100 random programs vs OXC)
 ```
 
-### Test262 Suite
+## Test Categories
 
-```bash
-# Download Test262 subset (run once)
-./test262_fetch.sh
+### Unit Tests (`task test:unit`)
 
-# Run Test262 tests
-./run_test262.sh [path_to_kessel_bin]
-```
+Runs `tests/runners/run_tests.sh`. For every `.js` file under `tests/fixtures/`,
+parses with `bin/kessel`, compares stdout against the matching
+`tests/expected/<path>.txt`. Use `--update` flag to regenerate expected files
+after deliberate output changes.
 
-Default binary: `../kessel_bin`. Timeout: 10s per test.
+### Regression Tests (`task test:regression`)
 
-## Test Criteria
+Runs `tests/verifiers/verify_regression.js`. Each of the 11 checks targets a
+specific bug fixed during development (e.g. I-1 through I-8, O-1 through O-3).
+Every check uses **path-based assertions** — not flat type counts — to catch
+the exact bug class. Each check has been **validated by revert**: reverting
+the specific fix causes exactly the corresponding check to fail.
 
-A test passes if:
-1. Parser exits with code 0
-2. No timeout (max 10s per test)
-3. Output contains `Parse errors: 0` or valid AST JSON
+### ESTree Verification (`task test:estree`)
 
-If an expected file exists, output must match exactly.
+Two complementary checks:
+1. **String-escape decoding** — walks every `Literal.value` in Kessel's
+   JSON output and compares byte-for-byte against OXC across key real-world files.
+2. **Deep integration walk** — parses with Kessel's raw-transfer binary format
+   AND with OXC's JS bindings, walks both trees field-by-field (jquery.js:
+   51,406 fields, react-dom.dev.js: 104,989 fields).
 
-## Adding New Tests
+### Real-World Parse (`task test:real`)
 
-1. Create a `.js` file in appropriate `fixtures/` subdirectory
-2. Run `./run_tests.sh --update` to generate expected output
-3. Verify the expected output is correct
+Parses all 467 files in `bench/real_world/` with a 30-second timeout per file.
+Reports both parse errors AND crash/SIGSEGV (the previous version silently
+masked crashes). Current state: **467/467 pass, 0 crashes, 0 parse errors**.
 
-## Current Status
+## Adding Tests
 
-- Total fixtures: 51
-- Target: 80%+ pass rate
-- Known issues documented below
+### Regression fixture
 
-## Known Issues
+When fixing a bug:
 
-Based on test results, the following features have parsing issues:
+1. Create `tests/fixtures/regression/NNN_descriptive_name.js` with a minimal
+   reproduction that triggers the bug on the pre-fix code.
+2. Add a path-based check in `tests/verifiers/verify_regression.js` that
+   asserts the specific structural property the fix provides.
+3. Generate expected output: `./bin/kessel parse <fixture> > tests/expected/regression/NNN_descriptive_name.txt 2>&1`
+4. Validate by revert: revert your fix, rebuild, confirm the check fails.
+5. Restore the fix, rebuild, confirm all tests pass.
 
-| Category | Feature | Issue |
-|----------|---------|-------|
-| **Parser Hang** | switch statements | Infinite loop/timeout |
-| **Parser Hang** | try/catch | Infinite loop/timeout |
-| **Parser Hang** | throw statements | Infinite loop/timeout |
-| **Parser Hang** | return statements | Infinite loop/timeout |
-| **Parser Hang** | while/do-while | Infinite loop/timeout |
-| **Parser Hang** | for loops | Infinite loop/timeout |
-| **Parser Hang** | arrow functions | Infinite loop/timeout |
-| **Parser Hang** | template literals | Infinite loop/timeout |
-| **Parser Hang** | destructuring | Infinite loop/timeout |
-| **Parser Hang** | class declarations | Infinite loop/timeout |
-| **Parser Hang** | spread operator | Infinite loop/timeout |
-| **Crash** | Object spread | Segfault (exit 139) |
-| **Crash** | Array spread | Segfault (exit 139) |
-| **Crash** | Logical assignment | Segfault (exit 139) |
-| **Crash** | Async/await | Segfault (exit 139) |
-| **Parse Error** | Optional chaining | Not recognized |
-| **Parse Error** | Nullish coalescing | Not recognized |
-| **Parse Error** | Object spread in object literal | Expected expression error |
+### Unit fixture
 
-### Currently Passing
-- const/let/var declarations
-- Simple if statements
-- Variable assignment
-
-### Test Results
-- Total: 51 tests
-- Passing: 8 (16%)
-- Failing: 43 (84%)
-
-The parser requires fixes for statement parsing, loop handling, and modern JS features support.
-
-## Test262 Coverage
-
-Kessel includes a subset of the official ECMAScript test suite (Test262) from tc39/test262 for broader language coverage.
-
-### Test262 Results
-
-- **Total tests**: 60 (subset of official tc39 suite)
-- **Categories**: Expressions (20), Statements (20), Literals (10), Functions (10)
-- **Pass rate**: 100% (60/60 tests passing)
-- **Timeout**: 10s per test
-
-### Test262 Breakdown
-
-| Category | Count | Status |
-|----------|-------|--------|
-| Expressions | 20 | ✓ All passing |
-| Statements | 20 | ✓ All passing |
-| Literals | 10 | ✓ All passing |
-| Functions | 10 | ✓ All passing |
-
-The Test262 subset tests core ECMAScript functionality:
-- Arithmetic and comparison operations
-- Control flow (if, loops, switch)
-- Variable declarations and functions
-- String, numeric, and boolean literals
-- Object and function basics
-
-No Test262 issues detected.
+1. Create `tests/fixtures/<category>/NNN_name.js`
+2. Run `tests/runners/run_tests.sh --update` to generate expected output
+3. Commit both the fixture and the expected file

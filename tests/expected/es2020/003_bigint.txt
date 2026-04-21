@@ -1,0 +1,92 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 55,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 15,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 14,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "x"          },
+          "init": {
+            "type": "Literal",
+            "start": 10,
+            "end": 14,
+            "value": "123n",
+            "raw": "123n",
+            "bigint": "123"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 16,
+      "end": 32,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 22,
+          "end": 31,
+          "id": {
+            "type": "Identifier",
+            "start": 22,
+            "end": 23,
+            "name": "y"          },
+          "init": {
+            "type": "Literal",
+            "start": 26,
+            "end": 31,
+            "value": "0xFFn",
+            "raw": "0xFFn",
+            "bigint": "0xFF"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 33,
+      "end": 54,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 39,
+          "end": 53,
+          "id": {
+            "type": "Identifier",
+            "start": 39,
+            "end": 40,
+            "name": "z"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 43,
+            "end": 53,
+            "callee": {
+              "type": "Identifier",
+              "start": 43,
+              "end": 49,
+              "name": "BigInt"            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 50,
+                "end": 52,
+                "value": 42,
+                "raw": "42"              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4728B reserved=16777216B ratio=0%
+Parse errors: 0

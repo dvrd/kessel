@@ -1,0 +1,91 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 62,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 18,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 17,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 8,
+            "name": "r1"          },
+          "init": {
+            "type": "Literal",
+            "start": 11,
+            "end": 17,
+            "value": null,
+            "raw": "/abc/g",
+            "regex": {
+              "pattern": "abc",
+              "flags": "g"
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 19,
+      "end": 40,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 25,
+          "end": 39,
+          "id": {
+            "type": "Identifier",
+            "start": 25,
+            "end": 27,
+            "name": "r2"          },
+          "init": {
+            "type": "Literal",
+            "start": 30,
+            "end": 39,
+            "value": null,
+            "raw": "/[a-z]+/i",
+            "regex": {
+              "pattern": "[a-z]+",
+              "flags": "i"
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 41,
+      "end": 61,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 47,
+          "end": 60,
+          "id": {
+            "type": "Identifier",
+            "start": 47,
+            "end": 49,
+            "name": "r3"          },
+          "init": {
+            "type": "Literal",
+            "start": 52,
+            "end": 60,
+            "value": null,
+            "raw": "/test/gm",
+            "regex": {
+              "pattern": "test",
+              "flags": "gm"
+            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7482B reserved=16777216B ratio=0%
+Parse errors: 0

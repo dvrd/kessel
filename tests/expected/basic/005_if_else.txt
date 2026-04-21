@@ -1,0 +1,75 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 37,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "IfStatement",
+      "start": 0,
+      "end": 36,
+      "test": {
+        "type": "Literal",
+        "start": 4,
+        "end": 8,
+        "value": true,
+        "raw": "true"      },
+      "consequent": {
+        "type": "BlockStatement",
+        "start": 10,
+        "end": 20,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 12,
+            "end": 18,
+            "expression": {
+              "type": "AssignmentExpression",
+              "start": 12,
+              "end": 17,
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "start": 12,
+                "end": 13,
+                "name": "x"              },
+              "right": {
+                "type": "Literal",
+                "start": 16,
+                "end": 17,
+                "value": 1,
+                "raw": "1"              }            }          }
+        ]      },
+      "alternate": {
+        "type": "BlockStatement",
+        "start": 26,
+        "end": 36,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 28,
+            "end": 34,
+            "expression": {
+              "type": "AssignmentExpression",
+              "start": 28,
+              "end": 33,
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "start": 28,
+                "end": 29,
+                "name": "x"              },
+              "right": {
+                "type": "Literal",
+                "start": 32,
+                "end": 33,
+                "value": 2,
+                "raw": "2"              }            }          }
+        ]      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4584B reserved=16777216B ratio=0%
+Parse errors: 0

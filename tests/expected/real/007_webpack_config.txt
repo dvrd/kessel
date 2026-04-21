@@ -1,0 +1,468 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 534,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 31,
+      "end": 60,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 37,
+          "end": 59,
+          "id": {
+            "type": "Identifier",
+            "start": 37,
+            "end": 41,
+            "name": "path"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 44,
+            "end": 59,
+            "callee": {
+              "type": "Identifier",
+              "start": 44,
+              "end": 51,
+              "name": "require"            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 52,
+                "end": 58,
+                "value": "path",
+                "raw": "'path'"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 61,
+      "end": 118,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 67,
+          "end": 117,
+          "id": {
+            "type": "Identifier",
+            "start": 67,
+            "end": 84,
+            "name": "HtmlWebpackPlugin"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 87,
+            "end": 117,
+            "callee": {
+              "type": "Identifier",
+              "start": 87,
+              "end": 94,
+              "name": "require"            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 95,
+                "end": 116,
+                "value": "html-webpack-plugin",
+                "raw": "'html-webpack-plugin'"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 120,
+      "end": 533,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 120,
+        "end": 532,
+        "operator": "=",
+        "left": {
+          "type": "MemberExpression",
+          "start": 120,
+          "end": 134,
+          "computed": false,
+          "object": {
+            "type": "Identifier",
+            "start": 120,
+            "end": 126,
+            "name": "module"          },
+          "property": {
+            "type": "Identifier",
+            "start": 127,
+            "end": 134,
+            "name": "exports"          }        },
+        "right": {
+          "type": "ObjectExpression",
+          "start": 137,
+          "end": 532,
+          "properties": [
+            {
+              "type": "Property",
+              "start": 141,
+              "end": 164,
+              "kind": "init",
+              "method": false,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 141,
+                "end": 146,
+                "name": "entry"              },
+              "value": {
+                "type": "Literal",
+                "start": 148,
+                "end": 164,
+                "value": "./src/index.js",
+                "raw": "'./src/index.js'"              }
+            },
+            {
+              "type": "Property",
+              "start": 168,
+              "end": 280,
+              "kind": "init",
+              "method": false,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 168,
+                "end": 174,
+                "name": "output"              },
+              "value": {
+                "type": "ObjectExpression",
+                "start": 176,
+                "end": 280,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 182,
+                    "end": 219,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 182,
+                      "end": 186,
+                      "name": "path"                    },
+                    "value": {
+                      "type": "CallExpression",
+                      "start": 188,
+                      "end": 219,
+                      "callee": {
+                        "type": "MemberExpression",
+                        "start": 188,
+                        "end": 200,
+                        "computed": false,
+                        "object": {
+                          "type": "Identifier",
+                          "start": 188,
+                          "end": 192,
+                          "name": "path"                        },
+                        "property": {
+                          "type": "Identifier",
+                          "start": 193,
+                          "end": 200,
+                          "name": "resolve"                        }                      },
+                      "arguments": [
+                        {
+                          "type": "Identifier",
+                          "start": 201,
+                          "end": 210,
+                          "name": "__dirname"                        },
+                        {
+                          "type": "Literal",
+                          "start": 212,
+                          "end": 218,
+                          "value": "dist",
+                          "raw": "'dist'"                        }
+                      ]                    }
+                  },
+                  {
+                    "type": "Property",
+                    "start": 225,
+                    "end": 255,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 225,
+                      "end": 233,
+                      "name": "filename"                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 235,
+                      "end": 255,
+                      "value": "[name].[hash:8].js",
+                      "raw": "'[name].[hash:8].js'"                    }
+                  },
+                  {
+                    "type": "Property",
+                    "start": 261,
+                    "end": 276,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 261,
+                      "end": 271,
+                      "name": "publicPath"                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 273,
+                      "end": 276,
+                      "value": "/",
+                      "raw": "'/'"                    }
+                  }
+                ]              }
+            },
+            {
+              "type": "Property",
+              "start": 284,
+              "end": 449,
+              "kind": "init",
+              "method": false,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 284,
+                "end": 290,
+                "name": "module"              },
+              "value": {
+                "type": "ObjectExpression",
+                "start": 292,
+                "end": 449,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 298,
+                    "end": 445,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 298,
+                      "end": 303,
+                      "name": "rules"                    },
+                    "value": {
+                      "type": "ArrayExpression",
+                      "start": 305,
+                      "end": 445,
+                      "elements": [
+                        {
+                          "type": "ObjectExpression",
+                          "start": 313,
+                          "end": 376,
+                          "properties": [
+                            {
+                              "type": "Property",
+                              "start": 315,
+                              "end": 328,
+                              "kind": "init",
+                              "method": false,
+                              "shorthand": false,
+                              "computed": false,
+                              "key": {
+                                "type": "Identifier",
+                                "start": 315,
+                                "end": 319,
+                                "name": "test"                              },
+                              "value": {
+                                "type": "Literal",
+                                "start": 321,
+                                "end": 328,
+                                "value": null,
+                                "raw": "/\\.js$/",
+                                "regex": {
+                                  "pattern": "\\.js$",
+                                  "flags": ""
+                                }                              }
+                            },
+                            {
+                              "type": "Property",
+                              "start": 330,
+                              "end": 353,
+                              "kind": "init",
+                              "method": false,
+                              "shorthand": false,
+                              "computed": false,
+                              "key": {
+                                "type": "Identifier",
+                                "start": 330,
+                                "end": 337,
+                                "name": "exclude"                              },
+                              "value": {
+                                "type": "Literal",
+                                "start": 339,
+                                "end": 353,
+                                "value": null,
+                                "raw": "/node_modules/",
+                                "regex": {
+                                  "pattern": "node_modules",
+                                  "flags": ""
+                                }                              }
+                            },
+                            {
+                              "type": "Property",
+                              "start": 355,
+                              "end": 374,
+                              "kind": "init",
+                              "method": false,
+                              "shorthand": false,
+                              "computed": false,
+                              "key": {
+                                "type": "Identifier",
+                                "start": 355,
+                                "end": 358,
+                                "name": "use"                              },
+                              "value": {
+                                "type": "Literal",
+                                "start": 360,
+                                "end": 374,
+                                "value": "babel-loader",
+                                "raw": "'babel-loader'"                              }
+                            }
+                          ]                        },
+                        {
+                          "type": "ObjectExpression",
+                          "start": 384,
+                          "end": 439,
+                          "properties": [
+                            {
+                              "type": "Property",
+                              "start": 386,
+                              "end": 400,
+                              "kind": "init",
+                              "method": false,
+                              "shorthand": false,
+                              "computed": false,
+                              "key": {
+                                "type": "Identifier",
+                                "start": 386,
+                                "end": 390,
+                                "name": "test"                              },
+                              "value": {
+                                "type": "Literal",
+                                "start": 392,
+                                "end": 400,
+                                "value": null,
+                                "raw": "/\\.css$/",
+                                "regex": {
+                                  "pattern": "\\.css$",
+                                  "flags": ""
+                                }                              }
+                            },
+                            {
+                              "type": "Property",
+                              "start": 402,
+                              "end": 437,
+                              "kind": "init",
+                              "method": false,
+                              "shorthand": false,
+                              "computed": false,
+                              "key": {
+                                "type": "Identifier",
+                                "start": 402,
+                                "end": 405,
+                                "name": "use"                              },
+                              "value": {
+                                "type": "ArrayExpression",
+                                "start": 407,
+                                "end": 437,
+                                "elements": [
+                                  {
+                                    "type": "Literal",
+                                    "start": 408,
+                                    "end": 422,
+                                    "value": "style-loader",
+                                    "raw": "'style-loader'"                                  },
+                                  {
+                                    "type": "Literal",
+                                    "start": 424,
+                                    "end": 436,
+                                    "value": "css-loader",
+                                    "raw": "'css-loader'"                                  }
+                                ]                              }
+                            }
+                          ]                        }
+                      ]                    }
+                  }
+                ]              }
+            },
+            {
+              "type": "Property",
+              "start": 453,
+              "end": 530,
+              "kind": "init",
+              "method": false,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 453,
+                "end": 460,
+                "name": "plugins"              },
+              "value": {
+                "type": "ArrayExpression",
+                "start": 462,
+                "end": 530,
+                "elements": [
+                  {
+                    "type": "NewExpression",
+                    "start": 468,
+                    "end": 526,
+                    "callee": {
+                      "type": "Identifier",
+                      "start": 472,
+                      "end": 489,
+                      "name": "HtmlWebpackPlugin"                    },
+                    "arguments": [
+                      {
+                        "type": "ObjectExpression",
+                        "start": 490,
+                        "end": 525,
+                        "properties": [
+                          {
+                            "type": "Property",
+                            "start": 492,
+                            "end": 523,
+                            "kind": "init",
+                            "method": false,
+                            "shorthand": false,
+                            "computed": false,
+                            "key": {
+                              "type": "Identifier",
+                              "start": 492,
+                              "end": 500,
+                              "name": "template"                            },
+                            "value": {
+                              "type": "Literal",
+                              "start": 502,
+                              "end": 523,
+                              "value": "./public/index.html",
+                              "raw": "'./public/index.html'"                            }
+                          }
+                        ]                      }
+                    ]                  }
+                ]              }
+            }
+          ]        }      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=15440B reserved=16777216B ratio=0%
+Parse errors: 0

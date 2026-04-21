@@ -641,9 +641,42 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 	// Bulk arena reset at the end of the parse owns the lifetime of the
 	// backing memory; an individual delete here would dangle the published
 	// string if the allocator ever stops no-op'ing frees.
+	//
 	cook_buf := make([dynamic]u8, l.allocator)
 
 	for l.offset < src_len {
+		// ====================================================================
+		// SIMD hop: scan for the next `quote` or `\\` and bulk-copy the
+		// intervening span into the cook buffer. Previously this function
+		// byte-walked every character, so any string with a single escape
+		// somewhere inside a multi-KB literal (slugify.js — one `\'` inside
+		// a 6 KB JSON body) paid O(n) scalar scanning cost. 30× slower than
+		// OXC on the affected files; now O(n/16) like the no-escape fast
+		// path for the bulk of the content, scalar-only at the escapes.
+		//
+		// Unescaped `\n` inside a quoted string is technically an ECMA-262
+		// error; we preserve Kessel's current lenient behaviour (append,
+		// set had_line_terminator, continue) by scanning the span after the
+		// bulk-copy — cheaper than having SIMD stop on `\n` because real-world
+		// strings rarely contain literal newlines.
+		remaining := src[l.offset:]
+		pos, found_quote := simd_find_string_end(remaining, quote)
+		if pos > 0 {
+			span := src[l.offset : l.offset + pos]
+			for b in span {
+				if b == '\n' {
+					l.had_line_terminator = true
+					break
+				}
+			}
+			append(&cook_buf, ..span)
+			l.offset += pos
+		}
+
+		if l.offset >= src_len {
+			break // unterminated — fall through to the end-of-proc path
+		}
+
 		c := src[l.offset]
 
 		// Closing quote found

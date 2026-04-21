@@ -1,0 +1,54 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 28,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "DoWhileStatement",
+      "start": 0,
+      "end": 27,
+      "body": {
+        "type": "BlockStatement",
+        "start": 3,
+        "end": 11,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 5,
+            "end": 9,
+            "expression": {
+              "type": "UpdateExpression",
+              "start": 5,
+              "end": 8,
+              "operator": "++",
+              "prefix": false,
+              "argument": {
+                "type": "Identifier",
+                "start": 5,
+                "end": 6,
+                "name": "x"              }            }          }
+        ]      },
+      "test": {
+        "type": "BinaryExpression",
+        "start": 19,
+        "end": 25,
+        "operator": "<",
+        "left": {
+          "type": "Identifier",
+          "start": 19,
+          "end": 20,
+          "name": "x"        },
+        "right": {
+          "type": "Literal",
+          "start": 23,
+          "end": 25,
+          "value": 10,
+          "raw": "10"        }      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4520B reserved=16777216B ratio=0%
+Parse errors: 0

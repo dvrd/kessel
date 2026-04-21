@@ -1,0 +1,116 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 124,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 36,
+      "end": 74,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 42,
+          "end": 73,
+          "id": {
+            "type": "Identifier",
+            "start": 42,
+            "end": 46,
+            "name": "data"          },
+          "init": {
+            "type": "AwaitExpression",
+            "start": 49,
+            "end": 73,
+            "argument": {
+              "type": "CallExpression",
+              "start": 55,
+              "end": 73,
+              "callee": {
+                "type": "Identifier",
+                "start": 55,
+                "end": 60,
+                "name": "fetch"              },
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "start": 61,
+                  "end": 72,
+                  "value": "/api/data",
+                  "raw": "'/api/data'"                }
+              ]            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 75,
+      "end": 106,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 81,
+          "end": 105,
+          "id": {
+            "type": "Identifier",
+            "start": 81,
+            "end": 85,
+            "name": "json"          },
+          "init": {
+            "type": "AwaitExpression",
+            "start": 88,
+            "end": 105,
+            "argument": {
+              "type": "CallExpression",
+              "start": 94,
+              "end": 105,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 94,
+                "end": 103,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 94,
+                  "end": 98,
+                  "name": "data"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 99,
+                  "end": 103,
+                  "name": "json"                }              },
+              "arguments": [
+              ]            }          }        }
+      ]    },
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 107,
+      "end": 123,
+      "declaration": null,
+      "specifiers": [
+        {
+          "type": "ExportSpecifier",
+          "start": 116,
+          "end": 120,
+          "local": {
+            "type": "Identifier",
+            "start": 116,
+            "end": 120,
+            "name": "json"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 116,
+            "end": 120,
+            "name": "json"
+          }
+        }
+      ],
+      "source": null    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5064B reserved=16777216B ratio=0%
+Parse errors: 0

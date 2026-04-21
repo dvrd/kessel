@@ -1,0 +1,74 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 45,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 44,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 43,
+          "id": {
+            "type": "ObjectPattern",
+            "start": 6,
+            "end": 34,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 8,
+                "end": 12,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 12,
+                  "name": "user"
+                },
+                "value": {
+                  "type": "ObjectPattern",
+                  "start": 14,
+                  "end": 32,
+                  "properties": [
+                    {
+                      "type": "Property",
+                      "start": 16,
+                      "end": 20,
+                      "shorthand": false,
+                      "computed": false,
+                      "key": {
+                        "type": "Identifier",
+                        "start": 16,
+                        "end": 20,
+                        "name": "name"
+                      },
+                      "value": {
+                        "type": "Identifier",
+                        "start": 22,
+                        "end": 30,
+                        "name": "userName"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]          },
+          "init": {
+            "type": "Identifier",
+            "start": 37,
+            "end": 43,
+            "name": "nested"          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5240B reserved=16777216B ratio=0%
+Parse errors: 0

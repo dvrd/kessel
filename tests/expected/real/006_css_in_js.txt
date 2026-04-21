@@ -1,0 +1,256 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 473,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 56,
+      "end": 265,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 62,
+          "end": 264,
+          "id": {
+            "type": "Identifier",
+            "start": 62,
+            "end": 68,
+            "name": "Button"          },
+          "init": {
+            "type": "TaggedTemplateExpression",
+            "start": 71,
+            "end": 264,
+            "tag": {
+              "type": "MemberExpression",
+              "start": 71,
+              "end": 84,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 71,
+                "end": 77,
+                "name": "styled"              },
+              "property": {
+                "type": "Identifier",
+                "start": 78,
+                "end": 84,
+                "name": "button"              }            },
+            "quasi": {
+              "type": "TemplateLiteral",
+              "start": 84,
+              "end": 264,
+              "quasis": [
+                {
+                  "type": "TemplateElement",
+                  "start": 84,
+                  "end": 97,
+                  "tail": false,
+                  "value": { "raw": "`\n  color: ${", "cooked": "\n  color: " }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 147,
+                  "end": 264,
+                  "tail": true,
+                  "value": { "raw": "};\n  font-size: 1em;\n  margin: 1em;\n  padding: 0.25em 1em;\n  border: 2px solid palevioletred;\n  border-radius: 3px;\n`", "cooked": ";\n  font-size: 1em;\n  margin: 1em;\n  padding: 0.25em 1em;\n  border: 2px solid palevioletred;\n  border-radius: 3px;\n" }
+                }
+              ],
+              "expressions": [
+                {
+                  "type": "ArrowFunctionExpression",
+                  "start": 97,
+                  "end": 147,
+                  "id": null,
+                  "expression": true,
+                  "generator": false,
+                  "async": false,
+                  "params": [
+                    {
+                      "type": "Identifier",
+                      "start": 97,
+                      "end": 102,
+                      "name": "props"
+                    }
+                  ],
+                  "body": {
+                    "type": "ConditionalExpression",
+                    "start": 106,
+                    "end": 147,
+                    "test": {
+                      "type": "MemberExpression",
+                      "start": 106,
+                      "end": 119,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 106,
+                        "end": 111,
+                        "name": "props"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 112,
+                        "end": 119,
+                        "name": "primary"                      }                    },
+                    "consequent": {
+                      "type": "Literal",
+                      "start": 122,
+                      "end": 129,
+                      "value": "white",
+                      "raw": "'white'"                    },
+                    "alternate": {
+                      "type": "Literal",
+                      "start": 132,
+                      "end": 147,
+                      "value": "palevioletred",
+                      "raw": "'palevioletred'"                    }                  }                }
+              ]            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 267,
+      "end": 472,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 273,
+          "end": 471,
+          "id": {
+            "type": "Identifier",
+            "start": 273,
+            "end": 279,
+            "name": "styles"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 282,
+            "end": 471,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 286,
+                "end": 377,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 286,
+                  "end": 295,
+                  "name": "container"                },
+                "value": {
+                  "type": "ObjectExpression",
+                  "start": 297,
+                  "end": 377,
+                  "properties": [
+                    {
+                      "type": "Property",
+                      "start": 303,
+                      "end": 318,
+                      "kind": "init",
+                      "method": false,
+                      "shorthand": false,
+                      "computed": false,
+                      "key": {
+                        "type": "Identifier",
+                        "start": 303,
+                        "end": 310,
+                        "name": "display"                      },
+                      "value": {
+                        "type": "Literal",
+                        "start": 312,
+                        "end": 318,
+                        "value": "flex",
+                        "raw": "'flex'"                      }
+                    },
+                    {
+                      "type": "Property",
+                      "start": 324,
+                      "end": 347,
+                      "kind": "init",
+                      "method": false,
+                      "shorthand": false,
+                      "computed": false,
+                      "key": {
+                        "type": "Identifier",
+                        "start": 324,
+                        "end": 337,
+                        "name": "flexDirection"                      },
+                      "value": {
+                        "type": "Literal",
+                        "start": 339,
+                        "end": 347,
+                        "value": "column",
+                        "raw": "'column'"                      }
+                    },
+                    {
+                      "type": "Property",
+                      "start": 353,
+                      "end": 373,
+                      "kind": "init",
+                      "method": false,
+                      "shorthand": false,
+                      "computed": false,
+                      "key": {
+                        "type": "Identifier",
+                        "start": 353,
+                        "end": 363,
+                        "name": "alignItems"                      },
+                      "value": {
+                        "type": "Literal",
+                        "start": 365,
+                        "end": 373,
+                        "value": "center",
+                        "raw": "'center'"                      }
+                    }
+                  ]                }
+              },
+              {
+                "type": "Property",
+                "start": 381,
+                "end": 469,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 381,
+                  "end": 387,
+                  "name": "button"                },
+                "value": {
+                  "type": "TaggedTemplateExpression",
+                  "start": 389,
+                  "end": 469,
+                  "tag": {
+                    "type": "Identifier",
+                    "start": 389,
+                    "end": 392,
+                    "name": "css"                  },
+                  "quasi": {
+                    "type": "TemplateLiteral",
+                    "start": 392,
+                    "end": 469,
+                    "quasis": [
+                      {
+                        "type": "TemplateElement",
+                        "start": 392,
+                        "end": 469,
+                        "tail": true,
+                        "value": { "raw": "`\n    background: transparent;\n    &:hover { background: palevioletred; }\n  `", "cooked": "\n    background: transparent;\n    &:hover { background: palevioletred; }\n  " }
+                      }
+                    ],
+                    "expressions": []                  }                }
+              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=11112B reserved=16777216B ratio=0%
+Parse errors: 0
