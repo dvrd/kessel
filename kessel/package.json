@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "koffi": "^2.16.0",
-    "oxc-parser": "^0.125.0"
-  }
-}
