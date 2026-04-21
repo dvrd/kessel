@@ -237,6 +237,7 @@ main :: proc() {
 		parse_files := make([dynamic]string)
 		parse_workers := 0
 		parse_out_dir := ""
+		parse_raw := false
 		compact_json = false
 		{
 			i := 2
@@ -244,6 +245,8 @@ main :: proc() {
 				arg := os.args[i]
 				if arg == "--compact" {
 					compact_json = true
+				} else if arg == "--raw" {
+					parse_raw = true
 				} else if arg == "--workers" && i + 1 < len(os.args) {
 					n, _ := strconv.parse_int(os.args[i+1])
 					parse_workers = n
@@ -258,14 +261,24 @@ main :: proc() {
 			}
 		}
 		if len(parse_files) == 1 {
-			parse_file(parse_files[0])
+			if parse_raw {
+				if parse_out_dir != "" {
+					base := filepath_base(parse_files[0])
+					out_path := strings.concatenate({parse_out_dir, "/", base, ".bin"})
+					parse_file_raw_to_disk(parse_files[0], out_path)
+				} else {
+					raw_transfer_file(parse_files[0], "")
+				}
+			} else {
+				parse_file(parse_files[0])
+			}
 		} else if len(parse_files) > 1 {
 			if parse_workers == 0 {
 				parse_workers = os.get_processor_core_count()
 				if parse_workers < 1 { parse_workers = 1 }
 			}
-			if parse_out_dir == "" { parse_out_dir = "tmp/ast" }
-			parse_many(parse_files[:], parse_workers, parse_out_dir)
+			if parse_out_dir == "" { parse_out_dir = parse_raw ? "tmp/raw" : "tmp/ast" }
+			parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw)
 		}
 		delete(parse_files)
 
@@ -370,6 +383,9 @@ print_usage :: proc() {
 	out_println("  parse <file> [--compact]        Parse and output AST as JSON to stdout")
 	out_println("  parse <files...> [--out-dir D] [--workers N]")
 	out_println("      Parallel parse, write AST JSON per file (default: tmp/ast/)")
+	out_println("  parse <file> --raw [--out-dir D]  Write single-file raw buffer (binary)")
+	out_println("  parse <files...> --raw [--out-dir D] [--workers N]")
+	out_println("      Parallel parse, write raw binary per file (default: tmp/raw/)")
 	out_println("  lex <file>                      Tokenize and output tokens as JSON")
 	out_println("  microbench parse <file> [--iterations N]  Parse benchmark (default 100)")
 	out_println("  microbench lex <file> [--iterations N]    Lex benchmark (default 100)")
@@ -551,6 +567,29 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 }
 
 // ============================================================================
+// parse_file_raw_to_disk: Parse and write raw binary buffer to a file. Thread-safe.
+// ============================================================================
+
+parse_file_raw_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, file_size: int, error_count: int) {
+	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
+	if read_err != nil { return false, 0, 0 }
+	defer delete(source, context.allocator)
+
+	arena: mvirtual.Arena
+	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
+	init_err := mvirtual.arena_init_static(&arena, arena_size)
+	if init_err != nil { return false, 0, 0 }
+	defer mvirtual.arena_destroy(&arena)
+	arena_alloc := mvirtual.arena_allocator(&arena)
+
+	result := produce_raw_buffer(string(source), &arena, arena_alloc)
+	if !write_raw_buffer(result, out_path) {
+		return false, 0, 0
+	}
+	return true, len(source), result.error_count
+}
+
+// ============================================================================
 // parse_many: Multi-file parsing with static work division
 // ============================================================================
 
@@ -562,15 +601,24 @@ ParseWorkerCtx :: struct {
 	parsed_count: int,
 	error_count: int,
 	total_bytes: int,
+	write_raw: bool,
 }
 
 worker_proc :: proc(data: rawptr) {
 	ctx := (^ParseWorkerCtx)(data)
 	for i in ctx.start_idx..<ctx.end_idx {
-		// Build output path: out_dir/basename.json
 		base := filepath_base(ctx.files[i])
-		out_path := strings.concatenate({ctx.out_dir, "/", base, ".json"})
-		success, bytes, errs := parse_file_to_disk(ctx.files[i], out_path)
+		ext := ".json"
+		if ctx.write_raw { ext = ".bin" }
+		out_path := strings.concatenate({ctx.out_dir, "/", base, ext})
+		success: bool
+		bytes: int
+		errs: int
+		if ctx.write_raw {
+			success, bytes, errs = parse_file_raw_to_disk(ctx.files[i], out_path)
+		} else {
+			success, bytes, errs = parse_file_to_disk(ctx.files[i], out_path)
+		}
 		if success {
 			ctx.parsed_count += 1
 			ctx.total_bytes += bytes
@@ -599,7 +647,7 @@ mkdir_p :: proc(path: string) {
 	os.make_directory(path)
 }
 
-parse_many :: proc(files: []string, n_workers: int, out_dir: string) {
+parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool) {
 	if len(files) == 0 {
 		out_println("No files to parse.")
 		return
@@ -637,6 +685,7 @@ parse_many :: proc(files: []string, n_workers: int, out_dir: string) {
 			out_dir = out_dir,
 			start_idx = start,
 			end_idx = end,
+			write_raw = write_raw,
 		}
 		threads[i] = thread.create_and_start_with_data(&contexts[i], worker_proc)
 	}
@@ -1359,6 +1408,104 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 }
 
 print_expression_ast :: proc(expr: ^Expression, indent: int) {
+	// ESTree Literal short-circuit: collapse six OXC-style literal types into one.
+	// ESTree spec uses a single "Literal" node for Numeric/String/Boolean/Null/BigInt/RegExp.
+	#partial switch e in expr^ {
+	case ^NumericLiteral:
+		print_indent(indent)
+		out_s("\"type\": \"Literal\",\n")
+		print_indent(indent)
+		out_s("\"value\": ")
+		out_printf("%v,\n", e.value)
+		print_indent(indent)
+		out_s("\"raw\": ")
+		out_string(e.raw)
+		return
+
+	case ^StringLiteral:
+		print_indent(indent)
+		out_s("\"type\": \"Literal\",\n")
+		print_indent(indent)
+		out_s("\"value\": ")
+		out_string(e.value)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"raw\": ")
+		out_string(e.raw)
+		return
+
+	case ^BooleanLiteral:
+		print_indent(indent)
+		out_s("\"type\": \"Literal\",\n")
+		print_indent(indent)
+		out_s("\"value\": ")
+		out_bool(e.value)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"raw\": ")
+		if e.value {
+			out_s("\"true\"")
+		} else {
+			out_s("\"false\"")
+		}
+		return
+
+	case ^NullLiteral:
+		print_indent(indent)
+		out_s("\"type\": \"Literal\",\n")
+		print_indent(indent)
+		out_s("\"value\": null,\n")
+		print_indent(indent)
+		out_s("\"raw\": \"null\"")
+		return
+
+	case ^BigIntLiteral:
+		print_indent(indent)
+		out_s("\"type\": \"Literal\",\n")
+		print_indent(indent)
+		out_s("\"value\": ")
+		out_string(e.value)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"raw\": ")
+		out_string(e.raw)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"bigint\": ")
+		raw_without_n := e.raw
+		if len(e.raw) > 0 && e.raw[len(e.raw)-1] == 'n' {
+			raw_without_n = e.raw[:len(e.raw)-1]
+		}
+		out_string(raw_without_n)
+		return
+
+	case ^RegExpLiteral:
+		print_indent(indent)
+		out_s("\"type\": \"Literal\",\n")
+		print_indent(indent)
+		out_s("\"value\": null,\n")
+		print_indent(indent)
+		out_s("\"raw\": \"/")
+		out_s(e.pattern)
+		out_s("/")
+		out_s(e.flags)
+		out_s("\",\n")
+		print_indent(indent)
+		out_s("\"regex\": {\n")
+		print_indent(indent + 1)
+		out_s("\"pattern\": ")
+		out_string(e.pattern)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"flags\": ")
+		out_string(e.flags)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+		return
+	case:
+	}
+
 	print_indent(indent)
 	out_s("\"type\": \"")
 	out_s(get_expression_type_name(expr))
@@ -1370,30 +1517,6 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"name\": ")
 		out_string(e.name)
-
-	case ^NumericLiteral:
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"value\": ")
-		out_printf("%v,\n", e.value)
-		print_indent(indent)
-		out_s("\"raw\": ")
-		out_string(e.raw)
-
-	case ^StringLiteral:
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"value\": ")
-		out_string(e.value)
-
-	case ^BooleanLiteral:
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"value\": ")
-		out_bool(e.value)
-
-	case ^NullLiteral:
-		// No additional fields
 
 	case ^ThisExpression:
 		// No additional fields
@@ -1655,26 +1778,6 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_expression_ast(e.argument, indent + 1)
 		print_indent(indent)
 		out_s("}")
-
-	case ^BigIntLiteral:
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"value\": ")
-		out_string(e.value)
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"raw\": ")
-		out_string(e.raw)
-
-	case ^RegExpLiteral:
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"pattern\": ")
-		out_string(e.pattern)
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"flags\": ")
-		out_string(e.flags)
 
 	case ^UpdateExpression:
 		out_s(",\n")
