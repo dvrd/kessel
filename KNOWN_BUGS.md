@@ -4,27 +4,6 @@ Divergences between Kessel and OXC ESTree output discovered during the
 deep verification pass. Fixed items are listed at the bottom with their
 commit hashes; open items are tracked here.
 
-## Bug H — Arrow function block body is transmuted into Expression union
-
-`parse_arrow_function` (and the two async variants) parse the block
-body as a `^Statement` and write it into the ArrowFunctionExpression's
-`body: ^Expression` field via `body = transmute(^Expression)block_stmt`.
-Same UB class as the FunctionExpression and TryStatement fixes, but not
-yet visible because the verifier intentionally skips
-`ArrowFunctionExpression.body` recursion.
-
-**Where**: `src/parser.odin` — three sites: `parse_arrow_function`,
-`parse_async_arrow_function`, `parse_async_arrow_with_parens`.
-
-**Fix sketch**: ESTree wraps arrow-block bodies as BlockStatement. Kessel's
-`Expression` union has no BlockStatement variant. Options:
-  a. Add a BlockStatement variant to the Expression union.
-  b. Change arrow body type to `union{^Expression, ^BlockStatement}`.
-  c. Keep the transmute but tag it explicitly and teach the rewrite
-     and verifier to recognize the block-body case.
-
-Requires design work.
-
 ## d3.js `execSync` SIGSEGV (pre-existing)
 
 `kessel raw bench/real_world/d3.js` crashes with SIGSEGV when invoked
@@ -57,6 +36,14 @@ from the ESTree correctness pass.
 
 ## Fixed
 
+- **Bug H** (577c237): three arrow-function builders stored a
+  `^BlockStatement` in an `^Expression` field via
+  `transmute(^Expression)block_stmt`. `rewrite_arrow_function` then
+  silently corrupted the BlockStatement's `loc.span.*` by treating
+  the first 8 bytes as a union pointer. Fix: new
+  `ArrowFunctionBody :: union { ^Expression, ^BlockStatement }`, three
+  parser sites switched to direct assignment, `rewrite_arrow_function`
+  dispatches on the tag.
 - **Bug E** (9935fa8): `lex_string` published raw source bytes as
   `StringLiteral.value`, so `"\x20\t"` produced the 4-char source
   string instead of the decoded space+tab. Fix: escape-decode in
