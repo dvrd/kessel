@@ -65,7 +65,17 @@ const STMT = { 1:'ExpressionStatement',2:'EmptyStatement',3:'BlockStatement',
   22:'ImportDeclaration',23:'ExportNamedDeclaration',24:'ExportDefaultDeclaration',
   25:'ExportAllDeclaration' };
 
-// Kessel → OXC type mapping (ESTree differences)
+// Enum string tables (mirror src/parser.odin enum definitions).
+const BIN_OP = ['+','-','*','/','%','**','|','^','&','<<','>>','>>>','==','!=','===','!==','<','<=','>','>=','instanceof','in'];
+const LOG_OP = ['||','&&','??'];
+const ASN_OP = ['=','+=','-=','*=','/=','%=','**=','<<=','>>=','>>>=','|=','^=','&=','&&=','||=','??='];
+const UN_OP  = ['-','+','!','~','typeof','void','delete'];
+const UPD_OP = ['++','--'];
+const PROP_KIND = ['init','get','set','method'];
+
+// Kessel → OXC type mapping (ESTree differences). After T1 (ESTree Literal)
+// Kessel already emits "Literal" for the six primitive literal types, so
+// this mapping is a no-op today — kept for any future Kessel-OXC drift.
 function normalizeType(kesselType) {
   if (['NumericLiteral','StringLiteral','BooleanLiteral','NullLiteral','BigIntLiteral','RegExpLiteral'].includes(kesselType))
     return 'Literal';
@@ -127,7 +137,15 @@ function verifyStmt(off, kType, oNode, p) {
     }
     case 'BlockStatement': {
       const bdy = dyn(off + 16);
-      if (oNode.body) eq(`${p}.body.len`, bdy.len, oNode.body.length);
+      if (!Array.isArray(oNode.body)) break;
+      eq(`${p}.body.len`, bdy.len, oNode.body.length);
+      for (let i = 0; i < Math.min(bdy.len, oNode.body.length); i++) {
+        const slotOff = bdy.data + i * 8;
+        const su2Off = u32(slotOff);
+        if (su2Off === 0) continue;
+        const su2 = union(su2Off);
+        verifyStmt(su2.ptr, STMT[su2.tag], oNode.body[i], `${p}.body[${i}]`);
+      }
       break;
     }
     case 'ReturnStatement': {
@@ -138,13 +156,39 @@ function verifyStmt(off, kType, oNode, p) {
     case 'IfStatement': {
       const testOff = u32(off + 16);
       if (testOff > 0 && oNode.test) verifyExpr(testOff, oNode.test, `${p}.test`);
+      const cOff = u32(off + 24);
+      if (cOff > 0 && oNode.consequent) {
+        const cu = union(cOff);
+        verifyStmt(cu.ptr, STMT[cu.tag], oNode.consequent, `${p}.consequent`);
+      }
+      const aOff = u32(off + 32);
+      if (aOff > 0 && oNode.alternate) {
+        const au = union(aOff);
+        verifyStmt(au.ptr, STMT[au.tag], oNode.alternate, `${p}.alternate`);
+      }
       break;
     }
-    case 'FunctionDeclaration': {
-      // Just verify span is sane
+    case 'FunctionDeclaration':
+    case 'FunctionExpression_Stmt': {
+      // FunctionDeclaration uses `using expr: FunctionExpression`, same
+      // layout. Body (FunctionBody) starts at offset 96; its .body
+      // dyn-header sits at +96+16 = +112.
       const s = u32(off), e = u32(off+4);
       if (s <= e && e <= source.length) ok(`${p}.span`);
       else fail(`${p}.span`, `${s}-${e}`);
+      const bdy = dyn(off + 112);
+      if (oNode.body && Array.isArray(oNode.body.body)) {
+        eq(`${p}.body.len`, bdy.len, oNode.body.body.length);
+        for (let i = 0; i < Math.min(bdy.len, oNode.body.body.length); i++) {
+          const slotOff = bdy.data + i * 8;
+          const su2Off = u32(slotOff);
+          if (su2Off === 0) continue;
+          const su2 = union(su2Off);
+          verifyStmt(su2.ptr, STMT[su2.tag], oNode.body.body[i], `${p}.body[${i}]`);
+        }
+      }
+      eq(`${p}.generator`, u8(off + 192) === 1, !!oNode.generator);
+      eq(`${p}.async`, u8(off + 193) === 1, !!oNode.async);
       break;
     }
     // Add more as needed
@@ -179,9 +223,11 @@ function verifyExpr(unionOff, oNode, p) {
       break;
     case 'NumericLiteral':
       eq(`${p}.value`, f64(off + 16), oNode.value);
+      eq(`${p}.raw`, str(off + 24), oNode.raw);
       break;
     case 'StringLiteral':
       eq(`${p}.value`, str(off + 16), oNode.value);
+      eq(`${p}.raw`, str(off + 32), oNode.raw);
       break;
     case 'BooleanLiteral':
       eq(`${p}.value`, u8(off + 16) === 1, oNode.value);
@@ -189,14 +235,25 @@ function verifyExpr(unionOff, oNode, p) {
     case 'NullLiteral':
       eq(`${p}.value`, null, oNode.value);
       break;
-    case 'BinaryExpression':
+    case 'BigIntLiteral':
+      eq(`${p}.raw`, str(off + 32), oNode.raw);
+      break;
+    case 'BinaryExpression': {
+      eq(`${p}.operator`, BIN_OP[u32(off + 16)], oNode.operator);
+      const lOff = u32(off + 24), rOff = u32(off + 32);
+      if (lOff > 0 && oNode.left) verifyExpr(lOff, oNode.left, `${p}.left`);
+      if (rOff > 0 && oNode.right) verifyExpr(rOff, oNode.right, `${p}.right`);
+      break;
+    }
     case 'LogicalExpression': {
+      eq(`${p}.operator`, LOG_OP[u32(off + 16)], oNode.operator);
       const lOff = u32(off + 24), rOff = u32(off + 32);
       if (lOff > 0 && oNode.left) verifyExpr(lOff, oNode.left, `${p}.left`);
       if (rOff > 0 && oNode.right) verifyExpr(rOff, oNode.right, `${p}.right`);
       break;
     }
     case 'AssignmentExpression': {
+      eq(`${p}.operator`, ASN_OP[u32(off + 16)], oNode.operator);
       const lOff = u32(off + 24), rOff = u32(off + 32);
       if (lOff > 0 && oNode.left) verifyExpr(lOff, oNode.left, `${p}.left`);
       if (rOff > 0 && oNode.right) verifyExpr(rOff, oNode.right, `${p}.right`);
@@ -212,13 +269,59 @@ function verifyExpr(unionOff, oNode, p) {
       const calleeOff = u32(off + 16);
       if (calleeOff > 0 && oNode.callee) verifyExpr(calleeOff, oNode.callee, `${p}.callee`);
       const args = dyn(off + 24);
-      if (oNode.arguments) eq(`${p}.args.len`, args.len, oNode.arguments.length);
+      if (!Array.isArray(oNode.arguments)) break;
+      eq(`${p}.args.len`, args.len, oNode.arguments.length);
+      for (let i = 0; i < Math.min(args.len, oNode.arguments.length); i++) {
+        const argOff = u32(args.data + i * 8);
+        if (argOff > 0 && oNode.arguments[i]) verifyExpr(argOff, oNode.arguments[i], `${p}.arguments[${i}]`);
+      }
       break;
     }
-    case 'UnaryExpression':
-    case 'UpdateExpression': {
+    case 'NewExpression': {
+      const calleeOff = u32(off + 16);
+      if (calleeOff > 0 && oNode.callee) verifyExpr(calleeOff, oNode.callee, `${p}.callee`);
+      const args = dyn(off + 24);
+      if (!Array.isArray(oNode.arguments)) break;
+      eq(`${p}.args.len`, args.len, oNode.arguments.length);
+      for (let i = 0; i < Math.min(args.len, oNode.arguments.length); i++) {
+        const argOff = u32(args.data + i * 8);
+        if (argOff > 0 && oNode.arguments[i]) verifyExpr(argOff, oNode.arguments[i], `${p}.arguments[${i}]`);
+      }
+      break;
+    }
+    case 'UnaryExpression': {
+      eq(`${p}.operator`, UN_OP[u32(off + 16)], oNode.operator);
       const argOff = u32(off + 24);
       if (argOff > 0 && oNode.argument) verifyExpr(argOff, oNode.argument, `${p}.argument`);
+      break;
+    }
+    case 'UpdateExpression': {
+      eq(`${p}.operator`, UPD_OP[u32(off + 16)], oNode.operator);
+      const argOff = u32(off + 24);
+      if (argOff > 0 && oNode.argument) verifyExpr(argOff, oNode.argument, `${p}.argument`);
+      break;
+    }
+    case 'FunctionExpression': {
+      // body@96, FunctionBody.body dyn-header @ +96+16 = +112
+      const bdy = dyn(off + 112);
+      if (oNode.body && Array.isArray(oNode.body.body)) {
+        eq(`${p}.body.len`, bdy.len, oNode.body.body.length);
+        for (let i = 0; i < Math.min(bdy.len, oNode.body.body.length); i++) {
+          const slotOff = bdy.data + i * 8;
+          const suOff = u32(slotOff);
+          if (suOff === 0) continue;
+          const su = union(suOff);
+          verifyStmt(su.ptr, STMT[su.tag], oNode.body.body[i], `${p}.body[${i}]`);
+        }
+      }
+      eq(`${p}.generator`, u8(off + 192) === 1, !!oNode.generator);
+      eq(`${p}.async`, u8(off + 193) === 1, !!oNode.async);
+      break;
+    }
+    case 'ArrowFunctionExpression': {
+      // body recursion skipped in this task (union polymorphism).
+      eq(`${p}.expression`, u8(off + 64) === 1, !!oNode.expression);
+      eq(`${p}.async`, u8(off + 65) === 1, !!oNode.async);
       break;
     }
     case 'SpreadElement':
@@ -236,12 +339,40 @@ function verifyExpr(unionOff, oNode, p) {
     }
     case 'ArrayExpression': {
       const elems = dyn(off + 16);
-      if (oNode.elements) eq(`${p}.elements.len`, elems.len, oNode.elements.length);
+      if (oNode.elements) {
+        eq(`${p}.elements.len`, elems.len, oNode.elements.length);
+        for (let i = 0; i < Math.min(elems.len, oNode.elements.length); i++) {
+          const elOff = u32(elems.data + i * 8);
+          if (elOff > 0) {
+            if (oNode.elements[i]) verifyExpr(elOff, oNode.elements[i], `${p}.elements[${i}]`);
+          } else if (oNode.elements[i] !== null) {
+            fail(`${p}.elements[${i}]`, 'expected null');
+          }
+        }
+      }
       break;
     }
     case 'ObjectExpression': {
+      // Property struct in Odin is 48 bytes (PropertyKind enum = int = 8B on 64-bit).
+      // Fields: loc@0-15, key@16, value@24, kind@32 (8B), computed@40, shorthand@41.
       const props = dyn(off + 16);
-      if (oNode.properties) eq(`${p}.properties.len`, props.len, oNode.properties.length);
+      if (oNode.properties) {
+        eq(`${p}.properties.len`, props.len, oNode.properties.length);
+        for (let i = 0; i < Math.min(props.len, oNode.properties.length); i++) {
+          const propSlot = props.data + i * 48;
+          const oProp = oNode.properties[i];
+          if (oProp && oProp.type === 'Property') {
+            const kind = u32(propSlot + 32);
+            eq(`${p}.properties[${i}].kind`, PROP_KIND[kind], oProp.kind);
+            eq(`${p}.properties[${i}].computed`, u8(propSlot + 40) === 1, oProp.computed);
+            eq(`${p}.properties[${i}].shorthand`, u8(propSlot + 41) === 1, oProp.shorthand);
+            const keyOff = u32(propSlot + 16);
+            if (keyOff > 0 && oProp.key) verifyExpr(keyOff, oProp.key, `${p}.properties[${i}].key`);
+            const valueOff = u32(propSlot + 24);
+            if (valueOff > 0 && oProp.value) verifyExpr(valueOff, oProp.value, `${p}.properties[${i}].value`);
+          }
+        }
+      }
       break;
     }
     case 'ThisExpression':
