@@ -1764,17 +1764,28 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		print_indent(indent)
 		out_s("\"type\": \"ArrayPattern\",\n")
 		print_indent(indent)
-		out_s("\"elements\": [\n")
-		for elem, i in p.elements {
-			if e, ok := elem.(Pattern); ok {
-				print_pattern_ast(e, indent + 1)
-				if i < len(p.elements) - 1 {
-					out_s(",\n")
+		out_s("\"elements\": [")
+		if len(p.elements) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for elem, i in p.elements {
+				if e, ok := elem.(Pattern); ok {
+					print_indent(indent + 1)
+					out_s("{\n")
+					print_pattern_ast(e, indent + 2)
+					out_s("\n")
+					print_indent(indent + 1)
+					if i < len(p.elements) - 1 { out_s("},\n") } else { out_s("}\n") }
+				} else {
+					// Hole in destructuring (e.g. `[,,x]`) — ESTree emits `null`.
+					print_indent(indent + 1)
+					if i < len(p.elements) - 1 { out_s("null,\n") } else { out_s("null\n") }
 				}
 			}
+			print_indent(indent)
+			out_s("]")
 		}
-		print_indent(indent)
-		out_s("]")
 	case ^ObjectPattern:
 		print_indent(indent)
 		out_s("\"type\": \"ObjectPattern\",\n")
@@ -1798,11 +1809,23 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				out_bool(prop.computed)
 				out_s(",\n")
 				print_indent(indent + 2)
-				out_s("\"value\": {\n")
-				print_pattern_ast(prop.value, indent + 3)
-				out_s("\n")
-				print_indent(indent + 2)
-				out_s("}\n")
+				// `prop.value` is a Pattern union. print_pattern_ast only has
+				// emit cases for ^Identifier / ^ArrayPattern / ^ObjectPattern;
+				// for the other variants it falls through to a bare `null`.
+				// Wrap the value in `{…}` only when the inner emit will
+				// actually produce JSON fields, otherwise emit unwrapped `null`
+				// so we don't end up with invalid `{null}`.
+				#partial switch pv in prop.value {
+				case ^Identifier, ^ArrayPattern, ^ObjectPattern:
+					out_s("\"value\": {\n")
+					print_pattern_ast(prop.value, indent + 3)
+					out_s("\n")
+					print_indent(indent + 2)
+					out_s("}\n")
+					_ = pv
+				case:
+					out_s("\"value\": null\n")
+				}
 				print_indent(indent + 1)
 				if i < len(p.properties) - 1 { out_s("},\n") } else { out_s("}\n") }
 			}
