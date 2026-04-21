@@ -1,0 +1,160 @@
+{
+  "type": "Script",
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "id": {
+        "type": "Identifier",
+        "name": "Regression001"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "body": [
+          {
+            "type": "StaticBlock",
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "expression": {
+                  "type": "AssignmentExpression",
+                  "operator": "=",
+                  "left": {
+                    "type": "MemberExpression",
+                    "computed": false,
+                    "object": {
+                      "type": "ThisExpression"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "name": "a"                    }                  },
+                  "right": {
+                    "type": "Literal",
+                    "value": 1,
+                    "raw": "1"                  }                }              },
+              {
+                "type": "ExpressionStatement",
+                "expression": {
+                  "type": "AssignmentExpression",
+                  "operator": "=",
+                  "left": {
+                    "type": "MemberExpression",
+                    "computed": false,
+                    "object": {
+                      "type": "ThisExpression"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "name": "b"                    }                  },
+                  "right": {
+                    "type": "Literal",
+                    "value": 2,
+                    "raw": "2"                  }                }              },
+              {
+                "type": "ExpressionStatement",
+                "expression": {
+                  "type": "CallExpression",
+                  "callee": {
+                    "type": "MemberExpression",
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "name": "console"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "name": "log"                    }                  },
+                  "arguments": [
+                    {
+                      "type": "Literal",
+                      "value": "initialised",
+                      "raw": "\"initialised\""                    }
+                  ]                }              }
+            ]
+          },
+          {
+            "type": "PropertyDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "value": {
+              "type": "Literal",
+              "value": 42,
+              "raw": "42"
+            },
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "StaticBlock",
+            "body": [
+              {
+                "type": "VariableDeclaration",
+                "kind": "const",
+                "declarations": [
+                  {
+                    "id": {
+                      "type": "Identifier",
+                      "name": "tmp"                    },
+                    "init": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "MemberExpression",
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression"                        },
+                        "property": {
+                          "type": "Identifier",
+                          "name": "a"                        }                      },
+                      "right": {
+                        "type": "MemberExpression",
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression"                        },
+                        "property": {
+                          "type": "Identifier",
+                          "name": "b"                        }                      }                    }                  }
+                ]              },
+              {
+                "type": "IfStatement",
+                "test": {
+                  "type": "BinaryExpression",
+                  "operator": ">",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "tmp"                  },
+                  "right": {
+                    "type": "Literal",
+                    "value": 0,
+                    "raw": "0"                  }                },
+                "consequent": {
+                  "type": "BlockStatement",
+                  "body": [
+                    {
+                      "type": "ExpressionStatement",
+                      "expression": {
+                        "type": "AssignmentExpression",
+                        "operator": "=",
+                        "left": {
+                          "type": "MemberExpression",
+                          "computed": false,
+                          "object": {
+                            "type": "ThisExpression"                          },
+                          "property": {
+                            "type": "Identifier",
+                            "name": "ready"                          }                        },
+                        "right": {
+                          "type": "Literal",
+                          "value": true,
+                          "raw": "true"                        }                      }                    }
+                  ]                },
+                "alternate": null              }
+            ]
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=11432B reserved=16777216B ratio=0%
+Parse errors: 0

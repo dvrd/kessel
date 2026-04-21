@@ -23,18 +23,78 @@ that aborts when stdio is detached. Needs `lldb` attach to investigate.
 **Workaround**: `verify_integration.js` users can exclude d3.js from the
 sample set until this is root-caused.
 
-## Pre-existing parse failures in 34/467 real-world files
+## Pre-existing parse failures in 28/467 real-world files
 
-`task test:real` reports 34 failures (vue.global.js 22 errors,
-typescript.js 9 errors, ~30 more across batch2/batch3). These are
-present on the baseline handoff commit — the HANDOFF.md claim of
-"467/467 real-world JS files parse with 0 errors" was stale. Not
-tracked individually here because they're a separate investigation
-from the ESTree correctness pass.
+`task test:real` reports 28 parse-error files. These are present on the
+baseline handoff commit. Not tracked individually here because they're
+a separate investigation. See HANDOFF.md for the current list.
+
+## 12 SIGSEGV files during JSON emit (surfaced by P1 in ClassBody emit)
+
+Enabling full ClassBody JSON emit revealed another Bug-H-class latent
+transmute: `./bin/kessel parse <file>` crashes with SIGSEGV for tone.js,
+mathjax.js, marked.js, chartjs.js, quill.js, embla.js, mapbox.js,
+openlayers.js, framer-motion.js, lit-html.js, petite-vue.js, prettier.js.
+
+Stack trace (tone.js, always reproducible):
+
+```
+frame #0: main::get_statement_type_name + 88   (reading union tag from bad ^Statement)
+frame #1: main::print_statement_ast + 128
+frame #2: main::print_block_statement_inline + 280
+frame #3..8: print_expression_ast / print_function_body_inline (nested)
+frame #9: main::print_class_element_fields + 836
+frame #10: main::print_class_body_inline + 416
+```
+
+4 same-class bugs were fixed this session (I-1 through I-4 in HANDOFF.md);
+at least one more transmute site remains. Audit candidate:
+
+```
+grep -rn 'transmute\|(\^Statement)(\|(\^Declaration)(\|(\^Expression)(' src/parser.odin src/main.odin
+```
+
+Bisection within a single file is unreliable (the crashing region depends
+on the exact prefix boundary). lldb attach is the way.
 
 ---
 
-## Fixed
+## Fixed (session after f8ea96a)
+
+- **I-1: `parse_static_block` transmute(^BlockStatement)**. Static block
+  bodies emitted as `[]` regardless of contents. Fix: extract via
+  `block_stmt^.(^BlockStatement)`.
+  Guard: `tests/fixtures/regression/001_static_block_body.js`.
+- **I-2: `parse_for` for-in/of `left_decl` transmute(^VariableDeclaration)**.
+  Corrupted for-in/of declaration pointer. Fix: type assertion.
+  Guard: `tests/fixtures/regression/003_class_for_in_of.js`.
+- **I-3: ForStatement / ForIn / ForOf `(^Statement)(decl)` cast in emit**.
+  Caused SIGSEGV inside class methods with `for (let i = 0; ...)` (tone.js
+  family, pre-I-1/I-2 fixes). Fix: extracted `print_variable_declaration_body`;
+  emit VariableDeclaration inline.
+  Guard: `tests/fixtures/regression/002_class_for_statement.js`.
+- **I-4: ExportNamedDeclaration / ExportDefaultDeclaration cross-union cast**.
+  `(^Declaration)(^Statement)` and `(^Statement)(^Declaration)` both wrong:
+  different tag ordinal spaces (7 vs 25 variants). Exports emitted as
+  `"type": "Unknown"`. Fix: `print_declaration_ast` rebuilds a Statement via
+  variant assignment so Odin computes the correct tag; parser side likewise
+  allocates a fresh `^Declaration` and reassigns the inner variant.
+  Guard: `tests/fixtures/regression/004_export_declarations.js`.
+- **I-5: ClassBody JSON emit stub** (P1 this session). Methods / fields /
+  getters / setters / constructors / static blocks now emit full ESTree
+  (MethodDefinition / PropertyDefinition / StaticBlock).
+  Guard: `tests/fixtures/regression/005_class_body_full_emit.js`.
+- **I-6: `direct_buf` fixed 20× source overflow**. Full class emit exceeds
+  the static estimate. Fix: `direct_reserve` grows by doubling before every
+  direct-mode write; worker path free-after-grow fixed.
+  Guard: `tests/fixtures/regression/006_direct_buf_grow.js`.
+
+All six guarded by `task test:regression` (structural OXC-cross-reference)
+**and** `task test:unit` (bit-exact JSON comparison). Each regression check
+has been validated by reverting the specific fix and confirming the check
+fails.
+
+## Fixed (earlier sessions)
 
 - **Bug H** (577c237): three arrow-function builders stored a
   `^BlockStatement` in an `^Expression` field via

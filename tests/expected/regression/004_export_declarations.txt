@@ -1,0 +1,236 @@
+{
+  "type": "Script",
+  "body": [
+    {
+      "type": "ExportNamedDeclaration",
+      "declaration": {
+        "type": "VariableDeclaration",
+        "kind": "const",
+        "declarations": [
+          {
+            "id": {
+              "type": "Identifier",
+              "name": "REG_CONST"            },
+            "init": {
+              "type": "Literal",
+              "value": 1,
+              "raw": "1"            }          }
+        ]      },
+      "specifiers": [],
+      "source": null    },
+    {
+      "type": "ExportNamedDeclaration",
+      "declaration": {
+        "type": "VariableDeclaration",
+        "kind": "let",
+        "declarations": [
+          {
+            "id": {
+              "type": "Identifier",
+              "name": "regLet"            },
+            "init": {
+              "type": "Literal",
+              "value": 2,
+              "raw": "2"            }          }
+        ]      },
+      "specifiers": [],
+      "source": null    },
+    {
+      "type": "ExportNamedDeclaration",
+      "declaration": {
+        "type": "VariableDeclaration",
+        "kind": "var",
+        "declarations": [
+          {
+            "id": {
+              "type": "Identifier",
+              "name": "regVar"            },
+            "init": {
+              "type": "Literal",
+              "value": 3,
+              "raw": "3"            }          }
+        ]      },
+      "specifiers": [],
+      "source": null    },
+    {
+      "type": "ExportNamedDeclaration",
+      "declaration": {
+        "type": "FunctionDeclaration",
+        "id": {
+          "name": "regFunction"
+        },
+        "generator": false,
+        "async": false,
+        "params": [],
+        "body": {
+          "type": "BlockStatement",
+          "body": [
+            {
+              "type": "ReturnStatement",
+              "argument": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "BinaryExpression",
+                  "operator": "+",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "REG_CONST"                  },
+                  "right": {
+                    "type": "Identifier",
+                    "name": "regLet"                  }                },
+                "right": {
+                  "type": "Identifier",
+                  "name": "regVar"                }              }            }
+          ]
+        }      },
+      "specifiers": [],
+      "source": null    },
+    {
+      "type": "ExportNamedDeclaration",
+      "declaration": {
+        "type": "ClassDeclaration",
+        "id": {
+          "type": "Identifier",
+          "name": "RegClass"
+        },
+        "superClass": null,
+        "body": {
+          "type": "ClassBody",
+          "body": [
+            {
+              "type": "MethodDefinition",
+              "key": {
+                "type": "Identifier",
+                "name": "constructor"
+              },
+              "value": {
+                "type": "FunctionExpression",
+                "generator": false,
+                "async": false,
+                "params": [],
+                "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                    {
+                      "type": "ExpressionStatement",
+                      "expression": {
+                        "type": "AssignmentExpression",
+                        "operator": "=",
+                        "left": {
+                          "type": "MemberExpression",
+                          "computed": false,
+                          "object": {
+                            "type": "ThisExpression"                          },
+                          "property": {
+                            "type": "Identifier",
+                            "name": "value"                          }                        },
+                        "right": {
+                          "type": "CallExpression",
+                          "callee": {
+                            "type": "Identifier",
+                            "name": "regFunction"                          },
+                          "arguments": [
+                          ]                        }                      }                    }
+                  ]
+                }
+              },
+              "kind": "constructor",
+              "computed": false,
+              "static": false
+            },
+            {
+              "type": "MethodDefinition",
+              "key": {
+                "type": "Identifier",
+                "name": "doubled"
+              },
+              "value": {
+                "type": "FunctionExpression",
+                "generator": false,
+                "async": false,
+                "params": [],
+                "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                    {
+                      "type": "ReturnStatement",
+                      "argument": {
+                        "type": "BinaryExpression",
+                        "operator": "*",
+                        "left": {
+                          "type": "MemberExpression",
+                          "computed": false,
+                          "object": {
+                            "type": "ThisExpression"                          },
+                          "property": {
+                            "type": "Identifier",
+                            "name": "value"                          }                        },
+                        "right": {
+                          "type": "Literal",
+                          "value": 2,
+                          "raw": "2"                        }                      }                    }
+                  ]
+                }
+              },
+              "kind": "get",
+              "computed": false,
+              "static": false
+            }
+          ]
+        }      },
+      "specifiers": [],
+      "source": null    },
+    {
+      "type": "ExportDefaultDeclaration",
+      "declaration": {
+        "type": "ClassDeclaration",
+        "id": {
+          "type": "Identifier",
+          "name": "RegDefault"
+        },
+        "superClass": {
+          "type": "Identifier",
+          "name": "RegClass"        },
+        "body": {
+          "type": "ClassBody",
+          "body": [
+            {
+              "type": "MethodDefinition",
+              "key": {
+                "type": "Identifier",
+                "name": "method"
+              },
+              "value": {
+                "type": "FunctionExpression",
+                "generator": false,
+                "async": false,
+                "params": [],
+                "body": {
+                  "type": "BlockStatement",
+                  "body": [
+                    {
+                      "type": "ReturnStatement",
+                      "argument": {
+                        "type": "MemberExpression",
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression"                        },
+                        "property": {
+                          "type": "Identifier",
+                          "name": "doubled"                        }                      }                    }
+                  ]
+                }
+              },
+              "kind": "method",
+              "computed": false,
+              "static": false
+            }
+          ]
+        }      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=24936B reserved=16777216B ratio=0%
+Parse errors: 0

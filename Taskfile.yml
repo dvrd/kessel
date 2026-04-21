@@ -49,16 +49,33 @@ tasks:
     cmds:
       - tests/run_tests.sh
 
+  test:regression:
+    desc: Structural regression checks for session-fixed bugs vs OXC
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verify_regression.js
+
   test:real:
     desc: Parse all 467 real-world JS files, fail on any error
     deps: [build]
     silent: true
     cmds:
       - |
+        set +e  # We count crashes; don't abort on the first one.
         fails=0; count=0
         for f in $(find {{.BENCH_FILES}} -name '*.js' -o -name '*.mjs'); do
-          errs=$(timeout 30 ./{{.BIN}} parse "$f" 2>&1 | grep "Parse errors:" | awk '{print $3}')
           count=$((count+1))
+          # Capture stderr+stdout AND exit code. Grepping alone would hide
+          # SIGSEGV / non-zero exits when "Parse errors:" never prints.
+          out=$(timeout 30 ./{{.BIN}} parse "$f" 2>&1)
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "FAIL: $f: exit=$rc (crash or timeout)"
+            fails=$((fails+1))
+            continue
+          fi
+          errs=$(echo "$out" | grep "Parse errors:" | awk '{print $3}')
           if [ "${errs:-0}" -gt 0 ]; then
             echo "FAIL: $f: $errs errors"
             fails=$((fails+1))

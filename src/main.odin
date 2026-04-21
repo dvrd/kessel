@@ -47,10 +47,31 @@ flush_stdout_writer :: proc() {
 	os.flush(os.stdout)
 }
 
+// direct_reserve ensures direct_buf has at least `need` unused bytes starting
+// at direct_pos. Grows by doubling (at minimum to fit `direct_pos + need`)
+// when the current allocation would overflow. Kessel's JSON output was sized
+// at 20× source; class-heavy files can exceed that once ClassBody elements
+// emit in full, so every direct-mode write path routes through this check.
+//
+// The grow path is O(n) but doubling amortises to O(1) per byte written.
+// Callers MUST reserve BEFORE indexing direct_buf so indexed writes never
+// touch freed memory (the old backing slice is released after copy).
+direct_reserve :: #force_inline proc(need: int) {
+	if direct_pos + need <= len(direct_buf) {
+		return
+	}
+	new_cap := max(len(direct_buf) * 2, direct_pos + need)
+	new_buf := make([]byte, new_cap, context.allocator)
+	mem.copy(raw_data(new_buf), raw_data(direct_buf), direct_pos)
+	delete(direct_buf, context.allocator)
+	direct_buf = new_buf
+}
+
 // Fast-path for static strings (no reflection overhead)
 // In compact mode, strips all \n from strings
 // Helper: write string to direct buffer, skipping newlines in compact mode
 write_direct :: #force_inline proc(s: string) {
+	direct_reserve(len(s))
 	if compact_json {
 		for i in 0..<len(s) {
 			if s[i] != '\n' {
@@ -93,6 +114,8 @@ out_s :: #force_inline proc(s: string) {
 // quote, multiple escaped chunks, and the closing quote around them all.
 out_string_inner :: proc(s: string) {
 	if use_direct_buf {
+		// Worst case: every byte escapes to `\u00xx` (6 bytes).
+		direct_reserve(len(s) * 6)
 		for i in 0..<len(s) {
 			c := s[i]
 			switch c {
@@ -144,6 +167,8 @@ out_string_inner :: proc(s: string) {
 // Escape a string for JSON: quotes, backslashes, control chars
 out_string :: proc(s: string) {
 	if use_direct_buf {
+		// Worst case: 2 surrounding quotes + every byte escapes to `\u00xx`.
+		direct_reserve(len(s) * 6 + 2)
 		direct_buf[direct_pos] = '"'
 		direct_pos += 1
 		for i in 0..<len(s) {
@@ -206,6 +231,7 @@ out_string :: proc(s: string) {
 // Write bool as 'true' or 'false'
 out_bool :: #force_inline proc(b: bool) {
 	if use_direct_buf {
+		direct_reserve(5)
 		if b {
 			direct_buf[direct_pos] = 't'; direct_buf[direct_pos+1] = 'r'; direct_buf[direct_pos+2] = 'u'; direct_buf[direct_pos+3] = 'e'; direct_pos += 4
 		} else {
@@ -244,6 +270,7 @@ out_println :: proc(args: ..any) -> int {
 			}
 		}
 		if !compact_json {
+			direct_reserve(1)
 			direct_buf[direct_pos] = '\n'
 			direct_pos += 1
 		}
@@ -603,16 +630,18 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 	init_parser(&p, &lex, arena_alloc)
 	program := parse_program(&p, .Script)
 
-	// Render AST JSON into a thread-local buffer
+	// Render AST JSON into a thread-local buffer. `direct_reserve` may grow
+	// direct_buf during emission (reallocating and freeing the old slice),
+	// so we can't cache the initial make() into a local and `defer delete`
+	// it — that would double-free after grow. Instead, free whatever
+	// direct_buf points to at the end.
 	est_size := max(len(source) * 20, 4096)
-	buf := make([]byte, est_size, context.allocator)
-	defer delete(buf, context.allocator)
 
 	// Save/restore globals (direct_buf is global — use local override)
 	prev_buf := direct_buf
 	prev_pos := direct_pos
 	prev_use := use_direct_buf
-	direct_buf = buf
+	direct_buf = make([]byte, est_size, context.allocator)
 	direct_pos = 0
 	use_direct_buf = true
 
@@ -623,7 +652,7 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 	// Write to file
 	_ = os.write_entire_file(out_path, direct_buf[:direct_pos])
 
-	// Restore globals
+	delete(direct_buf, context.allocator)
 	direct_buf = prev_buf
 	direct_pos = prev_pos
 	use_direct_buf = prev_use
@@ -1115,6 +1144,270 @@ print_function_body_inline :: proc(body: ^FunctionBody, indent: int) {
 	out_s("]")
 }
 
+// print_declaration_ast emits a ^Declaration by rebuilding a ^Statement whose
+// union tag matches the inner variant. The previous `(^Statement)(decl)` cast
+// preserved the pointer address but kept the ^Declaration tag ordinal — which
+// disagrees with the ^Statement tag ordinal for the same variant, since
+// Declaration has 7 variants and Statement has 25 (different ordinal
+// positions). That made `print_statement_ast` dispatch on the wrong case:
+// e.g. a VariableDeclaration (^Declaration tag 1) was read as a
+// BlockStatement (^Statement tag 2), corrupting the whole subtree walk.
+//
+// Symptom: SIGSEGV inside `get_statement_type_name`'s type-switch when
+// classes containing exported declarations were emitted (tone.js, mathjax.js,
+// marked.js, etc.).
+//
+// Reassigning `stmt = d` (where d is the typed inner pointer) lets Odin
+// compute the correct ^Statement tag at assignment time. This is the safe
+// idiom for “convert between union types that share a variant”.
+print_declaration_ast :: proc(decl: ^Declaration, indent: int) {
+	if decl == nil { return }
+	stmt: Statement
+	#partial switch d in decl^ {
+	case ^FunctionDeclaration:       stmt = d
+	case ^VariableDeclaration:       stmt = d
+	case ^ClassDeclaration:           stmt = d
+	case ^ImportDeclaration:          stmt = d
+	case ^ExportNamedDeclaration:     stmt = d
+	case ^ExportDefaultDeclaration:   stmt = d
+	case ^ExportAllDeclaration:       stmt = d
+	case:
+		// Unknown Declaration variant: emit a safe placeholder so the JSON
+		// stays well-formed rather than silently skipping.
+		print_indent(indent)
+		out_s("\"type\": \"Unknown\"")
+		return
+	}
+	print_statement_ast(&stmt, indent)
+}
+
+// print_variable_declaration_body emits the VariableDeclaration body fields
+// (kind, declarations) starting with `,` — the caller has already written
+// `"type": "VariableDeclaration"` and is positioned to continue the object.
+//
+// Extracted so for-in / for-of emit can reuse it on a ^VariableDeclaration
+// directly, rather than casting the ^VariableDeclaration back through a
+// fake ^Statement (which was UB: the cast would treat the VariableDeclaration
+// struct as a Statement union header and dispatch on garbage bytes).
+print_variable_declaration_body :: proc(s: ^VariableDeclaration, indent: int) {
+	kind_str := "var"
+	#partial switch s.kind {
+	case .Let:   kind_str = "let"
+	case .Const: kind_str = "const"
+	}
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"kind\": \"")
+	out_s(kind_str)
+	out_s("\",\n")
+	print_indent(indent)
+	out_s("\"declarations\": [\n")
+	for decl, i in s.declarations {
+		print_indent(indent + 1)
+		out_s("{\n")
+		print_indent(indent + 2)
+		out_s("\"id\": {\n")
+		print_pattern_ast(decl.id, indent + 3)
+		print_indent(indent + 2)
+		out_s("},\n")
+		print_indent(indent + 2)
+		out_s("\"init\": ")
+		if init, ok := decl.init.(^Expression); ok {
+			out_s("{\n")
+			print_expression_ast(init, indent + 3)
+			print_indent(indent + 2)
+			out_s("}")
+		} else {
+			out_s("null")
+		}
+		print_indent(indent + 1)
+		if i < len(s.declarations) - 1 {
+			out_s("},\n")
+		} else {
+			out_s("}\n")
+		}
+	}
+	print_indent(indent)
+	out_s("]")
+}
+
+// print_class_body_inline emits the inside of the `"body": { ... }` payload
+// for ClassDeclaration and ClassExpression. The caller has already written
+// the opening `{` and must emit the matching `}`. Shape:
+//     "type": "ClassBody",
+//     "body": [ <class_element>, ... ]
+//
+// Previously this path emitted an empty `[]` stub regardless of actual body
+// contents, rendering strings/expressions inside class methods invisible to
+// the JSON emitter (raw-transfer buffer had them correctly). See P1 in the
+// HANDOFF for context.
+print_class_body_inline :: proc(body: ^ClassBody, indent: int) {
+	print_indent(indent)
+	out_s("\"type\": \"ClassBody\",\n")
+	print_indent(indent)
+	if len(body.body) == 0 {
+		out_s("\"body\": []\n")
+		return
+	}
+	out_s("\"body\": [\n")
+	for i in 0 ..< len(body.body) {
+		elem := &body.body[i]
+		print_indent(indent + 1)
+		out_s("{\n")
+		print_class_element_fields(elem, indent + 2)
+		print_indent(indent + 1)
+		if i < len(body.body) - 1 {
+			out_s("},\n")
+		} else {
+			out_s("}\n")
+		}
+	}
+	print_indent(indent)
+	out_s("]\n")
+}
+
+// print_class_element_fields emits the fields of a single class element
+// inside an already-opened `{`. The ESTree node type depends on the
+// element's kind and the shape of its value:
+//
+//   * .StaticBlock                                 → "StaticBlock" (body only)
+//   * .Constructor / .Get / .Set                   → "MethodDefinition"
+//   * .Method with a FunctionExpression value      → "MethodDefinition"
+//   * .Method with a non-function (or nil) value   → "PropertyDefinition"
+//     (class field; `value` may be null)
+//
+// Known edge case: `field = function() {}` (a class field whose initializer
+// is a non-arrow function expression) cannot be distinguished from a method
+// by the current AST representation alone — the parser reuses .Method for
+// fields. We accept the rare misclassification rather than bolt a
+// parser-side kind field on in this pass. Arrow-valued fields
+// (`field = () => ...`) are ArrowFunctionExpression, not
+// FunctionExpression, so they take the PropertyDefinition path correctly.
+print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
+	// Unwrap Maybe(^Expression) once. value_expr is nil if the element has
+	// no initializer (bare `x;` field) or if disambiguation failed.
+	value_expr: ^Expression = nil
+	value_is_function := false
+	if v, ok := elem.value.(^Expression); ok && v != nil {
+		value_expr = v
+		#partial switch _ in v^ {
+		case ^FunctionExpression:
+			value_is_function = true
+		}
+	}
+
+	// StaticBlock has a dedicated shape: only `body: [Statement]`. The
+	// parser stashes its statements inside a FunctionExpression.body.body
+	// (see parse_static_block), so we unwrap that container here.
+	if elem.kind == .StaticBlock {
+		print_class_element_static_block(value_expr, indent)
+		return
+	}
+
+	is_method := value_is_function
+	#partial switch elem.kind {
+	case .Constructor, .Get, .Set:
+		is_method = true
+	}
+
+	type_name := is_method ? "MethodDefinition" : "PropertyDefinition"
+	print_indent(indent)
+	out_s("\"type\": \"")
+	out_s(type_name)
+	out_s("\",\n")
+
+	// key: ^Expression. MethodDefinition and PropertyDefinition both carry
+	// a non-null key (Identifier, PrivateIdentifier, Literal, or an
+	// expression when `computed` is true).
+	print_indent(indent)
+	if elem.key != nil {
+		out_s("\"key\": {\n")
+		print_expression_ast(elem.key, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+	} else {
+		out_s("\"key\": null,\n")
+	}
+
+	// value: Maybe(^Expression). null for uninitialised fields (`x;`).
+	print_indent(indent)
+	if value_expr != nil {
+		out_s("\"value\": {\n")
+		print_expression_ast(value_expr, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+	} else {
+		out_s("\"value\": null,\n")
+	}
+
+	// kind is MethodDefinition-only per ESTree. PropertyDefinition has no
+	// kind field — OXC confirms.
+	if is_method {
+		kind_str := "method"
+		#partial switch elem.kind {
+		case .Constructor:
+			kind_str = "constructor"
+		case .Get:
+			kind_str = "get"
+		case .Set:
+			kind_str = "set"
+		}
+		print_indent(indent)
+		out_s("\"kind\": \"")
+		out_s(kind_str)
+		out_s("\",\n")
+	}
+
+	print_indent(indent)
+	out_s("\"computed\": ")
+	out_bool(elem.computed)
+	out_s(",\n")
+
+	print_indent(indent)
+	out_s("\"static\": ")
+	out_bool(elem.static)
+	out_s("\n")
+}
+
+// print_class_element_static_block emits a StaticBlock class element. The
+// parser wraps the block's statement list inside a FunctionExpression.body
+// (see parse_static_block in src/parser.odin); we unwrap that one level so
+// the JSON matches OXC's `{"type":"StaticBlock","body":[<stmt>,...]}`.
+print_class_element_static_block :: proc(value_expr: ^Expression, indent: int) {
+	print_indent(indent)
+	out_s("\"type\": \"StaticBlock\",\n")
+
+	stmts: ^[dynamic]^Statement = nil
+	if value_expr != nil {
+		#partial switch fe in value_expr^ {
+		case ^FunctionExpression:
+			stmts = &fe.body.body
+		}
+	}
+
+	print_indent(indent)
+	if stmts == nil || len(stmts^) == 0 {
+		out_s("\"body\": []\n")
+		return
+	}
+	out_s("\"body\": [\n")
+	for j in 0 ..< len(stmts^) {
+		print_indent(indent + 1)
+		out_s("{\n")
+		print_statement_ast(stmts[j], indent + 2)
+		print_indent(indent + 1)
+		if j < len(stmts^) - 1 {
+			out_s("},\n")
+		} else {
+			out_s("}\n")
+		}
+	}
+	print_indent(indent)
+	out_s("]\n")
+}
+
 print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	print_indent(indent)
 	out_s("\"type\": \"")
@@ -1131,45 +1424,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_s("}")
 
 	case ^VariableDeclaration:
-		kind_str := "var"
-		#partial switch s.kind {
-		case .Let:   kind_str = "let"
-		case .Const: kind_str = "const"
-		}
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"kind\": \"")
-		out_s(kind_str)
-		out_s("\",\n")
-		print_indent(indent)
-		out_s("\"declarations\": [\n")
-		for decl, i in s.declarations {
-			print_indent(indent + 1)
-			out_s("{\n")
-			print_indent(indent + 2)
-			out_s("\"id\": {\n")
-			print_pattern_ast(decl.id, indent + 3)
-			print_indent(indent + 2)
-			out_s("},\n")
-			print_indent(indent + 2)
-			out_s("\"init\": ")
-			if init, ok := decl.init.(^Expression); ok {
-				out_s("{\n")
-				print_expression_ast(init, indent + 3)
-				print_indent(indent + 2)
-				out_s("}")
-			} else {
-				out_s("null")
-			}
-			print_indent(indent + 1)
-			if i < len(s.declarations) - 1 {
-				out_s("},\n")
-			} else {
-				out_s("}\n")
-			}
-		}
-		print_indent(indent)
-		out_s("]")
+		print_variable_declaration_body(s, indent)
 
 	case ^FunctionDeclaration:
 		out_s(",\n")
@@ -1289,8 +1544,16 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_print("\"init\": ")
 		if decl, ok := s.init_decl.(^VariableDeclaration); ok {
+			// Do NOT cast ^VariableDeclaration to ^Statement — that was UB of the
+			// same class as Bug H: the VariableDeclaration struct bytes would be
+			// read as if they were a Statement union header, corrupting dispatch.
+			// Symptom: SIGSEGV deep inside class methods containing
+			// `for (let x = 0; ...; ...)` loops (e.g. tone.js, mathjax.js, etc.).
 			out_println("{")
-			print_statement_ast((^Statement)(decl), indent + 1)
+			print_indent(indent + 1)
+			out_s("\"type\": \"VariableDeclaration\"")
+			print_variable_declaration_body(decl, indent + 1)
+			out_s("\n")
 			print_indent(indent)
 			out_println("},")
 		} else if expr, ok := s.init_expr.(^Expression); ok {
@@ -1356,12 +1619,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		}
 		print_indent(indent)
 		out_println("\"body\": {")
-		print_indent(indent + 1)
-		out_s("\"type\": \"ClassBody\",\n")
-		print_indent(indent + 1)
-		// Same follow-up note as ClassExpression above — class element emit is
-		// a separate change. Emit a valid empty body for now.
-		out_s("\"body\": []\n")
+		print_class_body_inline(&s.body, indent + 1)
 		print_indent(indent)
 		out_print("}")
 
@@ -1420,13 +1678,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_print("\"declaration\": ")
 		if decl, ok := s.declaration.(^Declaration); ok && decl != nil {
 			out_println("{")
-			// Cast ^Declaration (a union-pointer) back to ^Statement for reuse.
-			// All Declaration variants are a subset of Statement variants with
-			// identical memory layout (^FunctionDeclaration, ^VariableDeclaration,
-			// ^ClassDeclaration, etc.), so the union pointer value is valid in
-			// both.
-			stmt_ptr := (^Statement)(decl)
-			print_statement_ast(stmt_ptr, indent + 1)
+			print_declaration_ast(decl, indent + 1)
 			print_indent(indent)
 			out_println("},")
 		} else {
@@ -1478,7 +1730,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			switch kind in def^ {
 			case ^Declaration:
 				if kind != nil {
-					print_statement_ast((^Statement)(kind), indent + 1)
+					print_declaration_ast(kind, indent + 1)
 				}
 			case ^Expression:
 				if kind != nil {
@@ -1578,7 +1830,10 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_print("\"left\": ")
 		if decl, ok := s.left_decl.(^VariableDeclaration); ok {
 			out_println("{")
-			print_statement_ast((^Statement)(decl), indent + 1)
+			print_indent(indent + 1)
+			out_s("\"type\": \"VariableDeclaration\"")
+			print_variable_declaration_body(decl, indent + 1)
+			out_s("\n")
 			print_indent(indent)
 			out_println("},")
 		} else if expr, ok := s.left_expr.(^Expression); ok {
@@ -1606,7 +1861,10 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_print("\"left\": ")
 		if decl, ok := s.left_decl.(^VariableDeclaration); ok {
 			out_println("{")
-			print_statement_ast((^Statement)(decl), indent + 1)
+			print_indent(indent + 1)
+			out_s("\"type\": \"VariableDeclaration\"")
+			print_variable_declaration_body(decl, indent + 1)
+			out_s("\n")
 			print_indent(indent)
 			out_println("},")
 		} else if expr, ok := s.left_expr.(^Expression); ok {
@@ -2456,12 +2714,12 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent)
 			out_s("},\n")
 		}
-		// ClassBody.body is a [dynamic]ClassElement. Full emit of class elements
-		// (methods, getters, setters, constructors, static blocks, decorators)
-		// is a follow-up; emit an empty-but-valid shell so downstream JSON
-		// parsers don't choke. If the class has elements, they will not appear
-		// in the output yet — track via `len(e.body.body)` in a future PR.
-		out_s("\"body\": { \"type\": \"ClassBody\", \"body\": [] }\n")
+		// ClassBody.body is a [dynamic]ClassElement. Delegate the full emit to
+		// print_class_body_inline, which mirrors the ClassDeclaration path.
+		out_s("\"body\": {\n")
+		print_class_body_inline(&e.body, indent + 1)
+		print_indent(indent)
+		out_s("}\n")
 
 	case:
 		out_println(",")

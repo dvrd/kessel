@@ -1,0 +1,227 @@
+{
+  "type": "Script",
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "id": {
+        "type": "Identifier",
+        "name": "Regression003"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "iterate"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "name": "obj"
+                },
+                {
+                  "type": "Identifier",
+                  "name": "arr"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "VariableDeclaration",
+                    "kind": "const",
+                    "declarations": [
+                      {
+                        "id": {
+                          "type": "Identifier",
+                          "name": "keys"                        },
+                        "init": {
+                          "type": "ArrayExpression",
+                          "elements": [
+                          ]                        }                      }
+                    ]                  },
+                  {
+                    "type": "ForInStatement",
+                    "left": {
+                      "type": "VariableDeclaration",
+                      "kind": "let",
+                      "declarations": [
+                        {
+                          "id": {
+                            "type": "Identifier",
+                            "name": "k"                          },
+                          "init": null                        }
+                      ]
+                    },
+                    "right": {
+                      "type": "Identifier",
+                      "name": "obj"                    },
+                    "body": {
+                      "type": "BlockStatement",
+                      "body": [
+                        {
+                          "type": "ExpressionStatement",
+                          "expression": {
+                            "type": "CallExpression",
+                            "callee": {
+                              "type": "MemberExpression",
+                              "computed": false,
+                              "object": {
+                                "type": "Identifier",
+                                "name": "keys"                              },
+                              "property": {
+                                "type": "Identifier",
+                                "name": "push"                              }                            },
+                            "arguments": [
+                              {
+                                "type": "Identifier",
+                                "name": "k"                              }
+                            ]                          }                        }
+                      ]                    }                  },
+                  {
+                    "type": "ForOfStatement",
+                    "left": {
+                      "type": "VariableDeclaration",
+                      "kind": "const",
+                      "declarations": [
+                        {
+                          "id": {
+                            "type": "Identifier",
+                            "name": "v"                          },
+                          "init": null                        }
+                      ]
+                    },
+                    "right": {
+                      "type": "Identifier",
+                      "name": "arr"                    },
+                    "await": false,
+                    "body": {
+                      "type": "BlockStatement",
+                      "body": [
+                        {
+                          "type": "ExpressionStatement",
+                          "expression": {
+                            "type": "CallExpression",
+                            "callee": {
+                              "type": "MemberExpression",
+                              "computed": false,
+                              "object": {
+                                "type": "Identifier",
+                                "name": "keys"                              },
+                              "property": {
+                                "type": "Identifier",
+                                "name": "push"                              }                            },
+                            "arguments": [
+                              {
+                                "type": "Identifier",
+                                "name": "v"                              }
+                            ]                          }                        }
+                      ]                    }                  },
+                  {
+                    "type": "VariableDeclaration",
+                    "kind": "let",
+                    "declarations": [
+                      {
+                        "id": {
+                          "type": "Identifier",
+                          "name": "x"                        },
+                        "init": null                      }
+                    ]                  },
+                  {
+                    "type": "ForInStatement",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "x"                    },
+                    "right": {
+                      "type": "Identifier",
+                      "name": "obj"                    },
+                    "body": {
+                      "type": "BlockStatement",
+                      "body": [
+                        {
+                          "type": "ExpressionStatement",
+                          "expression": {
+                            "type": "CallExpression",
+                            "callee": {
+                              "type": "MemberExpression",
+                              "computed": false,
+                              "object": {
+                                "type": "Identifier",
+                                "name": "keys"                              },
+                              "property": {
+                                "type": "Identifier",
+                                "name": "push"                              }                            },
+                            "arguments": [
+                              {
+                                "type": "Identifier",
+                                "name": "x"                              }
+                            ]                          }                        }
+                      ]                    }                  },
+                  {
+                    "type": "VariableDeclaration",
+                    "kind": "let",
+                    "declarations": [
+                      {
+                        "id": {
+                          "type": "Identifier",
+                          "name": "y"                        },
+                        "init": null                      }
+                    ]                  },
+                  {
+                    "type": "ForOfStatement",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "y"                    },
+                    "right": {
+                      "type": "Identifier",
+                      "name": "arr"                    },
+                    "await": false,
+                    "body": {
+                      "type": "BlockStatement",
+                      "body": [
+                        {
+                          "type": "ExpressionStatement",
+                          "expression": {
+                            "type": "CallExpression",
+                            "callee": {
+                              "type": "MemberExpression",
+                              "computed": false,
+                              "object": {
+                                "type": "Identifier",
+                                "name": "keys"                              },
+                              "property": {
+                                "type": "Identifier",
+                                "name": "push"                              }                            },
+                            "arguments": [
+                              {
+                                "type": "Identifier",
+                                "name": "y"                              }
+                            ]                          }                        }
+                      ]                    }                  },
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "Identifier",
+                      "name": "keys"                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=19800B reserved=16777216B ratio=0%
+Parse errors: 0

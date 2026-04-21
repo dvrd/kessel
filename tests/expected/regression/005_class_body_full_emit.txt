@@ -1,0 +1,424 @@
+{
+  "type": "Script",
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "id": {
+        "type": "Identifier",
+        "name": "Regression005"
+      },
+      "superClass": {
+        "type": "Identifier",
+        "name": "Base"      },
+      "body": {
+        "type": "ClassBody",
+        "body": [
+          {
+            "type": "PropertyDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "plain"
+            },
+            "value": {
+              "type": "Literal",
+              "value": 1,
+              "raw": "1"
+            },
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "PropertyDefinition",
+            "key": {
+              "type": "PrivateIdentifier",
+              "name": "private"
+            },
+            "value": {
+              "type": "Literal",
+              "value": "hidden",
+              "raw": "\"hidden\""
+            },
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "PropertyDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "staticField"
+            },
+            "value": {
+              "type": "Literal",
+              "value": 2,
+              "raw": "2"
+            },
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "PropertyDefinition",
+            "key": {
+              "type": "PrivateIdentifier",
+              "name": "staticPrivate"
+            },
+            "value": {
+              "type": "Literal",
+              "value": "private-static",
+              "raw": "\"private-static\""
+            },
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "PropertyDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "uninitialised"
+            },
+            "value": null,
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "constructor"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "name": "x"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                      "type": "CallExpression",
+                      "callee": {
+                        "type": "Super",
+                        "[UNIMPLEMENTED]": true                      },
+                      "arguments": [
+                      ]                    }                  },
+                  {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                      "type": "AssignmentExpression",
+                      "operator": "=",
+                      "left": {
+                        "type": "MemberExpression",
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression"                        },
+                        "property": {
+                          "type": "Identifier",
+                          "name": "x"                        }                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "x"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "constructor",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "instanceMethod"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "name": "a"
+                },
+                {
+                  "type": "Identifier",
+                  "name": "b"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "a"                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "b"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "accessor"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "MemberExpression",
+                      "computed": false,
+                      "object": {
+                        "type": "ThisExpression"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "name": "#private"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "get",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "accessor"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "name": "v"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "expression": {
+                      "type": "AssignmentExpression",
+                      "operator": "=",
+                      "left": {
+                        "type": "MemberExpression",
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression"                        },
+                        "property": {
+                          "type": "Identifier",
+                          "name": "#private"                        }                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "v"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "set",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "asyncGen"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": true,
+              "async": true,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "name": "items"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "ForOfStatement",
+                    "left": {
+                      "type": "VariableDeclaration",
+                      "kind": "const",
+                      "declarations": [
+                        {
+                          "id": {
+                            "type": "Identifier",
+                            "name": "i"                          },
+                          "init": null                        }
+                      ]
+                    },
+                    "right": {
+                      "type": "Identifier",
+                      "name": "items"                    },
+                    "await": false,
+                    "body": {
+                      "type": "ExpressionStatement",
+                      "expression": {
+                        "type": "YieldExpression",
+                        "argument": {
+                          "type": "Identifier",
+                          "name": "i"                        },
+                        "delegate": false                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "computedKey"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "Literal",
+                      "value": 42,
+                      "raw": "42"                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": true,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "create"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "name": "x"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "NewExpression",
+                      "callee": {
+                        "type": "Identifier",
+                        "name": "Regression005"                      },
+                      "arguments": [
+                        {
+                          "type": "Identifier",
+                          "name": "x"                        }
+                      ]                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "PrivateIdentifier",
+              "name": "privateMethod"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "MemberExpression",
+                      "computed": false,
+                      "object": {
+                        "type": "ThisExpression"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "name": "#private"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "StaticBlock",
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "expression": {
+                  "type": "AssignmentExpression",
+                  "operator": "=",
+                  "left": {
+                    "type": "MemberExpression",
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "name": "Regression005"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "name": "initialised"                    }                  },
+                  "right": {
+                    "type": "Literal",
+                    "value": true,
+                    "raw": "true"                  }                }              }
+            ]
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=33640B reserved=16777216B ratio=0%
+Parse errors: 0

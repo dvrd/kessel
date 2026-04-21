@@ -1,0 +1,861 @@
+{
+  "type": "Script",
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "id": {
+        "type": "Identifier",
+        "name": "Regression006"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a0"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a1"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a2"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a3"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a4"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a5"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a6"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a7"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a8"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "a9"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b0"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b1"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b2"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b3"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b4"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b5"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b6"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b7"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b8"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "b9"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c0"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c1"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c2"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c3"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c4"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c5"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c6"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c7"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c8"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "c9"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d0"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d1"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d2"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d3"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d4"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d5"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d6"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d7"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d8"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "key": {
+              "type": "Identifier",
+              "name": "d9"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=38008B reserved=16777216B ratio=0%
+Parse errors: 0

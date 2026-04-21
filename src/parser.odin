@@ -941,11 +941,22 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	left_decl: ^VariableDeclaration
 
 	if is_token(p, .Var) || is_token(p, .Let) || is_token(p, .Const) {
-		// Variable declaration - parse it
+		// Variable declaration - parse it. parse_variable_declaration returns a
+		// ^Statement union wrapping a ^VariableDeclaration; extract the inner
+		// variant via type assertion. Prior code transmuted the union pointer
+		// directly into a ^VariableDeclaration, reading the Statement union's
+		// header bytes as if they were VariableDeclaration fields — same UB
+		// class as Bug H. Symptom: the for-in/of emit would later cast back
+		// via `(^Statement)(decl)` and dereference garbage, crashing deep
+		// inside class method bodies (latent because class body emit was
+		// previously a stub). left_expr was also transmuted here, but that
+		// branch is dead — downstream only reads left_expr when left_decl is
+		// nil, which never happens in this arm.
 		decl_stmt := parse_variable_declaration(p, nil, false, true)
 		if decl_stmt != nil {
-			left_decl = transmute(^VariableDeclaration)decl_stmt
-			left_expr = transmute(^Expression)decl_stmt
+			if vd, ok := decl_stmt^.(^VariableDeclaration); ok {
+				left_decl = vd
+			}
 		}
 	} else if !is_token(p, .Semi) {
 		// Parse as full expression (including comma) but stop at 'in'/'of'.
@@ -1820,14 +1831,19 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	match_token(p, .Static) // consume static
 
-	// Parse block statement
+	// Parse block statement. parse_block_statement returns a ^Statement
+	// union wrapping a ^BlockStatement; extract the ^BlockStatement variant
+	// via type assertion. The previous transmute read the union header as
+	// if it were a BlockStatement struct — same UB class as Bug H, silently
+	// zeroing `body` so static blocks emitted empty.
 	block_stmt := parse_block_statement(p)
 	if block_stmt == nil {
 		return nil
 	}
-
-	// Extract the block's body
-	block := transmute(^BlockStatement)block_stmt
+	block, ok := block_stmt^.(^BlockStatement)
+	if !ok {
+		return nil
+	}
 
 	// Create a StaticBlock value (stored as a FunctionExpression with no params)
 	static_block := new_node(p, FunctionExpression)
@@ -2458,15 +2474,35 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_export_named(p, start)
 	}
 
-	// Export declaration
+	// Export declaration. parse_statement_or_declaration returns a ^Statement
+	// union wrapping the underlying declaration variant. The previous code
+	// cast that ^Statement pointer directly to ^Declaration, reinterpreting
+	// the Statement union's tag bytes as a Declaration tag — different
+	// ordinal spaces (Declaration: 7 variants, Statement: 25), so downstream
+	// dispatch hit the wrong variant or "Unknown". Same UB class as Bug H.
+	//
+	// Fix: allocate a fresh Declaration union and re-assign the inner variant
+	// pointer so Odin computes the correct ^Declaration tag at assignment.
+	// Mirrors parse_export_default's handling of ^ClassDeclaration below.
 	decl := parse_statement_or_declaration(p)
 	if decl == nil {
 		return nil
 	}
 
+	decl_union := new_node(p, Declaration)
+	#partial switch v in decl^ {
+	case ^FunctionDeclaration:      decl_union^ = v
+	case ^VariableDeclaration:       decl_union^ = v
+	case ^ClassDeclaration:           decl_union^ = v
+	case ^ImportDeclaration:          decl_union^ = v
+	case ^ExportNamedDeclaration:     decl_union^ = v
+	case ^ExportDefaultDeclaration:   decl_union^ = v
+	case ^ExportAllDeclaration:       decl_union^ = v
+	}
+
 	export_decl := new_node(p, ExportNamedDeclaration)
 	export_decl.loc = start
-	export_decl.declaration = (^Declaration)(decl)
+	export_decl.declaration = decl_union
 	export_decl.loc.span.end = cur_offset(p)
 
 	// Allocate Statement union and store the pointer
