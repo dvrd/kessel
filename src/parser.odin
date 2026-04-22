@@ -5189,13 +5189,16 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 	opening.attributes = make([dynamic]JSXAttributeItem, 0, 4, p.allocator)
 	for !is_token(p, .RAngle) && !is_token(p, .Div) && !is_token(p, .EOF) {
 		if is_token(p, .LBrace) {
+			start := cur_loc(p)
 			eat(p); expect_token(p, .Dot3)
 			expr := parse_assignment_expression(p)
 			expect_token(p, .RBrace)
 			spread := new_node(p, JSXSpreadAttribute)
-			spread.loc = cur_loc(p); spread.argument = expr
+			spread.loc = start; spread.argument = expr
+			spread.loc.span.end = prev_end_offset(p)
 			append(&opening.attributes, spread)
 		} else if is_jsx_identifier_token(p) {
+			attr_start := cur_loc(p)
 			attr_name := parse_jsx_attribute_name(p)
 			attr_value: Maybe(^Expression)
 			if is_token(p, .Assign) {
@@ -5205,16 +5208,19 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					str_expr := new_node(p, StringLiteral); str_expr^ = str
 					attr_value = expression_from(p, str_expr)
 				} else if is_token(p, .LBrace) {
+					start := cur_loc(p)
 					eat(p); expr := parse_assignment_expression(p); expect_token(p, .RBrace)
 					container := new_node(p, JSXExpressionContainer)
-					container.loc = cur_loc(p); container.expression = expr
+					container.loc = start; container.expression = expr
+					container.loc.span.end = prev_end_offset(p)
 					attr_value = expression_from(p, container)
 				} else if is_token(p, .LAngle) {
 					attr_value = parse_jsx_element_or_fragment(p)
 				}
 			}
 			attr: JSXAttribute
-			attr.loc = cur_loc(p); attr.name = attr_name; attr.value = attr_value
+			attr.loc = attr_start; attr.name = attr_name; attr.value = attr_value
+			attr.loc.span.end = prev_end_offset(p)
 			append(&opening.attributes, attr)
 		} else { break }
 	}
@@ -5249,17 +5255,19 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 				}
 			}
 		} else if is_token(p, .LBrace) {
+			start := cur_loc(p)
 			eat(p)
 			expr: ^Expression = nil
 			if !is_token(p, .RBrace) { expr = parse_assignment_expression(p) }
 			expect_token(p, .RBrace)
 			container := new_node(p, JSXExpressionContainer)
-			container.loc = cur_loc(p)
+			container.loc = start
 			if expr != nil { container.expression = expr
 			} else {
-				empty := new_node(p, JSXEmptyExpression); empty.loc = cur_loc(p)
+				empty := new_node(p, JSXEmptyExpression); empty.loc = start
 				container.expression = expression_from(p, empty)
 			}
+			container.loc.span.end = prev_end_offset(p)
 			append(&children, container)
 		} else {
 			text := parse_jsx_text(p)
