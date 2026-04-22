@@ -124,7 +124,7 @@
         {
           "type": "VariableDeclarator",
           "start": 228,
-          "end": 265,
+          "end": 264,
           "id": {
             "type": "Identifier",
             "start": 228,
@@ -132,15 +132,15 @@
             "name": "backtick"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 239,
-            "end": 265,
+            "start": 240,
+            "end": 264,
             "quasis": [
               {
                 "type": "TemplateElement",
-                "start": 239,
-                "end": 265,
+                "start": 240,
+                "end": 264,
                 "tail": true,
-                "value": { "raw": "`Template with \\` escaped`", "cooked": "Template with \\` escaped" }
+                "value": { "raw": "Template with \\` escaped", "cooked": "Template with ` escaped" }
               }
             ],
             "expressions": []          }        }
@@ -154,7 +154,7 @@
         {
           "type": "VariableDeclarator",
           "start": 273,
-          "end": 368,
+          "end": 367,
           "id": {
             "type": "Identifier",
             "start": 273,
@@ -162,15 +162,15 @@
             "name": "multiline"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 285,
-            "end": 368,
+            "start": 286,
+            "end": 367,
             "quasis": [
               {
                 "type": "TemplateElement",
-                "start": 285,
-                "end": 368,
+                "start": 286,
+                "end": 367,
                 "tail": true,
-                "value": { "raw": "`\n  First line\n  Second line with \\n literal\n  Third with \\t tab and \\\\ backslash\n`", "cooked": "\n  First line\n  Second line with \\n literal\n  Third with \\t tab and \\\\ backslash\n" }
+                "value": { "raw": "\n  First line\n  Second line with \\n literal\n  Third with \\t tab and \\\\ backslash\n", "cooked": "\n  First line\n  Second line with \n literal\n  Third with \t tab and \\ backslash\n" }
               }
             ],
             "expressions": []          }        }
@@ -231,5 +231,5 @@
 }
 
 --- Statistics ---
-Arena: used=13122B reserved=16777216B ratio=0%
+Arena: used=13186B reserved=16777216B ratio=0%
 Parse errors: 0

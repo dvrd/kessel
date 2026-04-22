@@ -285,7 +285,7 @@
             "name": "debounced"          },
           "init": {
             "type": "CallExpression",
-            "start": 228,
+            "start": 108,
             "end": 257,
             "callee": {
               "type": "MemberExpression",
@@ -333,7 +333,7 @@
             "name": "throttled"          },
           "init": {
             "type": "CallExpression",
-            "start": 277,
+            "start": 108,
             "end": 306,
             "callee": {
               "type": "MemberExpression",

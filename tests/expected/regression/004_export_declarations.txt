@@ -177,7 +177,7 @@
               },
               "value": {
                 "type": "FunctionExpression",
-                "start": 894,
+                "start": 905,
                 "end": 945,
                 "id": null,
                 "expression": false,
@@ -242,7 +242,7 @@
               },
               "value": {
                 "type": "FunctionExpression",
-                "start": 948,
+                "start": 959,
                 "end": 994,
                 "id": null,
                 "expression": false,
@@ -330,7 +330,7 @@
               },
               "value": {
                 "type": "FunctionExpression",
-                "start": 1050,
+                "start": 1056,
                 "end": 1089,
                 "id": null,
                 "expression": false,

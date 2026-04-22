@@ -197,6 +197,9 @@ Parser :: struct {
 	// Disallow 'in' as binary operator (for for-loop init parsing)
 	no_in:           bool,
 
+	// Track if module syntax was detected (import/export or import.meta)
+	has_module_syntax: bool,
+
 	// Position tracking
 	last_pos:        LexerLoc,
 
@@ -318,6 +321,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator) {
 	p.in_switch = false
 	p.strict_mode = false
 	p.allow_jsx = false
+	p.has_module_syntax = false
 	p.pending_paren_start = max(u32) // sentinel: "no `(` pending"
 
 	// Initialize interner — pre-allocate capacity based on source size
@@ -713,17 +717,22 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// this a module per ECMA-262 §16.2. We do this after parse so the body is
 	// already populated; callers that want to force a source type can still pass
 	// `.Module` explicitly (upgrade-only — we never downgrade Module → Script).
+	// Also detects import.meta which requires module context.
 	// Matches OXC / Acorn / Babel auto-detection behaviour.
 	if source_type == .Script {
-		for stmt in program.body {
-			if stmt == nil { continue }
-			#partial switch _ in stmt^ {
-			case ^ImportDeclaration, ^ExportNamedDeclaration,
-			     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
-				program.type = .Module
-				break
+		if p.has_module_syntax {
+			program.type = .Module
+		} else {
+			for stmt in program.body {
+				if stmt == nil { continue }
+				#partial switch _ in stmt^ {
+				case ^ImportDeclaration, ^ExportNamedDeclaration,
+				     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
+					program.type = .Module
+					break
+				}
+				if program.type == .Module { break }
 			}
-			if program.type == .Module { break }
 		}
 	}
 
@@ -1891,6 +1900,8 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// It's a method - parse parameters and body
+	// Capture paren position for FunctionExpression start
+	paren_loc := cur_loc(p)
 	if !expect_token(p, .LParen) {
 		return nil
 	}
@@ -1918,7 +1929,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	// Create the method as a FunctionExpression
 	fn_expr := new_node(p, FunctionExpression)
-	fn_expr.loc = start
+	fn_expr.loc = paren_loc
 	fn_expr.id = nil // Methods don't have names in their function expression
 	fn_expr.params = params
 	fn_expr.body = body
@@ -3161,6 +3172,10 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			args := parse_arguments(p)
 			call, call_e := new_expr(p, CallExpression)
 			call.loc = loc_from_expr(expr)
+			// If parenthesized, use pending_paren_start for CallExpression start
+			if p.pending_paren_start != max(u32) && p.pending_paren_start <= call.loc.span.start {
+				call.loc.span.start = p.pending_paren_start
+			}
 			call.callee = expr
 			call.arguments = args
 			call.optional = false
@@ -3228,6 +3243,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				name = meta_name.name,
 			}
 			meta_prop.loc.span.end = prev_end_offset(p)
+			p.has_module_syntax = true
 			return expression_from(p, meta_prop)
 		}
 		// Static import - not valid in expression context
@@ -4151,16 +4167,27 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		// semantics (`(x, y) => ...` spans the entire parenthesised form).
 		// A stamp of 0 means no paren was seen (bare identifier arrow
 		// `x => ...`); in that case keep the identifier's own start.
-		if p.pending_paren_start != max(u32) && p.pending_paren_start <= start.span.start {
+		// Check if this is empty params - if so, don't adjust based on outer paren
+		is_empty_params_local := false
+		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
+			is_empty_params_local = true
+		}
+		if !is_empty_params_local && p.pending_paren_start != max(u32) && p.pending_paren_start <= start.span.start {
 			start.span.start = p.pending_paren_start
 		}
 	} else {
 		start = cur_loc(p)
 	}
-	// Clear the stamp so a subsequent non-arrow `(expr)` doesn't retroactively
-	// shift another node's start. ASSERTION: arrows are the only consumer of
-	// pending_paren_start, and they clear it on entry.
-	p.pending_paren_start = max(u32)
+	// For empty params, don't clear pending_paren_start yet - let CallExpression use it
+	is_empty_params := false
+	if left != nil {
+		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
+			is_empty_params = true
+		}
+	}
+	if !is_empty_params {
+		p.pending_paren_start = max(u32)
+	}
 
 	// left should be parameters (identifier or parenthesized expression)
 	// nil left means empty params: () => ...

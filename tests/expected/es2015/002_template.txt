@@ -36,7 +36,7 @@
         {
           "type": "VariableDeclarator",
           "start": 28,
-          "end": 51,
+          "end": 50,
           "id": {
             "type": "Identifier",
             "start": 28,
@@ -44,22 +44,22 @@
             "name": "msg"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 34,
-            "end": 51,
+            "start": 35,
+            "end": 50,
             "quasis": [
               {
                 "type": "TemplateElement",
-                "start": 34,
-                "end": 44,
+                "start": 35,
+                "end": 42,
                 "tail": false,
-                "value": { "raw": "`Hello, ${", "cooked": "Hello, " }
+                "value": { "raw": "Hello, ", "cooked": "Hello, " }
               },
               {
                 "type": "TemplateElement",
-                "start": 48,
-                "end": 51,
+                "start": 49,
+                "end": 50,
                 "tail": true,
-                "value": { "raw": "}!`", "cooked": "!" }
+                "value": { "raw": "!", "cooked": "!" }
               }
             ],
             "expressions": [
@@ -79,7 +79,7 @@
         {
           "type": "VariableDeclarator",
           "start": 59,
-          "end": 80,
+          "end": 79,
           "id": {
             "type": "Identifier",
             "start": 59,
@@ -87,15 +87,15 @@
             "name": "multi"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 67,
-            "end": 80,
+            "start": 68,
+            "end": 79,
             "quasis": [
               {
                 "type": "TemplateElement",
-                "start": 67,
-                "end": 80,
+                "start": 68,
+                "end": 79,
                 "tail": true,
-                "value": { "raw": "`line1\nline2`", "cooked": "line1\nline2" }
+                "value": { "raw": "line1\nline2", "cooked": "line1\nline2" }
               }
             ],
             "expressions": []          }        }

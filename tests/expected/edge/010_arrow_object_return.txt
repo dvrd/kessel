@@ -153,7 +153,7 @@
                     "name": "id"                  },
                   "value": {
                     "type": "CallExpression",
-                    "start": 137,
+                    "start": 121,
                     "end": 150,
                     "callee": {
                       "type": "MemberExpression",
@@ -303,7 +303,7 @@
                         "name": "timestamp"                      },
                       "value": {
                         "type": "CallExpression",
-                        "start": 233,
+                        "start": 195,
                         "end": 243,
                         "callee": {
                           "type": "MemberExpression",
@@ -479,7 +479,7 @@
             "name": "fn3"          },
           "init": {
             "type": "ArrowFunctionExpression",
-            "start": 295,
+            "start": 325,
             "end": 371,
             "id": null,
             "expression": true,
@@ -506,7 +506,7 @@
                     "name": "method"                  },
                   "value": {
                     "type": "ArrowFunctionExpression",
-                    "start": 331,
+                    "start": 344,
                     "end": 368,
                     "id": null,
                     "expression": true,

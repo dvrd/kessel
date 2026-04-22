@@ -14,7 +14,7 @@
         {
           "type": "VariableDeclarator",
           "start": 62,
-          "end": 264,
+          "end": 263,
           "id": {
             "type": "Identifier",
             "start": 62,
@@ -23,7 +23,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 71,
-            "end": 264,
+            "end": 263,
             "tag": {
               "type": "MemberExpression",
               "start": 71,
@@ -41,22 +41,22 @@
                 "name": "button"              }            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 84,
-              "end": 264,
+              "start": 85,
+              "end": 263,
               "quasis": [
                 {
                   "type": "TemplateElement",
-                  "start": 84,
-                  "end": 97,
+                  "start": 85,
+                  "end": 95,
                   "tail": false,
-                  "value": { "raw": "`\n  color: ${", "cooked": "\n  color: " }
+                  "value": { "raw": "\n  color: ", "cooked": "\n  color: " }
                 },
                 {
                   "type": "TemplateElement",
-                  "start": 147,
-                  "end": 264,
+                  "start": 148,
+                  "end": 263,
                   "tail": true,
-                  "value": { "raw": "};\n  font-size: 1em;\n  margin: 1em;\n  padding: 0.25em 1em;\n  border: 2px solid palevioletred;\n  border-radius: 3px;\n`", "cooked": ";\n  font-size: 1em;\n  margin: 1em;\n  padding: 0.25em 1em;\n  border: 2px solid palevioletred;\n  border-radius: 3px;\n" }
+                  "value": { "raw": ";\n  font-size: 1em;\n  margin: 1em;\n  padding: 0.25em 1em;\n  border: 2px solid palevioletred;\n  border-radius: 3px;\n", "cooked": ";\n  font-size: 1em;\n  margin: 1em;\n  padding: 0.25em 1em;\n  border: 2px solid palevioletred;\n  border-radius: 3px;\n" }
                 }
               ],
               "expressions": [
@@ -212,7 +212,7 @@
               {
                 "type": "Property",
                 "start": 381,
-                "end": 469,
+                "end": 468,
                 "kind": "init",
                 "method": false,
                 "shorthand": false,
@@ -225,7 +225,7 @@
                 "value": {
                   "type": "TaggedTemplateExpression",
                   "start": 389,
-                  "end": 469,
+                  "end": 468,
                   "tag": {
                     "type": "Identifier",
                     "start": 389,
@@ -233,15 +233,15 @@
                     "name": "css"                  },
                   "quasi": {
                     "type": "TemplateLiteral",
-                    "start": 392,
-                    "end": 469,
+                    "start": 393,
+                    "end": 468,
                     "quasis": [
                       {
                         "type": "TemplateElement",
-                        "start": 392,
-                        "end": 469,
+                        "start": 393,
+                        "end": 468,
                         "tail": true,
-                        "value": { "raw": "`\n    background: transparent;\n    &:hover { background: palevioletred; }\n  `", "cooked": "\n    background: transparent;\n    &:hover { background: palevioletred; }\n  " }
+                        "value": { "raw": "\n    background: transparent;\n    &:hover { background: palevioletred; }\n  ", "cooked": "\n    background: transparent;\n    &:hover { background: palevioletred; }\n  " }
                       }
                     ],
                     "expressions": []                  }                }

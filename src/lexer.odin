@@ -452,12 +452,12 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		is_simple_int = false
 		if src[off] == '.' {
 			off += 1
-			for off < src_len && src[off] >= '0' && src[off] <= '9' { off += 1 }
+			for off < src_len && (src[off] >= '0' && src[off] <= '9' || src[off] == '_') { off += 1 }
 		}
 		if off < src_len && (src[off] == 'e' || src[off] == 'E') {
 			off += 1
 			if off < src_len && (src[off] == '+' || src[off] == '-') { off += 1 }
-			for off < src_len && src[off] >= '0' && src[off] <= '9' { off += 1 }
+			for off < src_len && (src[off] >= '0' && src[off] <= '9' || src[off] == '_') { off += 1 }
 		}
 	}
 	l.offset = off
@@ -477,7 +477,15 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		value = f64(acc)
 	} else {
 		text := l.source[start:end]
-		value, _ = strconv.parse_f64(text)
+		// Strip underscores before parsing (strconv.parse_f64 doesn't handle them)
+		buf := make([dynamic]u8, 0, len(text), context.temp_allocator)
+		for i := 0; i < len(text); i += 1 {
+			if text[i] != '_' {
+				append(&buf, text[i])
+			}
+		}
+		text_no_underscores := string(buf[:])
+		value, _ = strconv.parse_f64(text_no_underscores)
 	}
 	l.last_lit_offset = start; l.last_lit_value = LiteralValue(value); l.last_lit_type = .Number
 
@@ -1152,6 +1160,58 @@ lex_hash :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 // Template literals
 // ============================================================================
 
+// Helper: cook template content (process escape sequences)
+process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> string {
+	// Quick path: no backslashes = no escapes
+	has_escape := false
+	for ch in raw {
+		if ch == '\\' {
+			has_escape = true
+			break
+		}
+	}
+	if !has_escape {
+		return raw
+	}
+
+	// Slow path: process escapes
+	buf := make([dynamic]u8, 0, len(raw), allocator)
+	for i := 0; i < len(raw); i += 1 {
+		ch := raw[i]
+		if ch == '\\' && i + 1 < len(raw) {
+			next := raw[i + 1]
+			switch next {
+			case 'n':
+				append(&buf, u8(0x0A))
+				i += 1
+			case 'r':
+				append(&buf, u8(0x0D))
+				i += 1
+			case 't':
+				append(&buf, u8(0x09))
+				i += 1
+			case 'b':
+				append(&buf, u8(0x08))
+				i += 1
+			case 'f':
+				append(&buf, u8(0x0C))
+				i += 1
+			case 'v':
+				append(&buf, u8(0x0B))
+				i += 1
+			case '\\', '`', '$':
+				append(&buf, next)
+				i += 1
+			case:
+				append(&buf, ch)
+			}
+		} else {
+			append(&buf, ch)
+		}
+	}
+	return string(buf[:])
+}
+
 lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
@@ -1192,28 +1252,34 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		// Interpolation: ${  → TemplateHead
 		if c == '$' && l.offset + 1 < src_len && src[l.offset + 1] == '{' {
 			l.template_stack[template_start_idx] = true
-			cooked := l.source[content_start:l.offset]
+			raw_content := l.source[content_start:l.offset]
+			cooked := process_template_escapes(raw_content, l.allocator)
+			content_end := u32(l.offset) // position before ${
 			l.offset += 2 // consume ${  
 			// Push template brace depth
 			if l.template_depth < len(l.template_brace_stack) {
 				l.template_brace_stack[l.template_depth] = 0
 				l.template_depth += 1
 			}
-			end := u32(l.offset)
-			l.last_lit_offset = start; l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
-			return FastToken{start = start, end = end, kind = .TemplateHead, flags = flags}
+			// Store literal offset matching the token start position (after the backtick)
+			l.last_lit_offset = u32(content_start); l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
+			// Token should span the template element content, not including the opening backtick or ${}
+			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateHead, flags = flags}
 		}
 
 		// Closing backtick → Template (no interpolation)
 		if c == '`' {
-			cooked := l.source[content_start:l.offset]
+			raw_content := l.source[content_start:l.offset]
+			cooked := process_template_escapes(raw_content, l.allocator)
+			content_end := u32(l.offset) // position before closing backtick
 			l.offset += 1
 			if template_start_idx < len(l.template_stack) {
 				ordered_remove(&l.template_stack, template_start_idx)
 			}
-			end := u32(l.offset)
-			l.last_lit_offset = start; l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
-			return FastToken{start = start, end = end, kind = .Template, flags = flags}
+			// Store literal offset matching the token start position (after the backtick)
+			l.last_lit_offset = u32(content_start); l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
+			// Token should span the template element content, not including the delimiters
+			return FastToken{start = u32(content_start), end = content_end, kind = .Template, flags = flags}
 		}
 
 		if c == '\\' && l.offset + 1 < src_len {
@@ -1266,26 +1332,32 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 		// Next interpolation: ${ → TemplateMiddle
 		if c == '$' && l.offset + 1 < src_len && src[l.offset + 1] == '{' {
-			cooked := l.source[content_start:l.offset]
+			raw_content := l.source[content_start:l.offset]
+			cooked := process_template_escapes(raw_content, l.allocator)
+			content_end := u32(l.offset) // position before ${
 			l.offset += 2
 			// Push brace depth for new interpolation
 			if l.template_depth < len(l.template_brace_stack) {
 				l.template_brace_stack[l.template_depth] = 0
 				l.template_depth += 1
 			}
-			end := u32(l.offset)
-			l.last_lit_offset = start; l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
-			return FastToken{start = start, end = end, kind = .TemplateMiddle, flags = flags}
+			// Store literal offset matching the token start position (after the closing brace)
+			l.last_lit_offset = u32(content_start); l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
+			// Token should span the template element content, not including the closing brace or ${
+			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateMiddle, flags = flags}
 		}
 
 		// Closing backtick → TemplateTail
 		if c == '`' {
-			cooked := l.source[content_start:l.offset]
+			raw_content := l.source[content_start:l.offset]
+			cooked := process_template_escapes(raw_content, l.allocator)
+			content_end := u32(l.offset) // position before closing backtick
 			l.offset += 1
 			// Template is done — depth already popped at start of resume
-			end := u32(l.offset)
-			l.last_lit_offset = start; l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
-			return FastToken{start = start, end = end, kind = .TemplateTail, flags = flags}
+			// Store literal offset matching the token start position (after the closing brace)
+			l.last_lit_offset = u32(content_start); l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
+			// Token should span the template element content, not including the closing brace or backtick
+			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateTail, flags = flags}
 		}
 
 		if c == '\\' && l.offset + 1 < src_len {

@@ -14,7 +14,7 @@
         {
           "type": "VariableDeclarator",
           "start": 6,
-          "end": 34,
+          "end": 33,
           "id": {
             "type": "Identifier",
             "start": 6,
@@ -22,22 +22,22 @@
             "name": "greeting"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 17,
-            "end": 34,
+            "start": 18,
+            "end": 33,
             "quasis": [
               {
                 "type": "TemplateElement",
-                "start": 17,
-                "end": 27,
+                "start": 18,
+                "end": 25,
                 "tail": false,
-                "value": { "raw": "`Hello, ${", "cooked": "Hello, " }
+                "value": { "raw": "Hello, ", "cooked": "Hello, " }
               },
               {
                 "type": "TemplateElement",
-                "start": 31,
-                "end": 34,
+                "start": 32,
+                "end": 33,
                 "tail": true,
-                "value": { "raw": "}!`", "cooked": "!" }
+                "value": { "raw": "!", "cooked": "!" }
               }
             ],
             "expressions": [
@@ -57,7 +57,7 @@
         {
           "type": "VariableDeclarator",
           "start": 42,
-          "end": 92,
+          "end": 91,
           "id": {
             "type": "Identifier",
             "start": 42,
@@ -66,7 +66,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 51,
-            "end": 92,
+            "end": 91,
             "tag": {
               "type": "Identifier",
               "start": 51,
@@ -74,22 +74,22 @@
               "name": "sql"            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 54,
-              "end": 92,
+              "start": 55,
+              "end": 91,
               "quasis": [
                 {
                   "type": "TemplateElement",
-                  "start": 54,
-                  "end": 88,
+                  "start": 55,
+                  "end": 86,
                   "tail": false,
-                  "value": { "raw": "`SELECT * FROM users WHERE id = ${", "cooked": "SELECT * FROM users WHERE id = " }
+                  "value": { "raw": "SELECT * FROM users WHERE id = ", "cooked": "SELECT * FROM users WHERE id = " }
                 },
                 {
                   "type": "TemplateElement",
-                  "start": 90,
-                  "end": 92,
+                  "start": 91,
+                  "end": 91,
                   "tail": true,
-                  "value": { "raw": "}`", "cooked": "" }
+                  "value": { "raw": "", "cooked": "" }
                 }
               ],
               "expressions": [

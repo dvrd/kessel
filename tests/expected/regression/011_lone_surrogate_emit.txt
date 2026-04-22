@@ -168,7 +168,7 @@
         {
           "type": "VariableDeclarator",
           "start": 2291,
-          "end": 2318,
+          "end": 2317,
           "id": {
             "type": "Identifier",
             "start": 2291,
@@ -176,15 +176,15 @@
             "name": "h"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 2295,
-            "end": 2318,
+            "start": 2296,
+            "end": 2317,
             "quasis": [
               {
                 "type": "TemplateElement",
-                "start": 2295,
-                "end": 2318,
+                "start": 2296,
+                "end": 2317,
                 "tail": true,
-                "value": { "raw": "`plain \\uDEAD template`", "cooked": "plain \\uDEAD template" }
+                "value": { "raw": "plain \\uDEAD template", "cooked": "plain \\uDEAD template" }
               }
             ],
             "expressions": []          }        }
@@ -295,5 +295,5 @@
 }
 
 --- Statistics ---
-Arena: used=54672B reserved=16777216B ratio=0%
+Arena: used=54696B reserved=16777216B ratio=0%
 Parse errors: 0

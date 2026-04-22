@@ -33,7 +33,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 47,
+              "start": 58,
               "end": 210,
               "id": null,
               "expression": false,
@@ -192,7 +192,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 216,
+              "start": 229,
               "end": 671,
               "id": null,
               "expression": false,
@@ -661,22 +661,22 @@
                         "arguments": [
                           {
                             "type": "TemplateLiteral",
-                            "start": 612,
-                            "end": 637,
+                            "start": 613,
+                            "end": 636,
                             "quasis": [
                               {
                                 "type": "TemplateElement",
-                                "start": 612,
-                                "end": 620,
+                                "start": 613,
+                                "end": 618,
                                 "tail": false,
-                                "value": { "raw": "`HTTP ${", "cooked": "HTTP " }
+                                "value": { "raw": "HTTP ", "cooked": "HTTP " }
                               },
                               {
                                 "type": "TemplateElement",
-                                "start": 635,
-                                "end": 637,
+                                "start": 636,
+                                "end": 636,
                                 "tail": true,
-                                "value": { "raw": "}`", "cooked": "" }
+                                "value": { "raw": "", "cooked": "" }
                               }
                             ],
                             "expressions": [

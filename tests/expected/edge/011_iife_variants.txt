@@ -11,7 +11,7 @@
       "end": 74,
       "expression": {
         "type": "CallExpression",
-        "start": 31,
+        "start": 30,
         "end": 73,
         "callee": {
           "type": "FunctionExpression",
@@ -33,7 +33,7 @@
                 "end": 68,
                 "expression": {
                   "type": "CallExpression",
-                  "start": 44,
+                  "start": 30,
                   "end": 67,
                   "callee": {
                     "type": "MemberExpression",
@@ -68,7 +68,7 @@
       "end": 120,
       "expression": {
         "type": "CallExpression",
-        "start": 76,
+        "start": 75,
         "end": 118,
         "callee": {
           "type": "FunctionExpression",
@@ -90,7 +90,7 @@
                 "end": 114,
                 "expression": {
                   "type": "CallExpression",
-                  "start": 89,
+                  "start": 75,
                   "end": 113,
                   "callee": {
                     "type": "MemberExpression",
@@ -125,7 +125,7 @@
       "end": 161,
       "expression": {
         "type": "CallExpression",
-        "start": 123,
+        "start": 122,
         "end": 160,
         "callee": {
           "type": "FunctionExpression",
@@ -169,7 +169,7 @@
         "end": 203,
         "callee": {
           "type": "ArrowFunctionExpression",
-          "start": 163,
+          "start": 164,
           "end": 200,
           "id": null,
           "expression": false,
@@ -187,7 +187,7 @@
                 "end": 198,
                 "expression": {
                   "type": "CallExpression",
-                  "start": 172,
+                  "start": 163,
                   "end": 197,
                   "callee": {
                     "type": "MemberExpression",
@@ -222,7 +222,7 @@
       "end": 256,
       "expression": {
         "type": "CallExpression",
-        "start": 207,
+        "start": 206,
         "end": 255,
         "callee": {
           "type": "FunctionExpression",
@@ -248,7 +248,7 @@
                   "end": 249,
                   "argument": {
                     "type": "CallExpression",
-                    "start": 232,
+                    "start": 206,
                     "end": 249,
                     "callee": {
                       "type": "MemberExpression",
@@ -277,7 +277,7 @@
       "end": 307,
       "expression": {
         "type": "CallExpression",
-        "start": 259,
+        "start": 258,
         "end": 306,
         "callee": {
           "type": "FunctionExpression",
@@ -350,7 +350,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 310,
+          "start": 258,
           "end": 350,
           "callee": {
             "type": "FunctionExpression",
@@ -372,7 +372,7 @@
                   "end": 346,
                   "expression": {
                     "type": "CallExpression",
-                    "start": 323,
+                    "start": 258,
                     "end": 345,
                     "callee": {
                       "type": "MemberExpression",
@@ -413,7 +413,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 353,
+          "start": 258,
           "end": 396,
           "callee": {
             "type": "FunctionExpression",
@@ -435,7 +435,7 @@
                   "end": 392,
                   "expression": {
                     "type": "CallExpression",
-                    "start": 366,
+                    "start": 258,
                     "end": 391,
                     "callee": {
                       "type": "MemberExpression",
@@ -476,7 +476,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 403,
+          "start": 258,
           "end": 440,
           "callee": {
             "type": "FunctionExpression",
@@ -498,7 +498,7 @@
                   "end": 436,
                   "expression": {
                     "type": "CallExpression",
-                    "start": 416,
+                    "start": 258,
                     "end": 435,
                     "callee": {
                       "type": "MemberExpression",

@@ -167,7 +167,7 @@
         {
           "type": "VariableDeclarator",
           "start": 173,
-          "end": 241,
+          "end": 240,
           "id": {
             "type": "Identifier",
             "start": 173,
@@ -176,7 +176,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 181,
-            "end": 241,
+            "end": 240,
             "tag": {
               "type": "Identifier",
               "start": 181,
@@ -184,29 +184,29 @@
               "name": "sql"            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 184,
-              "end": 241,
+              "start": 185,
+              "end": 240,
               "quasis": [
                 {
                   "type": "TemplateElement",
-                  "start": 184,
-                  "end": 218,
+                  "start": 185,
+                  "end": 216,
                   "tail": false,
-                  "value": { "raw": "`SELECT * FROM users WHERE id = ${", "cooked": "SELECT * FROM users WHERE id = " }
+                  "value": { "raw": "SELECT * FROM users WHERE id = ", "cooked": "SELECT * FROM users WHERE id = " }
                 },
                 {
                   "type": "TemplateElement",
-                  "start": 220,
-                  "end": 235,
+                  "start": 221,
+                  "end": 233,
                   "tail": false,
-                  "value": { "raw": "} AND name = ${", "cooked": " AND name = " }
+                  "value": { "raw": " AND name = ", "cooked": " AND name = " }
                 },
                 {
                   "type": "TemplateElement",
-                  "start": 239,
-                  "end": 241,
+                  "start": 240,
+                  "end": 240,
                   "tail": true,
-                  "value": { "raw": "}`", "cooked": "" }
+                  "value": { "raw": "", "cooked": "" }
                 }
               ],
               "expressions": [
@@ -397,7 +397,7 @@
         {
           "type": "VariableDeclarator",
           "start": 389,
-          "end": 445,
+          "end": 444,
           "id": {
             "type": "Identifier",
             "start": 389,
@@ -406,7 +406,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 395,
-            "end": 445,
+            "end": 444,
             "tag": {
               "type": "Identifier",
               "start": 395,
@@ -414,29 +414,29 @@
               "name": "styled"            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 401,
-              "end": 445,
+              "start": 402,
+              "end": 444,
               "quasis": [
                 {
                   "type": "TemplateElement",
-                  "start": 401,
-                  "end": 414,
+                  "start": 402,
+                  "end": 412,
                   "tail": false,
-                  "value": { "raw": "`\n  color: ${", "cooked": "\n  color: " }
+                  "value": { "raw": "\n  color: ", "cooked": "\n  color: " }
                 },
                 {
                   "type": "TemplateElement",
-                  "start": 419,
-                  "end": 437,
+                  "start": 420,
+                  "end": 435,
                   "tail": false,
-                  "value": { "raw": "};\n  font-size: ${", "cooked": ";\n  font-size: " }
+                  "value": { "raw": ";\n  font-size: ", "cooked": ";\n  font-size: " }
                 },
                 {
                   "type": "TemplateElement",
-                  "start": 439,
-                  "end": 445,
+                  "start": 440,
+                  "end": 444,
                   "tail": true,
-                  "value": { "raw": "}px;\n`", "cooked": "px;\n" }
+                  "value": { "raw": "px;\n", "cooked": "px;\n" }
                 }
               ],
               "expressions": [

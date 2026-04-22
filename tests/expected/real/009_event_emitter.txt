@@ -70,7 +70,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 114,
+              "start": 125,
               "end": 173,
               "id": null,
               "expression": false,
@@ -149,7 +149,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 179,
+              "start": 182,
               "end": 311,
               "id": null,
               "expression": false,
@@ -317,22 +317,22 @@
                       "arguments": [
                         {
                           "type": "TemplateLiteral",
-                          "start": 283,
-                          "end": 298,
+                          "start": 284,
+                          "end": 297,
                           "quasis": [
                             {
                               "type": "TemplateElement",
-                              "start": 283,
-                              "end": 293,
+                              "start": 284,
+                              "end": 291,
                               "tail": false,
-                              "value": { "raw": "`change:${", "cooked": "change:" }
+                              "value": { "raw": "change:", "cooked": "change:" }
                             },
                             {
                               "type": "TemplateElement",
-                              "start": 296,
-                              "end": 298,
+                              "start": 297,
+                              "end": 297,
                               "tail": true,
-                              "value": { "raw": "}`", "cooked": "" }
+                              "value": { "raw": "", "cooked": "" }
                             }
                           ],
                           "expressions": [
@@ -367,7 +367,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 317,
+              "start": 320,
               "end": 362,
               "id": null,
               "expression": false,

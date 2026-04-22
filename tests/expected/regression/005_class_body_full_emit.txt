@@ -131,7 +131,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 721,
+              "start": 732,
               "end": 770,
               "id": null,
               "expression": false,
@@ -211,7 +211,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 827,
+              "start": 841,
               "end": 871,
               "id": null,
               "expression": false,
@@ -274,7 +274,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 926,
+              "start": 938,
               "end": 972,
               "id": null,
               "expression": false,
@@ -323,7 +323,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 975,
+              "start": 987,
               "end": 1019,
               "id": null,
               "expression": false,
@@ -389,7 +389,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 1046,
+              "start": 1061,
               "end": 1110,
               "id": null,
               "expression": false,
@@ -469,7 +469,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 1132,
+              "start": 1145,
               "end": 1168,
               "id": null,
               "expression": false,
@@ -510,7 +510,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 1191,
+              "start": 1204,
               "end": 1246,
               "id": null,
               "expression": false,
@@ -568,7 +568,7 @@
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 1270,
+              "start": 1284,
               "end": 1318,
               "id": null,
               "expression": false,
