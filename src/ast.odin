@@ -1194,10 +1194,16 @@ ImportAttribute :: struct {
 }
 
 ImportDeclaration :: struct {
-	loc:        Loc,
-	specifiers: [dynamic]^ImportSpecifierSpec,
-	source:     StringLiteral,
-	attributes: [dynamic]ImportAttribute,
+	loc:         Loc,
+	specifiers:  [dynamic]^ImportSpecifierSpec,
+	source:      StringLiteral,
+	attributes:  [dynamic]ImportAttribute,
+	import_kind: ImportExportKind,
+}
+
+ImportExportKind :: enum {
+	Value,
+	Type,
 }
 
 ImportSpecifierSpec :: union {

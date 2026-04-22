@@ -2626,6 +2626,11 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("\"source\": ")
 		emit_string_literal_object(s.source, indent)
+		if s.import_kind == .Type {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"importKind\": \"type\"")
+		}
 		if len(s.attributes) > 0 {
 			out_s(",\n")
 			print_indent(indent)

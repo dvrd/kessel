@@ -2682,6 +2682,27 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	decl.loc = start
 	decl.specifiers = make([dynamic]^ImportSpecifierSpec, 0, 4, p.allocator)
 
+	// TS `import type ...` — type-only import. `type` lexes as Identifier.
+	// Disambiguate from `import type from "m"` (value import of default binding
+	// named "type"): after `type`, the next token must be `{`, `*`, or an
+	// identifier followed by `,`/`from` (but NOT `from` directly).
+	if p.cur_type == .Identifier && p.cur_tok.value == "type" {
+		nxt := p.lexer.nxt.kind
+		if nxt == .LBrace || nxt == .Mul {
+			decl.import_kind = .Type
+			eat(p) // consume `type`
+		} else if nxt == .Identifier {
+			// Could be `import type Foo from "m"` (type-only default) or
+			// `import type from "m"` (default import of "type"). Only flag as
+			// type-only when the identifier after `type` is NOT `from`.
+			nxt_val := p.lexer.source[p.lexer.nxt.start:p.lexer.nxt.end]
+			if nxt_val != "from" {
+				decl.import_kind = .Type
+				eat(p) // consume `type`
+			}
+		}
+	}
+
 	if is_token(p, .String) {
 		// import "module"
 		decl.source = parse_string_literal(p)
