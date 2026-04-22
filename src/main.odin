@@ -2839,7 +2839,13 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("},\n")
 		print_indent(indent)
-		out_s("\"body\": null,\n")
+		out_s("\"body\": ")
+		if body_union, ok := s.body.(^TSModuleBody); ok && body_union != nil {
+			emit_ts_module_body(body_union, indent)
+		} else {
+			out_s("null")
+		}
+		out_s(",\n")
 		print_indent(indent)
 		out_s("\"declare\": ")
 		out_bool(s.declare)
@@ -3036,6 +3042,65 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 	case:
 		print_indent(indent)
 		out_s("null")
+	}
+}
+
+emit_ts_module_body :: proc(body: ^TSModuleBody, indent: int) {
+	if body == nil { out_s("null"); return }
+	#partial switch v in body^ {
+	case ^TSModuleBlock:
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSModuleBlock\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"body\": [")
+		if len(v.body) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for stmt, i in v.body {
+				print_indent(indent + 2)
+				out_s("{\n")
+				print_statement_ast(stmt, indent + 3)
+				out_s("\n")
+				print_indent(indent + 2)
+				if i < len(v.body) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	case ^TSModuleDeclaration:
+		// Nested namespace: emit a sub TSModuleDeclaration node inline.
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSModuleDeclaration\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"id\": {\n")
+		print_expression_ast(v.id, indent + 2)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("},\n")
+		print_indent(indent + 1)
+		out_s("\"body\": ")
+		if inner, ok := v.body.(^TSModuleBody); ok && inner != nil {
+			emit_ts_module_body(inner, indent + 1)
+		} else {
+			out_s("null")
+		}
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"declare\": ")
+		out_bool(v.declare)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
 	}
 }
 

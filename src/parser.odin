@@ -830,6 +830,17 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		if val == "enum" {
 			return parse_ts_enum_declaration(p)
 		}
+		if val == "namespace" {
+			// `namespace Foo { ... }` or `namespace A.B { ... }`
+			if is_next_token(p, .Identifier) {
+				return parse_ts_module_declaration(p, .Namespace)
+			}
+			return parse_expression_or_labeled_statement(p)
+		}
+		if val == "module" && is_next_token(p, .String) {
+			// `module "external-name" { ... }` — quoted name is the module form
+			return parse_ts_module_declaration(p, .Module)
+		}
 		return parse_expression_or_labeled_statement(p)
 	case .LBrace:
 		return parse_block_statement(p)
@@ -5853,6 +5864,20 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			if stmt != nil {
 				if en, ok := stmt^.(^TSEnumDeclaration); ok { en.declare = true }
 			}
+		case "namespace":
+			if is_next_token(p, .Identifier) {
+				stmt = parse_ts_module_declaration(p, .Namespace)
+				if stmt != nil {
+					if mod, ok := stmt^.(^TSModuleDeclaration); ok { mod.declare = true }
+				}
+			}
+		case "module":
+			if is_next_token(p, .String) {
+				stmt = parse_ts_module_declaration(p, .Module)
+				if stmt != nil {
+					if mod, ok := stmt^.(^TSModuleDeclaration); ok { mod.declare = true }
+				}
+			}
 		}
 	}
 
@@ -5923,6 +5948,102 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	decl.body = TSEnumBody{loc = body_start, members = members}; decl.body.loc.span.end = prev_end_offset(p)
 	decl.const_ = is_const; decl.loc.span.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
+}
+
+parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statement {
+	start := cur_loc(p); eat(p) // consume `namespace` or `module`
+
+	// Name: Identifier (possibly dotted) or StringLiteral.
+	id_expr: ^Expression
+	if is_token(p, .String) {
+		lit := parse_string_literal(p)
+		sn := new_node(p, StringLiteral); sn^ = lit
+		id_expr = expression_from(p, sn)
+	} else {
+		cur := get_current(p)
+		id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(cur); id_ident.name = cur.value
+		eat(p)
+		id_expr = expression_from(p, id_ident)
+	}
+
+	// Handle `namespace A.B.C { ... }` — produce nested TSModuleDeclarations.
+	// If we see `.`, the current `id_expr` is the OUTER name and we'll
+	// recurse to build the inner nested declaration as the body.
+	if is_token(p, .Dot) {
+		eat(p) // consume `.`
+		inner := parse_ts_module_tail(p, cur_loc(p), kind)
+		outer := new_node(p, TSModuleDeclaration)
+		outer.loc = start; outer.id = id_expr
+		outer.kind = kind
+		// Wrap inner as module body (TSModuleBody union variant).
+		if inner != nil {
+			body_union := new_node(p, TSModuleBody)
+			body_union^ = inner
+			outer.body = body_union
+		}
+		outer.loc.span.end = prev_end_offset(p)
+		stmt := new_node(p, Statement); stmt^ = outer; return stmt
+	}
+
+	// Optional body `{ ... }`. A `declare` context can elide it (`declare namespace X;`),
+	// but that's H4 territory; REQUIRE the block here.
+	decl := new_node(p, TSModuleDeclaration)
+	decl.loc = start; decl.id = id_expr; decl.kind = kind
+	if is_token(p, .LBrace) {
+		body_start := cur_loc(p); eat(p) // consume `{`
+		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
+		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+			s := parse_statement_or_declaration(p)
+			if s != nil { append(&stmts, s) }
+		}
+		expect_token(p, .RBrace)
+		blk := new_node(p, TSModuleBlock)
+		blk.loc = body_start; blk.body = stmts
+		blk.loc.span.end = prev_end_offset(p)
+		body_union := new_node(p, TSModuleBody)
+		body_union^ = blk
+		decl.body = body_union
+	}
+	decl.loc.span.end = prev_end_offset(p)
+	stmt := new_node(p, Statement); stmt^ = decl; return stmt
+}
+
+// Parse the name + body portion of a nested namespace declaration.
+// Called AFTER the outer `.` is consumed, so current token is the next name.
+parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSModuleDeclaration {
+	cur := get_current(p)
+	id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(cur); id_ident.name = cur.value
+	eat(p)
+	id_expr := expression_from(p, id_ident)
+
+	decl := new_node(p, TSModuleDeclaration)
+	decl.loc = start; decl.id = id_expr; decl.kind = kind
+
+	if is_token(p, .Dot) {
+		eat(p)
+		inner := parse_ts_module_tail(p, cur_loc(p), kind)
+		if inner != nil {
+			body_union := new_node(p, TSModuleBody)
+			body_union^ = inner
+			decl.body = body_union
+		}
+	} else if is_token(p, .LBrace) {
+		body_start := cur_loc(p); eat(p)
+		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
+		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+			s := parse_statement_or_declaration(p)
+			if s != nil { append(&stmts, s) }
+		}
+		expect_token(p, .RBrace)
+		blk := new_node(p, TSModuleBlock)
+		blk.loc = body_start; blk.body = stmts
+		blk.loc.span.end = prev_end_offset(p)
+		body_union := new_node(p, TSModuleBody)
+		body_union^ = blk
+		decl.body = body_union
+	}
+	decl.loc.span.end = prev_end_offset(p)
+	return decl
 }
 
 // ============================================================================
