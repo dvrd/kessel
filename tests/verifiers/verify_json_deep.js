@@ -200,6 +200,9 @@ function normalizeBabelType(node) {
 }
 
 function stripNode(node) {
+  // BigInt values from OXC can't be JSON-serialized; normalize to null
+  // (ESTree specifies Literal.value = null for BigInt since JSON has no BigInt).
+  if (typeof node === 'bigint') return null;
   if (node == null || typeof node !== 'object') return node;
   if (Array.isArray(node)) return node.map(stripNode);
   node = unwrapParens(node);
