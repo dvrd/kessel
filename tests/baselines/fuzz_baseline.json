@@ -1,0 +1,26 @@
+{
+  "seed": 20260421,
+  "count": 100,
+  "parser": "oxc",
+  "known_failures": {
+    "8226ceb0": "FAIL program.body[0].handler.body.body[0].consequent.body[0].handler.body.body[0].body.body[0].body.body[0].directive: kessel=\"\\n\" oxc=\"\\\\n\"",
+    "b21d8c75": "FAIL program.body[0].directive: kessel missing field \"directive\" (oxc has \"hi\")",
+    "aad52b57": "FAIL program.body[0].test.start: kessel=N oxc=N",
+    "a2e1de30": "FAIL program.body[3].handler.body.body[0].body.body[0].handler.body.body[0].body.body[0].handler.body.body[0].body.body[0].directive: kessel=\"ÿ\" oxc=\"\\\\xff\"",
+    "a6e878f8": "FAIL program.body[4].consequent.body[0].handler.body.body[0].block.body[0].body.body[0].block.body[0].handler.body.body[0].body.body[0].consequent.body[0].body.body[0].body.body[0].body.body[0].block.body[0].body.body[0].directive: kessel=\"😀\" oxc=\"\\\\u{1F600}\"",
+    "52c51515": "FAIL program.body[7].test.elements[2].start: kessel=N oxc=N",
+    "eded89e8": "FAIL program.body[1].test.start: kessel=N oxc=N",
+    "6eb47667": "FAIL program.body[0].declarations[0].init.elements[3].start: kessel=N oxc=N",
+    "9d7911ff": "FAIL program.body[1].body.body[0].test.consequent.start: kessel=N oxc=N",
+    "92a3472f": "FAIL program.body[0].declarations[0].init.start: kessel=N oxc=N",
+    "6e8cec1b": "FAIL program.body[0].body.body[0].body.body[0].directive: kessel=\"ÿ\" oxc=\"\\\\xff\"",
+    "c4e8514b": "FAIL program.body[2].test.start: kessel=N oxc=N",
+    "c7cb2c62": "FAIL program.body[2].test.start: kessel=N oxc=N",
+    "42d8e7f0": "FAIL program.body[0].consequent.body[0].declarations[0].init.arguments[1].start: kessel=N oxc=N",
+    "49c78a0d": "FAIL program.body[1].body.body[0].declarations[0].init.start: kessel=N oxc=N",
+    "a9ea51db": "FAIL program.body[0].block.body[0].handler.body.body[0].test.start: kessel=N oxc=N",
+    "03250a02": "FAIL program.body[0].declarations[0].init.argument.start: kessel=N oxc=N",
+    "47bce2ff": "FAIL program.body[7].handler.body.body[0].test.start: kessel=N oxc=N",
+    "b5aebe73": "FAIL program.body[3].test.elements[2].start: kessel=N oxc=N"
+  }
+}

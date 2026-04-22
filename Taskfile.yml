@@ -35,7 +35,7 @@ tasks:
   # ============================================================
 
   test:
-    desc: Run all tests — unit, regression, real-world, spec-compliance, invariants, fixtures, nodes, test262, multi-parser
+    desc: Run all tests — unit, regression, real-world, spec-compliance, invariants, fixtures, nodes, test262, multi-parser, fuzz:diff (baselined), fuzz:invalid (baselined), crashes-known
     deps: [build]
     silent: true
     cmds:
@@ -49,6 +49,9 @@ tasks:
       - task: test:spec-fixtures
       - task: test:test262
       - task: test:multi-parser
+      - task: test:fuzz
+      - task: test:fuzz:invalid
+      - task: test:crashes-known
 
   test:unit:
     desc: Run 86 unit tests
@@ -173,15 +176,60 @@ tasks:
       - node tests/runners/run_spec_fixtures.js --update
 
   test:fuzz:
-    desc: Differential fuzz — random JS programs, diff Kessel AST vs OXC's
+    desc: "Differential fuzz vs OXC — baseline-gated. Fixed seed; tests/baselines/fuzz_baseline.json locks the set of known-failing case hashes. A NEW failure hash fails the gate; a disappearing hash is reported as an IMPROVEMENT (run test:fuzz:update to commit)."
+    deps: [build, bench:oxc:build]
+    silent: true
+    cmds:
+      # 100 random cases, seed + count + parser pinned so the generated-
+      # program hash-set is reproducible across runs. Baseline mode compares
+      # the CURRENT failing-hash set to the committed set; new hashes fail,
+      # vanished hashes print as IMPROVEMENTS.
+      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --baseline
+
+  test:fuzz:update:
+    desc: Re-capture tests/baselines/fuzz_baseline.json (use after fixing a fuzz-found bug)
+    deps: [build, bench:oxc:build]
+    silent: true
+    cmds:
+      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --update
+
+  test:fuzz:strict:
+    desc: Zero-tolerance differential fuzz — any mismatch vs OXC fails, regardless of baseline. Use before a release.
+    deps: [build, bench:oxc:build]
+    silent: true
+    cmds:
+      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --strict
+
+  test:fuzz:invalid:
+    desc: "Invalid-input mutation fuzzer. Mutates random bytes from the 467-file real-world corpus (bit-flips, truncations, broken UTF-8, nul-injection, nested garbage) and asserts Kessel exits {0,1} within a deadline — never SIGTRAP/SIGSEGV/SIGABRT. Baseline-gated against tests/baselines/fuzz_invalid_baseline.json."
     deps: [build]
     silent: true
     cmds:
-      # 100 random cases, seeded for reproducibility. Any case that disagrees
-      # with OXC is saved to tmp/fuzz_crashes/ for offline triage. This is NOT
-      # in the default `task test` chain because it's slow (~20 s) and
-      # exploratory — promote to the chain once the false-positive rate drops.
-      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc
+      # 300 mutations, seed pinned so the crash-hash set is reproducible.
+      # A signal-terminated or timed-out run is a crash; exit 0 (parsed)
+      # and 1 (reported parse errors) are both OK.
+      - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --baseline
+
+  test:fuzz:invalid:update:
+    desc: Re-capture tests/baselines/fuzz_invalid_baseline.json (use ONLY after triaging every crash)
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --update
+
+  test:fuzz:invalid:strict:
+    desc: Zero-tolerance invalid-input fuzz — any crash fails, regardless of baseline. Use before a release.
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --strict
+
+  test:crashes-known:
+    desc: "Asserts the 3 known-SIGTRAP fixtures still crash exactly as expected. A stopped-crashing fixture is an IMPROVEMENT (surface it explicitly, don't hide it as 'unit test passes'). A new crashing fixture regresses the gate. Pinned in tests/verifiers/verify_crashes_known.js."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_crashes_known.js
 
   test:real:
     desc: Parse all 467 real-world JS files in parallel, fail on any error
@@ -281,6 +329,29 @@ tasks:
     sources:
       - bench/oxc_compare/**/*.rs
       - bench/oxc_compare/Cargo.toml
+
+  # ============================================================
+  # Performance regression gate — separate from the default `task test`
+  # chain because (a) it's slow (~60s), and (b) it's sensitive to machine
+  # noise. Run before a release and after intentional perf work.
+  # ============================================================
+
+  test:bench:regression:
+    desc: "Performance regression gate. Microbench 10 curated files, compare min runtime to tests/baselines/bench_baseline.json. Fails if any file is >10% slower OR geo-mean is >5% slower."
+    deps: [build]
+    silent: false
+    cmds:
+      # 30 iterations per file keeps the Min-of-N estimate tight without
+      # dominating wall-clock. Warmup run per file is handled inside the
+      # verifier. Re-run on a quiet machine if the geo-mean is borderline.
+      - node tests/verifiers/verify_bench_regression.js --iterations 30
+
+  test:bench:regression:update:
+    desc: "Re-capture tests/baselines/bench_baseline.json. Use after intentional perf work; include the rationale in the commit message."
+    deps: [build]
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_bench_regression.js --iterations 30 --update
 
   # ============================================================
   # Install

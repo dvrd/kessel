@@ -1,0 +1,7 @@
+{
+  "known_missing": [
+    "ImportDefaultSpecifier",
+    "ImportNamespaceSpecifier",
+    "ImportSpecifier"
+  ]
+}

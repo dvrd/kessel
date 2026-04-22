@@ -1,0 +1,119 @@
+# Taskfile wiring for the new QA verifiers.
+# STATUS: applied to Taskfile.yml on 2026-04-22. Keep this file as documentation of the original wiring plan.
+#
+# This file is INFORMATIONAL \u2014 `task` does not read it. A follow-up PR
+# outside the tests/ directory should copy these task definitions into
+# the top-level Taskfile.yml and add the task names to the `test` chain.
+#
+# Everything below was designed so each new task follows the existing
+# pattern (deps on `build`, silent mode, :update variant for baseline
+# refreshes). No novel infrastructure.
+
+tasks:
+
+  # ============================================================
+  # Negative-test gate (replaces the broken expected-files path)
+  # ============================================================
+
+  test:negative:
+    desc: "Every fixture under fixtures/negative/ and fixtures/early_errors/ must be rejected by the parser. Baseline-locked."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_negative.js
+
+  test:negative:update:
+    desc: Re-capture negative_baseline.json after a deliberate fix
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_negative.js --update
+
+  test:negative:strict:
+    desc: Zero-tolerance mode \u2014 any accepted negative fixture FAILS, regardless of baseline. Use before a release.
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_negative.js --strict
+
+  # ============================================================
+  # ESTree enum-discriminator gate
+  # ============================================================
+
+  test:discriminators:
+    desc: "Enum-field discriminators (Property.kind, MethodDefinition.kind, VariableDeclaration.kind, operators, ChainExpression shape, etc.) stay inside their legal sets across 467 real files."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_discriminators.js
+
+  test:discriminators:update:
+    desc: Re-capture discriminators_baseline.json
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_discriminators.js --update
+
+  # ============================================================
+  # Position-containment invariant (source-map correctness)
+  # ============================================================
+
+  test:position-containment:
+    desc: "For every parent\u2192child AST edge: child.start \u2265 parent.start \u2227 child.end \u2264 parent.end. Baselined across the real-world corpus."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_position_containment.js
+
+  test:position-containment:update:
+    desc: Re-capture position_containment_baseline.json
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_position_containment.js --update
+
+  # ============================================================
+  # Literal.raw vs Literal.value consistency
+  # ============================================================
+
+  test:raw-consistency:
+    desc: "Every Literal node: typeof value matches the raw source form (boolean raw \u2208 {true,false}, number Number(raw)===value, bigint raw ends n, etc.)."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_raw_value_consistency.js
+
+  test:raw-consistency:update:
+    desc: Re-capture raw_value_baseline.json
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_raw_value_consistency.js --update
+
+  # ============================================================
+  # Recommended addition to the default `test` chain
+  # ============================================================
+  #
+  # Order chosen so cheap gates run first. Each one surfaces a DIFFERENT
+  # class of compliance bug; any single new task catches bugs that would
+  # otherwise slip through to downstream consumers.
+
+  test:
+    desc: Run all tests
+    deps: [build]
+    silent: true
+    cmds:
+      - task: test:unit
+      - task: test:negative                # NEW \u2014 spec-violation fixtures must be rejected
+      - task: test:regression
+      - task: test:real
+      - task: test:estree
+      - task: test:nodes
+      - task: test:invariants
+      - task: test:discriminators          # NEW \u2014 enum-field discipline
+      - task: test:position-containment    # NEW \u2014 source-map safety
+      - task: test:raw-consistency         # NEW \u2014 Literal.raw vs .value
+      - task: test:spec-compliance
+      - task: test:spec-fixtures
+      - task: test:test262
+      - task: test:multi-parser

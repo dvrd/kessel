@@ -1,0 +1,82 @@
+{
+  "bench/real_world/batch3/snabbdom.js": {
+    "acorn": 1,
+    "babel": 1
+  },
+  "tests/fixtures/spec/es2015/001_arrow_function.js": {
+    "acorn": 1,
+    "babel": 7
+  },
+  "tests/fixtures/spec/es2015/002_template_literal.js": {
+    "acorn": 1,
+    "babel": 0
+  },
+  "tests/fixtures/spec/es2015/003_destructuring_array.js": {
+    "acorn": 1,
+    "babel": 0
+  },
+  "tests/fixtures/spec/es2015/004_destructuring_object.js": {
+    "acorn": 1,
+    "babel": 36
+  },
+  "tests/fixtures/spec/es2015/005_class.js": {
+    "acorn": 1,
+    "babel": 35
+  },
+  "tests/fixtures/spec/es2015/006_class_extends.js": {
+    "acorn": 1,
+    "babel": 21
+  },
+  "tests/fixtures/spec/es2015/007_let_const.js": {
+    "acorn": 1,
+    "babel": 0
+  },
+  "tests/fixtures/spec/es2015/008_spread_rest.js": {
+    "acorn": 1,
+    "babel": 2
+  },
+  "tests/fixtures/spec/es2015/009_default_params.js": {
+    "acorn": 1,
+    "babel": 9
+  },
+  "tests/fixtures/spec/es2015/010_computed_property.js": {
+    "acorn": 1,
+    "babel": 16
+  },
+  "tests/fixtures/spec/es2020/001_optional_chaining.js": {
+    "acorn": 1,
+    "babel": 23
+  },
+  "tests/fixtures/spec/es2020/002_nullish_coalescing.js": {
+    "acorn": 1,
+    "babel": 1
+  },
+  "tests/fixtures/spec/es2020/003_bigint.js": {
+    "acorn": 1,
+    "babel": 10
+  },
+  "tests/fixtures/spec/es2020/004_dynamic_import.js": {
+    "acorn": 2,
+    "babel": 5
+  },
+  "tests/fixtures/spec/es2020/005_import_meta.js": {
+    "acorn": 0,
+    "babel": 0
+  },
+  "tests/fixtures/spec/es2020/006_globalthis.js": {
+    "acorn": 1,
+    "babel": 0
+  },
+  "tests/fixtures/spec/edge/001_labeled_statement.js": {
+    "acorn": 1,
+    "babel": 0
+  },
+  "tests/fixtures/spec/edge/007_iife.js": {
+    "acorn": 1,
+    "babel": 4
+  },
+  "tests/fixtures/spec/edge/008_generator.js": {
+    "acorn": 1,
+    "babel": 1
+  }
+}
