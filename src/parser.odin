@@ -1575,7 +1575,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 	// TypeScript return type annotation
 	return_type: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) {
-		return_type = parse_ts_type_annotation(p)
+		return_type = parse_ts_return_type_annotation(p)
 	}
 
 	prev_async := p.in_async
@@ -2025,7 +2025,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// TypeScript return type annotation on method — stored on FunctionExpression.
 	method_return_type: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) {
-		method_return_type = parse_ts_type_annotation(p)
+		method_return_type = parse_ts_return_type_annotation(p)
 	}
 
 	// Parse body - set context flags
@@ -5176,6 +5176,90 @@ parse_jsx_closing_element :: proc(p: ^Parser, expected: JSXElementName) -> ^JSXC
 // TypeScript Type Parsing (Phase 3)
 // ============================================================================
 
+// parse_ts_return_type_annotation parses a function return type annotation
+// starting at `:`, and supports the TS type-predicate forms:
+//     : x is T          — TSTypePredicate { parameter_name, type_annotation, asserts:false }
+//     : asserts x is T  — TSTypePredicate { parameter_name, type_annotation, asserts:true  }
+//     : asserts x       — TSTypePredicate { parameter_name, type_annotation:nil, asserts:true }
+// Falls back to a plain type annotation otherwise.
+//
+// The caller has NOT consumed `:`. This proc consumes the leading `:`.
+parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
+	if !is_token(p, .Colon) { return nil }
+	ann_start := cur_loc(p)
+	eat(p) // consume `:` 
+
+	// Detect "asserts <ident>" or "asserts <ident> is <type>" or "<ident> is <type>".
+	// We need to peek WITHOUT committing, because the annotation can also be
+	// a regular type like `string` or `T | null`.
+	//
+	// Heuristic: at this point the current token must be either
+	//   - `.Asserts` identifier-keyword followed by an
+	//     Identifier or This, optionally followed by `is <type>`. We can consume.
+	//   - An Identifier followed by `.Is` — then it's `x is T`.
+	//
+	// "this is T" is also valid — where `this` is the parameter name.
+	asserts := false
+	pred_start := cur_loc(p)
+
+	is_predicate := false
+	if is_token(p, .Asserts) && (p.lexer.nxt.kind == .Identifier || p.lexer.nxt.kind == .This) {
+		asserts = true
+		eat(p) // consume `asserts`
+		is_predicate = true
+	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is {
+		is_predicate = true
+	}
+
+	if is_predicate {
+		// Parse parameter name: Identifier or `this`.
+		name_loc := cur_loc(p)
+		name_cur := get_current(p)
+		name_ident := new_node(p, Identifier)
+		name_ident.loc = loc_from_token(name_cur)
+		name_ident.name = name_cur.value
+		eat(p) // consume identifier or `this`
+		name_expr := expression_from(p, name_ident)
+
+		// Optional `is <type>` (may be absent for pure `asserts x`).
+		type_ann_opt: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Is) {
+			eat(p) // consume `is`
+			inner_start := cur_loc(p)
+			inner_ty := parse_ts_type(p)
+			inner_ann := new_node(p, TSTypeAnnotation)
+			inner_ann.loc = inner_start
+			inner_ann.type_annotation = inner_ty
+			inner_ann.loc.span.end = prev_end_offset(p)
+			type_ann_opt = inner_ann
+		}
+
+		// Build TSTypePredicate.
+		pred := new_node(p, TSTypePredicate)
+		pred.loc = pred_start
+		pred.parameter_name = name_expr
+		pred.type_annotation = type_ann_opt
+		pred.asserts = asserts
+		pred.loc.span.end = prev_end_offset(p)
+
+		// Wrap in TSType then TSTypeAnnotation.
+		tst := new_node(p, TSType); tst^ = pred
+		ann := new_node(p, TSTypeAnnotation)
+		ann.loc = ann_start
+		ann.type_annotation = tst
+		ann.loc.span.end = prev_end_offset(p)
+		return ann
+	}
+
+	// Fallback: regular type annotation.
+	inner := parse_ts_type(p)
+	ann := new_node(p, TSTypeAnnotation)
+	ann.loc = ann_start
+	ann.type_annotation = inner
+	ann.loc.span.end = prev_end_offset(p)
+	return ann
+}
+
 parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	start := cur_loc(p); eat(p)
 	ts_type := parse_ts_type(p)
@@ -5413,15 +5497,56 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	}
 
 	if is_mapped && is_token(p, .LBracket) {
+		lb_start := cur_loc(p)
 		eat(p) // consume `[`
 		// Parse type parameter: `K in T`
 		param_start := cur_loc(p)
 		param_name := parse_identifier(p)
 		if !is_token(p, .In) {
-			// Not actually a mapped type — fall back to object literal type.
-			// This is a rare path; for now, report error.
-			report_error(p, "Expected 'in' in mapped type")
-			return nil
+			// Not a mapped type after all — it's an index signature
+			// `[ident : type]: value`. We've already eaten `[` and the
+			// identifier, plus an optional leading `readonly`. Build an
+			// index signature as the first member, then continue into the
+			// regular object-member loop (which appends siblings).
+			members := make([dynamic]^TSSignature, 0, 4, p.allocator)
+			key_type_start := cur_loc(p)
+			_ = key_type_start
+			expect_token(p, .Colon)
+			idx_ann := parse_ts_type(p)
+			expect_token(p, .RBracket)
+			val_ann: Maybe(^TSTypeAnnotation)
+			if is_token(p, .Colon) { val_ann = parse_ts_type_annotation(p) }
+			param_name_ident := new_node(p, Identifier)
+			param_name_ident.loc = param_name.loc
+			param_name_ident.name = param_name.name
+			key_ann := new_node(p, TSTypeAnnotation)
+			key_ann.loc = param_start
+			key_ann.type_annotation = idx_ann
+			key_ann.loc.span.end = prev_end_offset(p)
+			idx_sig := TSIndexSignature{
+				loc = lb_start,
+				parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
+				type_annotation = val_ann,
+				readonly = readonly_mod == .True,
+			}
+			fp := TSFunctionParam{
+				loc = param_start,
+				pattern = param_name_ident,
+				type_annotation = key_ann,
+			}
+			fp.loc.span.end = prev_end_offset(p)
+			append(&idx_sig.parameters, fp)
+			idx_sig.loc.span.end = prev_end_offset(p)
+			first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
+			append(&members, first_sig)
+			match_token(p, .Semi); match_token(p, .Comma)
+			for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+				sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
+				match_token(p, .Semi); match_token(p, .Comma)
+			}
+			expect_token(p, .RBrace)
+			lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.span.end = prev_end_offset(p)
+			r := new_node(p, TSType); r^ = lit; return r
 		}
 		eat(p) // consume `in`
 		constraint := parse_ts_type(p)
@@ -5650,6 +5775,7 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 	case ^TSTupleType: return &v.loc
 	case ^TSInferType: return &v.loc
 	case ^TSTypeQuery: return &v.loc
+	case ^TSTypePredicate: return &v.loc
 	}
 	return nil
 }

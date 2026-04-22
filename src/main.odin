@@ -3838,6 +3838,28 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 			print_indent(indent + 1)
 			out_s("]")
 		}
+	case ^TSTypePredicate:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSTypePredicate\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"asserts\": ")
+		out_bool(v.asserts)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"parameterName\": {\n")
+		print_expression_ast(v.parameter_name, indent + 2)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("},\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": ")
+		if ann, ok := v.type_annotation.(^TSTypeAnnotation); ok {
+			emit_ts_type_annotation_node(ann, indent + 1)
+		} else {
+			out_s("null")
+		}
 	case:
 		// Fallback for types not yet handled in emitter
 		print_indent(indent + 1)

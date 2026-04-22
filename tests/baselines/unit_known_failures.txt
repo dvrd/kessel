@@ -1,0 +1,56 @@
+# Unit-test known failures \u2014 fixtures whose positive-shape parse is
+# currently expected to fail. One `rel_path.js` (without leading `tests/
+# fixtures/` and without trailing `.js`) per line. When the underlying
+# parser bug is fixed, delete the line \u2014 the gate will then ENFORCE the
+# fix and fail if someone regresses it.
+#
+# Every entry below corresponds to a gap tracked in tests/QA_REPORT.md.
+# If a parser contributor wants to "silence" a test, they must document
+# the gap there first.
+#
+# ----- TypeScript: not wired through parser (HANDOFF.md Phase 3)  -----
+# Per HANDOFF.md, the TS AST nodes exist but the parser isn't wired for:
+#   generic type parameters, conditional types, mapped types, non-null
+#   assertion, angle-bracket type assertion, import type, index signatures,
+#   type predicates. Fixtures listed here CRASH or PRODUCE PARSE ERRORS.
+#
+# Fixtures that parse-clean but emit WRONG trees (drift vs OXC) are NOT
+# listed here — they're owned by the deep-JSON gate in run_spec_fixtures.js
+# (tests/baselines/spec_fixtures_baseline.json). We want those to remain
+# "passed positively" here but fail at the deep-compare layer; that's
+# exactly how verified compliance stacks.
+#
+# Cases that silently parse-clean today (wrong tree, but no error):
+#   spec/typescript/001_generic_function   — OK via run_spec_fixtures baseline
+#   spec/typescript/003_conditional_type   — OK via run_spec_fixtures baseline
+#   spec/typescript/005_union_intersection — actually matches OXC cleanly
+spec/typescript/002_generic_class
+spec/typescript/004_mapped_type
+spec/typescript/006_non_null_assertion
+spec/typescript/007_type_assertion
+spec/typescript/008_import_type
+#
+# ----- JSX: nested element attribute value crashes --------------------
+# `<Foo bar={<Baz/>} />` crashes today (exit 133). Fixable \u2014 likely
+# an attribute-value recursion missing.
+spec/jsx/005_nested_element
+#
+# ----- Unicode: identifier with `\uXXXX` escape crashes ---------------
+# ECMA-262 \u00a712.7 requires accepting these. Kessel lexer lacks an
+# identifier-escape path.
+spec/unicode/002_escape_in_identifier
+#
+# ----- ASI: restricted productions silently treat NL as space ---------
+# These fixtures exercise the restricted-production rules from
+# \u00a712.10 / \u00a713.9 / \u00a712.4 / \u00a714.14 / \u00a715.5 / \u00a715.8. Kessel currently
+# swallows the newline in several of them, so the fixtures parse with
+# the wrong tree \u2014 but at least parse-clean, not crash. Adding these to
+# known-failures documents the drift until the parser implements the
+# restricted productions.
+# (Left commented \u2014 run tests/verifiers/verify_json_deep.js against them
+# manually to confirm drift; promote to known-failures as needed.)
+#
+# ----- Regex: named groups and lookbehind -----------------------------
+# These are ES2018 RegExp syntax. Kessel's regex scanner accepts them
+# as opaque character sequences \u2014 parse succeeds but the regex body is
+# not validated. Not a parse-fail today, so not listed.
