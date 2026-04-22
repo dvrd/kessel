@@ -31,6 +31,15 @@ compact_json: bool
 // CLI flag: --errors=oxc. Default preserves backward compat with existing consumers.
 error_format: string = "kessel"
 
+// Emit ESTree loc field on every AST node (line/column positions).
+// CLI flag: --loc. Off by default for backward compat. When enabled,
+// run O(source_size) line-table build once, then O(log lines) binary search per node.
+emit_loc_enabled: bool
+
+// Line offset table for ESTree loc emission. Populated when emit_loc_enabled is true.
+// Built once via build_line_table before print_program_ast, then used for O(log n) lookups.
+line_offsets_for_loc: []u32
+
 // Direct buffer mode — pre-allocated []byte, zero bufio overhead
 use_direct_buf: bool
 direct_buf: []byte
@@ -456,6 +465,9 @@ main :: proc() {
 					// Error shape: --errors=oxc emits OXC TS-ESTree shape;
 					// --errors=kessel (or omitted) keeps the legacy shape.
 					error_format = arg[9:]
+				} else if arg == "--loc" {
+					// Emit ESTree loc field (line/column positions) on every AST node.
+					emit_loc_enabled = true
 				} else {
 					append(&parse_files, arg)
 				}
@@ -643,6 +655,12 @@ parse_file :: proc(file_path: string) {
 	
 	// Build byte→UTF-16 offset table for ESTree span emission.
 	build_utf16_table(source, context.allocator)
+	
+	// Build line-offset table for ESTree loc emission when --loc is enabled.
+	if emit_loc_enabled {
+		build_line_table(p.lexer)
+		line_offsets_for_loc = p.lexer.line_offsets
+	}
 
 	// Output AST as JSON via direct buffer (zero bufio overhead)
 	// Pre-allocate ~12× source size for JSON output (compact ≈ 9×, pretty ≈ 20×)
@@ -1431,6 +1449,35 @@ emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
 	print_indent(indent)
 	out_s("\"end\": ")
 	out_u32(to_utf16(loc.span.end))
+	
+	if emit_loc_enabled {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"loc\": { \"start\": { \"line\": ")
+		
+		start_line, _ := offset_to_line_col(line_offsets_for_loc, loc.span.start)
+		out_u32(start_line)
+		out_s(", \"column\": ")
+		
+		line_start_byte := line_offsets_for_loc[start_line - 1] if start_line > 0 && start_line - 1 < u32(len(line_offsets_for_loc)) else 0
+		line_start_utf16 := to_utf16(line_start_byte)
+		start_utf16 := to_utf16(loc.span.start)
+		start_col_0indexed := start_utf16 - line_start_utf16
+		out_u32(start_col_0indexed)
+		
+		out_s(" }, \"end\": { \"line\": ")
+		end_line, _ := offset_to_line_col(line_offsets_for_loc, loc.span.end)
+		out_u32(end_line)
+		out_s(", \"column\": ")
+		
+		line_end_start_byte := line_offsets_for_loc[end_line - 1] if end_line > 0 && end_line - 1 < u32(len(line_offsets_for_loc)) else 0
+		line_end_start_utf16 := to_utf16(line_end_start_byte)
+		end_utf16 := to_utf16(loc.span.end)
+		end_col_0indexed := end_utf16 - line_end_start_utf16
+		out_u32(end_col_0indexed)
+		
+		out_s(" } }")
+	}
 }
 
 // emit_span_leading writes `"start": N,\n<indent>"end": N,\n<indent>` — a
@@ -1446,6 +1493,36 @@ emit_span_leading :: #force_inline proc(loc: Loc, indent: int) {
 	print_indent(indent)
 	out_s("\"end\": ")
 	out_u32(to_utf16(loc.span.end))
+	
+	if emit_loc_enabled {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"loc\": { \"start\": { \"line\": ")
+		
+		start_line, _ := offset_to_line_col(line_offsets_for_loc, loc.span.start)
+		out_u32(start_line)
+		out_s(", \"column\": ")
+		
+		line_start_byte := line_offsets_for_loc[start_line - 1] if start_line > 0 && start_line - 1 < u32(len(line_offsets_for_loc)) else 0
+		line_start_utf16 := to_utf16(line_start_byte)
+		start_utf16 := to_utf16(loc.span.start)
+		start_col_0indexed := start_utf16 - line_start_utf16
+		out_u32(start_col_0indexed)
+		
+		out_s(" }, \"end\": { \"line\": ")
+		end_line, _ := offset_to_line_col(line_offsets_for_loc, loc.span.end)
+		out_u32(end_line)
+		out_s(", \"column\": ")
+		
+		line_end_start_byte := line_offsets_for_loc[end_line - 1] if end_line > 0 && end_line - 1 < u32(len(line_offsets_for_loc)) else 0
+		line_end_start_utf16 := to_utf16(line_end_start_byte)
+		end_utf16 := to_utf16(loc.span.end)
+		end_col_0indexed := end_utf16 - line_end_start_utf16
+		out_u32(end_col_0indexed)
+		
+		out_s(" } }")
+	}
+	
 	out_s(",\n")
 	print_indent(indent)
 }
