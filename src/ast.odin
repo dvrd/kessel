@@ -971,15 +971,18 @@ ClassElementKind :: enum {
 }
 
 ClassElement :: struct {
-	loc:           Loc,
-	key:           ^Expression,
-	value:         Maybe(^Expression),
-	kind:          ClassElementKind,
-	computed:      bool,
-	static:        bool,
-	is_accessor:   bool, // `accessor` keyword — emits as "AccessorProperty"
-	decorators:    [dynamic]Decorator,
-	abstract:      bool,
+	loc:             Loc,
+	key:             ^Expression,
+	value:           Maybe(^Expression),
+	kind:            ClassElementKind,
+	computed:        bool,
+	static:          bool,
+	is_accessor:     bool, // `accessor` keyword — emits as "AccessorProperty"
+	decorators:      [dynamic]Decorator,
+	abstract:        bool,
+	type_annotation: Maybe(^TSTypeAnnotation),  // TS: `foo: T`
+	optional:        bool,                        // TS: `foo?:`
+	definite:        bool,                        // TS: `foo!:` (definite assignment)
 }
 
 ClassExpression :: struct {

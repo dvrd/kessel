@@ -785,5 +785,5 @@
 }
 
 --- Statistics ---
-Arena: used=20512B reserved=16777216B ratio=0%
+Arena: used=20640B reserved=16777216B ratio=0%
 Parse errors: 0

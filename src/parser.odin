@@ -2020,8 +2020,36 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		is_generator = true
 	}
 
-	// Check if this is a field (has = but no () ) or method
-	if is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) {
+	// TS class field modifiers: `foo?:` (optional) or `foo!:` (definite assignment).
+	// These appear BEFORE the `:` type annotation and coexist with it.
+	field_optional := false
+	field_definite := false
+	if is_token(p, .Question) {
+		// Only consume `?` when we're clearly on a class field (next is `:` or `=` or `;`).
+		nxt := p.lexer.nxt.kind
+		if nxt == .Colon || nxt == .Assign || nxt == .Semi || nxt == .Comma || nxt == .RBrace {
+			field_optional = true
+			eat(p)
+		}
+	} else if is_token(p, .Not) {
+		// `foo!:` — definite assignment assertion. `.Not` = logical-not token.
+		nxt := p.lexer.nxt.kind
+		if nxt == .Colon {
+			field_definite = true
+			eat(p)
+		}
+	}
+
+	// TS class field type annotation: `foo: T`. Parsed before the field/method split.
+	field_type_ann: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) {
+		field_type_ann = parse_ts_type_annotation(p)
+	}
+
+	// Check if this is a field (has = but no () ) or method. `.Colon` was
+	// consumed above as part of the type annotation, so after that point the
+	// next token is either `;`/`,`/`}` (bare field) or `=` (initializer).
+	if field_type_ann != nil || is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) {
 		// Class field with initializer or just declaration
 		value: Maybe(^Expression)
 
@@ -2045,6 +2073,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.is_accessor = is_accessor
 		elem.abstract = is_abstract
 		elem.decorators = decorators
+		elem.type_annotation = field_type_ann
+		elem.optional = field_optional
+		elem.definite = field_definite
 
 		elem.loc.span.end = prev_end_offset(p)
 		return elem

@@ -1899,6 +1899,24 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 	print_indent(indent)
 	out_s("\"abstract\": ")
 	out_bool(elem.abstract)
+
+	// TS field modifiers: optional (`foo?:`) and definite (`foo!:`).
+	if elem.optional {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"optional\": true")
+	}
+	if elem.definite {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"definite\": true")
+	}
+	if ann, ok := elem.type_annotation.(^TSTypeAnnotation); ok {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type_annotation_node(ann, indent)
+	}
 	out_s("\n")
 }
 
