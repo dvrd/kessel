@@ -24,7 +24,6 @@
 #   spec/typescript/001_generic_function   — OK via run_spec_fixtures baseline
 #   spec/typescript/003_conditional_type   — OK via run_spec_fixtures baseline
 #   spec/typescript/005_union_intersection — actually matches OXC cleanly
-spec/typescript/004_mapped_type
 spec/typescript/006_non_null_assertion
 spec/typescript/007_type_assertion
 spec/typescript/008_import_type

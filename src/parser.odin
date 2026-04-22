@@ -5574,8 +5574,19 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	is_mapped := false
 	readonly_mod := TSMappedTypeModifier.None
 
-	// Check `{ readonly [`  — readonly then bracket.
+	// Check `{ readonly [`  — readonly then bracket, plus `+readonly [` / `-readonly [`.
 	// `.Readonly` is not in the lexer — check by string value.
+	if (p.cur_type == .Plus || p.cur_type == .Minus) {
+		sign := p.cur_type == .Plus ? TSMappedTypeModifier.Plus : TSMappedTypeModifier.Minus
+		nxt := p.lexer.nxt
+		if nxt.kind == .Identifier {
+			nxt_val := p.lexer.source[nxt.start:nxt.end]
+			if nxt_val == "readonly" {
+				readonly_mod = sign
+				eat(p); eat(p) // consume sign and `readonly`
+			}
+		}
+	}
 	if p.cur_type == .Identifier && p.cur_tok.value == "readonly" && is_next_token(p, .LBracket) {
 		readonly_mod = .True; eat(p) // consume `readonly`, now at `[`
 	}
@@ -5652,9 +5663,14 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		name_type: Maybe(^TSType)
 		if is_token(p, .As) { eat(p); name_type = parse_ts_type(p) }
 		expect_token(p, .RBracket)
-		// Optional modifier: `?`, `+?`, `-?`
+		// Optional modifier: `?`, `+?`, `-?`.
 		optional_mod := TSMappedTypeModifier.None
-		if match_token(p, .Question) { optional_mod = .True }
+		if (is_token(p, .Plus) || is_token(p, .Minus)) && p.lexer.nxt.kind == .Question {
+			optional_mod = p.cur_type == .Plus ? .Plus : .Minus
+			eat(p); eat(p) // consume sign and `?`
+		} else if match_token(p, .Question) {
+			optional_mod = .True
+		}
 		// Type annotation
 		value_type: Maybe(^TSType)
 		if is_token(p, .Colon) { eat(p); value_type = parse_ts_type(p) }
