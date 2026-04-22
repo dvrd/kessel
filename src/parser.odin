@@ -3477,6 +3477,33 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			tagged.quasi = parse_template_literal(p)
 			tagged.loc.span.end = prev_end_offset(p)
 			expr = expression_from(p, tagged)
+		case .Not:
+			// TS non-null assertion `x!`. Only consume `!` as a postfix when
+			// the next token can't start a new expression — otherwise `a!b` is
+			// ambiguous. Safe next-tokens: operator/punct/terminator.
+			nxt := p.lexer.nxt.kind
+			allow := false
+			#partial switch nxt {
+			case .Dot, .OptionalChain, .LBracket, .LParen, .Comma, .Semi,
+			     .RParen, .RBracket, .RBrace, .Assign, .AssignAdd, .AssignSub,
+			     .AssignMul, .AssignDiv, .AssignMod, .AssignPow, .AssignLShift,
+			     .AssignRShift, .AssignURShift, .AssignBitAnd, .AssignBitOr,
+			     .AssignBitXor, .AssignLogicalAnd, .AssignLogicalOr,
+			     .AssignNullish, .Plus, .Minus, .Mul, .Div, .Mod, .Pow,
+			     .LogicalAnd, .LogicalOr, .Nullish, .BitAnd, .BitOr, .BitXor,
+			     .LShift, .RShift, .URShift, .Eq, .NotEq, .EqStrict, .NotEqStrict,
+			     .LAngle, .RAngle, .LEq, .GEq, .Question, .Colon,
+			     .Arrow, .EOF, .In, .Instanceof, .As, .Satisfies:
+				allow = true
+			}
+			if !allow { break }
+			eat(p) // consume `!`
+			nn := new_node(p, TSNonNullExpression)
+			nn.loc = loc_from_expr(expr)
+			nn.expression = expr
+			nn.loc.span.end = prev_end_offset(p)
+			expr = expression_from(p, nn)
+			continue
 		case:
 			if is_chain {
 				// Wrap the entire optional chain in ChainExpression
