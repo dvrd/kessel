@@ -26,6 +26,11 @@ stdout_stream: io.Writer
 // Compact JSON output mode — skip indentation and newlines
 compact_json: bool
 
+// Error emission shape — "kessel" (default, { message, line, column, offset })
+// or "oxc" (OXC TS-ESTree shape: { severity, message, labels: [{ span: { start, end } }] }).
+// CLI flag: --errors=oxc. Default preserves backward compat with existing consumers.
+error_format: string = "kessel"
+
 // Direct buffer mode — pre-allocated []byte, zero bufio overhead
 use_direct_buf: bool
 direct_buf: []byte
@@ -431,6 +436,7 @@ main :: proc() {
 		parse_out_dir := ""
 		parse_raw := false
 		compact_json = false
+		error_format = "kessel"
 		{
 			i := 2
 			for i < len(os.args) {
@@ -446,6 +452,10 @@ main :: proc() {
 				} else if arg == "--out-dir" && i + 1 < len(os.args) {
 					parse_out_dir = os.args[i+1]
 					i += 1
+				} else if strings.has_prefix(arg, "--errors=") {
+					// Error shape: --errors=oxc emits OXC TS-ESTree shape;
+					// --errors=kessel (or omitted) keeps the legacy shape.
+					error_format = arg[9:]
 				} else {
 					append(&parse_files, arg)
 				}
@@ -653,22 +663,62 @@ parse_file :: proc(file_path: string) {
 		out_s(",\n")
 		print_indent(1)
 		out_s("\"errors\": [\n")
-		for err, i in p.errors {
-			print_indent(2)
-			out_s("{\n")
-			print_indent(3)
-			out_s("\"message\": ")
-			out_string(err.message)
-			out_s(",\n")
-			print_indent(3)
-			line, col := offset_to_line_col(p.lexer.line_offsets, u32(err.loc.offset))
-			out_printf("\"line\": %d,\n", line)
-			print_indent(3)
-			out_printf("\"column\": %d,\n", col)
-			print_indent(3)
-			out_printf("\"offset\": %d\n", err.loc.offset)
-			print_indent(2)
-			if i < len(p.errors) - 1 { out_s("},\n") } else { out_s("}\n") }
+		if error_format == "oxc" {
+			// OXC TS-ESTree shape: { severity, message, labels: [{ span: { start, end } }] }
+			// Point-span errors use end = start + 1 (OXC convention for 1-char labels).
+			for err, i in p.errors {
+				print_indent(2)
+				out_s("{\n")
+				print_indent(3)
+				out_s("\"severity\": \"error\",\n")
+				print_indent(3)
+				out_s("\"message\": ")
+				out_string(err.message)
+				out_s(",\n")
+				print_indent(3)
+				out_s("\"labels\": [\n")
+				print_indent(4)
+				out_s("{\n")
+				print_indent(5)
+				out_s("\"span\": {\n")
+				print_indent(6)
+				out_s("\"start\": ")
+				out_u32(to_utf16(u32(err.loc.offset)))
+				out_s(",\n")
+				print_indent(6)
+				out_s("\"end\": ")
+				out_u32(to_utf16(u32(err.loc.offset) + 1))
+				out_s("\n")
+				print_indent(5)
+				out_s("}\n")
+				print_indent(4)
+				out_s("}\n")
+				print_indent(3)
+				out_s("]\n")
+				print_indent(2)
+				if i < len(p.errors) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+		} else {
+			// Kessel legacy shape: { message, line, column, offset } — DEFAULT.
+			// Kept byte-identical to pre-feature output so every existing consumer
+			// (verifiers, regression tests, baselines) works unchanged.
+			for err, i in p.errors {
+				print_indent(2)
+				out_s("{\n")
+				print_indent(3)
+				out_s("\"message\": ")
+				out_string(err.message)
+				out_s(",\n")
+				print_indent(3)
+				line, col := offset_to_line_col(p.lexer.line_offsets, u32(err.loc.offset))
+				out_printf("\"line\": %d,\n", line)
+				print_indent(3)
+				out_printf("\"column\": %d,\n", col)
+				print_indent(3)
+				out_printf("\"offset\": %d\n", err.loc.offset)
+				print_indent(2)
+				if i < len(p.errors) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
 		}
 		print_indent(1)
 		out_s("]")
