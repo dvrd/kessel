@@ -4164,6 +4164,12 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		return nil
 	}
 
+	// TS generic type arguments: `new Foo<string>()`.
+	targs: Maybe(^TSTypeParameterInstantiation)
+	if is_token(p, .LAngle) {
+		targs = parse_ts_type_arguments(p)
+	}
+
 	args: [dynamic]^Expression
 	if is_token(p, .LParen) {
 		args = parse_arguments(p)
@@ -4173,6 +4179,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	new_.loc = start
 	new_.callee = callee
 	new_.arguments = args
+	new_.type_parameters = targs
 	new_.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, new_)
