@@ -1,12 +1,12 @@
 {
   "edge": {
-    "pass": 17,
-    "fail": 2,
+    "pass": 18,
+    "fail": 1,
     "total": 19
   },
   "es2015": {
-    "pass": 8,
-    "fail": 2,
+    "pass": 10,
+    "fail": 0,
     "total": 10
   },
   "es2016": {
@@ -30,8 +30,8 @@
     "total": 2
   },
   "es2020": {
-    "pass": 5,
-    "fail": 1,
+    "pass": 6,
+    "fail": 0,
     "total": 6
   },
   "es2021": {
@@ -40,8 +40,8 @@
     "total": 2
   },
   "es2022": {
-    "pass": 5,
-    "fail": 1,
+    "pass": 6,
+    "fail": 0,
     "total": 6
   },
   "es2024": {

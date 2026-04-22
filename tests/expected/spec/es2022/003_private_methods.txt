@@ -58,8 +58,8 @@
                     "end": 58,
                     "argument": {
                       "type": "TemplateLiteral",
-                      "start": 44,
-                      "end": 56,
+                      "start": 43,
+                      "end": 57,
                       "quasis": [
                         {
                           "type": "TemplateElement",

@@ -9,7 +9,7 @@
     "oxc": 192
   },
   "bench/real_world/react.dev.js": {
-    "oxc": 17
+    "oxc": 15
   },
   "bench/real_world/lodash.js": {
     "oxc": 11153
@@ -30,9 +30,9 @@
     "oxc": 1583
   },
   "bench/real_world/batch4/petite-vue.js": {
-    "oxc": 55
+    "oxc": 25
   },
   "bench/real_world/batch2/zod.js": {
-    "oxc": 27465
+    "oxc": 27313
   }
 }

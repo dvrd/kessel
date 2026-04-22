@@ -62,7 +62,7 @@
         {
           "type": "VariableDeclarator",
           "start": 59,
-          "end": 93,
+          "end": 94,
           "id": {
             "type": "Identifier",
             "start": 59,
@@ -71,7 +71,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 68,
-            "end": 93,
+            "end": 94,
             "tag": {
               "type": "Identifier",
               "start": 68,
@@ -79,8 +79,8 @@
               "name": "tag"            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 72,
-              "end": 93,
+              "start": 71,
+              "end": 94,
               "quasis": [
                 {
                   "type": "TemplateElement",
@@ -126,7 +126,7 @@
       "expression": {
         "type": "TaggedTemplateExpression",
         "start": 96,
-        "end": 111,
+        "end": 112,
         "tag": {
           "type": "MemberExpression",
           "start": 96,
@@ -144,8 +144,8 @@
             "name": "raw"          }        },
         "quasi": {
           "type": "TemplateLiteral",
-          "start": 107,
-          "end": 111,
+          "start": 106,
+          "end": 112,
           "quasis": [
             {
               "type": "TemplateElement",

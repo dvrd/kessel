@@ -167,7 +167,7 @@
         {
           "type": "VariableDeclarator",
           "start": 173,
-          "end": 240,
+          "end": 241,
           "id": {
             "type": "Identifier",
             "start": 173,
@@ -176,7 +176,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 181,
-            "end": 240,
+            "end": 241,
             "tag": {
               "type": "Identifier",
               "start": 181,
@@ -184,8 +184,8 @@
               "name": "sql"            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 185,
-              "end": 240,
+              "start": 184,
+              "end": 241,
               "quasis": [
                 {
                   "type": "TemplateElement",
@@ -397,7 +397,7 @@
         {
           "type": "VariableDeclarator",
           "start": 389,
-          "end": 444,
+          "end": 445,
           "id": {
             "type": "Identifier",
             "start": 389,
@@ -406,7 +406,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 395,
-            "end": 444,
+            "end": 445,
             "tag": {
               "type": "Identifier",
               "start": 395,
@@ -414,8 +414,8 @@
               "name": "styled"            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 402,
-              "end": 444,
+              "start": 401,
+              "end": 445,
               "quasis": [
                 {
                   "type": "TemplateElement",

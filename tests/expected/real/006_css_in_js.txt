@@ -14,7 +14,7 @@
         {
           "type": "VariableDeclarator",
           "start": 62,
-          "end": 263,
+          "end": 264,
           "id": {
             "type": "Identifier",
             "start": 62,
@@ -23,7 +23,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 71,
-            "end": 263,
+            "end": 264,
             "tag": {
               "type": "MemberExpression",
               "start": 71,
@@ -41,8 +41,8 @@
                 "name": "button"              }            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 85,
-              "end": 263,
+              "start": 84,
+              "end": 264,
               "quasis": [
                 {
                   "type": "TemplateElement",
@@ -212,7 +212,7 @@
               {
                 "type": "Property",
                 "start": 381,
-                "end": 468,
+                "end": 469,
                 "kind": "init",
                 "method": false,
                 "shorthand": false,
@@ -225,7 +225,7 @@
                 "value": {
                   "type": "TaggedTemplateExpression",
                   "start": 389,
-                  "end": 468,
+                  "end": 469,
                   "tag": {
                     "type": "Identifier",
                     "start": 389,
@@ -233,8 +233,8 @@
                     "name": "css"                  },
                   "quasi": {
                     "type": "TemplateLiteral",
-                    "start": 393,
-                    "end": 468,
+                    "start": 392,
+                    "end": 469,
                     "quasis": [
                       {
                         "type": "TemplateElement",

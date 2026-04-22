@@ -36,7 +36,7 @@
         {
           "type": "VariableDeclarator",
           "start": 28,
-          "end": 48,
+          "end": 49,
           "id": {
             "type": "Identifier",
             "start": 28,
@@ -44,8 +44,8 @@
             "name": "msg"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 35,
-            "end": 48,
+            "start": 34,
+            "end": 49,
             "quasis": [
               {
                 "type": "TemplateElement",
@@ -79,7 +79,7 @@
         {
           "type": "VariableDeclarator",
           "start": 57,
-          "end": 86,
+          "end": 87,
           "id": {
             "type": "Identifier",
             "start": 57,
@@ -87,8 +87,8 @@
             "name": "nested"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 67,
-            "end": 86,
+            "start": 66,
+            "end": 87,
             "quasis": [
               {
                 "type": "TemplateElement",
@@ -108,8 +108,8 @@
             "expressions": [
               {
                 "type": "TemplateLiteral",
-                "start": 72,
-                "end": 82,
+                "start": 71,
+                "end": 83,
                 "quasis": [
                   {
                     "type": "TemplateElement",
@@ -156,7 +156,7 @@
         {
           "type": "VariableDeclarator",
           "start": 95,
-          "end": 127,
+          "end": 128,
           "id": {
             "type": "Identifier",
             "start": 95,
@@ -165,7 +165,7 @@
           "init": {
             "type": "TaggedTemplateExpression",
             "start": 104,
-            "end": 127,
+            "end": 128,
             "tag": {
               "type": "MemberExpression",
               "start": 104,
@@ -183,8 +183,8 @@
                 "name": "raw"              }            },
             "quasi": {
               "type": "TemplateLiteral",
-              "start": 115,
-              "end": 127,
+              "start": 114,
+              "end": 128,
               "quasis": [
                 {
                   "type": "TemplateElement",

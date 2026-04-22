@@ -168,7 +168,7 @@
         {
           "type": "VariableDeclarator",
           "start": 2291,
-          "end": 2317,
+          "end": 2318,
           "id": {
             "type": "Identifier",
             "start": 2291,
@@ -176,8 +176,8 @@
             "name": "h"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 2296,
-            "end": 2317,
+            "start": 2295,
+            "end": 2318,
             "quasis": [
               {
                 "type": "TemplateElement",

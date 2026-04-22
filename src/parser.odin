@@ -3717,6 +3717,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		} else {
 			kind = .Set
 		}
+		// Capture location of ( for the FunctionExpression
+		fn_start := cur_loc(p)
 		// Must be a method with () after key
 		if !expect_token(p, .LParen) {
 			return nil
@@ -3729,15 +3731,18 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		body := parse_function_body(p)
 
 		fn := new_node(p, FunctionExpression)
-		fn.loc = start
+		fn.loc = fn_start
 		fn.params = params
 		fn.body = body
 		fn.generator = is_generator
 		fn.async = is_async
+		fn.loc.span.end = prev_end_offset(p)
 		value = expression_from(p, fn)
 	} else if is_token(p, .LParen) {
 		// Method shorthand: foo() {}
 		kind = .Method
+		// Capture location of ( for the FunctionExpression
+		fn_start := cur_loc(p)
 		if !expect_token(p, .LParen) {
 			return nil
 		}
@@ -3754,11 +3759,12 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		p.in_generator = prev_in_generator
 
 		fn := new_node(p, FunctionExpression)
-		fn.loc = start
+		fn.loc = fn_start
 		fn.params = params
 		fn.body = body
 		fn.generator = is_generator
 		fn.async = is_async
+		fn.loc.span.end = prev_end_offset(p)
 		value = expression_from(p, fn)
 	} else if match_token(p, .Colon) {
 		// Regular property with value
@@ -4000,6 +4006,10 @@ parse_template_literal :: proc(p: ^Parser) -> ^Expression {
 
 	tmpl := new_node(p, TemplateLiteral)
 	tmpl.loc = start
+	// Adjust start to include the opening backtick (lexer sets token after backtick)
+	if tmpl.loc.span.start > 0 {
+		tmpl.loc.span.start -= 1
+	}
 	tmpl.quasis = make([dynamic]TemplateElement, 0, 4, p.allocator)
 	tmpl.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
 
@@ -4015,7 +4025,8 @@ parse_template_literal :: proc(p: ^Parser) -> ^Expression {
 		}
 		append(&tmpl.quasis, elem)
 		eat(p)
-		tmpl.loc.span.end = prev_end_offset(p)
+		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
+		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
 		return expression_from(p, tmpl)
 	}
 
@@ -4073,7 +4084,8 @@ parse_template_literal :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 
-		tmpl.loc.span.end = prev_end_offset(p)
+		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
+		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
 		return expression_from(p, tmpl)
 	}
 

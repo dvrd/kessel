@@ -124,8 +124,8 @@
                     "name": "iterator"                  }                },
                 "value": {
                   "type": "FunctionExpression",
-                  "start": 67,
-                  "end": 68,
+                  "start": 84,
+                  "end": 89,
                   "id": null,
                   "expression": false,
                   "generator": false,

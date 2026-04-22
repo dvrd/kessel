@@ -407,8 +407,8 @@
                   "name": "generator"                },
                 "value": {
                   "type": "FunctionExpression",
-                  "start": 338,
-                  "end": 339,
+                  "start": 348,
+                  "end": 378,
                   "id": null,
                   "expression": false,
                   "generator": true,

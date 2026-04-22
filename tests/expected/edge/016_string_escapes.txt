@@ -124,7 +124,7 @@
         {
           "type": "VariableDeclarator",
           "start": 228,
-          "end": 264,
+          "end": 265,
           "id": {
             "type": "Identifier",
             "start": 228,
@@ -132,8 +132,8 @@
             "name": "backtick"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 240,
-            "end": 264,
+            "start": 239,
+            "end": 265,
             "quasis": [
               {
                 "type": "TemplateElement",
@@ -154,7 +154,7 @@
         {
           "type": "VariableDeclarator",
           "start": 273,
-          "end": 367,
+          "end": 368,
           "id": {
             "type": "Identifier",
             "start": 273,
@@ -162,8 +162,8 @@
             "name": "multiline"          },
           "init": {
             "type": "TemplateLiteral",
-            "start": 286,
-            "end": 367,
+            "start": 285,
+            "end": 368,
             "quasis": [
               {
                 "type": "TemplateElement",
