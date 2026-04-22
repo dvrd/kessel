@@ -5487,10 +5487,22 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 
 parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	result := base
-	for is_token(p, .LBracket) && is_next_token(p, .RBracket) {
-		eat(p); eat(p)
-		arr := new_node(p, TSArrayType); arr.loc = start; arr.element_type = result; arr.loc.span.end = prev_end_offset(p)
-		result = new_node(p, TSType); result^ = arr
+	for is_token(p, .LBracket) {
+		if is_next_token(p, .RBracket) {
+			// Array type: `T[]`.
+			eat(p); eat(p)
+			arr := new_node(p, TSArrayType); arr.loc = start; arr.element_type = result; arr.loc.span.end = prev_end_offset(p)
+			result = new_node(p, TSType); result^ = arr
+		} else {
+			// Indexed access type: `T[K]`.
+			eat(p) // consume `[`
+			index := parse_ts_type(p)
+			expect_token(p, .RBracket)
+			iat := new_node(p, TSIndexedAccessType); iat.loc = start
+			iat.object_type = result; iat.index_type = index
+			iat.loc.span.end = prev_end_offset(p)
+			result = new_node(p, TSType); result^ = iat
+		}
 	}
 	return result
 }
@@ -5852,6 +5864,7 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 	case ^TSUnionType: return &v.loc
 	case ^TSIntersectionType: return &v.loc
 	case ^TSArrayType: return &v.loc
+	case ^TSIndexedAccessType: return &v.loc
 	case ^TSLiteralType: return &v.loc
 	case ^TSParenthesizedType: return &v.loc
 	case ^TSTypeLiteral: return &v.loc

@@ -3838,6 +3838,18 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"elementType\": ")
 		emit_ts_type(v.element_type, indent + 1)
+	case ^TSIndexedAccessType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSIndexedAccessType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"objectType\": ")
+		emit_ts_type(v.object_type, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"indexType\": ")
+		emit_ts_type(v.index_type, indent + 1)
 	case ^TSLiteralType:
 		print_indent(indent + 1)
 		out_s("\"type\": \"TSLiteralType\"")
