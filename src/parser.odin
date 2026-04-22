@@ -5458,13 +5458,139 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	r := new_node(p, TSType); r^ = lit; return r
 }
 
+// parse_ts_sig_params parses parameter list for method/call/construct signatures.
+// Assumes the opening `(` has NOT yet been consumed.
+parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
+	expect_token(p, .LParen)
+	params := make([dynamic]TSFunctionParam, 0, 4, p.allocator)
+	for !is_token(p, .RParen) && !is_token(p, .EOF) {
+		param_start := cur_loc(p)
+		pattern := parse_binding_pattern(p)
+		param_optional := false
+		if is_token(p, .Question) {
+			nxt := peek_token(p)
+			if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen {
+				eat(p); param_optional = true
+			}
+		}
+		param_ann: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Colon) { param_ann = parse_ts_type_annotation(p) }
+		fp := TSFunctionParam{loc = param_start, pattern = pattern, type_annotation = param_ann, optional = param_optional}
+		fp.loc.span.end = prev_end_offset(p)
+		append(&params, fp)
+		if !match_token(p, .Comma) { break }
+	}
+	expect_token(p, .RParen)
+	return params
+}
+
 parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	start := cur_loc(p)
 	readonly := false
-	if is_token(p, .Readonly) {
-		nxt := peek_dispatch(p)
-		if nxt.type != .LParen && nxt.type != .Colon { readonly = true; eat(p) }
+	idx_readonly := false  // Special handling for readonly index signature
+
+	// --- NEW: detect call signature `(...): T` ------------------------------------
+	if is_token(p, .LParen) {
+		params := parse_ts_sig_params(p)
+		ret: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Colon) { ret = parse_ts_type_annotation(p) }
+		call_sig := TSCallSignatureDeclaration{
+			loc = start, params = params, return_type = ret,
+		}
+		call_sig.loc.span.end = prev_end_offset(p)
+		sig := new_node(p, TSSignature); sig^ = call_sig; return sig
 	}
+
+	// --- NEW: detect construct signature `new (...): T` ---------------------------
+	if is_token(p, .New) && p.lexer.nxt.kind == .LParen {
+		eat(p) // consume `new`
+		params := parse_ts_sig_params(p)
+		ret: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Colon) { ret = parse_ts_type_annotation(p) }
+		ctor_sig := TSConstructSignatureDeclaration{
+			loc = start, params = params, return_type = ret,
+		}
+		ctor_sig.loc.span.end = prev_end_offset(p)
+		sig := new_node(p, TSSignature); sig^ = ctor_sig; return sig
+	}
+
+	// --- NEW: detect index signature `[ident : type]: type` or `readonly [ident : type]: type`
+	if is_token(p, .Readonly) && p.lexer.nxt.kind == .LBracket {
+		idx_readonly = true
+		eat(p) // consume `readonly`
+	}
+
+	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Identifier {
+		// Check if this is an index signature by peeking for `:` after the identifier.
+		eat(p) // consume `[`
+		if is_token(p, .Identifier) && p.lexer.nxt.kind == .Colon {
+			// Confirmed: index signature.
+			param_start := cur_loc(p)
+			param_name_tok := get_current(p)
+			param_name_ident := new_node(p, Identifier)
+			param_name_ident.loc = loc_from_token(param_name_tok)
+			param_name_ident.name = param_name_tok.value
+			eat(p) // consume identifier
+			eat(p) // consume colon
+			idx_ann := parse_ts_type(p)
+			expect_token(p, .RBracket)
+			val_ann: Maybe(^TSTypeAnnotation)
+			if is_token(p, .Colon) { val_ann = parse_ts_type_annotation(p) }
+
+			idx_sig := TSIndexSignature{
+				loc = start,
+				parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
+				type_annotation = val_ann,
+				readonly = idx_readonly,
+			}
+			// Build the sole parameter: pattern is the identifier, type_annotation is the index key's type.
+			key_ann := new_node(p, TSTypeAnnotation)
+			key_ann.loc = param_start
+			key_ann.type_annotation = idx_ann
+			key_ann.loc.span.end = prev_end_offset(p)
+			fp := TSFunctionParam{
+				loc = param_start,
+				pattern = param_name_ident,
+				type_annotation = key_ann,
+			}
+			fp.loc.span.end = prev_end_offset(p)
+			append(&idx_sig.parameters, fp)
+			idx_sig.loc.span.end = prev_end_offset(p)
+
+			sig := new_node(p, TSSignature)
+			sig^ = idx_sig
+			return sig
+		}
+		// Not an index signature — fall through as computed property.
+		// We already consumed `[`, so set computed = true and parse the rest.
+		key := parse_assignment_expression(p)
+		expect_token(p, .RBracket)
+		optional := match_token(p, .Question)
+
+		// Check if it's a method signature after computed property.
+		if is_token(p, .LParen) {
+			sig := new_node(p, TSSignature)
+			method := TSMethodSignature{loc = start, key = key, computed = true, optional = optional, kind = .Method}
+			method.params = parse_ts_sig_params(p)
+			if is_token(p, .Colon) { method.return_type = parse_ts_type_annotation(p) }
+			method.loc.span.end = prev_end_offset(p)
+			sig^ = method; return sig
+		}
+
+		// Property signature with computed property.
+		sig := new_node(p, TSSignature)
+		prop := TSPropertySignature{loc = start, key = key, computed = true, optional = optional, readonly = readonly}
+		if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
+		prop.loc.span.end = prev_end_offset(p)
+		sig^ = prop; return sig
+	}
+
+	// Handle readonly modifier for non-index-signature members.
+	if idx_readonly {
+		readonly = true
+	}
+
+	// Parse key for method or property signature.
 	key: ^Expression; computed := false
 	if is_token(p, .LBracket) {
 		computed = true; eat(p); key = parse_assignment_expression(p); expect_token(p, .RBracket)
@@ -5483,28 +5609,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	if is_token(p, .LParen) {
 		sig := new_node(p, TSSignature)
 		method := TSMethodSignature{loc = start, key = key, computed = computed, optional = optional, kind = .Method}
-		expect_token(p, .LParen)
-		// Parse params as TSFunctionParam (re-use function param parsing).
-		method.params = make([dynamic]TSFunctionParam, 0, 4, p.allocator)
-		for !is_token(p, .RParen) && !is_token(p, .EOF) {
-			param_start := cur_loc(p)
-			pattern := parse_binding_pattern(p)
-			param_optional := false
-			if is_token(p, .Question) {
-				nxt := peek_token(p)
-				if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen {
-					eat(p); param_optional = true
-				}
-			}
-			param_ann: Maybe(^TSTypeAnnotation)
-			if is_token(p, .Colon) { param_ann = parse_ts_type_annotation(p) }
-			fp := TSFunctionParam{loc = param_start, pattern = pattern, type_annotation = param_ann, optional = param_optional}
-			fp.loc.span.end = prev_end_offset(p)
-			append(&method.params, fp)
-			if !match_token(p, .Comma) { break }
-		}
-		expect_token(p, .RParen)
-		// Return type annotation.
+		method.params = parse_ts_sig_params(p)
 		if is_token(p, .Colon) { method.return_type = parse_ts_type_annotation(p) }
 		method.loc.span.end = prev_end_offset(p)
 		sig^ = method; return sig

@@ -3397,6 +3397,143 @@ emit_ts_signature :: proc(sig: ^TSSignature, indent: int) {
 			emit_ts_type_annotation_node(ann, indent + 1)
 		}
 		out_s("\n")
+	case TSIndexSignature:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSIndexSignature\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(v.loc, indent + 1)
+		out_s("\"parameters\": [")
+		if len(v.parameters) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for fp, i in v.parameters {
+				print_indent(indent + 2)
+				out_s("{\n")
+				print_indent(indent + 3)
+				out_s("\"type\": \"Identifier\",\n")
+				print_indent(indent + 3)
+				emit_span_leading(fp.loc, indent + 3)
+				out_s("\"name\": ")
+				if ident, ok := fp.pattern.(^Identifier); ok {
+					out_string(ident.name)
+				} else {
+					out_s("\"\"")
+				}
+				if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok {
+					out_s(",\n")
+					print_indent(indent + 3)
+					out_s("\"typeAnnotation\": ")
+					emit_ts_type_annotation_node(ann, indent + 3)
+				}
+				out_s("\n")
+				print_indent(indent + 2)
+				if i < len(v.parameters) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
+		if ann, ok := v.type_annotation.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent + 1)
+			out_s("\"typeAnnotation\": ")
+			emit_ts_type_annotation_node(ann, indent + 1)
+		}
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"readonly\": ")
+		out_bool(v.readonly)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"static\": ")
+		out_bool(v.static_)
+		out_s("\n")
+	case TSCallSignatureDeclaration:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSCallSignatureDeclaration\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(v.loc, indent + 1)
+		out_s("\"params\": [")
+		if len(v.params) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for fp, i in v.params {
+				print_indent(indent + 2)
+				out_s("{\n")
+				print_indent(indent + 3)
+				out_s("\"type\": \"Identifier\",\n")
+				print_indent(indent + 3)
+				emit_span_leading(fp.loc, indent + 3)
+				out_s("\"name\": ")
+				if ident, ok := fp.pattern.(^Identifier); ok {
+					out_string(ident.name)
+				} else {
+					out_s("\"\"")
+				}
+				if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok {
+					out_s(",\n")
+					print_indent(indent + 3)
+					out_s("\"typeAnnotation\": ")
+					emit_ts_type_annotation_node(ann, indent + 3)
+				}
+				out_s("\n")
+				print_indent(indent + 2)
+				if i < len(v.params) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
+		if ann, ok := v.return_type.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent + 1)
+			out_s("\"returnType\": ")
+			emit_ts_type_annotation_node(ann, indent + 1)
+		}
+		out_s("\n")
+	case TSConstructSignatureDeclaration:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSConstructSignatureDeclaration\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(v.loc, indent + 1)
+		out_s("\"params\": [")
+		if len(v.params) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for fp, i in v.params {
+				print_indent(indent + 2)
+				out_s("{\n")
+				print_indent(indent + 3)
+				out_s("\"type\": \"Identifier\",\n")
+				print_indent(indent + 3)
+				emit_span_leading(fp.loc, indent + 3)
+				out_s("\"name\": ")
+				if ident, ok := fp.pattern.(^Identifier); ok {
+					out_string(ident.name)
+				} else {
+					out_s("\"\"")
+				}
+				if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok {
+					out_s(",\n")
+					print_indent(indent + 3)
+					out_s("\"typeAnnotation\": ")
+					emit_ts_type_annotation_node(ann, indent + 3)
+				}
+				out_s("\n")
+				print_indent(indent + 2)
+				if i < len(v.params) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
+		if ann, ok := v.return_type.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent + 1)
+			out_s("\"returnType\": ")
+			emit_ts_type_annotation_node(ann, indent + 1)
+		}
+		out_s("\n")
 	}
 	print_indent(indent)
 	out_s("}")
@@ -3682,6 +3819,25 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"falseType\": ")
 		emit_ts_type(v.false_type, indent + 1)
+	case ^TSTypeLiteral:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSTypeLiteral\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"members\": [")
+		if len(v.members) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for member, i in v.members {
+				print_indent(indent + 2)
+				emit_ts_signature(member, indent + 2)
+				if i < len(v.members) - 1 { out_s(",\n") } else { out_s("\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
 	case:
 		// Fallback for types not yet handled in emitter
 		print_indent(indent + 1)
