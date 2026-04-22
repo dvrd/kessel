@@ -41,8 +41,7 @@
             "end": 11,
             "name": "c"          },
           "init": null        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 13,

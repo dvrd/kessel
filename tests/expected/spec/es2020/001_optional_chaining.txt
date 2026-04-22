@@ -86,8 +86,7 @@
                   ]                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 36,
@@ -144,8 +143,7 @@
                 "start": 59,
                 "end": 60,
                 "name": "c"              }            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 62,
@@ -188,8 +186,7 @@
                   "name": "method"                }              },
               "arguments": [
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 90,
@@ -237,8 +234,7 @@
                 "end": 114,
                 "value": 0,
                 "raw": "0"              }            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

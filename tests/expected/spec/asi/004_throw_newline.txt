@@ -46,8 +46,7 @@
                   "raw": "\"oops\""                }
               ]            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ],
   "comments": [
     {

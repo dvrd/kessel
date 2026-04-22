@@ -37,8 +37,7 @@
               "end": 213,
               "value": 2,
               "raw": "2"            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 215,
@@ -69,8 +68,7 @@
               "start": 229,
               "end": 230,
               "name": "y"            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 232,
@@ -123,8 +121,7 @@
                 "end": 256,
                 "value": 1,
                 "raw": "1"              }            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 259,
@@ -166,8 +163,7 @@
               "end": 280,
               "value": 2,
               "raw": "2"            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 282,
@@ -215,8 +211,7 @@
               "end": 308,
               "value": 10,
               "raw": "10"            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

@@ -113,8 +113,7 @@
             },
             "kind": "constructor",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -226,8 +225,7 @@
                                         "end": 239,
                                         "name": "body"                                      }                                    }
                                   ]                                }                              }                            }
-                          ],
-                          "declare": false                        },
+                          ]                        },
                         {
                           "type": "ReturnStatement",
                           "start": 248,
@@ -435,13 +433,10 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    },
+      }    },
     {
       "type": "ClassDeclaration",
       "start": 429,
@@ -547,8 +542,7 @@
             },
             "kind": "method",
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           },
           {
             "type": "PropertyDefinition",
@@ -573,13 +567,10 @@
               ]
             },
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ],
   "comments": [
     {

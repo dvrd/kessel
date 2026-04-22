@@ -26,8 +26,7 @@
             "end": 73,
             "value": 255,
             "raw": "0xFF"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 75,
@@ -49,8 +48,7 @@
             "end": 98,
             "value": 3.735928559e+09,
             "raw": "0xDEADBEEF"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 100,
@@ -72,8 +70,7 @@
             "end": 121,
             "value": 10,
             "raw": "0b1010"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 123,
@@ -95,8 +92,7 @@
             "end": 149,
             "value": 240,
             "raw": "0b11110000"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 151,
@@ -118,8 +114,7 @@
             "end": 170,
             "value": 493,
             "raw": "0o755"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 172,
@@ -141,8 +136,7 @@
             "end": 192,
             "value": 511,
             "raw": "0o777"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 195,
@@ -164,8 +158,7 @@
             "end": 211,
             "value": 1e+10,
             "raw": "1e10"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 213,
@@ -187,8 +180,7 @@
             "end": 232,
             "value": 1e-05,
             "raw": "1e-5"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 234,
@@ -210,8 +202,7 @@
             "end": 255,
             "value": 1500,
             "raw": "1.5e+3"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 257,
@@ -233,8 +224,7 @@
             "end": 280,
             "value": 3.1415899999999999,
             "raw": "3.14159"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 282,
@@ -256,8 +246,7 @@
             "end": 309,
             "value": 0.0001,
             "raw": "0.0001"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 311,
@@ -279,8 +268,7 @@
             "end": 344,
             "value": 1e+06,
             "raw": "1_000_000"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 346,
@@ -302,8 +290,7 @@
             "end": 380,
             "value": 65535,
             "raw": "0xFF_FF"          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

@@ -26,8 +26,7 @@
             "end": 1356,
             "value": "\udead",
             "raw": "\"\\uDEAD\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1388,
@@ -49,8 +48,7 @@
             "end": 1406,
             "value": "\ud834",
             "raw": "\"\\uD834\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1464,
@@ -72,8 +70,7 @@
             "end": 1484,
             "value": "x\udeady",
             "raw": "\"x\\uDEADy\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1623,
@@ -95,8 +92,7 @@
             "end": 1647,
             "value": "\udf06\ud834",
             "raw": "\"\\uDF06\\uD834\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1910,
@@ -118,8 +114,7 @@
             "end": 1934,
             "value": "\ud834\udf06",
             "raw": "\"\\uD834\\uDF06\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 2003,
@@ -141,8 +136,7 @@
             "end": 2054,
             "value": "hi \ud834\udf06 and \udead plus ☃!",
             "raw": "\"hi \\uD834\\uDF06 and \\uDEAD plus \\u2603!\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 2099,
@@ -164,8 +158,7 @@
             "end": 2129,
             "value": "\ud800\ud801\udfff",
             "raw": "\"\\uD800\\uD801\\uDFFF\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 2276,
@@ -195,8 +188,7 @@
               }
             ],
             "expressions": []          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 2495,
@@ -298,8 +290,7 @@
                   "raw": "\"mix \\uDC00 middle\""                }
               }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

@@ -52,8 +52,7 @@
                 "end": 272,
                 "value": 1,
                 "raw": "1"              }            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 274,
@@ -84,8 +83,7 @@
               "end": 298,
               "value": 42,
               "raw": "42"            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

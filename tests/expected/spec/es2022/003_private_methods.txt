@@ -88,8 +88,7 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -177,13 +176,10 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ]
 }
 

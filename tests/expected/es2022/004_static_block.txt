@@ -39,8 +39,7 @@
               "raw": "1"
             },
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           },
           {
             "type": "StaticBlock",
@@ -79,9 +78,7 @@
             ]
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ]
 }
 

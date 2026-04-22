@@ -156,8 +156,7 @@
               "end": 238,
               "value": "a negative",
               "raw": "'a negative'"            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 241,
@@ -234,8 +233,7 @@
               "start": 361,
               "end": 373,
               "name": "defaultValue"            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

@@ -135,8 +135,7 @@
               "raw": "42"
             },
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           },
           {
             "type": "StaticBlock",
@@ -191,8 +190,7 @@
                           "start": 444,
                           "end": 445,
                           "name": "b"                        }                      }                    }                  }
-                ],
-                "declare": false              },
+                ]              },
               {
                 "type": "IfStatement",
                 "start": 451,
@@ -252,9 +250,7 @@
             ]
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ],
   "comments": [
     {

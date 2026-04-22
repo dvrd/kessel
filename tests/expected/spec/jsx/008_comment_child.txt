@@ -61,8 +61,7 @@
               }
             }
           }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

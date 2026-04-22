@@ -142,8 +142,7 @@
                                       "end": 137,
                                       "name": "id"                                    }                                  }
                                 ]                              }                            }                          }
-                        ],
-                        "declare": false                      },
+                        ]                      },
                       {
                         "type": "IfStatement",
                         "start": 144,
@@ -461,8 +460,7 @@
                           "start": 376,
                           "end": 380,
                           "name": "body"                        }                      }                    }
-                  ],
-                  "declare": false                },
+                  ]                },
                 {
                   "type": "VariableDeclaration",
                   "start": 384,
@@ -513,8 +511,7 @@
                               "end": 437,
                               "name": "password"                            }
                           ]                        }                      }                    }
-                  ],
-                  "declare": false                },
+                  ]                },
                 {
                   "type": "ExpressionStatement",
                   "start": 442,

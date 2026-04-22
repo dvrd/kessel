@@ -46,8 +46,7 @@
                     "raw": "42"                  }                }
               ]
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 222,
@@ -80,8 +79,7 @@
                 "value": 42,
                 "raw": "42"              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

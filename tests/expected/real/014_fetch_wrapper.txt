@@ -173,8 +173,7 @@
             },
             "kind": "constructor",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -346,8 +345,7 @@
                                 "end": 327,
                                 "name": "baseURL"                              }                            }
                           ]                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "IfStatement",
                     "start": 334,
@@ -616,8 +614,7 @@
                                   }
                                 ]                              }
                             ]                          }                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "IfStatement",
                     "start": 578,
@@ -726,13 +723,10 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    },
+      }    },
     {
       "type": "ExportNamedDeclaration",
       "start": 675,
@@ -769,8 +763,7 @@
                   "value": "/api/v1",
                   "raw": "'/api/v1'"                }
               ]            }          }
-        ],
-        "declare": false      },
+        ]      },
       "specifiers": [],
       "source": null    }
   ],

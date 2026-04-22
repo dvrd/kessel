@@ -26,8 +26,7 @@
             "end": 188,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 190,
@@ -49,8 +48,7 @@
             "end": 203,
             "value": 2,
             "raw": "2"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 205,
@@ -72,8 +70,7 @@
             "end": 222,
             "value": 3,
             "raw": "3"          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

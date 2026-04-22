@@ -73,8 +73,7 @@
                   "end": 30,
                   "name": "b"                }              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ForStatement",
       "start": 33,

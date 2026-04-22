@@ -39,8 +39,7 @@
               "raw": "1"
             },
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "PropertyDefinition",
@@ -60,13 +59,10 @@
               "raw": "2"
             },
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ]
 }
 

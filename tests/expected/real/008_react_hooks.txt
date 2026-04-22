@@ -108,8 +108,7 @@
                       "end": 181,
                       "name": "initialValue"                    }
                   ]                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "VariableDeclaration",
             "start": 186,
@@ -194,8 +193,7 @@
                       "elements": [
                       ]                    }
                   ]                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "VariableDeclaration",
             "start": 251,
@@ -258,8 +256,7 @@
                           "name": "count"                        }
                       ]                    }
                   ]                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "ReturnStatement",
             "start": 304,
@@ -328,8 +325,7 @@
                 }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "FunctionDeclaration",
       "start": 345,
@@ -423,8 +419,7 @@
                       "value": null,
                       "raw": "null"                    }
                   ]                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "ExpressionStatement",
             "start": 421,
@@ -571,8 +566,7 @@
               "end": 515,
               "name": "data"            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ],
   "comments": [
     {

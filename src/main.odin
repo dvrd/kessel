@@ -1721,10 +1721,12 @@ print_variable_declaration_body :: proc(s: ^VariableDeclaration, indent: int) {
 	}
 	print_indent(indent)
 	out_s("]")
-	out_s(",\n")
-	print_indent(indent)
-	out_s("\"declare\": ")
-	out_bool(s.declare)
+	// JS VariableDeclaration: emit `declare` only when true (OXC parity).
+	if s.declare {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"declare\": true")
+	}
 }
 
 // print_class_body_inline emits the inside of the `"body": { ... }` payload
@@ -1894,11 +1896,13 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 	print_indent(indent)
 	out_s("\"static\": ")
 	out_bool(elem.static)
-	out_s(",\n")
 
-	print_indent(indent)
-	out_s("\"abstract\": ")
-	out_bool(elem.abstract)
+	// class-element abstract: emit only when true (OXC parity).
+	if elem.abstract {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"abstract\": true")
+	}
 
 	// TS field modifiers: optional (`foo?:`) and definite (`foo!:`).
 	if elem.optional {
@@ -2052,10 +2056,12 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_s("\n")
 		print_indent(indent)
 		out_print("}")
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"declare\": ")
-		out_bool(s.expr.declare)
+		// JS FunctionDeclaration: emit `declare` only when true (OXC parity).
+		if s.expr.declare {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"declare\": true")
+		}
 
 	case ^BlockStatement:
 		out_s(",\n")
@@ -2237,14 +2243,17 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_class_body_inline(&s.body, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"declare\": ")
-		out_bool(s.expr.declare)
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"abstract\": ")
-		out_bool(s.expr.abstract)
+		// JS ClassDeclaration: emit `declare`/`abstract` only when true (OXC parity).
+		if s.expr.declare {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"declare\": true")
+		}
+		if s.expr.abstract {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"abstract\": true")
+		}
 
 	case ^TryStatement:
 		out_println(",")

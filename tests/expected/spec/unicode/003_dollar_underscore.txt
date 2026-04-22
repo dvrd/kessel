@@ -26,8 +26,7 @@
             "end": 116,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 118,
@@ -49,8 +48,7 @@
             "end": 129,
             "value": 2,
             "raw": "2"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 131,
@@ -72,8 +70,7 @@
             "end": 143,
             "value": 3,
             "raw": "3"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 145,
@@ -95,8 +92,7 @@
             "end": 157,
             "value": 4,
             "raw": "4"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 159,
@@ -118,8 +114,7 @@
             "end": 171,
             "value": 5,
             "raw": "5"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 173,
@@ -141,8 +136,7 @@
             "end": 185,
             "value": 6,
             "raw": "6"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 187,
@@ -164,8 +158,7 @@
             "end": 199,
             "value": 7,
             "raw": "7"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 201,
@@ -187,8 +180,7 @@
             "end": 213,
             "value": 8,
             "raw": "8"          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

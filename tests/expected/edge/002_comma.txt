@@ -44,8 +44,7 @@
                 "value": 3,
                 "raw": "3"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ForStatement",
       "start": 21,
@@ -86,8 +85,7 @@
               "end": 43,
               "value": 10,
               "raw": "10"            }          }
-        ],
-        "declare": false
+        ]
       },
       "test": {
         "type": "BinaryExpression",

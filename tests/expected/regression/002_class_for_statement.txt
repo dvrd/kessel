@@ -66,8 +66,7 @@
                           "end": 538,
                           "elements": [
                           ]                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "ForStatement",
                     "start": 544,
@@ -93,8 +92,7 @@
                             "end": 558,
                             "value": 0,
                             "raw": "0"                          }                        }
-                      ],
-                      "declare": false
+                      ]
                     },
                     "test": {
                       "type": "BinaryExpression",
@@ -215,8 +213,7 @@
                             "end": 632,
                             "value": 5,
                             "raw": "5"                          }                        }
-                      ],
-                      "declare": false
+                      ]
                     },
                     "test": {
                       "type": "BinaryExpression",
@@ -319,8 +316,7 @@
                                 "name": "now"                              }                            },
                             "arguments": [
                             ]                          }                        }
-                      ],
-                      "declare": false
+                      ]
                     },
                     "test": {
                       "type": "Literal",
@@ -354,8 +350,7 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -435,8 +430,7 @@
                                         "end": 812,
                                         "value": 0,
                                         "raw": "0"                                      }                                    }
-                                  ],
-                                  "declare": false
+                                  ]
                                 },
                                 "test": {
                                   "type": "BinaryExpression",
@@ -502,8 +496,7 @@
                                   ]                                }                              }
                             ]
                           }                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "ExpressionStatement",
                     "start": 870,
@@ -524,13 +517,10 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ],
   "comments": [
     {

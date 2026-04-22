@@ -41,8 +41,7 @@
                   "value": "/api/data",
                   "raw": "'/api/data'"                }
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 75,
@@ -83,8 +82,7 @@
                   "name": "json"                }              },
               "arguments": [
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExportNamedDeclaration",
       "start": 107,

@@ -26,8 +26,7 @@
             "end": 153,
             "value": 3.14,
             "raw": "3.14"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 155,
@@ -49,8 +48,7 @@
             "end": 166,
             "value": 0,
             "raw": "0"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 168,
@@ -72,8 +70,7 @@
             "end": 179,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 181,
@@ -95,8 +92,7 @@
             "end": 197,
             "value": "info",
             "raw": "\"info\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 199,
@@ -118,8 +114,7 @@
             "end": 216,
             "value": "reals",
             "raw": "\"reals\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 218,
@@ -141,8 +136,7 @@
             "end": 236,
             "value": "umlaut",
             "raw": "\"umlaut\""          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

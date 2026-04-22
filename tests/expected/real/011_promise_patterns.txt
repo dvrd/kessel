@@ -84,8 +84,7 @@
                     ]                  }                }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "FunctionDeclaration",
       "start": 128,
@@ -173,8 +172,7 @@
                     "end": 201,
                     "value": 0,
                     "raw": "0"                  }                }
-              ],
-              "declare": false
+              ]
             },
             "test": {
               "type": "BinaryExpression",
@@ -358,8 +356,7 @@
                   "finalizer": null                }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "ExpressionStatement",
       "start": 378,

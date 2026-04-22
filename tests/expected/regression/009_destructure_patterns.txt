@@ -51,8 +51,7 @@
                 "value": 2,
                 "raw": "2"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1064,
@@ -101,8 +100,7 @@
                 "value": 3,
                 "raw": "3"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1091,
@@ -179,8 +177,7 @@
                 "value": 5,
                 "raw": "5"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1177,
@@ -244,8 +241,7 @@
                   "raw": "1"                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1238,
@@ -301,8 +297,7 @@
             "end": 1259,
             "properties": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1316,
@@ -358,8 +353,7 @@
             "end": 1341,
             "properties": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1389,
@@ -454,8 +448,7 @@
                   "raw": "2"                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1451,
@@ -544,8 +537,7 @@
                   ]                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 1517,
@@ -651,8 +643,7 @@
                   ]                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 1660,
@@ -846,8 +837,7 @@
                   "end": 1777,
                   "name": "length"                }              }            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "ExpressionStatement",
       "start": 1781,

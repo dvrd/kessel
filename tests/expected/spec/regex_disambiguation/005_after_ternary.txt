@@ -49,8 +49,7 @@
                 "pattern": "no",
                 "flags": ""
               }            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

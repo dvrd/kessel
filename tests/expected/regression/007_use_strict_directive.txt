@@ -37,8 +37,7 @@
             "end": 814,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 816,
@@ -79,8 +78,7 @@
               "end": 857,
               "name": "x"            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ],
   "comments": [
     {

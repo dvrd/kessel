@@ -44,8 +44,7 @@
                     "end": 51,
                     "name": "val"                  },
                   "init": null                }
-              ],
-              "declare": false
+              ]
             },
             "right": {
               "type": "CallExpression",
@@ -96,8 +95,7 @@
                     ]                  }                }
               ]            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ]
 }
 

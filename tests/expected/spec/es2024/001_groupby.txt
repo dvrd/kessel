@@ -164,8 +164,7 @@
                   }
                 ]              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 130,
@@ -238,8 +237,7 @@
                     "end": 185,
                     "name": "type"                  }                }              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

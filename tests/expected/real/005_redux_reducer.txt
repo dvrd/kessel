@@ -86,8 +86,7 @@
                   "raw": "null"                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 102,
@@ -407,8 +406,7 @@
               }
             ]          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "ExportDefaultDeclaration",
       "start": 493,

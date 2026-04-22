@@ -43,8 +43,7 @@
               "raw": "1"
             },
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "PropertyDefinition",
@@ -64,8 +63,7 @@
               "raw": "\"hidden\""
             },
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "PropertyDefinition",
@@ -85,8 +83,7 @@
               "raw": "2"
             },
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           },
           {
             "type": "PropertyDefinition",
@@ -106,8 +103,7 @@
               "raw": "\"private-static\""
             },
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           },
           {
             "type": "PropertyDefinition",
@@ -121,8 +117,7 @@
             },
             "value": null,
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -202,8 +197,7 @@
             },
             "kind": "constructor",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -266,8 +260,7 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -316,8 +309,7 @@
             },
             "kind": "get",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -383,8 +375,7 @@
             },
             "kind": "set",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -437,8 +428,7 @@
                             "end": 1087,
                             "name": "i"                          },
                           "init": null                        }
-                      ],
-                      "declare": false
+                      ]
                     },
                     "right": {
                       "type": "Identifier",
@@ -465,8 +455,7 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -507,8 +496,7 @@
             },
             "kind": "method",
             "computed": true,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -566,8 +554,7 @@
             },
             "kind": "method",
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           },
           {
             "type": "MethodDefinition",
@@ -616,8 +603,7 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "StaticBlock",
@@ -657,9 +643,7 @@
             ]
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ],
   "comments": [
     {

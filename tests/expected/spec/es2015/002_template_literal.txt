@@ -26,8 +26,7 @@
             "end": 20,
             "value": "world",
             "raw": "\"world\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 22,
@@ -70,8 +69,7 @@
                 "end": 47,
                 "name": "name"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 51,
@@ -148,8 +146,7 @@
                       "raw": "2"                    }                  }
                 ]              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 89,
@@ -198,8 +195,7 @@
                 }
               ],
               "expressions": []            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

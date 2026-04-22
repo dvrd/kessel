@@ -37,8 +37,7 @@
                 "value": "fs",
                 "raw": "'fs'"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 53,
@@ -71,8 +70,7 @@
                 "value": "path",
                 "raw": "'path'"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 84,
@@ -145,8 +143,7 @@
                       "end": 167,
                       "name": "filePath"                    }
                   ]                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "ReturnStatement",
             "start": 172,
@@ -205,8 +202,7 @@
                   ]                }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "ExpressionStatement",
       "start": 229,

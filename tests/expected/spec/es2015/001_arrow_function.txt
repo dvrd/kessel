@@ -57,8 +57,7 @@
                 "start": 26,
                 "end": 27,
                 "name": "b"              }            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 29,
@@ -105,8 +104,7 @@
                 "start": 53,
                 "end": 54,
                 "name": "x"              }            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 56,
@@ -137,8 +135,7 @@
               "end": 83,
               "value": "hello",
               "raw": "\"hello\""            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 85,
@@ -189,8 +186,7 @@
                     "raw": "\"value\""                  }
                 }
               ]            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

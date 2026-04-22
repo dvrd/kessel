@@ -26,8 +26,7 @@
             "end": 12,
             "value": null,
             "raw": "null"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 14,
@@ -69,8 +68,7 @@
             "end": 40,
             "value": 0,
             "raw": "0"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 42,
@@ -112,8 +110,7 @@
             "end": 61,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 63,

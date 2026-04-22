@@ -44,8 +44,7 @@
                 "value": 3,
                 "raw": "3"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 23,
@@ -76,8 +75,7 @@
                   "end": 43,
                   "name": "arr"                }              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 46,
@@ -120,8 +118,7 @@
                 "value": 5,
                 "raw": "5"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 77,
@@ -222,8 +219,7 @@
                   "raw": "0"                }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "ExpressionStatement",
       "start": 143,

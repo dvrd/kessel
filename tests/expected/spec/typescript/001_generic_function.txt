@@ -98,8 +98,7 @@
               "end": 185,
               "name": "x"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 189,
@@ -141,8 +140,7 @@
               "end": 218,
               "value": 42,
               "raw": "42"            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 221,
@@ -184,8 +182,7 @@
               "end": 252,
               "value": "hi",
               "raw": "\"hi\""            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

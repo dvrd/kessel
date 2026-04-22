@@ -167,13 +167,10 @@
             },
             "kind": "constructor",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    },
+      }    },
     {
       "type": "FunctionDeclaration",
       "start": 216,
@@ -274,8 +271,7 @@
               "end": 361,
               "name": "value"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "TryStatement",
       "start": 366,
@@ -326,8 +322,7 @@
                       "end": 403,
                       "name": "input"                    }
                   ]                }              }
-            ],
-            "declare": false          }
+            ]          }
         ]
       },
       "handler": {

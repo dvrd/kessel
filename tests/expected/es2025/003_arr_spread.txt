@@ -47,8 +47,7 @@
                 "value": 5,
                 "raw": "5"              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

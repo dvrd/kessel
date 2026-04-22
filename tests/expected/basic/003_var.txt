@@ -26,8 +26,7 @@
             "end": 9,
             "value": 3,
             "raw": "3"          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

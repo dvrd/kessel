@@ -53,8 +53,7 @@
             "children": [],
             "closingElement": null
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 157,
@@ -115,8 +114,7 @@
             "children": [],
             "closingElement": null
           }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

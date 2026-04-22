@@ -89,8 +89,7 @@
                             "end": 123,
                             "value": 1,
                             "raw": "1"                          }                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "ReturnStatement",
                     "start": 129,
@@ -249,8 +248,7 @@
                                   "start": 313,
                                   "end": 314,
                                   "name": "i"                                }                              }                            }
-                          ],
-                          "declare": false                        },
+                          ]                        },
                         {
                           "type": "IfStatement",
                           "start": 323,
@@ -426,13 +424,11 @@
                                 ]                              }
                             ]                          }                        }
                       ]
-                    },
-                    "declare": false                  }
+                    }                  }
                 ]
               }            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "ExpressionStatement",
       "start": 486,

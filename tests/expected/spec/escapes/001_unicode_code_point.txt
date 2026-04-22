@@ -26,8 +26,7 @@
             "end": 158,
             "value": "\u0000",
             "raw": "\"\\u{0}\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 183,
@@ -49,8 +48,7 @@
             "end": 203,
             "value": "A",
             "raw": "\"\\u{41}\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 227,
@@ -72,8 +70,7 @@
             "end": 250,
             "value": "😀",
             "raw": "\"\\u{1F600}\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 288,
@@ -95,8 +92,7 @@
             "end": 312,
             "value": "􏿿",
             "raw": "\"\\u{10FFFF}\""          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

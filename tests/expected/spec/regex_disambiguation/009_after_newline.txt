@@ -46,8 +46,7 @@
               "start": 206,
               "end": 207,
               "name": "g"            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

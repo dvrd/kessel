@@ -58,8 +58,7 @@
               }
             }
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 200,
@@ -131,8 +130,7 @@
               }
             }
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 242,
@@ -202,8 +200,7 @@
               }
             }
           }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

@@ -31,8 +31,7 @@
               "name": "Foo"            },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 21,
@@ -71,8 +70,7 @@
                 "value": 2,
                 "raw": "2"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 46,
@@ -109,8 +107,7 @@
                 "name": "Bar"              }            },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 71,
@@ -143,8 +140,7 @@
               ]            },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 101,

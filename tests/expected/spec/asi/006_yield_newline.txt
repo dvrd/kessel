@@ -55,8 +55,7 @@
                 "raw": "2"              },
               "delegate": false            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ],
   "comments": [
     {

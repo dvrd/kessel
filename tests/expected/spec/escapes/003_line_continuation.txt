@@ -26,8 +26,7 @@
             "end": 242,
             "value": "abcdef",
             "raw": "\"abc\\\ndef\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 301,
@@ -49,8 +48,7 @@
             "end": 326,
             "value": "onetwo",
             "raw": "'one\\\ntwo'"          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

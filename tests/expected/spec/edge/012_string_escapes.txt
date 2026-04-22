@@ -26,8 +26,7 @@
             "end": 24,
             "value": "hello\nworld",
             "raw": "\"hello\\nworld\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 26,
@@ -49,8 +48,7 @@
             "end": 47,
             "value": "tab\there",
             "raw": "'tab\\there'"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 49,
@@ -72,8 +70,7 @@
             "end": 74,
             "value": "quote\"inside",
             "raw": "\"quote\\\"inside\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 76,
@@ -95,8 +92,7 @@
             "end": 100,
             "value": "AB",
             "raw": "'\\u0041\\u0042'"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 102,
@@ -118,8 +114,7 @@
             "end": 122,
             "value": "AB",
             "raw": "\"\\x41\\x42\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 124,
@@ -141,8 +136,7 @@
             "end": 145,
             "value": "null\u0000end",
             "raw": "\"null\\0end\""          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

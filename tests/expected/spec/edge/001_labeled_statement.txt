@@ -40,8 +40,7 @@
                 "end": 21,
                 "value": 0,
                 "raw": "0"              }            }
-          ],
-          "declare": false
+          ]
         },
         "test": {
           "type": "BinaryExpression",
@@ -110,8 +109,7 @@
                         "end": 60,
                         "value": 0,
                         "raw": "0"                      }                    }
-                  ],
-                  "declare": false
+                  ]
                 },
                 "test": {
                   "type": "BinaryExpression",

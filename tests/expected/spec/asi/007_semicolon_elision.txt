@@ -26,8 +26,7 @@
             "end": 154,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 155,
@@ -49,8 +48,7 @@
             "end": 166,
             "value": 2,
             "raw": "2"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 167,
@@ -81,8 +79,7 @@
               "start": 179,
               "end": 180,
               "name": "b"            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 182,
@@ -112,8 +109,7 @@
               "end": 207,
               "name": "a"            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ],
   "comments": [
     {

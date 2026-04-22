@@ -44,8 +44,7 @@
                 "value": 3,
                 "raw": "3"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 68,
@@ -107,8 +106,7 @@
                   "raw": "2"                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 102,
@@ -177,8 +175,7 @@
                 "end": 146,
                 "name": "c"              }            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 151,
@@ -231,8 +228,7 @@
                 "start": 177,
                 "end": 178,
                 "name": "y"              }            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ImportDeclaration",
       "start": 181,
@@ -385,8 +381,7 @@
                   ]                }
               }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

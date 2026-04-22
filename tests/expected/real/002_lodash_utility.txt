@@ -267,8 +267,7 @@
                 "name": "value"              }            },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 210,
@@ -316,8 +315,7 @@
                 "value": 300,
                 "raw": "300"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 259,
@@ -365,8 +363,7 @@
                 "value": 100,
                 "raw": "100"              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

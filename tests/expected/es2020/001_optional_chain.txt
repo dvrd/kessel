@@ -51,8 +51,7 @@
                 "start": 16,
                 "end": 17,
                 "name": "c"              }            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 19,
@@ -95,8 +94,7 @@
                   "name": "method"                }              },
               "arguments": [
               ]            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

@@ -30,8 +30,7 @@
               "pattern": "abc",
               "flags": "g"
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 19,
@@ -57,8 +56,7 @@
               "pattern": "[a-z]+",
               "flags": "i"
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 41,
@@ -84,8 +82,7 @@
               "pattern": "test",
               "flags": "gm"
             }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

@@ -26,8 +26,7 @@
             "end": 212,
             "value": "quote:\"tab:\tnewline:\ncr:\rbs:\u0008ff:\u000cvt:\u000bnull:\u0000bell:\\",
             "raw": "\"quote:\\\"tab:\\tnewline:\\ncr:\\rbs:\\bff:\\fvt:\\vnull:\\0bell:\\\\\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 214,
@@ -49,8 +48,7 @@
             "end": 263,
             "value": "quote:'tab:\tbackslash:\\",
             "raw": "'quote:\\'tab:\\tbackslash:\\\\'"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 265,
@@ -72,8 +70,7 @@
             "end": 312,
             "value": " Aa\u0000ÿ",
             "raw": "\"\\x20\\x41\\x61\\x00\\xff\\x7f\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 314,
@@ -95,8 +92,7 @@
             "end": 373,
             "value": "Aaé☃\u0000￿",
             "raw": "\"\\u0041\\u0061\\u00e9\\u2603\\u0000\\uffff\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 375,
@@ -118,8 +114,7 @@
             "end": 416,
             "value": "Aa",
             "raw": "\"\\u{41}\\u{61}\\u{7F}\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 418,
@@ -141,8 +136,7 @@
             "end": 469,
             "value": "😀💩􏿿",
             "raw": "\"\\u{1F600}\\u{1F4A9}\\u{10FFFF}\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 471,
@@ -164,8 +158,7 @@
             "end": 519,
             "value": "pre midApost\tend",
             "raw": "\"pre\\x20mid\\u0041post\\tend\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 521,
@@ -187,8 +180,7 @@
             "end": 561,
             "value": "/path\\to\"thing",
             "raw": "\"\\/path\\\\to\\\"thing\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 563,
@@ -210,8 +202,7 @@
             "end": 586,
             "value": "",
             "raw": "\"\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 588,
@@ -233,8 +224,7 @@
             "end": 617,
             "value": "\n\t\r",
             "raw": "\"\\n\\t\\r\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 619,
@@ -256,8 +246,7 @@
             "end": 655,
             "value": "aAbBc",
             "raw": "\"a\\x41b\\u0042c\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 657,
@@ -279,8 +268,7 @@
             "end": 688,
             "value": "azQ%",
             "raw": "\"\\a\\z\\Q\\%\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 732,
@@ -302,8 +290,7 @@
             "end": 763,
             "value": "[ \t]",
             "raw": "\"[\\x20\\t]\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 765,
@@ -325,8 +312,7 @@
             "end": 838,
             "value": "abcdefghijklmnopqrstuvwxyz 0123456789  \t\n",
             "raw": "\"abcdefghijklmnopqrstuvwxyz 0123456789 \\x20\\x09\\x0a\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 908,
@@ -348,8 +334,7 @@
             "end": 933,
             "value": "onetwo",
             "raw": "\"one\\\ntwo\""          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

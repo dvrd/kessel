@@ -66,8 +66,7 @@
                   "raw": "2"                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ForInStatement",
       "start": 28,
@@ -88,8 +87,7 @@
               "end": 42,
               "name": "key"            },
             "init": null          }
-        ],
-        "declare": false
+        ]
       },
       "right": {
         "type": "Identifier",
@@ -141,8 +139,7 @@
                 "value": 3,
                 "raw": "3"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ForOfStatement",
       "start": 77,
@@ -163,8 +160,7 @@
               "end": 91,
               "name": "val"            },
             "init": null          }
-        ],
-        "declare": false
+        ]
       },
       "right": {
         "type": "Identifier",
@@ -211,8 +207,7 @@
                 }
               ]            },
             "init": null          }
-        ],
-        "declare": false
+        ]
       },
       "right": {
         "type": "CallExpression",

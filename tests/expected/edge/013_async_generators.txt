@@ -51,8 +51,7 @@
                   "start": 70,
                   "end": 73,
                   "name": "url"                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "WhileStatement",
             "start": 77,
@@ -102,8 +101,7 @@
                               "end": 135,
                               "name": "nextUrl"                            }
                           ]                        }                      }                    }
-                  ],
-                  "declare": false                },
+                  ]                },
                 {
                   "type": "VariableDeclaration",
                   "start": 142,
@@ -144,8 +142,7 @@
                               "name": "json"                            }                          },
                           "arguments": [
                           ]                        }                      }                    }
-                  ],
-                  "declare": false                },
+                  ]                },
                 {
                   "type": "ExpressionStatement",
                   "start": 182,
@@ -201,8 +198,7 @@
                         "name": "next"                      }                    }                  }                }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "FunctionDeclaration",
       "start": 234,
@@ -281,8 +277,7 @@
                       "name": "getReader"                    }                  },
                   "arguments": [
                   ]                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "WhileStatement",
             "start": 316,
@@ -381,8 +376,7 @@
                               "name": "read"                            }                          },
                           "arguments": [
                           ]                        }                      }                    }
-                  ],
-                  "declare": false                },
+                  ]                },
                 {
                   "type": "IfStatement",
                   "start": 384,
@@ -414,8 +408,7 @@
                     "delegate": false                  }                }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "ForOfStatement",
       "start": 425,
@@ -436,8 +429,7 @@
               "end": 447,
               "name": "chunk"            },
             "init": null          }
-        ],
-        "declare": false
+        ]
       },
       "right": {
         "type": "CallExpression",

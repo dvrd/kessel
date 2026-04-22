@@ -30,8 +30,7 @@
               "pattern": "(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})",
               "flags": ""
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 59,
@@ -74,8 +73,7 @@
                 "value": "2025-01-15",
                 "raw": "\"2025-01-15\""              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 96,
@@ -170,8 +168,7 @@
               "start": 131,
               "end": 137,
               "name": "groups"            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

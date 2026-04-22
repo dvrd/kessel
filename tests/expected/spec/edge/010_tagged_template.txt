@@ -52,8 +52,7 @@
               "end": 49,
               "name": "strings"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 53,
@@ -119,8 +118,7 @@
                   "value": 2,
                   "raw": "2"                }
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 96,

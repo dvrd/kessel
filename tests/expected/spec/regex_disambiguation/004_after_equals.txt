@@ -30,8 +30,7 @@
               "pattern": "abc",
               "flags": "g"
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 78,
@@ -48,8 +47,7 @@
             "end": 84,
             "name": "r2"          },
           "init": null        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 86,

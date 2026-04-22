@@ -66,8 +66,7 @@
                         "end": 66,
                         "name": "url"                      }
                     ]                  }                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "VariableDeclaration",
             "start": 71,
@@ -108,8 +107,7 @@
                         "name": "json"                      }                    },
                     "arguments": [
                     ]                  }                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "ReturnStatement",
             "start": 109,
@@ -120,8 +118,7 @@
               "end": 120,
               "name": "data"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 124,
@@ -237,8 +234,7 @@
                   "finalizer": null                }
               ]
             }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

@@ -51,8 +51,7 @@
             "children": [],
             "closingElement": null
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 155,
@@ -110,8 +109,7 @@
             "children": [],
             "closingElement": null
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 182,
@@ -203,8 +201,7 @@
             "children": [],
             "closingElement": null
           }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

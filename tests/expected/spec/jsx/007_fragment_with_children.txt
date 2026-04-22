@@ -77,8 +77,7 @@
               "end": 96
             }
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 98,
@@ -149,8 +148,7 @@
               "end": 130
             }
           }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

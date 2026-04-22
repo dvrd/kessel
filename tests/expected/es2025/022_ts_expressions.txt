@@ -35,8 +35,7 @@
               "start": 19,
               "end": 25
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 27,
@@ -74,8 +73,7 @@
               },
               "typeArguments": null
             }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

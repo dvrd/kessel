@@ -56,8 +56,7 @@
                   "flags": "i"
                 }              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

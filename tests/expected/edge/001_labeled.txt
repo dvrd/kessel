@@ -40,8 +40,7 @@
                 "end": 20,
                 "value": 0,
                 "raw": "0"              }            }
-          ],
-          "declare": false
+          ]
         },
         "test": {
           "type": "BinaryExpression",

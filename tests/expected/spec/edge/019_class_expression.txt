@@ -33,8 +33,7 @@
               "body": []
             }
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 22,
@@ -95,14 +94,12 @@
                   },
                   "kind": "constructor",
                   "computed": false,
-                  "static": false,
-                  "abstract": false
+                  "static": false
                 }
               ]
             }
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 71,
@@ -172,16 +169,14 @@
                     },
                     "kind": "method",
                     "computed": false,
-                    "static": false,
-                    "abstract": false
+                    "static": false
                   }
                 ]
               }
             },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

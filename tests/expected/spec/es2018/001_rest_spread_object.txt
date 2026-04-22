@@ -119,8 +119,7 @@
                   "raw": "3"                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 45,
@@ -152,8 +151,7 @@
                   "name": "rest"                }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 71,
@@ -205,8 +203,7 @@
                   "raw": "4"                }
               }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

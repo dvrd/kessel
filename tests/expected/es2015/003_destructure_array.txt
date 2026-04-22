@@ -51,8 +51,7 @@
                 "value": 2,
                 "raw": "2"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 23,
@@ -110,8 +109,7 @@
                 "value": 3,
                 "raw": "3"              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

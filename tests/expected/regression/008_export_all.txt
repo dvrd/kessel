@@ -67,8 +67,7 @@
             "end": 572,
             "value": 42,
             "raw": "42"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 574,
@@ -98,8 +97,7 @@
               "end": 606,
               "name": "sentinel"            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ],
   "comments": [
     {

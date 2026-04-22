@@ -26,8 +26,7 @@
             "end": 198,
             "value": "a u+2028",
             "raw": "\"a u+2028\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 200,
@@ -49,8 +48,7 @@
             "end": 221,
             "value": "b u+2029",
             "raw": "\"b u+2029\""          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

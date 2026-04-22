@@ -81,8 +81,7 @@
                           "end": 64,
                           "name": "name"                        }
                       ]                    }                  }                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "ReturnStatement",
             "start": 74,
@@ -103,8 +102,7 @@
                 "end": 92,
                 "name": "default"              }            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ]
 }
 

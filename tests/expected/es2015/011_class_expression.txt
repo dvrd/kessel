@@ -70,14 +70,12 @@
                   },
                   "kind": "method",
                   "computed": false,
-                  "static": false,
-                  "abstract": false
+                  "static": false
                 }
               ]
             }
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 83,
@@ -156,14 +154,12 @@
                   },
                   "kind": "constructor",
                   "computed": false,
-                  "static": false,
-                  "abstract": false
+                  "static": false
                 }
               ]
             }
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 153,
@@ -243,14 +239,12 @@
                   },
                   "kind": "method",
                   "computed": true,
-                  "static": true,
-                  "abstract": false
+                  "static": true
                 }
               ]
             }
           }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 235,
@@ -302,8 +296,7 @@
                 }
               }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 290,
@@ -357,14 +350,12 @@
                       "raw": "1"
                     },
                     "computed": false,
-                    "static": false,
-                    "abstract": false
+                    "static": false
                   }
                 ]
               }
             }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

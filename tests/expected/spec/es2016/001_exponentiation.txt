@@ -37,8 +37,7 @@
               "end": 17,
               "value": 10,
               "raw": "10"            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 19,
@@ -60,8 +59,7 @@
             "end": 28,
             "value": 3,
             "raw": "3"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 30,

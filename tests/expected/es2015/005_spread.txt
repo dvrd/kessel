@@ -60,8 +60,7 @@
                       "raw": "4"                    }
                   ]                }              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 31,
@@ -134,8 +133,7 @@
                   ]                }
               }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

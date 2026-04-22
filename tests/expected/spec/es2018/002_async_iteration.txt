@@ -51,8 +51,7 @@
                     "end": 57,
                     "name": "chunk"                  },
                   "init": null                }
-              ],
-              "declare": false
+              ]
             },
             "right": {
               "type": "Identifier",
@@ -87,8 +86,7 @@
                     ]                  }                }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "FunctionDeclaration",
       "start": 97,
@@ -154,8 +152,7 @@
                 "raw": "3"              },
               "delegate": false            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ]
 }
 

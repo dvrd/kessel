@@ -37,8 +37,7 @@
                 "value": "path",
                 "raw": "'path'"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 61,
@@ -71,8 +70,7 @@
                 "value": "html-webpack-plugin",
                 "raw": "'html-webpack-plugin'"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 120,

@@ -31,8 +31,7 @@
               "name": "getResource"            },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

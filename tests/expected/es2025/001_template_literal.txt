@@ -47,8 +47,7 @@
                 "end": 31,
                 "name": "name"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 36,
@@ -100,8 +99,7 @@
                   "end": 90,
                   "name": "id"                }
               ]            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

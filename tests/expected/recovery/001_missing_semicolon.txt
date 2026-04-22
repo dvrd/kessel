@@ -26,8 +26,7 @@
             "end": 57,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 58,
@@ -49,8 +48,7 @@
             "end": 69,
             "value": 2,
             "raw": "2"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 71,
@@ -81,8 +79,7 @@
               "value": 1,
               "raw": "1"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "IfStatement",
       "start": 103,
@@ -192,8 +189,7 @@
                   "raw": "2"                }
               }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

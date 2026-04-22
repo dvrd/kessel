@@ -26,8 +26,7 @@
             "end": 227,
             "value": "hello",
             "raw": "\"hello\""          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 229,

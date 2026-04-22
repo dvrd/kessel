@@ -62,8 +62,7 @@
                     "raw": "4"                  }
                 ]              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 33,
@@ -100,8 +99,7 @@
                 "name": "flat"              }            },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 61,
@@ -159,8 +157,7 @@
                   "end": 97,
                   "name": "x"                }              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

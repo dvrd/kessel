@@ -46,8 +46,7 @@
               "end": 33,
               "name": "args"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 37,
@@ -95,8 +94,7 @@
               "start": 63,
               "end": 67,
               "name": "rest"            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

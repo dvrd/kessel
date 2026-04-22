@@ -27,8 +27,7 @@
             "value": null,
             "raw": "123n",
             "bigint": "123"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 16,
@@ -51,8 +50,7 @@
             "value": null,
             "raw": "0xFFn",
             "bigint": "255"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 33,
@@ -85,8 +83,7 @@
                 "value": 42,
                 "raw": "42"              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

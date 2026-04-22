@@ -105,8 +105,7 @@
                 "name": "withResolvers"              }            },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 62,
@@ -178,8 +177,7 @@
               "start": 123,
               "end": 130,
               "name": "promise"            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

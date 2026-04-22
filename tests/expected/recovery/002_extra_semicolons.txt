@@ -26,8 +26,7 @@
             "end": 47,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "EmptyStatement",
       "start": 48,
@@ -57,8 +56,7 @@
             "end": 62,
             "value": 2,
             "raw": "2"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "EmptyStatement",
       "start": 63,
@@ -97,8 +95,7 @@
             "start": 95,
             "end": 96          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "EmptyStatement",
       "start": 100,
@@ -224,8 +221,7 @@
                   "raw": "2"                }
               }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

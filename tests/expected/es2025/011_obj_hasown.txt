@@ -52,8 +52,7 @@
                 "value": "a",
                 "raw": "'a'"              }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

@@ -30,8 +30,7 @@
               "pattern": "(?<year>\\d{4})-(?<month>\\d{2})",
               "flags": ""
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 95,
@@ -57,8 +56,7 @@
               "pattern": "(?<first>\\w)-\\k<first>",
               "flags": ""
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 131,
@@ -84,8 +82,7 @@
               "pattern": "(?=foo)",
               "flags": ""
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 153,
@@ -111,8 +108,7 @@
               "pattern": "(?<=foo)",
               "flags": ""
             }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 176,
@@ -138,8 +134,7 @@
               "pattern": "(?<!foo)",
               "flags": ""
             }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

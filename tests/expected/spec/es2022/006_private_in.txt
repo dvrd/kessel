@@ -33,8 +33,7 @@
             },
             "value": null,
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -94,8 +93,7 @@
             },
             "kind": "constructor",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           },
           {
             "type": "MethodDefinition",
@@ -152,13 +150,10 @@
             },
             "kind": "method",
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ]
 }
 

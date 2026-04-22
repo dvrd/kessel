@@ -33,8 +33,7 @@
             },
             "value": null,
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           },
           {
             "type": "PropertyDefinition",
@@ -48,8 +47,7 @@
             },
             "value": null,
             "computed": false,
-            "static": true,
-            "abstract": false
+            "static": true
           },
           {
             "type": "StaticBlock",
@@ -119,9 +117,7 @@
             ]
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ]
 }
 

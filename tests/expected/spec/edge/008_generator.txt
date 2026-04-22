@@ -92,8 +92,7 @@
               "value": 5,
               "raw": "5"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 71,
@@ -120,8 +119,7 @@
               "name": "gen"            },
             "arguments": [
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 88,

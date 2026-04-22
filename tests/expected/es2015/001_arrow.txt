@@ -35,8 +35,7 @@
               "end": 18,
               "value": 42,
               "raw": "42"            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 20,
@@ -84,8 +83,7 @@
                 "end": 42,
                 "value": 2,
                 "raw": "2"              }            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 44,
@@ -149,8 +147,7 @@
                       "name": "b"                    }                  }                }
               ]
             }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

@@ -81,8 +81,7 @@
                 "end": 39,
                 "name": "y"              }            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ]
 }
 

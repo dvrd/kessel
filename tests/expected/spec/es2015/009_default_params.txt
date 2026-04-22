@@ -53,8 +53,7 @@
               "end": 44,
               "name": "name"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "FunctionDeclaration",
       "start": 48,
@@ -160,8 +159,7 @@
                 }
               ]            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 98,
@@ -236,8 +234,7 @@
                 "start": 131,
                 "end": 132,
                 "name": "b"              }            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

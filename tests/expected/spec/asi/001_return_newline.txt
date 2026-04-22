@@ -35,8 +35,7 @@
               "value": 1,
               "raw": "1"            }          }
         ]
-      },
-      "declare": false    }
+      }    }
   ],
   "comments": [
     {

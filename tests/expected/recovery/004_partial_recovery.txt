@@ -26,8 +26,7 @@
             "end": 142,
             "value": 1,
             "raw": "1"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 144,
@@ -49,8 +48,7 @@
             "end": 160,
             "value": 2,
             "raw": "2"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 227,
@@ -90,8 +88,7 @@
                 "value": 4,
                 "raw": "4"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "ExpressionStatement",
       "start": 290,
@@ -166,8 +163,7 @@
                 "value": 3,
                 "raw": "3"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "LabeledStatement",
       "start": 414,
@@ -204,8 +200,7 @@
                   "end": 447,
                   "value": "inside",
                   "raw": "'inside'"                }              }
-            ],
-            "declare": false          },
+            ]          },
           {
             "type": "BreakStatement",
             "start": 451,
@@ -238,8 +233,7 @@
             "end": 483,
             "value": 3,
             "raw": "3"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 485,
@@ -261,8 +255,7 @@
             "end": 501,
             "value": 4,
             "raw": "4"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "FunctionDeclaration",
       "start": 504,
@@ -293,8 +286,7 @@
               "value": "recovery works",
               "raw": "'recovery works'"            }          }
         ]
-      },
-      "declare": false    },
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 601,
@@ -316,8 +308,7 @@
             "end": 622,
             "value": "dynamic",
             "raw": "'dynamic'"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 624,
@@ -408,8 +399,7 @@
                   ]                }
               }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

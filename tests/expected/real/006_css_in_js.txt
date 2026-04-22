@@ -108,8 +108,7 @@
                       "value": "palevioletred",
                       "raw": "'palevioletred'"                    }                  }                }
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 267,
@@ -248,8 +247,7 @@
                     "expressions": []                  }                }
               }
             ]          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

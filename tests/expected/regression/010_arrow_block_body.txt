@@ -124,8 +124,7 @@
                                         "start": 1745,
                                         "end": 1746,
                                         "name": "b"                                      }                                    }                                  }
-                                ],
-                                "declare": false                              },
+                                ]                              },
                               {
                                 "type": "ForStatement",
                                 "start": 1754,
@@ -151,8 +150,7 @@
                                         "end": 1768,
                                         "value": 0,
                                         "raw": "0"                                      }                                    }
-                                  ],
-                                  "declare": false
+                                  ]
                                 },
                                 "test": {
                                   "type": "BinaryExpression",
@@ -243,8 +241,7 @@
                                   "name": "sum"                                }                              }
                             ]
                           }                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "VariableDeclaration",
                     "start": 1892,
@@ -370,8 +367,7 @@
                                   "raw": "0"                                }                              }
                             ]
                           }                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "VariableDeclaration",
                     "start": 2045,
@@ -453,8 +449,7 @@
                                             "end": 2118,
                                             "name": "x"                                          }
                                         ]                                      }                                    }                                  }
-                                ],
-                                "declare": false                              },
+                                ]                              },
                               {
                                 "type": "ExpressionStatement",
                                 "start": 2127,
@@ -496,8 +491,7 @@
                                   "name": "y"                                }                              }
                             ]
                           }                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "VariableDeclaration",
                     "start": 2289,
@@ -545,8 +539,7 @@
                               "end": 2312,
                               "value": 2,
                               "raw": "2"                            }                          }                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "VariableDeclaration",
                     "start": 2318,
@@ -599,8 +592,7 @@
                               "start": 2349,
                               "end": 2350,
                               "name": "b"                            }                          }                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "ReturnStatement",
                     "start": 2357,
@@ -641,13 +633,10 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ],
   "comments": [
     {

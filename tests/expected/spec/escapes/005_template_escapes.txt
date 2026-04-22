@@ -34,8 +34,7 @@
               }
             ],
             "expressions": []          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 205,
@@ -79,8 +78,7 @@
                 "value": 1,
                 "raw": "1"              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 263,
@@ -110,8 +108,7 @@
               }
             ],
             "expressions": []          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 332,
@@ -141,8 +138,7 @@
               }
             ],
             "expressions": []          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {

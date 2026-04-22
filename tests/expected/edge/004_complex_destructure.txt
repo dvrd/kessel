@@ -103,8 +103,7 @@
             "start": 31,
             "end": 34,
             "name": "obj"          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 36,
@@ -164,8 +163,7 @@
             "start": 61,
             "end": 67,
             "name": "matrix"          }        }
-      ],
-      "declare": false    }
+      ]    }
   ]
 }
 

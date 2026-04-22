@@ -79,8 +79,7 @@
                           "end": 569,
                           "elements": [
                           ]                        }                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "ForInStatement",
                     "start": 575,
@@ -101,8 +100,7 @@
                             "end": 585,
                             "name": "k"                          },
                           "init": null                        }
-                      ],
-                      "declare": false
+                      ]
                     },
                     "right": {
                       "type": "Identifier",
@@ -165,8 +163,7 @@
                             "end": 638,
                             "name": "v"                          },
                           "init": null                        }
-                      ],
-                      "declare": false
+                      ]
                     },
                     "right": {
                       "type": "Identifier",
@@ -226,8 +223,7 @@
                           "end": 751,
                           "name": "x"                        },
                         "init": null                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "ForInStatement",
                     "start": 757,
@@ -294,8 +290,7 @@
                           "end": 809,
                           "name": "y"                        },
                         "init": null                      }
-                    ],
-                    "declare": false                  },
+                    ]                  },
                   {
                     "type": "ForOfStatement",
                     "start": 815,
@@ -361,13 +356,10 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false,
-            "abstract": false
+            "static": false
           }
         ]
-      },
-      "declare": false,
-      "abstract": false    }
+      }    }
   ],
   "comments": [
     {

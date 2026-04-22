@@ -86,8 +86,7 @@
                     "name": "age"                  }
                 }
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 98,
@@ -170,8 +169,7 @@
                     ]                  }
                 }
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 156,
@@ -322,8 +320,7 @@
                     }
                   ]                }              }
             ]          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 250,
@@ -381,8 +378,7 @@
                     "raw": "1"                  }
                 }
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 278,
@@ -460,8 +456,7 @@
                     "raw": "2"                  }
                 }
               ]            }          }        }
-      ],
-      "declare": false    },
+      ]    },
     {
       "type": "VariableDeclaration",
       "start": 313,
@@ -541,8 +536,7 @@
                       ]                    }                  }
                 }
               ]            }          }        }
-      ],
-      "declare": false    }
+      ]    }
   ],
   "comments": [
     {
