@@ -26,7 +26,8 @@
             "end": 25,
             "value": 1e+06,
             "raw": "1_000_000"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 27,
@@ -48,7 +49,8 @@
             "end": 48,
             "value": 65535,
             "raw": "0xFF_FF"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 50,
@@ -70,7 +72,8 @@
             "end": 74,
             "value": 161,
             "raw": "0b1010_0001"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 76,
@@ -92,7 +95,8 @@
             "end": 99,
             "value": 262143,
             "raw": "0o777_777"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 101,
@@ -114,10 +118,11 @@
             "end": 127,
             "value": 1234.56789,
             "raw": "1_234.567_89"          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=4856B reserved=16777216B ratio=0%
+Arena: used=6904B reserved=16777216B ratio=0%
 Parse errors: 0

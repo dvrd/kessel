@@ -142,7 +142,8 @@
                                       "end": 137,
                                       "name": "id"                                    }                                  }
                                 ]                              }                            }                          }
-                        ]                      },
+                        ],
+                        "declare": false                      },
                       {
                         "type": "IfStatement",
                         "start": 144,
@@ -460,7 +461,8 @@
                           "start": 376,
                           "end": 380,
                           "name": "body"                        }                      }                    }
-                  ]                },
+                  ],
+                  "declare": false                },
                 {
                   "type": "VariableDeclaration",
                   "start": 384,
@@ -511,7 +513,8 @@
                               "end": 437,
                               "name": "password"                            }
                           ]                        }                      }                    }
-                  ]                },
+                  ],
+                  "declare": false                },
                 {
                   "type": "ExpressionStatement",
                   "start": 442,
@@ -619,9 +622,17 @@
               ]
             }          }
         ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 28,
+      "value": " Express.js route handlers"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=12896B reserved=16777216B ratio=0%
+Arena: used=14944B reserved=16777216B ratio=0%
 Parse errors: 0

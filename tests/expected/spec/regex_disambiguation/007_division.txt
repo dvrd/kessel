@@ -1,0 +1,245 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 310,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 198,
+      "end": 214,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 204,
+          "end": 213,
+          "id": {
+            "type": "Identifier",
+            "start": 204,
+            "end": 205,
+            "name": "a"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 208,
+            "end": 213,
+            "operator": "/",
+            "left": {
+              "type": "Literal",
+              "start": 208,
+              "end": 209,
+              "value": 6,
+              "raw": "6"            },
+            "right": {
+              "type": "Literal",
+              "start": 212,
+              "end": 213,
+              "value": 2,
+              "raw": "2"            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 215,
+      "end": 231,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 221,
+          "end": 230,
+          "id": {
+            "type": "Identifier",
+            "start": 221,
+            "end": 222,
+            "name": "b"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 225,
+            "end": 230,
+            "operator": "/",
+            "left": {
+              "type": "Identifier",
+              "start": 225,
+              "end": 226,
+              "name": "x"            },
+            "right": {
+              "type": "Identifier",
+              "start": 229,
+              "end": 230,
+              "name": "y"            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 232,
+      "end": 258,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 238,
+          "end": 257,
+          "id": {
+            "type": "Identifier",
+            "start": 238,
+            "end": 239,
+            "name": "c"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 242,
+            "end": 257,
+            "operator": "/",
+            "left": {
+              "type": "MemberExpression",
+              "start": 242,
+              "end": 248,
+              "computed": true,
+              "object": {
+                "type": "Identifier",
+                "start": 242,
+                "end": 245,
+                "name": "arr"              },
+              "property": {
+                "type": "Literal",
+                "start": 246,
+                "end": 247,
+                "value": 0,
+                "raw": "0"              }            },
+            "right": {
+              "type": "MemberExpression",
+              "start": 251,
+              "end": 257,
+              "computed": true,
+              "object": {
+                "type": "Identifier",
+                "start": 251,
+                "end": 254,
+                "name": "arr"              },
+              "property": {
+                "type": "Literal",
+                "start": 255,
+                "end": 256,
+                "value": 1,
+                "raw": "1"              }            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 259,
+      "end": 281,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 265,
+          "end": 280,
+          "id": {
+            "type": "Identifier",
+            "start": 265,
+            "end": 266,
+            "name": "d"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 270,
+            "end": 280,
+            "operator": "/",
+            "left": {
+              "type": "BinaryExpression",
+              "start": 270,
+              "end": 275,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 270,
+                "end": 271,
+                "name": "x"              },
+              "right": {
+                "type": "Identifier",
+                "start": 274,
+                "end": 275,
+                "name": "y"              }            },
+            "right": {
+              "type": "Literal",
+              "start": 279,
+              "end": 280,
+              "value": 2,
+              "raw": "2"            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 282,
+      "end": 309,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 288,
+          "end": 308,
+          "id": {
+            "type": "Identifier",
+            "start": 288,
+            "end": 289,
+            "name": "e"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 292,
+            "end": 308,
+            "operator": "/",
+            "left": {
+              "type": "UpdateExpression",
+              "start": 292,
+              "end": 303,
+              "operator": "++",
+              "prefix": false,
+              "argument": {
+                "type": "MemberExpression",
+                "start": 292,
+                "end": 301,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 292,
+                  "end": 295,
+                  "name": "obj"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 296,
+                  "end": 301,
+                  "name": "count"                }              }            },
+            "right": {
+              "type": "Literal",
+              "start": 306,
+              "end": 308,
+              "value": 10,
+              "raw": "10"            }          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 67,
+      "value": " `/` as ACTUAL division, not regex. Tokens immediately before are"
+    },
+    {
+      "type": "Line",
+      "start": 68,
+      "end": 141,
+      "value": " of the \"operand\" class: identifier, numeric literal, `)`, `]`, `++/--`"
+    },
+    {
+      "type": "Line",
+      "start": 142,
+      "end": 197,
+      "value": " suffix, or keywords `this`, `true`, `false`, `null`."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9008B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -1,299 +1,320 @@
 {
   "type": "Program",
   "start": 0,
-  "end": 383,
+  "end": 382,
   "sourceType": "script",
   "hashbang": null,
   "body": [
     {
       "type": "VariableDeclaration",
-      "start": 58,
-      "end": 75,
+      "start": 57,
+      "end": 74,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 64,
-          "end": 74,
+          "start": 63,
+          "end": 73,
           "id": {
             "type": "Identifier",
-            "start": 64,
-            "end": 67,
+            "start": 63,
+            "end": 66,
             "name": "hex"          },
           "init": {
             "type": "Literal",
-            "start": 70,
-            "end": 74,
+            "start": 69,
+            "end": 73,
             "value": 255,
             "raw": "0xFF"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 76,
-      "end": 100,
+      "start": 75,
+      "end": 99,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 82,
-          "end": 99,
+          "start": 81,
+          "end": 98,
           "id": {
             "type": "Identifier",
-            "start": 82,
-            "end": 86,
+            "start": 81,
+            "end": 85,
             "name": "hex2"          },
           "init": {
             "type": "Literal",
-            "start": 89,
-            "end": 99,
+            "start": 88,
+            "end": 98,
             "value": 3.735928559e+09,
             "raw": "0xDEADBEEF"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 101,
-      "end": 123,
+      "start": 100,
+      "end": 122,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 107,
-          "end": 122,
+          "start": 106,
+          "end": 121,
           "id": {
             "type": "Identifier",
-            "start": 107,
-            "end": 113,
+            "start": 106,
+            "end": 112,
             "name": "binary"          },
           "init": {
             "type": "Literal",
-            "start": 116,
-            "end": 122,
+            "start": 115,
+            "end": 121,
             "value": 10,
             "raw": "0b1010"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 124,
-      "end": 151,
+      "start": 123,
+      "end": 150,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 130,
-          "end": 150,
+          "start": 129,
+          "end": 149,
           "id": {
             "type": "Identifier",
-            "start": 130,
-            "end": 137,
+            "start": 129,
+            "end": 136,
             "name": "binary2"          },
           "init": {
             "type": "Literal",
-            "start": 140,
-            "end": 150,
+            "start": 139,
+            "end": 149,
             "value": 240,
             "raw": "0b11110000"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 152,
-      "end": 172,
+      "start": 151,
+      "end": 171,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 158,
-          "end": 171,
+          "start": 157,
+          "end": 170,
           "id": {
             "type": "Identifier",
-            "start": 158,
-            "end": 163,
+            "start": 157,
+            "end": 162,
             "name": "octal"          },
           "init": {
             "type": "Literal",
-            "start": 166,
-            "end": 171,
+            "start": 165,
+            "end": 170,
             "value": 493,
             "raw": "0o755"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 173,
-      "end": 194,
+      "start": 172,
+      "end": 193,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 179,
-          "end": 193,
+          "start": 178,
+          "end": 192,
           "id": {
             "type": "Identifier",
-            "start": 179,
-            "end": 185,
+            "start": 178,
+            "end": 184,
             "name": "octal2"          },
           "init": {
             "type": "Literal",
-            "start": 188,
-            "end": 193,
+            "start": 187,
+            "end": 192,
             "value": 511,
             "raw": "0o777"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 196,
-      "end": 213,
+      "start": 195,
+      "end": 212,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 202,
-          "end": 212,
+          "start": 201,
+          "end": 211,
           "id": {
             "type": "Identifier",
-            "start": 202,
-            "end": 205,
+            "start": 201,
+            "end": 204,
             "name": "exp"          },
           "init": {
             "type": "Literal",
-            "start": 208,
-            "end": 212,
+            "start": 207,
+            "end": 211,
             "value": 1e+10,
             "raw": "1e10"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 214,
-      "end": 234,
+      "start": 213,
+      "end": 233,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 220,
-          "end": 233,
+          "start": 219,
+          "end": 232,
           "id": {
             "type": "Identifier",
-            "start": 220,
-            "end": 226,
+            "start": 219,
+            "end": 225,
             "name": "expNeg"          },
           "init": {
             "type": "Literal",
-            "start": 229,
-            "end": 233,
+            "start": 228,
+            "end": 232,
             "value": 1e-05,
             "raw": "1e-5"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 235,
-      "end": 257,
+      "start": 234,
+      "end": 256,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 241,
-          "end": 256,
+          "start": 240,
+          "end": 255,
           "id": {
             "type": "Identifier",
-            "start": 241,
-            "end": 247,
+            "start": 240,
+            "end": 246,
             "name": "expPos"          },
           "init": {
             "type": "Literal",
-            "start": 250,
-            "end": 256,
+            "start": 249,
+            "end": 255,
             "value": 1500,
             "raw": "1.5e+3"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 258,
-      "end": 282,
+      "start": 257,
+      "end": 281,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 264,
-          "end": 281,
+          "start": 263,
+          "end": 280,
           "id": {
             "type": "Identifier",
-            "start": 264,
-            "end": 271,
+            "start": 263,
+            "end": 270,
             "name": "decimal"          },
           "init": {
             "type": "Literal",
-            "start": 274,
-            "end": 281,
+            "start": 273,
+            "end": 280,
             "value": 3.1415899999999999,
             "raw": "3.14159"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 283,
-      "end": 311,
+      "start": 282,
+      "end": 310,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 289,
-          "end": 310,
+          "start": 288,
+          "end": 309,
           "id": {
             "type": "Identifier",
-            "start": 289,
-            "end": 301,
+            "start": 288,
+            "end": 300,
             "name": "decimalSmall"          },
           "init": {
             "type": "Literal",
-            "start": 304,
-            "end": 310,
+            "start": 303,
+            "end": 309,
             "value": 0.0001,
             "raw": "0.0001"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 312,
-      "end": 346,
+      "start": 311,
+      "end": 345,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 318,
-          "end": 345,
+          "start": 317,
+          "end": 344,
           "id": {
             "type": "Identifier",
-            "start": 318,
-            "end": 333,
+            "start": 317,
+            "end": 332,
             "name": "withUnderscores"          },
           "init": {
             "type": "Literal",
-            "start": 336,
-            "end": 345,
+            "start": 335,
+            "end": 344,
             "value": 1e+06,
             "raw": "1_000_000"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 347,
-      "end": 382,
+      "start": 346,
+      "end": 381,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 353,
-          "end": 381,
+          "start": 352,
+          "end": 380,
           "id": {
             "type": "Identifier",
-            "start": 353,
-            "end": 371,
+            "start": 352,
+            "end": 370,
             "name": "hexWithUnderscores"          },
           "init": {
             "type": "Literal",
-            "start": 374,
-            "end": 381,
+            "start": 373,
+            "end": 380,
             "value": 65535,
             "raw": "0xFF_FF"          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 57,
+      "value": " Numéricos: hex, binary, octal, exp notation, decimals"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=9064B reserved=16777216B ratio=0%
+Arena: used=11112B reserved=16777216B ratio=0%
 Parse errors: 0

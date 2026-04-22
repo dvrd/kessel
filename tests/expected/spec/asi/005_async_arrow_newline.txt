@@ -1,0 +1,126 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 300,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 244,
+      "end": 273,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 250,
+          "end": 272,
+          "id": {
+            "type": "Identifier",
+            "start": 250,
+            "end": 251,
+            "name": "f"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 254,
+            "end": 272,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": true,
+            "params": [
+              {
+                "type": "Identifier",
+                "start": 261,
+                "end": 262,
+                "name": "x"
+              }
+            ],
+            "body": {
+              "type": "BinaryExpression",
+              "start": 267,
+              "end": 272,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 267,
+                "end": 268,
+                "name": "x"              },
+              "right": {
+                "type": "Literal",
+                "start": 271,
+                "end": 272,
+                "value": 1,
+                "raw": "1"              }            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 274,
+      "end": 299,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 280,
+          "end": 298,
+          "id": {
+            "type": "Identifier",
+            "start": 280,
+            "end": 281,
+            "name": "g"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 284,
+            "end": 298,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": true,
+            "params": [],
+            "body": {
+              "type": "Literal",
+              "start": 296,
+              "end": 298,
+              "value": 42,
+              "raw": "42"            }          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 67,
+      "value": " ECMA-262 \\u00a715.8 \\u2014 No LineTerminator between `async` and"
+    },
+    {
+      "type": "Line",
+      "start": 68,
+      "end": 137,
+      "value": " ArrowParameters. `async\\n(x) => x` must parse as `async; (x) => x`"
+    },
+    {
+      "type": "Line",
+      "start": 138,
+      "end": 202,
+      "value": " (ExpressionStatement `async` followed by arrow on next line)."
+    },
+    {
+      "type": "Line",
+      "start": 203,
+      "end": 205,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 206,
+      "end": 243,
+      "value": " POSITIVE variant: same-line works."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=8808B reserved=16777216B ratio=0%
+Parse errors: 0

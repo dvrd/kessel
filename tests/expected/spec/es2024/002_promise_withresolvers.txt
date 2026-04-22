@@ -105,7 +105,8 @@
                 "name": "withResolvers"              }            },
             "arguments": [
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 62,
@@ -177,10 +178,11 @@
               "start": 123,
               "end": 130,
               "name": "promise"            }          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=5256B reserved=16777216B ratio=0%
+Arena: used=7304B reserved=16777216B ratio=0%
 Parse errors: 0

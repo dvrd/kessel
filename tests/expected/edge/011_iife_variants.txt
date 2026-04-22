@@ -350,7 +350,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 258,
+          "start": 310,
           "end": 350,
           "callee": {
             "type": "FunctionExpression",
@@ -376,7 +376,7 @@
                     "end": 345,
                     "callee": {
                       "type": "MemberExpression",
-                      "start": 323,
+                      "start": 258,
                       "end": 334,
                       "computed": false,
                       "object": {
@@ -413,7 +413,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 258,
+          "start": 353,
           "end": 396,
           "callee": {
             "type": "FunctionExpression",
@@ -435,7 +435,7 @@
                   "end": 392,
                   "expression": {
                     "type": "CallExpression",
-                    "start": 258,
+                    "start": 366,
                     "end": 391,
                     "callee": {
                       "type": "MemberExpression",
@@ -476,7 +476,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 258,
+          "start": 403,
           "end": 440,
           "callee": {
             "type": "FunctionExpression",
@@ -498,7 +498,7 @@
                   "end": 436,
                   "expression": {
                     "type": "CallExpression",
-                    "start": 258,
+                    "start": 416,
                     "end": 435,
                     "callee": {
                       "type": "MemberExpression",
@@ -527,9 +527,17 @@
             }          },
           "arguments": [
           ]        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 29,
+      "value": " IIFE con diferentes formas"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=12080B reserved=16777216B ratio=0%
+Arena: used=14128B reserved=16777216B ratio=0%
 Parse errors: 0

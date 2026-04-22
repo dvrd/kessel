@@ -1,0 +1,67 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 98,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 67,
+      "end": 97,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 73,
+          "end": 96,
+          "id": {
+            "type": "Identifier",
+            "start": 73,
+            "end": 74,
+            "name": "r"          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 77,
+            "end": 96,
+            "test": {
+              "type": "Identifier",
+              "start": 77,
+              "end": 81,
+              "name": "cond"            },
+            "consequent": {
+              "type": "Literal",
+              "start": 84,
+              "end": 89,
+              "value": null,
+              "raw": "/yes/",
+              "regex": {
+                "pattern": "yes",
+                "flags": ""
+              }            },
+            "alternate": {
+              "type": "Literal",
+              "start": 92,
+              "end": 96,
+              "value": null,
+              "raw": "/no/",
+              "regex": {
+                "pattern": "no",
+                "flags": ""
+              }            }          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 66,
+      "value": " `?` and `:` in a conditional both put us in expression context."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9306B reserved=16777216B ratio=0%
+Parse errors: 0

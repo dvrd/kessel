@@ -1,0 +1,167 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 169,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 98,
+      "end": 127,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 104,
+          "end": 126,
+          "id": {
+            "type": "Identifier",
+            "start": 104,
+            "end": 105,
+            "name": "a"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 108,
+            "end": 126,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 108,
+              "end": 126,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 109,
+                "end": 112,
+                "name": "Foo"
+              },
+              "attributes": [
+                {
+                  "type": "JSXSpreadAttribute",
+                  "start": 124,
+                  "end": 125,
+                  "argument": {
+                    "type": "Identifier",
+                    "start": 117,
+                    "end": 122,
+                    "name": "props"                  }
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 128,
+      "end": 168,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 134,
+          "end": 167,
+          "id": {
+            "type": "Identifier",
+            "start": 134,
+            "end": 135,
+            "name": "b"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 138,
+            "end": 167,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 138,
+              "end": 167,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 139,
+                "end": 142,
+                "name": "Bar"
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 149,
+                  "end": 150,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 143,
+                    "end": 144,
+                    "name": "x"
+                  },
+                  "value": {
+                    "type": "JSXExpressionContainer",
+                    "start": 149,
+                    "end": 150,
+                    "expression": {
+                      "type": "Literal",
+                      "start": 146,
+                      "end": 147,
+                      "value": 1,
+                      "raw": "1"
+                    }                  }
+                },
+                {
+                  "type": "JSXSpreadAttribute",
+                  "start": 159,
+                  "end": 160,
+                  "argument": {
+                    "type": "Identifier",
+                    "start": 153,
+                    "end": 157,
+                    "name": "rest"                  }
+                },
+                {
+                  "type": "JSXAttribute",
+                  "start": 165,
+                  "end": 166,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 159,
+                    "end": 160,
+                    "name": "y"
+                  },
+                  "value": {
+                    "type": "JSXExpressionContainer",
+                    "start": 165,
+                    "end": 166,
+                    "expression": {
+                      "type": "Literal",
+                      "start": 162,
+                      "end": 163,
+                      "value": 2,
+                      "raw": "2"
+                    }                  }
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 52,
+      "value": " JSX spread attribute: <Foo {...props} />. ESTree:"
+    },
+    {
+      "type": "Line",
+      "start": 53,
+      "end": 97,
+      "value": " JSXSpreadAttribute.argument = Expression."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7240B reserved=16777216B ratio=0%
+Parse errors: 0

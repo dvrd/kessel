@@ -1,0 +1,84 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 60,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 26,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 25,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "x"          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 10,
+            "end": 25,
+            "expression": {
+              "type": "Identifier",
+              "start": 10,
+              "end": 15,
+              "name": "value"
+            },
+            "typeAnnotation": {
+              "type": "TSStringKeyword",
+              "start": 19,
+              "end": 25
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 27,
+      "end": 59,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 33,
+          "end": 58,
+          "id": {
+            "type": "Identifier",
+            "start": 33,
+            "end": 34,
+            "name": "y"          },
+          "init": {
+            "type": "TSSatisfiesExpression",
+            "start": 37,
+            "end": 58,
+            "expression": {
+              "type": "Identifier",
+              "start": 37,
+              "end": 41,
+              "name": "data"
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 52,
+              "end": 58,
+              "typeName": {
+                "type": "Identifier",
+                "start": 52,
+                "end": 58,
+                "name": "Record"
+              },
+              "typeArguments": null
+            }          }        }
+      ],
+      "declare": false    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6664B reserved=16777216B ratio=0%
+Parse errors: 0

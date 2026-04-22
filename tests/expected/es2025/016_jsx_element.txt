@@ -1,0 +1,84 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 40,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 39,
+      "expression": {
+        "type": "JSXElement",
+        "start": 0,
+        "end": 39,
+        "openingElement": {
+          "type": "JSXOpeningElement",
+          "start": 0,
+          "end": 21,
+          "name": {
+            "type": "JSXIdentifier",
+            "start": 1,
+            "end": 4,
+            "name": "div"
+          },
+          "attributes": [
+            {
+              "type": "JSXAttribute",
+              "start": 20,
+              "end": 21,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 5,
+                "end": 14,
+                "name": "className"
+              },
+              "value": {
+                "type": "Literal",
+                "start": 15,
+                "end": 20,
+                "value": "foo",
+                "raw": "\"foo\""              }
+            }
+          ],
+          "selfClosing": false
+        },
+        "children": [
+          {
+            "type": "JSXText",
+            "start": 21,
+            "end": 27,
+            "value": "hello ",
+            "raw": "hello "
+          },
+          {
+            "type": "JSXExpressionContainer",
+            "start": 33,
+            "end": 34,
+            "expression": {
+              "type": "Identifier",
+              "start": 28,
+              "end": 32,
+              "name": "name"
+            }
+          }
+        ],
+        "closingElement": {
+          "type": "JSXClosingElement",
+          "start": 33,
+          "end": 39,
+          "name": {
+            "type": "JSXIdentifier",
+            "start": 35,
+            "end": 38,
+            "name": "div"
+          }
+        }
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6856B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -37,7 +37,8 @@
                 "value": "path",
                 "raw": "'path'"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 61,
@@ -70,7 +71,8 @@
                 "value": "html-webpack-plugin",
                 "raw": "'html-webpack-plugin'"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 120,
@@ -460,9 +462,17 @@
                 ]              }
             }
           ]        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 30,
+      "value": " Webpack-style configuration"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=15440B reserved=16777216B ratio=0%
+Arena: used=17488B reserved=16777216B ratio=0%
 Parse errors: 0

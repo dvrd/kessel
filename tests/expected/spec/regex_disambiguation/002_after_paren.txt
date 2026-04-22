@@ -1,0 +1,94 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 114,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "IfStatement",
+      "start": 63,
+      "end": 113,
+      "test": {
+        "type": "CallExpression",
+        "start": 67,
+        "end": 84,
+        "callee": {
+          "type": "MemberExpression",
+          "start": 67,
+          "end": 77,
+          "computed": false,
+          "object": {
+            "type": "Literal",
+            "start": 67,
+            "end": 72,
+            "value": null,
+            "raw": "/abc/",
+            "regex": {
+              "pattern": "abc",
+              "flags": ""
+            }          },
+          "property": {
+            "type": "Identifier",
+            "start": 73,
+            "end": 77,
+            "name": "test"          }        },
+        "arguments": [
+          {
+            "type": "Identifier",
+            "start": 78,
+            "end": 83,
+            "name": "input"          }
+        ]      },
+      "consequent": {
+        "type": "BlockStatement",
+        "start": 86,
+        "end": 113,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 90,
+            "end": 111,
+            "expression": {
+              "type": "CallExpression",
+              "start": 90,
+              "end": 110,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 90,
+                "end": 101,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 90,
+                  "end": 97,
+                  "name": "console"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 98,
+                  "end": 101,
+                  "name": "log"                }              },
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "start": 102,
+                  "end": 109,
+                  "value": "match",
+                  "raw": "\"match\""                }
+              ]            }          }
+        ]      },
+      "alternate": null    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 62,
+      "value": " Inside parentheses of an if/while/for, `/` starts a RegExp."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9360B reserved=16777216B ratio=0%
+Parse errors: 0

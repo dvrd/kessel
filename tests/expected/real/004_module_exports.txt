@@ -37,7 +37,8 @@
                 "value": "fs",
                 "raw": "'fs'"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 53,
@@ -70,7 +71,8 @@
                 "value": "path",
                 "raw": "'path'"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 84,
@@ -143,7 +145,8 @@
                       "end": 167,
                       "name": "filePath"                    }
                   ]                }              }
-            ]          },
+            ],
+            "declare": false          },
           {
             "type": "ReturnStatement",
             "start": 172,
@@ -202,7 +205,8 @@
                   ]                }
               ]            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 229,
@@ -321,9 +325,17 @@
           "end": 324,
           "value": "1.0.0",
           "raw": "'1.0.0'"        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 26,
+      "value": " Node.js module patterns"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=7736B reserved=16777216B ratio=0%
+Arena: used=9784B reserved=16777216B ratio=0%
 Parse errors: 0

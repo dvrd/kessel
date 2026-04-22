@@ -94,7 +94,8 @@
                 "start": 73,
                 "end": 74,
                 "name": "b"              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 76,
@@ -154,7 +155,8 @@
                 "start": 102,
                 "end": 103,
                 "name": "y"              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 105,
@@ -235,7 +237,8 @@
               "start": 133,
               "end": 134,
               "name": "b"            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 136,
@@ -290,7 +293,8 @@
               "start": 164,
               "end": 168,
               "name": "rest"            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 170,
@@ -351,10 +355,19 @@
                 "start": 210,
                 "end": 215,
                 "name": "third"              }            }          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 44,
+      "value": " Arrow functions with destructuring params"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=7192B reserved=16777216B ratio=0%
+Arena: used=9240B reserved=16777216B ratio=0%
 Parse errors: 0

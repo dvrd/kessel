@@ -1,0 +1,293 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 361,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 47,
+      "end": 67,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 53,
+          "end": 66,
+          "id": {
+            "type": "Identifier",
+            "start": 53,
+            "end": 57,
+            "name": "bell"          },
+          "init": {
+            "type": "Literal",
+            "start": 62,
+            "end": 66,
+            "value": "\u0008",
+            "raw": "\"\\b\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 89,
+      "end": 109,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 95,
+          "end": 108,
+          "id": {
+            "type": "Identifier",
+            "start": 95,
+            "end": 98,
+            "name": "tab"          },
+          "init": {
+            "type": "Literal",
+            "start": 104,
+            "end": 108,
+            "value": "\t",
+            "raw": "\"\\t\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 121,
+      "end": 141,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 127,
+          "end": 140,
+          "id": {
+            "type": "Identifier",
+            "start": 127,
+            "end": 129,
+            "name": "lf"          },
+          "init": {
+            "type": "Literal",
+            "start": 136,
+            "end": 140,
+            "value": "\n",
+            "raw": "\"\\n\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 153,
+      "end": 173,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 159,
+          "end": 172,
+          "id": {
+            "type": "Identifier",
+            "start": 159,
+            "end": 163,
+            "name": "vtab"          },
+          "init": {
+            "type": "Literal",
+            "start": 168,
+            "end": 172,
+            "value": "\u000b",
+            "raw": "\"\\v\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 185,
+      "end": 205,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 191,
+          "end": 204,
+          "id": {
+            "type": "Identifier",
+            "start": 191,
+            "end": 193,
+            "name": "ff"          },
+          "init": {
+            "type": "Literal",
+            "start": 200,
+            "end": 204,
+            "value": "\u000c",
+            "raw": "\"\\f\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 217,
+      "end": 237,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 223,
+          "end": 236,
+          "id": {
+            "type": "Identifier",
+            "start": 223,
+            "end": 225,
+            "name": "cr"          },
+          "init": {
+            "type": "Literal",
+            "start": 232,
+            "end": 236,
+            "value": "\r",
+            "raw": "\"\\r\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 249,
+      "end": 269,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 255,
+          "end": 268,
+          "id": {
+            "type": "Identifier",
+            "start": 255,
+            "end": 259,
+            "name": "quot"          },
+          "init": {
+            "type": "Literal",
+            "start": 264,
+            "end": 268,
+            "value": "\"",
+            "raw": "\"\\\"\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 270,
+      "end": 290,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 276,
+          "end": 289,
+          "id": {
+            "type": "Identifier",
+            "start": 276,
+            "end": 280,
+            "name": "apos"          },
+          "init": {
+            "type": "Literal",
+            "start": 285,
+            "end": 289,
+            "value": "'",
+            "raw": "\"\\'\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 291,
+      "end": 311,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 297,
+          "end": 310,
+          "id": {
+            "type": "Identifier",
+            "start": 297,
+            "end": 302,
+            "name": "slash"          },
+          "init": {
+            "type": "Literal",
+            "start": 306,
+            "end": 310,
+            "value": "\\",
+            "raw": "\"\\\\\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 312,
+      "end": 332,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 318,
+          "end": 331,
+          "id": {
+            "type": "Identifier",
+            "start": 318,
+            "end": 321,
+            "name": "nul"          },
+          "init": {
+            "type": "Literal",
+            "start": 327,
+            "end": 331,
+            "value": "\u0000",
+            "raw": "\"\\0\""          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 47,
+      "value": " All single-character escapes per §12.9.4.2."
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 89,
+      "value": " U+0008 BACKSPACE"
+    },
+    {
+      "type": "Line",
+      "start": 112,
+      "end": 121,
+      "value": " U+0009"
+    },
+    {
+      "type": "Line",
+      "start": 144,
+      "end": 153,
+      "value": " U+000A"
+    },
+    {
+      "type": "Line",
+      "start": 176,
+      "end": 185,
+      "value": " U+000B"
+    },
+    {
+      "type": "Line",
+      "start": 208,
+      "end": 217,
+      "value": " U+000C"
+    },
+    {
+      "type": "Line",
+      "start": 240,
+      "end": 249,
+      "value": " U+000D"
+    },
+    {
+      "type": "Line",
+      "start": 335,
+      "end": 361,
+      "value": " U+0000 (no digit after)"
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=10528B reserved=16777216B ratio=0%
+Parse errors: 0

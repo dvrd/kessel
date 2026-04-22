@@ -23,7 +23,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 14,
+                        "start": 14,
             "end": 44,
                         "key": {
               "type": "Identifier",
@@ -89,7 +89,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 47,
+                        "start": 47,
             "end": 71,
                         "key": {
               "type": "Identifier",
@@ -137,10 +137,11 @@
             "static": false
           }
         ]
-      }    }
+      },
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=5688B reserved=16777216B ratio=0%
+Arena: used=7928B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -31,7 +31,8 @@
               "name": "Foo"            },
             "arguments": [
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 21,
@@ -70,10 +71,11 @@
                 "value": 2,
                 "raw": "2"              }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=4680B reserved=16777216B ratio=0%
+Arena: used=6728B reserved=16777216B ratio=0%
 Parse errors: 0

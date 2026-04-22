@@ -26,7 +26,8 @@
             "end": 57,
             "value": 1,
             "raw": "1"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 58,
@@ -48,7 +49,8 @@
             "end": 69,
             "value": 2,
             "raw": "2"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 71,
@@ -79,7 +81,8 @@
               "value": 1,
               "raw": "1"            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "IfStatement",
       "start": 103,
@@ -189,10 +192,25 @@
                   "raw": "2"                }
               }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 45,
+      "value": " Missing semicolons (ASI deberia funcionar)"
+    },
+    {
+      "type": "Line",
+      "start": 138,
+      "end": 166,
+      "value": " This should work with ASI"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=5248B reserved=16777216B ratio=0%
+Arena: used=7296B reserved=16777216B ratio=0%
 Parse errors: 0

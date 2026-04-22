@@ -60,7 +60,8 @@
                   "end": 66,
                   "value": 1,
                   "raw": "1"                }              }
-            ]          },
+            ],
+            "declare": false          },
           {
             "type": "WhileStatement",
             "start": 70,
@@ -143,7 +144,8 @@
                       ]                    }                  }                }
               ]            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 130,
@@ -218,7 +220,8 @@
                     "start": 185,
                     "end": 190,
                     "name": "start"                  }                }
-              ]
+              ],
+              "declare": false
             },
             "test": {
               "type": "BinaryExpression",
@@ -271,7 +274,8 @@
                     "delegate": false                  }                }
               ]            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 234,
@@ -371,7 +375,8 @@
                 "name": "arguments"              },
               "delegate": true            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 322,
@@ -446,10 +451,19 @@
                   }                }
               }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 23,
+      "value": " Generators complejos"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=9888B reserved=16777216B ratio=0%
+Arena: used=11936B reserved=16777216B ratio=0%
 Parse errors: 0

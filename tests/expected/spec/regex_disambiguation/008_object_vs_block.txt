@@ -1,0 +1,59 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 301,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "BlockStatement",
+      "start": 290,
+      "end": 292,
+      "body": [
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 293,
+      "end": 300,
+      "expression": {
+        "type": "Literal",
+        "start": 293,
+        "end": 299,
+        "value": null,
+        "raw": "/abc/g",
+        "regex": {
+          "pattern": "abc",
+          "flags": "g"
+        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " Tricky case: `{} /x/g`. `{}` is a BlockStatement (statement context),"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 145,
+      "value": " so `/x/g` at the start of the next statement is a RegExp. Kessel must"
+    },
+    {
+      "type": "Line",
+      "start": 146,
+      "end": 224,
+      "value": " choose regex here \\u2014 if it thought `{}` was an empty object expression,"
+    },
+    {
+      "type": "Line",
+      "start": 225,
+      "end": 289,
+      "value": " it'd interpret the `/` as division and produce `{} / x / g;`."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=11225B reserved=16777216B ratio=0%
+Parse errors: 0

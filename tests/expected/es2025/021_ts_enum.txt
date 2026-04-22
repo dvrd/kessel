@@ -1,0 +1,123 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 74,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSEnumDeclaration",
+      "start": 0,
+      "end": 31,
+      "id": {
+        "type": "Identifier",
+        "start": 5,
+        "end": 10,
+        "name": "Color"
+      },
+      "body": {
+        "type": "TSEnumBody",
+        "start": 11,
+        "end": 31,
+        "members": [
+          {
+            "type": "TSEnumMember",
+            "start": 13,
+            "end": 16,
+            "id": {
+              "type": "Identifier",
+              "start": 13,
+              "end": 16,
+              "name": "Red"
+            },
+            "initializer": null
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 18,
+            "end": 23,
+            "id": {
+              "type": "Identifier",
+              "start": 18,
+              "end": 23,
+              "name": "Green"
+            },
+            "initializer": null
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 25,
+            "end": 29,
+            "id": {
+              "type": "Identifier",
+              "start": 25,
+              "end": 29,
+              "name": "Blue"
+            },
+            "initializer": null
+          }
+        ]
+      },
+      "const": false,
+      "declare": false    },
+    {
+      "type": "TSEnumDeclaration",
+      "start": 32,
+      "end": 73,
+      "id": {
+        "type": "Identifier",
+        "start": 43,
+        "end": 52,
+        "name": "Direction"
+      },
+      "body": {
+        "type": "TSEnumBody",
+        "start": 53,
+        "end": 73,
+        "members": [
+          {
+            "type": "TSEnumMember",
+            "start": 55,
+            "end": 61,
+            "id": {
+              "type": "Identifier",
+              "start": 55,
+              "end": 57,
+              "name": "Up"
+            },
+            "initializer": {
+              "type": "Literal",
+              "start": 60,
+              "end": 61,
+              "value": 1,
+              "raw": "1"
+            }
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 63,
+            "end": 71,
+            "id": {
+              "type": "Identifier",
+              "start": 63,
+              "end": 67,
+              "name": "Down"
+            },
+            "initializer": {
+              "type": "Literal",
+              "start": 70,
+              "end": 71,
+              "value": 2,
+              "raw": "2"
+            }
+          }
+        ]
+      },
+      "const": true,
+      "declare": false    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7016B reserved=16777216B ratio=0%
+Parse errors: 0

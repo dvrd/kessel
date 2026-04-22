@@ -283,9 +283,17 @@
               ]
             }          }
         ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 31,
+      "value": " jQuery-style chainable calls"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=6800B reserved=16777216B ratio=0%
+Arena: used=8848B reserved=16777216B ratio=0%
 Parse errors: 0

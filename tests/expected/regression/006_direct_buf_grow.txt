@@ -1,40 +1,40 @@
 {
   "type": "Program",
   "start": 0,
-  "end": 967,
+  "end": 959,
   "sourceType": "script",
   "hashbang": null,
   "body": [
     {
       "type": "ClassDeclaration",
-      "start": 691,
-      "end": 966,
+      "start": 683,
+      "end": 958,
       "id": {
         "type": "Identifier",
-        "start": 697,
-        "end": 710,
+        "start": 689,
+        "end": 702,
         "name": "Regression006"
       },
       "superClass": null,
       "body": {
         "type": "ClassBody",
-        "start": 711,
-        "end": 966,
+        "start": 703,
+        "end": 958,
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 715,
-            "end": 721,
+                        "start": 707,
+            "end": 713,
                         "key": {
               "type": "Identifier",
-              "start": 715,
-              "end": 717,
+              "start": 707,
+              "end": 709,
               "name": "a0"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 717,
-              "end": 721,
+              "start": 709,
+              "end": 713,
               "id": null,
               "expression": false,
               "generator": false,
@@ -42,8 +42,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 719,
-                "end": 721,
+                "start": 711,
+                "end": 713,
                 "body": [
                 ]
               }
@@ -54,18 +54,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 721,
-            "end": 727,
+                        "start": 713,
+            "end": 719,
                         "key": {
               "type": "Identifier",
-              "start": 721,
-              "end": 723,
+              "start": 713,
+              "end": 715,
               "name": "a1"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 723,
-              "end": 727,
+              "start": 715,
+              "end": 719,
               "id": null,
               "expression": false,
               "generator": false,
@@ -73,8 +73,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 725,
-                "end": 727,
+                "start": 717,
+                "end": 719,
                 "body": [
                 ]
               }
@@ -85,18 +85,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 727,
-            "end": 733,
+                        "start": 719,
+            "end": 725,
                         "key": {
               "type": "Identifier",
-              "start": 727,
-              "end": 729,
+              "start": 719,
+              "end": 721,
               "name": "a2"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 729,
-              "end": 733,
+              "start": 721,
+              "end": 725,
               "id": null,
               "expression": false,
               "generator": false,
@@ -104,8 +104,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 731,
-                "end": 733,
+                "start": 723,
+                "end": 725,
                 "body": [
                 ]
               }
@@ -116,18 +116,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 733,
-            "end": 739,
+                        "start": 725,
+            "end": 731,
                         "key": {
               "type": "Identifier",
-              "start": 733,
-              "end": 735,
+              "start": 725,
+              "end": 727,
               "name": "a3"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 735,
-              "end": 739,
+              "start": 727,
+              "end": 731,
               "id": null,
               "expression": false,
               "generator": false,
@@ -135,8 +135,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 737,
-                "end": 739,
+                "start": 729,
+                "end": 731,
                 "body": [
                 ]
               }
@@ -147,18 +147,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 739,
-            "end": 745,
+                        "start": 731,
+            "end": 737,
                         "key": {
               "type": "Identifier",
-              "start": 739,
-              "end": 741,
+              "start": 731,
+              "end": 733,
               "name": "a4"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 741,
-              "end": 745,
+              "start": 733,
+              "end": 737,
               "id": null,
               "expression": false,
               "generator": false,
@@ -166,8 +166,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 743,
-                "end": 745,
+                "start": 735,
+                "end": 737,
                 "body": [
                 ]
               }
@@ -178,18 +178,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 745,
-            "end": 751,
+                        "start": 737,
+            "end": 743,
                         "key": {
               "type": "Identifier",
-              "start": 745,
-              "end": 747,
+              "start": 737,
+              "end": 739,
               "name": "a5"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 747,
-              "end": 751,
+              "start": 739,
+              "end": 743,
               "id": null,
               "expression": false,
               "generator": false,
@@ -197,8 +197,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 749,
-                "end": 751,
+                "start": 741,
+                "end": 743,
                 "body": [
                 ]
               }
@@ -209,18 +209,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 751,
-            "end": 757,
+                        "start": 743,
+            "end": 749,
                         "key": {
               "type": "Identifier",
-              "start": 751,
-              "end": 753,
+              "start": 743,
+              "end": 745,
               "name": "a6"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 753,
-              "end": 757,
+              "start": 745,
+              "end": 749,
               "id": null,
               "expression": false,
               "generator": false,
@@ -228,8 +228,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 755,
-                "end": 757,
+                "start": 747,
+                "end": 749,
                 "body": [
                 ]
               }
@@ -240,18 +240,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 757,
-            "end": 763,
+                        "start": 749,
+            "end": 755,
                         "key": {
               "type": "Identifier",
-              "start": 757,
-              "end": 759,
+              "start": 749,
+              "end": 751,
               "name": "a7"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 759,
-              "end": 763,
+              "start": 751,
+              "end": 755,
               "id": null,
               "expression": false,
               "generator": false,
@@ -259,8 +259,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 761,
-                "end": 763,
+                "start": 753,
+                "end": 755,
                 "body": [
                 ]
               }
@@ -271,18 +271,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 763,
-            "end": 769,
+                        "start": 755,
+            "end": 761,
                         "key": {
               "type": "Identifier",
-              "start": 763,
-              "end": 765,
+              "start": 755,
+              "end": 757,
               "name": "a8"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 765,
-              "end": 769,
+              "start": 757,
+              "end": 761,
               "id": null,
               "expression": false,
               "generator": false,
@@ -290,8 +290,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 767,
-                "end": 769,
+                "start": 759,
+                "end": 761,
                 "body": [
                 ]
               }
@@ -302,18 +302,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 769,
-            "end": 775,
+                        "start": 761,
+            "end": 767,
                         "key": {
               "type": "Identifier",
-              "start": 769,
-              "end": 771,
+              "start": 761,
+              "end": 763,
               "name": "a9"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 771,
-              "end": 775,
+              "start": 763,
+              "end": 767,
               "id": null,
               "expression": false,
               "generator": false,
@@ -321,8 +321,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 773,
-                "end": 775,
+                "start": 765,
+                "end": 767,
                 "body": [
                 ]
               }
@@ -333,18 +333,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 778,
-            "end": 784,
+                        "start": 770,
+            "end": 776,
                         "key": {
               "type": "Identifier",
-              "start": 778,
-              "end": 780,
+              "start": 770,
+              "end": 772,
               "name": "b0"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 780,
-              "end": 784,
+              "start": 772,
+              "end": 776,
               "id": null,
               "expression": false,
               "generator": false,
@@ -352,8 +352,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 782,
-                "end": 784,
+                "start": 774,
+                "end": 776,
                 "body": [
                 ]
               }
@@ -364,18 +364,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 784,
-            "end": 790,
+                        "start": 776,
+            "end": 782,
                         "key": {
               "type": "Identifier",
-              "start": 784,
-              "end": 786,
+              "start": 776,
+              "end": 778,
               "name": "b1"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 786,
-              "end": 790,
+              "start": 778,
+              "end": 782,
               "id": null,
               "expression": false,
               "generator": false,
@@ -383,8 +383,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 788,
-                "end": 790,
+                "start": 780,
+                "end": 782,
                 "body": [
                 ]
               }
@@ -395,18 +395,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 790,
-            "end": 796,
+                        "start": 782,
+            "end": 788,
                         "key": {
               "type": "Identifier",
-              "start": 790,
-              "end": 792,
+              "start": 782,
+              "end": 784,
               "name": "b2"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 792,
-              "end": 796,
+              "start": 784,
+              "end": 788,
               "id": null,
               "expression": false,
               "generator": false,
@@ -414,8 +414,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 794,
-                "end": 796,
+                "start": 786,
+                "end": 788,
                 "body": [
                 ]
               }
@@ -426,18 +426,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 796,
-            "end": 802,
+                        "start": 788,
+            "end": 794,
                         "key": {
               "type": "Identifier",
-              "start": 796,
-              "end": 798,
+              "start": 788,
+              "end": 790,
               "name": "b3"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 798,
-              "end": 802,
+              "start": 790,
+              "end": 794,
               "id": null,
               "expression": false,
               "generator": false,
@@ -445,8 +445,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 800,
-                "end": 802,
+                "start": 792,
+                "end": 794,
                 "body": [
                 ]
               }
@@ -457,18 +457,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 802,
-            "end": 808,
+                        "start": 794,
+            "end": 800,
                         "key": {
               "type": "Identifier",
-              "start": 802,
-              "end": 804,
+              "start": 794,
+              "end": 796,
               "name": "b4"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 804,
-              "end": 808,
+              "start": 796,
+              "end": 800,
               "id": null,
               "expression": false,
               "generator": false,
@@ -476,8 +476,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 806,
-                "end": 808,
+                "start": 798,
+                "end": 800,
                 "body": [
                 ]
               }
@@ -488,18 +488,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 808,
-            "end": 814,
+                        "start": 800,
+            "end": 806,
                         "key": {
               "type": "Identifier",
-              "start": 808,
-              "end": 810,
+              "start": 800,
+              "end": 802,
               "name": "b5"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 810,
-              "end": 814,
+              "start": 802,
+              "end": 806,
               "id": null,
               "expression": false,
               "generator": false,
@@ -507,8 +507,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 812,
-                "end": 814,
+                "start": 804,
+                "end": 806,
                 "body": [
                 ]
               }
@@ -519,18 +519,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 814,
-            "end": 820,
+                        "start": 806,
+            "end": 812,
                         "key": {
               "type": "Identifier",
-              "start": 814,
-              "end": 816,
+              "start": 806,
+              "end": 808,
               "name": "b6"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 816,
-              "end": 820,
+              "start": 808,
+              "end": 812,
               "id": null,
               "expression": false,
               "generator": false,
@@ -538,8 +538,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 818,
-                "end": 820,
+                "start": 810,
+                "end": 812,
                 "body": [
                 ]
               }
@@ -550,18 +550,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 820,
-            "end": 826,
+                        "start": 812,
+            "end": 818,
                         "key": {
               "type": "Identifier",
-              "start": 820,
-              "end": 822,
+              "start": 812,
+              "end": 814,
               "name": "b7"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 822,
-              "end": 826,
+              "start": 814,
+              "end": 818,
               "id": null,
               "expression": false,
               "generator": false,
@@ -569,8 +569,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 824,
-                "end": 826,
+                "start": 816,
+                "end": 818,
                 "body": [
                 ]
               }
@@ -581,18 +581,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 826,
-            "end": 832,
+                        "start": 818,
+            "end": 824,
                         "key": {
               "type": "Identifier",
-              "start": 826,
-              "end": 828,
+              "start": 818,
+              "end": 820,
               "name": "b8"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 828,
-              "end": 832,
+              "start": 820,
+              "end": 824,
               "id": null,
               "expression": false,
               "generator": false,
@@ -600,8 +600,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 830,
-                "end": 832,
+                "start": 822,
+                "end": 824,
                 "body": [
                 ]
               }
@@ -612,18 +612,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 832,
-            "end": 838,
+                        "start": 824,
+            "end": 830,
                         "key": {
               "type": "Identifier",
-              "start": 832,
-              "end": 834,
+              "start": 824,
+              "end": 826,
               "name": "b9"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 834,
-              "end": 838,
+              "start": 826,
+              "end": 830,
               "id": null,
               "expression": false,
               "generator": false,
@@ -631,8 +631,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 836,
-                "end": 838,
+                "start": 828,
+                "end": 830,
                 "body": [
                 ]
               }
@@ -643,18 +643,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 841,
-            "end": 847,
+                        "start": 833,
+            "end": 839,
                         "key": {
               "type": "Identifier",
-              "start": 841,
-              "end": 843,
+              "start": 833,
+              "end": 835,
               "name": "c0"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 843,
-              "end": 847,
+              "start": 835,
+              "end": 839,
               "id": null,
               "expression": false,
               "generator": false,
@@ -662,8 +662,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 845,
-                "end": 847,
+                "start": 837,
+                "end": 839,
                 "body": [
                 ]
               }
@@ -674,18 +674,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 847,
-            "end": 853,
+                        "start": 839,
+            "end": 845,
                         "key": {
               "type": "Identifier",
-              "start": 847,
-              "end": 849,
+              "start": 839,
+              "end": 841,
               "name": "c1"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 849,
-              "end": 853,
+              "start": 841,
+              "end": 845,
               "id": null,
               "expression": false,
               "generator": false,
@@ -693,8 +693,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 851,
-                "end": 853,
+                "start": 843,
+                "end": 845,
                 "body": [
                 ]
               }
@@ -705,18 +705,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 853,
-            "end": 859,
+                        "start": 845,
+            "end": 851,
                         "key": {
               "type": "Identifier",
-              "start": 853,
-              "end": 855,
+              "start": 845,
+              "end": 847,
               "name": "c2"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 855,
-              "end": 859,
+              "start": 847,
+              "end": 851,
               "id": null,
               "expression": false,
               "generator": false,
@@ -724,8 +724,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 857,
-                "end": 859,
+                "start": 849,
+                "end": 851,
                 "body": [
                 ]
               }
@@ -736,18 +736,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 859,
-            "end": 865,
+                        "start": 851,
+            "end": 857,
                         "key": {
               "type": "Identifier",
-              "start": 859,
-              "end": 861,
+              "start": 851,
+              "end": 853,
               "name": "c3"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 861,
-              "end": 865,
+              "start": 853,
+              "end": 857,
               "id": null,
               "expression": false,
               "generator": false,
@@ -755,8 +755,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 863,
-                "end": 865,
+                "start": 855,
+                "end": 857,
                 "body": [
                 ]
               }
@@ -767,18 +767,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 865,
-            "end": 871,
+                        "start": 857,
+            "end": 863,
                         "key": {
               "type": "Identifier",
-              "start": 865,
-              "end": 867,
+              "start": 857,
+              "end": 859,
               "name": "c4"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 867,
-              "end": 871,
+              "start": 859,
+              "end": 863,
               "id": null,
               "expression": false,
               "generator": false,
@@ -786,8 +786,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 869,
-                "end": 871,
+                "start": 861,
+                "end": 863,
                 "body": [
                 ]
               }
@@ -798,18 +798,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 871,
-            "end": 877,
+                        "start": 863,
+            "end": 869,
                         "key": {
               "type": "Identifier",
-              "start": 871,
-              "end": 873,
+              "start": 863,
+              "end": 865,
               "name": "c5"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 873,
-              "end": 877,
+              "start": 865,
+              "end": 869,
               "id": null,
               "expression": false,
               "generator": false,
@@ -817,8 +817,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 875,
-                "end": 877,
+                "start": 867,
+                "end": 869,
                 "body": [
                 ]
               }
@@ -829,18 +829,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 877,
-            "end": 883,
+                        "start": 869,
+            "end": 875,
                         "key": {
               "type": "Identifier",
-              "start": 877,
-              "end": 879,
+              "start": 869,
+              "end": 871,
               "name": "c6"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 879,
-              "end": 883,
+              "start": 871,
+              "end": 875,
               "id": null,
               "expression": false,
               "generator": false,
@@ -848,8 +848,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 881,
-                "end": 883,
+                "start": 873,
+                "end": 875,
                 "body": [
                 ]
               }
@@ -860,18 +860,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 883,
-            "end": 889,
+                        "start": 875,
+            "end": 881,
                         "key": {
               "type": "Identifier",
-              "start": 883,
-              "end": 885,
+              "start": 875,
+              "end": 877,
               "name": "c7"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 885,
-              "end": 889,
+              "start": 877,
+              "end": 881,
               "id": null,
               "expression": false,
               "generator": false,
@@ -879,8 +879,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 887,
-                "end": 889,
+                "start": 879,
+                "end": 881,
                 "body": [
                 ]
               }
@@ -891,18 +891,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 889,
-            "end": 895,
+                        "start": 881,
+            "end": 887,
                         "key": {
               "type": "Identifier",
-              "start": 889,
-              "end": 891,
+              "start": 881,
+              "end": 883,
               "name": "c8"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 891,
-              "end": 895,
+              "start": 883,
+              "end": 887,
               "id": null,
               "expression": false,
               "generator": false,
@@ -910,8 +910,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 893,
-                "end": 895,
+                "start": 885,
+                "end": 887,
                 "body": [
                 ]
               }
@@ -922,18 +922,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 895,
-            "end": 901,
+                        "start": 887,
+            "end": 893,
                         "key": {
               "type": "Identifier",
-              "start": 895,
-              "end": 897,
+              "start": 887,
+              "end": 889,
               "name": "c9"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 897,
-              "end": 901,
+              "start": 889,
+              "end": 893,
               "id": null,
               "expression": false,
               "generator": false,
@@ -941,8 +941,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 899,
-                "end": 901,
+                "start": 891,
+                "end": 893,
                 "body": [
                 ]
               }
@@ -953,18 +953,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 904,
-            "end": 910,
+                        "start": 896,
+            "end": 902,
                         "key": {
               "type": "Identifier",
-              "start": 904,
-              "end": 906,
+              "start": 896,
+              "end": 898,
               "name": "d0"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 906,
-              "end": 910,
+              "start": 898,
+              "end": 902,
               "id": null,
               "expression": false,
               "generator": false,
@@ -972,8 +972,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 908,
-                "end": 910,
+                "start": 900,
+                "end": 902,
                 "body": [
                 ]
               }
@@ -984,18 +984,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 910,
-            "end": 916,
+                        "start": 902,
+            "end": 908,
                         "key": {
               "type": "Identifier",
-              "start": 910,
-              "end": 912,
+              "start": 902,
+              "end": 904,
               "name": "d1"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 912,
-              "end": 916,
+              "start": 904,
+              "end": 908,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1003,8 +1003,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 914,
-                "end": 916,
+                "start": 906,
+                "end": 908,
                 "body": [
                 ]
               }
@@ -1015,18 +1015,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 916,
-            "end": 922,
+                        "start": 908,
+            "end": 914,
                         "key": {
               "type": "Identifier",
-              "start": 916,
-              "end": 918,
+              "start": 908,
+              "end": 910,
               "name": "d2"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 918,
-              "end": 922,
+              "start": 910,
+              "end": 914,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1034,8 +1034,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 920,
-                "end": 922,
+                "start": 912,
+                "end": 914,
                 "body": [
                 ]
               }
@@ -1046,18 +1046,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 922,
-            "end": 928,
+                        "start": 914,
+            "end": 920,
                         "key": {
               "type": "Identifier",
-              "start": 922,
-              "end": 924,
+              "start": 914,
+              "end": 916,
               "name": "d3"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 924,
-              "end": 928,
+              "start": 916,
+              "end": 920,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1065,8 +1065,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 926,
-                "end": 928,
+                "start": 918,
+                "end": 920,
                 "body": [
                 ]
               }
@@ -1077,18 +1077,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 928,
-            "end": 934,
+                        "start": 920,
+            "end": 926,
                         "key": {
               "type": "Identifier",
-              "start": 928,
-              "end": 930,
+              "start": 920,
+              "end": 922,
               "name": "d4"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 930,
-              "end": 934,
+              "start": 922,
+              "end": 926,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1096,8 +1096,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 932,
-                "end": 934,
+                "start": 924,
+                "end": 926,
                 "body": [
                 ]
               }
@@ -1108,18 +1108,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 934,
-            "end": 940,
+                        "start": 926,
+            "end": 932,
                         "key": {
               "type": "Identifier",
-              "start": 934,
-              "end": 936,
+              "start": 926,
+              "end": 928,
               "name": "d5"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 936,
-              "end": 940,
+              "start": 928,
+              "end": 932,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1127,8 +1127,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 938,
-                "end": 940,
+                "start": 930,
+                "end": 932,
                 "body": [
                 ]
               }
@@ -1139,18 +1139,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 940,
-            "end": 946,
+                        "start": 932,
+            "end": 938,
                         "key": {
               "type": "Identifier",
-              "start": 940,
-              "end": 942,
+              "start": 932,
+              "end": 934,
               "name": "d6"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 942,
-              "end": 946,
+              "start": 934,
+              "end": 938,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1158,8 +1158,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 944,
-                "end": 946,
+                "start": 936,
+                "end": 938,
                 "body": [
                 ]
               }
@@ -1170,18 +1170,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 946,
-            "end": 952,
+                        "start": 938,
+            "end": 944,
                         "key": {
               "type": "Identifier",
-              "start": 946,
-              "end": 948,
+              "start": 938,
+              "end": 940,
               "name": "d7"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 948,
-              "end": 952,
+              "start": 940,
+              "end": 944,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1189,8 +1189,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 950,
-                "end": 952,
+                "start": 942,
+                "end": 944,
                 "body": [
                 ]
               }
@@ -1201,18 +1201,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 952,
-            "end": 958,
+                        "start": 944,
+            "end": 950,
                         "key": {
               "type": "Identifier",
-              "start": 952,
-              "end": 954,
+              "start": 944,
+              "end": 946,
               "name": "d8"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 954,
-              "end": 958,
+              "start": 946,
+              "end": 950,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1220,8 +1220,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 956,
-                "end": 958,
+                "start": 948,
+                "end": 950,
                 "body": [
                 ]
               }
@@ -1232,18 +1232,18 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 958,
-            "end": 964,
+                        "start": 950,
+            "end": 956,
                         "key": {
               "type": "Identifier",
-              "start": 958,
-              "end": 960,
+              "start": 950,
+              "end": 952,
               "name": "d9"
             },
             "value": {
               "type": "FunctionExpression",
-              "start": 960,
-              "end": 964,
+              "start": 952,
+              "end": 956,
               "id": null,
               "expression": false,
               "generator": false,
@@ -1251,8 +1251,8 @@
               "params": [],
               "body": {
                 "type": "BlockStatement",
-                "start": 962,
-                "end": 964,
+                "start": 954,
+                "end": 956,
                 "body": [
                 ]
               }
@@ -1262,10 +1262,79 @@
             "static": false
           }
         ]
-      }    }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " Regression: the JSON direct_buf was sized at `len(source) * 20` bytes,"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 152,
+      "value": " based on \"compact ≈ 9×, pretty ≈ 20×\" before ClassBody emit was full."
+    },
+    {
+      "type": "Line",
+      "start": 153,
+      "end": 225,
+      "value": " With full emit the pretty-mode expansion for class-heavy code exceeds"
+    },
+    {
+      "type": "Line",
+      "start": 226,
+      "end": 297,
+      "value": " 20× source, causing an out-of-bounds write around src/main.odin:62."
+    },
+    {
+      "type": "Line",
+      "start": 298,
+      "end": 366,
+      "value": " Fixed: direct_reserve() grows direct_buf by doubling before every"
+    },
+    {
+      "type": "Line",
+      "start": 367,
+      "end": 429,
+      "value": " direct-mode write so the estimate is only a starting point."
+    },
+    {
+      "type": "Line",
+      "start": 430,
+      "end": 432,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 433,
+      "end": 506,
+      "value": " This fixture keeps the source small but forces a large JSON by packing"
+    },
+    {
+      "type": "Line",
+      "start": 507,
+      "end": 578,
+      "value": " many short class members; each member costs ~200-400 bytes in pretty"
+    },
+    {
+      "type": "Line",
+      "start": 579,
+      "end": 649,
+      "value": " JSON (MethodDefinition + FunctionExpression + body + indent), so 20"
+    },
+    {
+      "type": "Line",
+      "start": 650,
+      "end": 690,
+      "value": " members easily push past 20× source."
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=38008B reserved=16777216B ratio=0%
+Arena: used=43896B reserved=16777216B ratio=0%
 Parse errors: 0

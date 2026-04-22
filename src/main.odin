@@ -1721,6 +1721,10 @@ print_variable_declaration_body :: proc(s: ^VariableDeclaration, indent: int) {
 	}
 	print_indent(indent)
 	out_s("]")
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"declare\": ")
+	out_bool(s.declare)
 }
 
 // print_class_body_inline emits the inside of the `"body": { ... }` payload
@@ -2025,6 +2029,10 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_s("\n")
 		print_indent(indent)
 		out_print("}")
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"declare\": ")
+		out_bool(s.expr.declare)
 
 	case ^BlockStatement:
 		out_s(",\n")
@@ -2206,6 +2214,10 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_class_body_inline(&s.body, indent + 1)
 		print_indent(indent)
 		out_print("}")
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"declare\": ")
+		out_bool(s.expr.declare)
 
 	case ^TryStatement:
 		out_println(",")

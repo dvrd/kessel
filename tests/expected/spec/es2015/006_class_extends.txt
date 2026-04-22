@@ -23,7 +23,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 15,
+                        "start": 15,
             "end": 45,
                         "key": {
               "type": "Identifier",
@@ -88,7 +88,8 @@
             "static": false
           }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "ClassDeclaration",
       "start": 48,
@@ -111,7 +112,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 77,
+                        "start": 77,
             "end": 130,
                         "key": {
               "type": "Identifier",
@@ -202,7 +203,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 133,
+                        "start": 133,
             "end": 167,
                         "key": {
               "type": "Identifier",
@@ -250,10 +251,11 @@
             "static": false
           }
         ]
-      }    }
+      },
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=6688B reserved=16777216B ratio=0%
+Arena: used=9024B reserved=16777216B ratio=0%
 Parse errors: 0

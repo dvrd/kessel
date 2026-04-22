@@ -1,0 +1,102 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 224,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 175,
+      "end": 189,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 181,
+          "end": 188,
+          "id": {
+            "type": "Identifier",
+            "start": 181,
+            "end": 184,
+            "name": "a漢字"          },
+          "init": {
+            "type": "Literal",
+            "start": 187,
+            "end": 188,
+            "value": 1,
+            "raw": "1"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 190,
+      "end": 204,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 196,
+          "end": 203,
+          "id": {
+            "type": "Identifier",
+            "start": 196,
+            "end": 199,
+            "name": "日本x"          },
+          "init": {
+            "type": "Literal",
+            "start": 202,
+            "end": 203,
+            "value": 2,
+            "raw": "2"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 205,
+      "end": 223,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 211,
+          "end": 222,
+          "id": {
+            "type": "Identifier",
+            "start": 211,
+            "end": 218,
+            "name": "mixedπx"          },
+          "init": {
+            "type": "Literal",
+            "start": 221,
+            "end": 222,
+            "value": 3,
+            "raw": "3"          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 65,
+      "value": " Multiple scripts mixed inside one identifier. ECMA-262 doesn't"
+    },
+    {
+      "type": "Line",
+      "start": 66,
+      "end": 140,
+      "value": " prohibit this; a parser must accept any IdentifierStart+IdentifierPart*"
+    },
+    {
+      "type": "Line",
+      "start": 141,
+      "end": 174,
+      "value": " regardless of script boundary."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7312B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -1,0 +1,86 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 252,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 203,
+      "end": 228,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 209,
+          "end": 227,
+          "id": {
+            "type": "Identifier",
+            "start": 209,
+            "end": 217,
+            "name": "greeting"          },
+          "init": {
+            "type": "Literal",
+            "start": 220,
+            "end": 227,
+            "value": "hello",
+            "raw": "\"hello\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "ExpressionStatement",
+      "start": 229,
+      "end": 251,
+      "expression": {
+        "type": "CallExpression",
+        "start": 229,
+        "end": 250,
+        "callee": {
+          "type": "MemberExpression",
+          "start": 229,
+          "end": 240,
+          "computed": false,
+          "object": {
+            "type": "Identifier",
+            "start": 229,
+            "end": 236,
+            "name": "console"          },
+          "property": {
+            "type": "Identifier",
+            "start": 237,
+            "end": 240,
+            "name": "log"          }        },
+        "arguments": [
+          {
+            "type": "Identifier",
+            "start": 241,
+            "end": 249,
+            "name": "greeting"          }
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 20,
+      "end": 99,
+      "value": " ES2023 \\u2014 HashbangComment is now part of the formal grammar and lands on"
+    },
+    {
+      "type": "Line",
+      "start": 100,
+      "end": 173,
+      "value": " Program.hashbang (ESTree). The value is the text AFTER `#!` and before"
+    },
+    {
+      "type": "Line",
+      "start": 174,
+      "end": 202,
+      "value": " the first LineTerminator."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7560B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -108,7 +108,8 @@
                       "value": "palevioletred",
                       "raw": "'palevioletred'"                    }                  }                }
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 267,
@@ -247,10 +248,19 @@
                     "expressions": []                  }                }
               }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 55,
+      "value": " CSS-in-JS patterns (styled-components/emotion style)"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=11112B reserved=16777216B ratio=0%
+Arena: used=13160B reserved=16777216B ratio=0%
 Parse errors: 0

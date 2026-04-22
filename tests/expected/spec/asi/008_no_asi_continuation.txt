@@ -1,0 +1,110 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 244,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 187,
+      "end": 221,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 193,
+          "end": 221,
+          "id": {
+            "type": "Identifier",
+            "start": 193,
+            "end": 194,
+            "name": "f"          },
+          "init": {
+            "type": "FunctionExpression",
+            "start": 197,
+            "end": 221,
+            "id": null,
+            "expression": false,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "BlockStatement",
+              "start": 208,
+              "end": 221,
+              "body": [
+                {
+                  "type": "ReturnStatement",
+                  "start": 210,
+                  "end": 219,
+                  "argument": {
+                    "type": "Literal",
+                    "start": 217,
+                    "end": 219,
+                    "value": 42,
+                    "raw": "42"                  }                }
+              ]
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 222,
+      "end": 243,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 228,
+          "end": 243,
+          "id": {
+            "type": "Identifier",
+            "start": 228,
+            "end": 234,
+            "name": "result"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 237,
+            "end": 243,
+            "callee": {
+              "type": "Identifier",
+              "start": 237,
+              "end": 238,
+              "name": "f"            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 240,
+                "end": 242,
+                "value": 42,
+                "raw": "42"              }
+            ]          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " ASI MUST NOT apply where the next token CAN continue the expression."
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 137,
+      "value": " `a\\n(b)` is `a(b)` (call expression spanning the newline), not"
+    },
+    {
+      "type": "Line",
+      "start": 138,
+      "end": 186,
+      "value": " `a;` + `(b);`.  Kessel must concatenate here."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7744B reserved=16777216B ratio=0%
+Parse errors: 0

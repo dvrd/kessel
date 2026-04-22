@@ -92,7 +92,8 @@
               "value": 5,
               "raw": "5"            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 71,
@@ -119,7 +120,8 @@
               "name": "gen"            },
             "arguments": [
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 88,
@@ -149,5 +151,5 @@
 }
 
 --- Statistics ---
-Arena: used=4928B reserved=16777216B ratio=0%
+Arena: used=6976B reserved=16777216B ratio=0%
 Parse errors: 0

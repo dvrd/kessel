@@ -23,7 +23,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 54,
+                        "start": 54,
             "end": 135,
                         "key": {
               "type": "Identifier",
@@ -117,7 +117,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 141,
+                        "start": 141,
             "end": 425,
                         "key": {
               "type": "Identifier",
@@ -225,7 +225,8 @@
                                         "end": 239,
                                         "name": "body"                                      }                                    }
                                   ]                                }                              }                            }
-                          ]                        },
+                          ],
+                          "declare": false                        },
                         {
                           "type": "ReturnStatement",
                           "start": 248,
@@ -436,7 +437,8 @@
             "static": false
           }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "ClassDeclaration",
       "start": 429,
@@ -459,7 +461,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 477,
+                        "start": 477,
             "end": 557,
                         "key": {
               "type": "Identifier",
@@ -546,7 +548,7 @@
           },
           {
             "type": "PropertyDefinition",
-            "start": 563,
+                        "start": 563,
             "end": 589,
                         "key": {
               "type": "PrivateIdentifier",
@@ -570,10 +572,19 @@
             "static": false
           }
         ]
-      }    }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 28,
+      "value": " Real-world class patterns"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=15184B reserved=16777216B ratio=0%
+Arena: used=17616B reserved=16777216B ratio=0%
 Parse errors: 0

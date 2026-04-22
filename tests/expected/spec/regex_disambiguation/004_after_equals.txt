@@ -1,0 +1,90 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 98,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 60,
+      "end": 77,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 66,
+          "end": 76,
+          "id": {
+            "type": "Identifier",
+            "start": 66,
+            "end": 67,
+            "name": "r"          },
+          "init": {
+            "type": "Literal",
+            "start": 70,
+            "end": 76,
+            "value": null,
+            "raw": "/abc/g",
+            "regex": {
+              "pattern": "abc",
+              "flags": "g"
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 78,
+      "end": 85,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 82,
+          "end": 84,
+          "id": {
+            "type": "Identifier",
+            "start": 82,
+            "end": 84,
+            "name": "r2"          },
+          "init": null        }
+      ],
+      "declare": false    },
+    {
+      "type": "ExpressionStatement",
+      "start": 86,
+      "end": 97,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 86,
+        "end": 96,
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "start": 86,
+          "end": 88,
+          "name": "r2"        },
+        "right": {
+          "type": "Literal",
+          "start": 91,
+          "end": 96,
+          "value": null,
+          "raw": "/\\d+/",
+          "regex": {
+            "pattern": "\\d+",
+            "flags": ""
+          }        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 59,
+      "value": " RHS of an assignment: expression context, `/` is RegExp."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9403B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -1,0 +1,79 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 223,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 177,
+      "end": 199,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 183,
+          "end": 198,
+          "id": {
+            "type": "Identifier",
+            "start": 183,
+            "end": 185,
+            "name": "ls"          },
+          "init": {
+            "type": "Literal",
+            "start": 188,
+            "end": 198,
+            "value": "a u+2028",
+            "raw": "\"a u+2028\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 200,
+      "end": 222,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 206,
+          "end": 221,
+          "id": {
+            "type": "Identifier",
+            "start": 206,
+            "end": 208,
+            "name": "ps"          },
+          "init": {
+            "type": "Literal",
+            "start": 211,
+            "end": 221,
+            "value": "b u+2029",
+            "raw": "\"b u+2029\""          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " ES2019 — LINE SEPARATOR (U+2028) and PARAGRAPH SEPARATOR (U+2029)"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 141,
+      "value": " are now allowed as LITERAL characters inside string literals. Prior"
+    },
+    {
+      "type": "Line",
+      "start": 142,
+      "end": 178,
+      "value": " to ES2019 they were SyntaxErrors."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7072B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -267,7 +267,8 @@
                 "name": "value"              }            },
             "arguments": [
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 210,
@@ -315,7 +316,8 @@
                 "value": 300,
                 "raw": "300"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 259,
@@ -363,10 +365,19 @@
                 "value": 100,
                 "raw": "100"              }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 32,
+      "value": " Lodash-style utility patterns"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=7656B reserved=16777216B ratio=0%
+Arena: used=9704B reserved=16777216B ratio=0%
 Parse errors: 0

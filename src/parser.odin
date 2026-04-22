@@ -810,10 +810,13 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		return parse_expression_or_labeled_statement(p)
 	case .Identifier:
-		// TS contextual keywords: `type`, `interface`, `enum` lex as Identifier
+		// TS contextual keywords: `type`, `interface`, `enum`, `declare` lex as Identifier
 		// so that `var type = 1` and similar JS code parses correctly.
 		// We check string value here at the statement level.
 		val := p.cur_tok.value
+		if val == "declare" {
+			return parse_ts_declare_statement(p)
+		}
 		if val == "interface" {
 			return parse_ts_interface_declaration(p)
 		}
@@ -1524,7 +1527,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 // Declarations
 // ============================================================================
 
-parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
+parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body := false) -> ^Statement {
 	start := cur_loc(p)
 	// Handle async prefix
 	async := false
@@ -1583,7 +1586,18 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 	prev_gen := p.in_generator
 	p.in_generator = generator
 
-	body := parse_function_body(p)
+	// In declare context, allow no body (just a semicolon)
+	body: FunctionBody
+	if allow_no_body && is_token(p, .Semi) {
+		eat(p) // consume semicolon
+		body = FunctionBody{
+			loc = cur_loc(p),
+			body = make([dynamic]^Statement, 0, 0, p.allocator),
+			directives = make([dynamic]Directive, 0, 0, p.allocator),
+		}
+	} else {
+		body = parse_function_body(p)
+	}
 
 	p.in_async = prev_async
 	p.in_generator = prev_gen
@@ -2111,7 +2125,7 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	return elem
 }
 
-parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind), consume_semi: bool, in_for := false) -> ^Statement {
+parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind), consume_semi: bool, in_for := false, is_declare := false) -> ^Statement {
 	start := cur_loc(p)
 
 	kind: VariableKind
@@ -2154,7 +2168,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	decl.declarations = make([dynamic]VariableDeclarator, 0, 2, p.allocator)
 
 	for {
-		d := parse_variable_declarator(p, kind, in_for)
+		d := parse_variable_declarator(p, kind, in_for, is_declare)
 		if d != nil {
 			append(&decl.declarations, d^)
 		}
@@ -2174,7 +2188,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	return stmt
 }
 
-parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := false) -> ^VariableDeclarator {
+parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := false, is_declare := false) -> ^VariableDeclarator {
 	start := cur_loc(p)
 
 	pattern := parse_binding_pattern(p)
@@ -2190,7 +2204,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	init: Maybe(^Expression)
 	if match_token(p, .Assign) {
 		init = parse_assignment_expression(p)
-	} else if kind == .Const && !in_for {
+	} else if kind == .Const && !in_for && !is_declare {
 		report_error(p, "const declarations must have an initializer")
 	}
 
@@ -5778,6 +5792,74 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 	case ^TSTypePredicate: return &v.loc
 	}
 	return nil
+}
+
+// parse_ts_declare_statement handles `declare function|class|const|let|var|
+// interface|type|enum|namespace|module …`. The `declare` modifier just sets
+// a flag on the resulting declaration node. Call it when current token is
+// `.Declare`.
+parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
+	eat(p) // consume `declare`
+
+	// Dispatch to the right declaration parser and then set `declare=true`
+	// on the returned node. Many of our declaration parsers return
+	// ^Statement holding a ^SpecificDecl pointer; type-assert and mutate.
+	stmt: ^Statement
+	#partial switch p.cur_type {
+	case .Function:
+		stmt = parse_function_declaration(p, false, true) // allow_no_body=true for declare
+		if stmt != nil {
+			if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
+		}
+	case .Class:
+		stmt = parse_class_declaration(p)
+		if stmt != nil {
+			if cls, ok := stmt^.(^ClassDeclaration); ok { cls.declare = true }
+		}
+	case .Const:
+		if is_next_identifier_value(p, "enum") {
+			stmt = parse_ts_enum_declaration(p)
+			if stmt != nil {
+				if en, ok := stmt^.(^TSEnumDeclaration); ok { en.declare = true }
+			}
+		} else {
+			stmt = parse_variable_declaration(p, nil, true, false, true) // is_declare=true
+			if stmt != nil {
+				if vd, ok := stmt^.(^VariableDeclaration); ok { vd.declare = true }
+			}
+		}
+	case .Let, .Var:
+		stmt = parse_variable_declaration(p, nil, true, false, true) // is_declare=true
+		if stmt != nil {
+			if vd, ok := stmt^.(^VariableDeclaration); ok { vd.declare = true }
+		}
+	case .Identifier:
+		val := p.cur_tok.value
+		switch val {
+		case "interface":
+			stmt = parse_ts_interface_declaration(p)
+			if stmt != nil {
+				if id, ok := stmt^.(^TSInterfaceDeclaration); ok { id.declare = true }
+			}
+		case "type":
+			if is_next_token(p, .Identifier) {
+				stmt = parse_ts_type_alias_declaration(p)
+				if stmt != nil {
+					if ta, ok := stmt^.(^TSTypeAliasDeclaration); ok { ta.declare = true }
+				}
+			}
+		case "enum":
+			stmt = parse_ts_enum_declaration(p)
+			if stmt != nil {
+				if en, ok := stmt^.(^TSEnumDeclaration); ok { en.declare = true }
+			}
+		}
+	}
+
+	if stmt == nil {
+		report_error(p, "Expected declaration after 'declare'")
+	}
+	return stmt
 }
 
 parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {

@@ -37,7 +37,8 @@
                 "value": "events",
                 "raw": "'events'"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ClassDeclaration",
       "start": 73,
@@ -60,7 +61,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 114,
+                        "start": 114,
             "end": 173,
                         "key": {
               "type": "Identifier",
@@ -139,7 +140,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 179,
+                        "start": 179,
             "end": 311,
                         "key": {
               "type": "Identifier",
@@ -357,7 +358,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 317,
+                        "start": 317,
             "end": 362,
                         "key": {
               "type": "Identifier",
@@ -433,7 +434,8 @@
             "static": false
           }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 366,
@@ -460,7 +462,8 @@
               "name": "DataStore"            },
             "arguments": [
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 397,
@@ -540,9 +543,17 @@
                   "name": "evt"                }
               ]            }          }
         ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 31,
+      "value": " Node.js EventEmitter pattern"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=12064B reserved=16777216B ratio=0%
+Arena: used=14400B reserved=16777216B ratio=0%
 Parse errors: 0

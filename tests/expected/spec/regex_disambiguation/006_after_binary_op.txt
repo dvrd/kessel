@@ -1,0 +1,147 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 187,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 119,
+      "end": 144,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 125,
+          "end": 143,
+          "id": {
+            "type": "Identifier",
+            "start": 125,
+            "end": 126,
+            "name": "r"          },
+          "init": {
+            "type": "UnaryExpression",
+            "start": 129,
+            "end": 143,
+            "operator": "!",
+            "prefix": true,
+            "argument": {
+              "type": "CallExpression",
+              "start": 130,
+              "end": 143,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 130,
+                "end": 140,
+                "computed": false,
+                "object": {
+                  "type": "Literal",
+                  "start": 130,
+                  "end": 135,
+                  "value": null,
+                  "raw": "/abc/",
+                  "regex": {
+                    "pattern": "abc",
+                    "flags": ""
+                  }                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 136,
+                  "end": 140,
+                  "name": "test"                }              },
+              "arguments": [
+                {
+                  "type": "Identifier",
+                  "start": 141,
+                  "end": 142,
+                  "name": "s"                }
+              ]            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 145,
+      "end": 166,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 151,
+          "end": 165,
+          "id": {
+            "type": "Identifier",
+            "start": 151,
+            "end": 152,
+            "name": "t"          },
+          "init": {
+            "type": "UnaryExpression",
+            "start": 155,
+            "end": 165,
+            "operator": "typeof",
+            "prefix": true,
+            "argument": {
+              "type": "Literal",
+              "start": 162,
+              "end": 165,
+              "value": null,
+              "raw": "/x/",
+              "regex": {
+                "pattern": "x",
+                "flags": ""
+              }            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 167,
+      "end": 186,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 173,
+          "end": 185,
+          "id": {
+            "type": "Identifier",
+            "start": 173,
+            "end": 174,
+            "name": "u"          },
+          "init": {
+            "type": "UnaryExpression",
+            "start": 177,
+            "end": 185,
+            "operator": "void",
+            "prefix": true,
+            "argument": {
+              "type": "Literal",
+              "start": 182,
+              "end": 185,
+              "value": null,
+              "raw": "/y/",
+              "regex": {
+                "pattern": "y",
+                "flags": ""
+              }            }          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 61,
+      "value": " After a binary operator, RHS is expression. `/` is RegExp."
+    },
+    {
+      "type": "Line",
+      "start": 62,
+      "end": 118,
+      "value": " Also: prefix !, typeof, etc. open expression context."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9513B reserved=16777216B ratio=0%
+Parse errors: 0

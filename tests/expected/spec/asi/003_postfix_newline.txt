@@ -1,0 +1,112 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 368,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 343,
+      "end": 353,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 347,
+          "end": 352,
+          "id": {
+            "type": "Identifier",
+            "start": 347,
+            "end": 348,
+            "name": "y"          },
+          "init": {
+            "type": "Literal",
+            "start": 351,
+            "end": 352,
+            "value": 1,
+            "raw": "1"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 354,
+      "end": 366,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 358,
+          "end": 366,
+          "id": {
+            "type": "Identifier",
+            "start": 358,
+            "end": 359,
+            "name": "x"          },
+          "init": {
+            "type": "UpdateExpression",
+            "start": 362,
+            "end": 366,
+            "operator": "++",
+            "prefix": false,
+            "argument": {
+              "type": "Literal",
+              "start": 362,
+              "end": 363,
+              "value": 0,
+              "raw": "0"            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "ExpressionStatement",
+      "start": 366,
+      "end": 367,
+      "expression": {
+        "type": "Identifier",
+        "start": 366,
+        "end": 367,
+        "name": "y"      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 74,
+      "value": " ECMA-262 \\u00a712.4 \\u2014 Restricted production: PostfixExpression. No"
+    },
+    {
+      "type": "Line",
+      "start": 75,
+      "end": 144,
+      "value": " LineTerminator allowed before `++`/`--`. So `x\\n++` parses as `x;`"
+    },
+    {
+      "type": "Line",
+      "start": 145,
+      "end": 217,
+      "value": " followed by a prefix `++` on the next statement (itself a SyntaxError"
+    },
+    {
+      "type": "Line",
+      "start": 218,
+      "end": 271,
+      "value": " or ExpressionStatement depending on what follows)."
+    },
+    {
+      "type": "Line",
+      "start": 272,
+      "end": 274,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 275,
+      "end": 342,
+      "value": " Here we test the clean positive form: `x\\n++ y` = `x;` + `++y;`."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9928B reserved=16777216B ratio=0%
+Parse errors: 0

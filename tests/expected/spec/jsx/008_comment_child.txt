@@ -1,0 +1,97 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 229,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 191,
+      "end": 228,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 197,
+          "end": 227,
+          "id": {
+            "type": "Identifier",
+            "start": 197,
+            "end": 198,
+            "name": "a"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 201,
+            "end": 227,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 201,
+              "end": 206,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 202,
+                "end": 205,
+                "name": "div"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXExpressionContainer",
+                "start": 221,
+                "end": 222,
+                "expression": {
+                  "type": "JSXEmptyExpression",
+                  "start": 221,
+                  "end": 222
+                }
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 221,
+              "end": 227,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 223,
+                "end": 226,
+                "name": "div"
+              }
+            }
+          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 68,
+      "value": " A JSX expression container wrapping a comment is commonly used to"
+    },
+    {
+      "type": "Line",
+      "start": 69,
+      "end": 124,
+      "value": " insert comments without rendering. The child here is"
+    },
+    {
+      "type": "Line",
+      "start": 125,
+      "end": 190,
+      "value": " JSXExpressionContainer with expression === JSXEmptyExpression."
+    },
+    {
+      "type": "Block",
+      "start": 207,
+      "end": 220,
+      "value": " comment "
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7424B reserved=16777216B ratio=0%
+Parse errors: 0

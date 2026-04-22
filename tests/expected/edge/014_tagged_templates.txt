@@ -113,7 +113,8 @@
                 }
               ]            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 131,
@@ -135,7 +136,8 @@
             "end": 144,
             "value": 42,
             "raw": "42"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 146,
@@ -157,7 +159,8 @@
             "end": 165,
             "value": "test",
             "raw": "'test'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 167,
@@ -221,7 +224,8 @@
                   "end": 239,
                   "name": "name"                }
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 244,
@@ -365,7 +369,8 @@
                   "raw": "''"                }
               ]            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 362,
@@ -387,7 +392,8 @@
             "end": 381,
             "value": "red",
             "raw": "'red'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 383,
@@ -452,10 +458,19 @@
                   "value": 16,
                   "raw": "16"                }
               ]            }          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 37,
+      "value": " Tagged templates con interpolation"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=11264B reserved=16777216B ratio=0%
+Arena: used=13312B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -55,7 +55,8 @@
                     "raw": "3"                  }
                 ]              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 30,
@@ -106,7 +107,8 @@
                     "raw": "4"                  }
                 ]              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 60,
@@ -148,7 +150,8 @@
                 "end": 83,
                 "name": "b"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 86,
@@ -190,7 +193,8 @@
                 "end": 116,
                 "name": "b"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 119,
@@ -232,10 +236,11 @@
                 "end": 146,
                 "name": "b"              }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=5144B reserved=16777216B ratio=0%
+Arena: used=7192B reserved=16777216B ratio=0%
 Parse errors: 0

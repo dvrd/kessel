@@ -1,128 +1,248 @@
 {
   "type": "Program",
   "start": 0,
-  "end": 352,
+  "end": 499,
   "sourceType": "module",
   "hashbang": null,
   "body": [
     {
       "type": "VariableDeclaration",
-      "start": 41,
-      "end": 62,
+      "start": 50,
+      "end": 69,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 47,
-          "end": 61,
+          "start": 56,
+          "end": 68,
           "id": {
             "type": "Identifier",
-            "start": 47,
-            "end": 52,
+            "start": 56,
+            "end": 61,
             "name": "emoji"          },
           "init": {
             "type": "Literal",
-            "start": 55,
-            "end": 61,
+            "start": 64,
+            "end": 68,
             "value": "🚀",
             "raw": "'🚀'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 63,
-      "end": 94,
+      "start": 70,
+      "end": 95,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 69,
-          "end": 93,
+          "start": 76,
+          "end": 94,
           "id": {
             "type": "Identifier",
-            "start": 69,
-            "end": 76,
+            "start": 76,
+            "end": 83,
             "name": "unicode"          },
           "init": {
             "type": "Literal",
-            "start": 79,
-            "end": 93,
+            "start": 86,
+            "end": 94,
             "value": "ñáéíóú",
             "raw": "'ñáéíóú'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 95,
-      "end": 126,
+      "start": 96,
+      "end": 119,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 101,
-          "end": 125,
+          "start": 102,
+          "end": 118,
           "id": {
             "type": "Identifier",
-            "start": 101,
-            "end": 108,
+            "start": 102,
+            "end": 109,
             "name": "chinese"          },
           "init": {
             "type": "Literal",
-            "start": 111,
-            "end": 125,
+            "start": 112,
+            "end": 118,
             "value": "中文测试",
             "raw": "'中文测试'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 127,
-      "end": 155,
+      "start": 120,
+      "end": 143,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 133,
-          "end": 154,
+          "start": 126,
+          "end": 142,
           "id": {
             "type": "Identifier",
-            "start": 133,
-            "end": 139,
+            "start": 126,
+            "end": 132,
             "name": "arabic"          },
           "init": {
             "type": "Literal",
-            "start": 142,
-            "end": 154,
+            "start": 135,
+            "end": 142,
             "value": "مرحبا",
             "raw": "'مرحبا'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 156,
-      "end": 190,
+      "start": 144,
+      "end": 172,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 162,
-          "end": 189,
+          "start": 150,
+          "end": 171,
           "id": {
             "type": "Identifier",
-            "start": 162,
-            "end": 167,
+            "start": 150,
+            "end": 155,
             "name": "mixed"          },
           "init": {
             "type": "Literal",
-            "start": 170,
-            "end": 189,
+            "start": 158,
+            "end": 171,
             "value": "Hello 世界 🌍",
             "raw": "'Hello 世界 🌍'"          }        }
-      ]    },
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 205,
+      "end": 226,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 211,
+          "end": 225,
+          "id": {
+            "type": "Identifier",
+            "start": 211,
+            "end": 214,
+            "name": "zwj"          },
+          "init": {
+            "type": "Literal",
+            "start": 217,
+            "end": 225,
+            "value": "‍",
+            "raw": "'\\u200D'"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 227,
+      "end": 249,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 233,
+          "end": 248,
+          "id": {
+            "type": "Identifier",
+            "start": 233,
+            "end": 237,
+            "name": "zwnj"          },
+          "init": {
+            "type": "Literal",
+            "start": 240,
+            "end": 248,
+            "value": "‌",
+            "raw": "'\\u200C'"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 278,
+      "end": 305,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 284,
+          "end": 304,
+          "id": {
+            "type": "Identifier",
+            "start": 284,
+            "end": 287,
+            "name": "hex"          },
+          "init": {
+            "type": "Literal",
+            "start": 290,
+            "end": 304,
+            "value": "ABC",
+            "raw": "'\\x41\\x42\\x43'"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 306,
+      "end": 334,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 312,
+          "end": 333,
+          "id": {
+            "type": "Identifier",
+            "start": 312,
+            "end": 316,
+            "name": "uni4"          },
+          "init": {
+            "type": "Literal",
+            "start": 319,
+            "end": 333,
+            "value": "AB",
+            "raw": "'\\u0041\\u0042'"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 335,
+      "end": 360,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 341,
+          "end": 359,
+          "id": {
+            "type": "Identifier",
+            "start": 341,
+            "end": 345,
+            "name": "uni6"          },
+          "init": {
+            "type": "Literal",
+            "start": 348,
+            "end": 359,
+            "value": "😀",
+            "raw": "'\\u{1F600}'"          }        }
+      ],
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
-      "start": 239,
-      "end": 298,
+      "start": 386,
+      "end": 445,
       "id": {
         "type": "Identifier",
-        "start": 248,
-        "end": 259,
+        "start": 395,
+        "end": 406,
         "name": "processText"
       },
       "expression": false,
@@ -131,103 +251,131 @@
       "params": [
         {
           "type": "Identifier",
-          "start": 260,
-          "end": 264,
+          "start": 407,
+          "end": 411,
           "name": "text"
         }
       ],
       "body": {
         "type": "BlockStatement",
-        "start": 266,
-        "end": 298,
+        "start": 413,
+        "end": 445,
         "body": [
           {
             "type": "ReturnStatement",
-            "start": 270,
-            "end": 296,
+            "start": 417,
+            "end": 443,
             "argument": {
               "type": "CallExpression",
-              "start": 277,
-              "end": 295,
+              "start": 424,
+              "end": 442,
               "callee": {
                 "type": "MemberExpression",
-                "start": 277,
-                "end": 293,
+                "start": 424,
+                "end": 440,
                 "computed": false,
                 "object": {
                   "type": "Identifier",
-                  "start": 277,
-                  "end": 281,
+                  "start": 424,
+                  "end": 428,
                   "name": "text"                },
                 "property": {
                   "type": "Identifier",
-                  "start": 282,
-                  "end": 293,
+                  "start": 429,
+                  "end": 440,
                   "name": "toUpperCase"                }              },
               "arguments": [
               ]            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 300,
-      "end": 333,
+      "start": 447,
+      "end": 480,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 306,
-          "end": 332,
+          "start": 453,
+          "end": 479,
           "id": {
             "type": "Identifier",
-            "start": 306,
-            "end": 311,
+            "start": 453,
+            "end": 458,
             "name": "valid"          },
           "init": {
             "type": "CallExpression",
-            "start": 314,
-            "end": 332,
+            "start": 461,
+            "end": 479,
             "callee": {
               "type": "Identifier",
-              "start": 314,
-              "end": 325,
+              "start": 461,
+              "end": 472,
               "name": "processText"            },
             "arguments": [
               {
                 "type": "Identifier",
-                "start": 326,
-                "end": 331,
+                "start": 473,
+                "end": 478,
                 "name": "emoji"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExportNamedDeclaration",
-      "start": 334,
-      "end": 351,
+      "start": 481,
+      "end": 498,
       "declaration": null,
       "specifiers": [
         {
           "type": "ExportSpecifier",
-          "start": 343,
-          "end": 348,
+          "start": 490,
+          "end": 495,
           "local": {
             "type": "Identifier",
-            "start": 343,
-            "end": 348,
+            "start": 490,
+            "end": 495,
             "name": "valid"
           },
           "exported": {
             "type": "Identifier",
-            "start": 343,
-            "end": 348,
+            "start": 490,
+            "end": 495,
             "name": "valid"
           }
         }
       ],
       "source": null    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 49,
+      "value": " Unicode string content and edge-case literals."
+    },
+    {
+      "type": "Line",
+      "start": 201,
+      "end": 231,
+      "value": " Zero-width chars in strings"
+    },
+    {
+      "type": "Line",
+      "start": 278,
+      "end": 304,
+      "value": " Hex and unicode escapes"
+    },
+    {
+      "type": "Line",
+      "start": 389,
+      "end": 412,
+      "value": " Valid code continues"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=8592B reserved=16777216B ratio=0%
+Arena: used=14560B reserved=16777216B ratio=0%
 Parse errors: 0

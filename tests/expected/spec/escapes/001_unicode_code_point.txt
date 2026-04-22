@@ -1,0 +1,143 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 346,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 139,
+      "end": 159,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 145,
+          "end": 158,
+          "id": {
+            "type": "Identifier",
+            "start": 145,
+            "end": 148,
+            "name": "low"          },
+          "init": {
+            "type": "Literal",
+            "start": 151,
+            "end": 158,
+            "value": "\u0000",
+            "raw": "\"\\u{0}\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 183,
+      "end": 204,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 189,
+          "end": 203,
+          "id": {
+            "type": "Identifier",
+            "start": 189,
+            "end": 192,
+            "name": "one"          },
+          "init": {
+            "type": "Literal",
+            "start": 195,
+            "end": 203,
+            "value": "A",
+            "raw": "\"\\u{41}\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 227,
+      "end": 251,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 233,
+          "end": 250,
+          "id": {
+            "type": "Identifier",
+            "start": 233,
+            "end": 236,
+            "name": "two"          },
+          "init": {
+            "type": "Literal",
+            "start": 239,
+            "end": 250,
+            "value": "😀",
+            "raw": "\"\\u{1F600}\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 288,
+      "end": 313,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 294,
+          "end": 312,
+          "id": {
+            "type": "Identifier",
+            "start": 294,
+            "end": 297,
+            "name": "max"          },
+          "init": {
+            "type": "Literal",
+            "start": 300,
+            "end": 312,
+            "value": "􏿿",
+            "raw": "\"\\u{10FFFF}\""          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 68,
+      "value": " ECMA-262 §12.9.4 — \\u{H...H} code-point escape. Decodes to the"
+    },
+    {
+      "type": "Line",
+      "start": 69,
+      "end": 141,
+      "value": " indicated Unicode code point. Valid range: 0x0 .. 0x10FFFF inclusive."
+    },
+    {
+      "type": "Line",
+      "start": 172,
+      "end": 185,
+      "value": " U+0000 NUL"
+    },
+    {
+      "type": "Line",
+      "start": 216,
+      "end": 229,
+      "value": " U+0041 'A'"
+    },
+    {
+      "type": "Line",
+      "start": 260,
+      "end": 290,
+      "value": " supplementary plane (emoji)"
+    },
+    {
+      "type": "Line",
+      "start": 321,
+      "end": 348,
+      "value": " upper bound (must parse)"
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9744B reserved=16777216B ratio=0%
+Parse errors: 0

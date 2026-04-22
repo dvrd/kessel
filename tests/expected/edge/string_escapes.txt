@@ -1,7 +1,7 @@
 {
   "type": "Program",
   "start": 0,
-  "end": 939,
+  "end": 935,
   "sourceType": "script",
   "hashbang": null,
   "body": [
@@ -26,7 +26,8 @@
             "end": 212,
             "value": "quote:\"tab:\tnewline:\ncr:\rbs:\u0008ff:\u000cvt:\u000bnull:\u0000bell:\\",
             "raw": "\"quote:\\\"tab:\\tnewline:\\ncr:\\rbs:\\bff:\\fvt:\\vnull:\\0bell:\\\\\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 214,
@@ -48,7 +49,8 @@
             "end": 263,
             "value": "quote:'tab:\tbackslash:\\",
             "raw": "'quote:\\'tab:\\tbackslash:\\\\'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 265,
@@ -70,7 +72,8 @@
             "end": 312,
             "value": " Aa\u0000ÿ",
             "raw": "\"\\x20\\x41\\x61\\x00\\xff\\x7f\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 314,
@@ -92,7 +95,8 @@
             "end": 373,
             "value": "Aaé☃\u0000￿",
             "raw": "\"\\u0041\\u0061\\u00e9\\u2603\\u0000\\uffff\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 375,
@@ -114,7 +118,8 @@
             "end": 416,
             "value": "Aa",
             "raw": "\"\\u{41}\\u{61}\\u{7F}\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 418,
@@ -136,7 +141,8 @@
             "end": 469,
             "value": "😀💩􏿿",
             "raw": "\"\\u{1F600}\\u{1F4A9}\\u{10FFFF}\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 471,
@@ -158,7 +164,8 @@
             "end": 519,
             "value": "pre midApost\tend",
             "raw": "\"pre\\x20mid\\u0041post\\tend\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 521,
@@ -180,7 +187,8 @@
             "end": 561,
             "value": "/path\\to\"thing",
             "raw": "\"\\/path\\\\to\\\"thing\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 563,
@@ -202,7 +210,8 @@
             "end": 586,
             "value": "",
             "raw": "\"\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 588,
@@ -224,7 +233,8 @@
             "end": 617,
             "value": "\n\t\r",
             "raw": "\"\\n\\t\\r\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 619,
@@ -246,7 +256,8 @@
             "end": 655,
             "value": "aAbBc",
             "raw": "\"a\\x41b\\u0042c\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 657,
@@ -268,76 +279,106 @@
             "end": 688,
             "value": "azQ%",
             "raw": "\"\\a\\z\\Q\\%\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 734,
-      "end": 766,
+      "start": 732,
+      "end": 764,
       "kind": "var",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 738,
-          "end": 765,
+          "start": 736,
+          "end": 763,
           "id": {
             "type": "Identifier",
-            "start": 738,
-            "end": 751,
+            "start": 736,
+            "end": 749,
             "name": "charclassLike"          },
           "init": {
             "type": "Literal",
-            "start": 755,
-            "end": 765,
+            "start": 753,
+            "end": 763,
             "value": "[ \t]",
             "raw": "\"[\\x20\\t]\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 767,
-      "end": 841,
+      "start": 765,
+      "end": 839,
       "kind": "var",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 771,
-          "end": 840,
+          "start": 769,
+          "end": 838,
           "id": {
             "type": "Identifier",
-            "start": 771,
-            "end": 778,
+            "start": 769,
+            "end": 776,
             "name": "longRun"          },
           "init": {
             "type": "Literal",
-            "start": 788,
-            "end": 840,
+            "start": 786,
+            "end": 838,
             "value": "abcdefghijklmnopqrstuvwxyz 0123456789  \t\n",
             "raw": "\"abcdefghijklmnopqrstuvwxyz 0123456789 \\x20\\x09\\x0a\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 912,
-      "end": 938,
+      "start": 908,
+      "end": 934,
       "kind": "var",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 916,
-          "end": 937,
+          "start": 912,
+          "end": 933,
           "id": {
             "type": "Identifier",
-            "start": 916,
-            "end": 924,
+            "start": 912,
+            "end": 920,
             "name": "lineCont"          },
           "init": {
             "type": "Literal",
-            "start": 927,
-            "end": 937,
+            "start": 923,
+            "end": 933,
             "value": "onetwo",
             "raw": "\"one\\\ntwo\""          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 62,
+      "value": " Comprehensive string-escape fixture for Bug E verification."
+    },
+    {
+      "type": "Line",
+      "start": 63,
+      "end": 130,
+      "value": " Each declaration's string must match OXC's escape-decoded value."
+    },
+    {
+      "type": "Line",
+      "start": 692,
+      "end": 733,
+      "value": " \\c → c fallback for non-escape chars"
+    },
+    {
+      "type": "Line",
+      "start": 842,
+      "end": 911,
+      "value": " Line continuation — the `\\` followed by LF must produce nothing."
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=20664B reserved=16777216B ratio=0%
+Arena: used=22712B reserved=16777216B ratio=0%
 Parse errors: 0

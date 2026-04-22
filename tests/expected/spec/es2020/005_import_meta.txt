@@ -46,7 +46,8 @@
               "start": 24,
               "end": 27,
               "name": "url"            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 29,
@@ -105,10 +106,11 @@
                   "end": 69,
                   "name": "url"                }              }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=4648B reserved=16777216B ratio=0%
+Arena: used=6696B reserved=16777216B ratio=0%
 Parse errors: 0

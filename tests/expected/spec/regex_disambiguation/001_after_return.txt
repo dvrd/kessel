@@ -1,0 +1,91 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 161,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 118,
+      "end": 160,
+      "id": {
+        "type": "Identifier",
+        "start": 127,
+        "end": 128,
+        "name": "f"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 129,
+          "end": 130,
+          "name": "s"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 132,
+        "end": 160,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 136,
+            "end": 158,
+            "argument": {
+              "type": "CallExpression",
+              "start": 143,
+              "end": 157,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 143,
+                "end": 154,
+                "computed": false,
+                "object": {
+                  "type": "Literal",
+                  "start": 143,
+                  "end": 149,
+                  "value": null,
+                  "raw": "/abc/g",
+                  "regex": {
+                    "pattern": "abc",
+                    "flags": "g"
+                  }                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 150,
+                  "end": 154,
+                  "name": "test"                }              },
+              "arguments": [
+                {
+                  "type": "Identifier",
+                  "start": 155,
+                  "end": 156,
+                  "name": "s"                }
+              ]            }          }
+        ]
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 75,
+      "value": " After `return`, `/` starts a RegExp literal (return takes an expression,"
+    },
+    {
+      "type": "Line",
+      "start": 76,
+      "end": 117,
+      "value": " and expression context chooses regex)."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9536B reserved=16777216B ratio=0%
+Parse errors: 0

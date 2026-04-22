@@ -1,0 +1,227 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 211,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 132,
+      "end": 154,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 138,
+          "end": 153,
+          "id": {
+            "type": "Identifier",
+            "start": 138,
+            "end": 139,
+            "name": "a"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 142,
+            "end": 153,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 142,
+              "end": 153,
+              "name": {
+                "type": "JSXMemberExpression",
+                "start": 143,
+                "end": 150,
+                "object": {
+                  "type": "JSXIdentifier",
+                  "start": 143,
+                  "end": 146,
+                  "name": "Foo"
+                },
+                "property": {
+                  "type": "JSXIdentifier",
+                  "start": 147,
+                  "end": 150,
+                  "name": "Bar"
+                }
+              },
+              "attributes": [],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 155,
+      "end": 181,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 161,
+          "end": 180,
+          "id": {
+            "type": "Identifier",
+            "start": 161,
+            "end": 162,
+            "name": "b"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 165,
+            "end": 180,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 165,
+              "end": 180,
+              "name": {
+                "type": "JSXMemberExpression",
+                "start": 166,
+                "end": 177,
+                "object": {
+                  "type": "JSXMemberExpression",
+                  "start": 166,
+                  "end": 173,
+                  "object": {
+                    "type": "JSXIdentifier",
+                    "start": 166,
+                    "end": 169,
+                    "name": "Foo"
+                  },
+                  "property": {
+                    "type": "JSXIdentifier",
+                    "start": 170,
+                    "end": 173,
+                    "name": "Bar"
+                  }
+                },
+                "property": {
+                  "type": "JSXIdentifier",
+                  "start": 174,
+                  "end": 177,
+                  "name": "Baz"
+                }
+              },
+              "attributes": [],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 182,
+      "end": 210,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 188,
+          "end": 209,
+          "id": {
+            "type": "Identifier",
+            "start": 188,
+            "end": 189,
+            "name": "c"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 192,
+            "end": 209,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 192,
+              "end": 209,
+              "name": {
+                "type": "JSXMemberExpression",
+                "start": 193,
+                "end": 200,
+                "object": {
+                  "type": "JSXMemberExpression",
+                  "start": 193,
+                  "end": 198,
+                  "object": {
+                    "type": "JSXMemberExpression",
+                    "start": 193,
+                    "end": 196,
+                    "object": {
+                      "type": "JSXIdentifier",
+                      "start": 193,
+                      "end": 194,
+                      "name": "A"
+                    },
+                    "property": {
+                      "type": "JSXIdentifier",
+                      "start": 195,
+                      "end": 196,
+                      "name": "B"
+                    }
+                  },
+                  "property": {
+                    "type": "JSXIdentifier",
+                    "start": 197,
+                    "end": 198,
+                    "name": "C"
+                  }
+                },
+                "property": {
+                  "type": "JSXIdentifier",
+                  "start": 199,
+                  "end": 200,
+                  "name": "D"
+                }
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 207,
+                  "end": 208,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 201,
+                    "end": 202,
+                    "name": "x"
+                  },
+                  "value": {
+                    "type": "JSXExpressionContainer",
+                    "start": 207,
+                    "end": 208,
+                    "expression": {
+                      "type": "Literal",
+                      "start": 204,
+                      "end": 205,
+                      "value": 1,
+                      "raw": "1"
+                    }                  }
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " JSX supports member-expression tag names. ESTree: JSXMemberExpression"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 131,
+      "value": " recurses (.object can itself be a JSXMemberExpression)."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7736B reserved=16777216B ratio=0%
+Parse errors: 0

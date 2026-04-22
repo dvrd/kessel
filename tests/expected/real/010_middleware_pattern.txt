@@ -89,7 +89,8 @@
                             "end": 123,
                             "value": 1,
                             "raw": "1"                          }                        }                      }
-                    ]                  },
+                    ],
+                    "declare": false                  },
                   {
                     "type": "ReturnStatement",
                     "start": 129,
@@ -248,7 +249,8 @@
                                   "start": 313,
                                   "end": 314,
                                   "name": "i"                                }                              }                            }
-                          ]                        },
+                          ],
+                          "declare": false                        },
                         {
                           "type": "IfStatement",
                           "start": 323,
@@ -424,11 +426,13 @@
                                 ]                              }
                             ]                          }                        }
                       ]
-                    }                  }
+                    },
+                    "declare": false                  }
                 ]
               }            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 486,
@@ -458,9 +462,17 @@
           "start": 503,
           "end": 510,
           "name": "compose"        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 41,
+      "value": " Middleware pattern (Express/Koa style)"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=11776B reserved=16777216B ratio=0%
+Arena: used=13824B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -60,7 +60,8 @@
                         "value": "/api",
                         "raw": "'/api'"                      }
                     ]                  }                }              }
-            ]          },
+            ],
+            "declare": false          },
           {
             "type": "ReturnStatement",
             "start": 71,
@@ -71,10 +72,11 @@
               "end": 82,
               "name": "data"            }          }
         ]
-      }    }
+      },
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=4832B reserved=16777216B ratio=0%
+Arena: used=6880B reserved=16777216B ratio=0%
 Parse errors: 0

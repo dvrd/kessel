@@ -1,0 +1,84 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 93,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 0,
+      "end": 40,
+      "id": {
+        "type": "Identifier",
+        "start": 5,
+        "end": 11,
+        "name": "Result"
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSUnionType",
+        "start": 14,
+        "end": 39,
+        "types": [
+          {
+            "type": "TSStringKeyword",
+            "start": 14,
+            "end": 20
+          },
+          {
+            "type": "TSNumberKeyword",
+            "start": 23,
+            "end": 29
+          },
+          {
+            "type": "TSBooleanKeyword",
+            "start": 32,
+            "end": 39
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 41,
+      "end": 61,
+      "id": {
+        "type": "Identifier",
+        "start": 46,
+        "end": 49,
+        "name": "Arr"
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSArrayType",
+        "start": 52,
+        "end": 60,
+        "elementType": {
+          "type": "TSStringKeyword",
+          "start": 52,
+          "end": 58
+        }
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 62,
+      "end": 92,
+      "id": {
+        "type": "Identifier",
+        "start": 67,
+        "end": 72,
+        "name": "Tuple"
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSUnknownType"
+      },
+      "declare": false    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6568B reserved=16777216B ratio=0%
+Parse errors: 0

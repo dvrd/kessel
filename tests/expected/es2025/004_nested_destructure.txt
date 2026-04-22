@@ -69,10 +69,11 @@
             "start": 37,
             "end": 43,
             "name": "nested"          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=5240B reserved=16777216B ratio=0%
+Arena: used=7288B reserved=16777216B ratio=0%
 Parse errors: 0

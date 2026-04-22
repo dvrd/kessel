@@ -25,7 +25,8 @@
             "start": 10,
             "end": 20,
             "name": "globalThis"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 22,
@@ -87,10 +88,11 @@
               "start": 62,
               "end": 72,
               "name": "globalThis"            }          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=4616B reserved=16777216B ratio=0%
+Arena: used=6664B reserved=16777216B ratio=0%
 Parse errors: 0

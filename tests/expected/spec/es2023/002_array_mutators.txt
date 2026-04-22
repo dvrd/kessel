@@ -1,0 +1,396 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 498,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 250,
+      "end": 272,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 256,
+          "end": 271,
+          "id": {
+            "type": "Identifier",
+            "start": 256,
+            "end": 259,
+            "name": "arr"          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 262,
+            "end": 271,
+            "elements": [
+              {
+                "type": "Literal",
+                "start": 263,
+                "end": 264,
+                "value": 3,
+                "raw": "3"              },
+              {
+                "type": "Literal",
+                "start": 266,
+                "end": 267,
+                "value": 1,
+                "raw": "1"              },
+              {
+                "type": "Literal",
+                "start": 269,
+                "end": 270,
+                "value": 2,
+                "raw": "2"              }
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 273,
+      "end": 303,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 279,
+          "end": 302,
+          "id": {
+            "type": "Identifier",
+            "start": 279,
+            "end": 285,
+            "name": "sorted"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 288,
+            "end": 302,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 288,
+              "end": 300,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 288,
+                "end": 291,
+                "name": "arr"              },
+              "property": {
+                "type": "Identifier",
+                "start": 292,
+                "end": 300,
+                "name": "toSorted"              }            },
+            "arguments": [
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 304,
+      "end": 338,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 310,
+          "end": 337,
+          "id": {
+            "type": "Identifier",
+            "start": 310,
+            "end": 318,
+            "name": "reversed"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 321,
+            "end": 337,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 321,
+              "end": 335,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 321,
+                "end": 324,
+                "name": "arr"              },
+              "property": {
+                "type": "Identifier",
+                "start": 325,
+                "end": 335,
+                "name": "toReversed"              }            },
+            "arguments": [
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 339,
+      "end": 375,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 345,
+          "end": 374,
+          "id": {
+            "type": "Identifier",
+            "start": 345,
+            "end": 352,
+            "name": "spliced"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 355,
+            "end": 374,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 355,
+              "end": 368,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 355,
+                "end": 358,
+                "name": "arr"              },
+              "property": {
+                "type": "Identifier",
+                "start": 359,
+                "end": 368,
+                "name": "toSpliced"              }            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 369,
+                "end": 370,
+                "value": 0,
+                "raw": "0"              },
+              {
+                "type": "Literal",
+                "start": 372,
+                "end": 373,
+                "value": 1,
+                "raw": "1"              }
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 376,
+      "end": 407,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 382,
+          "end": 406,
+          "id": {
+            "type": "Identifier",
+            "start": 382,
+            "end": 388,
+            "name": "withed"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 391,
+            "end": 406,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 391,
+              "end": 399,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 391,
+                "end": 394,
+                "name": "arr"              },
+              "property": {
+                "type": "Identifier",
+                "start": 395,
+                "end": 399,
+                "name": "with"              }            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 400,
+                "end": 401,
+                "value": 0,
+                "raw": "0"              },
+              {
+                "type": "Literal",
+                "start": 403,
+                "end": 405,
+                "value": 99,
+                "raw": "99"              }
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 408,
+      "end": 448,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 414,
+          "end": 447,
+          "id": {
+            "type": "Identifier",
+            "start": 414,
+            "end": 418,
+            "name": "last"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 421,
+            "end": 447,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 421,
+              "end": 433,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 421,
+                "end": 424,
+                "name": "arr"              },
+              "property": {
+                "type": "Identifier",
+                "start": 425,
+                "end": 433,
+                "name": "findLast"              }            },
+            "arguments": [
+              {
+                "type": "ArrowFunctionExpression",
+                "start": 434,
+                "end": 446,
+                "id": null,
+                "expression": true,
+                "generator": false,
+                "async": false,
+                "params": [
+                  {
+                    "type": "Identifier",
+                    "start": 435,
+                    "end": 436,
+                    "name": "x"
+                  }
+                ],
+                "body": {
+                  "type": "BinaryExpression",
+                  "start": 441,
+                  "end": 446,
+                  "operator": ">",
+                  "left": {
+                    "type": "Identifier",
+                    "start": 441,
+                    "end": 442,
+                    "name": "x"                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 445,
+                    "end": 446,
+                    "value": 0,
+                    "raw": "0"                  }                }              }
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 449,
+      "end": 497,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 455,
+          "end": 496,
+          "id": {
+            "type": "Identifier",
+            "start": 455,
+            "end": 462,
+            "name": "lastIdx"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 465,
+            "end": 496,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 465,
+              "end": 482,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 465,
+                "end": 468,
+                "name": "arr"              },
+              "property": {
+                "type": "Identifier",
+                "start": 469,
+                "end": 482,
+                "name": "findLastIndex"              }            },
+            "arguments": [
+              {
+                "type": "ArrowFunctionExpression",
+                "start": 483,
+                "end": 495,
+                "id": null,
+                "expression": true,
+                "generator": false,
+                "async": false,
+                "params": [
+                  {
+                    "type": "Identifier",
+                    "start": 484,
+                    "end": 485,
+                    "name": "x"
+                  }
+                ],
+                "body": {
+                  "type": "BinaryExpression",
+                  "start": 490,
+                  "end": 495,
+                  "operator": ">",
+                  "left": {
+                    "type": "Identifier",
+                    "start": 490,
+                    "end": 491,
+                    "name": "x"                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 494,
+                    "end": 495,
+                    "value": 0,
+                    "raw": "0"                  }                }              }
+            ]          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " ES2023 immutable / change-by-copy Array prototype methods. No syntax"
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 150,
+      "value": " change \\u2014 these are plain method calls \\u2014 but a regression in call-"
+    },
+    {
+      "type": "Line",
+      "start": 151,
+      "end": 219,
+      "value": " expression parsing here surfaces quickly because the patterns are"
+    },
+    {
+      "type": "Line",
+      "start": 220,
+      "end": 249,
+      "value": " everywhere in modern code."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=13504B reserved=16777216B ratio=0%
+Parse errors: 0

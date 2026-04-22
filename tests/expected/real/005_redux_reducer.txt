@@ -86,7 +86,8 @@
                   "raw": "null"                }
               }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 102,
@@ -406,7 +407,8 @@
               }
             ]          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "ExportDefaultDeclaration",
       "start": 493,
@@ -416,9 +418,17 @@
         "start": 508,
         "end": 519,
         "name": "userReducer"      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 28,
+      "value": " Redux reducers con switch"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=13048B reserved=16777216B ratio=0%
+Arena: used=15096B reserved=16777216B ratio=0%
 Parse errors: 0

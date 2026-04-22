@@ -1,51 +1,52 @@
 {
   "type": "Program",
   "start": 0,
-  "end": 866,
+  "end": 861,
   "sourceType": "script",
   "hashbang": null,
   "body": [
     {
       "type": "ExpressionStatement",
-      "start": 794,
-      "end": 807,
+      "start": 789,
+      "end": 802,
       "expression": {
         "type": "Literal",
-        "start": 794,
-        "end": 806,
+        "start": 789,
+        "end": 801,
         "value": "use strict",
         "raw": "\"use strict\""      },
       "directive": "use strict"    },
     {
       "type": "VariableDeclaration",
-      "start": 808,
-      "end": 820,
+      "start": 803,
+      "end": 815,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 814,
-          "end": 819,
+          "start": 809,
+          "end": 814,
           "id": {
             "type": "Identifier",
-            "start": 814,
-            "end": 815,
+            "start": 809,
+            "end": 810,
             "name": "x"          },
           "init": {
             "type": "Literal",
-            "start": 818,
-            "end": 819,
+            "start": 813,
+            "end": 814,
             "value": 1,
             "raw": "1"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
-      "start": 821,
-      "end": 865,
+      "start": 816,
+      "end": 860,
       "id": {
         "type": "Identifier",
-        "start": 830,
-        "end": 831,
+        "start": 825,
+        "end": 826,
         "name": "f"
       },
       "expression": false,
@@ -54,34 +55,109 @@
       "params": [],
       "body": {
         "type": "BlockStatement",
-        "start": 834,
-        "end": 865,
+        "start": 829,
+        "end": 860,
         "body": [
           {
             "type": "ExpressionStatement",
-            "start": 838,
-            "end": 851,
+            "start": 833,
+            "end": 846,
             "expression": {
               "type": "Literal",
-              "start": 838,
-              "end": 850,
+              "start": 833,
+              "end": 845,
               "value": "use strict",
               "raw": "\"use strict\""            },
             "directive": "use strict"          },
           {
             "type": "ReturnStatement",
-            "start": 854,
-            "end": 863,
+            "start": 849,
+            "end": 858,
             "argument": {
               "type": "Identifier",
-              "start": 861,
-              "end": 862,
+              "start": 856,
+              "end": 857,
               "name": "x"            }          }
         ]
-      }    }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " Regression for commit 658f25f: \"use strict\" (and any other Directive"
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 147,
+      "value": " Prologue) must appear in BOTH `program.directives` and `program.body` as"
+    },
+    {
+      "type": "Line",
+      "start": 148,
+      "end": 222,
+      "value": " an ExpressionStatement wrapping a StringLiteral, per ESTree §Directive"
+    },
+    {
+      "type": "Line",
+      "start": 223,
+      "end": 291,
+      "value": " Prologues. Prior to the fix, Kessel emitted the directive only in"
+    },
+    {
+      "type": "Line",
+      "start": 292,
+      "end": 366,
+      "value": " `directives` — downstream tools that walk `body` (most of them) saw a"
+    },
+    {
+      "type": "Line",
+      "start": 367,
+      "end": 440,
+      "value": " body that was missing the leading string statement, which drifted from"
+    },
+    {
+      "type": "Line",
+      "start": 441,
+      "end": 503,
+      "value": " OXC and broke any round-trip that reconstructed the source."
+    },
+    {
+      "type": "Line",
+      "start": 504,
+      "end": 506,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 507,
+      "end": 579,
+      "value": " Methodology: the regression verifier asserts the signature counts —"
+    },
+    {
+      "type": "Line",
+      "start": 580,
+      "end": 652,
+      "value": " at minimum 1 ExpressionStatement AND 1 StringLiteral (ESTree Literal)"
+    },
+    {
+      "type": "Line",
+      "start": 653,
+      "end": 725,
+      "value": " reachable from the body path, even though the first `body` entry here"
+    },
+    {
+      "type": "Line",
+      "start": 726,
+      "end": 793,
+      "value": " is the string literal itself (not followed by other statements)."
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=18024B reserved=16777216B ratio=0%
+Arena: used=20072B reserved=16777216B ratio=0%
 Parse errors: 0

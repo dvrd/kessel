@@ -1,0 +1,65 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 236,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 206,
+      "end": 235,
+      "id": {
+        "type": "Identifier",
+        "start": 215,
+        "end": 216,
+        "name": "f"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 219,
+        "end": 235,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 223,
+            "end": 233,
+            "argument": {
+              "type": "Literal",
+              "start": 232,
+              "end": 233,
+              "value": 1,
+              "raw": "1"            }          }
+        ]
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 83,
+      "value": " ECMA-262 \\u00a712.10 \\u2014 Restricted production: ReturnStatement. The argument"
+    },
+    {
+      "type": "Line",
+      "start": 84,
+      "end": 156,
+      "value": " is NOT recognised across a LineTerminator. `return\\n1;` must parse as"
+    },
+    {
+      "type": "Line",
+      "start": 157,
+      "end": 205,
+      "value": " two statements: `return; 1;` not `return 1;`."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7392B reserved=16777216B ratio=0%
+Parse errors: 0

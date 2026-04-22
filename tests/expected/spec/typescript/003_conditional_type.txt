@@ -1,0 +1,211 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 240,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 134,
+      "end": 185,
+      "id": {
+        "type": "Identifier",
+        "start": 139,
+        "end": 147,
+        "name": "IsString"
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 147,
+        "end": 150,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 148,
+            "end": 149,
+            "name": {
+              "type": "Identifier",
+              "start": 148,
+              "end": 149,
+              "name": "T"
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "typeAnnotation": {
+        "type": "TSConditionalType",
+        "start": 153,
+        "end": 184,
+        "checkType": {
+          "type": "TSTypeReference",
+          "start": 153,
+          "end": 154,
+          "typeName": {
+            "type": "Identifier",
+            "start": 153,
+            "end": 154,
+            "name": "T"
+          },
+          "typeArguments": null
+        },
+        "extendsType": {
+          "type": "TSStringKeyword",
+          "start": 163,
+          "end": 169
+        },
+        "trueType": {
+          "type": "TSLiteralType",
+          "start": 172,
+          "end": 176,
+          "literal": {
+            "type": "Literal",
+            "start": 172,
+            "end": 176,
+            "value": true,
+            "raw": "true"
+          }
+        },
+        "falseType": {
+          "type": "TSLiteralType",
+          "start": 179,
+          "end": 184,
+          "literal": {
+            "type": "Literal",
+            "start": 179,
+            "end": 184,
+            "value": false,
+            "raw": "false"
+          }
+        }
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 186,
+      "end": 239,
+      "id": {
+        "type": "Identifier",
+        "start": 191,
+        "end": 196,
+        "name": "Unbox"
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 196,
+        "end": 199,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 197,
+            "end": 198,
+            "name": {
+              "type": "Identifier",
+              "start": 197,
+              "end": 198,
+              "name": "T"
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "typeAnnotation": {
+        "type": "TSConditionalType",
+        "start": 202,
+        "end": 238,
+        "checkType": {
+          "type": "TSTypeReference",
+          "start": 202,
+          "end": 203,
+          "typeName": {
+            "type": "Identifier",
+            "start": 202,
+            "end": 203,
+            "name": "T"
+          },
+          "typeArguments": null
+        },
+        "extendsType": {
+          "type": "TSTypeLiteral",
+          "start": 212,
+          "end": 230,
+          "members": [
+            {
+              "type": "TSPropertySignature",
+              "start": 214,
+              "end": 228,
+              "key": {
+                "type": "Identifier",
+                "start": 214,
+                "end": 219,
+                "name": "value"
+              },
+              "computed": false,
+              "optional": false,
+              "readonly": false,
+              "typeAnnotation": {
+                "type": "TSTypeAnnotation",
+                "start": 219,
+                "end": 228,
+                "typeAnnotation": {
+                  "type": "TSUnknownType"
+                }
+              }
+            }
+          ]
+        },
+        "trueType": {
+          "type": "TSTypeReference",
+          "start": 233,
+          "end": 234,
+          "typeName": {
+            "type": "Identifier",
+            "start": 233,
+            "end": 234,
+            "name": "V"
+          },
+          "typeArguments": null
+        },
+        "falseType": {
+          "type": "TSTypeReference",
+          "start": 237,
+          "end": 238,
+          "typeName": {
+            "type": "Identifier",
+            "start": 237,
+            "end": 238,
+            "name": "T"
+          },
+          "typeArguments": null
+        }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 46,
+      "value": " TS conditional type: `T extends U ? X : Y`."
+    },
+    {
+      "type": "Line",
+      "start": 47,
+      "end": 133,
+      "value": " ESTree/TS nodes: TSConditionalType { checkType, extendsType, trueType, falseType }."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7816B reserved=16777216B ratio=0%
+Parse errors: 0

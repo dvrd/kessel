@@ -84,7 +84,8 @@
                     ]                  }                }
               ]            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 128,
@@ -172,7 +173,8 @@
                     "end": 201,
                     "value": 0,
                     "raw": "0"                  }                }
-              ]
+              ],
+              "declare": false
             },
             "test": {
               "type": "BinaryExpression",
@@ -356,7 +358,8 @@
                   "finalizer": null                }
               ]            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 378,
@@ -538,9 +541,17 @@
               ]
             }          }
         ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 45,
+      "value": " Promise utility patterns (Bluebird/Native)"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=12264B reserved=16777216B ratio=0%
+Arena: used=14312B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -1,0 +1,189 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 382,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 143,
+      "end": 161,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 149,
+          "end": 160,
+          "id": {
+            "type": "Identifier",
+            "start": 149,
+            "end": 151,
+            "name": "t1"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 154,
+            "end": 160,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 155,
+                "end": 159,
+                "tail": true,
+                "value": { "raw": "a\\nb", "cooked": "a\nb" }
+              }
+            ],
+            "expressions": []          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 205,
+      "end": 228,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 211,
+          "end": 227,
+          "id": {
+            "type": "Identifier",
+            "start": 211,
+            "end": 213,
+            "name": "t2"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 216,
+            "end": 227,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 217,
+                "end": 218,
+                "tail": false,
+                "value": { "raw": "x", "cooked": "x" }
+              },
+              {
+                "type": "TemplateElement",
+                "start": 222,
+                "end": 226,
+                "tail": true,
+                "value": { "raw": "y\\tz", "cooked": "y\tz" }
+              }
+            ],
+            "expressions": [
+              {
+                "type": "Literal",
+                "start": 220,
+                "end": 221,
+                "value": 1,
+                "raw": "1"              }
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 263,
+      "end": 287,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 269,
+          "end": 286,
+          "id": {
+            "type": "Identifier",
+            "start": 269,
+            "end": 271,
+            "name": "t3"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 274,
+            "end": 286,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 275,
+                "end": 285,
+                "tail": true,
+                "value": { "raw": "\\u0041\\x42", "cooked": "\\u0041\\x42" }
+              }
+            ],
+            "expressions": []          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 332,
+      "end": 358,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 338,
+          "end": 357,
+          "id": {
+            "type": "Identifier",
+            "start": 338,
+            "end": 340,
+            "name": "t4"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 343,
+            "end": 357,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 344,
+                "end": 356,
+                "tail": true,
+                "value": { "raw": "\\`backtick\\`", "cooked": "`backtick`" }
+              }
+            ],
+            "expressions": []          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " Template literal escapes. `raw` preserves the backslash sequences,"
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 142,
+      "value": " `cooked` decodes them. ESTree: TemplateElement.value = {cooked, raw}."
+    },
+    {
+      "type": "Line",
+      "start": 173,
+      "end": 204,
+      "value": " cooked: \"a\\nb\", raw: \"a\\\\nb\""
+    },
+    {
+      "type": "Line",
+      "start": 235,
+      "end": 262,
+      "value": " mixed with interpolation"
+    },
+    {
+      "type": "Line",
+      "start": 293,
+      "end": 331,
+      "value": " unicode + hex escapes cook normally"
+    },
+    {
+      "type": "Line",
+      "start": 362,
+      "end": 381,
+      "value": " escaped backtick"
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=11576B reserved=16777216B ratio=0%
+Parse errors: 0

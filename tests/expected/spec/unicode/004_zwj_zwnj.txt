@@ -1,0 +1,91 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 263,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 190,
+      "end": 208,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 196,
+          "end": 207,
+          "id": {
+            "type": "Identifier",
+            "start": 196,
+            "end": 203,
+            "name": "foo‌bar"          },
+          "init": {
+            "type": "Literal",
+            "start": 206,
+            "end": 207,
+            "value": 1,
+            "raw": "1"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 227,
+      "end": 245,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 233,
+          "end": 244,
+          "id": {
+            "type": "Identifier",
+            "start": 233,
+            "end": 240,
+            "name": "baz‍qux"          },
+          "init": {
+            "type": "Literal",
+            "start": 243,
+            "end": 244,
+            "value": 2,
+            "raw": "2"          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " ECMA-262 §12.7 — ZWJ (U+200D) and ZWNJ (U+200C) are allowed inside"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 133,
+      "value": " an identifier as IdentifierPart (not as IdentifierStart)."
+    },
+    {
+      "type": "Line",
+      "start": 134,
+      "end": 192,
+      "value": " This is important for languages like Persian and Hindi."
+    },
+    {
+      "type": "Line",
+      "start": 215,
+      "end": 231,
+      "value": " contains ZWNJ"
+    },
+    {
+      "type": "Line",
+      "start": 254,
+      "end": 269,
+      "value": " contains ZWJ"
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7968B reserved=16777216B ratio=0%
+Parse errors: 0

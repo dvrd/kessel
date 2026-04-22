@@ -1,0 +1,90 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 146,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 72,
+      "end": 97,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 78,
+          "end": 96,
+          "id": {
+            "type": "Identifier",
+            "start": 78,
+            "end": 79,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 82,
+            "end": 96,
+            "value": "\u0000Aÿ",
+            "raw": "\"\\x00\\x41\\xff\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 98,
+      "end": 119,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 104,
+          "end": 118,
+          "id": {
+            "type": "Identifier",
+            "start": 104,
+            "end": 105,
+            "name": "b"          },
+          "init": {
+            "type": "Literal",
+            "start": 108,
+            "end": 118,
+            "value": "~",
+            "raw": "\"\\x7E\\x7F\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 120,
+      "end": 145,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 126,
+          "end": 144,
+          "id": {
+            "type": "Identifier",
+            "start": 126,
+            "end": 127,
+            "name": "c"          },
+          "init": {
+            "type": "Literal",
+            "start": 130,
+            "end": 144,
+            "value": "ABC",
+            "raw": "'\\x41\\x42\\x43'"          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 74,
+      "value": " ECMA-262 §12.9.4 — \\xHH hex escape. Exactly two hex digits required."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6768B reserved=16777216B ratio=0%
+Parse errors: 0

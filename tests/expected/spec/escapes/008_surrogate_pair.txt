@@ -1,0 +1,68 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 382,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 143,
+      "end": 171,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 149,
+          "end": 170,
+          "id": {
+            "type": "Identifier",
+            "start": 149,
+            "end": 153,
+            "name": "pair"          },
+          "init": {
+            "type": "Literal",
+            "start": 156,
+            "end": 170,
+            "value": "\ud834\udf06",
+            "raw": "\"\\uD834\\uDF06\""          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " Valid UTF-16 surrogate pair as two \\uXXXX escapes. The pair decodes to"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 144,
+      "value": " one supplementary-plane code point. U+D834 U+DF06 = U+1D306 (𝌆)."
+    },
+    {
+      "type": "Line",
+      "start": 174,
+      "end": 244,
+      "value": " Lone surrogates (high without low, low without high) are allowed as"
+    },
+    {
+      "type": "Line",
+      "start": 245,
+      "end": 318,
+      "value": " LITERAL values by ECMA-262 §12.9.4 — round-trip must preserve them."
+    },
+    {
+      "type": "Line",
+      "start": 319,
+      "end": 386,
+      "value": " Covered by tests/fixtures/regression/011_lone_surrogate_emit.js."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=10240B reserved=16777216B ratio=0%
+Parse errors: 0

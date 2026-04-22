@@ -67,7 +67,8 @@
             "end": 572,
             "value": 42,
             "raw": "42"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 574,
@@ -97,10 +98,61 @@
               "end": 606,
               "name": "sentinel"            }          }
         ]
-      }    }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " Regression for commit 75b7ada: ExportAllDeclaration must consume its"
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 145,
+      "value": " trailing semicolon, otherwise Kessel emitted a spurious EmptyStatement"
+    },
+    {
+      "type": "Line",
+      "start": 146,
+      "end": 216,
+      "value": " between the `export * from \"...\"` and the next real statement. This"
+    },
+    {
+      "type": "Line",
+      "start": 217,
+      "end": 274,
+      "value": " shifted `body` indices for every downstream traversal."
+    },
+    {
+      "type": "Line",
+      "start": 275,
+      "end": 277,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 278,
+      "end": 351,
+      "value": " Methodology: the verifier asserts exactly the count of real statements"
+    },
+    {
+      "type": "Line",
+      "start": 352,
+      "end": 425,
+      "value": " here (3 ExportAll + 1 VariableDeclaration + 1 FunctionDeclaration = 5)"
+    },
+    {
+      "type": "Line",
+      "start": 426,
+      "end": 482,
+      "value": " and forbids any EmptyStatement in the top-level body."
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=12904B reserved=16777216B ratio=0%
+Arena: used=16104B reserved=16777216B ratio=0%
 Parse errors: 0

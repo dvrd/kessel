@@ -1,0 +1,149 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 291,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 195,
+      "end": 210,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 201,
+          "end": 209,
+          "id": {
+            "type": "Identifier",
+            "start": 201,
+            "end": 202,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 205,
+            "end": 209,
+            "value": "h",
+            "raw": "\"\\h\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 219,
+      "end": 234,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 225,
+          "end": 233,
+          "id": {
+            "type": "Identifier",
+            "start": 225,
+            "end": 226,
+            "name": "b"          },
+          "init": {
+            "type": "Literal",
+            "start": 229,
+            "end": 233,
+            "value": "z",
+            "raw": "\"\\z\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 243,
+      "end": 258,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 249,
+          "end": 257,
+          "id": {
+            "type": "Identifier",
+            "start": 249,
+            "end": 250,
+            "name": "c"          },
+          "init": {
+            "type": "Literal",
+            "start": 253,
+            "end": 257,
+            "value": "$",
+            "raw": "\"\\$\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 267,
+      "end": 282,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 273,
+          "end": 281,
+          "id": {
+            "type": "Identifier",
+            "start": 273,
+            "end": 274,
+            "name": "d"          },
+          "init": {
+            "type": "Literal",
+            "start": 277,
+            "end": 281,
+            "value": "@",
+            "raw": "\"\\@\""          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 76,
+      "value": " ECMA-262 §12.9.4 — NonEscapeCharacter: any SourceCharacter that is not"
+    },
+    {
+      "type": "Line",
+      "start": 77,
+      "end": 150,
+      "value": " one of the recognised escapes, `0` followed by a digit, `x`, `u`, or a"
+    },
+    {
+      "type": "Line",
+      "start": 151,
+      "end": 197,
+      "value": " LineTerminator. Identity-escapes to itself."
+    },
+    {
+      "type": "Line",
+      "start": 215,
+      "end": 221,
+      "value": " \"h\""
+    },
+    {
+      "type": "Line",
+      "start": 239,
+      "end": 245,
+      "value": " \"z\""
+    },
+    {
+      "type": "Line",
+      "start": 263,
+      "end": 269,
+      "value": " \"$\""
+    },
+    {
+      "type": "Line",
+      "start": 287,
+      "end": 293,
+      "value": " \"@\""
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=8640B reserved=16777216B ratio=0%
+Parse errors: 0

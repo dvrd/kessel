@@ -23,7 +23,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 512,
+                        "start": 512,
             "end": 755,
                         "key": {
               "type": "Identifier",
@@ -66,7 +66,8 @@
                           "end": 538,
                           "elements": [
                           ]                        }                      }
-                    ]                  },
+                    ],
+                    "declare": false                  },
                   {
                     "type": "ForStatement",
                     "start": 544,
@@ -92,7 +93,8 @@
                             "end": 558,
                             "value": 0,
                             "raw": "0"                          }                        }
-                      ]
+                      ],
+                      "declare": false
                     },
                     "test": {
                       "type": "BinaryExpression",
@@ -213,7 +215,8 @@
                             "end": 632,
                             "value": 5,
                             "raw": "5"                          }                        }
-                      ]
+                      ],
+                      "declare": false
                     },
                     "test": {
                       "type": "BinaryExpression",
@@ -316,7 +319,8 @@
                                 "name": "now"                              }                            },
                             "arguments": [
                             ]                          }                        }
-                      ]
+                      ],
+                      "declare": false
                     },
                     "test": {
                       "type": "Literal",
@@ -354,7 +358,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 758,
+                        "start": 758,
             "end": 879,
                         "key": {
               "type": "Identifier",
@@ -430,7 +434,8 @@
                                         "end": 812,
                                         "value": 0,
                                         "raw": "0"                                      }                                    }
-                                  ]
+                                  ],
+                                  "declare": false
                                 },
                                 "test": {
                                   "type": "BinaryExpression",
@@ -496,7 +501,8 @@
                                   ]                                }                              }
                             ]
                           }                        }                      }
-                    ]                  },
+                    ],
+                    "declare": false                  },
                   {
                     "type": "ExpressionStatement",
                     "start": 870,
@@ -520,10 +526,55 @@
             "static": false
           }
         ]
-      }    }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 79,
+      "value": " Regression: ForStatement emit used `print_statement_ast((^Statement)(decl))`"
+    },
+    {
+      "type": "Line",
+      "start": 80,
+      "end": 154,
+      "value": " which cast ^VariableDeclaration to ^Statement at the pointer level. The"
+    },
+    {
+      "type": "Line",
+      "start": 155,
+      "end": 231,
+      "value": " VariableDeclaration struct's bytes were then dispatched via the Statement"
+    },
+    {
+      "type": "Line",
+      "start": 232,
+      "end": 309,
+      "value": " union tag discriminant, reading garbage. Nested inside a class method body"
+    },
+    {
+      "type": "Line",
+      "start": 310,
+      "end": 387,
+      "value": " this SIGSEGV'd deep under ClassBody emit (real-world: tone.js, mathjax.js,"
+    },
+    {
+      "type": "Line",
+      "start": 388,
+      "end": 408,
+      "value": " marked.js, etc.)."
+    },
+    {
+      "type": "Line",
+      "start": 409,
+      "end": 487,
+      "value": " Fixed: emit VariableDeclaration inline via print_variable_declaration_body."
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=20416B reserved=16777216B ratio=0%
+Arena: used=22656B reserved=16777216B ratio=0%
 Parse errors: 0

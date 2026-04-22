@@ -59,7 +59,8 @@
                   "end": 55,
                   "value": 2,
                   "raw": "2"                }              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 57,
@@ -103,7 +104,8 @@
               "end": 78,
               "value": 3,
               "raw": "3"            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 80,
@@ -153,7 +155,8 @@
               "end": 104,
               "value": 1,
               "raw": "1"            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 106,
@@ -208,7 +211,8 @@
                 "end": 129,
                 "value": 2,
                 "raw": "2"              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 131,
@@ -252,7 +256,8 @@
               "end": 162,
               "value": true,
               "raw": "true"            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 164,
@@ -307,7 +312,8 @@
                 "end": 192,
                 "value": 3,
                 "raw": "3"              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 194,
@@ -350,7 +356,8 @@
               "end": 234,
               "value": "default",
               "raw": "'default'"            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 236,
@@ -407,7 +414,8 @@
                 "start": 265,
                 "end": 270,
                 "name": "value"              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 272,
@@ -461,7 +469,8 @@
                   "name": "method"                }              },
               "arguments": [
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 329,
@@ -483,7 +492,8 @@
             "end": 338,
             "value": 1,
             "raw": "1"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 340,
@@ -624,9 +634,23 @@
           "end": 404,
           "value": 1,
           "raw": "0x01"        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 30,
+      "value": " Complex operator precedence"
+    },
+    {
+      "type": "Line",
+      "start": 305,
+      "end": 328,
+      "value": " Compound assignments"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=9632B reserved=16777216B ratio=0%
+Arena: used=11680B reserved=16777216B ratio=0%
 Parse errors: 0

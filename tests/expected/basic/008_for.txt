@@ -30,7 +30,8 @@
               "end": 14,
               "value": 0,
               "raw": "0"            }          }
-        ]
+        ],
+        "declare": false
       },
       "test": {
         "type": "BinaryExpression",
@@ -88,5 +89,5 @@
 }
 
 --- Statistics ---
-Arena: used=4600B reserved=16777216B ratio=0%
+Arena: used=6648B reserved=16777216B ratio=0%
 Parse errors: 0

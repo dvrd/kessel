@@ -934,6 +934,7 @@ FunctionExpression :: struct {
 	async:             bool,
 	type_parameters:   Maybe(^TSTypeParameterDeclaration),
 	return_type:       Maybe(^TSTypeAnnotation),
+	declare:           bool,
 }
 
 // ArrowFunctionBody discriminates the ESTree shape of an arrow's body.
@@ -988,6 +989,7 @@ ClassExpression :: struct {
 	decorators:        [dynamic]Decorator,
 	type_parameters:   Maybe(^TSTypeParameterDeclaration),
 	implements:        [dynamic]TSInterfaceHeritage,
+	declare:           bool,
 }
 
 // StaticBlock for ES2022 static class blocks (static { ... })
@@ -1095,6 +1097,7 @@ VariableDeclaration :: struct {
 	loc:         Loc,
 	kind:        VariableKind,
 	declarations: [dynamic]VariableDeclarator,
+	declare:     bool,
 }
 
 ForStatement :: struct {

@@ -1,0 +1,232 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 274,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 170,
+      "end": 199,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 176,
+          "end": 198,
+          "id": {
+            "type": "Identifier",
+            "start": 176,
+            "end": 177,
+            "name": "a"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 180,
+            "end": 198,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 180,
+              "end": 183,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 181,
+                "end": 182,
+                "name": "p"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXText",
+                "start": 183,
+                "end": 194,
+                "value": "hello world",
+                "raw": "hello world"
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 194,
+              "end": 198,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 196,
+                "end": 197,
+                "name": "p"
+              }
+            }
+          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 200,
+      "end": 241,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 206,
+          "end": 240,
+          "id": {
+            "type": "Identifier",
+            "start": 206,
+            "end": 207,
+            "name": "b"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 210,
+            "end": 240,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 210,
+              "end": 215,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 211,
+                "end": 214,
+                "name": "div"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXText",
+                "start": 215,
+                "end": 222,
+                "value": "Before ",
+                "raw": "Before "
+              },
+              {
+                "type": "JSXExpressionContainer",
+                "start": 229,
+                "end": 234,
+                "expression": {
+                  "type": "Identifier",
+                  "start": 223,
+                  "end": 227,
+                  "name": "expr"
+                }
+              },
+              {
+                "type": "JSXText",
+                "start": 229,
+                "end": 234,
+                "value": "after",
+                "raw": "after"
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 234,
+              "end": 240,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 236,
+                "end": 239,
+                "name": "div"
+              }
+            }
+          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 242,
+      "end": 273,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 248,
+          "end": 272,
+          "id": {
+            "type": "Identifier",
+            "start": 248,
+            "end": 249,
+            "name": "c"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 252,
+            "end": 272,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 252,
+              "end": 258,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 253,
+                "end": 257,
+                "name": "span"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXExpressionContainer",
+                "start": 265,
+                "end": 266,
+                "expression": {
+                  "type": "BinaryExpression",
+                  "start": 259,
+                  "end": 264,
+                  "operator": "+",
+                  "left": {
+                    "type": "Literal",
+                    "start": 259,
+                    "end": 260,
+                    "value": 1,
+                    "raw": "1"                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 263,
+                    "end": 264,
+                    "value": 2,
+                    "raw": "2"                  }
+                }
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 265,
+              "end": 272,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 267,
+                "end": 271,
+                "name": "span"
+              }
+            }
+          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " Plain text and expression children. Whitespace handling follows JSX"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 137,
+      "value": " conventions: leading/trailing newlines may be trimmed, interior"
+    },
+    {
+      "type": "Line",
+      "start": 138,
+      "end": 169,
+      "value": " single-space runs preserved."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9184B reserved=16777216B ratio=0%
+Parse errors: 0

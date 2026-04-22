@@ -119,7 +119,7 @@
           },
           {
             "type": "PropertyDefinition",
-            "start": 388,
+                        "start": 388,
             "end": 402,
                         "key": {
               "type": "Identifier",
@@ -190,7 +190,8 @@
                           "start": 444,
                           "end": 445,
                           "name": "b"                        }                      }                    }                  }
-                ]              },
+                ],
+                "declare": false              },
               {
                 "type": "IfStatement",
                 "start": 451,
@@ -250,10 +251,37 @@
             ]
           }
         ]
-      }    }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 77,
+      "value": " Regression: parse_static_block used `transmute(^BlockStatement)block_stmt`"
+    },
+    {
+      "type": "Line",
+      "start": 78,
+      "end": 152,
+      "value": " which read the Statement union header as BlockStatement fields, zeroing"
+    },
+    {
+      "type": "Line",
+      "start": 153,
+      "end": 225,
+      "value": " `body`. Static blocks emitted as `\"body\": []` regardless of contents."
+    },
+    {
+      "type": "Line",
+      "start": 226,
+      "end": 284,
+      "value": " Fixed: extract via type assertion on the union variant."
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=11432B reserved=16777216B ratio=0%
+Arena: used=13768B reserved=16777216B ratio=0%
 Parse errors: 0

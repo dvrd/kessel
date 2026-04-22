@@ -26,7 +26,8 @@
             "end": 33,
             "value": 42,
             "raw": "42"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExpressionStatement",
       "start": 35,
@@ -61,5 +62,5 @@
 }
 
 --- Statistics ---
-Arena: used=4568B reserved=16777216B ratio=0%
+Arena: used=6616B reserved=16777216B ratio=0%
 Parse errors: 0

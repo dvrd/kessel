@@ -27,7 +27,7 @@
         "body": [
           {
             "type": "PropertyDefinition",
-            "start": 542,
+                        "start": 542,
             "end": 552,
                         "key": {
               "type": "Identifier",
@@ -47,7 +47,7 @@
           },
           {
             "type": "PropertyDefinition",
-            "start": 555,
+                        "start": 555,
             "end": 575,
                         "key": {
               "type": "PrivateIdentifier",
@@ -67,7 +67,7 @@
           },
           {
             "type": "PropertyDefinition",
-            "start": 578,
+                        "start": 578,
             "end": 601,
                         "key": {
               "type": "Identifier",
@@ -87,7 +87,7 @@
           },
           {
             "type": "PropertyDefinition",
-            "start": 604,
+                        "start": 604,
             "end": 645,
                         "key": {
               "type": "PrivateIdentifier",
@@ -107,7 +107,7 @@
           },
           {
             "type": "PropertyDefinition",
-            "start": 648,
+                        "start": 648,
             "end": 662,
                         "key": {
               "type": "Identifier",
@@ -121,7 +121,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 721,
+                        "start": 721,
             "end": 770,
                         "key": {
               "type": "Identifier",
@@ -201,7 +201,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 827,
+                        "start": 827,
             "end": 871,
                         "key": {
               "type": "Identifier",
@@ -264,7 +264,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 926,
+                        "start": 926,
             "end": 972,
                         "key": {
               "type": "Identifier",
@@ -313,7 +313,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 975,
+                        "start": 975,
             "end": 1019,
                         "key": {
               "type": "Identifier",
@@ -379,7 +379,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 1046,
+                        "start": 1046,
             "end": 1110,
                         "key": {
               "type": "Identifier",
@@ -428,7 +428,8 @@
                             "end": 1087,
                             "name": "i"                          },
                           "init": null                        }
-                      ]
+                      ],
+                      "declare": false
                     },
                     "right": {
                       "type": "Identifier",
@@ -459,7 +460,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 1132,
+                        "start": 1132,
             "end": 1168,
                         "key": {
               "type": "Identifier",
@@ -500,7 +501,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 1191,
+                        "start": 1191,
             "end": 1246,
                         "key": {
               "type": "Identifier",
@@ -558,7 +559,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 1270,
+                        "start": 1270,
             "end": 1318,
                         "key": {
               "type": "PrivateIdentifier",
@@ -643,10 +644,109 @@
             ]
           }
         ]
-      }    }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 76,
+      "value": " Regression: ClassBody JSON emit was stubbed as `\"body\": []`, hiding every"
+    },
+    {
+      "type": "Line",
+      "start": 77,
+      "end": 149,
+      "value": " method, field, getter, setter, constructor, and static block from the"
+    },
+    {
+      "type": "Line",
+      "start": 150,
+      "end": 221,
+      "value": " JSON output (raw-transfer buffer had them). Downstream consumers saw"
+    },
+    {
+      "type": "Line",
+      "start": 222,
+      "end": 273,
+      "value": " partial or misleading ASTs for class-heavy code."
+    },
+    {
+      "type": "Line",
+      "start": 274,
+      "end": 342,
+      "value": " Fixed: print_class_body_inline iterates all ClassElement entries,"
+    },
+    {
+      "type": "Line",
+      "start": 343,
+      "end": 411,
+      "value": " emitting MethodDefinition / PropertyDefinition / StaticBlock with"
+    },
+    {
+      "type": "Line",
+      "start": 412,
+      "end": 465,
+      "value": " matching kind, computed, static fields per ESTree."
+    },
+    {
+      "type": "Line",
+      "start": 503,
+      "end": 539,
+      "value": " class fields (PropertyDefinition)"
+    },
+    {
+      "type": "Line",
+      "start": 666,
+      "end": 718,
+      "value": " constructor (MethodDefinition kind=\"constructor\")"
+    },
+    {
+      "type": "Line",
+      "start": 774,
+      "end": 824,
+      "value": " regular method (MethodDefinition kind=\"method\")"
+    },
+    {
+      "type": "Line",
+      "start": 875,
+      "end": 923,
+      "value": " accessors (MethodDefinition kind=\"get\"/\"set\")"
+    },
+    {
+      "type": "Line",
+      "start": 1023,
+      "end": 1043,
+      "value": " async + generator"
+    },
+    {
+      "type": "Line",
+      "start": 1114,
+      "end": 1129,
+      "value": " computed key"
+    },
+    {
+      "type": "Line",
+      "start": 1172,
+      "end": 1188,
+      "value": " static method"
+    },
+    {
+      "type": "Line",
+      "start": 1250,
+      "end": 1267,
+      "value": " private method"
+    },
+    {
+      "type": "Line",
+      "start": 1322,
+      "end": 1351,
+      "value": " static block (StaticBlock)"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=33640B reserved=16777216B ratio=0%
+Arena: used=37032B reserved=16777216B ratio=0%
 Parse errors: 0

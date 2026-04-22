@@ -1,0 +1,134 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 102,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 101,
+      "decorators": [
+        {
+          "type": "Decorator",
+          "start": 0,
+          "end": 13,
+          "expression": {
+            "type": "CallExpression",
+            "start": 1,
+            "end": 13,
+            "callee": {
+              "type": "Identifier",
+              "start": 1,
+              "end": 4,
+              "name": "log"            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 5,
+                "end": 12,
+                "value": "debug",
+                "raw": "\"debug\""              }
+            ]
+          }
+        }
+      ],
+      "id": {
+        "type": "Identifier",
+        "start": 20,
+        "end": 29,
+        "name": "MyService"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 30,
+        "end": 101,
+        "body": [
+          {
+            "type": "AccessorProperty",
+            "decorators": [
+              {
+                "type": "Decorator",
+                "start": 34,
+                "end": 43,
+                "expression": {
+                  "type": "Identifier",
+                  "start": 35,
+                  "end": 43,
+                  "name": "computed"
+                }
+              }
+            ],
+            "start": 34,
+            "end": 65,
+                        "key": {
+              "type": "Identifier",
+              "start": 55,
+              "end": 60,
+              "name": "value"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 63,
+              "end": 64,
+              "value": 0,
+              "raw": "0"
+            },
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "decorators": [
+              {
+                "type": "Decorator",
+                "start": 71,
+                "end": 80,
+                "expression": {
+                  "type": "Identifier",
+                  "start": 72,
+                  "end": 80,
+                  "name": "autobind"
+                }
+              }
+            ],
+            "start": 71,
+            "end": 99,
+                        "key": {
+              "type": "Identifier",
+              "start": 83,
+              "end": 94,
+              "name": "handleClick"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 94,
+              "end": 99,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 97,
+                "end": 99,
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      },
+      "declare": false    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7792B reserved=16777216B ratio=0%
+Parse errors: 0

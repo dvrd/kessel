@@ -1,0 +1,88 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 311,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 265,
+      "end": 310,
+      "id": {
+        "type": "Identifier",
+        "start": 274,
+        "end": 277,
+        "name": "bad"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 280,
+        "end": 310,
+        "body": [
+          {
+            "type": "ThrowStatement",
+            "start": 284,
+            "end": 308,
+            "argument": {
+              "type": "NewExpression",
+              "start": 290,
+              "end": 307,
+              "callee": {
+                "type": "Identifier",
+                "start": 294,
+                "end": 299,
+                "name": "Error"              },
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "start": 300,
+                  "end": 306,
+                  "value": "oops",
+                  "raw": "\"oops\""                }
+              ]            }          }
+        ]
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " ECMA-262 \\u00a714.14 \\u2014 Restricted production: ThrowStatement. No"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 142,
+      "value": " LineTerminator between `throw` and its Expression. `throw\\nfoo` is"
+    },
+    {
+      "type": "Line",
+      "start": 143,
+      "end": 217,
+      "value": " a SyntaxError (ASI would produce `throw;` which is invalid by grammar)."
+    },
+    {
+      "type": "Line",
+      "start": 218,
+      "end": 220,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 221,
+      "end": 264,
+      "value": " POSITIVE variant: same-line, must parse."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=8928B reserved=16777216B ratio=0%
+Parse errors: 0

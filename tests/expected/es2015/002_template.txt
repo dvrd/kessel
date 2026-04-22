@@ -26,7 +26,8 @@
             "end": 20,
             "value": "world",
             "raw": "\"world\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 22,
@@ -69,7 +70,8 @@
                 "end": 48,
                 "name": "name"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 53,
@@ -99,10 +101,11 @@
               }
             ],
             "expressions": []          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=5280B reserved=16777216B ratio=0%
+Arena: used=7328B reserved=16777216B ratio=0%
 Parse errors: 0

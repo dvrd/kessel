@@ -1,0 +1,221 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 221,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 97,
+      "end": 135,
+      "id": {
+        "type": "Identifier",
+        "start": 102,
+        "end": 116,
+        "name": "StringOrNumber"
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSUnionType",
+        "start": 119,
+        "end": 134,
+        "types": [
+          {
+            "type": "TSStringKeyword",
+            "start": 119,
+            "end": 125
+          },
+          {
+            "type": "TSNumberKeyword",
+            "start": 128,
+            "end": 134
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 136,
+      "end": 160,
+      "id": {
+        "type": "Identifier",
+        "start": 141,
+        "end": 145,
+        "name": "Both"
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSIntersectionType",
+        "start": 148,
+        "end": 159,
+        "types": [
+          {
+            "type": "TSTypeReference",
+            "start": 148,
+            "end": 152,
+            "typeName": {
+              "type": "Identifier",
+              "start": 148,
+              "end": 152,
+              "name": "HasA"
+            },
+            "typeArguments": null
+          },
+          {
+            "type": "TSTypeReference",
+            "start": 155,
+            "end": 159,
+            "typeName": {
+              "type": "Identifier",
+              "start": 155,
+              "end": 159,
+              "name": "HasB"
+            },
+            "typeArguments": null
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 161,
+      "end": 188,
+      "id": {
+        "type": "Identifier",
+        "start": 166,
+        "end": 173,
+        "name": "Complex"
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSIntersectionType",
+        "start": 176,
+        "end": 187,
+        "types": [
+          {
+            "type": "TSParenthesizedType",
+            "start": 176,
+            "end": 183,
+            "typeAnnotation": {
+              "type": "TSUnionType",
+              "start": 177,
+              "end": 182,
+              "types": [
+                {
+                  "type": "TSTypeReference",
+                  "start": 177,
+                  "end": 178,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 177,
+                    "end": 178,
+                    "name": "A"
+                  },
+                  "typeArguments": null
+                },
+                {
+                  "type": "TSTypeReference",
+                  "start": 181,
+                  "end": 182,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 181,
+                    "end": 182,
+                    "name": "B"
+                  },
+                  "typeArguments": null
+                }
+              ]
+            }
+          },
+          {
+            "type": "TSTypeReference",
+            "start": 186,
+            "end": 187,
+            "typeName": {
+              "type": "Identifier",
+              "start": 186,
+              "end": 187,
+              "name": "C"
+            },
+            "typeArguments": null
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 189,
+      "end": 220,
+      "id": {
+        "type": "Identifier",
+        "start": 194,
+        "end": 201,
+        "name": "Literal"
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSUnionType",
+        "start": 204,
+        "end": 219,
+        "types": [
+          {
+            "type": "TSLiteralType",
+            "start": 204,
+            "end": 207,
+            "literal": {
+              "type": "Literal",
+              "start": 204,
+              "end": 207,
+              "value": "a",
+              "raw": "\"a\""
+            }
+          },
+          {
+            "type": "TSLiteralType",
+            "start": 210,
+            "end": 213,
+            "literal": {
+              "type": "Literal",
+              "start": 210,
+              "end": 213,
+              "value": "b",
+              "raw": "\"b\""
+            }
+          },
+          {
+            "type": "TSLiteralType",
+            "start": 216,
+            "end": 219,
+            "literal": {
+              "type": "Literal",
+              "start": 216,
+              "end": 219,
+              "value": "c",
+              "raw": "\"c\""
+            }
+          }
+        ]
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 44,
+      "value": " TS union / intersection types. ESTree/TS:"
+    },
+    {
+      "type": "Line",
+      "start": 45,
+      "end": 96,
+      "value": " TSUnionType.types[], TSIntersectionType.types[]."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6992B reserved=16777216B ratio=0%
+Parse errors: 0

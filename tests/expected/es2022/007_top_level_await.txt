@@ -41,7 +41,8 @@
                   "value": "/api/data",
                   "raw": "'/api/data'"                }
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 75,
@@ -82,7 +83,8 @@
                   "name": "json"                }              },
               "arguments": [
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "ExportNamedDeclaration",
       "start": 107,
@@ -108,9 +110,17 @@
         }
       ],
       "source": null    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 35,
+      "value": " Top-level await (module context)"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=5064B reserved=16777216B ratio=0%
+Arena: used=7112B reserved=16777216B ratio=0%
 Parse errors: 0

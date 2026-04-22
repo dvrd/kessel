@@ -47,10 +47,11 @@
                 "value": 5,
                 "raw": "5"              }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=4600B reserved=16777216B ratio=0%
+Arena: used=6648B reserved=16777216B ratio=0%
 Parse errors: 0

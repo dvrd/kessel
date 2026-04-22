@@ -1,0 +1,309 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 376,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 181,
+      "end": 197,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 187,
+          "end": 196,
+          "id": {
+            "type": "Identifier",
+            "start": 187,
+            "end": 192,
+            "name": "async"          },
+          "init": {
+            "type": "Literal",
+            "start": 195,
+            "end": 196,
+            "value": 1,
+            "raw": "1"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 198,
+      "end": 214,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 204,
+          "end": 213,
+          "id": {
+            "type": "Identifier",
+            "start": 204,
+            "end": 209,
+            "name": "await"          },
+          "init": {
+            "type": "Literal",
+            "start": 212,
+            "end": 213,
+            "value": 2,
+            "raw": "2"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 215,
+      "end": 229,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 221,
+          "end": 228,
+          "id": {
+            "type": "Identifier",
+            "start": 221,
+            "end": 224,
+            "name": "get"          },
+          "init": {
+            "type": "Literal",
+            "start": 227,
+            "end": 228,
+            "value": 3,
+            "raw": "3"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 230,
+      "end": 244,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 236,
+          "end": 243,
+          "id": {
+            "type": "Identifier",
+            "start": 236,
+            "end": 239,
+            "name": "set"          },
+          "init": {
+            "type": "Literal",
+            "start": 242,
+            "end": 243,
+            "value": 4,
+            "raw": "4"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 245,
+      "end": 258,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 251,
+          "end": 257,
+          "id": {
+            "type": "Identifier",
+            "start": 251,
+            "end": 253,
+            "name": "of"          },
+          "init": {
+            "type": "Literal",
+            "start": 256,
+            "end": 257,
+            "value": 5,
+            "raw": "5"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 259,
+      "end": 274,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 265,
+          "end": 273,
+          "id": {
+            "type": "Identifier",
+            "start": 265,
+            "end": 269,
+            "name": "from"          },
+          "init": {
+            "type": "Literal",
+            "start": 272,
+            "end": 273,
+            "value": 6,
+            "raw": "6"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 275,
+      "end": 288,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 281,
+          "end": 287,
+          "id": {
+            "type": "Identifier",
+            "start": 281,
+            "end": 283,
+            "name": "as"          },
+          "init": {
+            "type": "Literal",
+            "start": 286,
+            "end": 287,
+            "value": 7,
+            "raw": "7"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 289,
+      "end": 306,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 295,
+          "end": 305,
+          "id": {
+            "type": "Identifier",
+            "start": 295,
+            "end": 301,
+            "name": "target"          },
+          "init": {
+            "type": "Literal",
+            "start": 304,
+            "end": 305,
+            "value": 8,
+            "raw": "8"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 307,
+      "end": 322,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 313,
+          "end": 321,
+          "id": {
+            "type": "Identifier",
+            "start": 313,
+            "end": 317,
+            "name": "meta"          },
+          "init": {
+            "type": "Literal",
+            "start": 320,
+            "end": 321,
+            "value": 9,
+            "raw": "9"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 323,
+      "end": 341,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 329,
+          "end": 340,
+          "id": {
+            "type": "Identifier",
+            "start": 329,
+            "end": 335,
+            "name": "static"          },
+          "init": {
+            "type": "Literal",
+            "start": 338,
+            "end": 340,
+            "value": 10,
+            "raw": "10"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 342,
+      "end": 359,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 348,
+          "end": 358,
+          "id": {
+            "type": "Identifier",
+            "start": 348,
+            "end": 353,
+            "name": "yield"          },
+          "init": {
+            "type": "Literal",
+            "start": 356,
+            "end": 358,
+            "value": 11,
+            "raw": "11"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 360,
+      "end": 375,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 366,
+          "end": 374,
+          "id": {
+            "type": "Identifier",
+            "start": 366,
+            "end": 369,
+            "name": "let"          },
+          "init": {
+            "type": "Literal",
+            "start": 372,
+            "end": 374,
+            "value": 12,
+            "raw": "12"          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " Contextual keywords — `async`, `await`, `yield`, `of`, `from`, `as`,"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 142,
+      "value": " `get`, `set`, `target`, `meta`, `static`, `let` — may appear as"
+    },
+    {
+      "type": "Line",
+      "start": 143,
+      "end": 184,
+      "value": " identifiers in non-reserved positions."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=10968B reserved=16777216B ratio=0%
+Parse errors: 0

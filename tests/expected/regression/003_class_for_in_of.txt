@@ -23,7 +23,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 530,
+                        "start": 530,
             "end": 878,
                         "key": {
               "type": "Identifier",
@@ -79,7 +79,8 @@
                           "end": 569,
                           "elements": [
                           ]                        }                      }
-                    ]                  },
+                    ],
+                    "declare": false                  },
                   {
                     "type": "ForInStatement",
                     "start": 575,
@@ -100,7 +101,8 @@
                             "end": 585,
                             "name": "k"                          },
                           "init": null                        }
-                      ]
+                      ],
+                      "declare": false
                     },
                     "right": {
                       "type": "Identifier",
@@ -163,7 +165,8 @@
                             "end": 638,
                             "name": "v"                          },
                           "init": null                        }
-                      ]
+                      ],
+                      "declare": false
                     },
                     "right": {
                       "type": "Identifier",
@@ -223,7 +226,8 @@
                           "end": 751,
                           "name": "x"                        },
                         "init": null                      }
-                    ]                  },
+                    ],
+                    "declare": false                  },
                   {
                     "type": "ForInStatement",
                     "start": 757,
@@ -290,7 +294,8 @@
                           "end": 809,
                           "name": "y"                        },
                         "init": null                      }
-                    ]                  },
+                    ],
+                    "declare": false                  },
                   {
                     "type": "ForOfStatement",
                     "start": 815,
@@ -359,10 +364,67 @@
             "static": false
           }
         ]
-      }    }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 37,
+      "value": " Regression (two bugs, same class):"
+    },
+    {
+      "type": "Line",
+      "start": 38,
+      "end": 111,
+      "value": "   1. parse_for() used `transmute(^VariableDeclaration)decl_stmt` which"
+    },
+    {
+      "type": "Line",
+      "start": 112,
+      "end": 182,
+      "value": "      corrupted left_decl by reading the Statement union header as a"
+    },
+    {
+      "type": "Line",
+      "start": 183,
+      "end": 218,
+      "value": "      VariableDeclaration struct."
+    },
+    {
+      "type": "Line",
+      "start": 219,
+      "end": 296,
+      "value": "   2. ForIn/ForOf emit used `print_statement_ast((^Statement)(decl))` which"
+    },
+    {
+      "type": "Line",
+      "start": 297,
+      "end": 364,
+      "value": "      re-cast back through a fake ^Statement with mismatched tag."
+    },
+    {
+      "type": "Line",
+      "start": 365,
+      "end": 436,
+      "value": " Either bug would corrupt `for (let k in obj)` inside a class method."
+    },
+    {
+      "type": "Line",
+      "start": 437,
+      "end": 505,
+      "value": " Fixed: type assertion at parse time, inline emit via body helper."
+    },
+    {
+      "type": "Line",
+      "start": 679,
+      "end": 741,
+      "value": " No-declaration variants to exercise the `left_expr` branch."
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=19800B reserved=16777216B ratio=0%
+Arena: used=21944B reserved=16777216B ratio=0%
 Parse errors: 0

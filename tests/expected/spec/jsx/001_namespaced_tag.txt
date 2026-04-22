@@ -1,0 +1,159 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 193,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 124,
+      "end": 158,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 130,
+          "end": 157,
+          "id": {
+            "type": "Identifier",
+            "start": 130,
+            "end": 131,
+            "name": "a"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 134,
+            "end": 157,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 134,
+              "end": 157,
+              "name": {
+                "type": "JSXNamespacedName",
+                "start": 135,
+                "end": 143,
+                "namespace": {
+                  "type": "JSXIdentifier",
+                  "start": 135,
+                  "end": 138,
+                  "name": "svg"
+                },
+                "name": {
+                  "type": "JSXIdentifier",
+                  "start": 139,
+                  "end": 143,
+                  "name": "rect"
+                }
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 155,
+                  "end": 156,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 144,
+                    "end": 149,
+                    "name": "width"
+                  },
+                  "value": {
+                    "type": "Literal",
+                    "start": 150,
+                    "end": 154,
+                    "value": "10",
+                    "raw": "\"10\""                  }
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 159,
+      "end": 192,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 165,
+          "end": 191,
+          "id": {
+            "type": "Identifier",
+            "start": 165,
+            "end": 166,
+            "name": "b"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 169,
+            "end": 191,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 169,
+              "end": 191,
+              "name": {
+                "type": "JSXNamespacedName",
+                "start": 170,
+                "end": 180,
+                "namespace": {
+                  "type": "JSXIdentifier",
+                  "start": 170,
+                  "end": 175,
+                  "name": "xlink"
+                },
+                "name": {
+                  "type": "JSXIdentifier",
+                  "start": 176,
+                  "end": 180,
+                  "name": "href"
+                }
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 189,
+                  "end": 190,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 181,
+                    "end": 184,
+                    "name": "url"
+                  },
+                  "value": {
+                    "type": "Literal",
+                    "start": 185,
+                    "end": 188,
+                    "value": "x",
+                    "raw": "\"x\""                  }
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " JSX supports namespaced identifiers in tag names via the `ns:name`"
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 123,
+      "value": " form. ESTree: JSXNamespacedName.namespace + .name."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7240B reserved=16777216B ratio=0%
+Parse errors: 0

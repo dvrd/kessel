@@ -86,7 +86,8 @@
                     "name": "age"                  }
                 }
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 98,
@@ -169,7 +170,8 @@
                     ]                  }
                 }
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 156,
@@ -320,7 +322,8 @@
                     }
                   ]                }              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 250,
@@ -378,7 +381,8 @@
                     "raw": "1"                  }
                 }
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 278,
@@ -456,7 +460,8 @@
                     "raw": "2"                  }
                 }
               ]            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 313,
@@ -536,10 +541,19 @@
                       ]                    }                  }
                 }
               ]            }          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 44,
+      "value": " Arrow function devolviendo object literal"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=11056B reserved=16777216B ratio=0%
+Arena: used=13104B reserved=16777216B ratio=0%
 Parse errors: 0

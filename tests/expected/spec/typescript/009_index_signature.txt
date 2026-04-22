@@ -1,0 +1,136 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 248,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 147,
+      "end": 190,
+      "id": {
+        "type": "Identifier",
+        "start": 157,
+        "end": 161,
+        "name": "Dict"
+      },
+      "typeParameters": null,
+      "extends": [],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 147,
+        "end": 190,
+        "body": [
+          {
+            "type": "TSIndexSignature",
+            "start": 166,
+            "end": 187,
+            "parameters": [
+              {
+                "type": "Identifier",
+                "start": 167,
+                "end": 187,
+                "name": "key",
+                "typeAnnotation": {
+                  "type": "TSTypeAnnotation",
+                  "start": 167,
+                  "end": 187,
+                  "typeAnnotation": {
+                    "type": "TSStringKeyword",
+                    "start": 172,
+                    "end": 178
+                  }
+                }
+              }
+            ],
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 179,
+              "end": 187,
+              "typeAnnotation": {
+                "type": "TSNumberKeyword",
+                "start": 181,
+                "end": 187
+              }
+            },
+            "readonly": false,
+            "static": false
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 191,
+      "end": 247,
+      "id": {
+        "type": "Identifier",
+        "start": 196,
+        "end": 207,
+        "name": "ReadonlyMap"
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSTypeLiteral",
+        "start": 210,
+        "end": 246,
+        "members": [
+          {
+            "type": "TSIndexSignature",
+            "start": 223,
+            "end": 243,
+            "parameters": [
+              {
+                "type": "Identifier",
+                "start": 224,
+                "end": 243,
+                "name": "id",
+                "typeAnnotation": {
+                  "type": "TSTypeAnnotation",
+                  "start": 224,
+                  "end": 243,
+                  "typeAnnotation": {
+                    "type": "TSNumberKeyword",
+                    "start": 228,
+                    "end": 234
+                  }
+                }
+              }
+            ],
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 235,
+              "end": 243,
+              "typeAnnotation": {
+                "type": "TSStringKeyword",
+                "start": 237,
+                "end": 243
+              }
+            },
+            "readonly": true,
+            "static": false
+          }
+        ]
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " TS index signature — `[k: KeyType]: ValueType` inside an interface /"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 148,
+      "value": " type literal. ESTree/TS: TSIndexSignature.parameters + .typeAnnotation."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7600B reserved=16777216B ratio=0%
+Parse errors: 0

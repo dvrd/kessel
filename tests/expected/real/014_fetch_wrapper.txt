@@ -23,7 +23,7 @@
         "body": [
           {
             "type": "MethodDefinition",
-            "start": 47,
+                        "start": 47,
             "end": 210,
                         "key": {
               "type": "Identifier",
@@ -177,7 +177,7 @@
           },
           {
             "type": "MethodDefinition",
-            "start": 216,
+                        "start": 216,
             "end": 671,
                         "key": {
               "type": "Identifier",
@@ -345,7 +345,8 @@
                                 "end": 327,
                                 "name": "baseURL"                              }                            }
                           ]                        }                      }
-                    ]                  },
+                    ],
+                    "declare": false                  },
                   {
                     "type": "IfStatement",
                     "start": 334,
@@ -614,7 +615,8 @@
                                   }
                                 ]                              }
                             ]                          }                        }                      }
-                    ]                  },
+                    ],
+                    "declare": false                  },
                   {
                     "type": "IfStatement",
                     "start": 578,
@@ -726,7 +728,8 @@
             "static": false
           }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "ExportNamedDeclaration",
       "start": 675,
@@ -763,12 +766,21 @@
                   "value": "/api/v1",
                   "raw": "'/api/v1'"                }
               ]            }          }
-        ]      },
+        ],
+        "declare": false      },
       "specifiers": [],
       "source": null    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 26,
+      "value": " Real API client wrapper"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=18208B reserved=16777216B ratio=0%
+Arena: used=20448B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -1,0 +1,85 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 328,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 217,
+      "end": 243,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 223,
+          "end": 242,
+          "id": {
+            "type": "Identifier",
+            "start": 223,
+            "end": 229,
+            "name": "joined"          },
+          "init": {
+            "type": "Literal",
+            "start": 232,
+            "end": 242,
+            "value": "abcdef",
+            "raw": "\"abc\\\ndef\""          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 301,
+      "end": 327,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 307,
+          "end": 326,
+          "id": {
+            "type": "Identifier",
+            "start": 307,
+            "end": 313,
+            "name": "withCR"          },
+          "init": {
+            "type": "Literal",
+            "start": 316,
+            "end": 326,
+            "value": "onetwo",
+            "raw": "'one\\\ntwo'"          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 75,
+      "value": " ECMA-262 §12.9.4 — LineContinuation inside a StringLiteral: backslash"
+    },
+    {
+      "type": "Line",
+      "start": 76,
+      "end": 145,
+      "value": " immediately followed by LineTerminatorSequence. Evaluates to empty"
+    },
+    {
+      "type": "Line",
+      "start": 146,
+      "end": 219,
+      "value": " string (NOT a literal newline), joining the two halves of the literal."
+    },
+    {
+      "type": "Line",
+      "start": 247,
+      "end": 303,
+      "value": " Kessel must produce StringLiteral.value === \"abcdef\"."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9208B reserved=16777216B ratio=0%
+Parse errors: 0

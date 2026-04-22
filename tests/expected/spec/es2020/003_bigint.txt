@@ -27,7 +27,8 @@
             "value": null,
             "raw": "9007199254740991n",
             "bigint": "9007199254740991"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 31,
@@ -62,7 +63,8 @@
               "value": null,
               "raw": "2n",
               "bigint": "2"            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 52,
@@ -85,7 +87,8 @@
             "value": null,
             "raw": "0xFFn",
             "bigint": "255"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 71,
@@ -108,10 +111,11 @@
             "value": null,
             "raw": "0o77n",
             "bigint": "63"          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=4776B reserved=16777216B ratio=0%
+Arena: used=6824B reserved=16777216B ratio=0%
 Parse errors: 0

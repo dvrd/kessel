@@ -1,0 +1,139 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 196,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 127,
+      "end": 156,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 133,
+          "end": 155,
+          "id": {
+            "type": "Identifier",
+            "start": 133,
+            "end": 134,
+            "name": "a"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 137,
+            "end": 155,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 137,
+              "end": 155,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 138,
+                "end": 143,
+                "name": "input"
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 153,
+                  "end": 154,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 144,
+                    "end": 152,
+                    "name": "disabled"
+                  },
+                  "value": null
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 157,
+      "end": 195,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 163,
+          "end": 194,
+          "id": {
+            "type": "Identifier",
+            "start": 163,
+            "end": 164,
+            "name": "b"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 167,
+            "end": 194,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 167,
+              "end": 194,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 168,
+                "end": 173,
+                "name": "input"
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 183,
+                  "end": 191,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 174,
+                    "end": 182,
+                    "name": "readonly"
+                  },
+                  "value": null
+                },
+                {
+                  "type": "JSXAttribute",
+                  "start": 192,
+                  "end": 193,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 183,
+                    "end": 191,
+                    "name": "required"
+                  },
+                  "value": null
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 66,
+      "value": " JSX attribute without value shorthand: `<input disabled />` has"
+    },
+    {
+      "type": "Line",
+      "start": 67,
+      "end": 126,
+      "value": " ESTree JSXAttribute.value === null, NOT a Literal(true)."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7240B reserved=16777216B ratio=0%
+Parse errors: 0

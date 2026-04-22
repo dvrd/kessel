@@ -109,7 +109,8 @@
                     "end": 94,
                     "name": "x"                  }
                 ]              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 97,
@@ -214,7 +215,8 @@
                     "end": 163,
                     "name": "x"                  }
                 ]              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 166,
@@ -361,7 +363,8 @@
                             "name": "args"                          }                        }
                       ]                    }
                   ]                }              }            }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 274,
@@ -436,7 +439,8 @@
                       "name": "fn"                    }
                   ]                }              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 319,
@@ -511,7 +515,8 @@
                       "name": "fn"                    }
                   ]                }              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 370,
@@ -597,7 +602,8 @@
                       "name": "init"                    }
                   ]                }              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 434,
@@ -649,7 +655,8 @@
                 "value": 5,
                 "raw": "5"              }
             ]          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 464,
@@ -827,10 +834,19 @@
                 "end": 561,
                 "name": "data"              }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 35,
+      "value": " Functional programming utilities"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=15352B reserved=16777216B ratio=0%
+Arena: used=17744B reserved=16777216B ratio=0%
 Parse errors: 0

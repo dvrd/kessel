@@ -1,0 +1,237 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 253,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 92,
+      "end": 109,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 98,
+          "end": 108,
+          "id": {
+            "type": "Identifier",
+            "start": 98,
+            "end": 99,
+            "name": "g"          },
+          "init": {
+            "type": "Literal",
+            "start": 102,
+            "end": 108,
+            "value": null,
+            "raw": "/abc/g",
+            "regex": {
+              "pattern": "abc",
+              "flags": "g"
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 110,
+      "end": 127,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 116,
+          "end": 126,
+          "id": {
+            "type": "Identifier",
+            "start": 116,
+            "end": 117,
+            "name": "i"          },
+          "init": {
+            "type": "Literal",
+            "start": 120,
+            "end": 126,
+            "value": null,
+            "raw": "/abc/i",
+            "regex": {
+              "pattern": "abc",
+              "flags": "i"
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 128,
+      "end": 146,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 134,
+          "end": 145,
+          "id": {
+            "type": "Identifier",
+            "start": 134,
+            "end": 135,
+            "name": "m"          },
+          "init": {
+            "type": "Literal",
+            "start": 138,
+            "end": 145,
+            "value": null,
+            "raw": "/^abc/m",
+            "regex": {
+              "pattern": "^abc",
+              "flags": "m"
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 147,
+      "end": 165,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 153,
+          "end": 164,
+          "id": {
+            "type": "Identifier",
+            "start": 153,
+            "end": 154,
+            "name": "s"          },
+          "init": {
+            "type": "Literal",
+            "start": 157,
+            "end": 164,
+            "value": null,
+            "raw": "/ab.c/s",
+            "regex": {
+              "pattern": "ab.c",
+              "flags": "s"
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 166,
+      "end": 189,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 172,
+          "end": 188,
+          "id": {
+            "type": "Identifier",
+            "start": 172,
+            "end": 173,
+            "name": "u"          },
+          "init": {
+            "type": "Literal",
+            "start": 176,
+            "end": 188,
+            "value": null,
+            "raw": "/\\u{1F600}/u",
+            "regex": {
+              "pattern": "\\u{1F600}",
+              "flags": "u"
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 190,
+      "end": 207,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 196,
+          "end": 206,
+          "id": {
+            "type": "Identifier",
+            "start": 196,
+            "end": 197,
+            "name": "y"          },
+          "init": {
+            "type": "Literal",
+            "start": 200,
+            "end": 206,
+            "value": null,
+            "raw": "/abc/y",
+            "regex": {
+              "pattern": "abc",
+              "flags": "y"
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 208,
+      "end": 228,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 214,
+          "end": 227,
+          "id": {
+            "type": "Identifier",
+            "start": 214,
+            "end": 215,
+            "name": "d"          },
+          "init": {
+            "type": "Literal",
+            "start": 218,
+            "end": 227,
+            "value": null,
+            "raw": "/(a)(b)/d",
+            "regex": {
+              "pattern": "(a)(b)",
+              "flags": "d"
+            }          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 229,
+      "end": 252,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 235,
+          "end": 251,
+          "id": {
+            "type": "Identifier",
+            "start": 235,
+            "end": 240,
+            "name": "multi"          },
+          "init": {
+            "type": "Literal",
+            "start": 243,
+            "end": 251,
+            "value": null,
+            "raw": "/x/gimsu",
+            "regex": {
+              "pattern": "x",
+              "flags": "gimsu"
+            }          }        }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 91,
+      "value": " All standard and modern RegExp flags: g, i, m, s (ES2018), u, y, d (ES2022), v (ES2024)."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=11021B reserved=16777216B ratio=0%
+Parse errors: 0

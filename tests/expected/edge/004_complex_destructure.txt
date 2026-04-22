@@ -103,7 +103,8 @@
             "start": 31,
             "end": 34,
             "name": "obj"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 36,
@@ -163,10 +164,11 @@
             "start": 61,
             "end": 67,
             "name": "matrix"          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=6088B reserved=16777216B ratio=0%
+Arena: used=8136B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -33,7 +33,8 @@
               "body": []
             }
           }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 22,
@@ -67,7 +68,7 @@
               "body": [
                 {
                   "type": "MethodDefinition",
-                  "start": 51,
+                                    "start": 51,
                   "end": 67,
                                     "key": {
                     "type": "Identifier",
@@ -99,7 +100,8 @@
               ]
             }
           }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 71,
@@ -132,7 +134,7 @@
                 "body": [
                   {
                     "type": "MethodDefinition",
-                    "start": 96,
+                                        "start": 96,
                     "end": 118,
                                         "key": {
                       "type": "Identifier",
@@ -176,10 +178,11 @@
             },
             "arguments": [
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=7368B reserved=16777216B ratio=0%
+Arena: used=9608B reserved=16777216B ratio=0%
 Parse errors: 0

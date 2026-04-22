@@ -26,7 +26,8 @@
             "end": 62,
             "value": "It's a test",
             "raw": "'It\\'s a test'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 64,
@@ -48,7 +49,8 @@
             "end": 98,
             "value": "He said \"Hello\"",
             "raw": "\"He said \\\"Hello\\\"\""          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 100,
@@ -70,7 +72,8 @@
             "end": 150,
             "value": "Line1\nLine2\tTabbed\r\rCarriage",
             "raw": "'Line1\\nLine2\\tTabbed\\r\\rCarriage'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 152,
@@ -92,7 +95,8 @@
             "end": 185,
             "value": "A😀",
             "raw": "'\\u0041\\u{1F600}'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 187,
@@ -114,7 +118,8 @@
             "end": 219,
             "value": "ABC",
             "raw": "'\\x41\\x42\\x43'"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 222,
@@ -144,7 +149,8 @@
               }
             ],
             "expressions": []          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 267,
@@ -174,7 +180,8 @@
               }
             ],
             "expressions": []          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 371,
@@ -200,7 +207,8 @@
               "pattern": "\\d+",
               "flags": "g"
             }          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 393,
@@ -226,10 +234,19 @@
               "pattern": "\\/\\[\\]\\(\\)",
               "flags": ""
             }          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 32,
+      "value": " Strings con todos los escapes"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=13186B reserved=16777216B ratio=0%
+Arena: used=15234B reserved=16777216B ratio=0%
 Parse errors: 0

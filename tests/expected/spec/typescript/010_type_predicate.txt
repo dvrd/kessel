@@ -1,0 +1,227 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 315,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 134,
+      "end": 212,
+      "id": {
+        "type": "Identifier",
+        "start": 143,
+        "end": 151,
+        "name": "isString"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 152,
+          "end": 153,
+          "name": "x",
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 153,
+            "end": 162,
+            "typeAnnotation": {
+              "type": "TSUnknownKeyword",
+              "start": 155,
+              "end": 162
+            }
+          }
+        }
+      ],
+      "returnType": {
+        "type": "TSTypeAnnotation",
+        "start": 163,
+        "end": 176,
+        "typeAnnotation": {
+          "type": "TSTypePredicate",
+          "start": 165,
+          "end": 176,
+          "asserts": false,
+          "parameterName": {
+            "type": "Identifier",
+            "start": 165,
+            "end": 166,
+            "name": "x"
+          },
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 170,
+            "end": 176,
+            "typeAnnotation": {
+              "type": "TSStringKeyword",
+              "start": 170,
+              "end": 176
+            }
+          }
+        }
+      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 177,
+        "end": 212,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 181,
+            "end": 210,
+            "argument": {
+              "type": "BinaryExpression",
+              "start": 188,
+              "end": 209,
+              "operator": "===",
+              "left": {
+                "type": "UnaryExpression",
+                "start": 188,
+                "end": 196,
+                "operator": "typeof",
+                "prefix": true,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 195,
+                  "end": 196,
+                  "name": "x"                }              },
+              "right": {
+                "type": "Literal",
+                "start": 201,
+                "end": 209,
+                "value": "string",
+                "raw": "\"string\""              }            }          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 213,
+      "end": 314,
+      "id": {
+        "type": "Identifier",
+        "start": 222,
+        "end": 229,
+        "name": "asserts"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 230,
+          "end": 231,
+          "name": "x",
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 231,
+            "end": 240,
+            "typeAnnotation": {
+              "type": "TSUnknownKeyword",
+              "start": 233,
+              "end": 240
+            }
+          }
+        }
+      ],
+      "returnType": {
+        "type": "TSTypeAnnotation",
+        "start": 241,
+        "end": 262,
+        "typeAnnotation": {
+          "type": "TSTypePredicate",
+          "start": 243,
+          "end": 262,
+          "asserts": true,
+          "parameterName": {
+            "type": "Identifier",
+            "start": 251,
+            "end": 252,
+            "name": "x"
+          },
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 256,
+            "end": 262,
+            "typeAnnotation": {
+              "type": "TSNumberKeyword",
+              "start": 256,
+              "end": 262
+            }
+          }
+        }
+      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 263,
+        "end": 314,
+        "body": [
+          {
+            "type": "IfStatement",
+            "start": 267,
+            "end": 312,
+            "test": {
+              "type": "BinaryExpression",
+              "start": 271,
+              "end": 292,
+              "operator": "!==",
+              "left": {
+                "type": "UnaryExpression",
+                "start": 271,
+                "end": 279,
+                "operator": "typeof",
+                "prefix": true,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 278,
+                  "end": 279,
+                  "name": "x"                }              },
+              "right": {
+                "type": "Literal",
+                "start": 284,
+                "end": 292,
+                "value": "number",
+                "raw": "\"number\""              }            },
+            "consequent": {
+              "type": "ThrowStatement",
+              "start": 294,
+              "end": 312,
+              "argument": {
+                "type": "NewExpression",
+                "start": 300,
+                "end": 311,
+                "callee": {
+                  "type": "Identifier",
+                  "start": 304,
+                  "end": 309,
+                  "name": "Error"                },
+                "arguments": [
+                ]              }            },
+            "alternate": null          }
+        ]
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " TS type predicate: `x is T` return-type annotation for type guards."
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 133,
+      "value": " ESTree/TS: TSTypePredicate.parameterName + .typeAnnotation."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9272B reserved=16777216B ratio=0%
+Parse errors: 0

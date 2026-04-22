@@ -1,106 +1,276 @@
 {
   "type": "Program",
   "start": 0,
-  "end": 298,
+  "end": 690,
   "sourceType": "script",
   "hashbang": null,
   "body": [
     {
       "type": "VariableDeclaration",
-      "start": 32,
-      "end": 49,
+      "start": 126,
+      "end": 143,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 38,
-          "end": 48,
+          "start": 132,
+          "end": 142,
           "id": {
             "type": "Identifier",
-            "start": 38,
-            "end": 44,
+            "start": 132,
+            "end": 138,
             "name": "valid1"          },
           "init": {
             "type": "Literal",
-            "start": 47,
-            "end": 48,
+            "start": 141,
+            "end": 142,
             "value": 1,
             "raw": "1"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 50,
-      "end": 67,
+      "start": 144,
+      "end": 161,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 56,
-          "end": 66,
+          "start": 150,
+          "end": 160,
           "id": {
             "type": "Identifier",
-            "start": 56,
-            "end": 62,
+            "start": 150,
+            "end": 156,
             "name": "valid2"          },
           "init": {
             "type": "Literal",
-            "start": 65,
-            "end": 66,
+            "start": 159,
+            "end": 160,
             "value": 2,
             "raw": "2"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 152,
-      "end": 169,
+      "start": 227,
+      "end": 253,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 158,
-          "end": 168,
+          "start": 233,
+          "end": 252,
           "id": {
             "type": "Identifier",
-            "start": 158,
-            "end": 164,
+            "start": 233,
+            "end": 236,
+            "name": "arr"          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 239,
+            "end": 252,
+            "elements": [
+              {
+                "type": "Literal",
+                "start": 240,
+                "end": 241,
+                "value": 1,
+                "raw": "1"              },
+              {
+                "type": "Literal",
+                "start": 243,
+                "end": 244,
+                "value": 2,
+                "raw": "2"              },
+              {
+                "type": "Literal",
+                "start": 250,
+                "end": 251,
+                "value": 4,
+                "raw": "4"              }
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "ExpressionStatement",
+      "start": 290,
+      "end": 319,
+      "expression": {
+        "type": "CallExpression",
+        "start": 290,
+        "end": 318,
+        "callee": {
+          "type": "MemberExpression",
+          "start": 290,
+          "end": 301,
+          "computed": false,
+          "object": {
+            "type": "Identifier",
+            "start": 290,
+            "end": 297,
+            "name": "console"          },
+          "property": {
+            "type": "Identifier",
+            "start": 298,
+            "end": 301,
+            "name": "log"          }        },
+        "arguments": [
+          {
+            "type": "Identifier",
+            "start": 302,
+            "end": 308,
+            "name": "valid1"          },
+          {
+            "type": "Identifier",
+            "start": 310,
+            "end": 316,
+            "name": "valid2"          }
+        ]      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 355,
+      "end": 375,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 361,
+          "end": 374,
+          "id": {
+            "type": "Identifier",
+            "start": 361,
+            "end": 362,
+            "name": "x"          },
+          "init": {
+            "type": "SequenceExpression",
+            "start": 366,
+            "end": 373,
+            "expressions": [
+              {
+                "type": "Literal",
+                "start": 366,
+                "end": 367,
+                "value": 1,
+                "raw": "1"              },
+              {
+                "type": "Literal",
+                "start": 369,
+                "end": 370,
+                "value": 2,
+                "raw": "2"              },
+              {
+                "type": "Literal",
+                "start": 372,
+                "end": 373,
+                "value": 3,
+                "raw": "3"              }
+            ]          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "LabeledStatement",
+      "start": 414,
+      "end": 465,
+      "label": {
+        "type": "Identifier",
+        "start": 414,
+        "end": 419,
+        "name": "block"
+      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 421,
+        "end": 465,
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "start": 425,
+            "end": 448,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 431,
+                "end": 447,
+                "id": {
+                  "type": "Identifier",
+                  "start": 431,
+                  "end": 436,
+                  "name": "inner"                },
+                "init": {
+                  "type": "Literal",
+                  "start": 439,
+                  "end": 447,
+                  "value": "inside",
+                  "raw": "'inside'"                }              }
+            ],
+            "declare": false          },
+          {
+            "type": "BreakStatement",
+            "start": 451,
+            "end": 463,
+            "label": {
+              "type": "Identifier",
+              "start": 457,
+              "end": 462,
+              "name": "block"
+            }          }
+        ]      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 467,
+      "end": 484,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 473,
+          "end": 483,
+          "id": {
+            "type": "Identifier",
+            "start": 473,
+            "end": 479,
             "name": "valid3"          },
           "init": {
             "type": "Literal",
-            "start": 167,
-            "end": 168,
+            "start": 482,
+            "end": 483,
             "value": 3,
             "raw": "3"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 170,
-      "end": 187,
+      "start": 485,
+      "end": 502,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 176,
-          "end": 186,
+          "start": 491,
+          "end": 501,
           "id": {
             "type": "Identifier",
-            "start": 176,
-            "end": 182,
+            "start": 491,
+            "end": 497,
             "name": "valid4"          },
           "init": {
             "type": "Literal",
-            "start": 185,
-            "end": 186,
+            "start": 500,
+            "end": 501,
             "value": 4,
             "raw": "4"          }        }
-      ]    },
+      ],
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
-      "start": 189,
-      "end": 241,
+      "start": 504,
+      "end": 556,
       "id": {
         "type": "Identifier",
-        "start": 198,
-        "end": 208,
+        "start": 513,
+        "end": 523,
         "name": "stillWorks"
       },
       "expression": false,
@@ -109,64 +279,184 @@
       "params": [],
       "body": {
         "type": "BlockStatement",
-        "start": 211,
-        "end": 241,
+        "start": 526,
+        "end": 556,
         "body": [
           {
             "type": "ReturnStatement",
-            "start": 215,
-            "end": 239,
+            "start": 530,
+            "end": 554,
             "argument": {
               "type": "Literal",
-              "start": 222,
-              "end": 238,
+              "start": 537,
+              "end": 553,
               "value": "recovery works",
               "raw": "'recovery works'"            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
-      "start": 243,
-      "end": 297,
+      "start": 601,
+      "end": 623,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 249,
-          "end": 296,
+          "start": 607,
+          "end": 622,
           "id": {
             "type": "Identifier",
-            "start": 249,
-            "end": 252,
-            "name": "arr"          },
+            "start": 607,
+            "end": 610,
+            "name": "key"          },
           "init": {
-            "type": "ArrayExpression",
-            "start": 255,
-            "end": 296,
-            "elements": [
+            "type": "Literal",
+            "start": 613,
+            "end": 622,
+            "value": "dynamic",
+            "raw": "'dynamic'"          }        }
+      ],
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 624,
+      "end": 689,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 630,
+          "end": 688,
+          "id": {
+            "type": "Identifier",
+            "start": 630,
+            "end": 633,
+            "name": "obj"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 636,
+            "end": 688,
+            "properties": [
               {
-                "type": "Literal",
-                "start": 259,
-                "end": 260,
-                "value": 1,
-                "raw": "1"              },
+                "type": "Property",
+                "start": 640,
+                "end": 646,
+                "kind": "init",
+                "method": false,
+                "shorthand": true,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 640,
+                  "end": 646,
+                  "name": "valid1"                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 640,
+                  "end": 646,
+                  "name": "valid1"                }
+              },
               {
-                "type": "Literal",
-                "start": 264,
-                "end": 265,
-                "value": 2,
-                "raw": "2"              },
+                "type": "Property",
+                "start": 650,
+                "end": 663,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": true,
+                "key": {
+                  "type": "Identifier",
+                  "start": 651,
+                  "end": 654,
+                  "name": "key"                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 657,
+                  "end": 663,
+                  "name": "valid2"                }
+              },
               {
-                "type": "Literal",
-                "start": 293,
-                "end": 294,
-                "value": 4,
-                "raw": "4"              }
+                "type": "SpreadElement",
+                "start": 667,
+                "end": 685,
+                "argument": {
+                  "type": "ObjectExpression",
+                  "start": 670,
+                  "end": 685,
+                  "properties": [
+                    {
+                      "type": "Property",
+                      "start": 672,
+                      "end": 683,
+                      "kind": "init",
+                      "method": false,
+                      "shorthand": false,
+                      "computed": false,
+                      "key": {
+                        "type": "Identifier",
+                        "start": 672,
+                        "end": 677,
+                        "name": "extra"                      },
+                      "value": {
+                        "type": "Literal",
+                        "start": 679,
+                        "end": 683,
+                        "value": true,
+                        "raw": "true"                      }
+                    }
+                  ]                }
+              }
             ]          }        }
-      ]    }
+      ],
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " Partial recovery — valid code surrounding constructs that stress"
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 127,
+      "value": " the parser's tolerance for unusual-but-legal patterns."
+    },
+    {
+      "type": "Line",
+      "start": 165,
+      "end": 228,
+      "value": " Semicolons inside array literals (EmptyStatement-like holes)"
+    },
+    {
+      "type": "Line",
+      "start": 257,
+      "end": 291,
+      "value": " Trailing comma in function call"
+    },
+    {
+      "type": "Line",
+      "start": 323,
+      "end": 356,
+      "value": " Parenthesised comma expression"
+    },
+    {
+      "type": "Line",
+      "start": 379,
+      "end": 415,
+      "value": " Labeled block (unusual but legal)"
+    },
+    {
+      "type": "Line",
+      "start": 560,
+      "end": 602,
+      "value": " Nested object with shorthand + computed"
+    }
   ]
 }
 
 --- Statistics ---
-Arena: used=7048B reserved=16777216B ratio=0%
+Arena: used=17808B reserved=16777216B ratio=0%
 Parse errors: 0
