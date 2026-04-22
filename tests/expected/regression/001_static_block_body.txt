@@ -135,7 +135,8 @@
               "raw": "42"
             },
             "computed": false,
-            "static": true
+            "static": true,
+            "abstract": false
           },
           {
             "type": "StaticBlock",
@@ -252,7 +253,8 @@
           }
         ]
       },
-      "declare": false    }
+      "declare": false,
+      "abstract": false    }
   ],
   "comments": [
     {
@@ -283,5 +285,5 @@
 }
 
 --- Statistics ---
-Arena: used=13768B reserved=16777216B ratio=0%
+Arena: used=13832B reserved=16777216B ratio=0%
 Parse errors: 0

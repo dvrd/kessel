@@ -39,7 +39,8 @@
               "raw": "1"
             },
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "PropertyDefinition",
@@ -59,14 +60,16 @@
               "raw": "2"
             },
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           }
         ]
       },
-      "declare": false    }
+      "declare": false,
+      "abstract": false    }
   ]
 }
 
 --- Statistics ---
-Arena: used=7400B reserved=16777216B ratio=0%
+Arena: used=7464B reserved=16777216B ratio=0%
 Parse errors: 0

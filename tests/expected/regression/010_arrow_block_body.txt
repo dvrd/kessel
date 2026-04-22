@@ -641,11 +641,13 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           }
         ]
       },
-      "declare": false    }
+      "declare": false,
+      "abstract": false    }
   ],
   "comments": [
     {
@@ -850,5 +852,5 @@
 }
 
 --- Statistics ---
-Arena: used=53912B reserved=16777216B ratio=0%
+Arena: used=53976B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -232,7 +232,8 @@
               },
               "kind": "constructor",
               "computed": false,
-              "static": false
+              "static": false,
+              "abstract": false
             },
             {
               "type": "MethodDefinition",
@@ -292,11 +293,13 @@
               },
               "kind": "get",
               "computed": false,
-              "static": false
+              "static": false,
+              "abstract": false
             }
           ]
         },
-        "declare": false      },
+        "declare": false,
+        "abstract": false      },
       "specifiers": [],
       "source": null    },
     {
@@ -370,11 +373,13 @@
               },
               "kind": "method",
               "computed": false,
-              "static": false
+              "static": false,
+              "abstract": false
             }
           ]
         },
-        "declare": false      }    }
+        "declare": false,
+        "abstract": false      }    }
   ],
   "comments": [
     {
@@ -441,5 +446,5 @@
 }
 
 --- Statistics ---
-Arena: used=27272B reserved=16777216B ratio=0%
+Arena: used=27400B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -785,6 +785,20 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_expression_or_labeled_statement(p)
 	case .Class:
 		return parse_class_declaration(p)
+	case .Abstract:
+		// `abstract class Foo { ... }` — consume `abstract` and set the flag
+		// on the parsed class declaration.
+		if is_next_token(p, .Class) {
+			eat(p) // consume `abstract`
+			stmt := parse_class_declaration(p)
+			if stmt != nil {
+				if cls, ok := stmt^.(^ClassDeclaration); ok { cls.expr.abstract = true }
+			}
+			return stmt
+		}
+		// Not followed by class — fall through to expression (treat `abstract`
+		// as an identifier). Best to defer to the generic identifier path.
+		return parse_expression_or_labeled_statement(p)
 	case .At:
 		return parse_decorated_class(p)
 	case .Let, .Var:
@@ -1886,6 +1900,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	static_ := match_token(p, .Static)
+	is_abstract := match_token(p, .Abstract)
 
 	kind := ClassElementKind.Method
 	is_async := false
@@ -2028,6 +2043,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.computed = false
 		elem.static = static_
 		elem.is_accessor = is_accessor
+		elem.abstract = is_abstract
 		elem.decorators = decorators
 
 		elem.loc.span.end = prev_end_offset(p)
@@ -2053,20 +2069,27 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		method_return_type = parse_ts_return_type_annotation(p)
 	}
 
-	// Parse body - set context flags
-	prev_in_function := p.in_function
-	prev_in_generator := p.in_generator
-	prev_in_async := p.in_async
+	// For abstract methods, there's no body — just a semicolon
+	body: FunctionBody
+	if is_abstract && is_token(p, .Semi) {
+		match_semicolon_or_asi(p)
+		// Leave body empty
+	} else {
+		// Parse body - set context flags
+		prev_in_function := p.in_function
+		prev_in_generator := p.in_generator
+		prev_in_async := p.in_async
 
-	p.in_function = true
-	p.in_generator = is_generator
-	p.in_async = is_async
+		p.in_function = true
+		p.in_generator = is_generator
+		p.in_async = is_async
 
-	body := parse_function_body(p)
+		body = parse_function_body(p)
 
-	p.in_function = prev_in_function
-	p.in_generator = prev_in_generator
-	p.in_async = prev_in_async
+		p.in_function = prev_in_function
+		p.in_generator = prev_in_generator
+		p.in_async = prev_in_async
+	}
 
 	// Create the method as a FunctionExpression
 	fn_expr := new_node(p, FunctionExpression)
@@ -2087,6 +2110,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	elem.computed = computed
 	elem.static = static_
 	elem.is_accessor = is_accessor
+	elem.abstract = is_abstract
 	elem.decorators = decorators
 
 	elem.loc.span.end = prev_end_offset(p)

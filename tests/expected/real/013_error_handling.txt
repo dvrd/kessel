@@ -167,11 +167,13 @@
             },
             "kind": "constructor",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           }
         ]
       },
-      "declare": false    },
+      "declare": false,
+      "abstract": false    },
     {
       "type": "FunctionDeclaration",
       "start": 216,
@@ -444,5 +446,5 @@
 }
 
 --- Statistics ---
-Arena: used=15048B reserved=16777216B ratio=0%
+Arena: used=15112B reserved=16777216B ratio=0%
 Parse errors: 0

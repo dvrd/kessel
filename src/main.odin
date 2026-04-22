@@ -1894,6 +1894,11 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 	print_indent(indent)
 	out_s("\"static\": ")
 	out_bool(elem.static)
+	out_s(",\n")
+
+	print_indent(indent)
+	out_s("\"abstract\": ")
+	out_bool(elem.abstract)
 	out_s("\n")
 }
 
@@ -2218,6 +2223,10 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("\"declare\": ")
 		out_bool(s.expr.declare)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"abstract\": ")
+		out_bool(s.expr.abstract)
 
 	case ^TryStatement:
 		out_println(",")

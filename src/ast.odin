@@ -979,6 +979,7 @@ ClassElement :: struct {
 	static:        bool,
 	is_accessor:   bool, // `accessor` keyword — emits as "AccessorProperty"
 	decorators:    [dynamic]Decorator,
+	abstract:      bool,
 }
 
 ClassExpression :: struct {
@@ -990,6 +991,7 @@ ClassExpression :: struct {
 	type_parameters:   Maybe(^TSTypeParameterDeclaration),
 	implements:        [dynamic]TSInterfaceHeritage,
 	declare:           bool,
+	abstract:          bool,
 }
 
 // StaticBlock for ES2022 static class blocks (static { ... })

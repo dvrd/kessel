@@ -95,7 +95,8 @@
                   },
                   "kind": "constructor",
                   "computed": false,
-                  "static": false
+                  "static": false,
+                  "abstract": false
                 }
               ]
             }
@@ -171,7 +172,8 @@
                     },
                     "kind": "method",
                     "computed": false,
-                    "static": false
+                    "static": false,
+                    "abstract": false
                   }
                 ]
               }
@@ -184,5 +186,5 @@
 }
 
 --- Statistics ---
-Arena: used=9608B reserved=16777216B ratio=0%
+Arena: used=9800B reserved=16777216B ratio=0%
 Parse errors: 0

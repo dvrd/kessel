@@ -50,7 +50,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -81,7 +82,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -112,7 +114,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -143,7 +146,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -174,7 +178,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -205,7 +210,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -236,7 +242,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -267,7 +274,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -298,7 +306,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -329,7 +338,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -360,7 +370,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -391,7 +402,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -422,7 +434,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -453,7 +466,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -484,7 +498,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -515,7 +530,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -546,7 +562,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -577,7 +594,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -608,7 +626,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -639,7 +658,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -670,7 +690,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -701,7 +722,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -732,7 +754,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -763,7 +786,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -794,7 +818,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -825,7 +850,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -856,7 +882,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -887,7 +914,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -918,7 +946,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -949,7 +978,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -980,7 +1010,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1011,7 +1042,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1042,7 +1074,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1073,7 +1106,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1104,7 +1138,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1135,7 +1170,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1166,7 +1202,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1197,7 +1234,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1228,7 +1266,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -1259,11 +1298,13 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           }
         ]
       },
-      "declare": false    }
+      "declare": false,
+      "abstract": false    }
   ],
   "comments": [
     {
@@ -1336,5 +1377,5 @@
 }
 
 --- Statistics ---
-Arena: used=43896B reserved=16777216B ratio=0%
+Arena: used=44600B reserved=16777216B ratio=0%
 Parse errors: 0

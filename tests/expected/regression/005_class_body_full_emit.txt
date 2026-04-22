@@ -43,7 +43,8 @@
               "raw": "1"
             },
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "PropertyDefinition",
@@ -63,7 +64,8 @@
               "raw": "\"hidden\""
             },
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "PropertyDefinition",
@@ -83,7 +85,8 @@
               "raw": "2"
             },
             "computed": false,
-            "static": true
+            "static": true,
+            "abstract": false
           },
           {
             "type": "PropertyDefinition",
@@ -103,7 +106,8 @@
               "raw": "\"private-static\""
             },
             "computed": false,
-            "static": true
+            "static": true,
+            "abstract": false
           },
           {
             "type": "PropertyDefinition",
@@ -117,7 +121,8 @@
             },
             "value": null,
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -197,7 +202,8 @@
             },
             "kind": "constructor",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -260,7 +266,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -309,7 +316,8 @@
             },
             "kind": "get",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -375,7 +383,8 @@
             },
             "kind": "set",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -456,7 +465,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -497,7 +507,8 @@
             },
             "kind": "method",
             "computed": true,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -555,7 +566,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": true
+            "static": true,
+            "abstract": false
           },
           {
             "type": "MethodDefinition",
@@ -604,7 +616,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "abstract": false
           },
           {
             "type": "StaticBlock",
@@ -645,7 +658,8 @@
           }
         ]
       },
-      "declare": false    }
+      "declare": false,
+      "abstract": false    }
   ],
   "comments": [
     {
@@ -748,5 +762,5 @@
 }
 
 --- Statistics ---
-Arena: used=37032B reserved=16777216B ratio=0%
+Arena: used=37288B reserved=16777216B ratio=0%
 Parse errors: 0
