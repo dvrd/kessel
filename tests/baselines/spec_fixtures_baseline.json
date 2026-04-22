@@ -1,12 +1,12 @@
 {
   "edge": {
-    "pass": 16,
-    "fail": 3,
+    "pass": 17,
+    "fail": 2,
     "total": 19
   },
   "es2015": {
-    "pass": 5,
-    "fail": 5,
+    "pass": 8,
+    "fail": 2,
     "total": 10
   },
   "es2016": {
@@ -45,8 +45,8 @@
     "total": 6
   },
   "es2024": {
-    "pass": 1,
-    "fail": 1,
+    "pass": 2,
+    "fail": 0,
     "total": 2
   },
   "es2025": {

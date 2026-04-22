@@ -236,7 +236,7 @@
         "arguments": [
           {
             "type": "SpreadElement",
-            "start": 150,
+            "start": 147,
             "end": 153,
             "argument": {
               "type": "Identifier",

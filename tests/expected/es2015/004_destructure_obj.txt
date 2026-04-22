@@ -128,7 +128,7 @@
               {
                 "type": "Property",
                 "start": 36,
-                "end": 37,
+                "end": 40,
                 "shorthand": false,
                 "computed": false,
                 "kind": "init",

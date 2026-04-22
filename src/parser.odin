@@ -877,6 +877,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				name = e.name,
 			}
 			labeled.body = parse_statement_or_declaration(p)
+			labeled.loc.span.end = prev_end_offset(p)
 
 			return statement_from(p, labeled)
 		}
@@ -2208,6 +2209,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						computed  = computed,
 						shorthand = false,
 					}
+					prop.loc.span.end = prev_end_offset(p)
 					append(&obj.properties, prop)
 				} else {
 					prop := ObjectPatternProperty{
@@ -2217,6 +2219,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						computed  = computed,
 						shorthand = false,
 					}
+					prop.loc.span.end = value_ident.loc.span.end
 					append(&obj.properties, prop)
 				}
 			} else if is_token(p, .LBrace) {
@@ -2242,6 +2245,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					computed  = computed,
 						shorthand = false,
 				}
+				prop.loc.span.end = prev_end_offset(p)
 				append(&obj.properties, prop)
 			} else if is_token(p, .LBracket) {
 				// Nested array pattern (possibly with default)
@@ -2266,6 +2270,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					computed  = computed,
 					shorthand = false,
 				}
+				prop.loc.span.end = prev_end_offset(p)
 				append(&obj.properties, prop)
 			} else {
 				report_error(p, "Expected pattern in object pattern value")
@@ -2295,6 +2300,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						computed  = computed,
 						shorthand = true,
 					}
+					prop.loc.span.end = prev_end_offset(p)
 					append(&obj.properties, prop)
 				}
 			}
@@ -2315,6 +2321,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						computed  = false,
 						shorthand = true,
 					}
+					prop.loc.span.end = left_ident.loc.span.end
 					append(&obj.properties, prop)
 				}
 			}
@@ -2364,7 +2371,9 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 		}
 
 		// Check for rest element: ...identifier
-		if match_token(p, .Dot3) {
+		if is_token(p, .Dot3) {
+			rest_start := cur_loc(p) // Capture location of ... before eating
+			eat(p) // consume ...
 			if !is_token(p, .Identifier) {
 				report_error(p, "Expected identifier after ... in array pattern")
 				return nil
@@ -2373,7 +2382,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			eat(p)
 
 			rest := new_node(p, RestElement)
-			rest.loc = arl
+			rest.loc = rest_start
 			rest_ident := new_node(p, Identifier)
 			rest_ident.loc = arl
 			rest_ident.name = arn
@@ -3033,6 +3042,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		await.loc = loc_from_token(current)
 		await.argument = argument
 		await.loc.span.end = prev_end_offset(p)
+		// Top-level await is module syntax
+		if !p.in_function {
+			p.has_module_syntax = true
+		}
 		return expression_from(p, await)
 
 	case .Dot3:
@@ -3437,10 +3450,10 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// is consumed and cleared before the outer reaches `=>`.
 		paren_start := cur_loc(p).span.start
 		eat(p)
-		// Stamp; max(u32) is the "unset" sentinel so a file starting with `(`
-		// at offset 0 still works. We use 0xFFFF_FFFF rather than `Maybe(u32)`
-		// because the stamp sits on the hot path of every parenthesised group.
-		p.pending_paren_start = paren_start
+		// Save and clear pending_paren_start so nested expressions don't use this paren.
+		// We'll restore it below only if the next token is Arrow (for arrow function params).
+		prev_pending_paren := p.pending_paren_start
+		p.pending_paren_start = max(u32)
 		prev_no_in := p.no_in
 		p.no_in = false  // 'in' is always valid inside parentheses
 		expr := parse_expr_with_prec(p, .Comma)
@@ -3450,6 +3463,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 		if !expect_token(p, .RParen) {
 			return nil
+		}
+		// Set pending_paren_start for this paren only if next token is Arrow
+		// (arrow function parameters). Otherwise restore the previous value.
+		if is_token(p, .Arrow) {
+			p.pending_paren_start = paren_start
+		} else {
+			p.pending_paren_start = prev_pending_paren
 		}
 		return expr
 
@@ -3924,11 +3944,12 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 	if !is_token(p, .RParen) {
 		for {
 			if is_token(p, .Dot3) {
+				spread_start := cur_loc(p) // Capture location of ... before eating
 				eat(p)
 				arg := parse_assignment_expression(p)
 				if arg != nil {
 					spread := new_node(p, SpreadElement)
-					spread.loc = loc_from_expr(arg)
+					spread.loc = spread_start // Use location of ... token, not the argument
 					spread.argument = arg
 					spread.loc.span.end = prev_end_offset(p)
 					append(&args, expression_from(p, spread))

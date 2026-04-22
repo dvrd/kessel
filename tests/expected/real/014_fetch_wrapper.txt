@@ -212,7 +212,7 @@
                       {
                         "type": "Property",
                         "start": 242,
-                        "end": 248,
+                        "end": 256,
                         "shorthand": true,
                         "computed": false,
                         "kind": "init",

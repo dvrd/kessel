@@ -75,7 +75,7 @@
               },
               {
                 "type": "RestElement",
-                "start": 36,
+                "start": 33,
                 "end": 40,
                 "argument": {
                   "type": "Identifier",

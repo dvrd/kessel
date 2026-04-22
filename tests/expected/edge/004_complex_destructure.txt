@@ -23,7 +23,7 @@
               {
                 "type": "Property",
                 "start": 7,
-                "end": 8,
+                "end": 16,
                 "shorthand": false,
                 "computed": false,
                 "kind": "init",
@@ -57,7 +57,7 @@
               {
                 "type": "Property",
                 "start": 18,
-                "end": 19,
+                "end": 27,
                 "shorthand": false,
                 "computed": false,
                 "kind": "init",
@@ -76,7 +76,7 @@
                     {
                       "type": "Property",
                       "start": 22,
-                      "end": 23,
+                      "end": 26,
                       "shorthand": false,
                       "computed": false,
                       "kind": "init",

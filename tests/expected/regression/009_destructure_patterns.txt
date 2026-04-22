@@ -131,7 +131,7 @@
               },
               {
                 "type": "RestElement",
-                "start": 1113,
+                "start": 1110,
                 "end": 1117,
                 "argument": {
                   "type": "Identifier",
@@ -260,7 +260,7 @@
               {
                 "type": "Property",
                 "start": 1250,
-                "end": 1251,
+                "end": 1256,
                 "shorthand": true,
                 "computed": false,
                 "kind": "init",
@@ -316,7 +316,7 @@
               {
                 "type": "Property",
                 "start": 1328,
-                "end": 1329,
+                "end": 1338,
                 "shorthand": false,
                 "computed": false,
                 "kind": "init",
@@ -467,7 +467,7 @@
               {
                 "type": "Property",
                 "start": 1463,
-                "end": 1464,
+                "end": 1474,
                 "shorthand": false,
                 "computed": false,
                 "kind": "init",
@@ -556,7 +556,7 @@
               {
                 "type": "Property",
                 "start": 1529,
-                "end": 1530,
+                "end": 1538,
                 "shorthand": false,
                 "computed": false,
                 "kind": "init",
@@ -666,7 +666,7 @@
             {
               "type": "Property",
               "start": 1678,
-              "end": 1679,
+              "end": 1683,
               "shorthand": true,
               "computed": false,
               "kind": "init",
@@ -699,7 +699,7 @@
             {
               "type": "Property",
               "start": 1685,
-              "end": 1686,
+              "end": 1690,
               "shorthand": false,
               "computed": false,
               "kind": "init",
