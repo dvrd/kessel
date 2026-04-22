@@ -2,6 +2,7 @@ package main
 
 import "core:mem"
 import "core:fmt"
+import "core:strings"
 
 // ============================================================================
 // Token Access (cached in Parser for zero-overhead reads)
@@ -253,8 +254,12 @@ StringInterner :: struct {
 // ES spec: PropertyName can be IdentifierName, which includes all keywords.
 is_keyword_usable_as_property_name :: #force_inline proc(t: TokenType) -> bool {
 	#partial switch t {
-	case .Get, .Set, .Async, .Static, .Let, .Of, .From, .As, .Constructor,
+	case .Identifier,  // includes TS contextual keywords: type, interface, enum
+	     .Get, .Set, .Async, .Static, .Let, .Of, .From, .As, .Constructor, .Accessor,
 	     .Yield, .Await, .If, .Else, .For, .While, .Do, .Switch, .Case,
+	     .Assert, .Asserts, .Abstract, .Declare, .Readonly, .Override,
+	     .Keyof, .Infer, .Is, .Satisfies, .Never, .Unique, .Namespace, .Module,
+	     .Implements, .Require, .Package, .Private, .Protected, .Public, .Target, .Using,
 	     .Default, .Break, .Continue, .Return, .Throw, .Try, .Catch, .Finally,
 	     .Function, .Class, .Var, .Const, .New, .Delete, .Typeof, .Void,
 	     .In, .Instanceof, .Extends, .Super, .This, .With, .Debugger,
@@ -524,6 +529,16 @@ is_next_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 	return peek_token(p).type == t
 }
 
+// Check if next token is an Identifier with a specific string value.
+// Used for TS contextual keywords (type, interface, enum) that lex as Identifier.
+is_next_identifier_value :: #force_inline proc(p: ^Parser, value: string) -> bool {
+	if p.lexer == nil { return false }
+	nxt := p.lexer.nxt
+	if nxt.kind != .Identifier { return false }
+	if nxt.end - nxt.start != u32(len(value)) { return false }
+	return p.lexer.source[nxt.start:nxt.end] == value
+}
+
 // Consume current token if it matches
 match_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 	if p.cur_type == t {
@@ -770,8 +785,49 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_expression_or_labeled_statement(p)
 	case .Class:
 		return parse_class_declaration(p)
-	case .Let, .Const, .Var:
+	case .At:
+		return parse_decorated_class(p)
+	case .Let, .Var:
 		return parse_variable_declaration(p, nil, true)
+	case .Using:
+		// `using x = ...` is a declaration; `using(...)` or `using.foo` is an expression.
+		// A using declaration requires an identifier or destructuring as the next token.
+		if is_next_token(p, .Identifier) || is_keyword_usable_as_property_name(peek_token(p).type) ||
+		   is_next_token(p, .LBracket) || is_next_token(p, .LBrace) {
+			return parse_variable_declaration(p, nil, true)
+		}
+		return parse_expression_or_labeled_statement(p)
+	case .Const:
+		// `const enum Foo { ... }` — TS enum with const modifier.
+		// `enum` now lexes as Identifier, so check string value.
+		if is_next_identifier_value(p, "enum") {
+			return parse_ts_enum_declaration(p)
+		}
+		return parse_variable_declaration(p, nil, true)
+	case .Await:
+		if is_next_token(p, .Using) {
+			return parse_variable_declaration(p, nil, true)
+		}
+		return parse_expression_or_labeled_statement(p)
+	case .Identifier:
+		// TS contextual keywords: `type`, `interface`, `enum` lex as Identifier
+		// so that `var type = 1` and similar JS code parses correctly.
+		// We check string value here at the statement level.
+		val := p.cur_tok.value
+		if val == "interface" {
+			return parse_ts_interface_declaration(p)
+		}
+		if val == "type" {
+			// `type Foo = ...` — next token must be an identifier (the alias name).
+			if is_next_token(p, .Identifier) {
+				return parse_ts_type_alias_declaration(p)
+			}
+			return parse_expression_or_labeled_statement(p)
+		}
+		if val == "enum" {
+			return parse_ts_enum_declaration(p)
+		}
+		return parse_expression_or_labeled_statement(p)
 	case .LBrace:
 		return parse_block_statement(p)
 	case .If:
@@ -1015,7 +1071,8 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	left_expr: ^Expression
 	left_decl: ^VariableDeclaration
 
-	if is_token(p, .Var) || is_token(p, .Let) || is_token(p, .Const) {
+	if is_token(p, .Var) || is_token(p, .Let) || is_token(p, .Const) || is_token(p, .Using) ||
+	   (is_token(p, .Await) && peek_dispatch(p).type == .Using) {
 		// Variable declaration - parse it. parse_variable_declaration returns a
 		// ^Statement union wrapping a ^VariableDeclaration; extract the inner
 		// variant via type assertion. Prior code transmuted the union pointer
@@ -1501,6 +1558,10 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 		}
 	}
 
+	// TypeScript generic type parameters: `function foo<T, U>(...)`
+	type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+
 	if !expect_token(p, .LParen) {
 		return nil
 	}
@@ -1509,6 +1570,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 
 	if !expect_token(p, .RParen) {
 		return nil
+	}
+
+	// TypeScript return type annotation
+	return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) {
+		return_type = parse_ts_type_annotation(p)
 	}
 
 	prev_async := p.in_async
@@ -1529,6 +1596,8 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 		expr.body = body
 		expr.generator = generator
 		expr.async = async
+		expr.type_parameters = type_parameters
+		expr.return_type = return_type
 		expr.loc.span.end = prev_end_offset(p)
 
 		// For function expressions, wrap in ExpressionStatement. The
@@ -1554,6 +1623,8 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false) -> ^Statement {
 		body = body,
 		generator = generator,
 		async = async,
+		type_parameters = type_parameters,
+		return_type = return_type,
 	}
 	decl.expr.loc.span.end = prev_end_offset(p)
 
@@ -1613,6 +1684,23 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 
 	pattern := parse_binding_pattern(p)
 	param.pattern = pattern
+
+	// TypeScript: optional parameter marker `?` comes AFTER the name.
+	// Only consume if followed by `:`, `,`, `)`, or `=` — not a ternary.
+	if is_token(p, .Question) {
+		nxt := peek_token(p)
+		if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen || nxt.type == .Assign {
+			eat(p) // consume `?`
+		}
+	}
+
+	// TypeScript type annotation on parameter — store on Identifier node.
+	if is_token(p, .Colon) {
+		ann := parse_ts_type_annotation(p)
+		if ident, ok := pattern.(^Identifier); ok {
+			ident.type_annotation = ann
+		}
+	}
 
 	if match_token(p, .Assign) {
 		param.default_val = parse_assignment_expression(p)
@@ -1696,6 +1784,10 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		eat(p)
 	}
 
+	// TypeScript generic type parameters: `class Box<T> { ... }`
+	type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+
 	super_class: Maybe(^Expression)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
@@ -1706,10 +1798,11 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Allocate ClassDeclaration and Statement separately
 	decl := new_node(p, ClassDeclaration)
 	decl.expr = {
-		loc         = start,
-		id          = id,
-		super_class = super_class,
-		body        = body,
+		loc             = start,
+		id              = id,
+		super_class     = super_class,
+		body            = body,
+		type_parameters = type_parameters,
 	}
 	decl.expr.loc.span.end = prev_end_offset(p)
 
@@ -1756,11 +1849,15 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 }
 
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
+	decorators := parse_decorators(p)
 	start := cur_loc(p)
+	if len(decorators) > 0 { start.span.start = decorators[0].loc.span.start }
 
 	// Check for static block: static { ... }
 	if is_token(p, .Static) && is_next_token(p, .LBrace) {
-		return parse_static_block(p, start)
+		elem := parse_static_block(p, start)
+		if elem != nil { elem.decorators = decorators }
+		return elem
 	}
 
 	static_ := match_token(p, .Static)
@@ -1770,9 +1867,19 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	is_generator := false
 	computed := false
 	is_private := false
+	is_accessor := false
+
+	// Check for `accessor` keyword
+	if is_token(p, .Accessor) {
+		next := peek_dispatch(p)
+		if next.type != .LParen && next.type != .Semi && next.type != .RBrace {
+			is_accessor = true
+			eat(p)
+		}
+	}
 
 	// Check for async keyword
-	if is_token(p, .Async) {
+	if !is_accessor && is_token(p, .Async) {
 		// Only treat as async if followed by something that starts a method name
 		next := peek_dispatch(p)
 		if next.type == .Identifier || next.type == .PrivateIdentifier || next.type == .LBracket ||
@@ -1895,6 +2002,8 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.kind = kind  // Still .Method but value is not a function
 		elem.computed = false
 		elem.static = static_
+		elem.is_accessor = is_accessor
+		elem.decorators = decorators
 
 		elem.loc.span.end = prev_end_offset(p)
 		return elem
@@ -1911,6 +2020,12 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	if !expect_token(p, .RParen) {
 		return nil
+	}
+
+	// TypeScript return type annotation on method — stored on FunctionExpression.
+	method_return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) {
+		method_return_type = parse_ts_type_annotation(p)
 	}
 
 	// Parse body - set context flags
@@ -1936,6 +2051,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	fn_expr.body = body
 	fn_expr.generator = is_generator
 	fn_expr.async = is_async
+	fn_expr.return_type = method_return_type
 	fn_expr.loc.span.end = prev_end_offset(p)
 
 	elem := new_node(p, ClassElement)
@@ -1945,6 +2061,8 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	elem.kind = kind
 	elem.computed = computed
 	elem.static = static_
+	elem.is_accessor = is_accessor
+	elem.decorators = decorators
 
 	elem.loc.span.end = prev_end_offset(p)
 	return elem
@@ -2005,6 +2123,20 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		kind = .Let
 	case .Const:
 		kind = .Const
+	case .Using:
+		kind = .Using
+	case .Await:
+		if is_next_token(p, .Using) {
+			kind = .AwaitUsing
+			eat(p) // consume await
+		} else {
+			if k, ok := kind_override.(VariableKind); ok {
+				kind = k
+			} else {
+				report_error(p, "Expected var, let, const, using, or await using")
+				return nil
+			}
+		}
 	case:
 		if k, ok := kind_override.(VariableKind); ok {
 			kind = k
@@ -2047,6 +2179,14 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 
 	pattern := parse_binding_pattern(p)
 
+	// TypeScript type annotation — store on Identifier binding node.
+	if is_token(p, .Colon) {
+		ann := parse_ts_type_annotation(p)
+		if ident, ok := pattern.(^Identifier); ok {
+			ident.type_annotation = ann
+		}
+	}
+
 	init: Maybe(^Expression)
 	if match_token(p, .Assign) {
 		init = parse_assignment_expression(p)
@@ -2074,11 +2214,9 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		return parse_array_pattern(p)
 	}
 
-	// Identifiers and contextual keywords that can be used as binding names
-	if is_token(p, .Identifier) || is_token(p, .Get) || is_token(p, .Set) ||
-	   is_token(p, .Async) || is_token(p, .From) || is_token(p, .Of) ||
-	   is_token(p, .As) || is_token(p, .Let) || is_token(p, .Static) ||
-	   is_token(p, .Constructor) || is_token(p, .Yield) {
+	// Identifiers and contextual keywords that can be used as binding names.
+	// All contextual keywords are valid binding identifiers in JS.
+	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -2568,6 +2706,8 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		decl.source = parse_string_literal(p)
 	}
 
+	decl.attributes = parse_import_attributes(p)
+
 	match_semicolon_or_asi(p)
 
 	decl.loc.span.end = prev_end_offset(p)
@@ -2724,6 +2864,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	decl.loc = start
 	decl.source = source
 	decl.exported = exported
+	decl.attributes = parse_import_attributes(p)
 
 	// Consume the trailing semicolon BEFORE stamping the span end so the
 	// ExportAllDeclaration includes its own `;` — matches ESTree/OXC/Acorn
@@ -2788,6 +2929,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 
 	if match_token(p, .From) {
 		decl.source = parse_string_literal(p)
+		decl.attributes = parse_import_attributes(p)
 	}
 
 	match_semicolon_or_asi(p)
@@ -2909,6 +3051,29 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 	left := parse_unary_expr(p)
 	if left == nil {
 		return nil
+	}
+
+	// TypeScript: `expr as Type` and `expr satisfies Type`
+	for is_token(p, .As) || is_token(p, .Satisfies) {
+		if is_token(p, .As) {
+			eat(p)
+			ts_type := parse_ts_type(p)
+			as_expr := new_node(p, TSAsExpression)
+			as_expr.loc = loc_from_expr(left)
+			as_expr.expression = left
+			as_expr.type_annotation = ts_type
+			as_expr.loc.span.end = prev_end_offset(p)
+			left = expression_from(p, as_expr)
+		} else {
+			eat(p)
+			ts_type := parse_ts_type(p)
+			sat_expr := new_node(p, TSSatisfiesExpression)
+			sat_expr.loc = loc_from_expr(left)
+			sat_expr.expression = left
+			sat_expr.type_annotation = ts_type
+			sat_expr.loc.span.end = prev_end_offset(p)
+			left = expression_from(p, sat_expr)
+		}
 	}
 
 	for {
@@ -3112,6 +3277,11 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			prop := parse_identifier_name(p)
 			member, member_e := new_expr(p, MemberExpression)
 			member.loc = loc_from_expr(expr)
+			// OXC includes the `(` in MemberExpression span when object was parenthesized.
+			if p.pending_paren_start != max(u32) && p.pending_paren_start <= member.loc.span.start {
+				member.loc.span.start = p.pending_paren_start
+				p.pending_paren_start = max(u32)
+			}
 			member.object = expr
 			// Check if this is a private identifier (starts with #)
 			if len(prop.name) > 0 && prop.name[0] == '#' {
@@ -3414,8 +3584,14 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		ident.loc.span.end = prev_end_offset(p)
 		return expression_from(p, ident)
 
-	case .Identifier, .Get, .Set, .From, .Of, .As, .Let, .Static, .Constructor:
-		// Contextual keywords are valid identifiers in expression context
+	case .Identifier, .Get, .Set, .From, .Of, .As, .Let, .Static, .Constructor,
+	     .Assert, .Asserts, .Abstract, .Declare, .Readonly, .Override,
+	     .Keyof, .Infer, .Is, .Satisfies, .Never, .Unique, .Namespace, .Module,
+	     .Implements, .Require, .Package, .Private, .Protected, .Public,
+	     .Accessor, .Target, .Await, .Yield:
+		// All contextual keywords are valid identifiers in expression context.
+		// TS keywords (type, interface, enum) lex as Identifier and are
+		// handled via string-value check in parse_statement_or_declaration.
 		eat(p)
 		id, id_expr := new_expr(p, Identifier)
 		id.loc = loc_from_token(current)
@@ -3464,14 +3640,20 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if !expect_token(p, .RParen) {
 			return nil
 		}
-		// Set pending_paren_start for this paren. This is used by both arrow function
-		// parameters and parenthesized CallExpressions.
-		// Only restore the previous value if we're not going to use this paren.
-		// We clear it only after parse_arrow_function uses it (if next token is not Arrow).
-		if !is_token(p, .Arrow) && !is_token(p, .LParen) {
-			p.pending_paren_start = prev_pending_paren
-		} else {
+		// Note: OXC/Acorn do NOT adjust the inner expression span to
+		// include the parentheses in most cases. The parentheses are
+		// syntactic, not semantic — the inner expression keeps its own
+		// natural span. pending_paren_start handles the special cases
+		// (arrow functions, call expressions).
+		// Set pending_paren_start for this paren. Used by arrow function
+		// parameters, CallExpressions, and MemberExpressions whose object
+		// was parenthesized. OXC includes `(` in the span of calls,
+		// member access, and arrow functions that follow `(expr)`.
+		if is_token(p, .Arrow) || is_token(p, .LParen) || is_token(p, .Dot) ||
+		   is_token(p, .LBracket) || is_token(p, .OptionalChain) {
 			p.pending_paren_start = paren_start
+		} else {
+			p.pending_paren_start = prev_pending_paren
 		}
 		return expr
 
@@ -3518,6 +3700,8 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		regex.loc.span.end = prev_end_offset(p)
 		return expression_from(p, regex)
 
+	case .LAngle:
+		return parse_jsx_element_or_fragment(p)
 	case:
 		// Unknown token type
 		return nil
@@ -3662,10 +3846,12 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	is_async := false
 
 	if is_token(p, .Get) || is_token(p, .Set) {
-		// Only treat as getter/setter if followed by a property name (not : or ( directly)
+		// Only treat as getter/setter if followed by a property name (not : or ( directly).
+		// Any keyword can be a property name (ES spec: PropertyName → IdentifierName).
 		next := peek_token(p)
 		if next.type == .Identifier || next.type == .String || next.type == .Number ||
-		   next.type == .LBracket || next.type == .Mul {
+		   next.type == .LBracket || next.type == .Mul ||
+		   is_keyword_usable_as_property_name(next.type) {
 			if is_token(p, .Get) {
 				is_getter = true
 			} else {
@@ -3674,10 +3860,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			eat(p)
 		}
 	} else if is_token(p, .Async) {
-		// Only treat as async if followed by a property name or *
+		// Only treat as async if followed by a property name or *.
 		next := peek_token(p)
 		if next.type == .Identifier || next.type == .String || next.type == .Number ||
-		   next.type == .LBracket || next.type == .Mul || next.type == .LParen {
+		   next.type == .LBracket || next.type == .Mul || next.type == .LParen ||
+		   is_keyword_usable_as_property_name(next.type) {
 			eat(p)
 			is_async = true
 		}
@@ -4310,7 +4497,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			}
 		}
 	} else {
-		body = parse_assignment_expression(p)       // wraps into the union
+		body = parse_assignment_expression(p)
 	}
 
 	p.in_async = prev_async
@@ -4576,7 +4763,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 			}
 		}
 	} else {
-		body = parse_assignment_expression(p)       // wraps into the union
+		body = parse_assignment_expression(p)
 	}
 
 	p.in_async = prev_async
@@ -4641,7 +4828,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 			}
 		}
 	} else {
-		body = parse_assignment_expression(p)       // wraps into the union
+		body = parse_assignment_expression(p)
 	}
 
 	p.in_async = prev_async
@@ -4691,6 +4878,738 @@ parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
 	import_expr.loc.span.end = prev_end_offset(p)
 
 	return expression_from(p, import_expr)
+}
+
+// ============================================================================
+// Import Attributes (Phase 1)
+// ============================================================================
+
+parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
+	attributes := make([dynamic]ImportAttribute, 0, 4, p.allocator)
+	if !is_token(p, .With) && !is_token(p, .Assert) { return attributes }
+	eat(p)
+	if !expect_token(p, .LBrace) { return attributes }
+	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		attr_start := cur_loc(p)
+		key: IdentifierName
+		if is_token(p, .String) {
+			current := get_current(p)
+			key = IdentifierName{loc = loc_from_token(current), name = current.literal.(string) or_else current.value}
+			eat(p)
+		} else {
+			id := parse_identifier_name(p)
+			key = IdentifierName{loc = id.loc, name = id.name}
+		}
+		if !expect_token(p, .Colon) { break }
+		value := parse_string_literal(p)
+		append(&attributes, ImportAttribute{loc = attr_start, key = key, value = value})
+		if !match_token(p, .Comma) { break }
+	}
+	expect_token(p, .RBrace)
+	return attributes
+}
+
+parse_decorators :: proc(p: ^Parser) -> [dynamic]Decorator {
+	decorators := make([dynamic]Decorator, 0, 4, p.allocator)
+	for is_token(p, .At) {
+		start := cur_loc(p)
+		eat(p)
+		expr := parse_left_hand_side_expr(p)
+		d := Decorator{loc = start, expression = expr}
+		d.loc.span.end = prev_end_offset(p)
+		append(&decorators, d)
+	}
+	return decorators
+}
+
+parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
+	decorators := parse_decorators(p)
+	if is_token(p, .Export) {
+		stmt := parse_export_declaration(p)
+		if stmt != nil {
+			#partial switch s in stmt^ {
+			case ^ExportNamedDeclaration:
+				if decl, ok := s.declaration.(^Declaration); ok && decl != nil {
+					if cd, ok2 := decl^.(^ClassDeclaration); ok2 {
+						cd.expr.decorators = decorators
+					}
+				}
+			}
+		}
+		return stmt
+	}
+	if !is_token(p, .Class) { report_error(p, "Expected class after decorator"); return nil }
+	stmt := parse_class_declaration(p)
+	if stmt != nil {
+		#partial switch s in stmt^ {
+		case ^ClassDeclaration:
+			s.expr.decorators = decorators
+			if len(decorators) > 0 { s.expr.loc.span.start = decorators[0].loc.span.start }
+		}
+	}
+	return stmt
+}
+
+// ============================================================================
+// JSX Parsing (Phase 2)
+// ============================================================================
+
+is_jsx_identifier_token :: proc(p: ^Parser) -> bool {
+	return is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type)
+}
+
+parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
+	start := cur_loc(p)
+	eat(p)
+	if is_token(p, .RAngle) {
+		eat(p)
+		children := parse_jsx_children(p)
+		expect_token(p, .LAngle); expect_token(p, .Div)
+		closing_loc := cur_loc(p)
+		expect_token(p, .RAngle)
+		frag := new_node(p, JSXFragment)
+		frag.loc = start
+		frag.opening_fragment = JSXOpeningFragment{loc = start}
+		frag.children = children
+		frag.closing_fragment = JSXClosingFragment{loc = closing_loc}
+		frag.loc.span.end = prev_end_offset(p)
+		return expression_from(p, frag)
+	}
+	name := parse_jsx_element_name(p)
+	opening := parse_jsx_opening_element(p, start, name)
+	if opening.self_closing {
+		elem := new_node(p, JSXElement)
+		elem.loc = start
+		elem.opening_element = opening
+		elem.children = make([dynamic]JSXChild, 0, 0, p.allocator)
+		elem.loc.span.end = prev_end_offset(p)
+		return expression_from(p, elem)
+	}
+	children := parse_jsx_children(p)
+	closing := parse_jsx_closing_element(p, name)
+	elem := new_node(p, JSXElement)
+	elem.loc = start
+	elem.opening_element = opening
+	elem.children = children
+	elem.closing_element = closing
+	elem.loc.span.end = prev_end_offset(p)
+	return expression_from(p, elem)
+}
+
+parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
+	if !is_jsx_identifier_token(p) { return nil }
+	ident := parse_jsx_identifier(p)
+	if is_token(p, .Colon) {
+		eat(p)
+		name := parse_jsx_identifier(p)
+		ns := new_node(p, JSXNamespacedName)
+		ns.loc = ident.loc; ns.namespace = ident; ns.name = name
+		ns.loc.span.end = prev_end_offset(p)
+		return ns
+	}
+	if is_token(p, .Dot) {
+		obj: JSXMemberObject = ident
+		for is_token(p, .Dot) {
+			eat(p)
+			prop := parse_jsx_identifier(p)
+			member := new_node(p, JSXMemberExpression)
+			member.loc = ident.loc; member.object = obj; member.property = prop
+			member.loc.span.end = prev_end_offset(p)
+			obj = member
+		}
+		#partial switch v in obj { case ^JSXMemberExpression: return v }
+	}
+	return ident
+}
+
+parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
+	if !is_jsx_identifier_token(p) { return JSXIdentifier{} }
+	start_loc := cur_loc(p)
+	current := get_current(p)
+	name := current.value
+	eat(p)
+	if is_token(p, .Minus) {
+		parts := make([dynamic]string, 0, 4, p.allocator)
+		append(&parts, name)
+		for is_token(p, .Minus) {
+			append(&parts, "-")
+			eat(p)
+			c := get_current(p)
+			append(&parts, c.value)
+			eat(p)
+		}
+		sb: strings.Builder
+		strings.builder_init(&sb, p.allocator)
+		for part in parts { strings.write_string(&sb, part) }
+		name = strings.to_string(sb)
+	}
+	result := JSXIdentifier{loc = start_loc, name = name}
+	result.loc.span.end = prev_end_offset(p)
+	return result
+}
+
+parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) -> ^JSXOpeningElement {
+	opening := new_node(p, JSXOpeningElement)
+	opening.loc = start; opening.name = name
+	opening.attributes = make([dynamic]JSXAttributeItem, 0, 4, p.allocator)
+	for !is_token(p, .RAngle) && !is_token(p, .Div) && !is_token(p, .EOF) {
+		if is_token(p, .LBrace) {
+			eat(p); expect_token(p, .Dot3)
+			expr := parse_assignment_expression(p)
+			expect_token(p, .RBrace)
+			spread := new_node(p, JSXSpreadAttribute)
+			spread.loc = cur_loc(p); spread.argument = expr
+			append(&opening.attributes, spread)
+		} else if is_jsx_identifier_token(p) {
+			attr_name := parse_jsx_attribute_name(p)
+			attr_value: Maybe(^Expression)
+			if is_token(p, .Assign) {
+				eat(p)
+				if is_token(p, .String) {
+					str := parse_string_literal(p)
+					str_expr := new_node(p, StringLiteral); str_expr^ = str
+					attr_value = expression_from(p, str_expr)
+				} else if is_token(p, .LBrace) {
+					eat(p); expr := parse_assignment_expression(p); expect_token(p, .RBrace)
+					container := new_node(p, JSXExpressionContainer)
+					container.loc = cur_loc(p); container.expression = expr
+					attr_value = expression_from(p, container)
+				} else if is_token(p, .LAngle) {
+					attr_value = parse_jsx_element_or_fragment(p)
+				}
+			}
+			attr: JSXAttribute
+			attr.loc = cur_loc(p); attr.name = attr_name; attr.value = attr_value
+			append(&opening.attributes, attr)
+		} else { break }
+	}
+	if is_token(p, .Div) { eat(p); opening.self_closing = true }
+	expect_token(p, .RAngle)
+	opening.loc.span.end = prev_end_offset(p)
+	return opening
+}
+
+parse_jsx_attribute_name :: proc(p: ^Parser) -> JSXAttributeName {
+	ident := parse_jsx_identifier(p)
+	if is_token(p, .Colon) {
+		eat(p); name := parse_jsx_identifier(p)
+		ns := new_node(p, JSXNamespacedName)
+		ns.loc = ident.loc; ns.namespace = ident; ns.name = name
+		ns.loc.span.end = prev_end_offset(p)
+		return ns
+	}
+	return ident
+}
+
+parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
+	children := make([dynamic]JSXChild, 0, 4, p.allocator)
+	for !is_token(p, .EOF) {
+		if is_token(p, .LAngle) {
+			if peek_dispatch(p).type == .Div { break }
+			nested := parse_jsx_element_or_fragment(p)
+			if nested != nil {
+				#partial switch v in nested^ {
+				case ^JSXElement:  append(&children, v)
+				case ^JSXFragment: append(&children, v)
+				}
+			}
+		} else if is_token(p, .LBrace) {
+			eat(p)
+			expr: ^Expression = nil
+			if !is_token(p, .RBrace) { expr = parse_assignment_expression(p) }
+			expect_token(p, .RBrace)
+			container := new_node(p, JSXExpressionContainer)
+			container.loc = cur_loc(p)
+			if expr != nil { container.expression = expr
+			} else {
+				empty := new_node(p, JSXEmptyExpression); empty.loc = cur_loc(p)
+				container.expression = expression_from(p, empty)
+			}
+			append(&children, container)
+		} else {
+			text := parse_jsx_text(p)
+			if text != nil && text.value != "" { append(&children, text) }
+		}
+	}
+	return children
+}
+
+parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
+	start := cur_loc(p)
+	src := p.lexer.source
+	off := int(cur_offset(p))
+	text_start := off
+	for off < len(src) {
+		c := src[off]
+		if c == '<' || c == '{' { break }
+		off += 1
+	}
+	if off == text_start { return nil }
+	value := src[text_start:off]
+	p.lexer.offset = off
+	p.lexer.cur = lex_token(p.lexer)
+	p.lexer.nxt = lex_token(p.lexer)
+	p.cur_type = p.lexer.cur.kind
+	p.cur_tok.type = p.lexer.cur.kind
+	p.cur_tok.loc.offset = int(p.lexer.cur.start)
+	if p.lexer.cur.start < p.lexer.cur.end {
+		p.cur_tok.value = p.lexer.source[p.lexer.cur.start:p.lexer.cur.end]
+	}
+	text := new_node(p, JSXText)
+	text.loc = start; text.value = value; text.raw = value
+	text.loc.span.end = u32(off)
+	return text
+}
+
+parse_jsx_closing_element :: proc(p: ^Parser, expected: JSXElementName) -> ^JSXClosingElement {
+	start := cur_loc(p)
+	expect_token(p, .LAngle); expect_token(p, .Div)
+	name := parse_jsx_element_name(p)
+	expect_token(p, .RAngle)
+	closing := new_node(p, JSXClosingElement)
+	closing.loc = start; closing.name = name
+	closing.loc.span.end = prev_end_offset(p)
+	return closing
+}
+
+// ============================================================================
+// TypeScript Type Parsing (Phase 3)
+// ============================================================================
+
+parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
+	start := cur_loc(p); eat(p)
+	ts_type := parse_ts_type(p)
+	ann := new_node(p, TSTypeAnnotation)
+	ann.loc = start; ann.type_annotation = ts_type
+	ann.loc.span.end = prev_end_offset(p)
+	return ann
+}
+
+parse_ts_type :: proc(p: ^Parser) -> ^TSType {
+	check := parse_ts_union_type(p)
+	if check == nil { return nil }
+	// Conditional type: `T extends U ? X : Y`
+	if is_token(p, .Extends) {
+		eat(p)
+		exts := parse_ts_union_type(p)
+		expect_token(p, .Question)
+		true_type := parse_ts_type(p)
+		expect_token(p, .Colon)
+		false_type := parse_ts_type(p)
+		cond := new_node(p, TSConditionalType)
+		if loc := get_ts_type_loc(check); loc != nil { cond.loc = loc^ }
+		cond.check_type = check; cond.extends_type = exts
+		cond.true_type = true_type; cond.false_type = false_type
+		cond.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = cond; return r
+	}
+	return check
+}
+
+parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
+	first := parse_ts_intersection_type(p)
+	if first == nil { return nil }
+	if !is_token(p, .BitOr) { return first }
+	types := make([dynamic]^TSType, 0, 4, p.allocator)
+	append(&types, first)
+	for is_token(p, .BitOr) { eat(p); t := parse_ts_intersection_type(p); if t != nil { append(&types, t) } }
+	u := new_node(p, TSUnionType); u.types = types
+	if loc := get_ts_type_loc(first); loc != nil { u.loc = loc^ }
+	u.loc.span.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = u; return r
+}
+
+parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
+	first := parse_ts_primary_type(p)
+	if first == nil { return nil }
+	if !is_token(p, .BitAnd) { return first }
+	types := make([dynamic]^TSType, 0, 4, p.allocator)
+	append(&types, first)
+	for is_token(p, .BitAnd) { eat(p); t := parse_ts_primary_type(p); if t != nil { append(&types, t) } }
+	i := new_node(p, TSIntersectionType); i.types = types
+	if loc := get_ts_type_loc(first); loc != nil { i.loc = loc^ }
+	i.loc.span.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = i; return r
+}
+
+parse_ts_kw :: proc(p: ^Parser, $T: typeid, start: Loc) -> ^TSType {
+	eat(p)
+	node := new_node(p, T); node.loc = start; node.loc.span.end = prev_end_offset(p)
+	result := new_node(p, TSType); result^ = node
+	return parse_ts_postfix(p, result, start)
+}
+
+parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
+	start := cur_loc(p)
+	#partial switch p.cur_type {
+	case .LParen:
+		eat(p); inner := parse_ts_type(p); expect_token(p, .RParen)
+		if is_token(p, .Arrow) {
+			eat(p); parse_ts_type(p)
+			fn := new_node(p, TSFunctionType); fn.loc = start; fn.loc.span.end = prev_end_offset(p)
+			r := new_node(p, TSType); r^ = fn; return r
+		}
+		pn := new_node(p, TSParenthesizedType); pn.loc = start; pn.type_annotation = inner; pn.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = pn; return parse_ts_postfix(p, r, start)
+	case .LBrace: return parse_ts_type_object(p)
+	case .LBracket:
+		eat(p); types := make([dynamic]^TSType, 0, 4, p.allocator)
+		for !is_token(p, .RBracket) && !is_token(p, .EOF) { t := parse_ts_type(p); if t != nil { append(&types, t) }; if !match_token(p, .Comma) { break } }
+		expect_token(p, .RBracket)
+		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = tup; return r
+	case .Void:   return parse_ts_kw(p, TSVoidKeyword, start)
+	case .Null:   return parse_ts_kw(p, TSNullKeyword, start)
+	case .This:   return parse_ts_kw(p, TSThisType, start)
+	case .Never:  return parse_ts_kw(p, TSNeverKeyword, start)
+	case .Typeof:
+		eat(p); expr := parse_left_hand_side_expr(p)
+		node := new_node(p, TSTypeQuery); node.loc = start; node.expr_name = expr; node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node; return parse_ts_postfix(p, r, start)
+	case .Keyof:
+		eat(p); operand := parse_ts_primary_type(p)
+		node := new_node(p, TSTypeOperator); node.loc = start; node.operator = "keyof"; node.type_annotation = operand
+		node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node; return r
+	case .Infer:
+		eat(p); pn := parse_identifier(p)
+		node := new_node(p, TSInferType); node.loc = start
+		node.type_parameter.name = BindingIdentifier{loc = pn.loc, name = pn.name}
+		node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node; return r
+	case .String:
+		lit := parse_string_literal(p); le := new_node(p, StringLiteral); le^ = lit
+		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, le); node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node; return r
+	case .Number:
+		cur := get_current(p); nl := new_node(p, NumericLiteral); nl.loc = loc_from_token(cur); nl.raw = cur.value
+		if v, ok := cur.literal.(f64); ok { nl.value = v }; eat(p)
+		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, nl); node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node; return r
+	case .True, .False:
+		val := p.cur_type == .True; eat(p)
+		bl := new_node(p, BooleanLiteral); bl.loc = start; bl.value = val
+		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, bl); node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node; return r
+	case .Identifier: return parse_ts_identifier_type(p)
+	}
+	return nil
+}
+
+parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
+	start := cur_loc(p)
+	value := get_current(p).value
+	switch value {
+	case "any":       return parse_ts_kw(p, TSAnyKeyword, start)
+	case "number":    return parse_ts_kw(p, TSNumberKeyword, start)
+	case "string":    return parse_ts_kw(p, TSStringKeyword, start)
+	case "boolean":   return parse_ts_kw(p, TSBooleanKeyword, start)
+	case "bigint":    return parse_ts_kw(p, TSBigIntKeyword, start)
+	case "symbol":    return parse_ts_kw(p, TSSymbolKeyword, start)
+	case "object":    return parse_ts_kw(p, TSObjectKeyword, start)
+	case "unknown":   return parse_ts_kw(p, TSUnknownKeyword, start)
+	case "undefined": return parse_ts_kw(p, TSUndefinedKeyword, start)
+	case "never":     return parse_ts_kw(p, TSNeverKeyword, start)
+	}
+	return parse_ts_type_reference(p)
+}
+
+parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
+	result := base
+	for is_token(p, .LBracket) && is_next_token(p, .RBracket) {
+		eat(p); eat(p)
+		arr := new_node(p, TSArrayType); arr.loc = start; arr.element_type = result; arr.loc.span.end = prev_end_offset(p)
+		result = new_node(p, TSType); result^ = arr
+	}
+	return result
+}
+
+parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
+	start := cur_loc(p)
+	cur := get_current(p)
+	id := new_node(p, Identifier); id.loc = loc_from_token(cur); id.name = cur.value; eat(p)
+	id_expr := expression_from(p, id)
+	for is_token(p, .Dot) {
+		eat(p); prop := parse_identifier_name(p)
+		mem := new_node(p, MemberExpression); mem.loc = start; mem.object = id_expr
+		pid := new_node(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
+		mem.property = expression_from(p, pid); mem.loc.span.end = prev_end_offset(p)
+		id_expr = expression_from(p, mem)
+	}
+	targs: Maybe(^TSTypeParameterInstantiation)
+	if is_token(p, .LAngle) { targs = parse_ts_type_arguments(p) }
+	ref := new_node(p, TSTypeReference); ref.loc = start; ref.type_name = id_expr; ref.type_parameters = targs
+	ref.loc.span.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = ref
+	return parse_ts_postfix(p, r, start)
+}
+
+parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
+	start := cur_loc(p); eat(p)
+	params := make([dynamic]^TSType, 0, 4, p.allocator)
+	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
+		t := parse_ts_type(p); if t != nil { append(&params, t) }; if !match_token(p, .Comma) { break }
+	}
+	expect_token(p, .RAngle)
+	inst := new_node(p, TSTypeParameterInstantiation); inst.loc = start; inst.params = params; inst.loc.span.end = prev_end_offset(p)
+	return inst
+}
+
+parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
+	if !is_token(p, .LAngle) { return nil }
+	start := cur_loc(p); eat(p) // consume `<`
+	params := make([dynamic]TSTypeParameter, 0, 4, p.allocator)
+	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
+		param_start := cur_loc(p)
+		cur := get_current(p)
+		name := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}
+		eat(p) // consume identifier
+		constraint: Maybe(^TSType)
+		default_: Maybe(^TSType)
+		if is_token(p, .Extends) { eat(p); constraint = parse_ts_type(p) }
+		if is_token(p, .Assign)  { eat(p); default_  = parse_ts_type(p) }
+		param := TSTypeParameter{
+			loc = param_start, name = name,
+			constraint = constraint, default_ = default_,
+		}
+		param.loc.span.end = prev_end_offset(p)
+		append(&params, param)
+		if !match_token(p, .Comma) { break }
+	}
+	expect_token(p, .RAngle)
+	decl := new_node(p, TSTypeParameterDeclaration)
+	decl.loc = start; decl.params = params
+	decl.loc.span.end = prev_end_offset(p)
+	return decl
+}
+
+parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
+	start := cur_loc(p); eat(p) // consume `{`
+
+	// Detect mapped type: `{ [K in T]: V }` or `{ readonly [K in T]?: V }`.
+	// Use `is_next_identifier_value` for cheap lookahead without speculative parse.
+	is_mapped := false
+	readonly_mod := TSMappedTypeModifier.None
+
+	// Check `{ readonly [`  — readonly then bracket.
+	// `.Readonly` is not in the lexer — check by string value.
+	if p.cur_type == .Identifier && p.cur_tok.value == "readonly" && is_next_token(p, .LBracket) {
+		readonly_mod = .True; eat(p) // consume `readonly`, now at `[`
+	}
+
+	// Check `{ [K in` pattern. After optional readonly, `[` is current.
+	if is_token(p, .LBracket) {
+		nxt := p.lexer.nxt
+		if nxt.kind == .Identifier || nxt.kind == .Let || nxt.kind == .As {
+			is_mapped = true
+		}
+	}
+
+	// If we ate readonly but it's not actually mapped, we need to treat
+	// `readonly` as the first property key of a regular object type.
+	// This can't easily be recovered (we consumed readonly), so report error.
+	if readonly_mod != .None && !is_mapped {
+		readonly_mod = .None
+	}
+
+	if is_mapped && is_token(p, .LBracket) {
+		eat(p) // consume `[`
+		// Parse type parameter: `K in T`
+		param_start := cur_loc(p)
+		param_name := parse_identifier(p)
+		if !is_token(p, .In) {
+			// Not actually a mapped type — fall back to object literal type.
+			// This is a rare path; for now, report error.
+			report_error(p, "Expected 'in' in mapped type")
+			return nil
+		}
+		eat(p) // consume `in`
+		constraint := parse_ts_type(p)
+		name_type: Maybe(^TSType)
+		if is_token(p, .As) { eat(p); name_type = parse_ts_type(p) }
+		expect_token(p, .RBracket)
+		// Optional modifier: `?`, `+?`, `-?`
+		optional_mod := TSMappedTypeModifier.None
+		if match_token(p, .Question) { optional_mod = .True }
+		// Type annotation
+		value_type: Maybe(^TSType)
+		if is_token(p, .Colon) { eat(p); value_type = parse_ts_type(p) }
+		match_token(p, .Semi); match_token(p, .Comma)
+		expect_token(p, .RBrace)
+		mt := new_node(p, TSMappedType); mt.loc = start
+		mt.type_parameter = TSTypeParameter{
+			loc = param_start, name = BindingIdentifier{loc = param_name.loc, name = param_name.name},
+			constraint = constraint,
+		}
+		mt.name_type = name_type; mt.type_annotation = value_type
+		mt.optional = optional_mod; mt.readonly = readonly_mod
+		mt.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = mt; return r
+	}
+
+	// Regular object type literal.
+	members := make([dynamic]^TSSignature, 0, 4, p.allocator)
+	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
+		match_token(p, .Semi); match_token(p, .Comma)
+	}
+	expect_token(p, .RBrace)
+	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.span.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = lit; return r
+}
+
+parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
+	start := cur_loc(p)
+	readonly := false
+	if is_token(p, .Readonly) {
+		nxt := peek_dispatch(p)
+		if nxt.type != .LParen && nxt.type != .Colon { readonly = true; eat(p) }
+	}
+	key: ^Expression; computed := false
+	if is_token(p, .LBracket) {
+		computed = true; eat(p); key = parse_assignment_expression(p); expect_token(p, .RBracket)
+	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+		cur := get_current(p); id := new_node(p, Identifier); id.loc = loc_from_token(cur); id.name = cur.value
+		key = expression_from(p, id); eat(p)
+	} else if is_token(p, .String) {
+		str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; key = expression_from(p, sn)
+	} else if is_token(p, .Number) {
+		cur := get_current(p); nm := new_node(p, NumericLiteral); nm.loc = loc_from_token(cur); nm.raw = cur.value
+		if v, ok := cur.literal.(f64); ok { nm.value = v }; key = expression_from(p, nm); eat(p)
+	} else { return nil }
+	optional := match_token(p, .Question)
+
+	// Method signature: key is followed by `(` (or `<` for generics).
+	if is_token(p, .LParen) {
+		sig := new_node(p, TSSignature)
+		method := TSMethodSignature{loc = start, key = key, computed = computed, optional = optional, kind = .Method}
+		expect_token(p, .LParen)
+		// Parse params as TSFunctionParam (re-use function param parsing).
+		method.params = make([dynamic]TSFunctionParam, 0, 4, p.allocator)
+		for !is_token(p, .RParen) && !is_token(p, .EOF) {
+			param_start := cur_loc(p)
+			pattern := parse_binding_pattern(p)
+			param_optional := false
+			if is_token(p, .Question) {
+				nxt := peek_token(p)
+				if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen {
+					eat(p); param_optional = true
+				}
+			}
+			param_ann: Maybe(^TSTypeAnnotation)
+			if is_token(p, .Colon) { param_ann = parse_ts_type_annotation(p) }
+			fp := TSFunctionParam{loc = param_start, pattern = pattern, type_annotation = param_ann, optional = param_optional}
+			fp.loc.span.end = prev_end_offset(p)
+			append(&method.params, fp)
+			if !match_token(p, .Comma) { break }
+		}
+		expect_token(p, .RParen)
+		// Return type annotation.
+		if is_token(p, .Colon) { method.return_type = parse_ts_type_annotation(p) }
+		method.loc.span.end = prev_end_offset(p)
+		sig^ = method; return sig
+	}
+
+	// Property signature.
+	sig := new_node(p, TSSignature)
+	prop := TSPropertySignature{loc = start, key = key, computed = computed, optional = optional, readonly = readonly}
+	if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
+	prop.loc.span.end = prev_end_offset(p)
+	sig^ = prop; return sig
+}
+
+get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
+	if t == nil { return nil }
+	#partial switch v in t^ {
+	case ^TSAnyKeyword: return &v.loc
+	case ^TSNumberKeyword: return &v.loc
+	case ^TSStringKeyword: return &v.loc
+	case ^TSBooleanKeyword: return &v.loc
+	case ^TSVoidKeyword: return &v.loc
+	case ^TSNullKeyword: return &v.loc
+	case ^TSNeverKeyword: return &v.loc
+	case ^TSUnknownKeyword: return &v.loc
+	case ^TSUndefinedKeyword: return &v.loc
+	case ^TSObjectKeyword: return &v.loc
+	case ^TSTypeReference: return &v.loc
+	case ^TSUnionType: return &v.loc
+	case ^TSIntersectionType: return &v.loc
+	case ^TSArrayType: return &v.loc
+	case ^TSLiteralType: return &v.loc
+	case ^TSParenthesizedType: return &v.loc
+	case ^TSTypeLiteral: return &v.loc
+	case ^TSConditionalType: return &v.loc
+	case ^TSMappedType: return &v.loc
+	case ^TSTypeOperator: return &v.loc
+	case ^TSFunctionType: return &v.loc
+	case ^TSTupleType: return &v.loc
+	case ^TSInferType: return &v.loc
+	case ^TSTypeQuery: return &v.loc
+	}
+	return nil
+}
+
+parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
+	start := cur_loc(p); eat(p)
+	cur := get_current(p)
+	id := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}; eat(p)
+	type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+	expect_token(p, .LBrace)
+	members := make([dynamic]^TSSignature, 0, 8, p.allocator)
+	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
+		match_token(p, .Semi); match_token(p, .Comma)
+	}
+	expect_token(p, .RBrace)
+	decl := new_node(p, TSInterfaceDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters
+	decl.body = TSInterfaceBody{loc = start, body = members}; decl.body.loc.span.end = prev_end_offset(p)
+	decl.loc.span.end = prev_end_offset(p)
+	stmt := new_node(p, Statement); stmt^ = decl; return stmt
+}
+
+parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
+	start := cur_loc(p); eat(p)
+	cur := get_current(p)
+	id := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}; eat(p)
+	type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+	expect_token(p, .Assign)
+	type_ann := parse_ts_type(p)
+	match_semicolon_or_asi(p)
+	decl := new_node(p, TSTypeAliasDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters; decl.type_annotation = type_ann
+	decl.loc.span.end = prev_end_offset(p)
+	stmt := new_node(p, Statement); stmt^ = decl; return stmt
+}
+
+parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
+	start := cur_loc(p)
+	is_const := false
+	if is_token(p, .Const) { is_const = true; eat(p) }
+	eat(p)
+	cur := get_current(p)
+	id := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}; eat(p)
+	body_start := cur_loc(p); expect_token(p, .LBrace)
+	members := make([dynamic]TSEnumMember, 0, 8, p.allocator)
+	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		ms := cur_loc(p); member_id: ^Expression; mc := get_current(p)
+		if is_token(p, .String) {
+			str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
+		} else {
+			mid := new_node(p, Identifier); mid.loc = loc_from_token(mc); mid.name = mc.value; eat(p)
+			member_id = expression_from(p, mid)
+		}
+		init: Maybe(^Expression)
+		if match_token(p, .Assign) { init = parse_assignment_expression(p) }
+		m := TSEnumMember{loc = ms, id = member_id, initializer = init}; m.loc.span.end = prev_end_offset(p)
+		append(&members, m)
+		if !match_token(p, .Comma) { break }
+	}
+	expect_token(p, .RBrace)
+	decl := new_node(p, TSEnumDeclaration); decl.loc = start; decl.id = id
+	decl.body = TSEnumBody{loc = body_start, members = members}; decl.body.loc.span.end = prev_end_offset(p)
+	decl.const_ = is_const; decl.loc.span.end = prev_end_offset(p)
+	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }
 
 // ============================================================================
@@ -4786,6 +5705,59 @@ loc_from_expr :: #force_inline proc(e: ^Expression) -> Loc {
 	case ^PrivateIdentifier:        return v.loc
 	}
 	return {}
+}
+
+// Set the start offset of an expression's span. Matches loc_from_expr variants.
+set_expr_start :: proc(e: ^Expression, start: u32) {
+	if e == nil { return }
+	loc := get_expr_loc_ptr(e)
+	if loc != nil { loc.span.start = start }
+}
+
+set_expr_end :: proc(e: ^Expression, end: u32) {
+	if e == nil { return }
+	loc := get_expr_loc_ptr(e)
+	if loc != nil { loc.span.end = end }
+}
+
+get_expr_loc_ptr :: proc(e: ^Expression) -> ^Loc {
+	if e == nil { return nil }
+	#partial switch v in e {
+	case ^Identifier:              return &v.loc
+	case ^NumericLiteral:           return &v.loc
+	case ^StringLiteral:            return &v.loc
+	case ^BooleanLiteral:           return &v.loc
+	case ^NullLiteral:              return &v.loc
+	case ^ThisExpression:            return &v.loc
+	case ^Super:                     return &v.loc
+	case ^ArrayExpression:           return &v.loc
+	case ^ObjectExpression:          return &v.loc
+	case ^FunctionExpression:        return &v.loc
+	case ^ArrowFunctionExpression:   return &v.loc
+	case ^MemberExpression:          return &v.loc
+	case ^CallExpression:            return &v.loc
+	case ^NewExpression:             return &v.loc
+	case ^ConditionalExpression:     return &v.loc
+	case ^UnaryExpression:           return &v.loc
+	case ^BinaryExpression:          return &v.loc
+	case ^LogicalExpression:         return &v.loc
+	case ^AssignmentExpression:      return &v.loc
+	case ^UpdateExpression:          return &v.loc
+	case ^SpreadElement:             return &v.loc
+	case ^YieldExpression:           return &v.loc
+	case ^AwaitExpression:           return &v.loc
+	case ^ImportExpression:          return &v.loc
+	case ^MetaProperty:              return &v.loc
+	case ^BigIntLiteral:             return &v.loc
+	case ^RegExpLiteral:             return &v.loc
+	case ^TemplateLiteral:           return &v.loc
+	case ^TaggedTemplateExpression:  return &v.loc
+	case ^SequenceExpression:        return &v.loc
+	case ^ClassExpression:           return &v.loc
+	case ^PrivateIdentifier:         return &v.loc
+	case ^ChainExpression:           return &v.loc
+	}
+	return nil
 }
 
 token_to_unary_op :: proc(t: TokenType) -> UnaryOperator {

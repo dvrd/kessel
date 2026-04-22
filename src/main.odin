@@ -31,6 +31,39 @@ use_direct_buf: bool
 direct_buf: []byte
 direct_pos: int
 
+// Byte-to-UTF16 offset mapping. ESTree positions are UTF-16 code unit
+// indices (matching JS string semantics). Kessel's lexer tracks byte
+// offsets. For ASCII-only sources the two are identical; when multi-byte
+// UTF-8 chars are present we precompute this adjustment table.
+// `utf16_offsets[byte_pos]` gives the UTF-16 code unit index.
+// nil means identity mapping (all ASCII).
+utf16_offsets: []u32
+
+// Build byte-to-UTF16 offset table. Only allocates if the source contains
+// non-ASCII bytes; for pure-ASCII files utf16_offsets stays nil.
+build_utf16_table :: proc(source: []byte, alloc: mem.Allocator) {
+	// Quick scan: if all bytes < 0x80 the table is identity.
+	// SIMD-accelerated: check 16 bytes per iteration on ARM64 NEON.
+	if !simd_has_multibyte(source) {
+		utf16_offsets = nil
+		return
+	}
+
+	// Non-ASCII source: build byte→UTF-16 lookup table.
+	// SIMD-accelerated: classify 16 bytes per iteration, fill table
+	// with cumulative UTF-16 code unit offsets.
+	utf16_offsets = simd_build_utf16_offsets(source, alloc)
+}
+
+// Convert a byte offset to a UTF-16 code unit offset for ESTree emission.
+to_utf16 :: #force_inline proc(byte_off: u32) -> u32 {
+	if utf16_offsets == nil { return byte_off }
+	if int(byte_off) < len(utf16_offsets) { return utf16_offsets[byte_off] }
+	// Past end: return last entry.
+	if len(utf16_offsets) > 0 { return utf16_offsets[len(utf16_offsets)-1] }
+	return byte_off
+}
+
 init_stdout_writer :: proc() {
 	if stdout_writer_initialized {
 		return
@@ -598,6 +631,9 @@ parse_file :: proc(file_path: string) {
 	// Parse program
 	program := parse_program(&p, .Script)
 	
+	// Build byte→UTF-16 offset table for ESTree span emission.
+	build_utf16_table(source, context.allocator)
+
 	// Output AST as JSON via direct buffer (zero bufio overhead)
 	// Pre-allocate ~12× source size for JSON output (compact ≈ 9×, pretty ≈ 20×)
 	est_size := max(len(source) * 20, 4096)  // generous: 20× source, min 4KB
@@ -606,8 +642,39 @@ parse_file :: proc(file_path: string) {
 	use_direct_buf = true
 
 	out_s("{\n")
-	print_program_ast(program, 1)
-	out_s("}\n")
+	print_program_ast(program, 1, lex.comments[:])
+
+	// Emit structured errors inside the JSON output
+	if len(p.errors) > 0 {
+		// Ensure line table exists for line/col computation
+		if p.lexer.num_lines == 0 {
+			build_line_table(p.lexer)
+		}
+		out_s(",\n")
+		print_indent(1)
+		out_s("\"errors\": [\n")
+		for err, i in p.errors {
+			print_indent(2)
+			out_s("{\n")
+			print_indent(3)
+			out_s("\"message\": ")
+			out_string(err.message)
+			out_s(",\n")
+			print_indent(3)
+			line, col := offset_to_line_col(p.lexer.line_offsets, u32(err.loc.offset))
+			out_printf("\"line\": %d,\n", line)
+			print_indent(3)
+			out_printf("\"column\": %d,\n", col)
+			print_indent(3)
+			out_printf("\"offset\": %d\n", err.loc.offset)
+			print_indent(2)
+			if i < len(p.errors) - 1 { out_s("},\n") } else { out_s("}\n") }
+		}
+		print_indent(1)
+		out_s("]")
+	}
+
+	out_s("\n}\n")
 
 	// Single write to stdout for the JSON body first. Diagnostic lines
 	// (parse errors, stats) must follow the JSON on separate lines so
@@ -711,6 +778,8 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 	p: Parser
 	init_parser(&p, &lex, arena_alloc)
 	program := parse_program(&p, .Script)
+
+	build_utf16_table(source, context.allocator)
 
 	// Render AST JSON into a thread-local buffer. `direct_reserve` may grow
 	// direct_buf during emission (reallocating and freeing the old slice),
@@ -1133,7 +1202,7 @@ print_indent :: proc(indent: int) {
 //   * hashbang: emit "hashbang" field with null when absent (OXC shape). The
 //     lexer currently skips shebang lines without preserving content — we
 //     still declare the field so consumers don't see it as "missing".
-print_program_ast :: proc(program: ^Program, indent: int) {
+print_program_ast :: proc(program: ^Program, indent: int, comments: []Comment = nil) {
 	source_type_str := "script" if program.type == .Script else "module"
 	print_indent(indent)
 	out_s("\"type\": \"Program\",\n")
@@ -1161,7 +1230,36 @@ print_program_ast :: proc(program: ^Program, indent: int) {
 	}
 
 	print_indent(indent)
-	out_s("]\n")
+	out_s("]")
+
+	// Emit comments array if any were collected
+	if len(comments) > 0 {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"comments\": [\n")
+		for c, i in comments {
+			print_indent(indent + 1)
+			out_s("{\n")
+			print_indent(indent + 2)
+			if c.type == .Line {
+				out_s("\"type\": \"Line\",\n")
+			} else {
+				out_s("\"type\": \"Block\",\n")
+			}
+			print_indent(indent + 2)
+			out_printf("\"start\": %d,\n", c.start)
+			print_indent(indent + 2)
+			out_printf("\"end\": %d,\n", c.end)
+			print_indent(indent + 2)
+			out_s("\"value\": ")
+			out_string(c.value)
+			out_s("\n")
+			print_indent(indent + 1)
+			if i < len(comments) - 1 { out_s("},\n") } else { out_s("}\n") }
+		}
+		print_indent(indent)
+		out_s("]")
+	}
 }
 
 // emit_identifier_name_object writes a full `{"type":"Identifier","start":N,
@@ -1278,11 +1376,11 @@ emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"start\": ")
-	out_u32(loc.span.start)
+	out_u32(to_utf16(loc.span.start))
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"end\": ")
-	out_u32(loc.span.end)
+	out_u32(to_utf16(loc.span.end))
 }
 
 // emit_span_leading writes `"start": N,\n<indent>"end": N,\n<indent>` — a
@@ -1293,11 +1391,11 @@ emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
 emit_span_leading :: #force_inline proc(loc: Loc, indent: int) {
 	assert(loc.span.start <= loc.span.end)
 	out_s("\"start\": ")
-	out_u32(loc.span.start)
+	out_u32(to_utf16(loc.span.start))
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"end\": ")
-	out_u32(loc.span.end)
+	out_u32(to_utf16(loc.span.end))
 	out_s(",\n")
 	print_indent(indent)
 }
@@ -1334,6 +1432,10 @@ get_statement_loc :: proc(stmt: ^Statement) -> Loc {
 	case ^ExportNamedDeclaration:    return s.loc
 	case ^ExportDefaultDeclaration:  return s.loc
 	case ^ExportAllDeclaration:      return s.loc
+	case ^TSInterfaceDeclaration:   return s.loc
+	case ^TSTypeAliasDeclaration:   return s.loc
+	case ^TSEnumDeclaration:        return s.loc
+	case ^TSModuleDeclaration:      return s.loc
 	}
 	return Loc{}
 }
@@ -1373,6 +1475,16 @@ get_expression_loc :: proc(expr: ^Expression) -> Loc {
 	case ^ImportExpression:          return e.loc
 	case ^MetaProperty:              return e.loc
 	case ^PrivateIdentifier:         return e.loc
+	case ^JSXElement:               return e.loc
+	case ^JSXFragment:              return e.loc
+	case ^JSXText:                  return e.loc
+	case ^JSXExpressionContainer:   return e.loc
+	case ^JSXEmptyExpression:       return e.loc
+	case ^JSXSpreadChild:           return e.loc
+	case ^TSAsExpression:           return e.loc
+	case ^TSSatisfiesExpression:    return e.loc
+	case ^TSNonNullExpression:      return e.loc
+	case ^TSTypeAssertion:          return e.loc
 	}
 	return Loc{}
 }
@@ -1542,6 +1654,10 @@ print_declaration_ast :: proc(decl: ^Declaration, indent: int) {
 	case ^ExportNamedDeclaration:     stmt = d
 	case ^ExportDefaultDeclaration:   stmt = d
 	case ^ExportAllDeclaration:       stmt = d
+	case ^TSInterfaceDeclaration:     stmt = d
+	case ^TSTypeAliasDeclaration:     stmt = d
+	case ^TSEnumDeclaration:          stmt = d
+	case ^TSModuleDeclaration:        stmt = d
 	case:
 		// Unknown Declaration variant: emit a safe placeholder so the JSON
 		// stays well-formed rather than silently skipping.
@@ -1563,8 +1679,10 @@ print_declaration_ast :: proc(decl: ^Declaration, indent: int) {
 print_variable_declaration_body :: proc(s: ^VariableDeclaration, indent: int) {
 	kind_str := "var"
 	#partial switch s.kind {
-	case .Let:   kind_str = "let"
-	case .Const: kind_str = "const"
+	case .Let:       kind_str = "let"
+	case .Const:     kind_str = "const"
+	case .Using:     kind_str = "using"
+	case .AwaitUsing: kind_str = "await using"
 	}
 	out_s(",\n")
 	print_indent(indent)
@@ -1686,10 +1804,37 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 	}
 
 	type_name := is_method ? "MethodDefinition" : "PropertyDefinition"
+	if elem.is_accessor {
+		type_name = "AccessorProperty"
+	}
 	print_indent(indent)
 	out_s("\"type\": \"")
 	out_s(type_name)
 	out_s("\",\n")
+	print_indent(indent)
+
+	// Emit decorators array only when non-empty (OXC omits it when empty).
+	if len(elem.decorators) > 0 {
+		out_s("\"decorators\": [\n")
+		for d, i in elem.decorators {
+			print_indent(indent + 1)
+			out_s("{\n")
+			print_indent(indent + 2)
+			out_s("\"type\": \"Decorator\",\n")
+			print_indent(indent + 2)
+			emit_span_leading(d.loc, indent + 2)
+			out_s("\"expression\": {\n")
+			print_expression_ast(d.expression, indent + 3)
+			out_s("\n")
+			print_indent(indent + 2)
+			out_s("}\n")
+			print_indent(indent + 1)
+			if i < len(elem.decorators) - 1 { out_s("},\n") } else { out_s("}\n") }
+		}
+		print_indent(indent)
+		out_s("],\n")
+	}
+
 	print_indent(indent)
 	emit_span_leading(elem.loc, indent)
 
@@ -1831,6 +1976,12 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		}
 		print_indent(indent)
 		out_s("},\n")
+		if tp, ok := s.expr.type_parameters.(^TSTypeParameterDeclaration); ok && tp != nil {
+			print_indent(indent)
+			out_s("\"typeParameters\": ")
+			emit_ts_type_parameter_declaration(s.expr.type_parameters, indent)
+			out_s(",\n")
+		}
 		print_indent(indent)
 		// expression: false — FunctionDeclaration always has a block body.
 		out_s("\"expression\": false,\n")
@@ -1858,6 +2009,13 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			}
 			print_indent(indent)
 			out_s("]")
+		}
+		// TypeScript return type annotation.
+		if ann, ok := s.expr.return_type.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"returnType\": ")
+			emit_ts_type_annotation_node(ann, indent)
 		}
 		out_s(",\n")
 		print_indent(indent)
@@ -1989,6 +2147,28 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 
 	case ^ClassDeclaration:
 		out_println(",")
+		// Emit decorators only when non-empty (OXC omits empty arrays).
+		if len(s.expr.decorators) > 0 {
+			print_indent(indent)
+			out_s("\"decorators\": [\n")
+			for d, i in s.expr.decorators {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"Decorator\",\n")
+				print_indent(indent + 2)
+				emit_span_leading(d.loc, indent + 2)
+				out_s("\"expression\": {\n")
+				print_expression_ast(d.expression, indent + 3)
+				out_s("\n")
+				print_indent(indent + 2)
+				out_s("}\n")
+				print_indent(indent + 1)
+				if i < len(s.expr.decorators) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("],\n")
+		}
 		print_indent(indent)
 		out_print("\"id\": ")
 		if id, ok := s.id.(BindingIdentifier); ok {
@@ -2004,6 +2184,12 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_s("},\n")
 		} else {
 			out_s("null,\n")
+		}
+		if tp, ok := s.expr.type_parameters.(^TSTypeParameterDeclaration); ok && tp != nil {
+			print_indent(indent)
+			out_s("\"typeParameters\": ")
+			emit_ts_type_parameter_declaration(s.expr.type_parameters, indent)
+			out_s(",\n")
 		}
 		print_indent(indent)
 		out_print("\"superClass\": ")
@@ -2116,6 +2302,30 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		} else {
 			out_s("null")
 		}
+		if len(s.attributes) > 0 {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"attributes\": [\n")
+			for attr, i in s.attributes {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"ImportAttribute\",\n")
+				print_indent(indent + 2)
+				emit_span_leading(attr.loc, indent + 2)
+				out_s("\"key\": ")
+				emit_identifier_name_object(attr.key, indent + 2)
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"value\": ")
+				emit_string_literal_object(attr.value, indent + 2)
+				out_s("\n")
+				print_indent(indent + 1)
+				if i < len(s.attributes) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
 
 	case ^ExportDefaultDeclaration:
 		out_println(",")
@@ -2154,6 +2364,30 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("\"source\": ")
 		emit_string_literal_object(s.source, indent)
+		if len(s.attributes) > 0 {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"attributes\": [\n")
+			for attr, i in s.attributes {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"ImportAttribute\",\n")
+				print_indent(indent + 2)
+				emit_span_leading(attr.loc, indent + 2)
+				out_s("\"key\": ")
+				emit_identifier_name_object(attr.key, indent + 2)
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"value\": ")
+				emit_string_literal_object(attr.value, indent + 2)
+				out_s("\n")
+				print_indent(indent + 1)
+				if i < len(s.attributes) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
 
 	case ^DoWhileStatement:
 		out_println(",")
@@ -2353,6 +2587,31 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("\"source\": ")
 		emit_string_literal_object(s.source, indent)
+		if len(s.attributes) > 0 {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"attributes\": [")
+			out_s("\n")
+			for attr, i in s.attributes {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"ImportAttribute\",\n")
+				print_indent(indent + 2)
+				emit_span_leading(attr.loc, indent + 2)
+				out_s("\"key\": ")
+				emit_identifier_name_object(attr.key, indent + 2)
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"value\": ")
+				emit_string_literal_object(attr.value, indent + 2)
+				out_s("\n")
+				print_indent(indent + 1)
+				if i < len(s.attributes) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
 
 	case ^BreakStatement:
 		out_println(",")
@@ -2428,6 +2687,151 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	case ^DebuggerStatement:
 		// No additional fields
 
+	case ^TSInterfaceDeclaration:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"id\": {\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"Identifier\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(s.id.loc, indent + 1)
+		out_s("\"name\": ")
+		out_string(s.id.name)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"typeParameters\": ")
+		emit_ts_type_parameter_declaration(s.type_parameters, indent)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"extends\": [],\n")
+		print_indent(indent)
+		out_s("\"body\": {\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSInterfaceBody\"")
+		emit_span_fields(s.body.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"body\": [")
+		if len(s.body.body) == 0 {
+			out_s("]\n")
+		} else {
+			out_s("\n")
+			for member, i in s.body.body {
+				print_indent(indent + 2)
+				emit_ts_signature(member, indent + 2)
+				if i < len(s.body.body) - 1 { out_s(",\n") } else { out_s("\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]\n")
+		}
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"declare\": ")
+		out_bool(s.declare)
+
+	case ^TSTypeAliasDeclaration:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"id\": {\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"Identifier\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(s.id.loc, indent + 1)
+		out_s("\"name\": ")
+		out_string(s.id.name)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"typeParameters\": ")
+		emit_ts_type_parameter_declaration(s.type_parameters, indent)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type(s.type_annotation, indent)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"declare\": ")
+		out_bool(s.declare)
+
+	case ^TSEnumDeclaration:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"id\": {\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"Identifier\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(s.id.loc, indent + 1)
+		out_s("\"name\": ")
+		out_string(s.id.name)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"body\": {\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSEnumBody\"")
+		emit_span_fields(s.body.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"members\": [\n")
+		for m, i in s.body.members {
+			print_indent(indent + 2)
+			out_s("{\n")
+			print_indent(indent + 3)
+			out_s("\"type\": \"TSEnumMember\"")
+			emit_span_fields(m.loc, indent + 3)
+			out_s(",\n")
+			print_indent(indent + 3)
+			out_s("\"id\": {\n")
+			print_expression_ast(m.id, indent + 4)
+			out_s("\n")
+			print_indent(indent + 3)
+			out_s("},\n")
+			print_indent(indent + 3)
+			out_s("\"initializer\": ")
+			if init, ok := m.initializer.(^Expression); ok {
+				out_s("{\n")
+				print_expression_ast(init, indent + 4)
+				out_s("\n")
+				print_indent(indent + 3)
+				out_s("}")
+			} else {
+				out_s("null")
+			}
+			out_s("\n")
+			print_indent(indent + 2)
+			if i < len(s.body.members) - 1 { out_s("},\n") } else { out_s("}\n") }
+		}
+		print_indent(indent + 1)
+		out_s("]\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"const\": ")
+		out_bool(s.const_)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"declare\": ")
+		out_bool(s.declare)
+
+	case ^TSModuleDeclaration:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"id\": {\n")
+		print_expression_ast(s.id, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"body\": null,\n")
+		print_indent(indent)
+		out_s("\"declare\": ")
+		out_bool(s.declare)
+
 	case:
 		out_s(",\n")
 		print_indent(indent)
@@ -2446,6 +2850,13 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		emit_span_leading(p.loc, indent)
 		out_s("\"name\": ")
 		out_string(p.name)
+		// TypeScript type annotation on binding identifier.
+		if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": ")
+			emit_ts_type_annotation_node(ann, indent)
+		}
 	case ^RestElement:
 		// ESTree `RestElement { argument: Pattern }` — the `...x` inside
 		// `[a, ...x]` or `{ a, ...x }`. Prior to this case the fallthrough
@@ -2616,6 +3027,671 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 	}
 }
 
+// ============================================================================
+// JSX Helper Functions
+// ============================================================================
+
+emit_jsx_identifier :: proc(id: JSXIdentifier, indent: int) {
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"JSXIdentifier\",\n")
+	print_indent(indent + 1)
+	emit_span_leading(id.loc, indent + 1)
+	out_s("\"name\": ")
+	out_string(id.name)
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
+emit_jsx_member_object :: proc(obj: JSXMemberObject, indent: int) {
+	switch o in obj {
+	case JSXIdentifier:
+		emit_jsx_identifier(o, indent)
+	case ^JSXMemberExpression:
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"JSXMemberExpression\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(o.loc, indent + 1)
+		out_s("\"object\": ")
+		emit_jsx_member_object(o.object, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"property\": ")
+		emit_jsx_identifier(o.property, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	}
+}
+
+emit_jsx_element_name :: proc(name: JSXElementName, indent: int) {
+	switch n in name {
+	case JSXIdentifier:
+		emit_jsx_identifier(n, indent)
+	case ^JSXMemberExpression:
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"JSXMemberExpression\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(n.loc, indent + 1)
+		out_s("\"object\": ")
+		emit_jsx_member_object(n.object, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"property\": ")
+		emit_jsx_identifier(n.property, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	case ^JSXNamespacedName:
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"JSXNamespacedName\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(n.loc, indent + 1)
+		out_s("\"namespace\": ")
+		emit_jsx_identifier(n.namespace, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"name\": ")
+		emit_jsx_identifier(n.name, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	}
+}
+
+emit_jsx_attribute_name :: proc(name: JSXAttributeName, indent: int) {
+	switch n in name {
+	case JSXIdentifier:
+		emit_jsx_identifier(n, indent)
+	case ^JSXNamespacedName:
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"JSXNamespacedName\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(n.loc, indent + 1)
+		out_s("\"namespace\": ")
+		emit_jsx_identifier(n.namespace, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"name\": ")
+		emit_jsx_identifier(n.name, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	}
+}
+
+emit_jsx_children :: proc(children: [dynamic]JSXChild, indent: int) {
+	out_s("\"children\": [")
+	if len(children) == 0 {
+		out_s("]")
+		return
+	}
+	out_s("\n")
+	for child, i in children {
+		print_indent(indent + 1)
+		out_s("{\n")
+		switch c in child {
+		case ^JSXElement:
+			print_indent(indent + 2)
+			out_s("\"type\": \"JSXElement\"")
+			emit_span_fields(c.loc, indent + 2)
+			emit_jsx_element_body(c, indent + 2)
+		case ^JSXFragment:
+			print_indent(indent + 2)
+			out_s("\"type\": \"JSXFragment\"")
+			emit_span_fields(c.loc, indent + 2)
+			emit_jsx_fragment_body(c, indent + 2)
+		case ^JSXText:
+			print_indent(indent + 2)
+			out_s("\"type\": \"JSXText\"")
+			emit_span_fields(c.loc, indent + 2)
+			out_s(",\n")
+			print_indent(indent + 2)
+			out_s("\"value\": ")
+			out_string(c.value)
+			out_s(",\n")
+			print_indent(indent + 2)
+			out_s("\"raw\": ")
+			out_string(c.raw)
+			out_s("\n")
+		case ^JSXExpressionContainer:
+			print_indent(indent + 2)
+			out_s("\"type\": \"JSXExpressionContainer\"")
+			emit_span_fields(c.loc, indent + 2)
+			out_s(",\n")
+			print_indent(indent + 2)
+			out_s("\"expression\": {\n")
+			print_expression_ast(c.expression, indent + 3)
+			out_s("\n")
+			print_indent(indent + 2)
+			out_s("}\n")
+		case ^JSXSpreadChild:
+			print_indent(indent + 2)
+			out_s("\"type\": \"JSXSpreadChild\"")
+			emit_span_fields(c.loc, indent + 2)
+			out_s(",\n")
+			print_indent(indent + 2)
+			out_s("\"expression\": {\n")
+			print_expression_ast(c.expression, indent + 3)
+			out_s("\n")
+			print_indent(indent + 2)
+			out_s("}\n")
+		}
+		print_indent(indent + 1)
+		if i < len(children) - 1 { out_s("},\n") } else { out_s("}\n") }
+	}
+	print_indent(indent)
+	out_s("]")
+}
+
+emit_jsx_element_body :: proc(e: ^JSXElement, indent: int) {
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"openingElement\": {\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"JSXOpeningElement\",\n")
+	print_indent(indent + 1)
+	emit_span_leading(e.opening_element.loc, indent + 1)
+	out_s("\"name\": ")
+	emit_jsx_element_name(e.opening_element.name, indent + 1)
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"attributes\": [")
+	if len(e.opening_element.attributes) == 0 {
+		out_s("],\n")
+	} else {
+		out_s("\n")
+		for attr, i in e.opening_element.attributes {
+			print_indent(indent + 2)
+			out_s("{\n")
+			switch a in attr {
+			case JSXAttribute:
+				print_indent(indent + 3)
+				out_s("\"type\": \"JSXAttribute\",\n")
+				print_indent(indent + 3)
+				emit_span_leading(a.loc, indent + 3)
+				out_s("\"name\": ")
+				emit_jsx_attribute_name(a.name, indent + 3)
+				out_s(",\n")
+				print_indent(indent + 3)
+				out_s("\"value\": ")
+				if val, ok := a.value.(^Expression); ok && val != nil {
+					out_s("{\n")
+					print_expression_ast(val, indent + 4)
+					print_indent(indent + 3)
+					out_s("}\n")
+				} else {
+					out_s("null\n")
+				}
+			case ^JSXSpreadAttribute:
+				print_indent(indent + 3)
+				out_s("\"type\": \"JSXSpreadAttribute\",\n")
+				print_indent(indent + 3)
+				emit_span_leading(a.loc, indent + 3)
+				out_s("\"argument\": {\n")
+				print_expression_ast(a.argument, indent + 4)
+				print_indent(indent + 3)
+				out_s("}\n")
+			}
+			print_indent(indent + 2)
+			if i < len(e.opening_element.attributes) - 1 { out_s("},\n") } else { out_s("}\n") }
+		}
+		print_indent(indent + 1)
+		out_s("],\n")
+	}
+	print_indent(indent + 1)
+	out_s("\"selfClosing\": ")
+	out_bool(e.opening_element.self_closing)
+	out_s("\n")
+	print_indent(indent)
+	out_s("},\n")
+	print_indent(indent)
+	emit_jsx_children(e.children, indent)
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"closingElement\": ")
+	if closing, ok := e.closing_element.(^JSXClosingElement); ok && closing != nil {
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"JSXClosingElement\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(closing.loc, indent + 1)
+		out_s("\"name\": ")
+		emit_jsx_element_name(closing.name, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	} else {
+		out_s("null")
+	}
+	out_s("\n")
+}
+
+emit_jsx_fragment_body :: proc(f: ^JSXFragment, indent: int) {
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"openingFragment\": {\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"JSXOpeningFragment\",\n")
+	print_indent(indent + 1)
+	out_s("\"start\": ")
+	out_u32(to_utf16(f.opening_fragment.loc.span.start))
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"end\": ")
+	out_u32(to_utf16(f.opening_fragment.loc.span.end))
+	out_s("\n")
+	print_indent(indent)
+	out_s("},\n")
+	print_indent(indent)
+	emit_jsx_children(f.children, indent)
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"closingFragment\": {\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"JSXClosingFragment\",\n")
+	print_indent(indent + 1)
+	out_s("\"start\": ")
+	out_u32(to_utf16(f.closing_fragment.loc.span.start))
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"end\": ")
+	out_u32(to_utf16(f.closing_fragment.loc.span.end))
+	out_s("\n")
+	print_indent(indent)
+	out_s("}\n")
+}
+
+// emit_ts_signature writes a TSPropertySignature or TSMethodSignature.
+emit_ts_signature :: proc(sig: ^TSSignature, indent: int) {
+	if sig == nil { out_s("null"); return }
+	out_s("{\n")
+	#partial switch v in sig^ {
+	case TSPropertySignature:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSPropertySignature\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(v.loc, indent + 1)
+		out_s("\"key\": {\n")
+		print_expression_ast(v.key, indent + 2)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("},\n")
+		print_indent(indent + 1)
+		out_s("\"computed\": ")
+		out_bool(v.computed)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"optional\": ")
+		out_bool(v.optional)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"readonly\": ")
+		out_bool(v.readonly)
+		if ann, ok := v.type_annotation.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent + 1)
+			out_s("\"typeAnnotation\": ")
+			emit_ts_type_annotation_node(ann, indent + 1)
+		}
+		out_s("\n")
+	case TSMethodSignature:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSMethodSignature\",\n")
+		print_indent(indent + 1)
+		emit_span_leading(v.loc, indent + 1)
+		out_s("\"key\": {\n")
+		print_expression_ast(v.key, indent + 2)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("},\n")
+		print_indent(indent + 1)
+		out_s("\"computed\": ")
+		out_bool(v.computed)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"optional\": ")
+		out_bool(v.optional)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"params\": [")
+		if len(v.params) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for fp, i in v.params {
+				print_indent(indent + 2)
+				out_s("{\n")
+				print_indent(indent + 3)
+				out_s("\"type\": \"Identifier\",\n")
+				print_indent(indent + 3)
+				emit_span_leading(fp.loc, indent + 3)
+				out_s("\"name\": ")
+				if ident, ok := fp.pattern.(^Identifier); ok {
+					out_string(ident.name)
+				} else {
+					out_s("\"\"")
+				}
+				if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok {
+					out_s(",\n")
+					print_indent(indent + 3)
+					out_s("\"typeAnnotation\": ")
+					emit_ts_type_annotation_node(ann, indent + 3)
+				}
+				out_s("\n")
+				print_indent(indent + 2)
+				if i < len(v.params) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
+		if ann, ok := v.return_type.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent + 1)
+			out_s("\"returnType\": ")
+			emit_ts_type_annotation_node(ann, indent + 1)
+		}
+		out_s("\n")
+	}
+	print_indent(indent)
+	out_s("}")
+}
+
+// emit_ts_type_parameter_declaration writes a TSTypeParameterDeclaration or null.
+emit_ts_type_parameter_declaration :: proc(decl_opt: Maybe(^TSTypeParameterDeclaration), indent: int) {
+	decl, ok := decl_opt.(^TSTypeParameterDeclaration)
+	if !ok || decl == nil { out_s("null"); return }
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"TSTypeParameterDeclaration\"")
+	emit_span_fields(decl.loc, indent + 1)
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"params\": [")
+	if len(decl.params) == 0 { out_s("]")
+	} else {
+		out_s("\n")
+		for param, i in decl.params {
+			print_indent(indent + 2)
+			out_s("{\n")
+			print_indent(indent + 3)
+			out_s("\"type\": \"TSTypeParameter\"")
+			emit_span_fields(param.loc, indent + 3)
+			out_s(",\n")
+			print_indent(indent + 3)
+			out_s("\"name\": {\n")
+			print_indent(indent + 4)
+			out_s("\"type\": \"Identifier\",\n")
+			print_indent(indent + 4)
+			emit_span_leading(param.name.loc, indent + 4)
+			out_s("\"name\": ")
+			out_string(param.name.name)
+			out_s("\n")
+			print_indent(indent + 3)
+			out_s("},\n")
+			print_indent(indent + 3)
+			out_s("\"constraint\": ")
+			if c, ok := param.constraint.(^TSType); ok { emit_ts_type(c, indent + 3) } else { out_s("null") }
+			out_s(",\n")
+			print_indent(indent + 3)
+			out_s("\"default\": ")
+			if d, ok := param.default_.(^TSType); ok { emit_ts_type(d, indent + 3) } else { out_s("null") }
+			out_s(",\n")
+			print_indent(indent + 3)
+			out_s("\"in\": ")
+			out_bool(param.in_)
+			out_s(",\n")
+			print_indent(indent + 3)
+			out_s("\"out\": ")
+			out_bool(param.out)
+			out_s(",\n")
+			print_indent(indent + 3)
+			out_s("\"const\": ")
+			out_bool(param.const_)
+			out_s("\n")
+			print_indent(indent + 2)
+			if i < len(decl.params) - 1 { out_s("},\n") } else { out_s("}\n") }
+		}
+		print_indent(indent + 1)
+		out_s("]")
+	}
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
+// emit_ts_type_annotation_node writes a TSTypeAnnotation wrapper object:
+// { "type": "TSTypeAnnotation", "start": N, "end": N, "typeAnnotation": <TSType> }
+emit_ts_type_annotation_node :: proc(ann: ^TSTypeAnnotation, indent: int) {
+	if ann == nil {
+		out_s("null")
+		return
+	}
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"TSTypeAnnotation\",\n")
+	print_indent(indent + 1)
+	emit_span_leading(ann.loc, indent + 1)
+	out_s("\"typeAnnotation\": ")
+	emit_ts_type(ann.type_annotation, indent + 1)
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
+// emit_ts_type emits a TSType union variant as JSON.
+emit_ts_type :: proc(t: ^TSType, indent: int) {
+	if t == nil {
+		out_s("null")
+		return
+	}
+	out_s("{\n")
+	#partial switch v in t^ {
+	case ^TSAnyKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSAnyKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSNumberKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSNumberKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSStringKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSStringKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSBooleanKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSBooleanKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSVoidKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSVoidKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSNullKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSNullKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSNeverKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSNeverKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSUnknownKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSUnknownKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSUndefinedKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSUndefinedKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSObjectKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSObjectKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSBigIntKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSBigIntKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSSymbolKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSSymbolKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSThisType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSThisType\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSIntrinsicKeyword:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSIntrinsicKeyword\"")
+		emit_span_fields(v.loc, indent + 1)
+	case ^TSTypeReference:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSTypeReference\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeName\": {\n")
+		print_expression_ast(v.type_name, indent + 2)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("},\n")
+		print_indent(indent + 1)
+		out_s("\"typeArguments\": null")
+	case ^TSUnionType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSUnionType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"types\": [\n")
+		for t_inner, i in v.types {
+			print_indent(indent + 2)
+			emit_ts_type(t_inner, indent + 2)
+			if i < len(v.types) - 1 { out_s(",\n") } else { out_s("\n") }
+		}
+		print_indent(indent + 1)
+		out_s("]")
+	case ^TSIntersectionType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSIntersectionType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"types\": [\n")
+		for t_inner, i in v.types {
+			print_indent(indent + 2)
+			emit_ts_type(t_inner, indent + 2)
+			if i < len(v.types) - 1 { out_s(",\n") } else { out_s("\n") }
+		}
+		print_indent(indent + 1)
+		out_s("]")
+	case ^TSArrayType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSArrayType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"elementType\": ")
+		emit_ts_type(v.element_type, indent + 1)
+	case ^TSLiteralType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSLiteralType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"literal\": {\n")
+		print_expression_ast(v.literal, indent + 2)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("}")
+	case ^TSParenthesizedType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSParenthesizedType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type(v.type_annotation, indent + 1)
+	case ^TSTypeOperator:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSTypeOperator\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"operator\": ")
+		out_string(v.operator)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type(v.type_annotation, indent + 1)
+	case ^TSMappedType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSMappedType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeParameter\": {\n")
+		print_indent(indent + 2)
+		out_s("\"type\": \"TSTypeParameter\",\n")
+		print_indent(indent + 2)
+		emit_span_leading(v.type_parameter.loc, indent + 2)
+		out_s("\"name\": {\n")
+		print_indent(indent + 3)
+		out_s("\"type\": \"Identifier\",\n")
+		print_indent(indent + 3)
+		emit_span_leading(v.type_parameter.name.loc, indent + 3)
+		out_s("\"name\": ")
+		out_string(v.type_parameter.name.name)
+		out_s("\n")
+		print_indent(indent + 2)
+		out_s("},\n")
+		print_indent(indent + 2)
+		out_s("\"constraint\": ")
+		if c, ok := v.type_parameter.constraint.(^TSType); ok { emit_ts_type(c, indent + 2) } else { out_s("null") }
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("},\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": ")
+		if t, ok := v.type_annotation.(^TSType); ok { emit_ts_type(t, indent + 1) } else { out_s("null") }
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"nameType\": ")
+		if t, ok := v.name_type.(^TSType); ok { emit_ts_type(t, indent + 1) } else { out_s("null") }
+	case ^TSConditionalType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSConditionalType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"checkType\": ")
+		emit_ts_type(v.check_type, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"extendsType\": ")
+		emit_ts_type(v.extends_type, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"trueType\": ")
+		emit_ts_type(v.true_type, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"falseType\": ")
+		emit_ts_type(v.false_type, indent + 1)
+	case:
+		// Fallback for types not yet handled in emitter
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSUnknownType\"")
+	}
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
 print_expression_ast :: proc(expr: ^Expression, indent: int) {
 	// ESTree Literal short-circuit: collapse six OXC-style literal types into one.
 	// ESTree spec uses a single "Literal" node for Numeric/String/Boolean/Null/BigInt/RegExp.
@@ -2751,6 +3827,13 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"name\": ")
 		out_string(e.name)
+		// TypeScript type annotation on expression identifier.
+		if ann, ok := e.type_annotation.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": ")
+			emit_ts_type_annotation_node(ann, indent)
+		}
 
 	case ^ThisExpression:
 		// No additional fields
@@ -3150,6 +4233,13 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent)
 			out_s("]")
 		}
+		// TypeScript return type annotation.
+		if ann, ok := e.return_type.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"returnType\": ")
+			emit_ts_type_annotation_node(ann, indent)
+		}
 		out_s(",\n")
 		print_indent(indent)
 		out_println("\"body\": {")
@@ -3433,6 +4523,28 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 
 	case ^ClassExpression:
 		out_s(",\n")
+		// Emit decorators only when non-empty (OXC omits empty arrays).
+		if len(e.decorators) > 0 {
+			print_indent(indent)
+			out_s("\"decorators\": [\n")
+			for d, i in e.decorators {
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"Decorator\",\n")
+				print_indent(indent + 2)
+				emit_span_leading(d.loc, indent + 2)
+				out_s("\"expression\": {\n")
+				print_expression_ast(d.expression, indent + 3)
+				out_s("\n")
+				print_indent(indent + 2)
+				out_s("}\n")
+				print_indent(indent + 1)
+				if i < len(e.decorators) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("],\n")
+		}
 		print_indent(indent)
 		if e.id != nil {
 			id := e.id.(BindingIdentifier)
@@ -3465,6 +4577,89 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_class_body_inline(&e.body, indent + 1)
 		print_indent(indent)
 		out_s("}\n")
+
+	case ^JSXElement:
+		emit_jsx_element_body(e, indent)
+
+	case ^JSXFragment:
+		emit_jsx_fragment_body(e, indent)
+
+	case ^JSXText:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"value\": ")
+		out_string(e.value)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"raw\": ")
+		out_string(e.raw)
+
+	case ^JSXExpressionContainer:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+
+	case ^JSXEmptyExpression:
+		// No additional fields — just type + span
+
+	case ^JSXSpreadChild:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+
+	case ^TSAsExpression:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type(e.type_annotation, indent)
+
+	case ^TSSatisfiesExpression:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type(e.type_annotation, indent)
+
+	case ^TSNonNullExpression:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+
+	case ^TSTypeAssertion:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type(e.type_annotation, indent)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
 
 	case:
 		out_println(",")
@@ -3507,6 +4702,10 @@ get_statement_type_name :: proc(stmt: ^Statement) -> string {
 	case ^ExportNamedDeclaration: return "ExportNamedDeclaration"
 	case ^ExportDefaultDeclaration: return "ExportDefaultDeclaration"
 	case ^ExportAllDeclaration: return "ExportAllDeclaration"
+	case ^TSInterfaceDeclaration: return "TSInterfaceDeclaration"
+	case ^TSTypeAliasDeclaration: return "TSTypeAliasDeclaration"
+	case ^TSEnumDeclaration:    return "TSEnumDeclaration"
+	case ^TSModuleDeclaration:  return "TSModuleDeclaration"
 	}
 	return "Unknown"
 }
@@ -3546,6 +4745,16 @@ get_expression_type_name :: proc(expr: ^Expression) -> string {
 	case ^ImportExpression:      return "ImportExpression"
 	case ^MetaProperty:          return "MetaProperty"
 	case ^PrivateIdentifier:     return "PrivateIdentifier"
+	case ^JSXElement:            return "JSXElement"
+	case ^JSXFragment:           return "JSXFragment"
+	case ^JSXText:               return "JSXText"
+	case ^JSXExpressionContainer: return "JSXExpressionContainer"
+	case ^JSXEmptyExpression:    return "JSXEmptyExpression"
+	case ^JSXSpreadChild:        return "JSXSpreadChild"
+	case ^TSAsExpression:        return "TSAsExpression"
+	case ^TSSatisfiesExpression: return "TSSatisfiesExpression"
+	case ^TSNonNullExpression:   return "TSNonNullExpression"
+	case ^TSTypeAssertion:       return "TSTypeAssertion"
 	}
 	return "Unknown"
 }

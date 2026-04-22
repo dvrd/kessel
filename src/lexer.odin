@@ -86,6 +86,10 @@ Lexer :: struct {
 	jsx_context: bool,
 	strict_mode: bool,
 	at_start_of_file: bool,
+
+	// Comment collection — populated during lexing
+	comments: [dynamic]Comment,
+	collect_comments: bool,
 }
 
 // Build line offset table in a single pre-pass
@@ -136,6 +140,8 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator) {
 	l.at_start_of_file = true
 
 	l.template_stack = make([dynamic]bool, 0, 0, alloc)
+	l.comments = make([dynamic]Comment, 0, 64, alloc)
+	l.collect_comments = true
 
 	// Handle hashbang
 	if l.at_start_of_file && l.offset + 1 < len(source) && l.source_bytes[l.offset] == '#' && l.source_bytes[l.offset + 1] == '!' {
@@ -183,6 +189,7 @@ init_single_char_table :: proc "contextless" () {
 	single_char_tokens[';'] = .Semi
 	single_char_tokens[':'] = .Colon
 	single_char_tokens['~'] = .BitNot
+	single_char_tokens['@'] = .At
 }
 
 // ============================================================================
@@ -233,16 +240,39 @@ can_start_regex :: proc(l: ^Lexer) -> bool {
 
 // SIMD-accelerated comment skipping
 skip_line_comment :: proc(l: ^Lexer) {
+	comment_start := u32(l.offset)
 	l.offset += 2
+	content_start := l.offset
 	end, had_nl := simd_skip_line_comment(l.source_bytes, l.offset)
 	if had_nl { l.had_line_terminator = true }
+	if l.collect_comments {
+		// end points AT the \n (or EOF). Content is source[content_start:end].
+		append(&l.comments, Comment{
+			type  = .Line,
+			start = comment_start,
+			end   = u32(end),
+			value = l.source[content_start:end],
+		})
+	}
 	l.offset = end
 }
 
 skip_block_comment :: proc(l: ^Lexer) {
+	comment_start := u32(l.offset)
 	l.offset += 2
+	content_start := l.offset
 	end, had_nl := simd_skip_block_comment(l.source_bytes, l.offset)
 	if had_nl { l.had_line_terminator = true }
+	if l.collect_comments {
+		// Content ends before the */ (end points past */)
+		content_end := end - 2 if end >= 2 else end
+		append(&l.comments, Comment{
+			type  = .Block,
+			start = comment_start,
+			end   = u32(end),
+			value = l.source[content_start:content_end],
+		})
+	}
 	l.offset = end
 }
 
@@ -290,14 +320,37 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 			} else if c == '/' && off + 1 < src_len {
 				n := src[off + 1]
 				if n == '/' {
+					comment_start := off
 					off += 2
+					content_start := off
 					end, had_nl := simd_skip_line_comment(src, off)
 					if had_nl { l.had_line_terminator = true }
+					if l.collect_comments {
+						// end points AT the \n (or EOF). Content is src[content_start:end].
+						content_end := end
+						append(&l.comments, Comment{
+							type  = .Line,
+							start = u32(comment_start),
+							end   = u32(end),
+							value = l.source[content_start:content_end],
+						})
+					}
 					off = end
 				} else if n == '*' {
+					comment_start := off
 					off += 2
+					content_start := off
 					end, had_nl := simd_skip_block_comment(src, off)
 					if had_nl { l.had_line_terminator = true }
+					if l.collect_comments {
+						content_end := end - 2 if end >= 2 else end
+						append(&l.comments, Comment{
+							type  = .Block,
+							start = u32(comment_start),
+							end   = u32(end),
+							value = l.source[content_start:content_end],
+						})
+					}
 					off = end
 				} else { break }
 			} else {
@@ -1386,11 +1439,18 @@ lookup_keyword_by_letter :: proc(src: []u8, start: u32, end: u32) -> TokenType {
 	switch c0 {
 	case 'a':
 		if length == 2 && src[start+1] == 's' { return .As }
+		if length == 6 && src[start+1] == 's' && src[start+2] == 's' && src[start+3] == 'e' && src[start+4] == 'r' && src[start+5] == 't' { return .Assert }
+		if length == 7 && src[start+1] == 's' && src[start+2] == 's' && src[start+3] == 'e' &&
+		   src[start+4] == 'r' && src[start+5] == 't' && src[start+6] == 's' { return .Asserts }
 		if length == 5 {
 			// async, await
 			if src[start+1] == 's' && src[start+2] == 'y' && src[start+3] == 'n' && src[start+4] == 'c' { return .Async }
 			if src[start+1] == 'w' && src[start+2] == 'a' && src[start+3] == 'i' && src[start+4] == 't' { return .Await }
 		}
+		if length == 8 && src[start+1] == 'b' && src[start+2] == 's' && src[start+3] == 't' &&
+		   src[start+4] == 'r' && src[start+5] == 'a' && src[start+6] == 'c' && src[start+7] == 't' { return .Abstract }
+		if length == 8 && src[start+1] == 'c' && src[start+2] == 'c' && src[start+3] == 'e' &&
+		   src[start+4] == 's' && src[start+5] == 's' && src[start+6] == 'o' && src[start+7] == 'r' { return .Accessor }
 	case 'b':
 		if length == 5 && src[start+1] == 'r' && src[start+2] == 'e' && src[start+3] == 'a' && src[start+4] == 'k' { return .Break }
 	case 'c':
@@ -1419,6 +1479,8 @@ lookup_keyword_by_letter :: proc(src: []u8, start: u32, end: u32) -> TokenType {
 	case 'e':
 		if length == 4 {
 			if src[start+1] == 'l' && src[start+2] == 's' && src[start+3] == 'e' { return .Else }
+			// Note: 'enum' is a TS contextual keyword — lexed as Identifier,
+			// checked by string value in the parser to allow `var enum = 1`.
 		}
 		if length == 6 && src[start+1] == 'x' {
 			if src[start+2] == 'p' && src[start+3] == 'o' && src[start+4] == 'r' && src[start+5] == 't' { return .Export }
@@ -1439,19 +1501,28 @@ lookup_keyword_by_letter :: proc(src: []u8, start: u32, end: u32) -> TokenType {
 		if length == 2 {
 			if src[start+1] == 'f' { return .If }
 			if src[start+1] == 'n' { return .In }
+			if src[start+1] == 's' { return .Is }
 		}
+		if length == 5 && src[start+1] == 'n' && src[start+2] == 'f' && src[start+3] == 'e' && src[start+4] == 'r' { return .Infer }
 		if length == 6 && src[start+1] == 'm' && src[start+2] == 'p' && src[start+3] == 'o' &&
 		   src[start+4] == 'r' && src[start+5] == 't' { return .Import }
+// Note: 'interface' is a TS contextual keyword — lexed as Identifier,
+		// checked by string value in the parser to allow `var interface = 1`.
 		if length == 10 && src[start+1] == 'n' && src[start+2] == 's' && src[start+3] == 't' &&
 		   src[start+4] == 'a' && src[start+5] == 'n' && src[start+6] == 'c' && src[start+7] == 'e' &&
 		   src[start+8] == 'o' && src[start+9] == 'f' { return .Instanceof }
 	case 'l':
 		if length == 3 && src[start+1] == 'e' && src[start+2] == 't' { return .Let }
+	case 'k':
+		if length == 5 && src[start+1] == 'e' && src[start+2] == 'y' && src[start+3] == 'o' && src[start+4] == 'f' { return .Keyof }
 	case 'n':
 		if length == 3 && src[start+1] == 'e' && src[start+2] == 'w' { return .New }
 		if length == 4 && src[start+1] == 'u' && src[start+2] == 'l' && src[start+3] == 'l' { return .Null }
+		if length == 5 && src[start+1] == 'e' && src[start+2] == 'v' && src[start+3] == 'e' && src[start+4] == 'r' { return .Never }
 	case 'o':
 		if length == 2 && src[start+1] == 'f' { return .Of }
+		if length == 8 && src[start+1] == 'v' && src[start+2] == 'e' && src[start+3] == 'r' &&
+		   src[start+4] == 'r' && src[start+5] == 'i' && src[start+6] == 'd' && src[start+7] == 'e' { return .Override }
 	case 'r':
 		if length == 6 && src[start+1] == 'e' && src[start+2] == 't' && src[start+3] == 'u' &&
 		   src[start+4] == 'r' && src[start+5] == 'n' { return .Return }
@@ -1464,15 +1535,23 @@ lookup_keyword_by_letter :: proc(src: []u8, start: u32, end: u32) -> TokenType {
 			if src[start+1] == 't' && src[start+2] == 'a' && src[start+3] == 't' &&
 			   src[start+4] == 'i' && src[start+5] == 'c' { return .Static }
 		}
+		if length == 9 && src[start+1] == 'a' && src[start+2] == 't' && src[start+3] == 'i' &&
+		   src[start+4] == 's' && src[start+5] == 'f' && src[start+6] == 'i' && src[start+7] == 'e' && src[start+8] == 's' { return .Satisfies }
 	case 't':
 		if length == 3 && src[start+1] == 'r' && src[start+2] == 'y' { return .Try }
 		if length == 4 {
 			if src[start+1] == 'h' && src[start+2] == 'i' && src[start+3] == 's' { return .This }
 			if src[start+1] == 'r' && src[start+2] == 'u' && src[start+3] == 'e' { return .True }
+			// Note: 'type' is a TS contextual keyword — lexed as Identifier,
+			// checked by string value in the parser to allow `var type = 1`.
 		}
 		if length == 5 && src[start+1] == 'h' && src[start+2] == 'r' && src[start+3] == 'o' && src[start+4] == 'w' { return .Throw }
 		if length == 6 && src[start+1] == 'y' && src[start+2] == 'p' && src[start+3] == 'e' &&
 		   src[start+4] == 'o' && src[start+5] == 'f' { return .Typeof }
+	case 'u':
+		if length == 5 && src[start+1] == 's' && src[start+2] == 'i' && src[start+3] == 'n' && src[start+4] == 'g' { return .Using }
+		if length == 6 && src[start+1] == 'n' && src[start+2] == 'i' && src[start+3] == 'q' &&
+		   src[start+4] == 'u' && src[start+5] == 'e' { return .Unique }
 	case 'v':
 		if length == 3 && src[start+1] == 'a' && src[start+2] == 'r' { return .Var }
 		if length == 4 && src[start+1] == 'o' && src[start+2] == 'i' && src[start+3] == 'd' { return .Void }

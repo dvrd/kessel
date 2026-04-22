@@ -15,6 +15,568 @@ Loc :: struct {
 }
 
 // ============================================================================
+// Comment Node
+// ============================================================================
+
+CommentType :: enum {
+	Line,  // //
+	Block, // /* */
+}
+
+Comment :: struct {
+	type:  CommentType,
+	start: u32,
+	end:   u32,
+	value: string, // the text between // and newline, or /* and */
+}
+
+// ============================================================================
+// Decorator Node (Stage 3)
+// ============================================================================
+
+Decorator :: struct {
+	loc:        Loc,
+	expression: ^Expression,
+}
+
+// ============================================================================
+// JSX Nodes
+// ============================================================================
+
+JSXElement :: struct {
+	loc:             Loc,
+	opening_element: ^JSXOpeningElement,
+	children:        [dynamic]JSXChild,
+	closing_element: Maybe(^JSXClosingElement),
+}
+
+JSXFragment :: struct {
+	loc:              Loc,
+	opening_fragment: JSXOpeningFragment,
+	children:         [dynamic]JSXChild,
+	closing_fragment: JSXClosingFragment,
+}
+
+JSXOpeningElement :: struct {
+	loc:          Loc,
+	name:         JSXElementName,
+	attributes:   [dynamic]JSXAttributeItem,
+	self_closing: bool,
+}
+
+JSXClosingElement :: struct {
+	loc:  Loc,
+	name: JSXElementName,
+}
+
+JSXOpeningFragment :: struct {
+	loc: Loc,
+}
+
+JSXClosingFragment :: struct {
+	loc: Loc,
+}
+
+JSXIdentifier :: struct {
+	loc:  Loc,
+	name: string,
+}
+
+JSXMemberExpression :: struct {
+	loc:      Loc,
+	object:   JSXMemberObject,
+	property: JSXIdentifier,
+}
+
+JSXNamespacedName :: struct {
+	loc:       Loc,
+	namespace: JSXIdentifier,
+	name:      JSXIdentifier,
+}
+
+JSXAttribute :: struct {
+	loc:   Loc,
+	name:  JSXAttributeName,
+	value: Maybe(^Expression), // StringLiteral or JSXExpressionContainer or JSXElement
+}
+
+JSXSpreadAttribute :: struct {
+	loc:      Loc,
+	argument: ^Expression,
+}
+
+JSXText :: struct {
+	loc:   Loc,
+	value: string,
+	raw:   string,
+}
+
+JSXExpressionContainer :: struct {
+	loc:        Loc,
+	expression: ^Expression, // or JSXEmptyExpression
+}
+
+JSXEmptyExpression :: struct {
+	loc: Loc,
+}
+
+JSXSpreadChild :: struct {
+	loc:        Loc,
+	expression: ^Expression,
+}
+
+// Union types for JSX
+JSXElementName :: union {
+	JSXIdentifier,
+	^JSXMemberExpression,
+	^JSXNamespacedName,
+}
+
+JSXMemberObject :: union {
+	JSXIdentifier,
+	^JSXMemberExpression,
+}
+
+JSXAttributeName :: union {
+	JSXIdentifier,
+	^JSXNamespacedName,
+}
+
+JSXAttributeItem :: union {
+	JSXAttribute,
+	^JSXSpreadAttribute,
+}
+
+JSXChild :: union {
+	^JSXElement,
+	^JSXFragment,
+	^JSXText,
+	^JSXExpressionContainer,
+	^JSXSpreadChild,
+}
+
+// ============================================================================
+// TypeScript Nodes
+// ============================================================================
+
+// Type annotation wrapper: `: Type`
+TSTypeAnnotation :: struct {
+	loc:             Loc,
+	type_annotation: ^TSType,
+}
+
+// Type parameter declaration: `<T extends U = V>`
+TSTypeParameterDeclaration :: struct {
+	loc:    Loc,
+	params: [dynamic]TSTypeParameter,
+}
+
+TSTypeParameter :: struct {
+	loc:        Loc,
+	name:       BindingIdentifier,
+	constraint: Maybe(^TSType),   // extends clause
+	default_:   Maybe(^TSType),   // = default type
+	in_:        bool,             // variance modifier
+	out:        bool,             // variance modifier
+	const_:     bool,             // const modifier
+}
+
+// Type argument instantiation: `<string, number>`
+TSTypeParameterInstantiation :: struct {
+	loc:    Loc,
+	params: [dynamic]^TSType,
+}
+
+// Keyword types
+TSAnyKeyword :: struct { loc: Loc }
+TSBigIntKeyword :: struct { loc: Loc }
+TSBooleanKeyword :: struct { loc: Loc }
+TSIntrinsicKeyword :: struct { loc: Loc }
+TSNeverKeyword :: struct { loc: Loc }
+TSNullKeyword :: struct { loc: Loc }
+TSNumberKeyword :: struct { loc: Loc }
+TSObjectKeyword :: struct { loc: Loc }
+TSStringKeyword :: struct { loc: Loc }
+TSSymbolKeyword :: struct { loc: Loc }
+TSUndefinedKeyword :: struct { loc: Loc }
+TSUnknownKeyword :: struct { loc: Loc }
+TSVoidKeyword :: struct { loc: Loc }
+TSThisType :: struct { loc: Loc }
+
+// Type reference: `Foo`, `Array<T>`
+TSTypeReference :: struct {
+	loc:             Loc,
+	type_name:       ^Expression,  // Identifier or qualified name
+	type_parameters: Maybe(^TSTypeParameterInstantiation),
+}
+
+// Union type: `A | B | C`
+TSUnionType :: struct {
+	loc:   Loc,
+	types: [dynamic]^TSType,
+}
+
+// Intersection type: `A & B & C`
+TSIntersectionType :: struct {
+	loc:   Loc,
+	types: [dynamic]^TSType,
+}
+
+// Array type: `T[]`
+TSArrayType :: struct {
+	loc:           Loc,
+	element_type:  ^TSType,
+}
+
+// Tuple type: `[string, number]`
+TSTupleType :: struct {
+	loc:            Loc,
+	element_types:  [dynamic]^TSType,
+}
+
+// Function type: `(x: T) => R`
+TSFunctionType :: struct {
+	loc:             Loc,
+	type_parameters: Maybe(^TSTypeParameterDeclaration),
+	params:          [dynamic]TSFunctionParam,
+	return_type:     ^TSTypeAnnotation,
+}
+
+// Constructor type: `new (x: T) => R`
+TSConstructorType :: struct {
+	loc:             Loc,
+	type_parameters: Maybe(^TSTypeParameterDeclaration),
+	params:          [dynamic]TSFunctionParam,
+	return_type:     ^TSTypeAnnotation,
+	abstract_:       bool,
+}
+
+TSFunctionParam :: struct {
+	loc:             Loc,
+	pattern:         Pattern,
+	type_annotation: Maybe(^TSTypeAnnotation),
+	optional:        bool,
+}
+
+// Type literal / object type: `{ x: number; y: string }`
+TSTypeLiteral :: struct {
+	loc:     Loc,
+	members: [dynamic]^TSSignature,
+}
+
+// Conditional type: `T extends U ? X : Y`
+TSConditionalType :: struct {
+	loc:           Loc,
+	check_type:    ^TSType,
+	extends_type:  ^TSType,
+	true_type:     ^TSType,
+	false_type:    ^TSType,
+}
+
+// Infer type: `infer T`
+TSInferType :: struct {
+	loc:             Loc,
+	type_parameter:  TSTypeParameter,
+}
+
+// Type query: `typeof x`
+TSTypeQuery :: struct {
+	loc:             Loc,
+	expr_name:       ^Expression,
+	type_parameters: Maybe(^TSTypeParameterInstantiation),
+}
+
+// Type operator: `keyof T`, `unique T`, `readonly T`
+TSTypeOperator :: struct {
+	loc:             Loc,
+	operator:        string,
+	type_annotation: ^TSType,
+}
+
+// Indexed access: `T[K]`
+TSIndexedAccessType :: struct {
+	loc:         Loc,
+	object_type: ^TSType,
+	index_type:  ^TSType,
+}
+
+// Mapped type: `{ [K in T]: V }`
+TSMappedType :: struct {
+	loc:             Loc,
+	type_parameter:  TSTypeParameter,
+	name_type:       Maybe(^TSType),  // `as` clause
+	type_annotation: Maybe(^TSType),
+	optional:        TSMappedTypeModifier,
+	readonly:        TSMappedTypeModifier,
+}
+
+TSMappedTypeModifier :: enum {
+	None,
+	Plus,    // +readonly, +?
+	Minus,   // -readonly, -?
+	True,    // readonly, ?
+}
+
+// Literal type: `"hello"`, `42`, `true`
+TSLiteralType :: struct {
+	loc:     Loc,
+	literal: ^Expression,
+}
+
+// Template literal type: `hello ${T}`
+TSTemplateLiteralType :: struct {
+	loc:    Loc,
+	quasis: [dynamic]TemplateElement,
+	types:  [dynamic]^TSType,
+}
+
+// Parenthesized type: `(T)`
+TSParenthesizedType :: struct {
+	loc:             Loc,
+	type_annotation: ^TSType,
+}
+
+// Rest type in tuple: `...T`
+TSRestType :: struct {
+	loc:             Loc,
+	type_annotation: ^TSType,
+}
+
+// Optional type in tuple: `T?`
+TSOptionalType :: struct {
+	loc:             Loc,
+	type_annotation: ^TSType,
+}
+
+// Named tuple member: `name: T` or `name?: T`
+TSNamedTupleMember :: struct {
+	loc:           Loc,
+	label:         BindingIdentifier,
+	element_type:  ^TSType,
+	optional:      bool,
+}
+
+// Type predicate: `x is T`
+TSTypePredicate :: struct {
+	loc:             Loc,
+	parameter_name:  ^Expression,
+	type_annotation: Maybe(^TSTypeAnnotation),
+	asserts:         bool,
+}
+
+// Import type: `import("module").T`
+TSImportType :: struct {
+	loc:             Loc,
+	argument:        ^TSType,
+	qualifier:       Maybe(^Expression),
+	type_parameters: Maybe(^TSTypeParameterInstantiation),
+	is_typeof:       bool,
+}
+
+// `as` expression: `expr as Type`
+TSAsExpression :: struct {
+	loc:             Loc,
+	expression:      ^Expression,
+	type_annotation: ^TSType,
+}
+
+// `satisfies` expression: `expr satisfies Type`
+TSSatisfiesExpression :: struct {
+	loc:             Loc,
+	expression:      ^Expression,
+	type_annotation: ^TSType,
+}
+
+// Non-null assertion: `expr!`
+TSNonNullExpression :: struct {
+	loc:        Loc,
+	expression: ^Expression,
+}
+
+// Type assertion: `<Type>expr`
+TSTypeAssertion :: struct {
+	loc:             Loc,
+	type_annotation: ^TSType,
+	expression:      ^Expression,
+}
+
+// TS interface declaration
+TSInterfaceDeclaration :: struct {
+	loc:             Loc,
+	id:              BindingIdentifier,
+	type_parameters: Maybe(^TSTypeParameterDeclaration),
+	extends:         [dynamic]TSInterfaceHeritage,
+	body:            TSInterfaceBody,
+	declare:         bool,
+}
+
+TSInterfaceBody :: struct {
+	loc:  Loc,
+	body: [dynamic]^TSSignature,
+}
+
+TSInterfaceHeritage :: struct {
+	loc:             Loc,
+	expression:      ^Expression,
+	type_parameters: Maybe(^TSTypeParameterInstantiation),
+}
+
+// TS type alias: `type X = T`
+TSTypeAliasDeclaration :: struct {
+	loc:             Loc,
+	id:              BindingIdentifier,
+	type_parameters: Maybe(^TSTypeParameterDeclaration),
+	type_annotation: ^TSType,
+	declare:         bool,
+}
+
+// TS enum
+TSEnumDeclaration :: struct {
+	loc:     Loc,
+	id:      BindingIdentifier,
+	body:    TSEnumBody,
+	const_:  bool,
+	declare: bool,
+}
+
+TSEnumBody :: struct {
+	loc:     Loc,
+	members: [dynamic]TSEnumMember,
+}
+
+TSEnumMember :: struct {
+	loc:         Loc,
+	id:          ^Expression,  // Identifier or StringLiteral
+	initializer: Maybe(^Expression),
+}
+
+// TS module/namespace declaration
+TSModuleDeclaration :: struct {
+	loc:     Loc,
+	id:      ^Expression,  // Identifier or StringLiteral
+	body:    Maybe(^TSModuleBody),
+	declare: bool,
+	global:  bool,
+	kind:    TSModuleKind,
+}
+
+TSModuleKind :: enum {
+	Namespace,
+	Module,
+	Global,
+}
+
+TSModuleBody :: union {
+	^TSModuleBlock,
+	^TSModuleDeclaration,
+}
+
+TSModuleBlock :: struct {
+	loc:  Loc,
+	body: [dynamic]^Statement,
+}
+
+// Interface/object-type signatures
+TSPropertySignature :: struct {
+	loc:             Loc,
+	key:             ^Expression,
+	type_annotation: Maybe(^TSTypeAnnotation),
+	computed:        bool,
+	optional:        bool,
+	readonly:        bool,
+}
+
+TSMethodSignature :: struct {
+	loc:              Loc,
+	key:              ^Expression,
+	type_parameters:  Maybe(^TSTypeParameterDeclaration),
+	params:           [dynamic]TSFunctionParam,
+	return_type:      Maybe(^TSTypeAnnotation),
+	computed:         bool,
+	optional:         bool,
+	kind:             TSMethodSignatureKind,
+}
+
+TSMethodSignatureKind :: enum {
+	Method,
+	Get,
+	Set,
+}
+
+TSCallSignatureDeclaration :: struct {
+	loc:              Loc,
+	type_parameters:  Maybe(^TSTypeParameterDeclaration),
+	params:           [dynamic]TSFunctionParam,
+	return_type:      Maybe(^TSTypeAnnotation),
+}
+
+TSConstructSignatureDeclaration :: struct {
+	loc:              Loc,
+	type_parameters:  Maybe(^TSTypeParameterDeclaration),
+	params:           [dynamic]TSFunctionParam,
+	return_type:      Maybe(^TSTypeAnnotation),
+}
+
+TSIndexSignature :: struct {
+	loc:              Loc,
+	parameters:       [dynamic]TSFunctionParam,
+	type_annotation:  Maybe(^TSTypeAnnotation),
+	readonly:         bool,
+	static_:          bool,
+}
+
+// Signature union
+TSSignature :: union {
+	TSPropertySignature,
+	TSMethodSignature,
+	TSCallSignatureDeclaration,
+	TSConstructSignatureDeclaration,
+	TSIndexSignature,
+}
+
+// Master TSType union
+TSType :: union {
+	// Keywords
+	^TSAnyKeyword,
+	^TSBigIntKeyword,
+	^TSBooleanKeyword,
+	^TSIntrinsicKeyword,
+	^TSNeverKeyword,
+	^TSNullKeyword,
+	^TSNumberKeyword,
+	^TSObjectKeyword,
+	^TSStringKeyword,
+	^TSSymbolKeyword,
+	^TSUndefinedKeyword,
+	^TSUnknownKeyword,
+	^TSVoidKeyword,
+	^TSThisType,
+	// Compound
+	^TSTypeReference,
+	^TSUnionType,
+	^TSIntersectionType,
+	^TSArrayType,
+	^TSTupleType,
+	^TSFunctionType,
+	^TSConstructorType,
+	^TSTypeLiteral,
+	^TSConditionalType,
+	^TSInferType,
+	^TSTypeQuery,
+	^TSIndexedAccessType,
+	^TSMappedType,
+	^TSTypeOperator,
+	^TSLiteralType,
+	^TSTemplateLiteralType,
+	^TSParenthesizedType,
+	^TSRestType,
+	^TSOptionalType,
+	^TSNamedTupleMember,
+	^TSTypePredicate,
+	^TSImportType,
+}
+
+// ============================================================================
 // Identifier Types (OXC-style distinct types)
 // ============================================================================
 
@@ -101,8 +663,10 @@ TaggedTemplateExpression :: struct {
 }
 
 Identifier :: struct {
-	loc:  Loc,
-	name: string,
+	loc:                Loc,
+	name:               string,
+	type_annotation:    Maybe(^TSTypeAnnotation),
+	optional:           bool,
 }
 
 // PrivateIdentifier for class private fields/methods (#field)
@@ -164,16 +728,18 @@ MemberExpression :: struct {
 }
 
 CallExpression :: struct {
-	loc:       Loc,
-	callee:    ^Expression,
-	arguments: [dynamic]^Expression,
-	optional:  bool, // true for ?.() (ES2020 Optional Chaining)
+	loc:               Loc,
+	callee:            ^Expression,
+	arguments:         [dynamic]^Expression,
+	optional:          bool, // true for ?.() (ES2020 Optional Chaining)
+	type_parameters:   Maybe(^TSTypeParameterInstantiation),
 }
 
 NewExpression :: struct {
-	loc:       Loc,
-	callee:    ^Expression,
-	arguments: [dynamic]^Expression,
+	loc:               Loc,
+	callee:            ^Expression,
+	arguments:         [dynamic]^Expression,
+	type_parameters:   Maybe(^TSTypeParameterInstantiation),
 }
 
 ConditionalExpression :: struct {
@@ -360,12 +926,14 @@ FunctionParameter :: struct {
 }
 
 FunctionExpression :: struct {
-	loc:          Loc,
-	id:           Maybe(BindingIdentifier),
-	params:       [dynamic]FunctionParameter,
-	body:         FunctionBody,
-	generator:    bool,
-	async:        bool,
+	loc:               Loc,
+	id:                Maybe(BindingIdentifier),
+	params:            [dynamic]FunctionParameter,
+	body:              FunctionBody,
+	generator:         bool,
+	async:             bool,
+	type_parameters:   Maybe(^TSTypeParameterDeclaration),
+	return_type:       Maybe(^TSTypeAnnotation),
 }
 
 // ArrowFunctionBody discriminates the ESTree shape of an arrow's body.
@@ -379,11 +947,13 @@ ArrowFunctionBody :: union {
 }
 
 ArrowFunctionExpression :: struct {
-	loc:        Loc,
-	params:     [dynamic]FunctionParameter,
-	body:       ArrowFunctionBody,
-	expression: bool,
-	async:      bool,
+	loc:                Loc,
+	params:             [dynamic]FunctionParameter,
+	body:               ArrowFunctionBody,
+	expression:         bool,
+	async:              bool,
+	type_parameters:    Maybe(^TSTypeParameterDeclaration),
+	return_type:        Maybe(^TSTypeAnnotation),
 }
 
 ClassBody :: struct {
@@ -406,14 +976,18 @@ ClassElement :: struct {
 	kind:          ClassElementKind,
 	computed:      bool,
 	static:        bool,
-	decorators:    [dynamic]^Expression,
+	is_accessor:   bool, // `accessor` keyword — emits as "AccessorProperty"
+	decorators:    [dynamic]Decorator,
 }
 
 ClassExpression :: struct {
-	loc:           Loc,
-	id:            Maybe(BindingIdentifier),
-	super_class:   Maybe(^Expression),
-	body:          ClassBody,
+	loc:               Loc,
+	id:                Maybe(BindingIdentifier),
+	super_class:       Maybe(^Expression),
+	body:              ClassBody,
+	decorators:        [dynamic]Decorator,
+	type_parameters:   Maybe(^TSTypeParameterDeclaration),
+	implements:        [dynamic]TSInterfaceHeritage,
 }
 
 // StaticBlock for ES2022 static class blocks (static { ... })
@@ -513,6 +1087,8 @@ VariableKind :: enum {
 	Var,
 	Let,
 	Const,
+	Using,
+	AwaitUsing,
 }
 
 VariableDeclaration :: struct {
@@ -642,6 +1218,7 @@ ExportNamedDeclaration :: struct {
 	declaration: Maybe(^Declaration),
 	specifiers: [dynamic]ExportSpecifier,
 	source:     Maybe(StringLiteral),
+	attributes: [dynamic]ImportAttribute,
 }
 
 ExportDefaultDeclaration :: struct {
@@ -658,6 +1235,7 @@ ExportAllDeclaration :: struct {
 	loc:        Loc,
 	source:     StringLiteral,
 	exported:   Maybe(IdentifierName), // null for "export *", identifier for "export * as ns"
+	attributes: [dynamic]ImportAttribute,
 }
 
 // ============================================================================
@@ -714,6 +1292,16 @@ Expression :: union {
 	^AwaitExpression,
 	^ImportExpression,
 	^MetaProperty,
+	^JSXElement,
+	^JSXFragment,
+	^JSXText,
+	^JSXExpressionContainer,
+	^JSXEmptyExpression,
+	^JSXSpreadChild,
+	^TSAsExpression,
+	^TSSatisfiesExpression,
+	^TSNonNullExpression,
+	^TSTypeAssertion,
 }
 
 Statement :: union {
@@ -742,6 +1330,10 @@ Statement :: union {
 	^ExportNamedDeclaration,
 	^ExportDefaultDeclaration,
 	^ExportAllDeclaration,
+	^TSInterfaceDeclaration,
+	^TSTypeAliasDeclaration,
+	^TSEnumDeclaration,
+	^TSModuleDeclaration,
 }
 
 Declaration :: union {
@@ -752,6 +1344,10 @@ Declaration :: union {
 	^ExportNamedDeclaration,
 	^ExportDefaultDeclaration,
 	^ExportAllDeclaration,
+	^TSInterfaceDeclaration,
+	^TSTypeAliasDeclaration,
+	^TSEnumDeclaration,
+	^TSModuleDeclaration,
 }
 
 Node :: union {

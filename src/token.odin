@@ -52,7 +52,11 @@ TokenType :: enum {
 	Yield,
 
 	// Contextual keywords
+	Accessor,
+	Abstract,
 	As,
+	Assert,
+	Asserts,
 	Async,
 	Await,
 	Constructor,
@@ -61,20 +65,28 @@ TokenType :: enum {
 	From,
 	Get,
 	Implements,
+	Infer,
 	Interface,
+	Is,
+	Keyof,
 	Module,
 	Namespace,
+	Never,
 	Of,
+	Override,
 	Package,
 	Private,
 	Protected,
 	Public,
 	Readonly,
 	Require,
+	Satisfies,
 	Set,
 	Static,
 	Target,
 	Type,
+	Unique,
+	Using,
 
 	// Identifiers
 	Identifier,
@@ -138,8 +150,12 @@ TokenType :: enum {
 	Question,  // ?
 	Colon,     // :
 	OptionalChain, // ?.
+	At,            // @
 
 	// Special
+	// JSX
+	JSXText,        // raw text between JSX tags
+
 	EOF,
 	Invalid,
 }
@@ -216,10 +232,18 @@ get_token_name :: proc(t: TokenType) -> string {
 	case .If:               return "if"
 	case .Import:           return "import"
 	case .In:               return "in"
+	case .Infer:            return "infer"
 	case .Instanceof:       return "instanceof"
+	case .Is:               return "is"
+	case .Keyof:            return "keyof"
 	case .From:             return "from"
+	case .Never:            return "never"
 	case .Of:               return "of"
+	case .Override:         return "override"
+	case .Accessor:         return "accessor"
+	case .Abstract:         return "abstract"
 	case .As:               return "as"
+	case .Asserts:          return "asserts"
 	case .Let:              return "let"
 	case .New:              return "new"
 	case .Return:           return "return"
@@ -233,6 +257,11 @@ get_token_name :: proc(t: TokenType) -> string {
 	case .Void:             return "void"
 	case .While:            return "while"
 	case .With:             return "with"
+	case .Readonly:         return "readonly"
+	case .Require:          return "require"
+	case .Satisfies:        return "satisfies"
+	case .Unique:           return "unique"
+	case .Using:            return "using"
 	case .Yield:            return "yield"
 	case .Identifier:       return "identifier"
 	case .PrivateIdentifier: return "private_identifier"
@@ -278,6 +307,8 @@ get_token_name :: proc(t: TokenType) -> string {
 	case .Question:         return "?"
 	case .Colon:            return ":"
 	case .OptionalChain:    return "?."
+	case .At:               return "@"
+	case .JSXText:          return "jsx_text"
 	case .EOF:              return "EOF"
 	case .Invalid:          return "INVALID"
 	case:                   return "UNKNOWN"
