@@ -40,8 +40,8 @@
     "total": 2
   },
   "es2022": {
-    "pass": 3,
-    "fail": 3,
+    "pass": 5,
+    "fail": 1,
     "total": 6
   },
   "es2024": {

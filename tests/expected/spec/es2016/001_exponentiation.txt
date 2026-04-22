@@ -1,0 +1,88 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 39,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 18,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 17,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "a"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 10,
+            "end": 17,
+            "operator": "**",
+            "left": {
+              "type": "Literal",
+              "start": 10,
+              "end": 11,
+              "value": 2,
+              "raw": "2"            },
+            "right": {
+              "type": "Literal",
+              "start": 15,
+              "end": 17,
+              "value": 10,
+              "raw": "10"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 19,
+      "end": 29,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 23,
+          "end": 28,
+          "id": {
+            "type": "Identifier",
+            "start": 23,
+            "end": 24,
+            "name": "b"          },
+          "init": {
+            "type": "Literal",
+            "start": 27,
+            "end": 28,
+            "value": 3,
+            "raw": "3"          }        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 30,
+      "end": 38,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 30,
+        "end": 37,
+        "operator": "**=",
+        "left": {
+          "type": "Identifier",
+          "start": 30,
+          "end": 31,
+          "name": "b"        },
+        "right": {
+          "type": "Literal",
+          "start": 36,
+          "end": 37,
+          "value": 2,
+          "raw": "2"        }      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4616B reserved=16777216B ratio=0%
+Parse errors: 0

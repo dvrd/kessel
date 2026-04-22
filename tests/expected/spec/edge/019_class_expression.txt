@@ -1,0 +1,185 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 125,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 21,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 20,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "Foo"          },
+          "init": {
+            "type": "ClassExpression",
+            "start": 12,
+            "end": 20,
+                        "id": null,
+            "superClass": null,
+"body": {
+              "type": "ClassBody",
+              "start": 18,
+              "end": 20,
+              "body": []
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 22,
+      "end": 70,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 28,
+          "end": 69,
+          "id": {
+            "type": "Identifier",
+            "start": 28,
+            "end": 31,
+            "name": "Bar"          },
+          "init": {
+            "type": "ClassExpression",
+            "start": 34,
+            "end": 69,
+            "id": {
+              "type": "Identifier",
+              "start": 40,
+              "end": 48,
+              "name": "BarNamed"
+            },
+            "superClass": null,
+"body": {
+              "type": "ClassBody",
+              "start": 49,
+              "end": 69,
+              "body": [
+                {
+                  "type": "MethodDefinition",
+                  "start": 51,
+                  "end": 67,
+                                    "key": {
+                    "type": "Identifier",
+                    "start": 51,
+                    "end": 62,
+                    "name": "constructor"
+                  },
+                  "value": {
+                    "type": "FunctionExpression",
+                    "start": 62,
+                    "end": 67,
+                    "id": null,
+                    "expression": false,
+                    "generator": false,
+                    "async": false,
+                    "params": [],
+                    "body": {
+                      "type": "BlockStatement",
+                      "start": 65,
+                      "end": 67,
+                      "body": [
+                      ]
+                    }
+                  },
+                  "kind": "constructor",
+                  "computed": false,
+                  "static": false
+                }
+              ]
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 71,
+      "end": 124,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 77,
+          "end": 123,
+          "id": {
+            "type": "Identifier",
+            "start": 77,
+            "end": 80,
+            "name": "baz"          },
+          "init": {
+            "type": "NewExpression",
+            "start": 83,
+            "end": 123,
+            "callee": {
+              "type": "ClassExpression",
+              "start": 88,
+              "end": 120,
+                            "id": null,
+              "superClass": null,
+"body": {
+                "type": "ClassBody",
+                "start": 94,
+                "end": 120,
+                "body": [
+                  {
+                    "type": "MethodDefinition",
+                    "start": 96,
+                    "end": 118,
+                                        "key": {
+                      "type": "Identifier",
+                      "start": 96,
+                      "end": 102,
+                      "name": "method"
+                    },
+                    "value": {
+                      "type": "FunctionExpression",
+                      "start": 102,
+                      "end": 118,
+                      "id": null,
+                      "expression": false,
+                      "generator": false,
+                      "async": false,
+                      "params": [],
+                      "body": {
+                        "type": "BlockStatement",
+                        "start": 105,
+                        "end": 118,
+                        "body": [
+                          {
+                            "type": "ReturnStatement",
+                            "start": 107,
+                            "end": 116,
+                            "argument": {
+                              "type": "Literal",
+                              "start": 114,
+                              "end": 115,
+                              "value": 1,
+                              "raw": "1"                            }                          }
+                        ]
+                      }
+                    },
+                    "kind": "method",
+                    "computed": false,
+                    "static": false
+                  }
+                ]
+              }
+            },
+            "arguments": [
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7368B reserved=16777216B ratio=0%
+Parse errors: 0

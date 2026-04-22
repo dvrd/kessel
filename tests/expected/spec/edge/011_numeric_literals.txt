@@ -1,0 +1,167 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 134,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 15,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 14,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "dec"          },
+          "init": {
+            "type": "Literal",
+            "start": 12,
+            "end": 14,
+            "value": 42,
+            "raw": "42"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 16,
+      "end": 33,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 22,
+          "end": 32,
+          "id": {
+            "type": "Identifier",
+            "start": 22,
+            "end": 25,
+            "name": "hex"          },
+          "init": {
+            "type": "Literal",
+            "start": 28,
+            "end": 32,
+            "value": 255,
+            "raw": "0xFF"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 34,
+      "end": 51,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 40,
+          "end": 50,
+          "id": {
+            "type": "Identifier",
+            "start": 40,
+            "end": 43,
+            "name": "oct"          },
+          "init": {
+            "type": "Literal",
+            "start": 46,
+            "end": 50,
+            "value": 63,
+            "raw": "0o77"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 52,
+      "end": 71,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 58,
+          "end": 70,
+          "id": {
+            "type": "Identifier",
+            "start": 58,
+            "end": 61,
+            "name": "bin"          },
+          "init": {
+            "type": "Literal",
+            "start": 64,
+            "end": 70,
+            "value": 10,
+            "raw": "0b1010"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 72,
+      "end": 91,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 78,
+          "end": 90,
+          "id": {
+            "type": "Identifier",
+            "start": 78,
+            "end": 83,
+            "name": "float"          },
+          "init": {
+            "type": "Literal",
+            "start": 86,
+            "end": 90,
+            "value": 3.14,
+            "raw": "3.14"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 92,
+      "end": 109,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 98,
+          "end": 108,
+          "id": {
+            "type": "Identifier",
+            "start": 98,
+            "end": 101,
+            "name": "exp"          },
+          "init": {
+            "type": "Literal",
+            "start": 104,
+            "end": 108,
+            "value": 1e+10,
+            "raw": "1e10"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 110,
+      "end": 133,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 116,
+          "end": 132,
+          "id": {
+            "type": "Identifier",
+            "start": 116,
+            "end": 123,
+            "name": "neg_exp"          },
+          "init": {
+            "type": "Literal",
+            "start": 126,
+            "end": 132,
+            "value": 0.0015,
+            "raw": "1.5e-3"          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5016B reserved=16777216B ratio=0%
+Parse errors: 0

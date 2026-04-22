@@ -2695,20 +2695,16 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("\"type\": \"Literal\",\n")
 		print_indent(indent)
 		emit_span_leading(e.loc, indent)
-		out_s("\"value\": ")
-		out_string(e.value)
-		out_s(",\n")
+		out_s("\"value\": null,\n")
 		print_indent(indent)
 		out_s("\"raw\": ")
 		out_string(e.raw)
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"bigint\": ")
-		raw_without_n := e.raw
-		if len(e.raw) > 0 && e.raw[len(e.raw)-1] == 'n' {
-			raw_without_n = e.raw[:len(e.raw)-1]
-		}
-		out_string(raw_without_n)
+		// Convert to decimal representation
+		decimal_repr := bigint_to_decimal(e.raw)
+		out_string(decimal_repr)
 		return
 
 	case ^RegExpLiteral:
@@ -3481,6 +3477,48 @@ assignment_op_to_string :: proc(op: AssignmentOperator) -> string {
 	case .AssignNullish:       return "??="
 	}
 	return "unknown"
+}
+
+// Convert BigInt source representation to decimal string
+// Handles: decimal (e.g. "123"), hex (e.g. "0xFF"), octal (e.g. "0o77"), binary (e.g. "0b1111")
+bigint_to_decimal :: proc(bigint_source: string) -> string {
+	if len(bigint_source) == 0 {
+		return bigint_source
+	}
+	
+	// Remove 'n' suffix if present
+	source := bigint_source
+	if source[len(source)-1] == 'n' {
+		source = source[:len(source)-1]
+	}
+	
+	if len(source) == 0 {
+		return "0"
+	}
+	
+	// Check for hex, octal, or binary prefixes
+	if len(source) >= 2 && source[0] == '0' {
+		switch source[1] {
+		case 'x', 'X':
+			// Hex: parse as base 16
+			if val, ok := strconv.parse_u64(source[2:], 16); ok {
+				return fmt.aprint(val)
+			}
+		case 'o', 'O':
+			// Octal: parse as base 8
+			if val, ok := strconv.parse_u64(source[2:], 8); ok {
+				return fmt.aprint(val)
+			}
+		case 'b', 'B':
+			// Binary: parse as base 2
+			if val, ok := strconv.parse_u64(source[2:], 2); ok {
+				return fmt.aprint(val)
+			}
+		}
+	}
+	
+	// Decimal: return as-is (it's already in decimal)
+	return source
 }
 
 // ============================================================================

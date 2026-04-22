@@ -1,0 +1,162 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 130,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 129,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 13,
+        "name": "Branded"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 14,
+        "end": 129,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+            "start": 18,
+            "end": 25,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 18,
+              "end": 24,
+              "name": "brand"
+            },
+            "value": null,
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 28,
+            "end": 71,
+                        "key": {
+              "type": "Identifier",
+              "start": 28,
+              "end": 39,
+              "name": "constructor"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 39,
+              "end": 71,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 42,
+                "end": 71,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 48,
+                    "end": 67,
+                    "expression": {
+                      "type": "AssignmentExpression",
+                      "start": 48,
+                      "end": 66,
+                      "operator": "=",
+                      "left": {
+                        "type": "MemberExpression",
+                        "start": 48,
+                        "end": 59,
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression",
+                          "start": 48,
+                          "end": 52                        },
+                        "property": {
+                          "type": "PrivateIdentifier",
+                          "start": 53,
+                          "end": 59,
+                          "name": "brand"                        }                      },
+                      "right": {
+                        "type": "Literal",
+                        "start": 62,
+                        "end": 66,
+                        "value": true,
+                        "raw": "true"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "constructor",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 74,
+            "end": 127,
+                        "key": {
+              "type": "Identifier",
+              "start": 81,
+              "end": 90,
+              "name": "isBranded"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 90,
+              "end": 127,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 91,
+                  "end": 94,
+                  "name": "obj"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 96,
+                "end": 127,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 102,
+                    "end": 123,
+                    "argument": {
+                      "type": "BinaryExpression",
+                      "start": 109,
+                      "end": 122,
+                      "operator": "in",
+                      "left": {
+                        "type": "PrivateIdentifier",
+                        "start": 109,
+                        "end": 115,
+                        "name": "brand"                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 119,
+                        "end": 122,
+                        "name": "obj"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": true
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5688B reserved=16777216B ratio=0%
+Parse errors: 0

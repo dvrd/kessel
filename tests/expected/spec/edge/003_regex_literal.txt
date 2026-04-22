@@ -1,0 +1,160 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 126,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 20,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 19,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "re1"          },
+          "init": {
+            "type": "Literal",
+            "start": 12,
+            "end": 19,
+            "value": null,
+            "raw": "/abc/gi",
+            "regex": {
+              "pattern": "abc",
+              "flags": "gi"
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 21,
+      "end": 44,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 27,
+          "end": 43,
+          "id": {
+            "type": "Identifier",
+            "start": 27,
+            "end": 30,
+            "name": "re2"          },
+          "init": {
+            "type": "Literal",
+            "start": 33,
+            "end": 43,
+            "value": null,
+            "raw": "/\\d+\\.\\d+/",
+            "regex": {
+              "pattern": "\\d+\\.\\d+",
+              "flags": ""
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 45,
+      "end": 67,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 51,
+          "end": 66,
+          "id": {
+            "type": "Identifier",
+            "start": 51,
+            "end": 54,
+            "name": "re3"          },
+          "init": {
+            "type": "Literal",
+            "start": 57,
+            "end": 66,
+            "value": null,
+            "raw": "/[a-z]/im",
+            "regex": {
+              "pattern": "[a-z]",
+              "flags": "im"
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 68,
+      "end": 94,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 74,
+          "end": 93,
+          "id": {
+            "type": "Identifier",
+            "start": 74,
+            "end": 77,
+            "name": "re4"          },
+          "init": {
+            "type": "Literal",
+            "start": 80,
+            "end": 93,
+            "value": null,
+            "raw": "/(?:foo|bar)/",
+            "regex": {
+              "pattern": "(?:foo|bar)",
+              "flags": ""
+            }          }        }
+      ]    },
+    {
+      "type": "IfStatement",
+      "start": 95,
+      "end": 125,
+      "test": {
+        "type": "CallExpression",
+        "start": 99,
+        "end": 121,
+        "callee": {
+          "type": "MemberExpression",
+          "start": 99,
+          "end": 110,
+          "computed": false,
+          "object": {
+            "type": "Literal",
+            "start": 99,
+            "end": 105,
+            "value": null,
+            "raw": "/test/",
+            "regex": {
+              "pattern": "test",
+              "flags": ""
+            }          },
+          "property": {
+            "type": "Identifier",
+            "start": 106,
+            "end": 110,
+            "name": "test"          }        },
+        "arguments": [
+          {
+            "type": "Literal",
+            "start": 111,
+            "end": 120,
+            "value": "testing",
+            "raw": "\"testing\""          }
+        ]      },
+      "consequent": {
+        "type": "BlockStatement",
+        "start": 123,
+        "end": 125,
+        "body": [
+        ]      },
+      "alternate": null    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7680B reserved=16777216B ratio=0%
+Parse errors: 0

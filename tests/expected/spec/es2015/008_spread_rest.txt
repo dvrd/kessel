@@ -1,0 +1,252 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 156,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 22,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 21,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "arr"          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 12,
+            "end": 21,
+            "elements": [
+              {
+                "type": "Literal",
+                "start": 13,
+                "end": 14,
+                "value": 1,
+                "raw": "1"              },
+              {
+                "type": "Literal",
+                "start": 16,
+                "end": 17,
+                "value": 2,
+                "raw": "2"              },
+              {
+                "type": "Literal",
+                "start": 19,
+                "end": 20,
+                "value": 3,
+                "raw": "3"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 23,
+      "end": 45,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 29,
+          "end": 44,
+          "id": {
+            "type": "Identifier",
+            "start": 29,
+            "end": 33,
+            "name": "copy"          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 36,
+            "end": 44,
+            "elements": [
+              {
+                "type": "SpreadElement",
+                "start": 40,
+                "end": 43,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 40,
+                  "end": 43,
+                  "name": "arr"                }              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 46,
+      "end": 76,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 52,
+          "end": 75,
+          "id": {
+            "type": "Identifier",
+            "start": 52,
+            "end": 58,
+            "name": "merged"          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 61,
+            "end": 75,
+            "elements": [
+              {
+                "type": "SpreadElement",
+                "start": 65,
+                "end": 68,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 65,
+                  "end": 68,
+                  "name": "arr"                }              },
+              {
+                "type": "Literal",
+                "start": 70,
+                "end": 71,
+                "value": 4,
+                "raw": "4"              },
+              {
+                "type": "Literal",
+                "start": 73,
+                "end": 74,
+                "value": 5,
+                "raw": "5"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 77,
+      "end": 142,
+      "id": {
+        "type": "Identifier",
+        "start": 86,
+        "end": 89,
+        "name": "sum"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "RestElement",
+          "start": 90,
+          "end": 97,
+          "argument": {
+            "type": "Identifier",
+            "start": 93,
+            "end": 97,
+            "name": "nums"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 99,
+        "end": 142,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 101,
+            "end": 140,
+            "argument": {
+              "type": "CallExpression",
+              "start": 108,
+              "end": 139,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 108,
+                "end": 119,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 108,
+                  "end": 112,
+                  "name": "nums"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 113,
+                  "end": 119,
+                  "name": "reduce"                }              },
+              "arguments": [
+                {
+                  "type": "ArrowFunctionExpression",
+                  "start": 120,
+                  "end": 135,
+                  "id": null,
+                  "expression": true,
+                  "generator": false,
+                  "async": false,
+                  "params": [
+                    {
+                      "type": "Identifier",
+                      "start": 121,
+                      "end": 122,
+                      "name": "a"
+                    },
+                    {
+                      "type": "Identifier",
+                      "start": 124,
+                      "end": 125,
+                      "name": "b"
+                    }
+                  ],
+                  "body": {
+                    "type": "BinaryExpression",
+                    "start": 130,
+                    "end": 135,
+                    "operator": "+",
+                    "left": {
+                      "type": "Identifier",
+                      "start": 130,
+                      "end": 131,
+                      "name": "a"                    },
+                    "right": {
+                      "type": "Identifier",
+                      "start": 134,
+                      "end": 135,
+                      "name": "b"                    }                  }                },
+                {
+                  "type": "Literal",
+                  "start": 137,
+                  "end": 138,
+                  "value": 0,
+                  "raw": "0"                }
+              ]            }          }
+        ]
+      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 143,
+      "end": 155,
+      "expression": {
+        "type": "CallExpression",
+        "start": 143,
+        "end": 154,
+        "callee": {
+          "type": "Identifier",
+          "start": 143,
+          "end": 146,
+          "name": "sum"        },
+        "arguments": [
+          {
+            "type": "SpreadElement",
+            "start": 150,
+            "end": 153,
+            "argument": {
+              "type": "Identifier",
+              "start": 150,
+              "end": 153,
+              "name": "arr"            }          }
+        ]      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5408B reserved=16777216B ratio=0%
+Parse errors: 0

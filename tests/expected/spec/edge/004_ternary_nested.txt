@@ -1,0 +1,187 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 98,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 23,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 22,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "x"          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 10,
+            "end": 22,
+            "test": {
+              "type": "Literal",
+              "start": 10,
+              "end": 14,
+              "value": true,
+              "raw": "true"            },
+            "consequent": {
+              "type": "Literal",
+              "start": 17,
+              "end": 18,
+              "value": 1,
+              "raw": "1"            },
+            "alternate": {
+              "type": "Literal",
+              "start": 21,
+              "end": 22,
+              "value": 2,
+              "raw": "2"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 24,
+      "end": 60,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 30,
+          "end": 59,
+          "id": {
+            "type": "Identifier",
+            "start": 30,
+            "end": 31,
+            "name": "y"          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 34,
+            "end": 59,
+            "test": {
+              "type": "Identifier",
+              "start": 34,
+              "end": 35,
+              "name": "a"            },
+            "consequent": {
+              "type": "ConditionalExpression",
+              "start": 38,
+              "end": 47,
+              "test": {
+                "type": "Identifier",
+                "start": 38,
+                "end": 39,
+                "name": "b"              },
+              "consequent": {
+                "type": "Literal",
+                "start": 42,
+                "end": 43,
+                "value": 1,
+                "raw": "1"              },
+              "alternate": {
+                "type": "Literal",
+                "start": 46,
+                "end": 47,
+                "value": 2,
+                "raw": "2"              }            },
+            "alternate": {
+              "type": "ConditionalExpression",
+              "start": 50,
+              "end": 59,
+              "test": {
+                "type": "Identifier",
+                "start": 50,
+                "end": 51,
+                "name": "c"              },
+              "consequent": {
+                "type": "Literal",
+                "start": 54,
+                "end": 55,
+                "value": 3,
+                "raw": "3"              },
+              "alternate": {
+                "type": "Literal",
+                "start": 58,
+                "end": 59,
+                "value": 4,
+                "raw": "4"              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 61,
+      "end": 97,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 67,
+          "end": 96,
+          "id": {
+            "type": "Identifier",
+            "start": 67,
+            "end": 68,
+            "name": "z"          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 71,
+            "end": 96,
+            "test": {
+              "type": "BinaryExpression",
+              "start": 71,
+              "end": 76,
+              "operator": ">",
+              "left": {
+                "type": "Identifier",
+                "start": 71,
+                "end": 72,
+                "name": "a"              },
+              "right": {
+                "type": "Identifier",
+                "start": 75,
+                "end": 76,
+                "name": "b"              }            },
+            "consequent": {
+              "type": "Identifier",
+              "start": 79,
+              "end": 80,
+              "name": "a"            },
+            "alternate": {
+              "type": "ConditionalExpression",
+              "start": 83,
+              "end": 96,
+              "test": {
+                "type": "BinaryExpression",
+                "start": 83,
+                "end": 88,
+                "operator": ">",
+                "left": {
+                  "type": "Identifier",
+                  "start": 83,
+                  "end": 84,
+                  "name": "b"                },
+                "right": {
+                  "type": "Identifier",
+                  "start": 87,
+                  "end": 88,
+                  "name": "c"                }              },
+              "consequent": {
+                "type": "Identifier",
+                "start": 91,
+                "end": 92,
+                "name": "b"              },
+              "alternate": {
+                "type": "Identifier",
+                "start": 95,
+                "end": 96,
+                "name": "c"              }            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4696B reserved=16777216B ratio=0%
+Parse errors: 0

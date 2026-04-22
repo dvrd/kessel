@@ -1,0 +1,144 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 65,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 20,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 19,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "x"          },
+          "init": {
+            "type": "SequenceExpression",
+            "start": 11,
+            "end": 18,
+            "expressions": [
+              {
+                "type": "Literal",
+                "start": 11,
+                "end": 12,
+                "value": 1,
+                "raw": "1"              },
+              {
+                "type": "Literal",
+                "start": 14,
+                "end": 15,
+                "value": 2,
+                "raw": "2"              },
+              {
+                "type": "Literal",
+                "start": 17,
+                "end": 18,
+                "value": 3,
+                "raw": "3"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "ForStatement",
+      "start": 21,
+      "end": 64,
+      "init": {
+        "type": "VariableDeclaration",
+        "start": 26,
+        "end": 43,
+        "kind": "let",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 30,
+            "end": 35,
+            "id": {
+              "type": "Identifier",
+              "start": 30,
+              "end": 31,
+              "name": "i"            },
+            "init": {
+              "type": "Literal",
+              "start": 34,
+              "end": 35,
+              "value": 0,
+              "raw": "0"            }          },
+          {
+            "type": "VariableDeclarator",
+            "start": 37,
+            "end": 43,
+            "id": {
+              "type": "Identifier",
+              "start": 37,
+              "end": 38,
+              "name": "j"            },
+            "init": {
+              "type": "Literal",
+              "start": 41,
+              "end": 43,
+              "value": 10,
+              "raw": "10"            }          }
+        ]
+      },
+      "test": {
+        "type": "BinaryExpression",
+        "start": 45,
+        "end": 50,
+        "operator": "<",
+        "left": {
+          "type": "Identifier",
+          "start": 45,
+          "end": 46,
+          "name": "i"        },
+        "right": {
+          "type": "Identifier",
+          "start": 49,
+          "end": 50,
+          "name": "j"        }      },
+      "update": {
+        "type": "SequenceExpression",
+        "start": 52,
+        "end": 60,
+        "expressions": [
+          {
+            "type": "UpdateExpression",
+            "start": 52,
+            "end": 55,
+            "operator": "++",
+            "prefix": false,
+            "argument": {
+              "type": "Identifier",
+              "start": 52,
+              "end": 53,
+              "name": "i"            }          },
+          {
+            "type": "UpdateExpression",
+            "start": 57,
+            "end": 60,
+            "operator": "--",
+            "prefix": false,
+            "argument": {
+              "type": "Identifier",
+              "start": 57,
+              "end": 58,
+              "name": "j"            }          }
+        ]      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 62,
+        "end": 64,
+        "body": [
+        ]      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4744B reserved=16777216B ratio=0%
+Parse errors: 0

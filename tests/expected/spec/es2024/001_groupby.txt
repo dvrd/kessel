@@ -1,0 +1,246 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 188,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 129,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 128,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 11,
+            "name": "items"          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 14,
+            "end": 128,
+            "elements": [
+              {
+                "type": "ObjectExpression",
+                "start": 18,
+                "end": 50,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 20,
+                    "end": 33,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 20,
+                      "end": 24,
+                      "name": "type"                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 26,
+                      "end": 33,
+                      "value": "fruit",
+                      "raw": "\"fruit\""                    }
+                  },
+                  {
+                    "type": "Property",
+                    "start": 35,
+                    "end": 48,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 35,
+                      "end": 39,
+                      "name": "name"                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 41,
+                      "end": 48,
+                      "value": "apple",
+                      "raw": "\"apple\""                    }
+                  }
+                ]              },
+              {
+                "type": "ObjectExpression",
+                "start": 54,
+                "end": 88,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 56,
+                    "end": 70,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 56,
+                      "end": 60,
+                      "name": "type"                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 62,
+                      "end": 70,
+                      "value": "veggie",
+                      "raw": "\"veggie\""                    }
+                  },
+                  {
+                    "type": "Property",
+                    "start": 72,
+                    "end": 86,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 72,
+                      "end": 76,
+                      "name": "name"                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 78,
+                      "end": 86,
+                      "value": "carrot",
+                      "raw": "\"carrot\""                    }
+                  }
+                ]              },
+              {
+                "type": "ObjectExpression",
+                "start": 92,
+                "end": 125,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 94,
+                    "end": 107,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 94,
+                      "end": 98,
+                      "name": "type"                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 100,
+                      "end": 107,
+                      "value": "fruit",
+                      "raw": "\"fruit\""                    }
+                  },
+                  {
+                    "type": "Property",
+                    "start": 109,
+                    "end": 123,
+                    "kind": "init",
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 109,
+                      "end": 113,
+                      "name": "name"                    },
+                    "value": {
+                      "type": "Literal",
+                      "start": 115,
+                      "end": 123,
+                      "value": "banana",
+                      "raw": "\"banana\""                    }
+                  }
+                ]              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 130,
+      "end": 187,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 136,
+          "end": 186,
+          "id": {
+            "type": "Identifier",
+            "start": 136,
+            "end": 143,
+            "name": "grouped"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 146,
+            "end": 186,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 146,
+              "end": 160,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 146,
+                "end": 152,
+                "name": "Object"              },
+              "property": {
+                "type": "Identifier",
+                "start": 153,
+                "end": 160,
+                "name": "groupBy"              }            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 161,
+                "end": 166,
+                "name": "items"              },
+              {
+                "type": "ArrowFunctionExpression",
+                "start": 168,
+                "end": 185,
+                "id": null,
+                "expression": true,
+                "generator": false,
+                "async": false,
+                "params": [
+                  {
+                    "type": "Identifier",
+                    "start": 168,
+                    "end": 172,
+                    "name": "item"
+                  }
+                ],
+                "body": {
+                  "type": "MemberExpression",
+                  "start": 176,
+                  "end": 185,
+                  "computed": false,
+                  "object": {
+                    "type": "Identifier",
+                    "start": 176,
+                    "end": 180,
+                    "name": "item"                  },
+                  "property": {
+                    "type": "Identifier",
+                    "start": 181,
+                    "end": 185,
+                    "name": "type"                  }                }              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5448B reserved=16777216B ratio=0%
+Parse errors: 0

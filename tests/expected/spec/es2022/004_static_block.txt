@@ -1,0 +1,126 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 119,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 118,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 12,
+        "name": "Config"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 13,
+        "end": 118,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+            "start": 17,
+            "end": 30,
+                        "key": {
+              "type": "Identifier",
+              "start": 24,
+              "end": 29,
+              "name": "debug"
+            },
+            "value": null,
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "PropertyDefinition",
+            "start": 33,
+            "end": 48,
+                        "key": {
+              "type": "Identifier",
+              "start": 40,
+              "end": 47,
+              "name": "verbose"
+            },
+            "value": null,
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "StaticBlock",
+            "start": 51,
+            "end": 116,
+                        "body": [
+              {
+                "type": "ExpressionStatement",
+                "start": 64,
+                "end": 84,
+                "expression": {
+                  "type": "AssignmentExpression",
+                  "start": 64,
+                  "end": 83,
+                  "operator": "=",
+                  "left": {
+                    "type": "MemberExpression",
+                    "start": 64,
+                    "end": 76,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 64,
+                      "end": 70,
+                      "name": "Config"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 71,
+                      "end": 76,
+                      "name": "debug"                    }                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 79,
+                    "end": 83,
+                    "value": true,
+                    "raw": "true"                  }                }              },
+              {
+                "type": "ExpressionStatement",
+                "start": 89,
+                "end": 112,
+                "expression": {
+                  "type": "AssignmentExpression",
+                  "start": 89,
+                  "end": 111,
+                  "operator": "=",
+                  "left": {
+                    "type": "MemberExpression",
+                    "start": 89,
+                    "end": 103,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 89,
+                      "end": 95,
+                      "name": "Config"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 96,
+                      "end": 103,
+                      "name": "verbose"                    }                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 106,
+                    "end": 111,
+                    "value": false,
+                    "raw": "false"                  }                }              }
+            ]
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5224B reserved=16777216B ratio=0%
+Parse errors: 0

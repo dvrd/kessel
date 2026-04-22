@@ -1,0 +1,204 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 130,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 21,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 20,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 10,
+            "name": "name"          },
+          "init": {
+            "type": "Literal",
+            "start": 13,
+            "end": 20,
+            "value": "world",
+            "raw": "\"world\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 22,
+      "end": 50,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 28,
+          "end": 48,
+          "id": {
+            "type": "Identifier",
+            "start": 28,
+            "end": 31,
+            "name": "msg"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 35,
+            "end": 48,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 35,
+                "end": 41,
+                "tail": false,
+                "value": { "raw": "hello ", "cooked": "hello " }
+              },
+              {
+                "type": "TemplateElement",
+                "start": 48,
+                "end": 48,
+                "tail": true,
+                "value": { "raw": "", "cooked": "" }
+              }
+            ],
+            "expressions": [
+              {
+                "type": "Identifier",
+                "start": 43,
+                "end": 47,
+                "name": "name"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 51,
+      "end": 88,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 57,
+          "end": 86,
+          "id": {
+            "type": "Identifier",
+            "start": 57,
+            "end": 63,
+            "name": "nested"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 67,
+            "end": 86,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 67,
+                "end": 69,
+                "tail": false,
+                "value": { "raw": "a ", "cooked": "a " }
+              },
+              {
+                "type": "TemplateElement",
+                "start": 84,
+                "end": 86,
+                "tail": true,
+                "value": { "raw": " c", "cooked": " c" }
+              }
+            ],
+            "expressions": [
+              {
+                "type": "TemplateLiteral",
+                "start": 72,
+                "end": 82,
+                "quasis": [
+                  {
+                    "type": "TemplateElement",
+                    "start": 72,
+                    "end": 74,
+                    "tail": false,
+                    "value": { "raw": "b ", "cooked": "b " }
+                  },
+                  {
+                    "type": "TemplateElement",
+                    "start": 82,
+                    "end": 82,
+                    "tail": true,
+                    "value": { "raw": "", "cooked": "" }
+                  }
+                ],
+                "expressions": [
+                  {
+                    "type": "BinaryExpression",
+                    "start": 76,
+                    "end": 81,
+                    "operator": "+",
+                    "left": {
+                      "type": "Literal",
+                      "start": 76,
+                      "end": 77,
+                      "value": 1,
+                      "raw": "1"                    },
+                    "right": {
+                      "type": "Literal",
+                      "start": 80,
+                      "end": 81,
+                      "value": 2,
+                      "raw": "2"                    }                  }
+                ]              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 89,
+      "end": 129,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 95,
+          "end": 127,
+          "id": {
+            "type": "Identifier",
+            "start": 95,
+            "end": 101,
+            "name": "tagged"          },
+          "init": {
+            "type": "TaggedTemplateExpression",
+            "start": 104,
+            "end": 127,
+            "tag": {
+              "type": "MemberExpression",
+              "start": 104,
+              "end": 114,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 104,
+                "end": 110,
+                "name": "String"              },
+              "property": {
+                "type": "Identifier",
+                "start": 111,
+                "end": 114,
+                "name": "raw"              }            },
+            "quasi": {
+              "type": "TemplateLiteral",
+              "start": 115,
+              "end": 127,
+              "quasis": [
+                {
+                  "type": "TemplateElement",
+                  "start": 115,
+                  "end": 127,
+                  "tail": true,
+                  "value": { "raw": "line1\\nline2", "cooked": "line1\nline2" }
+                }
+              ],
+              "expressions": []            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5952B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -1,0 +1,117 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 90,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 30,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 29,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "big"          },
+          "init": {
+            "type": "Literal",
+            "start": 12,
+            "end": 29,
+            "value": null,
+            "raw": "9007199254740991n",
+            "bigint": "9007199254740991"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 31,
+      "end": 51,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 37,
+          "end": 50,
+          "id": {
+            "type": "Identifier",
+            "start": 37,
+            "end": 40,
+            "name": "sum"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 43,
+            "end": 50,
+            "operator": "+",
+            "left": {
+              "type": "Literal",
+              "start": 43,
+              "end": 45,
+              "value": null,
+              "raw": "1n",
+              "bigint": "1"            },
+            "right": {
+              "type": "Literal",
+              "start": 48,
+              "end": 50,
+              "value": null,
+              "raw": "2n",
+              "bigint": "2"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 52,
+      "end": 70,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 58,
+          "end": 69,
+          "id": {
+            "type": "Identifier",
+            "start": 58,
+            "end": 61,
+            "name": "hex"          },
+          "init": {
+            "type": "Literal",
+            "start": 64,
+            "end": 69,
+            "value": null,
+            "raw": "0xFFn",
+            "bigint": "255"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 71,
+      "end": 89,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 77,
+          "end": 88,
+          "id": {
+            "type": "Identifier",
+            "start": 77,
+            "end": 80,
+            "name": "oct"          },
+          "init": {
+            "type": "Literal",
+            "start": 83,
+            "end": 88,
+            "value": null,
+            "raw": "0o77n",
+            "bigint": "63"          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4776B reserved=16777216B ratio=0%
+Parse errors: 0

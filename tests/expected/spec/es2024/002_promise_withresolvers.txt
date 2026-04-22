@@ -1,0 +1,186 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 132,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 61,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 60,
+          "id": {
+            "type": "ObjectPattern",
+            "start": 6,
+            "end": 34,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 8,
+                "end": 15,
+                "shorthand": true,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 15,
+                  "name": "promise"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 15,
+                  "name": "promise"
+                }
+              },
+              {
+                "type": "Property",
+                "start": 17,
+                "end": 24,
+                "shorthand": true,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 17,
+                  "end": 24,
+                  "name": "resolve"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 17,
+                  "end": 24,
+                  "name": "resolve"
+                }
+              },
+              {
+                "type": "Property",
+                "start": 26,
+                "end": 32,
+                "shorthand": true,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 26,
+                  "end": 32,
+                  "name": "reject"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 26,
+                  "end": 32,
+                  "name": "reject"
+                }
+              }
+            ]          },
+          "init": {
+            "type": "CallExpression",
+            "start": 37,
+            "end": 60,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 37,
+              "end": 58,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 37,
+                "end": 44,
+                "name": "Promise"              },
+              "property": {
+                "type": "Identifier",
+                "start": 45,
+                "end": 58,
+                "name": "withResolvers"              }            },
+            "arguments": [
+            ]          }        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 62,
+      "end": 101,
+      "expression": {
+        "type": "CallExpression",
+        "start": 62,
+        "end": 100,
+        "callee": {
+          "type": "Identifier",
+          "start": 62,
+          "end": 72,
+          "name": "setTimeout"        },
+        "arguments": [
+          {
+            "type": "ArrowFunctionExpression",
+            "start": 73,
+            "end": 94,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "CallExpression",
+              "start": 79,
+              "end": 94,
+              "callee": {
+                "type": "Identifier",
+                "start": 79,
+                "end": 86,
+                "name": "resolve"              },
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "start": 87,
+                  "end": 93,
+                  "value": "done",
+                  "raw": "\"done\""                }
+              ]            }          },
+          {
+            "type": "Literal",
+            "start": 96,
+            "end": 99,
+            "value": 100,
+            "raw": "100"          }
+        ]      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 102,
+      "end": 131,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 108,
+          "end": 130,
+          "id": {
+            "type": "Identifier",
+            "start": 108,
+            "end": 114,
+            "name": "result"          },
+          "init": {
+            "type": "AwaitExpression",
+            "start": 117,
+            "end": 130,
+            "argument": {
+              "type": "Identifier",
+              "start": 123,
+              "end": 130,
+              "name": "promise"            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5256B reserved=16777216B ratio=0%
+Parse errors: 0

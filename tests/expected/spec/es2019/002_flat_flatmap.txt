@@ -1,0 +1,166 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 100,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 32,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 31,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 12,
+            "name": "nested"          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 15,
+            "end": 31,
+            "elements": [
+              {
+                "type": "ArrayExpression",
+                "start": 16,
+                "end": 22,
+                "elements": [
+                  {
+                    "type": "Literal",
+                    "start": 17,
+                    "end": 18,
+                    "value": 1,
+                    "raw": "1"                  },
+                  {
+                    "type": "Literal",
+                    "start": 20,
+                    "end": 21,
+                    "value": 2,
+                    "raw": "2"                  }
+                ]              },
+              {
+                "type": "ArrayExpression",
+                "start": 24,
+                "end": 30,
+                "elements": [
+                  {
+                    "type": "Literal",
+                    "start": 25,
+                    "end": 26,
+                    "value": 3,
+                    "raw": "3"                  },
+                  {
+                    "type": "Literal",
+                    "start": 28,
+                    "end": 29,
+                    "value": 4,
+                    "raw": "4"                  }
+                ]              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 33,
+      "end": 60,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 39,
+          "end": 59,
+          "id": {
+            "type": "Identifier",
+            "start": 39,
+            "end": 43,
+            "name": "flat"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 46,
+            "end": 59,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 46,
+              "end": 57,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 46,
+                "end": 52,
+                "name": "nested"              },
+              "property": {
+                "type": "Identifier",
+                "start": 53,
+                "end": 57,
+                "name": "flat"              }            },
+            "arguments": [
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 61,
+      "end": 99,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 67,
+          "end": 98,
+          "id": {
+            "type": "Identifier",
+            "start": 67,
+            "end": 73,
+            "name": "mapped"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 76,
+            "end": 98,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 76,
+              "end": 90,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 76,
+                "end": 82,
+                "name": "nested"              },
+              "property": {
+                "type": "Identifier",
+                "start": 83,
+                "end": 90,
+                "name": "flatMap"              }            },
+            "arguments": [
+              {
+                "type": "ArrowFunctionExpression",
+                "start": 91,
+                "end": 97,
+                "id": null,
+                "expression": true,
+                "generator": false,
+                "async": false,
+                "params": [
+                  {
+                    "type": "Identifier",
+                    "start": 91,
+                    "end": 92,
+                    "name": "x"
+                  }
+                ],
+                "body": {
+                  "type": "Identifier",
+                  "start": 96,
+                  "end": 97,
+                  "name": "x"                }              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5112B reserved=16777216B ratio=0%
+Parse errors: 0

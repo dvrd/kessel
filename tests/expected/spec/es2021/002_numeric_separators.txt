@@ -1,0 +1,123 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 129,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 26,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 25,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 13,
+            "name": "million"          },
+          "init": {
+            "type": "Literal",
+            "start": 16,
+            "end": 25,
+            "value": 1e+06,
+            "raw": "1_000_000"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 27,
+      "end": 49,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 33,
+          "end": 48,
+          "id": {
+            "type": "Identifier",
+            "start": 33,
+            "end": 38,
+            "name": "bytes"          },
+          "init": {
+            "type": "Literal",
+            "start": 41,
+            "end": 48,
+            "value": 65535,
+            "raw": "0xFF_FF"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 50,
+      "end": 75,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 56,
+          "end": 74,
+          "id": {
+            "type": "Identifier",
+            "start": 56,
+            "end": 60,
+            "name": "bits"          },
+          "init": {
+            "type": "Literal",
+            "start": 63,
+            "end": 74,
+            "value": 161,
+            "raw": "0b1010_0001"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 76,
+      "end": 100,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 82,
+          "end": 99,
+          "id": {
+            "type": "Identifier",
+            "start": 82,
+            "end": 87,
+            "name": "octal"          },
+          "init": {
+            "type": "Literal",
+            "start": 90,
+            "end": 99,
+            "value": 262143,
+            "raw": "0o777_777"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 101,
+      "end": 128,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 107,
+          "end": 127,
+          "id": {
+            "type": "Identifier",
+            "start": 107,
+            "end": 112,
+            "name": "float"          },
+          "init": {
+            "type": "Literal",
+            "start": 115,
+            "end": 127,
+            "value": 1234.56789,
+            "raw": "1_234.567_89"          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4856B reserved=16777216B ratio=0%
+Parse errors: 0

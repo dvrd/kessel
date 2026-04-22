@@ -1,0 +1,173 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 73,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 32,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 31,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "x"          },
+          "init": {
+            "type": "SequenceExpression",
+            "start": 11,
+            "end": 30,
+            "expressions": [
+              {
+                "type": "AssignmentExpression",
+                "start": 11,
+                "end": 16,
+                "operator": "=",
+                "left": {
+                  "type": "Identifier",
+                  "start": 11,
+                  "end": 12,
+                  "name": "a"                },
+                "right": {
+                  "type": "Literal",
+                  "start": 15,
+                  "end": 16,
+                  "value": 1,
+                  "raw": "1"                }              },
+              {
+                "type": "AssignmentExpression",
+                "start": 18,
+                "end": 23,
+                "operator": "=",
+                "left": {
+                  "type": "Identifier",
+                  "start": 18,
+                  "end": 19,
+                  "name": "b"                },
+                "right": {
+                  "type": "Literal",
+                  "start": 22,
+                  "end": 23,
+                  "value": 2,
+                  "raw": "2"                }              },
+              {
+                "type": "BinaryExpression",
+                "start": 25,
+                "end": 30,
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "start": 25,
+                  "end": 26,
+                  "name": "a"                },
+                "right": {
+                  "type": "Identifier",
+                  "start": 29,
+                  "end": 30,
+                  "name": "b"                }              }
+            ]          }        }
+      ]    },
+    {
+      "type": "ForStatement",
+      "start": 33,
+      "end": 72,
+      "init": {
+        "type": "SequenceExpression",
+        "start": 38,
+        "end": 51,
+        "expressions": [
+          {
+            "type": "AssignmentExpression",
+            "start": 38,
+            "end": 43,
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "start": 38,
+              "end": 39,
+              "name": "i"            },
+            "right": {
+              "type": "Literal",
+              "start": 42,
+              "end": 43,
+              "value": 0,
+              "raw": "0"            }          },
+          {
+            "type": "AssignmentExpression",
+            "start": 45,
+            "end": 51,
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "start": 45,
+              "end": 46,
+              "name": "j"            },
+            "right": {
+              "type": "Literal",
+              "start": 49,
+              "end": 51,
+              "value": 10,
+              "raw": "10"            }          }
+        ]      },
+      "test": {
+        "type": "BinaryExpression",
+        "start": 53,
+        "end": 58,
+        "operator": "<",
+        "left": {
+          "type": "Identifier",
+          "start": 53,
+          "end": 54,
+          "name": "i"        },
+        "right": {
+          "type": "Identifier",
+          "start": 57,
+          "end": 58,
+          "name": "j"        }      },
+      "update": {
+        "type": "SequenceExpression",
+        "start": 60,
+        "end": 68,
+        "expressions": [
+          {
+            "type": "UpdateExpression",
+            "start": 60,
+            "end": 63,
+            "operator": "++",
+            "prefix": false,
+            "argument": {
+              "type": "Identifier",
+              "start": 60,
+              "end": 61,
+              "name": "i"            }          },
+          {
+            "type": "UpdateExpression",
+            "start": 65,
+            "end": 68,
+            "operator": "--",
+            "prefix": false,
+            "argument": {
+              "type": "Identifier",
+              "start": 65,
+              "end": 66,
+              "name": "j"            }          }
+        ]      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 70,
+        "end": 72,
+        "body": [
+        ]      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4696B reserved=16777216B ratio=0%
+Parse errors: 0

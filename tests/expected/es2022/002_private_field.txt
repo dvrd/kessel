@@ -79,10 +79,10 @@
                         "start": 40,
                         "end": 44                      },
                       "property": {
-                        "type": "Identifier",
+                        "type": "PrivateIdentifier",
                         "start": 45,
                         "end": 47,
-                        "name": "#x"                      }                    }                  }
+                        "name": "x"                      }                    }                  }
                 ]
               }
             },

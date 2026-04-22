@@ -1,0 +1,149 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 93,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 20,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 19,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "key"          },
+          "init": {
+            "type": "Literal",
+            "start": 12,
+            "end": 19,
+            "value": "hello",
+            "raw": "\"hello\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 21,
+      "end": 92,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 27,
+          "end": 91,
+          "id": {
+            "type": "Identifier",
+            "start": 27,
+            "end": 30,
+            "name": "obj"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 33,
+            "end": 91,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 37,
+                "end": 45,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": true,
+                "key": {
+                  "type": "Identifier",
+                  "start": 38,
+                  "end": 41,
+                  "name": "key"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 44,
+                  "end": 45,
+                  "value": 1,
+                  "raw": "1"                }
+              },
+              {
+                "type": "Property",
+                "start": 49,
+                "end": 63,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": true,
+                "key": {
+                  "type": "BinaryExpression",
+                  "start": 50,
+                  "end": 59,
+                  "operator": "+",
+                  "left": {
+                    "type": "Literal",
+                    "start": 50,
+                    "end": 53,
+                    "value": "a",
+                    "raw": "\"a\""                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 56,
+                    "end": 59,
+                    "value": "b",
+                    "raw": "\"b\""                  }                },
+                "value": {
+                  "type": "Literal",
+                  "start": 62,
+                  "end": 63,
+                  "value": 2,
+                  "raw": "2"                }
+              },
+              {
+                "type": "Property",
+                "start": 67,
+                "end": 89,
+                "kind": "init",
+                "method": true,
+                "shorthand": false,
+                "computed": true,
+                "key": {
+                  "type": "MemberExpression",
+                  "start": 68,
+                  "end": 83,
+                  "computed": false,
+                  "object": {
+                    "type": "Identifier",
+                    "start": 68,
+                    "end": 74,
+                    "name": "Symbol"                  },
+                  "property": {
+                    "type": "Identifier",
+                    "start": 75,
+                    "end": 83,
+                    "name": "iterator"                  }                },
+                "value": {
+                  "type": "FunctionExpression",
+                  "start": 67,
+                  "end": 68,
+                  "id": null,
+                  "expression": false,
+                  "generator": false,
+                  "async": false,
+                  "params": [],
+                  "body": {
+                    "type": "BlockStatement",
+                    "start": 87,
+                    "end": 89,
+                    "body": [
+                    ]
+                  }                }
+              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5072B reserved=16777216B ratio=0%
+Parse errors: 0

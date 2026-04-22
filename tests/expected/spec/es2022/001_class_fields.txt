@@ -1,0 +1,126 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 89,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 88,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 13,
+        "name": "Counter"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 14,
+        "end": 88,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+            "start": 18,
+            "end": 28,
+                        "key": {
+              "type": "Identifier",
+              "start": 18,
+              "end": 23,
+              "name": "count"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 26,
+              "end": 27,
+              "value": 0,
+              "raw": "0"
+            },
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "PropertyDefinition",
+            "start": 31,
+            "end": 48,
+                        "key": {
+              "type": "Identifier",
+              "start": 31,
+              "end": 35,
+              "name": "name"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 38,
+              "end": 47,
+              "value": "counter",
+              "raw": "\"counter\""
+            },
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 51,
+            "end": 86,
+                        "key": {
+              "type": "Identifier",
+              "start": 51,
+              "end": 60,
+              "name": "increment"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 60,
+              "end": 86,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 63,
+                "end": 86,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 69,
+                    "end": 82,
+                    "expression": {
+                      "type": "UpdateExpression",
+                      "start": 69,
+                      "end": 81,
+                      "operator": "++",
+                      "prefix": false,
+                      "argument": {
+                        "type": "MemberExpression",
+                        "start": 69,
+                        "end": 79,
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression",
+                          "start": 69,
+                          "end": 73                        },
+                        "property": {
+                          "type": "Identifier",
+                          "start": 74,
+                          "end": 79,
+                          "name": "count"                        }                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5424B reserved=16777216B ratio=0%
+Parse errors: 0

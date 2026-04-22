@@ -1,0 +1,241 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 149,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 29,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 28,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "a"          },
+          "init": {
+            "type": "NewExpression",
+            "start": 10,
+            "end": 28,
+            "callee": {
+              "type": "Identifier",
+              "start": 14,
+              "end": 17,
+              "name": "Set"            },
+            "arguments": [
+              {
+                "type": "ArrayExpression",
+                "start": 18,
+                "end": 27,
+                "elements": [
+                  {
+                    "type": "Literal",
+                    "start": 19,
+                    "end": 20,
+                    "value": 1,
+                    "raw": "1"                  },
+                  {
+                    "type": "Literal",
+                    "start": 22,
+                    "end": 23,
+                    "value": 2,
+                    "raw": "2"                  },
+                  {
+                    "type": "Literal",
+                    "start": 25,
+                    "end": 26,
+                    "value": 3,
+                    "raw": "3"                  }
+                ]              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 30,
+      "end": 59,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 36,
+          "end": 58,
+          "id": {
+            "type": "Identifier",
+            "start": 36,
+            "end": 37,
+            "name": "b"          },
+          "init": {
+            "type": "NewExpression",
+            "start": 40,
+            "end": 58,
+            "callee": {
+              "type": "Identifier",
+              "start": 44,
+              "end": 47,
+              "name": "Set"            },
+            "arguments": [
+              {
+                "type": "ArrayExpression",
+                "start": 48,
+                "end": 57,
+                "elements": [
+                  {
+                    "type": "Literal",
+                    "start": 49,
+                    "end": 50,
+                    "value": 2,
+                    "raw": "2"                  },
+                  {
+                    "type": "Literal",
+                    "start": 52,
+                    "end": 53,
+                    "value": 3,
+                    "raw": "3"                  },
+                  {
+                    "type": "Literal",
+                    "start": 55,
+                    "end": 56,
+                    "value": 4,
+                    "raw": "4"                  }
+                ]              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 60,
+      "end": 85,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 66,
+          "end": 84,
+          "id": {
+            "type": "Identifier",
+            "start": 66,
+            "end": 71,
+            "name": "union"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 74,
+            "end": 84,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 74,
+              "end": 81,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 74,
+                "end": 75,
+                "name": "a"              },
+              "property": {
+                "type": "Identifier",
+                "start": 76,
+                "end": 81,
+                "name": "union"              }            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 82,
+                "end": 83,
+                "name": "b"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 86,
+      "end": 118,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 92,
+          "end": 117,
+          "id": {
+            "type": "Identifier",
+            "start": 92,
+            "end": 97,
+            "name": "inter"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 100,
+            "end": 117,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 100,
+              "end": 114,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 100,
+                "end": 101,
+                "name": "a"              },
+              "property": {
+                "type": "Identifier",
+                "start": 102,
+                "end": 114,
+                "name": "intersection"              }            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 115,
+                "end": 116,
+                "name": "b"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 119,
+      "end": 148,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 125,
+          "end": 147,
+          "id": {
+            "type": "Identifier",
+            "start": 125,
+            "end": 129,
+            "name": "diff"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 132,
+            "end": 147,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 132,
+              "end": 144,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 132,
+                "end": 133,
+                "name": "a"              },
+              "property": {
+                "type": "Identifier",
+                "start": 134,
+                "end": 144,
+                "name": "difference"              }            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 145,
+                "end": 146,
+                "name": "b"              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5144B reserved=16777216B ratio=0%
+Parse errors: 0

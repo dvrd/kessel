@@ -1,0 +1,195 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 123,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 28,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 27,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "add"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 12,
+            "end": 27,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "Identifier",
+                "start": 13,
+                "end": 14,
+                "name": "a"
+              },
+              {
+                "type": "Identifier",
+                "start": 16,
+                "end": 17,
+                "name": "b"
+              }
+            ],
+            "body": {
+              "type": "BinaryExpression",
+              "start": 22,
+              "end": 27,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 22,
+                "end": 23,
+                "name": "a"              },
+              "right": {
+                "type": "Identifier",
+                "start": 26,
+                "end": 27,
+                "name": "b"              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 29,
+      "end": 55,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 35,
+          "end": 54,
+          "id": {
+            "type": "Identifier",
+            "start": 35,
+            "end": 41,
+            "name": "square"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 44,
+            "end": 54,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "Identifier",
+                "start": 44,
+                "end": 45,
+                "name": "x"
+              }
+            ],
+            "body": {
+              "type": "BinaryExpression",
+              "start": 49,
+              "end": 54,
+              "operator": "*",
+              "left": {
+                "type": "Identifier",
+                "start": 49,
+                "end": 50,
+                "name": "x"              },
+              "right": {
+                "type": "Identifier",
+                "start": 53,
+                "end": 54,
+                "name": "x"              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 56,
+      "end": 84,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 62,
+          "end": 83,
+          "id": {
+            "type": "Identifier",
+            "start": 62,
+            "end": 67,
+            "name": "greet"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 70,
+            "end": 83,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "Literal",
+              "start": 76,
+              "end": 83,
+              "value": "hello",
+              "raw": "\"hello\""            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 85,
+      "end": 122,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 91,
+          "end": 121,
+          "id": {
+            "type": "Identifier",
+            "start": 91,
+            "end": 94,
+            "name": "obj"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 97,
+            "end": 121,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "ObjectExpression",
+              "start": 104,
+              "end": 120,
+              "properties": [
+                {
+                  "type": "Property",
+                  "start": 106,
+                  "end": 118,
+                  "kind": "init",
+                  "method": false,
+                  "shorthand": false,
+                  "computed": false,
+                  "key": {
+                    "type": "Identifier",
+                    "start": 106,
+                    "end": 109,
+                    "name": "key"                  },
+                  "value": {
+                    "type": "Literal",
+                    "start": 111,
+                    "end": 118,
+                    "value": "value",
+                    "raw": "\"value\""                  }
+                }
+              ]            }          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5704B reserved=16777216B ratio=0%
+Parse errors: 0

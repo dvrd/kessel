@@ -1,0 +1,188 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 118,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 117,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 12,
+        "name": "Logger"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 13,
+        "end": 117,
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "start": 17,
+            "end": 62,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 17,
+              "end": 24,
+              "name": "format"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 24,
+              "end": 62,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 25,
+                  "end": 28,
+                  "name": "msg"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 30,
+                "end": 62,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 36,
+                    "end": 58,
+                    "argument": {
+                      "type": "TemplateLiteral",
+                      "start": 44,
+                      "end": 56,
+                      "quasis": [
+                        {
+                          "type": "TemplateElement",
+                          "start": 44,
+                          "end": 50,
+                          "tail": false,
+                          "value": { "raw": "[LOG] ", "cooked": "[LOG] " }
+                        },
+                        {
+                          "type": "TemplateElement",
+                          "start": 56,
+                          "end": 56,
+                          "tail": true,
+                          "value": { "raw": "", "cooked": "" }
+                        }
+                      ],
+                      "expressions": [
+                        {
+                          "type": "Identifier",
+                          "start": 52,
+                          "end": 55,
+                          "name": "msg"                        }
+                      ]                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 65,
+            "end": 115,
+                        "key": {
+              "type": "Identifier",
+              "start": 65,
+              "end": 68,
+              "name": "log"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 68,
+              "end": 115,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 69,
+                  "end": 72,
+                  "name": "msg"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 74,
+                "end": 115,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 80,
+                    "end": 111,
+                    "expression": {
+                      "type": "CallExpression",
+                      "start": 80,
+                      "end": 110,
+                      "callee": {
+                        "type": "MemberExpression",
+                        "start": 80,
+                        "end": 91,
+                        "computed": false,
+                        "object": {
+                          "type": "Identifier",
+                          "start": 80,
+                          "end": 87,
+                          "name": "console"                        },
+                        "property": {
+                          "type": "Identifier",
+                          "start": 88,
+                          "end": 91,
+                          "name": "log"                        }                      },
+                      "arguments": [
+                        {
+                          "type": "CallExpression",
+                          "start": 92,
+                          "end": 109,
+                          "callee": {
+                            "type": "MemberExpression",
+                            "start": 92,
+                            "end": 104,
+                            "computed": false,
+                            "object": {
+                              "type": "ThisExpression",
+                              "start": 92,
+                              "end": 96                            },
+                            "property": {
+                              "type": "PrivateIdentifier",
+                              "start": 97,
+                              "end": 104,
+                              "name": "format"                            }                          },
+                          "arguments": [
+                            {
+                              "type": "Identifier",
+                              "start": 105,
+                              "end": 108,
+                              "name": "msg"                            }
+                          ]                        }
+                      ]                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6048B reserved=16777216B ratio=0%
+Parse errors: 0

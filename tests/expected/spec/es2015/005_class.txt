@@ -1,0 +1,319 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 236,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 235,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 12,
+        "name": "Animal"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 13,
+        "end": 235,
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "start": 17,
+            "end": 62,
+                        "key": {
+              "type": "Identifier",
+              "start": 17,
+              "end": 28,
+              "name": "constructor"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 28,
+              "end": 62,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 29,
+                  "end": 33,
+                  "name": "name"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 35,
+                "end": 62,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 41,
+                    "end": 58,
+                    "expression": {
+                      "type": "AssignmentExpression",
+                      "start": 41,
+                      "end": 57,
+                      "operator": "=",
+                      "left": {
+                        "type": "MemberExpression",
+                        "start": 41,
+                        "end": 50,
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression",
+                          "start": 41,
+                          "end": 45                        },
+                        "property": {
+                          "type": "Identifier",
+                          "start": 46,
+                          "end": 50,
+                          "name": "name"                        }                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 53,
+                        "end": 57,
+                        "name": "name"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "constructor",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 65,
+            "end": 100,
+                        "key": {
+              "type": "Identifier",
+              "start": 65,
+              "end": 70,
+              "name": "speak"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 70,
+              "end": 100,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 73,
+                "end": 100,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 79,
+                    "end": 96,
+                    "argument": {
+                      "type": "MemberExpression",
+                      "start": 86,
+                      "end": 95,
+                      "computed": false,
+                      "object": {
+                        "type": "ThisExpression",
+                        "start": 86,
+                        "end": 90                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 91,
+                        "end": 95,
+                        "name": "name"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 103,
+            "end": 142,
+                        "key": {
+              "type": "Identifier",
+              "start": 107,
+              "end": 112,
+              "name": "title"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 112,
+              "end": 142,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 115,
+                "end": 142,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 121,
+                    "end": 138,
+                    "argument": {
+                      "type": "MemberExpression",
+                      "start": 128,
+                      "end": 137,
+                      "computed": false,
+                      "object": {
+                        "type": "ThisExpression",
+                        "start": 128,
+                        "end": 132                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 133,
+                        "end": 137,
+                        "name": "name"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "get",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 145,
+            "end": 182,
+                        "key": {
+              "type": "Identifier",
+              "start": 149,
+              "end": 154,
+              "name": "title"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 154,
+              "end": 182,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 155,
+                  "end": 156,
+                  "name": "v"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 158,
+                "end": 182,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 164,
+                    "end": 178,
+                    "expression": {
+                      "type": "AssignmentExpression",
+                      "start": 164,
+                      "end": 177,
+                      "operator": "=",
+                      "left": {
+                        "type": "MemberExpression",
+                        "start": 164,
+                        "end": 173,
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression",
+                          "start": 164,
+                          "end": 168                        },
+                        "property": {
+                          "type": "Identifier",
+                          "start": 169,
+                          "end": 173,
+                          "name": "name"                        }                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 176,
+                        "end": 177,
+                        "name": "v"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "set",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 185,
+            "end": 233,
+                        "key": {
+              "type": "Identifier",
+              "start": 192,
+              "end": 198,
+              "name": "create"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 198,
+              "end": 233,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 199,
+                  "end": 200,
+                  "name": "n"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 202,
+                "end": 233,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 208,
+                    "end": 229,
+                    "argument": {
+                      "type": "NewExpression",
+                      "start": 215,
+                      "end": 228,
+                      "callee": {
+                        "type": "Identifier",
+                        "start": 219,
+                        "end": 225,
+                        "name": "Animal"                      },
+                      "arguments": [
+                        {
+                          "type": "Identifier",
+                          "start": 226,
+                          "end": 227,
+                          "name": "n"                        }
+                      ]                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": true
+          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7136B reserved=16777216B ratio=0%
+Parse errors: 0

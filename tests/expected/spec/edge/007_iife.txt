@@ -1,0 +1,155 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 109,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 29,
+      "expression": {
+        "type": "CallExpression",
+        "start": 0,
+        "end": 28,
+        "callee": {
+          "type": "FunctionExpression",
+          "start": 1,
+          "end": 25,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 12,
+            "end": 25,
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "start": 14,
+                "end": 23,
+                "argument": {
+                  "type": "Literal",
+                  "start": 21,
+                  "end": 22,
+                  "value": 1,
+                  "raw": "1"                }              }
+            ]
+          }        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 30,
+      "end": 65,
+      "expression": {
+        "type": "CallExpression",
+        "start": 30,
+        "end": 64,
+        "callee": {
+          "type": "FunctionExpression",
+          "start": 31,
+          "end": 61,
+          "id": {
+            "type": "Identifier",
+            "start": 40,
+            "end": 45,
+            "name": "named"
+          },
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 48,
+            "end": 61,
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "start": 50,
+                "end": 59,
+                "argument": {
+                  "type": "Literal",
+                  "start": 57,
+                  "end": 58,
+                  "value": 2,
+                  "raw": "2"                }              }
+            ]
+          }        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 66,
+      "end": 78,
+      "expression": {
+        "type": "CallExpression",
+        "start": 66,
+        "end": 77,
+        "callee": {
+          "type": "ArrowFunctionExpression",
+          "start": 67,
+          "end": 74,
+          "id": null,
+          "expression": true,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "Literal",
+            "start": 73,
+            "end": 74,
+            "value": 3,
+            "raw": "3"          }        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 79,
+      "end": 108,
+      "expression": {
+        "type": "CallExpression",
+        "start": 79,
+        "end": 107,
+        "callee": {
+          "type": "ArrowFunctionExpression",
+          "start": 80,
+          "end": 104,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": true,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 92,
+            "end": 104,
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "start": 94,
+                "end": 102,
+                "expression": {
+                  "type": "AwaitExpression",
+                  "start": 94,
+                  "end": 101,
+                  "argument": {
+                    "type": "Literal",
+                    "start": 100,
+                    "end": 101,
+                    "value": 4,
+                    "raw": "4"                  }                }              }
+            ]
+          }        },
+        "arguments": [
+        ]      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5488B reserved=16777216B ratio=0%
+Parse errors: 0

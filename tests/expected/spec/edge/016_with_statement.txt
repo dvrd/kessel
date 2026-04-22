@@ -1,0 +1,106 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 57,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "WithStatement",
+      "start": 0,
+      "end": 56,
+      "object": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 10,
+        "name": "Math"      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 12,
+        "end": 56,
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "start": 16,
+            "end": 54,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 22,
+                "end": 53,
+                "id": {
+                  "type": "Identifier",
+                  "start": 22,
+                  "end": 23,
+                  "name": "r"                },
+                "init": {
+                  "type": "CallExpression",
+                  "start": 26,
+                  "end": 53,
+                  "callee": {
+                    "type": "Identifier",
+                    "start": 26,
+                    "end": 30,
+                    "name": "sqrt"                  },
+                  "arguments": [
+                    {
+                      "type": "BinaryExpression",
+                      "start": 31,
+                      "end": 52,
+                      "operator": "+",
+                      "left": {
+                        "type": "CallExpression",
+                        "start": 31,
+                        "end": 40,
+                        "callee": {
+                          "type": "Identifier",
+                          "start": 31,
+                          "end": 34,
+                          "name": "pow"                        },
+                        "arguments": [
+                          {
+                            "type": "Literal",
+                            "start": 35,
+                            "end": 36,
+                            "value": 3,
+                            "raw": "3"                          },
+                          {
+                            "type": "Literal",
+                            "start": 38,
+                            "end": 39,
+                            "value": 2,
+                            "raw": "2"                          }
+                        ]                      },
+                      "right": {
+                        "type": "CallExpression",
+                        "start": 43,
+                        "end": 52,
+                        "callee": {
+                          "type": "Identifier",
+                          "start": 43,
+                          "end": 46,
+                          "name": "pow"                        },
+                        "arguments": [
+                          {
+                            "type": "Literal",
+                            "start": 47,
+                            "end": 48,
+                            "value": 4,
+                            "raw": "4"                          },
+                          {
+                            "type": "Literal",
+                            "start": 50,
+                            "end": 51,
+                            "value": 2,
+                            "raw": "2"                          }
+                        ]                      }                    }
+                  ]                }              }
+            ]          }
+        ]      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4696B reserved=16777216B ratio=0%
+Parse errors: 0

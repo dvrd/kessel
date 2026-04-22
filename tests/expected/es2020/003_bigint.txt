@@ -24,7 +24,7 @@
             "type": "Literal",
             "start": 10,
             "end": 14,
-            "value": "123n",
+            "value": null,
             "raw": "123n",
             "bigint": "123"          }        }
       ]    },
@@ -47,9 +47,9 @@
             "type": "Literal",
             "start": 26,
             "end": 31,
-            "value": "0xFFn",
+            "value": null,
             "raw": "0xFFn",
-            "bigint": "0xFF"          }        }
+            "bigint": "255"          }        }
       ]    },
     {
       "type": "VariableDeclaration",

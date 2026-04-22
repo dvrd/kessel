@@ -1,0 +1,114 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 72,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 28,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 27,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "url"          },
+          "init": {
+            "type": "MemberExpression",
+            "start": 12,
+            "end": 27,
+            "computed": false,
+            "object": {
+              "type": "MetaProperty",
+              "start": 12,
+              "end": 23,
+              "meta": {
+                "type": "Identifier",
+                "start": 12,
+                "end": 18,
+                "name": "import"
+              },
+              "property": {
+                "type": "Identifier",
+                "start": 19,
+                "end": 23,
+                "name": "meta"
+              }            },
+            "property": {
+              "type": "Identifier",
+              "start": 24,
+              "end": 27,
+              "name": "url"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 29,
+      "end": 71,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 35,
+          "end": 70,
+          "id": {
+            "type": "Identifier",
+            "start": 35,
+            "end": 38,
+            "name": "dir"          },
+          "init": {
+            "type": "NewExpression",
+            "start": 41,
+            "end": 70,
+            "callee": {
+              "type": "Identifier",
+              "start": 45,
+              "end": 48,
+              "name": "URL"            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 49,
+                "end": 52,
+                "value": ".",
+                "raw": "\".\""              },
+              {
+                "type": "MemberExpression",
+                "start": 54,
+                "end": 69,
+                "computed": false,
+                "object": {
+                  "type": "MetaProperty",
+                  "start": 54,
+                  "end": 65,
+                  "meta": {
+                    "type": "Identifier",
+                    "start": 54,
+                    "end": 60,
+                    "name": "import"
+                  },
+                  "property": {
+                    "type": "Identifier",
+                    "start": 61,
+                    "end": 65,
+                    "name": "meta"
+                  }                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 66,
+                  "end": 69,
+                  "name": "url"                }              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=4648B reserved=16777216B ratio=0%
+Parse errors: 0

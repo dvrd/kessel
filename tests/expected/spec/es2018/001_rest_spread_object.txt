@@ -1,0 +1,222 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 105,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 44,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 43,
+          "id": {
+            "type": "ObjectPattern",
+            "start": 6,
+            "end": 20,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 8,
+                "end": 9,
+                "shorthand": true,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 9,
+                  "name": "a"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 9,
+                  "name": "a"
+                }
+              },
+              {
+                "type": "RestElement",
+                "start": 11,
+                "end": 18,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 14,
+                  "end": 18,
+                  "name": "rest"
+                }
+              }
+            ]          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 23,
+            "end": 43,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 25,
+                "end": 29,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 25,
+                  "end": 26,
+                  "name": "a"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 28,
+                  "end": 29,
+                  "value": 1,
+                  "raw": "1"                }
+              },
+              {
+                "type": "Property",
+                "start": 31,
+                "end": 35,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 31,
+                  "end": 32,
+                  "name": "b"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 34,
+                  "end": 35,
+                  "value": 2,
+                  "raw": "2"                }
+              },
+              {
+                "type": "Property",
+                "start": 37,
+                "end": 41,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 37,
+                  "end": 38,
+                  "name": "c"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 40,
+                  "end": 41,
+                  "value": 3,
+                  "raw": "3"                }
+              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 45,
+      "end": 70,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 51,
+          "end": 69,
+          "id": {
+            "type": "Identifier",
+            "start": 51,
+            "end": 55,
+            "name": "copy"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 58,
+            "end": 69,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 60,
+                "end": 67,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": null,
+                "value": {
+                  "type": "Identifier",
+                  "start": 63,
+                  "end": 67,
+                  "name": "rest"                }
+              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 71,
+      "end": 104,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 77,
+          "end": 103,
+          "id": {
+            "type": "Identifier",
+            "start": 77,
+            "end": 83,
+            "name": "merged"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 86,
+            "end": 103,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 88,
+                "end": 95,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": null,
+                "value": {
+                  "type": "Identifier",
+                  "start": 91,
+                  "end": 95,
+                  "name": "rest"                }
+              },
+              {
+                "type": "Property",
+                "start": 97,
+                "end": 101,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 97,
+                  "end": 98,
+                  "name": "d"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 100,
+                  "end": 101,
+                  "value": 4,
+                  "raw": "4"                }
+              }
+            ]          }        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5624B reserved=16777216B ratio=0%
+Parse errors: 0

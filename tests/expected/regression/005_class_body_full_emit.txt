@@ -300,10 +300,10 @@
                         "start": 954,
                         "end": 958                      },
                       "property": {
-                        "type": "Identifier",
+                        "type": "PrivateIdentifier",
                         "start": 959,
                         "end": 967,
-                        "name": "#private"                      }                    }                  }
+                        "name": "private"                      }                    }                  }
                 ]
               }
             },
@@ -361,10 +361,10 @@
                           "start": 997,
                           "end": 1001                        },
                         "property": {
-                          "type": "Identifier",
+                          "type": "PrivateIdentifier",
                           "start": 1002,
                           "end": 1010,
-                          "name": "#private"                        }                      },
+                          "name": "private"                        }                      },
                       "right": {
                         "type": "Identifier",
                         "start": 1013,
@@ -594,10 +594,10 @@
                         "start": 1300,
                         "end": 1304                      },
                       "property": {
-                        "type": "Identifier",
+                        "type": "PrivateIdentifier",
                         "start": 1305,
                         "end": 1313,
-                        "name": "#private"                      }                    }                  }
+                        "name": "private"                      }                    }                  }
                 ]
               }
             },

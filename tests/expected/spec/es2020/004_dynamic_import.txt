@@ -1,0 +1,111 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 96,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 95,
+      "id": {
+        "type": "Identifier",
+        "start": 15,
+        "end": 19,
+        "name": "load"
+      },
+      "expression": false,
+      "generator": false,
+      "async": true,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 20,
+          "end": 24,
+          "name": "name"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 26,
+        "end": 95,
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "start": 30,
+            "end": 71,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 36,
+                "end": 70,
+                "id": {
+                  "type": "Identifier",
+                  "start": 36,
+                  "end": 39,
+                  "name": "mod"                },
+                "init": {
+                  "type": "AwaitExpression",
+                  "start": 42,
+                  "end": 70,
+                  "argument": {
+                    "type": "ImportExpression",
+                    "start": 48,
+                    "end": 70,
+                    "source": {
+                      "type": "TemplateLiteral",
+                      "start": 56,
+                      "end": 68,
+                      "quasis": [
+                        {
+                          "type": "TemplateElement",
+                          "start": 56,
+                          "end": 58,
+                          "tail": false,
+                          "value": { "raw": "./", "cooked": "./" }
+                        },
+                        {
+                          "type": "TemplateElement",
+                          "start": 65,
+                          "end": 68,
+                          "tail": true,
+                          "value": { "raw": ".js", "cooked": ".js" }
+                        }
+                      ],
+                      "expressions": [
+                        {
+                          "type": "Identifier",
+                          "start": 60,
+                          "end": 64,
+                          "name": "name"                        }
+                      ]                    }                  }                }              }
+            ]          },
+          {
+            "type": "ReturnStatement",
+            "start": 74,
+            "end": 93,
+            "argument": {
+              "type": "MemberExpression",
+              "start": 81,
+              "end": 92,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 81,
+                "end": 84,
+                "name": "mod"              },
+              "property": {
+                "type": "Identifier",
+                "start": 85,
+                "end": 92,
+                "name": "default"              }            }          }
+        ]
+      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5096B reserved=16777216B ratio=0%
+Parse errors: 0

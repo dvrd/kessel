@@ -104,10 +104,10 @@
                           "start": 56,
                           "end": 60                        },
                         "property": {
-                          "type": "Identifier",
+                          "type": "PrivateIdentifier",
                           "start": 61,
                           "end": 68,
-                          "name": "#method"                        }                      },
+                          "name": "method"                        }                      },
                       "arguments": [
                       ]                    }                  }
                 ]

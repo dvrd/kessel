@@ -1,0 +1,173 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 153,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "SwitchStatement",
+      "start": 0,
+      "end": 152,
+      "discriminant": {
+        "type": "Identifier",
+        "start": 8,
+        "end": 9,
+        "name": "x"      },
+      "cases": [
+        {
+          "type": "SwitchCase",
+          "start": 15,
+          "end": 22,
+          "test": {
+            "type": "Literal",
+            "start": 20,
+            "end": 21,
+            "value": 1,
+            "raw": "1"          },
+          "consequent": []
+        },
+        {
+          "type": "SwitchCase",
+          "start": 25,
+          "end": 70,
+          "test": {
+            "type": "Literal",
+            "start": 30,
+            "end": 31,
+            "value": 2,
+            "raw": "2"          },
+          "consequent": [
+            {
+              "type": "ExpressionStatement",
+              "start": 37,
+              "end": 59,
+              "expression": {
+                "type": "CallExpression",
+                "start": 37,
+                "end": 58,
+                "callee": {
+                  "type": "MemberExpression",
+                  "start": 37,
+                  "end": 48,
+                  "computed": false,
+                  "object": {
+                    "type": "Identifier",
+                    "start": 37,
+                    "end": 44,
+                    "name": "console"                  },
+                  "property": {
+                    "type": "Identifier",
+                    "start": 45,
+                    "end": 48,
+                    "name": "log"                  }                },
+                "arguments": [
+                  {
+                    "type": "Literal",
+                    "start": 49,
+                    "end": 57,
+                    "value": "1 or 2",
+                    "raw": "\"1 or 2\""                  }
+                ]              }            },
+            {
+              "type": "BreakStatement",
+              "start": 64,
+              "end": 70,
+              "label": null            }
+          ]
+        },
+        {
+          "type": "SwitchCase",
+          "start": 73,
+          "end": 113,
+          "test": {
+            "type": "Literal",
+            "start": 78,
+            "end": 79,
+            "value": 3,
+            "raw": "3"          },
+          "consequent": [
+            {
+              "type": "ExpressionStatement",
+              "start": 85,
+              "end": 102,
+              "expression": {
+                "type": "CallExpression",
+                "start": 85,
+                "end": 101,
+                "callee": {
+                  "type": "MemberExpression",
+                  "start": 85,
+                  "end": 96,
+                  "computed": false,
+                  "object": {
+                    "type": "Identifier",
+                    "start": 85,
+                    "end": 92,
+                    "name": "console"                  },
+                  "property": {
+                    "type": "Identifier",
+                    "start": 93,
+                    "end": 96,
+                    "name": "log"                  }                },
+                "arguments": [
+                  {
+                    "type": "Literal",
+                    "start": 97,
+                    "end": 100,
+                    "value": "3",
+                    "raw": "\"3\""                  }
+                ]              }            },
+            {
+              "type": "BreakStatement",
+              "start": 107,
+              "end": 113,
+              "label": null            }
+          ]
+        },
+        {
+          "type": "SwitchCase",
+          "start": 116,
+          "end": 150,
+          "test": null,
+          "consequent": [
+            {
+              "type": "ExpressionStatement",
+              "start": 129,
+              "end": 150,
+              "expression": {
+                "type": "CallExpression",
+                "start": 129,
+                "end": 149,
+                "callee": {
+                  "type": "MemberExpression",
+                  "start": 129,
+                  "end": 140,
+                  "computed": false,
+                  "object": {
+                    "type": "Identifier",
+                    "start": 129,
+                    "end": 136,
+                    "name": "console"                  },
+                  "property": {
+                    "type": "Identifier",
+                    "start": 137,
+                    "end": 140,
+                    "name": "log"                  }                },
+                "arguments": [
+                  {
+                    "type": "Literal",
+                    "start": 141,
+                    "end": 148,
+                    "value": "other",
+                    "raw": "\"other\""                  }
+                ]              }            }
+          ]
+        }
+      ]    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5704B reserved=16777216B ratio=0%
+Parse errors: 0

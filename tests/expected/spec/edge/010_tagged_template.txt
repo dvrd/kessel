@@ -1,0 +1,164 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 114,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 52,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 12,
+        "name": "tag"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 13,
+          "end": 20,
+          "name": "strings"
+        },
+        {
+          "type": "RestElement",
+          "start": 22,
+          "end": 31,
+          "argument": {
+            "type": "Identifier",
+            "start": 25,
+            "end": 31,
+            "name": "values"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 33,
+        "end": 52,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 35,
+            "end": 50,
+            "argument": {
+              "type": "Identifier",
+              "start": 42,
+              "end": 49,
+              "name": "strings"            }          }
+        ]
+      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 53,
+      "end": 95,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 59,
+          "end": 93,
+          "id": {
+            "type": "Identifier",
+            "start": 59,
+            "end": 65,
+            "name": "result"          },
+          "init": {
+            "type": "TaggedTemplateExpression",
+            "start": 68,
+            "end": 93,
+            "tag": {
+              "type": "Identifier",
+              "start": 68,
+              "end": 71,
+              "name": "tag"            },
+            "quasi": {
+              "type": "TemplateLiteral",
+              "start": 72,
+              "end": 93,
+              "quasis": [
+                {
+                  "type": "TemplateElement",
+                  "start": 72,
+                  "end": 78,
+                  "tail": false,
+                  "value": { "raw": "hello ", "cooked": "hello " }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 82,
+                  "end": 89,
+                  "tail": false,
+                  "value": { "raw": " world ", "cooked": " world " }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 93,
+                  "end": 93,
+                  "tail": true,
+                  "value": { "raw": "", "cooked": "" }
+                }
+              ],
+              "expressions": [
+                {
+                  "type": "Literal",
+                  "start": 80,
+                  "end": 81,
+                  "value": 1,
+                  "raw": "1"                },
+                {
+                  "type": "Literal",
+                  "start": 91,
+                  "end": 92,
+                  "value": 2,
+                  "raw": "2"                }
+              ]            }          }        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 96,
+      "end": 113,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 96,
+        "end": 111,
+        "tag": {
+          "type": "MemberExpression",
+          "start": 96,
+          "end": 106,
+          "computed": false,
+          "object": {
+            "type": "Identifier",
+            "start": 96,
+            "end": 102,
+            "name": "String"          },
+          "property": {
+            "type": "Identifier",
+            "start": 103,
+            "end": 106,
+            "name": "raw"          }        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 107,
+          "end": 111,
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 107,
+              "end": 111,
+              "tail": true,
+              "value": { "raw": "\\n\\t", "cooked": "\n\t" }
+            }
+          ],
+          "expressions": []        }      }    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=5392B reserved=16777216B ratio=0%
+Parse errors: 0

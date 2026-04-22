@@ -3098,10 +3098,20 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			member, member_e := new_expr(p, MemberExpression)
 			member.loc = loc_from_expr(expr)
 			member.object = expr
-			id, id_e := new_expr(p, Identifier)
-			id.loc = prop.loc
-			id.name = prop.name
-			member.property = id_e
+			// Check if this is a private identifier (starts with #)
+			if len(prop.name) > 0 && prop.name[0] == '#' {
+				// Create PrivateIdentifier, strip the # prefix
+				pid, pid_e := new_expr(p, PrivateIdentifier)
+				pid.loc = prop.loc
+				pid.name = prop.name[1:]
+				member.property = pid_e
+			} else {
+				// Create regular Identifier
+				id, id_e := new_expr(p, Identifier)
+				id.loc = prop.loc
+				id.name = prop.name
+				member.property = id_e
+			}
 			member.computed = false
 			member.optional = false
 			member.loc.span.end = prev_end_offset(p)
@@ -3116,10 +3126,20 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				member := new_node(p, MemberExpression)
 				member.loc = loc_from_expr(expr)
 				member.object = expr
-				ident := new_node(p, Identifier)
-				ident.loc = prop.loc
-				ident.name = prop.name
-				member.property = expression_from(p, ident)
+				// Check if this is a private identifier (starts with #)
+				if len(prop.name) > 0 && prop.name[0] == '#' {
+					// Create PrivateIdentifier, strip the # prefix
+					pid := new_node(p, PrivateIdentifier)
+					pid.loc = prop.loc
+					pid.name = prop.name[1:]
+					member.property = expression_from(p, pid)
+				} else {
+					// Create regular Identifier
+					ident := new_node(p, Identifier)
+					ident.loc = prop.loc
+					ident.name = prop.name
+					member.property = expression_from(p, ident)
+				}
 				member.computed = false
 				member.optional = true
 				member.loc.span.end = prev_end_offset(p)
