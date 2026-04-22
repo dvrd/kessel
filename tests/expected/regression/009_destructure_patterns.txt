@@ -199,6 +199,8 @@
                 "end": 1190,
                 "shorthand": true,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 1189,
@@ -261,6 +263,8 @@
                 "end": 1251,
                 "shorthand": true,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 1250,
@@ -315,6 +319,8 @@
                 "end": 1329,
                 "shorthand": false,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 1328,
@@ -369,6 +375,8 @@
                 "end": 1402,
                 "shorthand": true,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 1401,
@@ -462,6 +470,8 @@
                 "end": 1464,
                 "shorthand": false,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 1463,
@@ -549,6 +559,8 @@
                 "end": 1530,
                 "shorthand": false,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 1529,
@@ -566,6 +578,8 @@
                       "end": 1536,
                       "shorthand": true,
                       "computed": false,
+                      "kind": "init",
+                      "method": false,
                       "key": {
                         "type": "Identifier",
                         "start": 1534,
@@ -655,6 +669,8 @@
               "end": 1679,
               "shorthand": true,
               "computed": false,
+              "kind": "init",
+              "method": false,
               "key": {
                 "type": "Identifier",
                 "start": 1678,
@@ -686,6 +702,8 @@
               "end": 1686,
               "shorthand": false,
               "computed": false,
+              "kind": "init",
+              "method": false,
               "key": {
                 "type": "Identifier",
                 "start": 1685,

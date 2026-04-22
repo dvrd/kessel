@@ -314,6 +314,8 @@
                             "end": 347,
                             "shorthand": true,
                             "computed": false,
+                            "kind": "init",
+                            "method": false,
                             "key": {
                               "type": "Identifier",
                               "start": 343,
@@ -333,6 +335,8 @@
                             "end": 354,
                             "shorthand": true,
                             "computed": false,
+                            "kind": "init",
+                            "method": false,
                             "key": {
                               "type": "Identifier",
                               "start": 349,

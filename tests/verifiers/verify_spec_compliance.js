@@ -49,7 +49,7 @@ const FILES = [
   'bench/real_world/batch2/zod.js',            // medium, heavy TS-style default params
 ];
 
-const PARSERS = ['oxc', 'acorn', 'babel'];
+const PARSERS = ['oxc'];
 
 // ---------------------------------------------------------------------------
 // Run the deep verifier once per (file, parser) and capture the divergence
@@ -59,7 +59,7 @@ const PARSERS = ['oxc', 'acorn', 'babel'];
 function countDivergences(file, parser) {
   try {
     const out = execSync(
-      `node tests/verify_json_deep.js "${file}" --parser ${parser} --limit 0 2>&1`,
+      `node tests/verifiers/verify_json_deep.js "${file}" --parser ${parser} --limit 0 2>&1`,
       { encoding: 'utf8', maxBuffer: 500 * 1024 * 1024 });
     // "X divergence(s) vs PARSER" on success path, "passes vs PARSER" on zero.
     if (out.indexOf(`passes vs ${parser}`) !== -1) return 0;

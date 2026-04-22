@@ -220,6 +220,8 @@
                         "end": 248,
                         "shorthand": true,
                         "computed": false,
+                        "kind": "init",
+                        "method": false,
                         "key": {
                           "type": "Identifier",
                           "start": 242,
@@ -251,6 +253,8 @@
                         "end": 262,
                         "shorthand": true,
                         "computed": false,
+                        "kind": "init",
+                        "method": false,
                         "key": {
                           "type": "Identifier",
                           "start": 258,
@@ -270,6 +274,8 @@
                         "end": 270,
                         "shorthand": true,
                         "computed": false,
+                        "kind": "init",
+                        "method": false,
                         "key": {
                           "type": "Identifier",
                           "start": 264,

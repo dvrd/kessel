@@ -98,7 +98,12 @@
                 "type": "BreakStatement",
                 "start": 52,
                 "end": 63,
-                "label": null              },
+                "label": {
+                  "type": "Identifier",
+                  "start": 58,
+                  "end": 62,
+                  "name": "loop"
+                }              },
               "alternate": null            }
           ]        }      }    }
   ]

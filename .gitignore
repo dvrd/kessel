@@ -3,6 +3,8 @@ tmp/
 _archive/
 bench/
 *.dSYM/
-.task/
+
+# AI
 AGENTS.md
+.task/
 .firecrawl/

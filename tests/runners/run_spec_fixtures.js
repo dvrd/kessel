@@ -69,7 +69,7 @@ function check(fix) {
   // files are tolerated via tests/verify_spec_compliance.js baselines;
   // fixtures are the clean ones.
   try {
-    execSync(`node tests/verify_json_deep.js "${fix.file}" --parser oxc --limit 0`,
+    execSync(`node tests/verifiers/verify_json_deep.js "${fix.file}" --parser oxc --limit 0`,
       { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, stdio: 'pipe' });
     return { ok: true };
   } catch (e) {

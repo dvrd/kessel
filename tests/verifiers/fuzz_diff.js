@@ -142,7 +142,7 @@ for (let i = 0; i < COUNT; i++) {
   let stdout = '';
   let stderr = '';
   try {
-    stdout = execSync('node tests/verify_json_deep.js "' + srcPath + '" --parser ' + PARSER + ' --limit 3',
+    stdout = execSync('node tests/verifiers/verify_json_deep.js "' + srcPath + '" --parser ' + PARSER + ' --limit 3',
       { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
     ok = stdout.indexOf('passes vs ' + PARSER) !== -1;
   } catch (e) {

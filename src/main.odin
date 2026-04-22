@@ -2357,12 +2357,38 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	case ^BreakStatement:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"label\": null")
+		if label, ok := s.label.(LabelIdentifier); ok {
+			out_println("\"label\": {")
+			print_indent(indent + 1)
+			out_s("\"type\": \"Identifier\",\n")
+			print_indent(indent + 1)
+			emit_span_leading(label.loc, indent + 1)
+			out_s("\"name\": ")
+			out_string(label.name)
+			out_s("\n")
+			print_indent(indent)
+			out_print("}")
+		} else {
+			out_print("\"label\": null")
+		}
 
 	case ^ContinueStatement:
 		out_println(",")
 		print_indent(indent)
-		out_print("\"label\": null")
+		if label, ok := s.label.(LabelIdentifier); ok {
+			out_println("\"label\": {")
+			print_indent(indent + 1)
+			out_s("\"type\": \"Identifier\",\n")
+			print_indent(indent + 1)
+			emit_span_leading(label.loc, indent + 1)
+			out_s("\"name\": ")
+			out_string(label.name)
+			out_s("\n")
+			print_indent(indent)
+			out_print("}")
+		} else {
+			out_print("\"label\": null")
+		}
 
 	case ^LabeledStatement:
 		out_println(",")
@@ -2526,6 +2552,10 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				out_s("\"computed\": ")
 				out_bool(prop.computed)
 				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"kind\": \"init\",\n")
+				print_indent(indent + 2)
+				out_s("\"method\": false,\n")
 				// key: ObjectPatternPropertyKey is a union of IdentifierName,
 				// ^StringLiteral, or ^Expression (for computed). Previously omitted
 				// entirely — OXC emits the key as an Identifier/Literal/Expression
@@ -3287,12 +3317,18 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			out_s("\n")
 			print_indent(indent)
 			out_s("},\n")
+		} else {
+			print_indent(indent)
+			out_s("\"id\": null,\n")
 		}
 		if super, ok := e.super_class.(^Expression); ok && super != nil {
 			out_s("\"superClass\": {\n")
 			print_expression_ast(super, indent + 1)
 			print_indent(indent)
 			out_s("},\n")
+		} else {
+			print_indent(indent)
+			out_s("\"superClass\": null,\n")
 		}
 		// ClassBody.body is a [dynamic]ClassElement. Delegate the full emit to
 		// print_class_body_inline, which mirrors the ClassDeclaration path.

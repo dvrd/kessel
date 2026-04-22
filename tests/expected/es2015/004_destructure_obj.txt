@@ -26,6 +26,8 @@
                 "end": 8,
                 "shorthand": true,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 7,
@@ -45,6 +47,8 @@
                 "end": 11,
                 "shorthand": true,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 10,
@@ -127,6 +131,8 @@
                 "end": 37,
                 "shorthand": false,
                 "computed": false,
+                "kind": "init",
+                "method": false,
                 "key": {
                   "type": "Identifier",
                   "start": 36,
