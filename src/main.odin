@@ -2761,6 +2761,16 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		// `{"type":"Super","[UNIMPLEMENTED]":true}` — invalid JSON-drift against
 		// OXC, which emits plain `{"type":"Super"}`.
 
+
+	case ^ChainExpression:
+		out_s(",\n")
+		print_indent(indent)
+		emit_span_leading(e.loc, indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		print_indent(indent)
+		out_s("}")
+
 	case ^ArrayExpression:
 		out_s(",\n")
 		print_indent(indent)
@@ -2908,7 +2918,122 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("\",\n")
 		print_indent(indent)
 		out_s("\"left\": {\n")
-		print_expression_ast(e.left, indent + 1)
+		if e.operator == .Assign {
+			if ae, ok := e.left^.(^ArrayExpression); ok {
+				// Emit as ArrayPattern for destructuring assignment
+				print_indent(indent + 1)
+				out_s("\"type\": \"ArrayPattern\",\n")
+				print_indent(indent + 1)
+				emit_span_leading(ae.loc, indent + 1)
+				out_s("\"elements\": [\n")
+				for elem, i in ae.elements {
+					if el, ok := elem.(^Expression); ok {
+						print_indent(indent + 2)
+						out_s("{\n")
+						// Check if this is a SpreadElement that should be converted to RestElement in pattern context
+						if se, ok := el^.(^SpreadElement); ok {
+							print_indent(indent + 3)
+							out_s("\"type\": \"RestElement\",\n")
+							print_indent(indent + 3)
+							emit_span_leading(se.loc, indent + 3)
+							out_s("\"argument\": {\n")
+							print_expression_ast(se.argument, indent + 4)
+							print_indent(indent + 3)
+							out_s("}\n")
+						} else {
+							print_expression_ast(el, indent + 3)
+						}
+						print_indent(indent + 2)
+						if i < len(ae.elements) - 1 {
+							out_s("},\n")
+						} else {
+							out_s("}\n")
+						}
+					} else {
+						print_indent(indent + 2)
+						if i < len(ae.elements) - 1 {
+							out_s("null,\n")
+						} else {
+							out_s("null\n")
+						}
+					}
+				}
+				print_indent(indent + 1)
+				out_s("]")
+			} else if oe, ok := e.left^.(^ObjectExpression); ok {
+				// Emit as ObjectPattern for destructuring assignment
+				print_indent(indent + 1)
+				out_s("\"type\": \"ObjectPattern\",\n")
+				print_indent(indent + 1)
+				emit_span_leading(oe.loc, indent + 1)
+				out_s("\"properties\": [\n")
+				for prop, i in oe.properties {
+					print_indent(indent + 2)
+					out_s("{\n")
+					if prop.key == nil && prop.value != nil {
+						if _, is_spread := prop.value^.(^SpreadElement); is_spread {
+							print_indent(indent + 3)
+							out_s("\"type\": \"RestElement\",\n")
+							print_indent(indent + 3)
+							emit_span_leading(prop.loc, indent + 3)
+							if se, ok := prop.value.(^SpreadElement); ok {
+								out_s("\"argument\": {\n")
+								print_expression_ast(se.argument, indent + 4)
+								print_indent(indent + 3)
+								out_s("}\n")
+							}
+						} else {
+							print_expression_ast(prop.value, indent + 3)
+						}
+					} else {
+						print_indent(indent + 3)
+						out_s("\"type\": \"Property\",\n")
+						print_indent(indent + 3)
+						emit_span_leading(prop.loc, indent + 3)
+						out_s("\"shorthand\": ")
+						out_bool(prop.shorthand)
+						out_s(",\n")
+						print_indent(indent + 3)
+						out_s("\"computed\": ")
+						out_bool(prop.computed)
+						out_s(",\n")
+						print_indent(indent + 3)
+						out_s("\"kind\": \"init\",\n")
+						print_indent(indent + 3)
+						out_s("\"method\": false,\n")
+						print_indent(indent + 3)
+						out_s("\"key\": ")
+						if prop.key != nil {
+							out_s("{\n")
+							print_expression_ast(prop.key, indent + 4)
+							print_indent(indent + 3)
+							out_s("}\n")
+						} else {
+							out_s("null\n")
+						}
+						if prop.value != nil {
+							print_indent(indent + 3)
+							out_s(",\n\"value\": {\n")
+							print_expression_ast(prop.value, indent + 4)
+							print_indent(indent + 3)
+							out_s("}\n")
+						}
+					}
+					print_indent(indent + 2)
+					if i < len(oe.properties) - 1 {
+						out_s("},\n")
+					} else {
+						out_s("}\n")
+					}
+				}
+				print_indent(indent + 1)
+				out_s("]")
+			} else {
+				print_expression_ast(e.left, indent + 1)
+			}
+		} else {
+			print_expression_ast(e.left, indent + 1)
+		}
 		print_indent(indent)
 		out_s("},\n")
 		print_indent(indent)
@@ -2924,6 +3049,10 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_expression_ast(e.callee, indent + 1)
 		print_indent(indent)
 		out_s("},\n")
+		if e.optional {
+			print_indent(indent)
+			out_s("\"optional\": true,\n")
+		}
 		print_indent(indent)
 		out_s("\"arguments\": [\n")
 		for arg, i in e.arguments {
@@ -2946,6 +3075,10 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("\"computed\": ")
 		out_bool(e.computed)
 		out_s(",\n")
+		if e.optional {
+			print_indent(indent)
+			out_s("\"optional\": true,\n")
+		}
 		print_indent(indent)
 		out_s("\"object\": {\n")
 		print_expression_ast(e.object, indent + 1)
@@ -3391,6 +3524,7 @@ get_expression_type_name :: proc(expr: ^Expression) -> string {
 	case ^Identifier:            return "Identifier"
 	case ^ThisExpression:        return "ThisExpression"
 	case ^Super:                 return "Super"
+	case ^ChainExpression:       return "ChainExpression"
 	case ^ArrayExpression:       return "ArrayExpression"
 	case ^ObjectExpression:      return "ObjectExpression"
 	case ^FunctionExpression:    return "FunctionExpression"

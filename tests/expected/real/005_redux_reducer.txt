@@ -171,15 +171,10 @@
                       "end": 262,
                       "properties": [
                         {
-                          "type": "Property",
+                          "type": "SpreadElement",
                           "start": 224,
                           "end": 232,
-                          "kind": "init",
-                          "method": false,
-                          "shorthand": false,
-                          "computed": false,
-                          "key": null,
-                          "value": {
+                          "argument": {
                             "type": "Identifier",
                             "start": 227,
                             "end": 232,
@@ -249,15 +244,10 @@
                       "end": 358,
                       "properties": [
                         {
-                          "type": "Property",
+                          "type": "SpreadElement",
                           "start": 310,
                           "end": 318,
-                          "kind": "init",
-                          "method": false,
-                          "shorthand": false,
-                          "computed": false,
-                          "key": null,
-                          "value": {
+                          "argument": {
                             "type": "Identifier",
                             "start": 313,
                             "end": 318,
@@ -336,15 +326,10 @@
                       "end": 451,
                       "properties": [
                         {
-                          "type": "Property",
+                          "type": "SpreadElement",
                           "start": 404,
                           "end": 412,
-                          "kind": "init",
-                          "method": false,
-                          "shorthand": false,
-                          "computed": false,
-                          "key": null,
-                          "value": {
+                          "argument": {
                             "type": "Identifier",
                             "start": 407,
                             "end": 412,

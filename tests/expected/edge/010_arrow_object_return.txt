@@ -124,15 +124,10 @@
               "end": 152,
               "properties": [
                 {
-                  "type": "Property",
+                  "type": "SpreadElement",
                   "start": 124,
                   "end": 131,
-                  "kind": "init",
-                  "method": false,
-                  "shorthand": false,
-                  "computed": false,
-                  "key": null,
-                  "value": {
+                  "argument": {
                     "type": "Identifier",
                     "start": 127,
                     "end": 131,

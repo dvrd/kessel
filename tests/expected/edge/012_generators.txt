@@ -100,7 +100,7 @@
                     "end": 121,
                     "operator": "=",
                     "left": {
-                      "type": "ArrayExpression",
+                      "type": "ArrayPattern",
                       "start": 102,
                       "end": 108,
                       "elements": [
@@ -451,5 +451,5 @@
 }
 
 --- Statistics ---
-Arena: used=9840B reserved=16777216B ratio=0%
+Arena: used=9888B reserved=16777216B ratio=0%
 Parse errors: 0

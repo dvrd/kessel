@@ -21,30 +21,36 @@
             "end": 7,
             "name": "x"          },
           "init": {
-            "type": "MemberExpression",
+            "type": "ChainExpression",
+            "start": 0,
+            "end": 0,
             "start": 10,
             "end": 17,
-            "computed": false,
-            "object": {
+            "expression": {
               "type": "MemberExpression",
               "start": 10,
-              "end": 14,
+              "end": 17,
               "computed": false,
               "object": {
-                "type": "Identifier",
+                "type": "MemberExpression",
                 "start": 10,
-                "end": 11,
-                "name": "a"              },
+                "end": 14,
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 10,
+                  "end": 11,
+                  "name": "a"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 13,
+                  "end": 14,
+                  "name": "b"                }              },
               "property": {
                 "type": "Identifier",
-                "start": 13,
-                "end": 14,
-                "name": "b"              }            },
-            "property": {
-              "type": "Identifier",
-              "start": 16,
-              "end": 17,
-              "name": "c"            }          }        }
+                "start": 16,
+                "end": 17,
+                "name": "c"              }            }          }        }
       ]    },
     {
       "type": "VariableDeclaration",
@@ -62,26 +68,32 @@
             "end": 26,
             "name": "y"          },
           "init": {
-            "type": "CallExpression",
+            "type": "ChainExpression",
+            "start": 0,
+            "end": 0,
             "start": 29,
             "end": 44,
-            "callee": {
-              "type": "MemberExpression",
+            "expression": {
+              "type": "CallExpression",
               "start": 29,
-              "end": 40,
-              "computed": false,
-              "object": {
-                "type": "Identifier",
+              "end": 44,
+              "callee": {
+                "type": "MemberExpression",
                 "start": 29,
-                "end": 32,
-                "name": "obj"              },
-              "property": {
-                "type": "Identifier",
-                "start": 34,
                 "end": 40,
-                "name": "method"              }            },
-            "arguments": [
-            ]          }        }
+                "computed": false,
+                "object": {
+                  "type": "Identifier",
+                  "start": 29,
+                  "end": 32,
+                  "name": "obj"                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 34,
+                  "end": 40,
+                  "name": "method"                }              },
+              "arguments": [
+              ]            }          }        }
       ]    }
   ]
 }

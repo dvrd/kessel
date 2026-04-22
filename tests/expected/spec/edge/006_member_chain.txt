@@ -183,40 +183,46 @@
       "start": 45,
       "end": 56,
       "expression": {
-        "type": "MemberExpression",
+        "type": "ChainExpression",
+        "start": 0,
+        "end": 0,
         "start": 45,
         "end": 55,
-        "computed": false,
-        "object": {
+        "expression": {
           "type": "MemberExpression",
           "start": 45,
-          "end": 52,
+          "end": 55,
           "computed": false,
           "object": {
             "type": "MemberExpression",
             "start": 45,
-            "end": 49,
+            "end": 52,
             "computed": false,
             "object": {
-              "type": "Identifier",
+              "type": "MemberExpression",
               "start": 45,
-              "end": 46,
-              "name": "a"            },
+              "end": 49,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 45,
+                "end": 46,
+                "name": "a"              },
+              "property": {
+                "type": "Identifier",
+                "start": 48,
+                "end": 49,
+                "name": "b"              }            },
             "property": {
               "type": "Identifier",
-              "start": 48,
-              "end": 49,
-              "name": "b"            }          },
+              "start": 51,
+              "end": 52,
+              "name": "c"            }          },
           "property": {
             "type": "Identifier",
-            "start": 51,
-            "end": 52,
-            "name": "c"          }        },
-        "property": {
-          "type": "Identifier",
-          "start": 54,
-          "end": 55,
-          "name": "d"        }      }    }
+            "start": 54,
+            "end": 55,
+            "name": "d"          }        }      }    }
   ]
 }
 

@@ -26,15 +26,10 @@
             "end": 30,
             "properties": [
               {
-                "type": "Property",
+                "type": "SpreadElement",
                 "start": 15,
                 "end": 22,
-                "kind": "init",
-                "method": false,
-                "shorthand": false,
-                "computed": false,
-                "key": null,
-                "value": {
+                "argument": {
                   "type": "Identifier",
                   "start": 18,
                   "end": 22,
@@ -83,30 +78,20 @@
             "end": 65,
             "properties": [
               {
-                "type": "Property",
+                "type": "SpreadElement",
                 "start": 47,
                 "end": 54,
-                "kind": "init",
-                "method": false,
-                "shorthand": false,
-                "computed": false,
-                "key": null,
-                "value": {
+                "argument": {
                   "type": "Identifier",
                   "start": 50,
                   "end": 54,
                   "name": "obj1"                }
               },
               {
-                "type": "Property",
+                "type": "SpreadElement",
                 "start": 56,
                 "end": 63,
-                "kind": "init",
-                "method": false,
-                "shorthand": false,
-                "computed": false,
-                "key": null,
-                "value": {
+                "argument": {
                   "type": "Identifier",
                   "start": 59,
                   "end": 63,

@@ -141,15 +141,10 @@
             "end": 69,
             "properties": [
               {
-                "type": "Property",
+                "type": "SpreadElement",
                 "start": 60,
                 "end": 67,
-                "kind": "init",
-                "method": false,
-                "shorthand": false,
-                "computed": false,
-                "key": null,
-                "value": {
+                "argument": {
                   "type": "Identifier",
                   "start": 63,
                   "end": 67,
@@ -178,15 +173,10 @@
             "end": 103,
             "properties": [
               {
-                "type": "Property",
+                "type": "SpreadElement",
                 "start": 88,
                 "end": 95,
-                "kind": "init",
-                "method": false,
-                "shorthand": false,
-                "computed": false,
-                "key": null,
-                "value": {
+                "argument": {
                   "type": "Identifier",
                   "start": 91,
                   "end": 95,

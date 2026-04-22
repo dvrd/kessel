@@ -67,7 +67,7 @@
             "elements": [
               {
                 "type": "SpreadElement",
-                "start": 40,
+                "start": 37,
                 "end": 43,
                 "argument": {
                   "type": "Identifier",
@@ -98,7 +98,7 @@
             "elements": [
               {
                 "type": "SpreadElement",
-                "start": 65,
+                "start": 62,
                 "end": 68,
                 "argument": {
                   "type": "Identifier",

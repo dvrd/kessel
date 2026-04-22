@@ -52,7 +52,7 @@
         "end": 28,
         "operator": "=",
         "left": {
-          "type": "ArrayExpression",
+          "type": "ArrayPattern",
           "start": 13,
           "end": 19,
           "elements": [
@@ -95,7 +95,7 @@
         "end": 56,
         "operator": "=",
         "left": {
-          "type": "ObjectExpression",
+          "type": "ObjectPattern",
           "start": 31,
           "end": 39,
           "properties": [
@@ -103,16 +103,17 @@
               "type": "Property",
               "start": 33,
               "end": 34,
-              "kind": "init",
-              "method": false,
               "shorthand": true,
               "computed": false,
+              "kind": "init",
+              "method": false,
               "key": {
                 "type": "Identifier",
                 "start": 33,
                 "end": 34,
-                "name": "a"              },
-              "value": {
+                "name": "a"              }
+              ,
+"value": {
                 "type": "Identifier",
                 "start": 33,
                 "end": 34,
@@ -122,16 +123,17 @@
               "type": "Property",
               "start": 36,
               "end": 37,
-              "kind": "init",
-              "method": false,
               "shorthand": true,
               "computed": false,
+              "kind": "init",
+              "method": false,
               "key": {
                 "type": "Identifier",
                 "start": 36,
                 "end": 37,
-                "name": "b"              },
-              "value": {
+                "name": "b"              }
+              ,
+"value": {
                 "type": "Identifier",
                 "start": 36,
                 "end": 37,
@@ -194,7 +196,7 @@
         "end": 80,
         "operator": "=",
         "left": {
-          "type": "ArrayExpression",
+          "type": "ArrayPattern",
           "start": 59,
           "end": 68,
           "elements": [
@@ -204,14 +206,15 @@
               "end": 61,
               "name": "a"            },
             {
-              "type": "SpreadElement",
-              "start": 66,
+              "type": "RestElement",
+              "start": 63,
               "end": 67,
               "argument": {
                 "type": "Identifier",
                 "start": 66,
                 "end": 67,
-                "name": "b"              }            }
+                "name": "b"              }
+            }
           ]        },
         "right": {
           "type": "ArrayExpression",
@@ -247,7 +250,7 @@
         "end": 117,
         "operator": "=",
         "left": {
-          "type": "ObjectExpression",
+          "type": "ObjectPattern",
           "start": 83,
           "end": 94,
           "properties": [
@@ -255,31 +258,27 @@
               "type": "Property",
               "start": 85,
               "end": 86,
-              "kind": "init",
-              "method": false,
               "shorthand": true,
               "computed": false,
+              "kind": "init",
+              "method": false,
               "key": {
                 "type": "Identifier",
                 "start": 85,
                 "end": 86,
-                "name": "a"              },
-              "value": {
+                "name": "a"              }
+              ,
+"value": {
                 "type": "Identifier",
                 "start": 85,
                 "end": 86,
                 "name": "a"              }
             },
             {
-              "type": "Property",
+              "type": "RestElement",
               "start": 88,
               "end": 92,
-              "kind": "init",
-              "method": false,
-              "shorthand": false,
-              "computed": false,
-              "key": null,
-              "value": {
+              "argument": {
                 "type": "Identifier",
                 "start": 91,
                 "end": 92,
@@ -356,5 +355,5 @@
 }
 
 --- Statistics ---
-Arena: used=5960B reserved=16777216B ratio=0%
+Arena: used=6408B reserved=16777216B ratio=0%
 Parse errors: 0

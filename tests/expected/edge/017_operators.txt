@@ -367,40 +367,46 @@
             "end": 243,
             "name": "h"          },
           "init": {
-            "type": "MemberExpression",
+            "type": "ChainExpression",
+            "start": 0,
+            "end": 0,
             "start": 246,
             "end": 270,
-            "computed": false,
-            "object": {
+            "expression": {
               "type": "MemberExpression",
               "start": 246,
-              "end": 263,
+              "end": 270,
               "computed": false,
               "object": {
                 "type": "MemberExpression",
                 "start": 246,
-                "end": 255,
+                "end": 263,
                 "computed": false,
                 "object": {
-                  "type": "Identifier",
+                  "type": "MemberExpression",
                   "start": 246,
-                  "end": 249,
-                  "name": "obj"                },
+                  "end": 255,
+                  "computed": false,
+                  "object": {
+                    "type": "Identifier",
+                    "start": 246,
+                    "end": 249,
+                    "name": "obj"                  },
+                  "property": {
+                    "type": "Identifier",
+                    "start": 251,
+                    "end": 255,
+                    "name": "prop"                  }                },
                 "property": {
                   "type": "Identifier",
-                  "start": 251,
-                  "end": 255,
-                  "name": "prop"                }              },
+                  "start": 257,
+                  "end": 263,
+                  "name": "nested"                }              },
               "property": {
                 "type": "Identifier",
-                "start": 257,
-                "end": 263,
-                "name": "nested"              }            },
-            "property": {
-              "type": "Identifier",
-              "start": 265,
-              "end": 270,
-              "name": "value"            }          }        }
+                "start": 265,
+                "end": 270,
+                "name": "value"              }            }          }        }
       ]    },
     {
       "type": "VariableDeclaration",
@@ -418,37 +424,43 @@
             "end": 279,
             "name": "i"          },
           "init": {
-            "type": "CallExpression",
+            "type": "ChainExpression",
+            "start": 0,
+            "end": 0,
             "start": 282,
             "end": 302,
-            "callee": {
-              "type": "MemberExpression",
+            "expression": {
+              "type": "CallExpression",
               "start": 282,
-              "end": 298,
-              "computed": false,
-              "object": {
+              "end": 302,
+              "callee": {
                 "type": "MemberExpression",
                 "start": 282,
-                "end": 290,
-                "computed": true,
-                "object": {
-                  "type": "Identifier",
-                  "start": 282,
-                  "end": 285,
-                  "name": "arr"                },
-                "property": {
-                  "type": "Literal",
-                  "start": 288,
-                  "end": 289,
-                  "value": 0,
-                  "raw": "0"                }              },
-              "property": {
-                "type": "Identifier",
-                "start": 292,
                 "end": 298,
-                "name": "method"              }            },
-            "arguments": [
-            ]          }        }
+                "computed": false,
+                "object": {
+                  "type": "MemberExpression",
+                  "start": 282,
+                  "end": 290,
+                  "computed": true,
+                  "object": {
+                    "type": "Identifier",
+                    "start": 282,
+                    "end": 285,
+                    "name": "arr"                  },
+                  "property": {
+                    "type": "Literal",
+                    "start": 288,
+                    "end": 289,
+                    "value": 0,
+                    "raw": "0"                  }                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 292,
+                  "end": 298,
+                  "name": "method"                }              },
+              "arguments": [
+              ]            }          }        }
       ]    },
     {
       "type": "VariableDeclaration",

@@ -124,6 +124,11 @@ SpreadElement :: struct {
 	argument:  ^Expression,
 }
 
+ChainExpression :: struct {
+	loc:        Loc,
+	expression: ^Expression, // MemberExpression or CallExpression with optional=true
+}
+
 ArrayExpression :: struct {
 	loc:      Loc,
 	elements: [dynamic]Maybe(^Expression), // null for sparse arrays
@@ -688,6 +693,7 @@ Expression :: union {
 	^PrivateIdentifier,  // #field, #method
 	^ThisExpression,
 	^Super,
+	^ChainExpression,
 	^ArrayExpression,
 	^ObjectExpression,
 	^FunctionExpression,

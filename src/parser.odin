@@ -3090,6 +3090,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 // LHS tail: member access, computed access, calls, tagged templates, optional chaining
 parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_call: bool) -> ^Expression {
 	expr := start_expr
+	chain_start: Loc
+	is_chain := false
 	for {
 		#partial switch p.cur_type {
 		case .Dot:
@@ -3120,6 +3122,10 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if !allow_call {
 				return expr
 			}
+			if !is_chain {
+				chain_start = loc_from_expr(expr)
+				is_chain = true
+			}
 			eat(p)
 			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 				prop := parse_identifier_name(p)
@@ -3141,7 +3147,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					member.property = expression_from(p, ident)
 				}
 				member.computed = false
-				member.optional = true
+				member.optional = false // optional flag handled by ChainExpression wrapper
 				member.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, member)
 			} else if is_token(p, .LBracket) {
@@ -3154,7 +3160,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				member.object = expr
 				member.property = prop
 				member.computed = true
-				member.optional = true
+				member.optional = false // optional flag handled by ChainExpression wrapper
 				member.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, member)
 			} else if is_token(p, .LParen) {
@@ -3163,7 +3169,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.loc = loc_from_expr(expr)
 				call.callee = expr
 				call.arguments = args
-				call.optional = true
+				call.optional = false // optional flag handled by ChainExpression wrapper
 				call.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else {
@@ -3209,8 +3215,24 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			tagged.loc.span.end = prev_end_offset(p)
 			expr = expression_from(p, tagged)
 		case:
+			if is_chain {
+				// Wrap the entire optional chain in ChainExpression
+				chain := new_node(p, ChainExpression)
+				chain.loc = chain_start
+				chain.expression = expr
+				chain.loc.span.end = prev_end_offset(p)
+				return expression_from(p, chain)
+			}
 			return expr
 		}
+	}
+	if is_chain {
+		// Wrap the entire optional chain in ChainExpression
+		chain := new_node(p, ChainExpression)
+		chain.loc = chain_start
+		chain.expression = expr
+		chain.loc.span.end = prev_end_offset(p)
+		return expression_from(p, chain)
 	}
 	return expr
 }
@@ -3500,11 +3522,12 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 
 		if is_token(p, .Dot3) {
 			// Spread element
+			spread_start := cur_loc(p) // Capture location of ... before eating
 			eat(p)
 			arg := parse_assignment_expression(p)
 			if arg != nil {
 				spread := new_node(p, SpreadElement)
-				spread.loc = loc_from_expr(arg)
+				spread.loc = spread_start // Use location of ... token
 				spread.argument = arg
 				spread.loc.span.end = prev_end_offset(p)
 				append(&arr.elements, Maybe(^Expression)(expression_from(p, spread)))
@@ -3586,16 +3609,23 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 
 	if is_token(p, .Dot3) {
 		// Spread property: ...expr
+		spread_start := cur_loc(p) // Capture location before eating the ...
 		eat(p)
 		arg := parse_assignment_expression(p)
 		if arg == nil {
 			return nil
 		}
 
+		// Wrap the argument in a SpreadElement
+		spread := new_node(p, SpreadElement)
+		spread.loc = spread_start // Use the location of the ... token, not the argument
+		spread.argument = arg
+		spread.loc.span.end = prev_end_offset(p)
+
 		prop := new_node(p, Property)
 		prop.loc = start
 		prop.key = nil
-		prop.value = arg
+		prop.value = expression_from(p, spread)
 		prop.kind = .Init
 		prop.computed = false
 		prop.shorthand = false
@@ -4441,6 +4471,11 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	right := parse_expr_with_prec(p, .Assignment)
 	if right == nil {
 		return nil
+	}
+
+	// Validate pattern conversion for = operator (destructuring assignment)
+	if op == .Assign {
+		_, _ = expr_to_pattern(p, left)
 	}
 
 	assign := new_node(p, AssignmentExpression)

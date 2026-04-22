@@ -39,7 +39,7 @@
                 "raw": "2"              },
               {
                 "type": "SpreadElement",
-                "start": 22,
+                "start": 19,
                 "end": 28,
                 "argument": {
                   "type": "ArrayExpression",
@@ -102,15 +102,10 @@
                   "raw": "1"                }
               },
               {
-                "type": "Property",
+                "type": "SpreadElement",
                 "start": 50,
                 "end": 59,
-                "kind": "init",
-                "method": false,
-                "shorthand": false,
-                "computed": false,
-                "key": null,
-                "value": {
+                "argument": {
                   "type": "ObjectExpression",
                   "start": 53,
                   "end": 59,

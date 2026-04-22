@@ -148,15 +148,10 @@
                               "raw": "'application/json'"                            }
                           },
                           {
-                            "type": "Property",
+                            "type": "SpreadElement",
                             "start": 181,
                             "end": 199,
-                            "kind": "init",
-                            "method": false,
-                            "shorthand": false,
-                            "computed": false,
-                            "key": null,
-                            "value": {
+                            "argument": {
                               "type": "MemberExpression",
                               "start": 184,
                               "end": 199,

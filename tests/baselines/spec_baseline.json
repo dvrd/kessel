@@ -21,18 +21,18 @@
     "oxc": 98801
   },
   "bench/real_world/antd.js": {
-    "oxc": 944696
+    "oxc": 944692
   },
   "bench/real_world/d3.js": {
-    "oxc": 226920
+    "oxc": 226903
   },
   "bench/real_world/batch4/chalk.js": {
-    "oxc": 1591
+    "oxc": 1585
   },
   "bench/real_world/batch4/petite-vue.js": {
-    "oxc": 434
+    "oxc": 412
   },
   "bench/real_world/batch2/zod.js": {
-    "oxc": 27500
+    "oxc": 27489
   }
 }
