@@ -34,7 +34,6 @@ spec/jsx/005_nested_element
 # ----- Unicode: identifier with `\uXXXX` escape crashes ---------------
 # ECMA-262 \u00a712.7 requires accepting these. Kessel lexer lacks an
 # identifier-escape path.
-spec/unicode/002_escape_in_identifier
 #
 # ----- ASI: restricted productions silently treat NL as space ---------
 # These fixtures exercise the restricted-production rules from

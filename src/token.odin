@@ -334,6 +334,12 @@ FastToken :: struct {
 }
 
 FLAG_NEW_LINE :: u8(1)
+// Token contains unicode escape(s). For identifiers this signals that
+// the literal store holds the COOKED (decoded) name; the raw span still
+// covers the source text including the \uXXXX sequences. ECMA-262 §12.7.2:
+// an identifier with any unicode escape is always an Identifier, never a
+// keyword, even if the decoded text spells one.
+FLAG_HAS_ESCAPE :: u8(2)
 
 token_eof :: #force_inline proc(offset: u32) -> FastToken {
 	return FastToken{start = offset, end = offset, kind = .EOF}
@@ -351,4 +357,9 @@ LiteralType :: enum u8 {
 	Bool,
 	Regex,
 	BigInt,
+	// Identifier — used only when the source contains \uXXXX / \u{H...H}
+	// escapes; the cooked (decoded) name is stored so the parser can use it
+	// instead of the raw src[start:end] slice. Non-escaped identifiers do
+	// NOT populate the literal store (zero-cost hot path).
+	Identifier,
 }

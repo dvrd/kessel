@@ -396,6 +396,13 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 		return lex_identifier(l, start, flags)
 	}
 
+	// ---- Escaped identifier — \uXXXX or \u{H...H} at start.
+	// ECMA-262 §12.7.2: identifier with any unicode escape is ALWAYS an
+	// Identifier, never a reserved word. Cooked name published via last_lit_*.
+	if c == '\\' && off + 1 < src_len && src[off + 1] == 'u' {
+		return lex_identifier_escaped(l, start, flags)
+	}
+
 	// ---- Number ----
 	if c >= '0' && c <= '9' {
 		return lex_number(l, start, flags)
@@ -452,7 +459,13 @@ lex_identifier :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastTo
 	src_len := len(src)
 	off := l.offset + 1
 	for off < src_len {
-		class := CHAR_CLASS_TABLE[src[off]]
+		c := src[off]
+		if c == '\\' && off + 1 < src_len && src[off + 1] == 'u' {
+			// Escape seen mid-identifier — fall back to the escape-aware slow
+			// path, which re-scans from `start` and produces a cooked name.
+			return lex_identifier_escaped(l, start, flags)
+		}
+		class := CHAR_CLASS_TABLE[c]
 		if class != u8(CharClass.IdStart) && class != u8(CharClass.Digit) { break }
 		off += 1
 	}
@@ -460,6 +473,123 @@ lex_identifier :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastTo
 	end := u32(off)
 	tok_type := lookup_keyword_by_letter(src, start, end)
 	return FastToken{start = start, end = end, kind = tok_type, flags = flags}
+}
+
+// ============================================================================
+// Escaped identifier — slow path for \uXXXX / \u{H...H} in identifiers.
+// ECMA-262 §12.7.2: the decoded codepoint must be IdentifierStart (first) or
+// IdentifierPart (rest); an escaped identifier is NEVER a reserved word. The
+// cooked (decoded) name is stored in last_lit_value; the parser reads it when
+// FLAG_HAS_ESCAPE is set on the token.
+// ============================================================================
+
+// Decode one \uXXXX or \u{H...H} escape starting at `off` (which points at the
+// backslash). Returns (codepoint, ok, bytes_consumed). On failure returns
+// (0, false, 1) so callers can advance past the backslash and flag an error.
+decode_u_escape :: proc(src: []u8, off: int) -> (cp: u32, ok: bool, consumed: int) {
+	src_len := len(src)
+	if off + 1 >= src_len || src[off] != '\\' || src[off + 1] != 'u' { return 0, false, 1 }
+	if off + 2 < src_len && src[off + 2] == '{' {
+		// \u{H...H} — at least 1 hex digit, terminated by `}`.
+		p := off + 3
+		acc: u32 = 0
+		digits := 0
+		for p < src_len && src[p] != '}' {
+			h := hex_val(src[p])
+			if h < 0 { return 0, false, 1 }
+			acc = acc * 16 + u32(h)
+			if acc > 0x10FFFF { return 0, false, 1 }
+			digits += 1
+			p += 1
+		}
+		if digits == 0 || p >= src_len || src[p] != '}' { return 0, false, 1 }
+		return acc, true, (p + 1) - off
+	}
+	// \uHHHH — exactly 4 hex digits.
+	if off + 5 >= src_len { return 0, false, 1 }
+	h1 := hex_val(src[off + 2])
+	h2 := hex_val(src[off + 3])
+	h3 := hex_val(src[off + 4])
+	h4 := hex_val(src[off + 5])
+	if h1 < 0 || h2 < 0 || h3 < 0 || h4 < 0 { return 0, false, 1 }
+	return u32(h1)*4096 + u32(h2)*256 + u32(h3)*16 + u32(h4), true, 6
+}
+
+// Codepoint-level IdentifierStart check. Simplified: ASCII delegated to
+// CHAR_CLASS_TABLE; any non-ASCII codepoint ≥ 0x80 accepted — mirrors the
+// raw-byte heuristic already used by is_id_start_fast, so behaviour is
+// consistent between the escaped and unescaped paths. Spec-strict Unicode
+// ID_Start classification is a follow-up.
+is_id_start_codepoint :: #force_inline proc(cp: u32) -> bool {
+	if cp < 128 {
+		return CHAR_CLASS_TABLE[cp] == u8(CharClass.IdStart)
+	}
+	return cp <= 0x10FFFF
+}
+
+is_id_cont_codepoint :: #force_inline proc(cp: u32) -> bool {
+	if cp < 128 {
+		class := CHAR_CLASS_TABLE[cp]
+		return class == u8(CharClass.IdStart) || class == u8(CharClass.Digit)
+	}
+	return cp <= 0x10FFFF
+}
+
+lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+	src := l.source_bytes
+	src_len := len(src)
+	off := int(start)
+
+	// Cooked (decoded) name buffer. Most identifiers are short; 32 B start
+	// covers typical names without a realloc.
+	cooked := make([dynamic]u8, 0, 32, l.allocator)
+
+	first := true
+	for off < src_len {
+		c := src[off]
+		if c == '\\' && off + 1 < src_len && src[off + 1] == 'u' {
+			cp, ok, consumed := decode_u_escape(src, off)
+			if !ok {
+				// Invalid escape — produce Invalid token, advance past backslash.
+				l.offset = off + 1
+				return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
+			}
+			if first {
+				if !is_id_start_codepoint(cp) {
+					l.offset = off + consumed
+					return FastToken{start = start, end = u32(off + consumed), kind = .Invalid, flags = flags}
+				}
+			} else {
+				if !is_id_cont_codepoint(cp) { break }
+			}
+			append_utf8(&cooked, cp)
+			off += consumed
+			first = false
+		} else {
+			if first {
+				if !is_id_start_fast(c) {
+					// No valid start at all (e.g. `\x` with no id start) — bail.
+					l.offset = off + 1
+					return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
+				}
+				append(&cooked, c)
+				off += 1
+				first = false
+			} else {
+				if !is_id_cont_fast(c) { break }
+				append(&cooked, c)
+				off += 1
+			}
+		}
+	}
+
+	end := u32(off)
+	l.offset = off
+	l.last_lit_offset = start
+	l.last_lit_value = LiteralValue(string(cooked[:]))
+	l.last_lit_type = .Identifier
+	// Always .Identifier — never a keyword (ECMA-262 §12.7.2).
+	return FastToken{start = start, end = end, kind = .Identifier, flags = flags | FLAG_HAS_ESCAPE}
 }
 
 // ============================================================================

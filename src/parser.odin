@@ -53,6 +53,17 @@ advance_token :: #force_inline proc(p: ^Parser) {
 				if a.cur_lit_offset == ft.start && a.cur_lit_type != .None {
 					p.cur_tok.literal = a.cur_lit_value
 				}
+			} else if ft.kind == .Identifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
+				// Escaped identifier — override the raw span with the cooked
+				// (decoded) name published by lex_identifier_escaped. The raw
+				// span is still the source text including \uXXXX; only the .value
+				// used for AST emission changes. Mirrored in prime_token_cache
+				// and cur_value (the hot-path read site).
+				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
+					if s, ok := a.cur_lit_value.(string); ok {
+						p.cur_tok.value = s
+					}
+				}
 			}
 		}
 	}
@@ -97,6 +108,12 @@ prime_token_cache :: proc(p: ^Parser) {
 			} else if ft.kind <= .TemplateTail {
 				if a.cur_lit_offset == ft.start && a.cur_lit_type != .None {
 					p.cur_tok.literal = a.cur_lit_value
+				}
+			} else if ft.kind == .Identifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
+				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
+					if s, ok := a.cur_lit_value.(string); ok {
+						p.cur_tok.value = s
+					}
 				}
 			}
 		}
@@ -6221,6 +6238,16 @@ prev_end_offset :: #force_inline proc(p: ^Parser) -> u32 {
 cur_value :: #force_inline proc(p: ^Parser) -> string {
 	if p.lexer != nil {
 		ft := p.lexer.cur
+		// Escaped identifier — prefer the cooked (decoded) name published
+		// by lex_identifier_escaped via cur_lit_value. ECMA-262 §12.7.2
+		// requires the identifier's logical name to be the decoded text,
+		// not the \uXXXX source. Guarded by flag so the non-escape hot
+		// path stays a single source slice.
+		if ft.kind == .Identifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
+			if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type == .Identifier {
+				if s, ok := p.lexer.cur_lit_value.(string); ok { return s }
+			}
+		}
 		if ft.start < ft.end { return p.lexer.source[ft.start:ft.end] }
 		return ""
 	}
