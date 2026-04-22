@@ -215,6 +215,13 @@ Parser :: struct {
 	// Disallow 'in' as binary operator (for for-loop init parsing)
 	no_in:           bool,
 
+	// Inside an ambient TS module / namespace body: every declaration is
+	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
+	// semantics and also the string-named `module "x" { ... }` shortcut
+	// (always ambient, no explicit declare needed). Propagates through
+	// nested modules. Saved/restored around the body scan.
+	in_ambient:      bool,
+
 	// Track if module syntax was detected (import/export or import.meta)
 	has_module_syntax: bool,
 
@@ -1628,9 +1635,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	prev_gen := p.in_generator
 	p.in_generator = generator
 
-	// In declare context, allow no body (just a semicolon)
+	// In declare / ambient-module context, allow no body (just a semicolon).
+	// An ambient module body (`module "x" { function f(): void; }`) or a
+	// `declare function f(): void;` both elide the implementation.
 	body: FunctionBody
-	if allow_no_body && is_token(p, .Semi) {
+	allow_no_body_here := allow_no_body || p.in_ambient
+	if allow_no_body_here && is_token(p, .Semi) {
 		eat(p) // consume semicolon
 		body = FunctionBody{
 			loc = cur_loc(p),
@@ -2287,7 +2297,8 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	init: Maybe(^Expression)
 	if match_token(p, .Assign) {
 		init = parse_assignment_expression(p)
-	} else if kind == .Const && !in_for && !is_declare {
+	} else if kind == .Const && !in_for && !is_declare && !p.in_ambient {
+		// `const x;` without init is legal inside an ambient module body.
 		report_error(p, "const declarations must have an initializer")
 	}
 
@@ -5976,6 +5987,14 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 	eat(p) // consume `declare`
 
+	// Everything under `declare` is ambient: const has no initializer
+	// requirement, function has no body requirement, and any nested
+	// namespace / module body inherits the same. Save/restore around
+	// the whole dispatch so nested ambient contexts compose correctly.
+	prev_ambient := p.in_ambient
+	p.in_ambient = true
+	defer p.in_ambient = prev_ambient
+
 	// Dispatch to the right declaration parser and then set `declare=true`
 	// on the returned node. Many of our declaration parsers return
 	// ^Statement holding a ^SpecificDecl pointer; type-assert and mutate.
@@ -6118,8 +6137,14 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	start := cur_loc(p); eat(p) // consume `namespace` or `module`
 
 	// Name: Identifier (possibly dotted) or StringLiteral.
+	// A string-named `module "x" { ... }` is ALWAYS an ambient declaration
+	// (per TS semantics): every declaration inside behaves as if prefixed
+	// with `declare`. Track this so parse_variable_declarator and
+	// parse_function_declaration can relax their body / initializer
+	// requirements for the duration of the body scan.
+	is_string_named := is_token(p, .String)
 	id_expr: ^Expression
-	if is_token(p, .String) {
+	if is_string_named {
 		lit := parse_string_literal(p)
 		sn := new_node(p, StringLiteral); sn^ = lit
 		id_expr = expression_from(p, sn)
@@ -6155,6 +6180,11 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	decl.loc = start; decl.id = id_expr; decl.kind = kind
 	if is_token(p, .LBrace) {
 		body_start := cur_loc(p); eat(p) // consume `{`
+		// Ambient context: string-named module, OR already-ambient caller
+		// (nested namespace / module inside a `declare namespace X { ... }`).
+		prev_ambient := p.in_ambient
+		p.in_ambient = p.in_ambient || is_string_named
+		defer p.in_ambient = prev_ambient
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			s := parse_statement_or_declaration(p)
@@ -6193,6 +6223,10 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		}
 	} else if is_token(p, .LBrace) {
 		body_start := cur_loc(p); eat(p)
+		// Nested module bodies inherit the ambient context from the outer
+		// call — same save/restore idiom as parse_ts_module_declaration.
+		prev_ambient := p.in_ambient
+		defer p.in_ambient = prev_ambient
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			s := parse_statement_or_declaration(p)
