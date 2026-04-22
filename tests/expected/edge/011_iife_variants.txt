@@ -11,7 +11,7 @@
       "end": 74,
       "expression": {
         "type": "CallExpression",
-        "start": 31,
+        "start": 30,
         "end": 73,
         "callee": {
           "type": "FunctionExpression",
@@ -125,7 +125,7 @@
       "end": 161,
       "expression": {
         "type": "CallExpression",
-        "start": 123,
+        "start": 122,
         "end": 160,
         "callee": {
           "type": "FunctionExpression",
@@ -165,7 +165,7 @@
       "end": 204,
       "expression": {
         "type": "CallExpression",
-        "start": 164,
+        "start": 163,
         "end": 203,
         "callee": {
           "type": "ArrowFunctionExpression",
@@ -222,7 +222,7 @@
       "end": 256,
       "expression": {
         "type": "CallExpression",
-        "start": 207,
+        "start": 206,
         "end": 255,
         "callee": {
           "type": "FunctionExpression",
@@ -277,7 +277,7 @@
       "end": 307,
       "expression": {
         "type": "CallExpression",
-        "start": 259,
+        "start": 258,
         "end": 306,
         "callee": {
           "type": "FunctionExpression",
@@ -350,7 +350,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 310,
+          "start": 258,
           "end": 350,
           "callee": {
             "type": "FunctionExpression",
@@ -372,7 +372,7 @@
                   "end": 346,
                   "expression": {
                     "type": "CallExpression",
-                    "start": 323,
+                    "start": 258,
                     "end": 345,
                     "callee": {
                       "type": "MemberExpression",
@@ -413,7 +413,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 353,
+          "start": 258,
           "end": 396,
           "callee": {
             "type": "FunctionExpression",
@@ -435,7 +435,7 @@
                   "end": 392,
                   "expression": {
                     "type": "CallExpression",
-                    "start": 366,
+                    "start": 258,
                     "end": 391,
                     "callee": {
                       "type": "MemberExpression",
@@ -476,7 +476,7 @@
         "prefix": true,
         "argument": {
           "type": "CallExpression",
-          "start": 403,
+          "start": 258,
           "end": 440,
           "callee": {
             "type": "FunctionExpression",
@@ -498,7 +498,7 @@
                   "end": 436,
                   "expression": {
                     "type": "CallExpression",
-                    "start": 416,
+                    "start": 258,
                     "end": 435,
                     "callee": {
                       "type": "MemberExpression",

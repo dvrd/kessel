@@ -3464,12 +3464,14 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if !expect_token(p, .RParen) {
 			return nil
 		}
-		// Set pending_paren_start for this paren only if next token is Arrow
-		// (arrow function parameters). Otherwise restore the previous value.
-		if is_token(p, .Arrow) {
-			p.pending_paren_start = paren_start
-		} else {
+		// Set pending_paren_start for this paren. This is used by both arrow function
+		// parameters and parenthesized CallExpressions.
+		// Only restore the previous value if we're not going to use this paren.
+		// We clear it only after parse_arrow_function uses it (if next token is not Arrow).
+		if !is_token(p, .Arrow) && !is_token(p, .LParen) {
 			p.pending_paren_start = prev_pending_paren
+		} else {
+			p.pending_paren_start = paren_start
 		}
 		return expr
 

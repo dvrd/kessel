@@ -1,7 +1,7 @@
 {
   "edge": {
-    "pass": 18,
-    "fail": 1,
+    "pass": 19,
+    "fail": 0,
     "total": 19
   },
   "es2015": {

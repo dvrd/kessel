@@ -11,7 +11,7 @@
       "end": 30,
       "expression": {
         "type": "CallExpression",
-        "start": 1,
+        "start": 0,
         "end": 29,
         "callee": {
           "type": "FunctionExpression",
@@ -47,7 +47,7 @@
       "end": 44,
       "expression": {
         "type": "CallExpression",
-        "start": 32,
+        "start": 31,
         "end": 43,
         "callee": {
           "type": "ArrowFunctionExpression",
