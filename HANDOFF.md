@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post K4/EST-2/OPT-1/TS-A10 sweep)
-**Repo state:** `main` at commit `973c9e6`, ~17 900 LOC of Odin across 7 files.
+**Last updated:** 2026-04-23 (post K12 + EST-3/OPT-3 sweep)
+**Repo state:** `main` at commit `c8f9dff`, ~18 100 LOC of Odin across 7 files.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -231,7 +231,7 @@ All fixed in Phase 2.
       `class implements`, type parameter constraints/defaults — most work
       but lack dedicated test coverage.
 
-### ESTree / TS-ESTree Conformance (5 / 8)
+### ESTree / TS-ESTree Conformance (6 / 8)
 - [x] Core node types (57 JS node types verified)
 - [x] `hashbang` field on Program with preserved content (EST-6). The
       lexer captures `value`, `start`, `end`; the emitter writes
@@ -241,10 +241,13 @@ All fixed in Phase 2.
 - [x] **EST-2:** `range: [start, end]` on every node via `--range` flag
       (`f7577bb`). Emitted between the `end` and `loc` fields so the
       three can compose independently.
+- [x] **EST-3:** `ParenthesizedExpression` via `--preserve-parens`
+      (`c8f9dff`). Acorn/OXC shape; not in ESTree core. Skipped on the
+      arrow-params cover path so trial-parse into arrow function keeps
+      working. Reduces antd.js spec-compliance drift from 10020 → ~20.
 - [x] **EST-6:** `hashbang` content preservation — already shipped, the
       old handoff entry was stale. Covered by structural test
       `tests/fixtures/hashbang/` + real-world verification.
-- [ ] **EST-3:** `ParenthesizedExpression` / `preserveParens` — not started.
 - [ ] **EST-4:** TS-ESTree shape alignment — 10 TS fixtures parse clean
       but JSON diverges from `@typescript-eslint/typescript-estree`.
       Blocked on Node-based verifier infra. See `.swarm/08-ts-estree-alignment-design.md`.
@@ -258,14 +261,14 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 - [x] **ESM-4:** `dynamicImports`
 - [x] **ESM-5:** `importMetas`
 
-### Parser Options (4 / 6)
+### Parser Options (5 / 6)
 - [x] **OPT-1:** `--source-type={script|module|unambiguous}` (`2b3e88b`).
       `unambiguous` (nil override) keeps the existing auto-upgrade;
       `script` disables it; `module` pins to Module regardless of body.
 - [x] **OPT-2:** `--lang=js|jsx|ts|tsx` (Phase 3 Wave A, `fcd9203`)
+- [x] **OPT-3:** `--preserve-parens` (`c8f9dff`) — Acorn-style wrapper.
 - [x] **OPT-4:** `--loc` (EST-1, `22d2f88`)
 - [x] **OPT-range (EST-2):** `--range` (`f7577bb`) — ESLint-style tuple.
-- [ ] **OPT-3:** `preserveParens` — blocked on EST-3.
 - [ ] **OPT-5:** `astType: 'js' | 'ts'` — needed for TS-ESTree defaults (EST-4).
 - [ ] **OPT-6:** `showSemanticErrors` — requires scope/symbol analysis.
 
@@ -322,7 +325,7 @@ Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 65
 | `b02dfe5` | Wave 3 Phase B: `parse_ts_lt_expression` | Orchestrator | Closes TS-C1c + TS-C6. Unit tests 25/244 → 217/244 (exposed `exit_code` runner bug too) |
 | `be21a52` | Sync OXC_PARITY post-Phase-B | Orchestrator | TS Core 12/12 ✅ |
 
-### Phase 4 — post-handoff sweep, 4 commits
+### Phase 4 — post-handoff sweep, 6 commits
 
 | Commit | Item | Notes |
 |--------|------|-------|
@@ -330,6 +333,8 @@ Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 65
 | `f7577bb` | EST-2 `--range` flag | Emits `"range": [start, end]` on every node between the bare `end` and the optional `loc` field. Default-off, byte-identical legacy output. |
 | `2b3e88b` | OPT-1 `--source-type` flag | Pins Program.sourceType. Parser carries `p.force_source_type: Maybe(SourceType)` to disable the auto-upgrade pass when set. |
 | `973c9e6` | TS-A10 overload signatures | `function foo(): T;` and class-method `foo(): T;` now parse cleanly in TS mode — `parse_function_declaration` and `parse_class_element` both accept a bodyless form when `allow_ts_mode(p)`. |
+| `0513d43` | K12 class access modifiers + parameter properties | Bounded modifier-scan at the top of every class element consumes `public`/`private`/`protected`/`readonly`/`override`/`static`/`abstract` in any order, stopping when the next token indicates the keyword is being used as the member name. Same scan in `parse_function_param` gates on `allow_ts_mode` for constructor parameter properties. AST + emitter extended with `accessibility`, `readonly`, `override` fields. |
+| `c8f9dff` | EST-3 / OPT-3 `--preserve-parens` | Acorn/OXC-shape `ParenthesizedExpression` wrapper around every non-arrow-cover paren-grouping. Default off. Reduces antd.js spec-compliance drift from 10020 → ~20 when enabled. |
 
 ### Process lessons (from this swarm)
 
@@ -361,7 +366,7 @@ Phase 3 (`2ad4487`, `4b543cf`).
 |---|---|---|---|---|
 | K1 | **`task test:fuzz:invalid` — 8 baselined crashes** (was 29). SIGSEGV/SIGTRAP fixed in `07858c4` via emitter nil-pointer + inverted-span guards. Infinite-loops fixed in `491d083` (parse_lhs_tail .Not case + parse_jsx_children progress guard). 8 remaining are SIGTERMs (deadline-crosses) on 350 KB – 4 MB mutated files. | Low | parser (perf on very large mutated input) | Baselined in `tests/baselines/fuzz_invalid_baseline.json`. Not worth further chasing — these are deadline hits, not parser bugs. |
 | K2 | ~~`task test:crashes-known` regressions~~ ✅ Fixed in `491d083`. | | | |
-| K3 | **`spec-compliance` 6 regressions** (jquery +2, react.dev +1, acorn +1, react-dom.dev +1, antd +169, d3 +1) vs baseline. Introduced by an earlier unskip-sweep session (not by Phase 4); kept visible via the enforce-baseline script. chalk.js IMPROVED (22 → 4). Needs shape-by-shape diff against OXC to triage. | Medium | Emitter shape | Inspect diffs, update baseline for improvements, fix the regressions. |
+| K3 | **`spec-compliance` 6 regressions** (jquery +2, react.dev +1, acorn +1, react-dom.dev +1, antd +169, d3 +1) vs baseline. ROOT CAUSE for antd.js identified in `c8f9dff`: OXC emits ParenthesizedExpression by default, Kessel flattens. Enabling `--preserve-parens` drops antd.js from 10020 → ~20 divergences. To close the gate: (a) thread the flag through `tests/verifiers/verify_json_deep.js` (an early attempt hit a symmetric-unwrap asymmetry — see §9 follow-up), (b) update the baseline, (c) triage the remaining ~20 + the smaller-file regressions. chalk.js IMPROVED (22 → 4) stays either way. | Medium | Verifier calibration + emitter shape | Verifier work is the gating step; emit code is done. |
 | K4 | ~~Arrow-param type annotations~~ ✅ Fixed in `c0e1a4d`. `(x: T) => x`, `(...args: T[]) => ...`, `(x: T): R => ...`, generic-arrow `<T>(x: U) => x`, function-type `(cb: (x: number) => string) => ...` all parse clean. | | | |
 | K5 | ~~Deep JSX child recursion crash~~ ✅ Fixed. `spec/jsx/005_nested_element` now passes both `<Outer><Middle><Inner/></Middle></Outer>` and `<Foo bar={<Baz x={1}/>}/>`. Ancestor commits (`70b5652`, Phase 2 span fixes) closed it; handoff entry was stale. | | | |
 | K6 | ~~`early_errors/016_digit_start_identifier.js`~~ ✅ Fixed. `const 1a = 1;` now parses with structured errors, no SIGTRAP. | | | |
@@ -370,7 +375,7 @@ Phase 3 (`2ad4487`, `4b543cf`).
 | K9 | **`task test:estree` — 4 field-type mismatches on jquery.js** vs OXC (NewExpression vs CallExpression, ArrowFunction vs Function). | Low | Classification of specific IIFE shape | Pre-existing; field-type divergence, not crash. |
 | K10 | **`spec/typescript/*` shape diff vs typescript-eslint** (EST-4). Fixtures parse clean but JSON shape differs from canonical TS-ESTree. | Low | Emitter | Deferred; needs Node verifier infra. See `.swarm/08-ts-estree-alignment-design.md`. |
 | K11 | **Debug build linker warnings** — ~50 about missing symbols for JSX/TS generic instantiations. | Cosmetic | Odin toolchain | Binary works. Ignore. |
-| K12 | **Class method access modifiers** (`public`/`private`/`protected`/`readonly`/`override`) not parsed. `public foo(): void` fails with "Expected (, got identifier". Discovered while verifying TS-A10 overload coverage. | Medium | `parse_class_element` | Add TS modifier consumption after `static`/`abstract` and before the method-name key; extend `ClassElement` with `accessibility` / `readonly` / `override` fields + emitter support. |
+| K12 | ~~Class method access modifiers~~ ✅ Fixed in `0513d43`. Parses all permutations of `public`/`private`/`protected`/`readonly`/`override`/`static`/`abstract`, plus constructor parameter properties (modifiers dropped into `FunctionParameter` and not yet wrapped in `TSParameterProperty` — tracked as follow-up). Emitter writes `accessibility` / `readonly` / `override` fields when set. | | | |
 
 ---
 
@@ -382,30 +387,38 @@ Ordered by impact × feasibility.
 2. ~~EST-1, EST-2, EST-6~~ ✅ All shipped. See §6.
 3. ~~OPT-1, OPT-2, OPT-4~~ ✅ Shipped. See §6.
 4. ~~TS-A10~~ ✅ Shipped (`973c9e6`).
-5. **K12 — class method access modifiers.** Found while verifying TS-A10.
-   `public foo(): void` / `private bar()` don't parse. Straightforward
-   fix in `parse_class_element`: consume `public|private|protected|readonly|override`
-   after `static`/`abstract`, add fields to `ClassElement`, emit them.
-   ~100–150 LOC. Unblocks large chunks of real-world TS.
-6. **K3 — `spec-compliance` regressions.** antd.js +169 is the big one;
-   the rest are +1/+2. Triage with a field-level diff against OXC. Accept
-   the improvements (chalk 22→4) or roll back whatever caused antd drift.
+5. ~~K12 / EST-3 / OPT-3~~ ✅ All closed. See table in §8.
+6. **K3 — verifier calibration + baseline refresh.** The `--preserve-parens`
+   flag (c8f9dff) drops antd.js from 10020 → ~20 divergences. To close
+   K3 end-to-end:
+     a. Teach `tests/verifiers/verify_json_deep.js` to pass
+        `--preserve-parens` to Kessel when the reference parser is
+        OXC or Acorn-with-preserveParens. NOT when it's Babel (different
+        shape) — the existing STRIP_FIELDS_BY_PARSER map is the
+        precedent for per-parser behaviour.
+     b. Experimental attempt to add symmetric `unwrapParens` on the
+        Kessel side jumped divergences from 20 → 13221 — the naive
+        symmetric unwrap breaks some span compares. Likely needs
+        unwrap-during-compare (two-way) instead of unwrap-during-strip
+        (one-way). Kept the default verifier unchanged and documented
+        here for the follow-up session.
+     c. After (a)+(b) land, run `task test:spec-compliance --update`.
 7. **Wave 3 Phase C** — TSX trailing-comma rule for generic arrows,
    forbid `<Type>expr` in `.tsx`. See `.swarm/07-lt-trial-parse-design.md`.
    Note: the ambiguity fixtures under `tests/fixtures/spec/ambiguity/`
    (untracked at time of this handoff) are a starting point.
-8. **EST-3 `ParenthesizedExpression` / OPT-3 `preserveParens`.** Tied
-   together: the emitter needs a ParenthesizedExpression node variant,
-   then OPT-3 exposes it. Medium-size change.
+8. **TSParameterProperty node.** K12 parses `constructor(public x: T)`
+   but currently drops the modifier flags into nothing. ESTree-faithful
+   shape would wrap the param in a `TSParameterProperty { parameter,
+   accessibility, readonly, override }`. Additive, opt-in behind the
+   same `emit_ts_shape` toggle used for TS-only identifier fields.
 9. **TS-ESTree shape alignment** (EST-4, OPT-5 `astType`) — blocked on
    Node verifier infra. See `.swarm/08-ts-estree-alignment-design.md`.
-10. **Spec-compliance zod.js / unfixed baseline updates** — run
-    `task test:spec-compliance --update` after the K3 triage is done.
-11. **Full Test262 + Babel + TypeScript parser test suites** — Ongoing.
-12. **Graceful error recovery (ERR-2..4).** Most of the old K6–K8 crashes
+10. **Full Test262 + Babel + TypeScript parser test suites** — Ongoing.
+11. **Graceful error recovery (ERR-2..4).** Most of the old K6–K8 crashes
     are fixed but the error recovery is still minimal; ERR-2..4 would
     make parse-failure behaviour usable in editor tooling.
-13. **NAPI bindings + Visitor API** — Separate integration phase. Biggest
+12. **NAPI bindings + Visitor API** — Separate integration phase. Biggest
     remaining gap for "drop-in replacement for `oxc-parser` on npm".
 
 ---
@@ -427,6 +440,7 @@ bin/kessel parse <file.ts> --lang=ts                    # force TS mode
 bin/kessel parse <file.tsx> --lang=tsx                  # TS + JSX
 bin/kessel parse <file.js> --loc                        # loc{line,column}
 bin/kessel parse <file.js> --range                      # ESLint range tuple
+bin/kessel parse <file.js> --preserve-parens            # Acorn/OXC paren wrapper
 bin/kessel parse <file.js> --source-type=module         # pin Program.sourceType
 bin/kessel parse <file.js> --errors=oxc                 # OXC error shape
 bin/kessel parse <file.js> --module-record              # + "module": {…} record
