@@ -130,6 +130,18 @@
               "end": 207,
               "name": "identity",
               "typeAnnotation": null            },
+            "typeArguments": {
+              "type": "TSTypeParameterInstantiation",
+              "start": 207,
+              "end": 215,
+              "params": [
+                {
+                  "type": "TSNumberKeyword",
+                  "start": 208,
+                  "end": 214
+                }
+              ]
+            },
             "arguments": [
               {
                 "type": "Literal",
@@ -165,6 +177,18 @@
               "end": 239,
               "name": "identity",
               "typeAnnotation": null            },
+            "typeArguments": {
+              "type": "TSTypeParameterInstantiation",
+              "start": 239,
+              "end": 247,
+              "params": [
+                {
+                  "type": "TSStringKeyword",
+                  "start": 240,
+                  "end": 246
+                }
+              ]
+            },
             "arguments": [
               {
                 "type": "Literal",
@@ -192,5 +216,5 @@
 }
 
 --- Statistics ---
-Arena: used=8352B reserved=16777216B ratio=0%
+Arena: used=8376B reserved=16777216B ratio=0%
 Parse errors: 0

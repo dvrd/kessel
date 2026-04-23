@@ -125,6 +125,7 @@
           "end": 135,
           "name": "fn",
           "typeAnnotation": null        },
+        "typeArguments": null,
         "arguments": [
           {
             "type": "TSNonNullExpression",

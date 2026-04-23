@@ -40,6 +40,18 @@
                   "end": 60,
                   "name": "foo",
                   "typeAnnotation": null                },
+                "typeArguments": {
+                  "type": "TSTypeParameterInstantiation",
+                  "start": 60,
+                  "end": 68,
+                  "params": [
+                    {
+                      "type": "TSStringKeyword",
+                      "start": 61,
+                      "end": 67
+                    }
+                  ]
+                },
                 "arguments": [
                 ]              },
               "property": {
@@ -48,6 +60,18 @@
                 "end": 74,
                 "name": "bar",
                 "typeAnnotation": null              }            },
+            "typeArguments": {
+              "type": "TSTypeParameterInstantiation",
+              "start": 74,
+              "end": 82,
+              "params": [
+                {
+                  "type": "TSNumberKeyword",
+                  "start": 75,
+                  "end": 81
+                }
+              ]
+            },
             "arguments": [
             ]          }        }
       ]    }

@@ -31,6 +31,18 @@
               "end": 71,
               "name": "foo",
               "typeAnnotation": null            },
+            "typeArguments": {
+              "type": "TSTypeParameterInstantiation",
+              "start": 71,
+              "end": 79,
+              "params": [
+                {
+                  "type": "TSStringKeyword",
+                  "start": 72,
+                  "end": 78
+                }
+              ]
+            },
             "arguments": [
               {
                 "type": "Identifier",

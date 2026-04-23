@@ -41,6 +41,7 @@
         ]
       },
       "superClass": null,
+      "superTypeArguments": null,
       "body": {
         "type": "ClassBody",
         "start": 78,
@@ -60,6 +61,7 @@
             "value": null,
             "computed": false,
             "static": false,
+            "optional": false,
             "typeAnnotation": {
               "type": "TSTypeAnnotation",
               "start": 87,
@@ -98,6 +100,8 @@
               "expression": false,
               "generator": false,
               "async": false,
+              "declare": false,
+              "typeParameters": null,
               "params": [
                 {
                   "type": "Identifier",
@@ -124,6 +128,7 @@
                   }
                 }
               ],
+              "returnType": null,
               "body": {
                 "type": "BlockStatement",
                 "start": 112,
@@ -164,7 +169,8 @@
             },
             "kind": "constructor",
             "computed": false,
-            "static": false
+            "static": false,
+            "optional": false
           },
           {
             "type": "MethodDefinition",
@@ -185,6 +191,8 @@
               "expression": false,
               "generator": false,
               "async": false,
+              "declare": false,
+              "typeParameters": null,
               "params": [],
               "returnType": {
                 "type": "TSTypeAnnotation",
@@ -233,7 +241,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "optional": false
           }
         ]
       }    },
@@ -258,24 +267,30 @@
             "start": 178,
             "end": 197,
             "callee": {
-              "type": "CallExpression",
+              "type": "Identifier",
               "start": 182,
-              "end": 197,
-              "callee": {
-                "type": "Identifier",
-                "start": 182,
-                "end": 185,
-                "name": "Box",
-                "typeAnnotation": null              },
-              "arguments": [
+              "end": 185,
+              "name": "Box",
+              "typeAnnotation": null            },
+            "typeArguments": {
+              "type": "TSTypeParameterInstantiation",
+              "start": 185,
+              "end": 193,
+              "params": [
                 {
-                  "type": "Literal",
-                  "start": 194,
-                  "end": 196,
-                  "value": 42,
-                  "raw": "42"                }
-              ]            },
+                  "type": "TSNumberKeyword",
+                  "start": 186,
+                  "end": 192
+                }
+              ]
+            },
             "arguments": [
+              {
+                "type": "Literal",
+                "start": 194,
+                "end": 196,
+                "value": 42,
+                "raw": "42"              }
             ]          }        }
       ]    }
   ],
@@ -290,5 +305,5 @@
 }
 
 --- Statistics ---
-Arena: used=8648B reserved=16777216B ratio=0%
+Arena: used=8728B reserved=16777216B ratio=0%
 Parse errors: 0

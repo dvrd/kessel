@@ -187,17 +187,23 @@ const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   FunctionDeclaration:      new Set(['predicate', 'declare']),
   FunctionExpression:       new Set(['predicate']),
   ArrowFunctionExpression:  new Set([]),
+  // MethodDefinition: Kessel now emits accessibility and override when set.
+  // typeParameters is TS-specific on methods; strip for now (rarely set).
   MethodDefinition:         new Set(['typeParameters', 'accessibility', 'override']),
-  PropertyDefinition:       new Set(['typeAnnotation', 'readonly', 'declare', 'definite', 'accessibility', 'override']),
-  ClassDeclaration:         new Set(['typeParameters', 'implements', 'abstract', 'declare']),
-  ClassExpression:          new Set(['typeParameters', 'implements', 'abstract']),
+  // PropertyDefinition: Kessel now emits typeAnnotation and optional.
+  // readonly/declare/definite/accessibility/override remain stripped (not yet emitted).
+  PropertyDefinition:       new Set(['readonly', 'declare', 'definite', 'accessibility', 'override']),
+  // ClassDeclaration/Expression: Kessel now emits typeParameters. Remove from strip.
+  // implements/abstract/declare remain stripped.
+  ClassDeclaration:         new Set(['implements', 'abstract', 'declare']),
+  ClassExpression:          new Set(['implements', 'abstract']),
   VariableDeclaration:      new Set(['declare']),
   VariableDeclarator:       new Set(['definite']),
-  // CallExpression / NewExpression: OXC always emits `typeArguments: null`
-  // in TS-aware mode for generic call syntax `foo<T>()`. Kessel emits the
-  // field only when type args are actually present. Strip null-form.
-  CallExpression:           new Set(['typeArguments', 'optional']),
-  NewExpression:            new Set(['typeArguments']),
+  // CallExpression / NewExpression: Kessel now emits typeArguments when present.
+  // Remove typeArguments from the strip — compare directly. Strip optional
+  // (optional chaining marker) since Kessel only emits when true.
+  CallExpression:           new Set(['optional']),
+  NewExpression:            new Set([]),
   // MemberExpression: optional is the optional-chaining `.?` marker.
   // OXC always emits it; Kessel only emits when true. Strip on both.
   MemberExpression:         new Set(['optional']),

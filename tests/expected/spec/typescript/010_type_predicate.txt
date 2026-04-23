@@ -207,6 +207,7 @@
                   "end": 309,
                   "name": "Error",
                   "typeAnnotation": null                },
+                "typeArguments": null,
                 "arguments": [
                 ]              }            },
             "alternate": null          }
@@ -230,5 +231,5 @@
 }
 
 --- Statistics ---
-Arena: used=9272B reserved=16777216B ratio=0%
+Arena: used=9320B reserved=16777216B ratio=0%
 Parse errors: 0

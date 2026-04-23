@@ -19,7 +19,7 @@
       "extends": [],
       "body": {
         "type": "TSInterfaceBody",
-        "start": 0,
+        "start": 14,
         "end": 48,
         "body": [
           {

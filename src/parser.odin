@@ -4022,11 +4022,15 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				}
 				return expr
 			}
-			// Commit: if followed by `(`, it's a CallExpression with
-			// type_parameters; other stand-alone `foo<T>` uses (ES2023 TS
-			// TSInstantiationExpression) are not yet modelled — rollback
-			// those and let the outer parser handle them.
-			if is_token(p, .LParen) {
+			// Commit: if followed by `(` AND calls are allowed, it's a
+			// CallExpression with type_parameters.
+			// When allow_call=false (e.g. `new Foo<T>(args)` callee parse),
+			// stop here — the `(args)` belong to the outer NewExpression,
+			// not to a nested CallExpression around the callee.
+			// Store targs on a synthetic TSInstantiationExpression and break.
+			if is_token(p, .LParen) && allow_call {
+				saved_paren2 := p.pending_paren_start
+				p.pending_paren_start = max(u32)
 				args := parse_arguments(p)
 				call, call_e := new_expr(p, CallExpression)
 				call.loc = loc_from_expr(expr)
@@ -4034,6 +4038,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.arguments = args
 				call.type_parameters = targs
 				call.optional = false
+				if saved_paren2 != max(u32) && saved_paren2 <= call.loc.span.start {
+					call.loc.span.start = saved_paren2
+				}
 				call.loc.span.end = prev_end_offset(p)
 				expr = call_e
 				continue
@@ -6674,6 +6681,9 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	// Use `is_next_identifier_value` for cheap lookahead without speculative parse.
 	is_mapped := false
 	readonly_mod := TSMappedTypeModifier.None
+	// modifier_start: position of the first modifier token (readonly/+/-) before
+	// `[`. Used to set the correct start on index signatures that have a modifier.
+	modifier_start := cur_loc(p).span.start
 
 	// Check `{ readonly [`  — readonly then bracket, plus `+readonly [` / `-readonly [`.
 	// `.Readonly` is not in the lexer — check by string value.
@@ -6720,22 +6730,31 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			// index signature as the first member, then continue into the
 			// regular object-member loop (which appends siblings).
 			members := make([dynamic]^TSSignature, 0, 4, p.allocator)
-			key_type_start := cur_loc(p)
-			_ = key_type_start
+			// key_type_start: position of `:` before the key type annotation.
+			key_type_start := cur_loc(p)  // points to `:`
 			expect_token(p, .Colon)
 			idx_ann := parse_ts_type(p)
+			// Capture end of key type BEFORE eating `]` and parsing value type.
+			key_type_end := prev_end_offset(p)
 			expect_token(p, .RBracket)
 			val_ann: Maybe(^TSTypeAnnotation)
 			if is_token(p, .Colon) { val_ann = parse_ts_type_annotation(p) }
 			param_name_ident := new_node(p, Identifier)
 			param_name_ident.loc = param_name.loc
 			param_name_ident.name = param_name.name
+			// TSTypeAnnotation for the key: spans [colon, end-of-key-type].
 			key_ann := new_node(p, TSTypeAnnotation)
-			key_ann.loc = param_start
+			key_ann.loc.span.start = key_type_start.span.start
+			key_ann.loc.span.end   = key_type_end
 			key_ann.type_annotation = idx_ann
-			key_ann.loc.span.end = prev_end_offset(p)
+			// Parameter: spans [start-of-name, end-of-key-type].
+			// OXC ends the parameter at the end of the key type annotation,
+			// NOT at the `]` or the value type.
+			// Use modifier_start as the index signature loc start when a
+			// readonly/+/-readonly modifier preceded the `[`; otherwise use lb_start.
+			sig_loc_start := modifier_start if readonly_mod != .None else lb_start.span.start
 			idx_sig := TSIndexSignature{
-				loc = lb_start,
+				loc = Loc{span = Span{start = sig_loc_start, end = lb_start.span.end}},
 				parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
 				type_annotation = val_ann,
 				readonly = readonly_mod == .True,
@@ -6745,12 +6764,14 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 				pattern = param_name_ident,
 				type_annotation = key_ann,
 			}
-			fp.loc.span.end = prev_end_offset(p)
+			fp.loc.span.end = key_type_end
 			append(&idx_sig.parameters, fp)
+			// Consume optional semi/comma BEFORE setting the end span so the
+			// index signature span includes the terminator (matching OXC).
+			match_token(p, .Semi); match_token(p, .Comma)
 			idx_sig.loc.span.end = prev_end_offset(p)
 			first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
 			append(&members, first_sig)
-			match_token(p, .Semi); match_token(p, .Comma)
 			for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 				sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
 				match_token(p, .Semi); match_token(p, .Comma)
@@ -6872,8 +6893,10 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			param_name_ident.loc = loc_from_token(param_name_tok)
 			param_name_ident.name = param_name_tok.value
 			eat(p) // consume identifier
+			colon_start := cur_loc(p)  // position of `:` before key type
 			eat(p) // consume colon
 			idx_ann := parse_ts_type(p)
+			key_type_end := prev_end_offset(p)  // end of key type, before `]`
 			expect_token(p, .RBracket)
 			val_ann: Maybe(^TSTypeAnnotation)
 			if is_token(p, .Colon) { val_ann = parse_ts_type_annotation(p) }
@@ -6884,18 +6907,22 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 				type_annotation = val_ann,
 				readonly = idx_readonly,
 			}
-			// Build the sole parameter: pattern is the identifier, type_annotation is the index key's type.
+			// Build the sole parameter with correct span: ends at key-type end.
 			key_ann := new_node(p, TSTypeAnnotation)
-			key_ann.loc = param_start
+			key_ann.loc.span.start = colon_start.span.start
+			key_ann.loc.span.end   = key_type_end
 			key_ann.type_annotation = idx_ann
-			key_ann.loc.span.end = prev_end_offset(p)
 			fp := TSFunctionParam{
 				loc = param_start,
 				pattern = param_name_ident,
 				type_annotation = key_ann,
 			}
-			fp.loc.span.end = prev_end_offset(p)
+			fp.loc.span.end = key_type_end
 			append(&idx_sig.parameters, fp)
+			// Consume optional semi/comma inside the function so the span includes
+			// the terminator (matching OXC). The caller also tries to match them
+			// but match_token is idempotent when the token is already consumed.
+			match_token(p, .Semi); match_token(p, .Comma)
 			idx_sig.loc.span.end = prev_end_offset(p)
 
 			sig := new_node(p, TSSignature)
@@ -7093,6 +7120,7 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	id := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}; eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+	body_start := cur_loc(p)  // position of `{`
 	expect_token(p, .LBrace)
 	members := make([dynamic]^TSSignature, 0, 8, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
@@ -7101,7 +7129,7 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 	expect_token(p, .RBrace)
 	decl := new_node(p, TSInterfaceDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters
-	decl.body = TSInterfaceBody{loc = start, body = members}; decl.body.loc.span.end = prev_end_offset(p)
+	decl.body = TSInterfaceBody{loc = body_start, body = members}; decl.body.loc.span.end = prev_end_offset(p)
 	decl.loc.span.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }

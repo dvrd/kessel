@@ -23,10 +23,10 @@ stdout_writer: bufio.Writer
 stdout_writer_buf: [1 * 1024 * 1024]byte // Increased from 64KB to 1MB for JSON streaming
 stdout_stream: io.Writer
 
-// Compact JSON output mode — skip indentation and newlines
+// Compact JSON output mode - skip indentation and newlines
 compact_json: bool
 
-// Error emission shape — "kessel" (default, { message, line, column, offset })
+// Error emission shape - "kessel" (default, { message, line, column, offset })
 // or "oxc" (OXC TS-ESTree shape: { severity, message, labels: [{ span: { start, end } }] }).
 // CLI flag: --errors=oxc. Default preserves backward compat with existing consumers.
 error_format: string = "kessel"
@@ -52,9 +52,9 @@ emit_range_enabled: bool
 // the parser's default auto-detection. `unambiguous` is the traditional
 // Kessel/Acorn default (auto-upgrade Script→Module on a top-level import /
 // export / import.meta). Values:
-//   .Script   — force Script, disable the auto-upgrade to Module.
-//   .Module   — force Module regardless of body contents.
-//   nil       — unambiguous (auto-detect).
+//   .Script   - force Script, disable the auto-upgrade to Module.
+//   .Module   - force Module regardless of body contents.
+//   nil       - unambiguous (auto-detect).
 source_type_override: Maybe(SourceType)
 
 // CLI flag: --preserve-parens. When enabled, every genuine `(expr)`
@@ -84,7 +84,7 @@ HashbangInfo :: struct {
 }
 line_offsets_for_loc: []u32
 
-// Direct buffer mode — pre-allocated []byte, zero bufio overhead
+// Direct buffer mode - pre-allocated []byte, zero bufio overhead
 use_direct_buf: bool
 direct_buf: []byte
 direct_pos: int
@@ -201,13 +201,13 @@ out_s :: #force_inline proc(s: string) {
 }
 
 // wtf8_surrogate_at checks if bytes starting at s[i] form a 3-byte WTF-8
-// encoding of a lone UTF-16 surrogate (U+D800–U+DFFF). Returns the decoded
+// encoding of a lone UTF-16 surrogate (U+D800-U+DFFF). Returns the decoded
 // codepoint and true on match.
 //
 // ECMA-262 permits lone surrogates in string literals (the `value` of
 // `'\uDEAD'` is a 1-character string whose single codepoint is U+DEAD).
-// The lexer's append_utf8 encodes these in WTF-8 — valid UTF-8 it is not,
-// because the Unicode Standard reserves 0xED 0xA0–0xBF 0x80–0xBF. Emitting
+// The lexer's append_utf8 encodes these in WTF-8 - valid UTF-8 it is not,
+// because the Unicode Standard reserves 0xED 0xA0-0xBF 0x80-0xBF. Emitting
 // those raw bytes to stdout produces JSON that JSON.parse normalises to
 // U+FFFD (the replacement character), diverging from OXC which emits the
 // surrogate as a JSON `\uXXXX` escape. We mirror OXC on emit.
@@ -567,7 +567,7 @@ main :: proc() {
 		delete(parse_files)
 
 	case "raw":
-		// Produce raw transfer buffer — for testing/benchmarking the zero-copy path
+		// Produce raw transfer buffer - for testing/benchmarking the zero-copy path
 		if len(os.args) < 3 {
 			out_println("Usage: kessel raw <file> [--out file.bin]")
 			flush_stdout_writer()
@@ -589,7 +589,7 @@ main :: proc() {
 		}
 		file_path := os.args[2]
 		lex_file(file_path)
-		
+
 	case "microbench":
 		if len(os.args) < 4 {
 			out_println("Usage: kessel microbench parse <file> [--iterations N]")
@@ -641,7 +641,7 @@ main :: proc() {
 			flush_stdout_writer()
 			os.exit(1)
 		}
-		
+
 	case "help", "-h", "--help":
 		print_usage()
 
@@ -700,7 +700,7 @@ parse_file :: proc(file_path: string) {
 		os.exit(1)
 	}
 	defer delete(source, context.allocator)
-	
+
 	// Create virtual arena for allocations (lazy commit via virtual memory)
 	arena: mvirtual.Arena
 	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
@@ -711,16 +711,16 @@ parse_file :: proc(file_path: string) {
 	}
 	defer mvirtual.arena_destroy(&arena)
 	arena_alloc := mvirtual.arena_allocator(&arena)
-	
+
 	// Initialize optimized lexer with compact tokens + SIMD
 	lex: Lexer
 	init_lexer(&lex, string(source), arena_alloc)
-	
+
 	// Initialize parser with optimized lexer. Language mode is CLI override
 	// when set, else detected from the file extension.
 	p: Parser
 	init_parser(&p, &lex, arena_alloc, resolve_lang(file_path))
-	// TS-shape emitter toggle — mirror OXC's behaviour of emitting unconditional
+	// TS-shape emitter toggle - mirror OXC's behaviour of emitting unconditional
 	// TS-ESTree fields (typeAnnotation: null, optional: false, etc.) only when
 	// parsing TypeScript. Keeps JS output unchanged.
 	emit_ts_shape = p.lang == .TS || p.lang == .TSX
@@ -740,10 +740,10 @@ parse_file :: proc(file_path: string) {
 
 	// Parse program
 	program := parse_program(&p, initial_source_type)
-	
+
 	// Build byte→UTF-16 offset table for ESTree span emission.
 	build_utf16_table(source, context.allocator)
-	
+
 	// Build line-offset table for ESTree loc emission when --loc is enabled.
 	if emit_loc_enabled {
 		build_line_table(p.lexer)
@@ -814,7 +814,7 @@ parse_file :: proc(file_path: string) {
 				if i < len(p.errors) - 1 { out_s("},\n") } else { out_s("}\n") }
 			}
 		} else {
-			// Kessel legacy shape: { message, line, column, offset } — DEFAULT.
+			// Kessel legacy shape: { message, line, column, offset } - DEFAULT.
 			// Kept byte-identical to pre-feature output so every existing consumer
 			// (verifiers, regression tests, baselines) works unchanged.
 			for err, i in p.errors {
@@ -847,14 +847,14 @@ parse_file :: proc(file_path: string) {
 	// the line without stripping error preambles. Previously errors were
 	// emitted through the bufio writer BEFORE this direct write; the
 	// bufio writer only flushed at process exit, so its bytes actually
-	// appeared on stdout AFTER the JSON bytes — and without the
+	// appeared on stdout AFTER the JSON bytes - and without the
 	// intervening newline the JSON and the error header ran together
-	// (…]}}}Parse errors (6):…), breaking every downstream JSON.parse.
+	// (...]}}}Parse errors (6):...), breaking every downstream JSON.parse.
 	os.write(os.stdout, direct_buf[:direct_pos])
 
 	// Now emit parse-error diagnostics. Bypass out_printf (which would
 	// append to direct_buf, and direct_buf is not written to stdout again
-	// after the JSON flush above — the error lines would be lost). Instead
+	// after the JSON flush above - the error lines would be lost). Instead
 	// write directly to stdout via core:fmt.printf so they appear on
 	// subsequent lines of stdout as intended. Previously these error
 	// messages silently disappeared whenever the JSON emitter was active,
@@ -869,7 +869,7 @@ parse_file :: proc(file_path: string) {
 	delete(direct_buf, context.allocator)
 	direct_buf = nil
 	use_direct_buf = false
-	
+
 	// Print statistics
 	fmt.eprintf("\n--- Statistics ---\n")
 	ratio := (arena.total_used * 100) / arena.total_reserved
@@ -949,11 +949,11 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 	// Render AST JSON into a thread-local buffer. `direct_reserve` may grow
 	// direct_buf during emission (reallocating and freeing the old slice),
 	// so we can't cache the initial make() into a local and `defer delete`
-	// it — that would double-free after grow. Instead, free whatever
+	// it - that would double-free after grow. Instead, free whatever
 	// direct_buf points to at the end.
 	est_size := max(len(source) * 20, 4096)
 
-	// Save/restore globals (direct_buf is global — use local override)
+	// Save/restore globals (direct_buf is global - use local override)
 	prev_buf := direct_buf
 	prev_pos := direct_pos
 	prev_use := use_direct_buf
@@ -1054,7 +1054,7 @@ worker_proc :: proc(data: rawptr) {
 //                                         for backward compatibility with
 //                                         existing consumers)
 detect_lang_from_path :: proc(path: string) -> Lang {
-	// Longest suffixes first — check .d.ts before .ts.
+	// Longest suffixes first - check .d.ts before .ts.
 	if strings.has_suffix(path, ".d.ts") { return .TS }
 	if strings.has_suffix(path, ".tsx")  { return .TSX }
 	if strings.has_suffix(path, ".jsx")  { return .JSX }
@@ -1267,13 +1267,13 @@ microbench_file :: proc(file_path: string, iterations: int) {
 		os.exit(1)
 	}
 	defer delete(source, context.allocator)
-	
+
 	file_size := len(source)
-	
+
 	// Allocate array for timing measurements
 	durations := make([dynamic]time.Duration, context.allocator)
 	defer delete(durations)
-	
+
 	// Pre-compute arena reservation based on source size
 	// Small files: tight arena avoids mmap overhead for sub-microsecond parses
 	// Large files: 128× source for AST + dynamic arrays
@@ -1282,7 +1282,7 @@ microbench_file :: proc(file_path: string, iterations: int) {
 		arena_reserve = 256 * 1024  // 256KB min (avoids 16MB mmap for tiny files)
 	}
 
-	// Single arena for all iterations — reset between runs (no mmap/munmap per iter)
+	// Single arena for all iterations - reset between runs (no mmap/munmap per iter)
 	arena: mvirtual.Arena
 	err := mvirtual.arena_init_static(&arena, arena_reserve)
 	if err != nil {
@@ -1296,46 +1296,46 @@ microbench_file :: proc(file_path: string, iterations: int) {
 	{
 		lex: Lexer
 		init_lexer(&lex, string(source), arena_alloc)
-		
+
 		p: Parser
 		init_parser(&p, &lex, arena_alloc)
-		
+
 		_ = parse_program(&p, .Script)
 		mvirtual.arena_free_all(&arena)
 	}
-	
+
 	// Main benchmark loop
 	for i in 0..<iterations {
 		start := time.tick_now()
-		
+
 		// Reset arena (real-world cost: always happens before a parse)
 		mvirtual.arena_free_all(&arena)
-		
+
 		lex: Lexer
 		init_lexer(&lex, string(source), arena_alloc)
-		
+
 		p: Parser
 		init_parser(&p, &lex, arena_alloc)
-		
+
 		_ = parse_program(&p, .Script)
-		
+
 		elapsed := time.tick_since(start)
 		append(&durations, elapsed)
 	}
-	
+
 	// Convert durations to microseconds for analysis
 	microseconds := make([dynamic]f64, context.allocator)
 	defer delete(microseconds)
-	
+
 	for d in durations {
 		append(&microseconds, f64(time.duration_microseconds(d)))
 	}
-	
+
 	// Calculate statistics
 	total_us := f64(0)
 	min_us := microseconds[0]
 	max_us := microseconds[0]
-	
+
 	for us in microseconds {
 		total_us += us
 		if us < min_us {
@@ -1345,18 +1345,18 @@ microbench_file :: proc(file_path: string, iterations: int) {
 			max_us = us
 		}
 	}
-	
+
 	mean_us := total_us / f64(len(microseconds))
-	
+
 	// Sort for percentiles
 	slice.sort(microseconds[:])
-	
+
 	p50_us := percentile(microseconds[:], 50)
 	p95_us := percentile(microseconds[:], 95)
 	p99_us := percentile(microseconds[:], 99)
-	
+
 	total_ms := total_us / 1000.0
-	
+
 	// Output results
 	out_printf("Microbench: %s (%d bytes)\n", file_path, file_size)
 	out_printf("Iterations: %d\n", iterations)
@@ -1376,15 +1376,15 @@ percentile :: proc(sorted_values: []f64, p: f64) -> f64 {
 	if len(sorted_values) == 1 {
 		return sorted_values[0]
 	}
-	
+
 	idx := (p / 100.0) * f64(len(sorted_values) - 1)
 	lower := int(idx)
 	upper := lower + 1
-	
+
 	if upper >= len(sorted_values) {
 		return sorted_values[len(sorted_values) - 1]
 	}
-	
+
 	fraction := idx - f64(lower)
 	return sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction
 }
@@ -1667,7 +1667,7 @@ print_module_record :: proc(p: ^Parser, indent: int) {
 //   * Add start/end: byte offsets covering the entire source. Acorn/OXC/Babel
 //     all emit these; Kessel previously emitted no position info at all.
 //   * hashbang: emit "hashbang" field with null when absent (OXC shape). The
-//     lexer currently skips shebang lines without preserving content — we
+//     lexer currently skips shebang lines without preserving content - we
 //     still declare the field so consumers don't see it as "missing".
 print_program_ast :: proc(program: ^Program, indent: int, comments: []Comment = nil, hashbang: Maybe(HashbangInfo) = nil) {
 	source_type_str := "script" if program.type == .Script else "module"
@@ -1679,7 +1679,7 @@ print_program_ast :: proc(program: ^Program, indent: int, comments: []Comment = 
 	out_s(source_type_str)
 	out_s("\",\n")
 	print_indent(indent)
-	// ES2023 HashbangComment — emit `{type:"Hashbang", value, start, end}` when
+	// ES2023 HashbangComment - emit `{type:"Hashbang", value, start, end}` when
 	// the source started with `#!...`. OXC parity shape.
 	if hb, ok := hashbang.?; ok {
 		out_s("\"hashbang\": { \"type\": \"Hashbang\", \"value\": ")
@@ -1743,7 +1743,7 @@ print_program_ast :: proc(program: ^Program, indent: int, comments: []Comment = 
 
 // emit_identifier_name_object writes a full `{"type":"Identifier","start":N,
 // "end":N,"name":"..."}` object for an `IdentifierName` or `BindingIdentifier`
-// value. Used wherever ESTree expects an Identifier node inline — e.g.
+// value. Used wherever ESTree expects an Identifier node inline - e.g.
 // ExportSpecifier.local, ImportSpecifier.imported, ClassDeclaration.id. Emits
 // with the caller-supplied indent on each line; the opening `{` is written
 // here, the closing `}` too. Callers handle leading field name and trailing
@@ -1757,7 +1757,7 @@ emit_identifier_name_object :: proc(id: IdentifierName, indent: int) {
 	out_s("\"name\": ")
 	out_string(id.name)
 	if emit_ts_shape {
-		// TS-ESTree shape parity — OXC emits these fields unconditionally.
+		// TS-ESTree shape parity - OXC emits these fields unconditionally.
 		out_s(",\n")
 		print_indent(indent + 1)
 		out_s("\"typeAnnotation\": null")
@@ -1802,7 +1802,7 @@ emit_binding_identifier_object :: proc(id: BindingIdentifier, indent: int) {
 }
 
 // emit_string_literal_object writes a full ESTree Literal object for a
-// StringLiteral value — used inline by ImportDeclaration.source and
+// StringLiteral value - used inline by ImportDeclaration.source and
 // ExportAllDeclaration.source, which previously emitted a compact one-line
 // `{"type":"Literal","value":"...","raw":"..."}` with no start/end.
 emit_string_literal_object :: proc(s: StringLiteral, indent: int) {
@@ -1824,11 +1824,11 @@ emit_string_literal_object :: proc(s: StringLiteral, indent: int) {
 
 // out_u32 writes an unsigned 32-bit integer to the output, fast-pathing through
 // the direct buffer to avoid `strings.Builder` allocation in out_printf. Used
-// on every single emitted node for start/end offsets — millions of calls on a
-// large file — so the allocation-free path is worth the ~40 lines.
+// on every single emitted node for start/end offsets - millions of calls on a
+// large file - so the allocation-free path is worth the ~40 lines.
 out_u32 :: #force_inline proc(n: u32) {
 	if use_direct_buf {
-		direct_reserve(10) // u32 max is 4,294,967,295 — 10 digits
+		direct_reserve(10) // u32 max is 4,294,967,295 - 10 digits
 		if n == 0 {
 			direct_buf[direct_pos] = '0'
 			direct_pos += 1
@@ -1852,7 +1852,7 @@ out_u32 :: #force_inline proc(n: u32) {
 	}
 }
 
-// emit_span_fields writes `,\n<indent>"start": N,\n<indent>"end": N` — a
+// emit_span_fields writes `,\n<indent>"start": N,\n<indent>"end": N` - a
 // LEADING comma (no trailing one), designed to slot between the `"type": "X"`
 // line and whatever the case emits next (which still starts with its own
 // `,\n<indent>"field": ...`). This is the one-call-per-node invariant that
@@ -1863,7 +1863,7 @@ out_u32 :: #force_inline proc(n: u32) {
 // an inverted span is a parser bug and we'd rather crash than emit nonsense).
 emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
 	// Tolerate inverted spans (end < start) that can arise from deeply-nested
-	// JSX children or error-recovery paths — clamp `end := max(start, end)` so
+	// JSX children or error-recovery paths - clamp `end := max(start, end)` so
 	// invalid input is still emitted as well-formed JSON instead of SIGTRAPping.
 	// See K5 (deep JSX child recursion) and fuzz:invalid contract.
 	start := loc.span.start
@@ -1894,39 +1894,39 @@ emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"loc\": { \"start\": { \"line\": ")
-		
+
 		start_line, _ := offset_to_line_col(line_offsets_for_loc, loc.span.start)
 		out_u32(start_line)
 		out_s(", \"column\": ")
-		
+
 		line_start_byte := line_offsets_for_loc[start_line - 1] if start_line > 0 && start_line - 1 < u32(len(line_offsets_for_loc)) else 0
 		line_start_utf16 := to_utf16(line_start_byte)
 		start_utf16 := to_utf16(loc.span.start)
 		start_col_0indexed := start_utf16 - line_start_utf16
 		out_u32(start_col_0indexed)
-		
+
 		out_s(" }, \"end\": { \"line\": ")
 		end_line, _ := offset_to_line_col(line_offsets_for_loc, loc.span.end)
 		out_u32(end_line)
 		out_s(", \"column\": ")
-		
+
 		line_end_start_byte := line_offsets_for_loc[end_line - 1] if end_line > 0 && end_line - 1 < u32(len(line_offsets_for_loc)) else 0
 		line_end_start_utf16 := to_utf16(line_end_start_byte)
 		end_utf16 := to_utf16(loc.span.end)
 		end_col_0indexed := end_utf16 - line_end_start_utf16
 		out_u32(end_col_0indexed)
-		
+
 		out_s(" } }")
 	}
 }
 
-// emit_span_leading writes `"start": N,\n<indent>"end": N,\n<indent>` — a
+// emit_span_leading writes `"start": N,\n<indent>"end": N,\n<indent>` - a
 // TRAILING comma, used when the caller has JUST printed `"type": "X",\n` +
 // print_indent(indent). Convenient for inline emitters (SwitchCase, Property,
 // ImportSpecifier, CatchClause, Directive, etc.) that don't use `emit_span_fields`'s
 // leading-comma pattern.
 emit_span_leading :: #force_inline proc(loc: Loc, indent: int) {
-	// Tolerate inverted spans — see note on emit_span_fields.
+	// Tolerate inverted spans - see note on emit_span_fields.
 	start := loc.span.start
 	end := loc.span.end
 	if end < start { end = start }
@@ -1953,31 +1953,31 @@ emit_span_leading :: #force_inline proc(loc: Loc, indent: int) {
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"loc\": { \"start\": { \"line\": ")
-		
+
 		start_line, _ := offset_to_line_col(line_offsets_for_loc, loc.span.start)
 		out_u32(start_line)
 		out_s(", \"column\": ")
-		
+
 		line_start_byte := line_offsets_for_loc[start_line - 1] if start_line > 0 && start_line - 1 < u32(len(line_offsets_for_loc)) else 0
 		line_start_utf16 := to_utf16(line_start_byte)
 		start_utf16 := to_utf16(loc.span.start)
 		start_col_0indexed := start_utf16 - line_start_utf16
 		out_u32(start_col_0indexed)
-		
+
 		out_s(" }, \"end\": { \"line\": ")
 		end_line, _ := offset_to_line_col(line_offsets_for_loc, loc.span.end)
 		out_u32(end_line)
 		out_s(", \"column\": ")
-		
+
 		line_end_start_byte := line_offsets_for_loc[end_line - 1] if end_line > 0 && end_line - 1 < u32(len(line_offsets_for_loc)) else 0
 		line_end_start_utf16 := to_utf16(line_end_start_byte)
 		end_utf16 := to_utf16(loc.span.end)
 		end_col_0indexed := end_utf16 - line_end_start_utf16
 		out_u32(end_col_0indexed)
-		
+
 		out_s(" } }")
 	}
-	
+
 	out_s(",\n")
 	print_indent(indent)
 }
@@ -2024,7 +2024,7 @@ statement_inner_nil :: proc(stmt: ^Statement) -> bool {
 	case ^TSEnumDeclaration:         return s == nil
 	case ^TSModuleDeclaration:       return s == nil
 	}
-	return true  // unknown variant — treat as nil to be safe
+	return true  // unknown variant - treat as nil to be safe
 }
 
 get_statement_loc :: proc(stmt: ^Statement) -> Loc {
@@ -2063,7 +2063,7 @@ get_statement_loc :: proc(stmt: ^Statement) -> Loc {
 	return Loc{}
 }
 
-// expression_inner_nil — same contract as statement_inner_nil for ^Expression
+// expression_inner_nil - same contract as statement_inner_nil for ^Expression
 // unions. See commentary on statement_inner_nil for motivation.
 expression_inner_nil :: proc(expr: ^Expression) -> bool {
 	if expr == nil { return true }
@@ -2196,7 +2196,7 @@ get_pattern_loc :: proc(pattern: Pattern) -> Loc {
 // Walks `block.body` via print_statement_ast on each inner statement, producing
 // a valid ESTree BlockStatement shape. Used wherever the AST holds a
 // BlockStatement by value (TryStatement.block, TryStatement.finalizer,
-// CatchClause.body) rather than through a ^Statement union — casting to
+// CatchClause.body) rather than through a ^Statement union - casting to
 // ^Statement would re-interpret the BlockStatement bytes as a union header
 // and corrupt output (same UB class as Bug H).
 print_block_statement_inline :: proc(block: ^BlockStatement, indent: int) {
@@ -2234,7 +2234,7 @@ print_block_statement_inline :: proc(block: ^BlockStatement, indent: int) {
 print_function_parameter :: proc(param: FunctionParameter, indent: int) {
 	// TSParameterProperty: when a constructor param has TS modifiers
 	// (accessibility/readonly/override), wrap in a TSParameterProperty node.
-	// Only in TS-shape mode (TS/TSX lang). Additive — plain params are
+	// Only in TS-shape mode (TS/TSX lang). Additive - plain params are
 	// emitted as before.
 	has_modifiers := param.accessibility != .None || param.readonly || param.override_
 	if has_modifiers && emit_ts_shape {
@@ -2365,7 +2365,7 @@ print_function_body_inline :: proc(body: ^FunctionBody, indent: int) {
 
 // print_declaration_ast emits a ^Declaration by rebuilding a ^Statement whose
 // union tag matches the inner variant. The previous `(^Statement)(decl)` cast
-// preserved the pointer address but kept the ^Declaration tag ordinal — which
+// preserved the pointer address but kept the ^Declaration tag ordinal - which
 // disagrees with the ^Statement tag ordinal for the same variant, since
 // Declaration has 7 variants and Statement has 25 (different ordinal
 // positions). That made `print_statement_ast` dispatch on the wrong case:
@@ -2378,7 +2378,7 @@ print_function_body_inline :: proc(body: ^FunctionBody, indent: int) {
 //
 // Reassigning `stmt = d` (where d is the typed inner pointer) lets Odin
 // compute the correct ^Statement tag at assignment time. This is the safe
-// idiom for “convert between union types that share a variant”.
+// idiom for "convert between union types that share a variant".
 print_declaration_ast :: proc(decl: ^Declaration, indent: int) {
 	if decl == nil { return }
 	stmt: Statement
@@ -2405,7 +2405,7 @@ print_declaration_ast :: proc(decl: ^Declaration, indent: int) {
 }
 
 // print_variable_declaration_body emits the VariableDeclaration body fields
-// (kind, declarations) starting with `,` — the caller has already written
+// (kind, declarations) starting with `,` - the caller has already written
 // `"type": "VariableDeclaration"` and is positioned to continue the object.
 //
 // Extracted so for-in / for-of emit can reuse it on a ^VariableDeclaration
@@ -2513,7 +2513,7 @@ print_class_body_inline :: proc(body: ^ClassBody, indent: int) {
 //
 // Known edge case: `field = function() {}` (a class field whose initializer
 // is a non-arrow function expression) cannot be distinguished from a method
-// by the current AST representation alone — the parser reuses .Method for
+// by the current AST representation alone - the parser reuses .Method for
 // fields. We accept the rare misclassification rather than bolt a
 // parser-side kind field on in this pass. Arrow-valued fields
 // (`field = () => ...`) are ArrowFunctionExpression, not
@@ -2607,7 +2607,7 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 	}
 
 	// kind is MethodDefinition-only per ESTree. PropertyDefinition has no
-	// kind field — OXC confirms.
+	// kind field - OXC confirms.
 	if is_method {
 		kind_str := "method"
 		#partial switch elem.kind {
@@ -2670,21 +2670,31 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 	}
 
 	// TS field modifiers: optional (`foo?:`) and definite (`foo!:`).
-	if elem.optional {
+	// In TS-shape mode always emit `optional` (OXC always emits false, even
+	// when not optional). In plain JS mode only emit when true (minimise diff).
+	if elem.optional || emit_ts_shape {
 		out_s(",\n")
 		print_indent(indent)
-		out_s("\"optional\": true")
+		out_s("\"optional\": ")
+		out_bool(elem.optional)
 	}
 	if elem.definite {
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"definite\": true")
 	}
-	if ann, ok := elem.type_annotation.(^TSTypeAnnotation); ok {
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"typeAnnotation\": ")
-		emit_ts_type_annotation_node(ann, indent)
+	// typeAnnotation is a PropertyDefinition field only (not MethodDefinition).
+	if !is_method {
+		if ann, ok := elem.type_annotation.(^TSTypeAnnotation); ok {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": ")
+			emit_ts_type_annotation_node(ann, indent)
+		} else if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": null")
+		}
 	}
 	out_s("\n")
 }
@@ -2788,7 +2798,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_s("\"typeParameters\": null,\n")
 		}
 		print_indent(indent)
-		// expression: false — FunctionDeclaration always has a block body.
+		// expression: false - FunctionDeclaration always has a block body.
 		out_s("\"expression\": false,\n")
 		print_indent(indent)
 		out_s("\"generator\": ")
@@ -2909,7 +2919,7 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_print("\"init\": ")
 		if decl, ok := s.init_decl.(^VariableDeclaration); ok {
-			// Do NOT cast ^VariableDeclaration to ^Statement — that was UB of the
+			// Do NOT cast ^VariableDeclaration to ^Statement - that was UB of the
 			// same class as Bug H: the VariableDeclaration struct bytes would be
 			// read as if they were a Statement union header, corrupting dispatch.
 			// Symptom: SIGSEGV deep inside class methods containing
@@ -3006,6 +3016,12 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_println("},")
 		} else {
 			out_println("null,")
+		}
+		// superTypeArguments: type arguments for the superclass. OXC always emits
+		// the field in TS-shape mode (null when absent).
+		if emit_ts_shape {
+			print_indent(indent)
+			out_s("\"superTypeArguments\": null,\n")
 		}
 		print_indent(indent)
 		out_println("\"body\": {")
@@ -3526,6 +3542,12 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		emit_span_leading(s.id.loc, indent + 1)
 		out_s("\"name\": ")
 		out_string(s.id.name)
+		// typeAnnotation: OXC always emits null on the interface id in TS-shape mode.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent + 1)
+			out_s("\"typeAnnotation\": null")
+		}
 		out_s("\n")
 		print_indent(indent)
 		out_s("},\n")
@@ -3692,10 +3714,10 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 			out_s("\"typeAnnotation\": null")
 		}
 	case ^RestElement:
-		// ESTree `RestElement { argument: Pattern }` — the `...x` inside
+		// ESTree `RestElement { argument: Pattern }` - the `...x` inside
 		// `[a, ...x]` or `{ a, ...x }`. Prior to this case the fallthrough
 		// `case:` produced bare `null`, which the ArrayPattern.elements loop
-		// wrapped in `{…}` — emitting invalid `{null}` JSON.
+		// wrapped in `{...}` - emitting invalid `{null}` JSON.
 		print_indent(indent)
 		out_s("\"type\": \"RestElement\",\n")
 		print_indent(indent)
@@ -3706,7 +3728,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		print_indent(indent)
 		out_s("}")
 	case ^AssignmentPattern:
-		// ESTree `AssignmentPattern { left: Pattern, right: Expression }` —
+		// ESTree `AssignmentPattern { left: Pattern, right: Expression }` -
 		// the `x = 1` inside `{ x = 1 }` or `[x = 1]`. Same JSON-validity
 		// rationale as RestElement above.
 		print_indent(indent)
@@ -3727,7 +3749,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 	case ^MemberExpression:
 		// Destructuring target like `({a} = obj, foo.bar = 1)`. ESTree emits
 		// the MemberExpression inline in the pattern position. Rebuild a local
-		// Expression union — we can't take `&pattern` (procedure parameter), so
+		// Expression union - we can't take `&pattern` (procedure parameter), so
 		// allocate on the stack.
 		expr: Expression = p
 		print_expression_ast(&expr, indent)
@@ -3750,7 +3772,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 					print_indent(indent + 1)
 					if i < len(p.elements) - 1 { out_s("},\n") } else { out_s("}\n") }
 				} else {
-					// Hole in destructuring (e.g. `[,,x]`) — ESTree emits `null`.
+					// Hole in destructuring (e.g. `[,,x]`) - ESTree emits `null`.
 					print_indent(indent + 1)
 					if i < len(p.elements) - 1 { out_s("null,\n") } else { out_s("null\n") }
 				}
@@ -3772,7 +3794,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				// ESTree: `ObjectPattern.properties` is a heterogeneous list of
 				// `Property` OR `RestElement`. Our parser stashes the rest element
 				// as an `ObjectPatternProperty { key: nil, value: ^RestElement }`
-				// because it reuses the same struct — but the emit must unwrap
+				// because it reuses the same struct - but the emit must unwrap
 				// it: emit a bare `RestElement`, NOT a `Property` wrapper with a
 				// `RestElement` value. Detected by the prop.key being nil.
 				if _, is_rest := prop.value.(^RestElement); is_rest {
@@ -3803,7 +3825,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				out_s("\"method\": false,\n")
 				// key: ObjectPatternPropertyKey is a union of IdentifierName,
 				// ^StringLiteral, or ^Expression (for computed). Previously omitted
-				// entirely — OXC emits the key as an Identifier/Literal/Expression
+				// entirely - OXC emits the key as an Identifier/Literal/Expression
 				// inline, so the prior output silently dropped 1 string literal
 				// per `{ 'aria-label': x }`-style destructure (antd.js et al.).
 				print_indent(indent + 2)
@@ -3842,7 +3864,7 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				print_indent(indent + 2)
 				// Every remaining Pattern variant has a real emit case in
 				// print_pattern_ast now (Identifier / ArrayPattern / ObjectPattern
-				// / AssignmentPattern / MemberExpression), so wrapping in `{…}`
+				// / AssignmentPattern / MemberExpression), so wrapping in `{...}`
 				// is always safe.
 				out_s("\"value\": {\n")
 				print_pattern_ast(prop.value, indent + 3)
@@ -4349,6 +4371,12 @@ emit_ts_signature :: proc(sig: ^TSSignature, indent: int) {
 			out_s("\"typeAnnotation\": ")
 			emit_ts_type_annotation_node(ann, indent + 1)
 		}
+		// accessibility: OXC always emits null in TS-shape mode.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent + 1)
+			out_s("\"accessibility\": null")
+		}
 		out_s(",\n")
 		print_indent(indent + 1)
 		out_s("\"readonly\": ")
@@ -4444,6 +4472,38 @@ emit_ts_signature :: proc(sig: ^TSSignature, indent: int) {
 			emit_ts_type_annotation_node(ann, indent + 1)
 		}
 		out_s("\n")
+	}
+	print_indent(indent)
+	out_s("}")
+}
+
+// emit_ts_type_argument_list writes a TSTypeParameterInstantiation node
+// (the `<T, U>` part of a generic call/new expression). Used by CallExpression
+// and NewExpression emitters.
+emit_ts_type_argument_list :: proc(targs_opt: Maybe(^TSTypeParameterInstantiation), indent: int) {
+	targs, ok := targs_opt.(^TSTypeParameterInstantiation)
+	if !ok || targs == nil {
+		out_s("null")
+		return
+	}
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"TSTypeParameterInstantiation\",\n")
+	print_indent(indent + 1)
+	emit_span_leading(targs.loc, indent + 1)
+	out_s("\"params\": [")
+	if len(targs.params) == 0 {
+		out_s("]\n")
+	} else {
+		out_s("\n")
+		for p, i in targs.params {
+			print_indent(indent + 2)
+			// emit_ts_type already wraps its output in '{...}'
+			emit_ts_type(p, indent + 2)
+			if i < len(targs.params) - 1 { out_s(",\n") } else { out_s("\n") }
+		}
+		print_indent(indent + 1)
+		out_s("]\n")
 	}
 	print_indent(indent)
 	out_s("}")
@@ -5013,9 +5073,9 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		// No additional fields
 
 	case ^Super:
-		// No additional fields — ESTree Super is a leaf node with only `type`.
+		// No additional fields - ESTree Super is a leaf node with only `type`.
 		// Previously fell through to the `case:` UNIMPLEMENTED arm, producing
-		// `{"type":"Super","[UNIMPLEMENTED]":true}` — invalid JSON-drift against
+		// `{"type":"Super","[UNIMPLEMENTED]":true}` - invalid JSON-drift against
 		// OXC, which emits plain `{"type":"Super"}`.
 
 
@@ -5051,7 +5111,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 	case ^ObjectExpression:
 		// ESTree ObjectExpression.properties is a heterogeneous array of
 		// Property | SpreadElement. Spread properties have `kind: nil` and
-		// `key: nil` in Kessel's AST — emit them as SpreadElement, not as a
+		// `key: nil` in Kessel's AST - emit them as SpreadElement, not as a
 		// malformed Property.
 		out_s(",\n")
 		print_indent(indent)
@@ -5059,7 +5119,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		for prop, i in e.properties {
 			print_indent(indent + 1)
 			out_s("{\n")
-			// SpreadElement path: no key AND no explicit kind — Kessel stores it
+			// SpreadElement path: no key AND no explicit kind - Kessel stores it
 			// with key:nil, value:^SpreadElement (already the right ESTree node).
 			if prop.key == nil && prop.value != nil {
 				if _, is_spread := prop.value^.(^SpreadElement); is_spread {
@@ -5075,7 +5135,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent + 2)
 			emit_span_leading(prop.loc, indent + 2)
 			// ESTree kind: "init" | "get" | "set". OXC treats methods as
-			// kind:"init" with method:true — follow that convention here.
+			// kind:"init" with method:true - follow that convention here.
 			kind_str := "init"
 			is_method := false
 			#partial switch prop.kind {
@@ -5311,6 +5371,17 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			out_s("\"optional\": true,\n")
 		}
 		print_indent(indent)
+		// typeArguments: emit when present (generic call `foo<T>(args)`); emit null
+		// placeholder in TS-shape mode for structural uniformity (OXC always emits it).
+		if targs, ok := e.type_parameters.(^TSTypeParameterInstantiation); ok && targs != nil {
+			out_s("\"typeArguments\": ")
+			emit_ts_type_argument_list(e.type_parameters, indent)
+			out_s(",\n")
+			print_indent(indent)
+		} else if emit_ts_shape {
+			out_s("\"typeArguments\": null,\n")
+			print_indent(indent)
+		}
 		out_s("\"arguments\": [\n")
 		for arg, i in e.arguments {
 			print_indent(indent + 1)
@@ -5366,7 +5437,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("}")
 
 	case ^FunctionExpression:
-		// ESTree FunctionExpression.id is `Identifier | null` — for anonymous
+		// ESTree FunctionExpression.id is `Identifier | null` - for anonymous
 		// functions (the common IIFE case) it's null. OXC always emits it, so
 		// does Kessel (null fallback).
 		out_s(",\n")
@@ -5379,7 +5450,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		}
 		out_s(",\n")
 		print_indent(indent)
-		// expression: false — FunctionExpression always has a block body. OXC
+		// expression: false - FunctionExpression always has a block body. OXC
 		// emits this for symmetry with ArrowFunctionExpression.
 		out_s("\"expression\": false,\n")
 		print_indent(indent)
@@ -5391,6 +5462,23 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_bool(e.async)
 		out_s(",\n")
 		print_indent(indent)
+		// declare: OXC always emits `declare: false` in TS-shape mode.
+		if e.declare || emit_ts_shape {
+			out_s("\"declare\": ")
+			out_bool(e.declare)
+			out_s(",\n")
+			print_indent(indent)
+		}
+		// typeParameters: emit when present; null placeholder in TS-shape mode.
+		if tp, ok := e.type_parameters.(^TSTypeParameterDeclaration); ok && tp != nil {
+			out_s("\"typeParameters\": ")
+			emit_ts_type_parameter_declaration(e.type_parameters, indent)
+			out_s(",\n")
+			print_indent(indent)
+		} else if emit_ts_shape {
+			out_s("\"typeParameters\": null,\n")
+			print_indent(indent)
+		}
 		out_s("\"params\": [")
 		if len(e.params) == 0 {
 			out_s("]")
@@ -5413,6 +5501,10 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent)
 			out_s("\"returnType\": ")
 			emit_ts_type_annotation_node(ann, indent)
+		} else if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"returnType\": null")
 		}
 		out_s(",\n")
 		print_indent(indent)
@@ -5511,6 +5603,18 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("},\n")
 		print_indent(indent)
+		// typeArguments: TS generic new `new Foo<T>(args)`. OXC always emits the
+		// field in TS-shape mode (null when no type args, TSTypeParameterInstantiation
+		// when present).
+		if targs, ok := e.type_parameters.(^TSTypeParameterInstantiation); ok && targs != nil {
+			out_s("\"typeArguments\": ")
+			emit_ts_type_argument_list(e.type_parameters, indent)
+			out_s(",\n")
+			print_indent(indent)
+		} else if emit_ts_shape {
+			out_s("\"typeArguments\": null,\n")
+			print_indent(indent)
+		}
 		out_s("\"arguments\": [\n")
 		for arg, i in e.arguments {
 			print_indent(indent + 1)
@@ -5801,7 +5905,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("}")
 
 	case ^JSXEmptyExpression:
-		// No additional fields — just type + span
+		// No additional fields - just type + span
 
 	case ^JSXSpreadChild:
 		out_s(",\n")
@@ -6039,17 +6143,17 @@ bigint_to_decimal :: proc(bigint_source: string) -> string {
 	if len(bigint_source) == 0 {
 		return bigint_source
 	}
-	
+
 	// Remove 'n' suffix if present
 	source := bigint_source
 	if source[len(source)-1] == 'n' {
 		source = source[:len(source)-1]
 	}
-	
+
 	if len(source) == 0 {
 		return "0"
 	}
-	
+
 	// Check for hex, octal, or binary prefixes
 	if len(source) >= 2 && source[0] == '0' {
 		switch source[1] {
@@ -6070,7 +6174,7 @@ bigint_to_decimal :: proc(bigint_source: string) -> string {
 			}
 		}
 	}
-	
+
 	// Decimal: return as-is (it's already in decimal)
 	return source
 }
@@ -6166,7 +6270,7 @@ profile_parser_file :: proc(file_path: string, iterations: int) {
 		os.exit(1)
 	}
 	defer delete(source, context.allocator)
-	
+
 	file_size := len(source)
 	full_us := make([dynamic]f64, context.allocator)
 	lex_us := make([dynamic]f64, context.allocator)

@@ -13,29 +13,30 @@
         "type": "Identifier",
         "start": 157,
         "end": 161,
-        "name": "Dict"
+        "name": "Dict",
+        "typeAnnotation": null
       },
       "typeParameters": null,
       "extends": [],
       "body": {
         "type": "TSInterfaceBody",
-        "start": 147,
+        "start": 162,
         "end": 190,
         "body": [
           {
             "type": "TSIndexSignature",
             "start": 166,
-            "end": 187,
+            "end": 188,
             "parameters": [
               {
                 "type": "Identifier",
                 "start": 167,
-                "end": 187,
+                "end": 178,
                 "name": "key",
                 "typeAnnotation": {
                   "type": "TSTypeAnnotation",
-                  "start": 167,
-                  "end": 187,
+                  "start": 170,
+                  "end": 178,
                   "typeAnnotation": {
                     "type": "TSStringKeyword",
                     "start": 172,
@@ -54,6 +55,7 @@
                 "end": 187
               }
             },
+            "accessibility": null,
             "readonly": false,
             "static": false
           }
@@ -79,18 +81,18 @@
         "members": [
           {
             "type": "TSIndexSignature",
-            "start": 223,
-            "end": 243,
+            "start": 214,
+            "end": 244,
             "parameters": [
               {
                 "type": "Identifier",
                 "start": 224,
-                "end": 243,
+                "end": 234,
                 "name": "id",
                 "typeAnnotation": {
                   "type": "TSTypeAnnotation",
-                  "start": 224,
-                  "end": 243,
+                  "start": 226,
+                  "end": 234,
                   "typeAnnotation": {
                     "type": "TSNumberKeyword",
                     "start": 228,
@@ -109,6 +111,7 @@
                 "end": 243
               }
             },
+            "accessibility": null,
             "readonly": true,
             "static": false
           }

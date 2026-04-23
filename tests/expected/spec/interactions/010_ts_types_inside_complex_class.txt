@@ -41,6 +41,7 @@
         ]
       },
       "superClass": null,
+      "superTypeArguments": null,
       "body": {
         "type": "ClassBody",
         "start": 423,
@@ -66,6 +67,7 @@
             },
             "computed": false,
             "static": false,
+            "optional": false,
             "typeAnnotation": {
               "type": "TSTypeAnnotation",
               "start": 432,
@@ -104,6 +106,8 @@
               "expression": false,
               "generator": false,
               "async": false,
+              "declare": false,
+              "typeParameters": null,
               "params": [
                 {
                   "type": "Identifier",
@@ -179,6 +183,7 @@
                           "end": 492,
                           "name": "push",
                           "typeAnnotation": null                        }                      },
+                      "typeArguments": null,
                       "arguments": [
                         {
                           "type": "Identifier",
@@ -192,7 +197,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "optional": false
           },
           {
             "type": "MethodDefinition",
@@ -213,6 +219,8 @@
               "expression": false,
               "generator": false,
               "async": false,
+              "declare": false,
+              "typeParameters": null,
               "params": [
                 {
                   "type": "Identifier",
@@ -301,7 +309,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "optional": false
           },
           {
             "type": "MethodDefinition",
@@ -322,6 +331,8 @@
               "expression": false,
               "generator": false,
               "async": false,
+              "declare": false,
+              "typeParameters": null,
               "params": [],
               "returnType": {
                 "type": "TSTypeAnnotation",
@@ -373,7 +384,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "optional": false
           },
           {
             "type": "MethodDefinition",
@@ -394,6 +406,8 @@
               "expression": false,
               "generator": false,
               "async": false,
+              "declare": false,
+              "typeParameters": null,
               "params": [],
               "returnType": {
                 "type": "TSTypeAnnotation",
@@ -439,17 +453,31 @@
                           "start": 660,
                           "end": 674,
                           "callee": {
-                            "type": "CallExpression",
+                            "type": "Identifier",
                             "start": 664,
-                            "end": 674,
-                            "callee": {
-                              "type": "Identifier",
-                              "start": 664,
-                              "end": 669,
-                              "name": "Store",
-                              "typeAnnotation": null                            },
-                            "arguments": [
-                            ]                          },
+                            "end": 669,
+                            "name": "Store",
+                            "typeAnnotation": null                          },
+                          "typeArguments": {
+                            "type": "TSTypeParameterInstantiation",
+                            "start": 669,
+                            "end": 672,
+                            "params": [
+                              {
+                                "type": "TSTypeReference",
+                                "start": 670,
+                                "end": 671,
+                                "typeName": {
+                                  "type": "Identifier",
+                                  "start": 670,
+                                  "end": 671,
+                                  "name": "T",
+                                  "typeAnnotation": null
+                                },
+                                "typeArguments": null
+                              }
+                            ]
+                          },
                           "arguments": [
                           ]                        }                      }
                     ]                  },
@@ -517,6 +545,7 @@
                             "end": 720,
                             "name": "push",
                             "typeAnnotation": null                          }                        },
+                        "typeArguments": null,
                         "arguments": [
                           {
                             "type": "Identifier",
@@ -540,7 +569,8 @@
             },
             "kind": "method",
             "computed": false,
-            "static": false
+            "static": false,
+            "optional": false
           }
         ]
       }    }
@@ -586,5 +616,5 @@
 }
 
 --- Statistics ---
-Arena: used=20640B reserved=16777216B ratio=0%
+Arena: used=20768B reserved=16777216B ratio=0%
 Parse errors: 0

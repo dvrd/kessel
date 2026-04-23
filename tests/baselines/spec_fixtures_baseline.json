@@ -95,8 +95,8 @@
     "total": 12
   },
   "typescript": {
-    "pass": 8,
-    "fail": 2,
+    "pass": 10,
+    "fail": 0,
     "total": 10
   },
   "unicode": {
