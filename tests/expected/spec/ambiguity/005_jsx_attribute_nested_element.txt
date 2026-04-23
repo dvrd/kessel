@@ -1,0 +1,95 @@
+{
+  "type": "Program",
+  "start": 54,
+  "end": 92,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 54,
+      "end": 91,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 60,
+          "end": 90,
+          "id": {
+            "type": "Identifier",
+            "start": 60,
+            "end": 64,
+            "name": "view",
+            "typeAnnotation": null          },
+          "init": {
+            "type": "JSXElement",
+            "start": 67,
+            "end": 90,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 67,
+              "end": 90,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 68,
+                "end": 71,
+                "name": "Foo"
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 72,
+                  "end": 87,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 72,
+                    "end": 77,
+                    "name": "child"
+                  },
+                  "value": {
+                    "type": "JSXExpressionContainer",
+                    "start": 78,
+                    "end": 87,
+                    "expression": {
+                      "type": "JSXElement",
+                      "start": 79,
+                      "end": 86,
+                      "openingElement": {
+                        "type": "JSXOpeningElement",
+                        "start": 79,
+                        "end": 86,
+                        "name": {
+                          "type": "JSXIdentifier",
+                          "start": 80,
+                          "end": 83,
+                          "name": "Bar"
+                        },
+                        "attributes": [],
+                        "selfClosing": true
+                      },
+                      "children": [],
+                      "closingElement": null
+
+                    }                  }
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 53,
+      "value": " JSX attribute value contains a nested JSX element."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7160B reserved=16777216B ratio=0%
+Parse errors: 0

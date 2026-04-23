@@ -1,0 +1,66 @@
+{
+  "type": "Program",
+  "start": 54,
+  "end": 86,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 54,
+      "end": 85,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 60,
+          "end": 84,
+          "id": {
+            "type": "Identifier",
+            "start": 60,
+            "end": 65,
+            "name": "value",
+            "typeAnnotation": null          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 68,
+            "end": 84,
+            "operator": ">",
+            "left": {
+              "type": "BinaryExpression",
+              "start": 68,
+              "end": 78,
+              "operator": "<",
+              "left": {
+                "type": "Identifier",
+                "start": 68,
+                "end": 71,
+                "name": "foo",
+                "typeAnnotation": null              },
+              "right": {
+                "type": "Identifier",
+                "start": 72,
+                "end": 78,
+                "name": "string",
+                "typeAnnotation": null              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 80,
+              "end": 83,
+              "name": "bar",
+              "typeAnnotation": null            }          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 53,
+      "value": " TS generic call, not a less-than comparison chain."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6584B reserved=16777216B ratio=0%
+Parse errors: 0

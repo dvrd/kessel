@@ -1,0 +1,64 @@
+{
+  "type": "Program",
+  "start": 49,
+  "end": 112,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ImportDeclaration",
+      "start": 49,
+      "end": 82,
+      "specifiers": [
+        {
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 74,
+        "end": 81,
+        "value": "./foo",
+        "raw": "\"./foo\""
+      },
+      "importKind": "type"    },
+    {
+      "type": "VariableDeclaration",
+      "start": 83,
+      "end": 111,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 89,
+          "end": 110,
+          "id": {
+            "type": "Identifier",
+            "start": 89,
+            "end": 92,
+            "name": "mod",
+            "typeAnnotation": null          },
+          "init": {
+            "type": "ImportExpression",
+            "start": 95,
+            "end": 110,
+            "source": {
+              "type": "Literal",
+              "start": 102,
+              "end": 109,
+              "value": "./foo",
+              "raw": "\"./foo\""            }          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 48,
+      "value": " TS import type versus runtime dynamic import."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7064B reserved=16777216B ratio=0%
+Parse errors: 0

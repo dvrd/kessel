@@ -46,6 +46,12 @@ emit_loc_enabled: bool
 // CLI flag: --module-record. Off by default for backward compat.
 emit_module_record: bool
 
+// Emit TS-ESTree-specific unconditional fields (typeAnnotation: null,
+// optional: false, decorators: [], etc.) on Identifiers and related nodes.
+// Set to true when the parser's lang is .TS or .TSX so the output matches
+// OXC's TS-mode shape. Off for .js / .jsx.
+emit_ts_shape: bool
+
 // Line offset table for ESTree loc emission. Populated when emit_loc_enabled is true.
 // Built once via build_line_table before print_program_ast, then used for O(log n) lookups.
 
@@ -678,6 +684,10 @@ parse_file :: proc(file_path: string) {
 	// when set, else detected from the file extension.
 	p: Parser
 	init_parser(&p, &lex, arena_alloc, resolve_lang(file_path))
+	// TS-shape emitter toggle — mirror OXC's behaviour of emitting unconditional
+	// TS-ESTree fields (typeAnnotation: null, optional: false, etc.) only when
+	// parsing TypeScript. Keeps JS output unchanged.
+	emit_ts_shape = p.lang == .TS || p.lang == .TSX
 
 	// Parse program
 	program := parse_program(&p, .Script)
@@ -1697,6 +1707,12 @@ emit_identifier_name_object :: proc(id: IdentifierName, indent: int) {
 	emit_span_leading(id.loc, indent + 1)
 	out_s("\"name\": ")
 	out_string(id.name)
+	if emit_ts_shape {
+		// TS-ESTree shape parity — OXC emits these fields unconditionally.
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": null")
+	}
 	out_s("\n")
 	print_indent(indent)
 	out_s("}")
@@ -2586,23 +2602,22 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	case ^FunctionDeclaration:
 		out_s(",\n")
 		print_indent(indent)
-		out_s("\"id\": {\n")
+		out_s("\"id\": ")
 		if id, ok := s.expr.id.(BindingIdentifier); ok {
-			print_indent(indent + 1)
-			out_s("\"type\": \"Identifier\",\n")
-			print_indent(indent + 1)
-			emit_span_leading(id.loc, indent + 1)
-			out_s("\"name\": ")
-			out_string(id.name)
-			out_s("\n")
+			emit_identifier_name_object(IdentifierName{loc = id.loc, name = id.name}, indent)
+		} else {
+			out_s("null")
 		}
-		print_indent(indent)
-		out_s("},\n")
+		out_s(",\n")
+		// typeParameters: always emit in TS-shape mode (null when absent).
 		if tp, ok := s.expr.type_parameters.(^TSTypeParameterDeclaration); ok && tp != nil {
 			print_indent(indent)
 			out_s("\"typeParameters\": ")
 			emit_ts_type_parameter_declaration(s.expr.type_parameters, indent)
 			out_s(",\n")
+		} else if emit_ts_shape {
+			print_indent(indent)
+			out_s("\"typeParameters\": null,\n")
 		}
 		print_indent(indent)
 		// expression: false — FunctionDeclaration always has a block body.
@@ -2800,16 +2815,8 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_print("\"id\": ")
 		if id, ok := s.id.(BindingIdentifier); ok {
-			out_s("{\n")
-			print_indent(indent + 1)
-			out_s("\"type\": \"Identifier\",\n")
-			print_indent(indent + 1)
-			emit_span_leading(id.loc, indent + 1)
-			out_s("\"name\": ")
-			out_string(id.name)
-			out_s("\n")
-			print_indent(indent)
-			out_s("},\n")
+			emit_identifier_name_object(IdentifierName{loc = id.loc, name = id.name}, indent)
+			out_s(",\n")
 		} else {
 			out_s("null,\n")
 		}
@@ -2818,6 +2825,9 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_s("\"typeParameters\": ")
 			emit_ts_type_parameter_declaration(s.expr.type_parameters, indent)
 			out_s(",\n")
+		} else if emit_ts_shape {
+			print_indent(indent)
+			out_s("\"typeParameters\": null,\n")
 		}
 		print_indent(indent)
 		out_print("\"superClass\": ")
@@ -3379,16 +3389,9 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 	case ^TSTypeAliasDeclaration:
 		out_s(",\n")
 		print_indent(indent)
-		out_s("\"id\": {\n")
-		print_indent(indent + 1)
-		out_s("\"type\": \"Identifier\",\n")
-		print_indent(indent + 1)
-		emit_span_leading(s.id.loc, indent + 1)
-		out_s("\"name\": ")
-		out_string(s.id.name)
-		out_s("\n")
-		print_indent(indent)
-		out_s("},\n")
+		out_s("\"id\": ")
+		emit_identifier_name_object(IdentifierName{loc = s.id.loc, name = s.id.name}, indent)
+		out_s(",\n")
 		print_indent(indent)
 		out_s("\"typeParameters\": ")
 		emit_ts_type_parameter_declaration(s.type_parameters, indent)
@@ -3500,12 +3503,18 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		emit_span_leading(p.loc, indent)
 		out_s("\"name\": ")
 		out_string(p.name)
-		// TypeScript type annotation on binding identifier.
+		// TypeScript type annotation on binding identifier. In TS-shape mode
+		// always emit the field (null when absent) so the AST matches OXC's
+		// TS-ESTree shape; in JS mode omit the field when null.
 		if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
 			out_s(",\n")
 			print_indent(indent)
 			out_s("\"typeAnnotation\": ")
 			emit_ts_type_annotation_node(ann, indent)
+		} else if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": null")
 		}
 	case ^RestElement:
 		// ESTree `RestElement { argument: Pattern }` — the `...x` inside
@@ -4276,16 +4285,9 @@ emit_ts_type_parameter_declaration :: proc(decl_opt: Maybe(^TSTypeParameterDecla
 			emit_span_fields(param.loc, indent + 3)
 			out_s(",\n")
 			print_indent(indent + 3)
-			out_s("\"name\": {\n")
-			print_indent(indent + 4)
-			out_s("\"type\": \"Identifier\",\n")
-			print_indent(indent + 4)
-			emit_span_leading(param.name.loc, indent + 4)
 			out_s("\"name\": ")
-			out_string(param.name.name)
-			out_s("\n")
-			print_indent(indent + 3)
-			out_s("},\n")
+			emit_identifier_name_object(IdentifierName{loc = param.name.loc, name = param.name.name}, indent + 3)
+			out_s(",\n")
 			print_indent(indent + 3)
 			out_s("\"constraint\": ")
 			if c, ok := param.constraint.(^TSType); ok { emit_ts_type(c, indent + 3) } else { out_s("null") }
@@ -4565,6 +4567,43 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 			print_indent(indent + 1)
 			out_s("]")
 		}
+	case ^TSInferType:
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSInferType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeParameter\": {\n")
+		print_indent(indent + 2)
+		out_s("\"type\": \"TSTypeParameter\"")
+		emit_span_fields(v.type_parameter.loc, indent + 2)
+		out_s(",\n")
+		print_indent(indent + 2)
+		out_s("\"name\": ")
+		emit_identifier_name_object(IdentifierName{loc = v.type_parameter.name.loc, name = v.type_parameter.name.name}, indent + 2)
+		out_s(",\n")
+		print_indent(indent + 2)
+		out_s("\"constraint\": ")
+		if c, ok := v.type_parameter.constraint.(^TSType); ok { emit_ts_type(c, indent + 2) } else { out_s("null") }
+		out_s(",\n")
+		print_indent(indent + 2)
+		out_s("\"default\": ")
+		if d, ok := v.type_parameter.default_.(^TSType); ok { emit_ts_type(d, indent + 2) } else { out_s("null") }
+		out_s(",\n")
+		print_indent(indent + 2)
+		out_s("\"in\": ")
+		out_bool(v.type_parameter.in_)
+		out_s(",\n")
+		print_indent(indent + 2)
+		out_s("\"out\": ")
+		out_bool(v.type_parameter.out)
+		out_s(",\n")
+		print_indent(indent + 2)
+		out_s("\"const\": ")
+		out_bool(v.type_parameter.const_)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("}")
 	case ^TSTypePredicate:
 		print_indent(indent + 1)
 		out_s("\"type\": \"TSTypePredicate\"")
@@ -4742,12 +4781,19 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"name\": ")
 		out_string(e.name)
-		// TypeScript type annotation on expression identifier.
+		// TypeScript type annotation on expression identifier. In TS-shape mode
+		// (p.lang == .TS / .TSX) always emit the field (null when absent) so
+		// the AST matches OXC's TS-ESTree shape; in JS/JSX mode only emit when
+		// meaningful (Kessel's historical behaviour, matches OXC JS mode).
 		if ann, ok := e.type_annotation.(^TSTypeAnnotation); ok {
 			out_s(",\n")
 			print_indent(indent)
 			out_s("\"typeAnnotation\": ")
 			emit_ts_type_annotation_node(ann, indent)
+		} else if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": null")
 		}
 
 	case ^ThisExpression:

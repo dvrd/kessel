@@ -13,7 +13,8 @@
         "type": "Identifier",
         "start": 102,
         "end": 116,
-        "name": "StringOrNumber"
+        "name": "StringOrNumber",
+        "typeAnnotation": null
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -42,7 +43,8 @@
         "type": "Identifier",
         "start": 141,
         "end": 145,
-        "name": "Both"
+        "name": "Both",
+        "typeAnnotation": null
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -58,7 +60,8 @@
               "type": "Identifier",
               "start": 148,
               "end": 152,
-              "name": "HasA"
+              "name": "HasA",
+              "typeAnnotation": null
             },
             "typeArguments": null
           },
@@ -70,7 +73,8 @@
               "type": "Identifier",
               "start": 155,
               "end": 159,
-              "name": "HasB"
+              "name": "HasB",
+              "typeAnnotation": null
             },
             "typeArguments": null
           }
@@ -85,7 +89,8 @@
         "type": "Identifier",
         "start": 166,
         "end": 173,
-        "name": "Complex"
+        "name": "Complex",
+        "typeAnnotation": null
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -110,7 +115,8 @@
                     "type": "Identifier",
                     "start": 177,
                     "end": 178,
-                    "name": "A"
+                    "name": "A",
+                    "typeAnnotation": null
                   },
                   "typeArguments": null
                 },
@@ -122,7 +128,8 @@
                     "type": "Identifier",
                     "start": 181,
                     "end": 182,
-                    "name": "B"
+                    "name": "B",
+                    "typeAnnotation": null
                   },
                   "typeArguments": null
                 }
@@ -137,7 +144,8 @@
               "type": "Identifier",
               "start": 186,
               "end": 187,
-              "name": "C"
+              "name": "C",
+              "typeAnnotation": null
             },
             "typeArguments": null
           }
@@ -152,7 +160,8 @@
         "type": "Identifier",
         "start": 194,
         "end": 201,
-        "name": "Literal"
+        "name": "Literal",
+        "typeAnnotation": null
       },
       "typeParameters": null,
       "typeAnnotation": {

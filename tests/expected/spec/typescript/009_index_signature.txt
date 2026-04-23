@@ -68,7 +68,8 @@
         "type": "Identifier",
         "start": 196,
         "end": 207,
-        "name": "ReadonlyMap"
+        "name": "ReadonlyMap",
+        "typeAnnotation": null
       },
       "typeParameters": null,
       "typeAnnotation": {

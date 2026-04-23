@@ -13,7 +13,8 @@
         "type": "Identifier",
         "start": 71,
         "end": 74,
-        "name": "Box"
+        "name": "Box",
+        "typeAnnotation": null
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -28,7 +29,8 @@
               "type": "Identifier",
               "start": 75,
               "end": 76,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "constraint": null,
             "default": null,
@@ -52,7 +54,8 @@
               "type": "Identifier",
               "start": 82,
               "end": 87,
-              "name": "value"
+              "name": "value",
+              "typeAnnotation": null
             },
             "value": null,
             "computed": false,
@@ -69,7 +72,8 @@
                   "type": "Identifier",
                   "start": 89,
                   "end": 90,
-                  "name": "T"
+                  "name": "T",
+                  "typeAnnotation": null
                 },
                 "typeArguments": null
               }
@@ -83,7 +87,8 @@
               "type": "Identifier",
               "start": 94,
               "end": 105,
-              "name": "constructor"
+              "name": "constructor",
+              "typeAnnotation": null
             },
             "value": {
               "type": "FunctionExpression",
@@ -97,7 +102,7 @@
                 {
                   "type": "Identifier",
                   "start": 106,
-                  "end": 107,
+                  "end": 110,
                   "name": "v",
                   "typeAnnotation": {
                     "type": "TSTypeAnnotation",
@@ -111,7 +116,8 @@
                         "type": "Identifier",
                         "start": 109,
                         "end": 110,
-                        "name": "T"
+                        "name": "T",
+                        "typeAnnotation": null
                       },
                       "typeArguments": null
                     }
@@ -145,12 +151,14 @@
                           "type": "Identifier",
                           "start": 119,
                           "end": 124,
-                          "name": "value"                        }                      },
+                          "name": "value",
+                          "typeAnnotation": null                        }                      },
                       "right": {
                         "type": "Identifier",
                         "start": 127,
                         "end": 128,
-                        "name": "v"                      }                    }                  }
+                        "name": "v",
+                        "typeAnnotation": null                      }                    }                  }
                 ]
               }
             },
@@ -166,7 +174,8 @@
               "type": "Identifier",
               "start": 134,
               "end": 137,
-              "name": "get"
+              "name": "get",
+              "typeAnnotation": null
             },
             "value": {
               "type": "FunctionExpression",
@@ -189,7 +198,8 @@
                     "type": "Identifier",
                     "start": 141,
                     "end": 142,
-                    "name": "T"
+                    "name": "T",
+                    "typeAnnotation": null
                   },
                   "typeArguments": null
                 }
@@ -216,7 +226,8 @@
                         "type": "Identifier",
                         "start": 157,
                         "end": 162,
-                        "name": "value"                      }                    }                  }
+                        "name": "value",
+                        "typeAnnotation": null                      }                    }                  }
                 ]
               }
             },
@@ -240,7 +251,8 @@
             "type": "Identifier",
             "start": 174,
             "end": 175,
-            "name": "b"          },
+            "name": "b",
+            "typeAnnotation": null          },
           "init": {
             "type": "NewExpression",
             "start": 178,
@@ -249,7 +261,8 @@
               "type": "Identifier",
               "start": 182,
               "end": 185,
-              "name": "Box"            },
+              "name": "Box",
+              "typeAnnotation": null            },
             "arguments": [
               {
                 "type": "Literal",

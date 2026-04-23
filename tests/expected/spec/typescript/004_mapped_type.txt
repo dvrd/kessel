@@ -13,7 +13,8 @@
         "type": "Identifier",
         "start": 84,
         "end": 92,
-        "name": "Readonly"
+        "name": "Readonly",
+        "typeAnnotation": null
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -28,7 +29,8 @@
               "type": "Identifier",
               "start": 93,
               "end": 94,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "constraint": null,
             "default": null,
@@ -65,7 +67,8 @@
                 "type": "Identifier",
                 "start": 121,
                 "end": 122,
-                "name": "T"
+                "name": "T",
+                "typeAnnotation": null
               },
               "typeArguments": null
             }
@@ -83,7 +86,8 @@
               "type": "Identifier",
               "start": 125,
               "end": 126,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "typeArguments": null
           },
@@ -95,7 +99,8 @@
               "type": "Identifier",
               "start": 127,
               "end": 128,
-              "name": "K"
+              "name": "K",
+              "typeAnnotation": null
             },
             "typeArguments": null
           }
@@ -111,7 +116,8 @@
         "type": "Identifier",
         "start": 138,
         "end": 145,
-        "name": "Partial"
+        "name": "Partial",
+        "typeAnnotation": null
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -126,7 +132,8 @@
               "type": "Identifier",
               "start": 146,
               "end": 147,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "constraint": null,
             "default": null,
@@ -163,7 +170,8 @@
                 "type": "Identifier",
                 "start": 165,
                 "end": 166,
-                "name": "T"
+                "name": "T",
+                "typeAnnotation": null
               },
               "typeArguments": null
             }
@@ -181,7 +189,8 @@
               "type": "Identifier",
               "start": 170,
               "end": 171,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "typeArguments": null
           },
@@ -193,7 +202,8 @@
               "type": "Identifier",
               "start": 172,
               "end": 173,
-              "name": "K"
+              "name": "K",
+              "typeAnnotation": null
             },
             "typeArguments": null
           }
@@ -209,7 +219,8 @@
         "type": "Identifier",
         "start": 183,
         "end": 191,
-        "name": "Required"
+        "name": "Required",
+        "typeAnnotation": null
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -224,7 +235,8 @@
               "type": "Identifier",
               "start": 192,
               "end": 193,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "constraint": null,
             "default": null,
@@ -261,7 +273,8 @@
                 "type": "Identifier",
                 "start": 211,
                 "end": 212,
-                "name": "T"
+                "name": "T",
+                "typeAnnotation": null
               },
               "typeArguments": null
             }
@@ -279,7 +292,8 @@
               "type": "Identifier",
               "start": 217,
               "end": 218,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "typeArguments": null
           },
@@ -291,7 +305,8 @@
               "type": "Identifier",
               "start": 219,
               "end": 220,
-              "name": "K"
+              "name": "K",
+              "typeAnnotation": null
             },
             "typeArguments": null
           }

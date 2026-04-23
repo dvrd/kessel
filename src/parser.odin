@@ -1808,10 +1808,14 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	}
 
 	// TypeScript type annotation on parameter — store on Identifier node.
+	// OXC extends the Identifier.end to include the annotation; mirror it.
 	if is_token(p, .Colon) {
 		ann := parse_ts_type_annotation(p)
 		if ident, ok := pattern.(^Identifier); ok {
 			ident.type_annotation = ann
+			if ann != nil && ann.loc.span.end > ident.loc.span.end {
+				ident.loc.span.end = ann.loc.span.end
+			}
 		}
 	}
 
@@ -5840,6 +5844,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		eat(p); pn := parse_identifier(p)
 		node := new_node(p, TSInferType); node.loc = start
 		node.type_parameter.name = BindingIdentifier{loc = pn.loc, name = pn.name}
+		node.type_parameter.loc = pn.loc // span of the bare `V` — OXC shape
 		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
 	case .String:

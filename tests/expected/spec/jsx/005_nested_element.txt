@@ -1,0 +1,215 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 144,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 52,
+      "end": 90,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 58,
+          "end": 89,
+          "id": {
+            "type": "Identifier",
+            "start": 58,
+            "end": 59,
+            "name": "a"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 62,
+            "end": 89,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 62,
+              "end": 89,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 63,
+                "end": 66,
+                "name": "Foo"
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 67,
+                  "end": 86,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 67,
+                    "end": 70,
+                    "name": "bar"
+                  },
+                  "value": {
+                    "type": "JSXExpressionContainer",
+                    "start": 71,
+                    "end": 86,
+                    "expression": {
+                      "type": "JSXElement",
+                      "start": 72,
+                      "end": 85,
+                      "openingElement": {
+                        "type": "JSXOpeningElement",
+                        "start": 72,
+                        "end": 85,
+                        "name": {
+                          "type": "JSXIdentifier",
+                          "start": 73,
+                          "end": 76,
+                          "name": "Baz"
+                        },
+                        "attributes": [
+                          {
+                            "type": "JSXAttribute",
+                            "start": 77,
+                            "end": 82,
+                            "name": {
+                              "type": "JSXIdentifier",
+                              "start": 77,
+                              "end": 78,
+                              "name": "x"
+                            },
+                            "value": {
+                              "type": "JSXExpressionContainer",
+                              "start": 79,
+                              "end": 82,
+                              "expression": {
+                                "type": "Literal",
+                                "start": 80,
+                                "end": 81,
+                                "value": 1,
+                                "raw": "1"
+                              }                            }
+                          }
+                        ],
+                        "selfClosing": true
+                      },
+                      "children": [],
+                      "closingElement": null
+
+                    }                  }
+                }
+              ],
+              "selfClosing": true
+            },
+            "children": [],
+            "closingElement": null
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 91,
+      "end": 143,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 97,
+          "end": 142,
+          "id": {
+            "type": "Identifier",
+            "start": 97,
+            "end": 98,
+            "name": "b"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 101,
+            "end": 142,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 101,
+              "end": 108,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 102,
+                "end": 107,
+                "name": "Outer"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXElement",
+                "start": 108,
+                "end": 134,
+                "openingElement": {
+                  "type": "JSXOpeningElement",
+                  "start": 108,
+                  "end": 116,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 109,
+                    "end": 115,
+                    "name": "Middle"
+                  },
+                  "attributes": [],
+                  "selfClosing": false
+                },
+                "children": [
+                  {
+                    "type": "JSXElement",
+                    "start": 116,
+                    "end": 125,
+                    "openingElement": {
+                      "type": "JSXOpeningElement",
+                      "start": 116,
+                      "end": 125,
+                      "name": {
+                        "type": "JSXIdentifier",
+                        "start": 117,
+                        "end": 122,
+                        "name": "Inner"
+                      },
+                      "attributes": [],
+                      "selfClosing": true
+                    },
+                    "children": [],
+                    "closingElement": null
+                  }
+                ],
+                "closingElement": {
+                  "type": "JSXClosingElement",
+                  "start": 125,
+                  "end": 134,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 127,
+                    "end": 133,
+                    "name": "Middle"
+                  }
+                }
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 134,
+              "end": 142,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 136,
+                "end": 141,
+                "name": "Outer"
+              }
+            }
+          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 51,
+      "value": " JSXElement as an attribute value AND as a child."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=8232B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -74,8 +74,11 @@ const name = syntheticName(file);
 const STRIP_FIELDS_GLOBAL = new Set([
   'loc',         // Babel always, acorn opt-in, OXC never. Kessel never.
   'decorators',  // OXC always emits [] even when empty.
-  'optional',    // optional-chaining `optional: false` marker.
   'range',       // Acorn `ranges: true` option.
+  // NOTE: `optional` used to be here (for the optional-chaining `false`
+  // marker on MemberExpression/CallExpression), but it's also a meaningful
+  // field on TSPropertySignature / TSMethodSignature / Identifier where we
+  // DO want to compare it. Moved to per-type strip sets below.
 ]);
 
 // Extra stripping specific to one reference parser — these are parser-specific
@@ -149,21 +152,40 @@ const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   // parsed shebang string), the compare flags it — correct behaviour, since
   // the lexer currently doesn't preserve the shebang.
   Program:                  new Set([]),
-  // Identifier inside certain positions (e.g. ClassDeclaration.id) differs by
-  // `typeAnnotation`/`optional` in OXC's TS-aware mode. Stripped; we don't
-  // emit these.
-  Identifier:               new Set(['typeAnnotation', 'optional']),
-  // FunctionDeclaration/Expression: OXC emits `returnType`, `typeParameters`
-  // for TS. Stripped.
-  FunctionDeclaration:      new Set(['returnType', 'typeParameters', 'predicate']),
-  FunctionExpression:       new Set(['returnType', 'typeParameters', 'predicate']),
-  ArrowFunctionExpression:  new Set(['returnType', 'typeParameters']),
-  MethodDefinition:         new Set(['typeParameters']),
-  PropertyDefinition:       new Set(['typeAnnotation', 'readonly', 'declare', 'definite', 'accessibility']),
-  ClassDeclaration:         new Set(['typeParameters', 'implements', 'abstract']),
+  // Identifier: Kessel mirrors OXC's TS shape (emits `typeAnnotation: null`
+  // and friends in TS mode via the emit_ts_shape toggle). The `optional`
+  // field is stripped only where the TS `?` marker isn't applicable.
+  Identifier:               new Set(['optional']),
+  BindingIdentifier:        new Set(['optional']),
+  // FunctionDeclaration/Expression: `predicate` is a Babel leftover that
+  // OXC sometimes surfaces. `declare` is always emitted by OXC.
+  FunctionDeclaration:      new Set(['predicate', 'declare']),
+  FunctionExpression:       new Set(['predicate']),
+  ArrowFunctionExpression:  new Set([]),
+  MethodDefinition:         new Set(['typeParameters', 'accessibility', 'override']),
+  PropertyDefinition:       new Set(['typeAnnotation', 'readonly', 'declare', 'definite', 'accessibility', 'override']),
+  ClassDeclaration:         new Set(['typeParameters', 'implements', 'abstract', 'declare']),
   ClassExpression:          new Set(['typeParameters', 'implements', 'abstract']),
   VariableDeclaration:      new Set(['declare']),
   VariableDeclarator:       new Set(['definite']),
+  // CallExpression / NewExpression: OXC always emits `typeArguments: null`
+  // in TS-aware mode for generic call syntax `foo<T>()`. Kessel emits the
+  // field only when type args are actually present. Strip null-form.
+  CallExpression:           new Set(['typeArguments', 'optional']),
+  NewExpression:            new Set(['typeArguments']),
+  // MemberExpression: optional is the optional-chaining `.?` marker.
+  // OXC always emits it; Kessel only emits when true. Strip on both.
+  MemberExpression:         new Set(['optional']),
+  // ExpressionStatement: OXC emits `directive: null` for every statement,
+  // Kessel emits the field only when the statement IS a directive prologue.
+  ExpressionStatement:      new Set(['directive']),
+  // Identifier extras from TS mode.
+  JSXIdentifier:            new Set(['typeAnnotation', 'optional']),
+  // TS-ESTree: OXC emits class-member-like fields on TSPropertySignature /
+  // TSMethodSignature (accessibility, static) even when used in object type
+  // literals where they're meaningless. Kessel doesn't; strip on OXC side.
+  TSPropertySignature:      new Set(['accessibility', 'static']),
+  TSMethodSignature:        new Set(['accessibility', 'static']),
   // SwitchCase in OXC has no extras today.
   // CatchClause: no extras.
   },

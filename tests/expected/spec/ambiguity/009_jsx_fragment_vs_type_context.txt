@@ -1,0 +1,97 @@
+{
+  "type": "Program",
+  "start": 42,
+  "end": 76,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 42,
+      "end": 75,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 48,
+          "end": 74,
+          "id": {
+            "type": "Identifier",
+            "start": 48,
+            "end": 52,
+            "name": "view",
+            "typeAnnotation": null          },
+          "init": {
+            "type": "JSXFragment",
+            "start": 55,
+            "end": 74,
+            "openingFragment": {
+              "type": "JSXOpeningFragment",
+              "start": 55,
+              "end": 57,
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXElement",
+                "start": 57,
+                "end": 64,
+                "openingElement": {
+                  "type": "JSXOpeningElement",
+                  "start": 57,
+                  "end": 64,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 58,
+                    "end": 61,
+                    "name": "Foo"
+                  },
+                  "attributes": [],
+                  "selfClosing": true
+                },
+                "children": [],
+                "closingElement": null
+              },
+              {
+                "type": "JSXElement",
+                "start": 64,
+                "end": 71,
+                "openingElement": {
+                  "type": "JSXOpeningElement",
+                  "start": 64,
+                  "end": 71,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 65,
+                    "end": 68,
+                    "name": "Bar"
+                  },
+                  "attributes": [],
+                  "selfClosing": true
+                },
+                "children": [],
+                "closingElement": null
+              }
+            ],
+            "closingFragment": {
+              "type": "JSXClosingFragment",
+              "start": 71,
+              "end": 74
+            }
+          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 41,
+      "value": " JSX fragment, not a TS type assertion."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7224B reserved=16777216B ratio=0%
+Parse errors: 0

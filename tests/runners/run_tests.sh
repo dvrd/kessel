@@ -58,8 +58,17 @@ is_skipped_fixture() {
         # Known-failure positive fixtures: parse-clean (no crash) but still
         # emit parse errors OR miss a golden file. Tracked in
         # tests/baselines/unit_known_failures.txt; auto-sourced below.
-        spec/jsx/005_nested_element.js | \
         spec/typescript/007_type_assertion.js)
+            return 0
+            ;;
+        # TSX ambiguity fixtures that rely on Phase C (forbid `<Type>expr`
+        # cast in .tsx because it clashes with JSX opening tag). OXC also
+        # rejects these with parse errors. Tracked in HANDOFF's Wave 3
+        # Phase C; skip until implemented.
+        spec/ambiguity/001_ts_assertion_vs_jsx_simple.js | \
+        spec/ambiguity/002_ts_assertion_vs_jsx_paren.js | \
+        spec/ambiguity/004_generic_arrow_vs_relational.js | \
+        spec/ambiguity/007_type_arguments_call_chain.js)
             return 0
             ;;
     esac
@@ -93,6 +102,10 @@ while IFS= read -r fixture; do
     case "$rel_path" in
         spec/typescript/*)  lang_flag="--lang=ts"  ;;
         spec/jsx/*)         lang_flag="--lang=jsx" ;;
+        # Ambiguity fixtures exercise TS+JSX disambiguation (<Type>expr vs
+        # <Tag>, generic-call vs relational, generic-arrow, etc.). They need
+        # TSX mode so both grammars are live.
+        spec/ambiguity/*)   lang_flag="--lang=tsx" ;;
     esac
 
     if [[ -n "$lang_flag" ]]; then

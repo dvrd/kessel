@@ -1,4 +1,9 @@
 {
+  "ambiguity": {
+    "pass": 2,
+    "fail": 8,
+    "total": 10
+  },
   "asi": {
     "pass": 8,
     "fail": 0,
@@ -80,8 +85,8 @@
     "total": 12
   },
   "typescript": {
-    "pass": 1,
-    "fail": 9,
+    "pass": 4,
+    "fail": 6,
     "total": 10
   },
   "unicode": {

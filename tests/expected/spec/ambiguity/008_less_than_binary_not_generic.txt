@@ -1,0 +1,77 @@
+{
+  "type": "Program",
+  "start": 51,
+  "end": 94,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 51,
+      "end": 93,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 57,
+          "end": 92,
+          "id": {
+            "type": "Identifier",
+            "start": 57,
+            "end": 59,
+            "name": "ok",
+            "typeAnnotation": null          },
+          "init": {
+            "type": "LogicalExpression",
+            "start": 62,
+            "end": 92,
+            "operator": "&&",
+            "left": {
+              "type": "BinaryExpression",
+              "start": 62,
+              "end": 74,
+              "operator": "<",
+              "left": {
+                "type": "Identifier",
+                "start": 62,
+                "end": 66,
+                "name": "left",
+                "typeAnnotation": null              },
+              "right": {
+                "type": "Identifier",
+                "start": 69,
+                "end": 74,
+                "name": "right",
+                "typeAnnotation": null              }            },
+            "right": {
+              "type": "BinaryExpression",
+              "start": 78,
+              "end": 92,
+              "operator": ">",
+              "left": {
+                "type": "Identifier",
+                "start": 78,
+                "end": 84,
+                "name": "middle",
+                "typeAnnotation": null              },
+              "right": {
+                "type": "Identifier",
+                "start": 87,
+                "end": 92,
+                "name": "lower",
+                "typeAnnotation": null              }            }          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 50,
+      "value": " Less-than is binary here, not a generic opener."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6584B reserved=16777216B ratio=0%
+Parse errors: 0

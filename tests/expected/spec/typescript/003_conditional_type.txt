@@ -13,7 +13,8 @@
         "type": "Identifier",
         "start": 139,
         "end": 147,
-        "name": "IsString"
+        "name": "IsString",
+        "typeAnnotation": null
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -28,7 +29,8 @@
               "type": "Identifier",
               "start": 148,
               "end": 149,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "constraint": null,
             "default": null,
@@ -50,7 +52,8 @@
             "type": "Identifier",
             "start": 153,
             "end": 154,
-            "name": "T"
+            "name": "T",
+            "typeAnnotation": null
           },
           "typeArguments": null
         },
@@ -93,7 +96,8 @@
         "type": "Identifier",
         "start": 191,
         "end": 196,
-        "name": "Unbox"
+        "name": "Unbox",
+        "typeAnnotation": null
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -108,7 +112,8 @@
               "type": "Identifier",
               "start": 197,
               "end": 198,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null
             },
             "constraint": null,
             "default": null,
@@ -130,7 +135,8 @@
             "type": "Identifier",
             "start": 202,
             "end": 203,
-            "name": "T"
+            "name": "T",
+            "typeAnnotation": null
           },
           "typeArguments": null
         },
@@ -147,7 +153,8 @@
                 "type": "Identifier",
                 "start": 214,
                 "end": 219,
-                "name": "value"
+                "name": "value",
+                "typeAnnotation": null
               },
               "computed": false,
               "optional": false,
@@ -157,7 +164,26 @@
                 "start": 219,
                 "end": 228,
                 "typeAnnotation": {
-                  "type": "TSUnknownType"
+                  "type": "TSInferType",
+                  "start": 221,
+                  "end": 228,
+                  "typeParameter": {
+                    "type": "TSTypeParameter",
+                    "start": 227,
+                    "end": 228,
+                    "name": {
+                      "type": "Identifier",
+                      "start": 227,
+                      "end": 228,
+                      "name": "V",
+                      "typeAnnotation": null
+                    },
+                    "constraint": null,
+                    "default": null,
+                    "in": false,
+                    "out": false,
+                    "const": false
+                  }
                 }
               }
             }
@@ -171,7 +197,8 @@
             "type": "Identifier",
             "start": 233,
             "end": 234,
-            "name": "V"
+            "name": "V",
+            "typeAnnotation": null
           },
           "typeArguments": null
         },
@@ -183,7 +210,8 @@
             "type": "Identifier",
             "start": 237,
             "end": 238,
-            "name": "T"
+            "name": "T",
+            "typeAnnotation": null
           },
           "typeArguments": null
         }

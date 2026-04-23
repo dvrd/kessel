@@ -19,7 +19,8 @@
             "type": "Identifier",
             "start": 80,
             "end": 81,
-            "name": "a"          },
+            "name": "a",
+            "typeAnnotation": null          },
           "init": {
             "type": "TSNonNullExpression",
             "start": 84,
@@ -28,7 +29,8 @@
               "type": "Identifier",
               "start": 84,
               "end": 89,
-              "name": "maybe"
+              "name": "maybe",
+              "typeAnnotation": null
             }          }        }
       ]    },
     {
@@ -45,7 +47,8 @@
             "type": "Identifier",
             "start": 98,
             "end": 99,
-            "name": "b"          },
+            "name": "b",
+            "typeAnnotation": null          },
           "init": {
             "type": "TSNonNullExpression",
             "start": 102,
@@ -59,12 +62,14 @@
                 "type": "Identifier",
                 "start": 102,
                 "end": 105,
-                "name": "obj"              },
+                "name": "obj",
+                "typeAnnotation": null              },
               "property": {
                 "type": "Identifier",
                 "start": 106,
                 "end": 111,
-                "name": "field"              }
+                "name": "field",
+                "typeAnnotation": null              }
             }          }        }
       ]    },
     {
@@ -81,7 +86,8 @@
             "type": "Identifier",
             "start": 120,
             "end": 121,
-            "name": "c"          },
+            "name": "c",
+            "typeAnnotation": null          },
           "init": {
             "type": "TSNonNullExpression",
             "start": 124,
@@ -95,7 +101,8 @@
                 "type": "Identifier",
                 "start": 124,
                 "end": 127,
-                "name": "arr"              },
+                "name": "arr",
+                "typeAnnotation": null              },
               "property": {
                 "type": "Literal",
                 "start": 128,
@@ -116,7 +123,8 @@
           "type": "Identifier",
           "start": 133,
           "end": 135,
-          "name": "fn"        },
+          "name": "fn",
+          "typeAnnotation": null        },
         "arguments": [
           {
             "type": "TSNonNullExpression",
@@ -126,7 +134,8 @@
               "type": "Identifier",
               "start": 136,
               "end": 137,
-              "name": "x"
+              "name": "x",
+              "typeAnnotation": null
             }          }
         ]      }    }
   ],
