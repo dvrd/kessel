@@ -48,6 +48,15 @@ emit_loc_enabled: bool
 // range tuple (e.g. ESLint custom rules, Acorn-based tooling).
 emit_range_enabled: bool
 
+// CLI flag: --source-type={script|module|unambiguous}. When set, overrides
+// the parser's default auto-detection. `unambiguous` is the traditional
+// Kessel/Acorn default (auto-upgrade Script→Module on a top-level import /
+// export / import.meta). Values:
+//   .Script   — force Script, disable the auto-upgrade to Module.
+//   .Module   — force Module regardless of body contents.
+//   nil       — unambiguous (auto-detect).
+source_type_override: Maybe(SourceType)
+
 // Emit ESM module record (hasModuleSyntax, staticImports, staticExports, etc.).
 // CLI flag: --module-record. Off by default for backward compat.
 emit_module_record: bool
@@ -501,6 +510,16 @@ main :: proc() {
 				} else if arg == "--range" {
 					// Emit ESLint-style `range: [start, end]` on every AST node.
 					emit_range_enabled = true
+				} else if strings.has_prefix(arg, "--source-type=") {
+					val := arg[14:]
+					switch val {
+					case "script":       source_type_override = .Script
+					case "module":       source_type_override = .Module
+					case "unambiguous":  source_type_override = nil
+					case:
+						fmt.eprintf("Error: unknown --source-type value '%s' (expected script|module|unambiguous)\n", val)
+						os.exit(2)
+					}
 			} else if arg == "--module-record" {
 				emit_module_record = true
 			} else if strings.has_prefix(arg, "--lang=") {
@@ -698,8 +717,17 @@ parse_file :: proc(file_path: string) {
 	// parsing TypeScript. Keeps JS output unchanged.
 	emit_ts_shape = p.lang == .TS || p.lang == .TSX
 
+	// `--source-type=` override: nil = unambiguous (auto-detect), else pin
+	// to Script or Module. The parser reads p.force_source_type to know
+	// whether to run the auto-upgrade pass after parsing the body.
+	initial_source_type: SourceType = .Script
+	if st, ok := source_type_override.?; ok {
+		initial_source_type = st
+		p.force_source_type = st
+	}
+
 	// Parse program
-	program := parse_program(&p, .Script)
+	program := parse_program(&p, initial_source_type)
 	
 	// Build byte→UTF-16 offset table for ESTree span emission.
 	build_utf16_table(source, context.allocator)

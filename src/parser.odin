@@ -221,6 +221,13 @@ Parser :: struct {
 	// Disallow 'in' as binary operator (for for-loop init parsing)
 	no_in:           bool,
 
+	// CLI `--source-type` override. When set, disables the auto-upgrade
+	// from Script to Module that parse_program normally performs when it
+	// sees top-level import / export / import.meta. The caller passes the
+	// requested SourceType directly to parse_program; this flag just tells
+	// parse_program to leave it alone. nil = unambiguous (auto-detect).
+	force_source_type: Maybe(SourceType),
+
 	// Inside an ambient TS module / namespace body: every declaration is
 	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
 	// semantics and also the string-named `module "x" { ... }` shortcut
@@ -801,7 +808,11 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// `.Module` explicitly (upgrade-only — we never downgrade Module → Script).
 	// Also detects import.meta which requires module context.
 	// Matches OXC / Acorn / Babel auto-detection behaviour.
-	if source_type == .Script {
+	// Skip auto-upgrade entirely when the caller pinned a SourceType via
+	// --source-type=script. Module remains Module always.
+	if p.force_source_type != nil {
+		// Already set to the forced value at program.type = source_type above.
+	} else if source_type == .Script {
 		if p.has_module_syntax {
 			program.type = .Module
 		} else {
