@@ -8,13 +8,13 @@
     {
       "type": "VariableDeclaration",
       "start": 80,
-      "end": 108,
+      "end": 102,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
           "start": 86,
-          "end": 107,
+          "end": 102,
           "id": {
             "type": "Identifier",
             "start": 86,
@@ -22,21 +22,39 @@
             "name": "value",
             "typeAnnotation": null          },
           "init": {
-            "type": "TSTypeAssertion",
+            "type": "JSXElement",
             "start": 94,
-            "end": 107,
-            "typeAnnotation": {
-              "type": "TSStringKeyword",
-              "start": 95,
-              "end": 101
+            "end": 102,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 94,
+              "end": 102,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 95,
+                "end": 101,
+                "name": "string"
+              },
+              "attributes": [],
+              "selfClosing": false,
+              "typeArguments": null
             },
-            "expression": {
-              "type": "Identifier",
-              "start": 102,
-              "end": 107,
-              "name": "input",
-              "typeAnnotation": null
-            }          }        }
+            "children": [
+              {
+                "type": "JSXText",
+                "start": 102,
+                "end": 109,
+                "value": "input;\n",
+                "raw": "input;\n"
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 109,
+              "end": 109,
+              "name": 
+            }
+          }        }
       ]    }
   ],
   "comments": [
@@ -46,5 +64,33 @@
       "end": 79,
       "value": " TS `<Type>expr` assertion, not JSX, because the angle bracket starts a cast."
     }
+  ],
+  "errors": [
+    {
+      "message": "Expected <, got EOF",
+      "line": 3,
+      "column": 1,
+      "offset": 109
+    },
+    {
+      "message": "Expected /, got EOF",
+      "line": 3,
+      "column": 1,
+      "offset": 109
+    },
+    {
+      "message": "Expected >, got EOF",
+      "line": 3,
+      "column": 1,
+      "offset": 109
+    }
   ]
 }
+Parse errors (3):
+  Line 3, Column 1: Expected <, got EOF
+  Line 3, Column 1: Expected /, got EOF
+  Line 3, Column 1: Expected >, got EOF
+
+--- Statistics ---
+Arena: used=8280B reserved=16777216B ratio=0%
+Parse errors: 3

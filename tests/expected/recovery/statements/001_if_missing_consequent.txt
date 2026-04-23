@@ -1,0 +1,108 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 116,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "IfStatement",
+      "start": 45,
+      "end": 85,
+      "test": {
+        "type": "Identifier",
+        "start": 49,
+        "end": 54,
+        "name": "ready"      },
+      "consequent": {
+        "type": "BlockStatement",
+        "start": 56,
+        "end": 85,
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "start": 60,
+            "end": 78,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 66,
+                "end": 78,
+                "id": {
+                  "type": "Identifier",
+                  "start": 66,
+                  "end": 72,
+                  "name": "broken"                },
+                "init": {
+                  "type": "Literal",
+                  "start": 75,
+                  "end": 76,
+                  "value": 1,
+                  "raw": "1"                }              }
+            ]          },
+          {
+            "type": "ExpressionStatement",
+            "start": 81,
+            "end": 83,
+            "expression": {
+              "type": "Literal",
+              "start": 81,
+              "end": 82,
+              "value": 2,
+              "raw": "2"            }          }
+        ]      },
+      "alternate": null    },
+    {
+      "type": "VariableDeclaration",
+      "start": 86,
+      "end": 115,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 92,
+          "end": 114,
+          "id": {
+            "type": "Identifier",
+            "start": 92,
+            "end": 110,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 113,
+            "end": 114,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 44,
+      "value": " If statement with a malformed consequent."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 3,
+      "column": 22,
+      "offset": 79
+    },
+    {
+      "message": "Invalid statement in block",
+      "line": 3,
+      "column": 22,
+      "offset": 79
+    }
+  ]
+}
+Parse errors (2):
+  Line 3, Column 22: Expected expression after operator
+  Line 3, Column 22: Invalid statement in block
+
+--- Statistics ---
+Arena: used=8072B reserved=16777216B ratio=0%
+Parse errors: 2

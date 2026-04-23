@@ -2825,6 +2825,19 @@ collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportE
 	return entry
 }
 
+// append_import_spec promotes a ^ImportSpecifier / ^ImportDefaultSpecifier /
+// ^ImportNamespaceSpecifier to a ^ImportSpecifierSpec (union) via assignment,
+// so the union variant tag is written correctly. Directly casting the
+// pointer `(^ImportSpecifierSpec)(spec)` preserves the address but not the
+// tag — the emitter's `switch v in spec_ptr^` then falls through to no
+// matching case and emits `{}`. Same union-cast bug class as the Statement/
+// Declaration fix in print_declaration_ast.
+append_import_spec :: proc(specs: ^[dynamic]^ImportSpecifierSpec, spec: $T, allocator: mem.Allocator) {
+	u := new(ImportSpecifierSpec, allocator)
+	u^ = spec^
+	append(specs, u)
+}
+
 parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume import
@@ -2864,7 +2877,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			spec := parse_import_specifier(p)
 			if spec != nil {
-				append(&decl.specifiers, (^ImportSpecifierSpec)(spec))
+				append_import_spec(&decl.specifiers, spec, p.allocator)
 			}
 
 			if !match_token(p, .Comma) {
@@ -2882,20 +2895,22 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 
 		decl.source = parse_string_literal(p)
 	} else if is_token(p, .Mul) {
-		// Namespace import: import * as name from "module"
+		// Namespace import: import * as name from "module". Spec.start must
+		// cover the leading `*` (OXC parity), not just the `name`.
+		star_loc := cur_loc(p)
 		eat(p)
 		if !expect_token(p, .As) {
 			return nil
 		}
 		local := parse_identifier(p)
 		spec := new_node(p, ImportNamespaceSpecifier)
-		spec.loc = local.loc
+		spec.loc = star_loc
 		spec.local = BindingIdentifier{
 			loc  = local.loc,
 			name = local.name,
 		}
 		spec.loc.span.end = prev_end_offset(p)
-		append(&decl.specifiers, (^ImportSpecifierSpec)(spec))
+		append_import_spec(&decl.specifiers, spec, p.allocator)
 
 		if !expect_token(p, .From) {
 			return nil
@@ -2912,7 +2927,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			name = local.name,
 		}
 		spec.loc.span.end = prev_end_offset(p)
-		append(&decl.specifiers, (^ImportSpecifierSpec)(spec))
+		append_import_spec(&decl.specifiers, spec, p.allocator)
 
 		// Check for comma followed by named imports
 		if match_token(p, .Comma) {
@@ -2922,7 +2937,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 					spec2 := parse_import_specifier(p)
 					if spec2 != nil {
-						append(&decl.specifiers, (^ImportSpecifierSpec)(spec2))
+						append_import_spec(&decl.specifiers, spec2, p.allocator)
 					}
 
 					if !match_token(p, .Comma) {
@@ -2947,7 +2962,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 					name = local2.name,
 				}
 				ns_spec.loc.span.end = prev_end_offset(p)
-				append(&decl.specifiers, (^ImportSpecifierSpec)(ns_spec))
+				append_import_spec(&decl.specifiers, ns_spec, p.allocator)
 			}
 		}
 
@@ -3794,6 +3809,88 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			nn.loc.span.end = prev_end_offset(p)
 			expr = expression_from(p, nn)
 			continue
+		case .LAngle:
+			// TS generic call / instantiation expression: `foo<T>(args)` or
+			// `foo<T>` as a stand-alone TSInstantiationExpression. Only in
+			// TS / TSX mode, and only via trial-parse because `<` is also
+			// a binary operator. If the trial parses successfully AND the
+			// token after `>` can legitimately follow type arguments (`(`,
+			// `` ` ``, `.`, `?.`, `,`, `;`, etc.), commit; otherwise rollback
+			// so the outer binary-expression parser handles the `<`.
+			if p.lang != .TS && p.lang != .TSX {
+				if is_chain {
+					chain := new_node(p, ChainExpression)
+					chain.loc = chain_start
+					chain.expression = expr
+					chain.loc.span.end = prev_end_offset(p)
+					return expression_from(p, chain)
+				}
+				return expr
+			}
+			snap := lexer_snapshot(p)
+			targs := parse_ts_type_arguments(p)
+			// Decide: did the trial consume `<...>` cleanly and land on a
+			// followable token? If not, rollback.
+			follow_ok := false
+			if targs != nil && len(p.errors) == snap.errors_len {
+				#partial switch p.cur_type {
+				case .LParen, .TemplateHead, .Template,
+				     .Dot, .OptionalChain,
+				     .Comma, .Semi, .RParen, .RBracket, .RBrace,
+				     .EOF, .Colon, .Question,
+				     .Eq, .NotEq, .EqStrict, .NotEqStrict,
+				     .LogicalAnd, .LogicalOr, .Nullish,
+				     .As, .Satisfies:
+					follow_ok = true
+				}
+			}
+			if !follow_ok {
+				lexer_restore(p, snap)
+				// Clear any phantom errors emitted by the speculative parse.
+				if len(p.errors) > snap.errors_len {
+					resize(&p.errors, snap.errors_len)
+				}
+				if is_chain {
+					chain := new_node(p, ChainExpression)
+					chain.loc = chain_start
+					chain.expression = expr
+					chain.loc.span.end = prev_end_offset(p)
+					return expression_from(p, chain)
+				}
+				return expr
+			}
+			// Commit: if followed by `(`, it's a CallExpression with
+			// type_parameters; other stand-alone `foo<T>` uses (ES2023 TS
+			// TSInstantiationExpression) are not yet modelled — rollback
+			// those and let the outer parser handle them.
+			if is_token(p, .LParen) {
+				args := parse_arguments(p)
+				call, call_e := new_expr(p, CallExpression)
+				call.loc = loc_from_expr(expr)
+				call.callee = expr
+				call.arguments = args
+				call.type_parameters = targs
+				call.optional = false
+				call.loc.span.end = prev_end_offset(p)
+				expr = call_e
+				continue
+			}
+			// No `(` follows — stand-alone TSInstantiationExpression isn't
+			// modelled yet. Rollback and let outer parser take the `<` as
+			// a binary operator (which will likely error, matching OXC on
+			// those rare forms).
+			lexer_restore(p, snap)
+			if len(p.errors) > snap.errors_len {
+				resize(&p.errors, snap.errors_len)
+			}
+			if is_chain {
+				chain := new_node(p, ChainExpression)
+				chain.loc = chain_start
+				chain.expression = expr
+				chain.loc.span.end = prev_end_offset(p)
+				return expression_from(p, chain)
+			}
+			return expr
 		case:
 			if is_chain {
 				// Wrap the entire optional chain in ChainExpression

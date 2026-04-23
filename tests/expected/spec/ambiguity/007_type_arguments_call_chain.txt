@@ -1,0 +1,67 @@
+{
+  "type": "Program",
+  "start": 43,
+  "end": 86,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 43,
+      "end": 85,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 49,
+          "end": 84,
+          "id": {
+            "type": "Identifier",
+            "start": 49,
+            "end": 54,
+            "name": "value",
+            "typeAnnotation": null          },
+          "init": {
+            "type": "CallExpression",
+            "start": 57,
+            "end": 84,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 57,
+              "end": 74,
+              "computed": false,
+              "object": {
+                "type": "CallExpression",
+                "start": 57,
+                "end": 70,
+                "callee": {
+                  "type": "Identifier",
+                  "start": 57,
+                  "end": 60,
+                  "name": "foo",
+                  "typeAnnotation": null                },
+                "arguments": [
+                ]              },
+              "property": {
+                "type": "Identifier",
+                "start": 71,
+                "end": 74,
+                "name": "bar",
+                "typeAnnotation": null              }            },
+            "arguments": [
+            ]          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 42,
+      "value": " TS type arguments through a call chain."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=6712B reserved=16777216B ratio=0%
+Parse errors: 0

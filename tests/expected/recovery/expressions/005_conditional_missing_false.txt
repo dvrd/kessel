@@ -1,0 +1,100 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 119,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 52,
+      "end": 88,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 58,
+          "end": 87,
+          "id": {
+            "type": "Identifier",
+            "start": 58,
+            "end": 64,
+            "name": "broken"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 67,
+            "end": 87,
+            "operator": "*",
+            "left": {
+              "type": "ConditionalExpression",
+              "start": 67,
+              "end": 83,
+              "test": {
+                "type": "Identifier",
+                "start": 67,
+                "end": 71,
+                "name": "cond"              },
+              "consequent": {
+                "type": "Identifier",
+                "start": 74,
+                "end": 77,
+                "name": "yes"              },
+              "alternate": {
+                "type": "Literal",
+                "start": 80,
+                "end": 81,
+                "value": 1,
+                "raw": "1"              }            },
+            "right": {
+              "type": "Literal",
+              "start": 86,
+              "end": 87,
+              "value": 2,
+              "raw": "2"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 89,
+      "end": 118,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 95,
+          "end": 117,
+          "id": {
+            "type": "Identifier",
+            "start": 95,
+            "end": 113,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 116,
+            "end": 117,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 51,
+      "value": " Conditional expression missing the false branch."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 2,
+      "column": 33,
+      "offset": 84
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 33: Expected expression after operator
+
+--- Statistics ---
+Arena: used=8008B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -1,0 +1,144 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 123,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 53,
+      "end": 92,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 59,
+          "end": 91,
+          "id": {
+            "type": "Identifier",
+            "start": 59,
+            "end": 63,
+            "name": "view"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 66,
+            "end": 91,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 66,
+              "end": 79,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 67,
+                "end": 70,
+                "name": "Foo"
+              },
+              "attributes": [
+                {
+                  "type": "JSXAttribute",
+                  "start": 71,
+                  "end": 79,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 71,
+                    "end": 74,
+                    "name": "bar"
+                  },
+                  "value": {
+                    "type": "JSXExpressionContainer",
+                    "start": 75,
+                    "end": 79,
+                    "expression": {
+                      "type": "Literal",
+                      "start": 76,
+                      "end": 77,
+                      "value": 1,
+                      "raw": "1"
+                    }                  }
+                }
+              ],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXText",
+                "start": 79,
+                "end": 85,
+                "value": " * 2}>",
+                "raw": " * 2}>"
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 85,
+              "end": 91,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 87,
+                "end": 90,
+                "name": "Foo"
+              }
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 93,
+      "end": 122,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 99,
+          "end": 121,
+          "id": {
+            "type": "Identifier",
+            "start": 99,
+            "end": 117,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 120,
+            "end": 121,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 52,
+      "value": " JSX attribute with an empty expression container."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 2,
+      "column": 28,
+      "offset": 80
+    },
+    {
+      "message": "Expected }, got *",
+      "line": 2,
+      "column": 28,
+      "offset": 80
+    },
+    {
+      "message": "Expected >, got *",
+      "line": 2,
+      "column": 28,
+      "offset": 80
+    }
+  ]
+}
+Parse errors (3):
+  Line 2, Column 28: Expected expression after operator
+  Line 2, Column 28: Expected }, got *
+  Line 2, Column 28: Expected >, got *
+
+--- Statistics ---
+Arena: used=8360B reserved=16777216B ratio=0%
+Parse errors: 3

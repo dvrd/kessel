@@ -11,12 +11,72 @@
       "end": 90,
       "specifiers": [
         {
+          "type": "ImportSpecifier",
+          "start": 33,
+          "end": 41,
+          "imported": {
+            "type": "Identifier",
+            "start": 33,
+            "end": 41,
+            "name": "useState"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 33,
+            "end": 41,
+            "name": "useState"
+          }
         },
         {
+          "type": "ImportSpecifier",
+          "start": 43,
+          "end": 52,
+          "imported": {
+            "type": "Identifier",
+            "start": 43,
+            "end": 52,
+            "name": "useEffect"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 43,
+            "end": 52,
+            "name": "useEffect"
+          }
         },
         {
+          "type": "ImportSpecifier",
+          "start": 54,
+          "end": 65,
+          "imported": {
+            "type": "Identifier",
+            "start": 54,
+            "end": 65,
+            "name": "useCallback"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 54,
+            "end": 65,
+            "name": "useCallback"
+          }
         },
         {
+          "type": "ImportSpecifier",
+          "start": 67,
+          "end": 74,
+          "imported": {
+            "type": "Identifier",
+            "start": 67,
+            "end": 74,
+            "name": "useMemo"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 67,
+            "end": 74,
+            "name": "useMemo"
+          }
         }
       ],
       "source": {
@@ -579,5 +639,5 @@
 }
 
 --- Statistics ---
-Arena: used=16456B reserved=16777216B ratio=0%
+Arena: used=17064B reserved=16777216B ratio=0%
 Parse errors: 0

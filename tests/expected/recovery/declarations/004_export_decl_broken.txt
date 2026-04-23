@@ -1,0 +1,91 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 113,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 52,
+      "end": 77,
+      "declaration": {
+        "type": "VariableDeclaration",
+        "start": 59,
+        "end": 77,
+        "kind": "const",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 65,
+            "end": 77,
+            "id": {
+              "type": "Identifier",
+              "start": 65,
+              "end": 71,
+              "name": "broken"            },
+            "init": {
+              "type": "Literal",
+              "start": 74,
+              "end": 75,
+              "value": 1,
+              "raw": "1"            }          }
+        ]      },
+      "specifiers": [],
+      "source": null    },
+    {
+      "type": "ExpressionStatement",
+      "start": 80,
+      "end": 82,
+      "expression": {
+        "type": "Literal",
+        "start": 80,
+        "end": 81,
+        "value": 2,
+        "raw": "2"      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 83,
+      "end": 112,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 89,
+          "end": 111,
+          "id": {
+            "type": "Identifier",
+            "start": 89,
+            "end": 107,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 110,
+            "end": 111,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 51,
+      "value": " Export declaration with a malformed initializer."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 2,
+      "column": 27,
+      "offset": 78
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 27: Expected expression after operator
+
+--- Statistics ---
+Arena: used=8008B reserved=16777216B ratio=0%
+Parse errors: 1

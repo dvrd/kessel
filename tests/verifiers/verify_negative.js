@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// Negative-fixture gate.
+// Parser-negative gate.
 //
-// For every .js under `tests/fixtures/negative/` and `tests/fixtures/early_errors/`:
+// For every .js under `tests/fixtures/negative/`:
 //   Kessel MUST produce at least one parse error (exit code != 0 OR stderr
 //   reports "Parse errors: N" with N >= 1).
 //
-// These fixtures all encode ECMA-262 illegal programs (SyntaxError at parse
-// phase). Accepting them silently is a spec-compliance regression.
+// These fixtures all encode invalid syntax that a parser must reject.
+// Accepting them silently is a parser-compliance regression.
+//
+// Early-error / semantic-invalid fixtures live in a separate surface.
 //
 // Baseline (tests/baselines/negative_baseline.json) captures which fixtures
 // the current parser correctly rejects vs wrongly accepts. Any fixture that
@@ -46,18 +48,31 @@ const VERBOSE = process.argv.includes('--verbose');
 // Directories under tests/fixtures/ whose contents are ALL meant to be rejected.
 const NEGATIVE_DIRS = [
   'tests/fixtures/negative',
-  'tests/fixtures/early_errors',
 ];
 
 function listNegativeFixtures() {
   const out = [];
   for (const dir of NEGATIVE_DIRS) {
-    const abs = path.join(ROOT, dir);
-    if (!fs.existsSync(abs)) continue;
-    for (const entry of fs.readdirSync(abs, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      if (!entry.isFile()) continue;
-      if (!/\.(js|mjs)$/.test(entry.name)) continue;
-      out.push({ rel: path.join(dir, entry.name), abs: path.join(abs, entry.name) });
+    const root = path.join(ROOT, dir);
+    if (!fs.existsSync(root)) continue;
+
+    const stack = [{ abs: root, rel: dir }];
+    while (stack.length > 0) {
+      const current = stack.pop();
+      const entries = fs.readdirSync(current.abs, { withFileTypes: true })
+        .sort((a, b) => a.name.localeCompare(b.name));
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const entry = entries[i];
+        const abs = path.join(current.abs, entry.name);
+        const rel = path.join(current.rel, entry.name);
+        if (entry.isDirectory()) {
+          stack.push({ abs, rel });
+          continue;
+        }
+        if (!entry.isFile()) continue;
+        if (!/\.(js|mjs)$/.test(entry.name)) continue;
+        out.push({ rel, abs });
+      }
     }
   }
   return out;

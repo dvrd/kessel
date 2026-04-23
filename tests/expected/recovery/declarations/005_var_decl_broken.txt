@@ -1,0 +1,85 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 108,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 54,
+      "end": 72,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 60,
+          "end": 72,
+          "id": {
+            "type": "Identifier",
+            "start": 60,
+            "end": 66,
+            "name": "broken"          },
+          "init": {
+            "type": "Literal",
+            "start": 69,
+            "end": 70,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 75,
+      "end": 77,
+      "expression": {
+        "type": "Literal",
+        "start": 75,
+        "end": 76,
+        "value": 2,
+        "raw": "2"      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 78,
+      "end": 107,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 84,
+          "end": 106,
+          "id": {
+            "type": "Identifier",
+            "start": 84,
+            "end": 102,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 105,
+            "end": 106,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 53,
+      "value": " Variable declaration with a malformed initializer."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 2,
+      "column": 20,
+      "offset": 73
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 20: Expected expression after operator
+
+--- Statistics ---
+Arena: used=8008B reserved=16777216B ratio=0%
+Parse errors: 1

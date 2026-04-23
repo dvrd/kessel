@@ -36,16 +36,21 @@ const VERBOSE = process.argv.includes('--verbose');
 // Read directories at runtime so the test is resilient to fixture changes.
 function getFixtures() {
   const files = [];
-  
+
   // Gold standard file.
   files.push('bench/real_world/batch3/snabbdom.js');
-  
-  // Spec fixtures: es2015, es2020, and specific edge cases.
+
+  // Compare the modern syntax buckets that carry the most parser ambiguity.
   const dirs = [
     'tests/fixtures/spec/es2015',
     'tests/fixtures/spec/es2020',
+    'tests/fixtures/spec/asi',
+    'tests/fixtures/spec/escapes',
+    'tests/fixtures/spec/jsx',
+    'tests/fixtures/spec/typescript',
+    'tests/fixtures/spec/unicode',
   ];
-  
+
   for (const dir of dirs) {
     const abs = path.join(ROOT, dir);
     if (fs.existsSync(abs)) {
@@ -57,8 +62,8 @@ function getFixtures() {
       }
     }
   }
-  
-  // Edge cases: only 001_*, 007_*, 008_*.
+
+  // Edge cases: only the hand-picked subset with stable reference results.
   const edgeDir = 'tests/fixtures/spec/edge';
   const absEdge = path.join(ROOT, edgeDir);
   if (fs.existsSync(absEdge)) {
@@ -69,7 +74,7 @@ function getFixtures() {
       files.push(path.join(edgeDir, f));
     }
   }
-  
+
   return files;
 }
 

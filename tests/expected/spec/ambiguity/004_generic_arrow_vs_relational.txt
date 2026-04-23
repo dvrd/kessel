@@ -1,39 +1,39 @@
 {
   "type": "Program",
-  "start": 51,
-  "end": 89,
+  "start": 65,
+  "end": 100,
   "sourceType": "script",
   "hashbang": null,
   "body": [
     {
       "type": "VariableDeclaration",
-      "start": 51,
-      "end": 73,
+      "start": 65,
+      "end": 79,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 57,
-          "end": 73,
+          "start": 71,
+          "end": 79,
           "id": {
             "type": "Identifier",
-            "start": 57,
-            "end": 62,
-            "name": "value",
+            "start": 71,
+            "end": 73,
+            "name": "id",
             "typeAnnotation": null          },
           "init": {
             "type": "JSXElement",
-            "start": 65,
-            "end": 73,
+            "start": 76,
+            "end": 79,
             "openingElement": {
               "type": "JSXOpeningElement",
-              "start": 65,
-              "end": 73,
+              "start": 76,
+              "end": 79,
               "name": {
                 "type": "JSXIdentifier",
-                "start": 66,
-                "end": 72,
-                "name": "number"
+                "start": 77,
+                "end": 78,
+                "name": "T"
               },
               "attributes": [],
               "selfClosing": false,
@@ -42,16 +42,16 @@
             "children": [
               {
                 "type": "JSXText",
-                "start": 73,
-                "end": 89,
-                "value": "(left + right);\n",
-                "raw": "(left + right);\n"
+                "start": 79,
+                "end": 100,
+                "value": "(value: T) => value;\n",
+                "raw": "(value: T) => value;\n"
               }
             ],
             "closingElement": {
               "type": "JSXClosingElement",
-              "start": 89,
-              "end": 89,
+              "start": 100,
+              "end": 100,
               "name": 
             }
           }        }
@@ -61,8 +61,8 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 50,
-      "value": " TS assertion around a parenthesized expression."
+      "end": 64,
+      "value": " TS generic arrow, not a JSX element or relational expression."
     }
   ],
   "errors": [
@@ -70,19 +70,19 @@
       "message": "Expected <, got EOF",
       "line": 3,
       "column": 1,
-      "offset": 89
+      "offset": 100
     },
     {
       "message": "Expected /, got EOF",
       "line": 3,
       "column": 1,
-      "offset": 89
+      "offset": 100
     },
     {
       "message": "Expected >, got EOF",
       "line": 3,
       "column": 1,
-      "offset": 89
+      "offset": 100
     }
   ]
 }

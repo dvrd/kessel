@@ -1,0 +1,93 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 127,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 50,
+      "end": 94,
+      "id": {
+        "type": "Identifier",
+        "start": 56,
+        "end": 62,
+        "name": "Broken"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 63,
+        "end": 94,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+                        "start": 88,
+            "end": 90,
+                        "key": {
+              "type": "Literal",
+              "start": 88,
+              "end": 89,
+              "value": 1,
+              "raw": "1"
+            },
+            "value": null,
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 97,
+      "end": 126,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 103,
+          "end": 125,
+          "id": {
+            "type": "Identifier",
+            "start": 103,
+            "end": 121,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 124,
+            "end": 125,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 49,
+      "value": " Class declaration with a broken method header."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected }, got number",
+      "line": 4,
+      "column": 12,
+      "offset": 88
+    },
+    {
+      "message": "Expected ), got number",
+      "line": 4,
+      "column": 12,
+      "offset": 88
+    }
+  ]
+}
+Parse errors (2):
+  Line 4, Column 12: Expected }, got number
+  Line 4, Column 12: Expected ), got number
+
+--- Statistics ---
+Arena: used=9488B reserved=16777216B ratio=0%
+Parse errors: 2

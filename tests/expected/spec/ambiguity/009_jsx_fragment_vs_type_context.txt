@@ -28,9 +28,7 @@
             "openingFragment": {
               "type": "JSXOpeningFragment",
               "start": 55,
-              "end": 57,
-              "attributes": [],
-              "selfClosing": false
+              "end": 57
             },
             "children": [
               {
@@ -48,7 +46,8 @@
                     "name": "Foo"
                   },
                   "attributes": [],
-                  "selfClosing": true
+                  "selfClosing": true,
+                  "typeArguments": null
                 },
                 "children": [],
                 "closingElement": null
@@ -68,7 +67,8 @@
                     "name": "Bar"
                   },
                   "attributes": [],
-                  "selfClosing": true
+                  "selfClosing": true,
+                  "typeArguments": null
                 },
                 "children": [],
                 "closingElement": null

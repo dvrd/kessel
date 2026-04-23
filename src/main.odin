@@ -1742,6 +1742,11 @@ emit_binding_identifier_object :: proc(id: BindingIdentifier, indent: int) {
 	emit_span_leading(id.loc, indent + 1)
 	out_s("\"name\": ")
 	out_string(id.name)
+	if emit_ts_shape {
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": null")
+	}
 	out_s("\n")
 	print_indent(indent)
 	out_s("}")
@@ -3202,12 +3207,19 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 						out_s("\"type\": \"ImportSpecifier\",\n")
 						print_indent(indent + 2)
 						emit_span_leading(v.loc, indent + 2)
-						out_s("\"local\": ")
-						emit_binding_identifier_object(v.local, indent + 2)
-						out_s(",\n")
-						print_indent(indent + 2)
 						out_s("\"imported\": ")
 						emit_identifier_name_object(v.imported, indent + 2)
+						out_s(",\n")
+						print_indent(indent + 2)
+						out_s("\"local\": ")
+						emit_binding_identifier_object(v.local, indent + 2)
+						if emit_ts_shape {
+							// TS-ESTree: OXC emits importKind on every specifier.
+							// "type" for `import { type X }`, "value" otherwise.
+							out_s(",\n")
+							print_indent(indent + 2)
+							out_s("\"importKind\": \"value\"")
+						}
 						out_s("\n")
 					case ImportDefaultSpecifier:
 						print_indent(indent + 2)
@@ -3965,6 +3977,13 @@ emit_jsx_element_body :: proc(e: ^JSXElement, indent: int) {
 	print_indent(indent + 1)
 	out_s("\"selfClosing\": ")
 	out_bool(e.opening_element.self_closing)
+	if emit_ts_shape {
+		// TS-ESTree shape parity: OXC emits `typeArguments: null` on every
+		// JSXOpeningElement in .ts/.tsx mode.
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeArguments\": null")
+	}
 	out_s("\n")
 	print_indent(indent)
 	out_s("},\n")
@@ -4003,13 +4022,17 @@ emit_jsx_fragment_body :: proc(f: ^JSXFragment, indent: int) {
 	print_indent(indent + 1)
 	out_s("\"end\": ")
 	out_u32(to_utf16(f.opening_fragment.loc.span.end))
-	out_s(",\n")
 	// OXC emits `attributes: []` and `selfClosing: false` on JSXOpeningFragment
-	// for ESTree/TS-ESTree symmetry with JSXOpeningElement. Mirror it.
-	print_indent(indent + 1)
-	out_s("\"attributes\": [],\n")
-	print_indent(indent + 1)
-	out_s("\"selfClosing\": false\n")
+	// in .jsx mode (for ESTree symmetry with JSXOpeningElement) but NOT in
+	// .tsx mode. Mirror that split so the TS-shape compare lines up.
+	if !emit_ts_shape {
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"attributes\": [],\n")
+		print_indent(indent + 1)
+		out_s("\"selfClosing\": false")
+	}
+	out_s("\n")
 	print_indent(indent)
 	out_s("},\n")
 	print_indent(indent)

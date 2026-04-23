@@ -258,18 +258,24 @@
             "start": 178,
             "end": 197,
             "callee": {
-              "type": "Identifier",
+              "type": "CallExpression",
               "start": 182,
-              "end": 185,
-              "name": "Box",
-              "typeAnnotation": null            },
+              "end": 197,
+              "callee": {
+                "type": "Identifier",
+                "start": 182,
+                "end": 185,
+                "name": "Box",
+                "typeAnnotation": null              },
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "start": 194,
+                  "end": 196,
+                  "value": 42,
+                  "raw": "42"                }
+              ]            },
             "arguments": [
-              {
-                "type": "Literal",
-                "start": 194,
-                "end": 196,
-                "value": 42,
-                "raw": "42"              }
             ]          }        }
       ]    }
   ],

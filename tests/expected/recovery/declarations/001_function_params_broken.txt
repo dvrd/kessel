@@ -1,0 +1,72 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 125,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ReturnStatement",
+      "start": 79,
+      "end": 92,
+      "argument": {
+        "type": "BinaryExpression",
+        "start": 86,
+        "end": 91,
+        "operator": "+",
+        "left": {
+          "type": "Identifier",
+          "start": 86,
+          "end": 87,
+          "name": "a"        },
+        "right": {
+          "type": "Identifier",
+          "start": 90,
+          "end": 91,
+          "name": "b"        }      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 95,
+      "end": 124,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 101,
+          "end": 123,
+          "id": {
+            "type": "Identifier",
+            "start": 101,
+            "end": 119,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 122,
+            "end": 123,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 53,
+      "value": " Function declaration with a broken parameter list."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected ), got {",
+      "line": 2,
+      "column": 22,
+      "offset": 75
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 22: Expected ), got {
+
+--- Statistics ---
+Arena: used=8048B reserved=16777216B ratio=0%
+Parse errors: 1

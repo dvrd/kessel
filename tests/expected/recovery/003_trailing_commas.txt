@@ -235,8 +235,38 @@
       "end": 212,
       "specifiers": [
         {
+          "type": "ImportSpecifier",
+          "start": 190,
+          "end": 191,
+          "imported": {
+            "type": "Identifier",
+            "start": 190,
+            "end": 191,
+            "name": "a"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 190,
+            "end": 191,
+            "name": "a"
+          }
         },
         {
+          "type": "ImportSpecifier",
+          "start": 193,
+          "end": 194,
+          "imported": {
+            "type": "Identifier",
+            "start": 193,
+            "end": 194,
+            "name": "b"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 193,
+            "end": 194,
+            "name": "b"
+          }
         }
       ],
       "source": {
@@ -394,5 +424,5 @@
 }
 
 --- Statistics ---
-Arena: used=10408B reserved=16777216B ratio=0%
+Arena: used=10840B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -1,0 +1,83 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 120,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 49,
+      "end": 89,
+      "id": {
+        "type": "Identifier",
+        "start": 58,
+        "end": 64,
+        "name": "broken"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 67,
+        "end": 89,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 71,
+            "end": 87,
+            "argument": {
+              "type": "Identifier",
+              "start": 78,
+              "end": 83,
+              "name": "value"            }          }
+        ]
+      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 90,
+      "end": 119,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 96,
+          "end": 118,
+          "id": {
+            "type": "Identifier",
+            "start": 96,
+            "end": 114,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 117,
+            "end": 118,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 48,
+      "value": " Return statement with a malformed expression."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 3,
+      "column": 18,
+      "offset": 86
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 18: Expected expression after operator
+
+--- Statistics ---
+Arena: used=8192B reserved=16777216B ratio=0%
+Parse errors: 1

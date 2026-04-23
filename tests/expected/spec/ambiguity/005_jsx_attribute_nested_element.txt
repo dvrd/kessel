@@ -65,7 +65,8 @@
                           "name": "Bar"
                         },
                         "attributes": [],
-                        "selfClosing": true
+                        "selfClosing": true,
+                        "typeArguments": null
                       },
                       "children": [],
                       "closingElement": null
@@ -73,7 +74,8 @@
                     }                  }
                 }
               ],
-              "selfClosing": true
+              "selfClosing": true,
+              "typeArguments": null
             },
             "children": [],
             "closingElement": null

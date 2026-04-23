@@ -4,7 +4,8 @@
 
 set -e
 
-SUBSET_DIR="$(dirname "$0")/test262_subset"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SUBSET_DIR="${SCRIPT_DIR}/../test262"
 mkdir -p "$SUBSET_DIR"
 
 BASE_URL="https://raw.githubusercontent.com/tc39/test262/main/test/language"

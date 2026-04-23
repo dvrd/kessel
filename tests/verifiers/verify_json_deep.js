@@ -60,6 +60,9 @@ function syntheticName(p) {
   const base = path.basename(p);
   if (p.includes('/spec/jsx/'))        return base.replace(/\.js$/, '.jsx');
   if (p.includes('/spec/typescript/')) return base.replace(/\.js$/, '.ts');
+  // Ambiguity fixtures exercise TSX grammar: TS angle-bracket assertions
+  // that conflict with JSX, generic arrows, etc.
+  if (p.includes('/spec/ambiguity/'))  return base.replace(/\.js$/, '.tsx');
   return base;
 }
 const name = syntheticName(file);
@@ -291,6 +294,7 @@ function parseKessel(file) {
   let langFlag = '';
   if (file.includes('/spec/jsx/'))        langFlag = ' --lang=jsx';
   else if (file.includes('/spec/typescript/')) langFlag = ' --lang=ts';
+  else if (file.includes('/spec/ambiguity/'))  langFlag = ' --lang=tsx';
   const raw = execSync(`"${KESSEL}" parse${langFlag} "${file}" --compact`,
                        { encoding: 'utf8', maxBuffer: 200 * 1024 * 1024 });
   // Kessel appends statistics to stderr; stdout first line is the JSON.

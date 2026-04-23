@@ -1,57 +1,55 @@
 {
   "type": "Program",
-  "start": 51,
-  "end": 89,
+  "start": 0,
+  "end": 95,
   "sourceType": "script",
   "hashbang": null,
   "body": [
     {
       "type": "VariableDeclaration",
-      "start": 51,
-      "end": 73,
+      "start": 41,
+      "end": 63,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 57,
-          "end": 73,
+          "start": 47,
+          "end": 63,
           "id": {
             "type": "Identifier",
-            "start": 57,
-            "end": 62,
-            "name": "value",
-            "typeAnnotation": null          },
+            "start": 47,
+            "end": 52,
+            "name": "value"          },
           "init": {
             "type": "JSXElement",
-            "start": 65,
-            "end": 73,
+            "start": 55,
+            "end": 63,
             "openingElement": {
               "type": "JSXOpeningElement",
-              "start": 65,
-              "end": 73,
+              "start": 55,
+              "end": 63,
               "name": {
                 "type": "JSXIdentifier",
-                "start": 66,
-                "end": 72,
-                "name": "number"
+                "start": 56,
+                "end": 62,
+                "name": "string"
               },
               "attributes": [],
-              "selfClosing": false,
-              "typeArguments": null
+              "selfClosing": false
             },
             "children": [
               {
                 "type": "JSXText",
-                "start": 73,
-                "end": 89,
-                "value": "(left + right);\n",
-                "raw": "(left + right);\n"
+                "start": 63,
+                "end": 95,
+                "value": ";\nconst anchor_after_error = 1;\n",
+                "raw": ";\nconst anchor_after_error = 1;\n"
               }
             ],
             "closingElement": {
               "type": "JSXClosingElement",
-              "start": 89,
-              "end": 89,
+              "start": 95,
+              "end": 95,
               "name": 
             }
           }        }
@@ -61,35 +59,35 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 50,
-      "value": " TS assertion around a parenthesized expression."
+      "end": 40,
+      "value": " Type assertion missing an expression."
     }
   ],
   "errors": [
     {
       "message": "Expected <, got EOF",
-      "line": 3,
+      "line": 4,
       "column": 1,
-      "offset": 89
+      "offset": 95
     },
     {
       "message": "Expected /, got EOF",
-      "line": 3,
+      "line": 4,
       "column": 1,
-      "offset": 89
+      "offset": 95
     },
     {
       "message": "Expected >, got EOF",
-      "line": 3,
+      "line": 4,
       "column": 1,
-      "offset": 89
+      "offset": 95
     }
   ]
 }
 Parse errors (3):
-  Line 3, Column 1: Expected <, got EOF
-  Line 3, Column 1: Expected /, got EOF
-  Line 3, Column 1: Expected >, got EOF
+  Line 4, Column 1: Expected <, got EOF
+  Line 4, Column 1: Expected /, got EOF
+  Line 4, Column 1: Expected >, got EOF
 
 --- Statistics ---
 Arena: used=8280B reserved=16777216B ratio=0%

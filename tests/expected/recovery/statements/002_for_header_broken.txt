@@ -1,0 +1,117 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 117,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ForStatement",
+      "start": 46,
+      "end": 86,
+      "init": {
+        "type": "VariableDeclaration",
+        "start": 51,
+        "end": 60,
+        "kind": "let",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 55,
+            "end": 60,
+            "id": {
+              "type": "Identifier",
+              "start": 55,
+              "end": 56,
+              "name": "i"            },
+            "init": {
+              "type": "Literal",
+              "start": 59,
+              "end": 60,
+              "value": 0,
+              "raw": "0"            }          }
+        ]
+      },
+      "test": {
+        "type": "Identifier",
+        "start": 62,
+        "end": 63,
+        "name": "i"      },
+      "update": {
+        "type": "UpdateExpression",
+        "start": 68,
+        "end": 71,
+        "operator": "++",
+        "prefix": false,
+        "argument": {
+          "type": "Identifier",
+          "start": 68,
+          "end": 69,
+          "name": "i"        }      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 73,
+        "end": 86,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 77,
+            "end": 84,
+            "expression": {
+              "type": "CallExpression",
+              "start": 77,
+              "end": 83,
+              "callee": {
+                "type": "Identifier",
+                "start": 77,
+                "end": 81,
+                "name": "step"              },
+              "arguments": [
+              ]            }          }
+        ]      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 87,
+      "end": 116,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 93,
+          "end": 115,
+          "id": {
+            "type": "Identifier",
+            "start": 93,
+            "end": 111,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 114,
+            "end": 115,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 45,
+      "value": " For header with a missing test expression."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 2,
+      "column": 21,
+      "offset": 66
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 21: Expected expression after operator
+
+--- Statistics ---
+Arena: used=8104B reserved=16777216B ratio=0%
+Parse errors: 1

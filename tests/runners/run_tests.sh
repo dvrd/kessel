@@ -51,24 +51,12 @@ normalize_output() {
 is_skipped_fixture() {
     local rel_path="$1"
 
+    # Only fixtures owned by a different gate get skipped here:
+    # negative/* and early_errors/* are enforced by verify_negative.js.
+    # Every positive fixture is enforced here, on every run, so that
+    # "skipped" cannot be a dumping ground for parser gaps.
     case "$rel_path" in
         negative/*|early_errors/*)
-            return 0
-            ;;
-        # Known-failure positive fixtures: parse-clean (no crash) but still
-        # emit parse errors OR miss a golden file. Tracked in
-        # tests/baselines/unit_known_failures.txt; auto-sourced below.
-        spec/typescript/007_type_assertion.js)
-            return 0
-            ;;
-        # TSX ambiguity fixtures that rely on Phase C (forbid `<Type>expr`
-        # cast in .tsx because it clashes with JSX opening tag). OXC also
-        # rejects these with parse errors. Tracked in HANDOFF's Wave 3
-        # Phase C; skip until implemented.
-        spec/ambiguity/001_ts_assertion_vs_jsx_simple.js | \
-        spec/ambiguity/002_ts_assertion_vs_jsx_paren.js | \
-        spec/ambiguity/004_generic_arrow_vs_relational.js | \
-        spec/ambiguity/007_type_arguments_call_chain.js)
             return 0
             ;;
     esac
@@ -133,13 +121,27 @@ while IFS= read -r fixture; do
         continue
     fi
 
-    if grep -Eq 'Parse errors\s*(\([1-9][0-9]*\)|:\s*[1-9][0-9]*)' "$output_file"; then
-        parse_errors=$(grep -Eo 'Parse errors\s*(\([0-9]+\)|:\s*[0-9]+)' "$output_file" | grep -Eo '[0-9]+' | tail -n1)
-        echo -e "${RED}FAIL (parse errors: ${parse_errors:-?})${NC}"
-        FAILED=$((FAILED + 1))
-        rm -f "$output_file" "$normalized_output_file" "$normalized_expected_file"
-        continue
-    fi
+    # Parse-errors-expected fixtures: recovery/* exercise error recovery;
+    # spec/ambiguity/001,002,004 exercise the TSX grammar restriction that
+    # forbids `<Type>expr` / generic-arrow-without-trailing-comma (OXC
+    # rejects these with parse errors too). The gate on these fixtures is
+    # the STABILITY of emitted AST + error list against a golden, not
+    # error-free parsing. Everything else must parse clean.
+    case "$rel_path" in
+        recovery/*) ;;
+        spec/ambiguity/001_ts_assertion_vs_jsx_simple.js) ;;
+        spec/ambiguity/002_ts_assertion_vs_jsx_paren.js) ;;
+        spec/ambiguity/004_generic_arrow_vs_relational.js) ;;
+        *)
+            if grep -Eq 'Parse errors\s*(\([1-9][0-9]*\)|:\s*[1-9][0-9]*)' "$output_file"; then
+                parse_errors=$(grep -Eo 'Parse errors\s*(\([0-9]+\)|:\s*[0-9]+)' "$output_file" | grep -Eo '[0-9]+' | tail -n1)
+                echo -e "${RED}FAIL (parse errors: ${parse_errors:-?})${NC}"
+                FAILED=$((FAILED + 1))
+                rm -f "$output_file" "$normalized_output_file" "$normalized_expected_file"
+                continue
+            fi
+            ;;
+    esac
 
     if [[ ! -f "$expected_file" ]]; then
         if [[ "$UPDATE_MODE" == true ]]; then

@@ -1,7 +1,7 @@
 {
   "ambiguity": {
-    "pass": 2,
-    "fail": 8,
+    "pass": 7,
+    "fail": 3,
     "total": 10
   },
   "asi": {
@@ -85,8 +85,8 @@
     "total": 12
   },
   "typescript": {
-    "pass": 4,
-    "fail": 6,
+    "pass": 7,
+    "fail": 3,
     "total": 10
   },
   "unicode": {

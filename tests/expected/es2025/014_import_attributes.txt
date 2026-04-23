@@ -11,6 +11,15 @@
       "end": 53,
       "specifiers": [
         {
+          "type": "ImportDefaultSpecifier",
+          "start": 7,
+          "end": 11,
+          "local": {
+            "type": "Identifier",
+            "start": 7,
+            "end": 11,
+            "name": "data"
+          }
         }
       ],
       "source": {
@@ -44,5 +53,5 @@
 }
 
 --- Statistics ---
-Arena: used=6920B reserved=16777216B ratio=0%
+Arena: used=7072B reserved=16777216B ratio=0%
 Parse errors: 0

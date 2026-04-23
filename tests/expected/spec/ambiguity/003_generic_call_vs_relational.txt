@@ -22,33 +22,23 @@
             "name": "value",
             "typeAnnotation": null          },
           "init": {
-            "type": "BinaryExpression",
+            "type": "CallExpression",
             "start": 68,
             "end": 84,
-            "operator": ">",
-            "left": {
-              "type": "BinaryExpression",
-              "start": 68,
-              "end": 78,
-              "operator": "<",
-              "left": {
-                "type": "Identifier",
-                "start": 68,
-                "end": 71,
-                "name": "foo",
-                "typeAnnotation": null              },
-              "right": {
-                "type": "Identifier",
-                "start": 72,
-                "end": 78,
-                "name": "string",
-                "typeAnnotation": null              }            },
-            "right": {
+            "callee": {
               "type": "Identifier",
-              "start": 80,
-              "end": 83,
-              "name": "bar",
-              "typeAnnotation": null            }          }        }
+              "start": 68,
+              "end": 71,
+              "name": "foo",
+              "typeAnnotation": null            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 80,
+                "end": 83,
+                "name": "bar",
+                "typeAnnotation": null              }
+            ]          }        }
       ]    }
   ],
   "comments": [
@@ -62,5 +52,5 @@
 }
 
 --- Statistics ---
-Arena: used=6584B reserved=16777216B ratio=0%
+Arena: used=6648B reserved=16777216B ratio=0%
 Parse errors: 0

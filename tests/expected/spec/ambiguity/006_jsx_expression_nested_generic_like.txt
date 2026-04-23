@@ -36,7 +36,8 @@
                 "name": "Foo"
               },
               "attributes": [],
-              "selfClosing": false
+              "selfClosing": false,
+              "typeArguments": null
             },
             "children": [
               {
@@ -58,7 +59,8 @@
                       "name": "Bar"
                     },
                     "attributes": [],
-                    "selfClosing": true
+                    "selfClosing": true,
+                    "typeArguments": null
                   },
                   "children": [],
                   "closingElement": null

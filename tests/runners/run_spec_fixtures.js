@@ -32,17 +32,41 @@ const UPDATE = process.argv.includes('--update');
 const VERBOSE = process.argv.includes('--verbose');
 
 // Enumerate (category, fixture) pairs.
+// Walk the tree recursively so any future nested fixture families under a
+// category are picked up automatically without another runner edit.
 function listFixtures() {
   const out = [];
   for (const cat of fs.readdirSync(FIX_ROOT).sort()) {
     const catDir = path.join(FIX_ROOT, cat);
     if (!fs.statSync(catDir).isDirectory()) continue;
-    for (const fname of fs.readdirSync(catDir).sort()) {
-      if (!fname.endsWith('.js')) continue;
-      out.push({ category: cat, file: path.join(catDir, fname), rel: `${cat}/${fname}` });
-    }
+    listFixtures_inCategory(catDir, cat, out);
   }
   return out;
+}
+
+function listFixtures_inCategory(dir, category, out) {
+  for (const entry of fs.readdirSync(dir).sort()) {
+    const file = path.join(dir, entry);
+    const stat = fs.statSync(file);
+    if (stat.isDirectory()) {
+      listFixtures_inCategory(file, category, out);
+      continue;
+    }
+    if (!entry.endsWith('.js')) continue;
+    const rel = path.relative(FIX_ROOT, file);
+    out.push({ category, file, rel });
+  }
+}
+
+// Fixtures live under .js paths but some exercise JSX or TS grammar. Pick
+// the right --lang flag from the category so Kessel parses them in the
+// correct grammar mode (otherwise e.g. spec/typescript/007_type_assertion
+// fails with "unexpected <" because JS mode rejects `<Type>expr`).
+function langFlag(file) {
+  if (file.includes('/spec/jsx/'))        return ' --lang=jsx';
+  if (file.includes('/spec/typescript/')) return ' --lang=ts';
+  if (file.includes('/spec/ambiguity/'))  return ' --lang=tsx';
+  return '';
 }
 
 // Run one fixture and return {ok, reason?}.
@@ -50,7 +74,7 @@ function check(fix) {
   // Kessel must parse without error.
   let kExit = 0, kStdout = '', kStderr = '';
   try {
-    kStdout = execSync(`"${KESSEL}" parse "${fix.file}" --compact 2>&1`,
+    kStdout = execSync(`"${KESSEL}" parse${langFlag(fix.file)} "${fix.file}" --compact 2>&1`,
       { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
   } catch (e) {
     kExit = e.status || 1;

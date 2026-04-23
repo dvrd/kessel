@@ -1,0 +1,99 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 101,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 46,
+      "end": 70,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 52,
+          "end": 69,
+          "id": {
+            "type": "Identifier",
+            "start": 52,
+            "end": 56,
+            "name": "view"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 59,
+            "end": 69,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 59,
+              "end": 64,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 60,
+                "end": 63,
+                "name": "Foo"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 64,
+              "end": 69,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 66,
+                "end": 69,
+                "name": "Bar"
+              }
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 71,
+      "end": 100,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 77,
+          "end": 99,
+          "id": {
+            "type": "Identifier",
+            "start": 77,
+            "end": 95,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 98,
+            "end": 99,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 45,
+      "value": " JSX element with a mismatched closing tag."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected >, got ;",
+      "line": 2,
+      "column": 24,
+      "offset": 69
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 24: Expected >, got ;
+
+--- Statistics ---
+Arena: used=8360B reserved=16777216B ratio=0%
+Parse errors: 1

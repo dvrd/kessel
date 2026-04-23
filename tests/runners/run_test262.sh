@@ -1,11 +1,15 @@
 #!/bin/bash
-# Test262 runner - ejecuta todos los tests y reporta pass rate
+# Test262 syntax-subset runner.
 
-SUBSET_DIR="$(dirname "$0")/../test262"
-BINARY="${1:-./../kessel_bin}"
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SUBSET_DIR="${SCRIPT_DIR}/../test262"
+BINARY="${1:-${ROOT_DIR}/bin/kessel}"
 TIMEOUT=10
 
-if [ ! -f "$BINARY" ]; then
+if [ ! -x "$BINARY" ]; then
   echo "Error: Binary not found at $BINARY"
   exit 1
 fi

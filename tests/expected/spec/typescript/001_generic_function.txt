@@ -121,33 +121,23 @@
             "name": "a",
             "typeAnnotation": null          },
           "init": {
-            "type": "BinaryExpression",
+            "type": "CallExpression",
             "start": 199,
             "end": 219,
-            "operator": ">",
-            "left": {
-              "type": "BinaryExpression",
+            "callee": {
+              "type": "Identifier",
               "start": 199,
-              "end": 214,
-              "operator": "<",
-              "left": {
-                "type": "Identifier",
-                "start": 199,
-                "end": 207,
-                "name": "identity",
-                "typeAnnotation": null              },
-              "right": {
-                "type": "Identifier",
-                "start": 208,
-                "end": 214,
-                "name": "number",
-                "typeAnnotation": null              }            },
-            "right": {
-              "type": "Literal",
-              "start": 216,
-              "end": 218,
-              "value": 42,
-              "raw": "42"            }          }        }
+              "end": 207,
+              "name": "identity",
+              "typeAnnotation": null            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 216,
+                "end": 218,
+                "value": 42,
+                "raw": "42"              }
+            ]          }        }
       ]    },
     {
       "type": "VariableDeclaration",
@@ -166,33 +156,23 @@
             "name": "b",
             "typeAnnotation": null          },
           "init": {
-            "type": "BinaryExpression",
+            "type": "CallExpression",
             "start": 231,
             "end": 253,
-            "operator": ">",
-            "left": {
-              "type": "BinaryExpression",
+            "callee": {
+              "type": "Identifier",
               "start": 231,
-              "end": 246,
-              "operator": "<",
-              "left": {
-                "type": "Identifier",
-                "start": 231,
-                "end": 239,
-                "name": "identity",
-                "typeAnnotation": null              },
-              "right": {
-                "type": "Identifier",
-                "start": 240,
-                "end": 246,
-                "name": "string",
-                "typeAnnotation": null              }            },
-            "right": {
-              "type": "Literal",
-              "start": 248,
-              "end": 252,
-              "value": "hi",
-              "raw": "\"hi\""            }          }        }
+              "end": 239,
+              "name": "identity",
+              "typeAnnotation": null            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 248,
+                "end": 252,
+                "value": "hi",
+                "raw": "\"hi\""              }
+            ]          }        }
       ]    }
   ],
   "comments": [
@@ -212,5 +192,5 @@
 }
 
 --- Statistics ---
-Arena: used=8224B reserved=16777216B ratio=0%
+Arena: used=8352B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -11,6 +11,24 @@
       "end": 161,
       "specifiers": [
         {
+          "type": "ImportSpecifier",
+          "start": 142,
+          "end": 145,
+          "imported": {
+            "type": "Identifier",
+            "start": 142,
+            "end": 145,
+            "name": "Foo",
+            "typeAnnotation": null
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 142,
+            "end": 145,
+            "name": "Foo",
+            "typeAnnotation": null
+          },
+          "importKind": "value"
         }
       ],
       "source": {
@@ -27,6 +45,16 @@
       "end": 199,
       "specifiers": [
         {
+          "type": "ImportDefaultSpecifier",
+          "start": 174,
+          "end": 181,
+          "local": {
+            "type": "Identifier",
+            "start": 174,
+            "end": 181,
+            "name": "Default",
+            "typeAnnotation": null
+          }
         }
       ],
       "source": {
@@ -43,6 +71,16 @@
       "end": 232,
       "specifiers": [
         {
+          "type": "ImportNamespaceSpecifier",
+          "start": 212,
+          "end": 219,
+          "local": {
+            "type": "Identifier",
+            "start": 217,
+            "end": 219,
+            "name": "NS",
+            "typeAnnotation": null
+          }
         }
       ],
       "source": {
@@ -71,5 +109,5 @@
 }
 
 --- Statistics ---
-Arena: used=8552B reserved=16777216B ratio=0%
+Arena: used=8816B reserved=16777216B ratio=0%
 Parse errors: 0

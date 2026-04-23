@@ -1,0 +1,80 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 105,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 51,
+      "end": 74,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 57,
+          "end": 72,
+          "id": {
+            "type": "Identifier",
+            "start": 57,
+            "end": 63,
+            "name": "broken"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 66,
+            "end": 72,
+            "callee": {
+              "type": "Identifier",
+              "start": 66,
+              "end": 69,
+              "name": "foo"            },
+            "arguments": [
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 75,
+      "end": 104,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 81,
+          "end": 103,
+          "id": {
+            "type": "Identifier",
+            "start": 81,
+            "end": 99,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 102,
+            "end": 103,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 50,
+      "value": " Call expression missing an argument expression."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected ), got ;",
+      "line": 2,
+      "column": 23,
+      "offset": 73
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 23: Expected ), got ;
+
+--- Statistics ---
+Arena: used=8040B reserved=16777216B ratio=0%
+Parse errors: 1
