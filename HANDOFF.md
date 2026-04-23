@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post K12 + EST-3/OPT-3 sweep)
-**Repo state:** `main` at commit `c8f9dff`, ~18 100 LOC of Odin across 7 files.
+**Last updated:** 2026-04-23 (post all-items sweep — K3/PhaseC/TSParameterProperty/EST4/NAPI-MVP)
+**Repo state:** `main` at commit `880e822`, ~18 700 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -383,12 +383,58 @@ Phase 3 (`2ad4487`, `4b543cf`).
 
 Ordered by impact × feasibility.
 
-1. ~~K1–K2, K4–K8~~ ✅ All closed. See §8 for pointers.
-2. ~~EST-1, EST-2, EST-6~~ ✅ All shipped. See §6.
-3. ~~OPT-1, OPT-2, OPT-4~~ ✅ Shipped. See §6.
-4. ~~TS-A10~~ ✅ Shipped (`973c9e6`).
-5. ~~K12 / EST-3 / OPT-3~~ ✅ All closed. See table in §8.
-6. **K3 — verifier calibration + baseline refresh.** The `--preserve-parens`
+1. ~~K1–K2, K4–K8~~ ✅ All closed.
+2. ~~EST-1, EST-2, EST-6~~ ✅ All shipped.
+3. ~~OPT-1, OPT-2, OPT-4~~ ✅ Shipped.
+4. ~~TS-A10~~ ✅ Shipped.
+5. ~~K12 / EST-3 / OPT-3~~ ✅ All closed.
+6. ~~K3~~ ✅ Closed (`66f25e9`). Fixed `pending_paren_start` propagation
+   (loc_from_expr missing ParenthesizedExpression case; save/clear before
+   parse_arguments so paren-start doesn't leak into argument sub-exprs).
+   Verifier updated: passes `--preserve-parens` to Kessel for OXC compares;
+   disables unwrapParens for OXC; strips `directive` from Kessel-side.
+   spec-compliance total divergences: 11561 → 74 across all 12 files.
+7. ~~Wave 3 Phase C~~ ✅ Closed (`7fa2b40`). TSX mode: `<T,>` / `<T extends>`
+   disambiguates to generic arrow; falls through to JSX otherwise.
+   `--preserve-parens` flag. ArrowFunctionExpression emitter: typeParameters
+   and returnType fields.
+8. ~~TSParameterProperty~~ ✅ Closed (`b2effaa`). FunctionParameter AST
+   now tracks accessibility/readonly/override_/modifier_start. Emitter
+   wraps in `TSParameterProperty` in emit_ts_shape mode.
+9. ~~EST-4 / TS-ESTree shape alignment~~ ✅ Closed (`f8656ec`).
+   All 10 spec/typescript/*.js fixtures pass deep OXC compare (was 7/10).
+   Fixes: TSMappedType key+constraint shape, new Box<T>() callee fix,
+   TSIndexSignature spans + accessibility, FunctionExpression declare/
+   typeParameters/returnType null, ClassDeclaration superTypeArguments,
+   CallExpression/NewExpression typeArguments null, MethodDef/PropertyDef
+   optional field, TSInterfaceDeclaration body start.
+10. ~~NAPI/Visitor MVP~~ ✅ Closed (`880e822`). `npm/kessel-parser/` provides
+    `parseSync(filename, source, opts?)` matching oxc-parser's API shape
+    (CLI-backed shim) + `walk()`/`findAll()` visitor API.
+
+**Remaining items** (ordered by impact):
+
+1. **K3 remaining 6 residuals** — 25 divergences in antd.js reduced to 6 real
+   structural (AssignmentExpression vs AssignmentPattern, pre-existing) + ~19
+   cascading from those. Likely needs pattern parsing fix.
+2. **Full NAPI bindings** — Production-grade zero-spawn NAPI. Requires C ABI
+   Odin export + C++ NAPI shim + npm packaging infra. Several weeks.
+3. **Wave 3 Phase C gaps** — TSX `<T>` single-param generic arrow (no
+   trailing comma) — fails in TSX mode (correct per spec; user must write
+   `<T,>`). Also JSX nested attribute/fragment fixtures (005/006/009).
+4. **Error recovery (ERR-2..4)** — Recovery is already 20/20; deeper
+   improvements for editor tooling.
+5. **Full Test262, Babel, TypeScript parser test suites** — Ongoing.
+
+~~6. **OLD K3**~~
+~~7. **OLD Phase C**~~
+~~8. **OLD TSParameterProperty**~~
+~~9. **OLD EST-4**~~
+~~10. **OLD Full Test262**~~
+~~11. **OLD error recovery**~~
+~~12. **OLD NAPI**~~
+
+**Superseded by items 1–5 above.** The `--preserve-parens`
    flag (c8f9dff) drops antd.js from 10020 → ~20 divergences. To close
    K3 end-to-end:
      a. Teach `tests/verifiers/verify_json_deep.js` to pass
