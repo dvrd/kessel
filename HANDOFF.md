@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post K1 emitter-nil-guard triage)
-**Repo state:** `main` at commit `07858c4`, ~17 360 LOC of Odin across 7 files.
+**Last updated:** 2026-04-23 (post K1 + K2 + infinite-loop triage)
+**Repo state:** `main` at commit `491d083`, ~17 380 LOC of Odin across 7 files.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -45,9 +45,9 @@ is fine.
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | 4 mismatches on jquery.js | Pre-existing field-type diffs (`NewExpression` vs `CallExpression`) |
 | Multi-parser | `task test:multi-parser` | 1 divergence vs acorn (baselined) | ExportAllDeclaration edge case |
-| Spec-compliance | `task test:spec-compliance` | 1 regression (snabbdom), MANY improvements | zod.js went from 27 313 mismatches to 42 — huge improvement, needs `--update` |
-| Fuzz (diff vs OXC) | `task test:fuzz` | Baseline drift | Span-end mismatches, baselined |
-| Fuzz (invalid input) | `task test:fuzz:invalid` | **22 / 22** ✅ (baselined) | All SIGSEGV/SIGTRAP fixed in `07858c4`; 22 remaining are timeouts/SIGTERMs on pathological inputs (pinned) |
+| Spec-compliance | `task test:spec-compliance` | **OK** ✅ (baselined) | zod.js 27 313 → 42 (-27 271) locked in `491d083`; chalk.js 1 583 → 23 (-1 560); snabbdom.js +1 pre-existing |
+| Fuzz (diff vs OXC) | `task test:fuzz` | **34 / 34** ✅ (baselined) | 19 baselined fixes promoted, 34 new diffs baselined (Kessel now parses inputs OXC rejects because the emitter stopped crashing on nil-inner AST). |
+| Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | SIGSEGV/SIGTRAP fixed in `07858c4`; infinite-loop timeouts fixed in `491d083` (a!z bug + JSX-children progress guard). 8 remaining are SIGTERMs on 350 KB – 4 MB mutated files (deadline-crosses, not real bugs). |
 | Crashes-known | `task test:crashes-known` | Needs update | New crashes discovered this session |
 | Bench regression | `task test:bench:regression` | Not run in swarm | Use before release |
 
@@ -341,8 +341,8 @@ Phase 3 (`2ad4487`, `4b543cf`).
 
 | # | Issue | Severity | Where | Fix status |
 |---|---|---|---|---|
-| K1 | **`task test:fuzz:invalid` — 22 baselined crashes** (was 29). All SIGSEGV/SIGTRAP fixed in `07858c4` via emitter nil-pointer + inverted-span guards. The 22 remaining are all timeouts (16) or SIGTERMs (6) on pathological inputs — pathological parse-time bugs, separate from the never-crash contract. | Medium | parser (perf on ASCII noise + huge mutated input) | Baselined in `tests/baselines/fuzz_invalid_baseline.json`. Next: profile `case_66613919.js` (3.8 KB ASCII noise triggering ~exponential parse) to find the backtracking culprit. |
-| K2 | **`task test:crashes-known` reports new crashes** beyond the 3 pinned in `KNOWN_CRASHES`. Probably some new SIGTRAPs introduced (or surfaced) this session. | High | Various | Run with verbose output, triage each, either fix or pin. |
+| K1 | **`task test:fuzz:invalid` — 8 baselined crashes** (was 29). SIGSEGV/SIGTRAP fixed in `07858c4` via emitter nil-pointer + inverted-span guards. Infinite-loops fixed in `491d083` (parse_lhs_tail .Not case + parse_jsx_children progress guard). 8 remaining are SIGTERMs (deadline-crosses) on 350 KB – 4 MB mutated files. | Low | parser (perf on very large mutated input) | Baselined in `tests/baselines/fuzz_invalid_baseline.json`. Not worth further chasing — these are deadline hits, not parser bugs. |
+| K2 | ~~`task test:crashes-known` regressions~~ ✅ Fixed in `491d083`. The 3 pinned fixtures all stopped crashing during Phase 3 (JSX nested attr, TS angle assertion, unicode escape in identifier). Removed from `KNOWN_CRASHES`; runner now enforces they keep parsing. Two still have shape-drift owned by deeper gates. | | | |
 | K3 | **`spec-compliance` regression on snabbdom.js** (+1 mismatch vs OXC). MANY improvements elsewhere (zod.js dropped from 27 313 mismatches to 42). | Medium | Emitter shape | Inspect snabbdom.js diff; update baseline if improvement overall. |
 | K4 | **Arrow-param type annotations** don't parse: `(x: T) => x` fails at `parse_primary_expr`'s `(` branch (doesn't accept `:Type`). This blocks the ambiguous `<T>(x: T) => x` generic-arrow case from parsing cleanly (falls to assertion with 5 parse errors, no crash). | Medium | `parser.odin` primary `(` handler | Teach paren-grouping to accept `:Type` annotations on identifier tokens in TS mode. |
 | K5 | **Deep JSX child recursion crash** — `<A><B><C/></B></A>` SIGTRAPs on 3-level nesting. Fixture `spec/jsx/005_nested_element.js` line 2. | Medium | `parse_jsx_element_or_fragment` span math | Likely a loc bug in nested-children path. Single-level (`<A><B/></A>`) works. |
@@ -359,15 +359,13 @@ Phase 3 (`2ad4487`, `4b543cf`).
 
 Ordered by impact × feasibility.
 
-1. ~~**Triage `fuzz:invalid` 29 crashes (K1).**~~ ✅ Done in `07858c4`. 13
-   hard crashes fixed (SIGSEGV/SIGTRAP in the emitter on nil inner pointers
-   and inverted spans). Remaining 22 are all timeouts/SIGTERMs, baselined.
-2. **Profile pathological parse time (new K1-followup).** `case_66613919.js`
-   (3.8 KB ASCII noise with `` ` `` and `<` density) takes >20 s. Suspects:
-   `<` trial-parse backtracking, template-literal depth, ambiguous-arrow
-   trial. Fix once root cause is known; then re-run `fuzz:invalid:update`.
-3. **Triage `crashes-known` regressions (K2).** Similar — identify what the
-   previous session touched that created new crashes, fix or pin.
+1. ~~**Triage `fuzz:invalid` 29 crashes (K1).**~~ ✅ Done. 21 root-cause fixes
+   (emitter nil-guards in `07858c4`; parser infinite-loop bugs in
+   `491d083`). 8 remaining are SIGTERM deadline-crosses on >=350 KB input.
+2. ~~**Profile pathological parse time.**~~ ✅ Done in `491d083`. Root cause
+   was an Odin `break`-inside-switch-inside-for bug in `parse_lhs_tail`
+   for the `.Not` (`!`) case. Minimal repro `a!z` used to time out; now 8 ms.
+3. ~~**Triage `crashes-known` regressions (K2).**~~ ✅ Done in `491d083`.
 3. **Arrow-param type annotations (K4).** Unblocks the single-param
    generic-arrow case `<T>(x: T) => x`. Cleanest fix: teach paren-grouping
    to accept `:Type` in TS mode. ~50–100 LOC.
