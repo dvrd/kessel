@@ -44,36 +44,33 @@
         "type": "TSMappedType",
         "start": 98,
         "end": 131,
-        "typeParameter": {
-          "type": "TSTypeParameter",
+        "key": {
+          "type": "Identifier",
           "start": 110,
           "end": 111,
-          "name": {
-            "type": "Identifier",
-            "start": 110,
-            "end": 111,
-            "name": "K"
-          },
-          "constraint": {
-            "type": "TSTypeOperator",
-            "start": 115,
+          "name": "K",
+          "typeAnnotation": null
+        },
+        "constraint": {
+          "type": "TSTypeOperator",
+          "start": 115,
+          "end": 122,
+          "operator": "keyof",
+          "typeAnnotation": {
+            "type": "TSTypeReference",
+            "start": 121,
             "end": 122,
-            "operator": "keyof",
-            "typeAnnotation": {
-              "type": "TSTypeReference",
+            "typeName": {
+              "type": "Identifier",
               "start": 121,
               "end": 122,
-              "typeName": {
-                "type": "Identifier",
-                "start": 121,
-                "end": 122,
-                "name": "T",
-                "typeAnnotation": null
-              },
-              "typeArguments": null
-            }
+              "name": "T",
+              "typeAnnotation": null
+            },
+            "typeArguments": null
           }
         },
+        "nameType": null,
         "typeAnnotation": {
           "type": "TSIndexedAccessType",
           "start": 125,
@@ -105,7 +102,8 @@
             "typeArguments": null
           }
         },
-        "nameType": null
+        "optional": false,
+        "readonly": true
       },
       "declare": false    },
     {
@@ -147,36 +145,33 @@
         "type": "TSMappedType",
         "start": 151,
         "end": 176,
-        "typeParameter": {
-          "type": "TSTypeParameter",
+        "key": {
+          "type": "Identifier",
           "start": 154,
           "end": 155,
-          "name": {
-            "type": "Identifier",
-            "start": 154,
-            "end": 155,
-            "name": "K"
-          },
-          "constraint": {
-            "type": "TSTypeOperator",
-            "start": 159,
+          "name": "K",
+          "typeAnnotation": null
+        },
+        "constraint": {
+          "type": "TSTypeOperator",
+          "start": 159,
+          "end": 166,
+          "operator": "keyof",
+          "typeAnnotation": {
+            "type": "TSTypeReference",
+            "start": 165,
             "end": 166,
-            "operator": "keyof",
-            "typeAnnotation": {
-              "type": "TSTypeReference",
+            "typeName": {
+              "type": "Identifier",
               "start": 165,
               "end": 166,
-              "typeName": {
-                "type": "Identifier",
-                "start": 165,
-                "end": 166,
-                "name": "T",
-                "typeAnnotation": null
-              },
-              "typeArguments": null
-            }
+              "name": "T",
+              "typeAnnotation": null
+            },
+            "typeArguments": null
           }
         },
+        "nameType": null,
         "typeAnnotation": {
           "type": "TSIndexedAccessType",
           "start": 170,
@@ -208,7 +203,8 @@
             "typeArguments": null
           }
         },
-        "nameType": null
+        "optional": true,
+        "readonly": null
       },
       "declare": false    },
     {
@@ -250,36 +246,33 @@
         "type": "TSMappedType",
         "start": 197,
         "end": 223,
-        "typeParameter": {
-          "type": "TSTypeParameter",
+        "key": {
+          "type": "Identifier",
           "start": 200,
           "end": 201,
-          "name": {
-            "type": "Identifier",
-            "start": 200,
-            "end": 201,
-            "name": "K"
-          },
-          "constraint": {
-            "type": "TSTypeOperator",
-            "start": 205,
+          "name": "K",
+          "typeAnnotation": null
+        },
+        "constraint": {
+          "type": "TSTypeOperator",
+          "start": 205,
+          "end": 212,
+          "operator": "keyof",
+          "typeAnnotation": {
+            "type": "TSTypeReference",
+            "start": 211,
             "end": 212,
-            "operator": "keyof",
-            "typeAnnotation": {
-              "type": "TSTypeReference",
+            "typeName": {
+              "type": "Identifier",
               "start": 211,
               "end": 212,
-              "typeName": {
-                "type": "Identifier",
-                "start": 211,
-                "end": 212,
-                "name": "T",
-                "typeAnnotation": null
-              },
-              "typeArguments": null
-            }
+              "name": "T",
+              "typeAnnotation": null
+            },
+            "typeArguments": null
           }
         },
+        "nameType": null,
         "typeAnnotation": {
           "type": "TSIndexedAccessType",
           "start": 217,
@@ -311,7 +304,8 @@
             "typeArguments": null
           }
         },
-        "nameType": null
+        "optional": "-",
+        "readonly": null
       },
       "declare": false    }
   ],

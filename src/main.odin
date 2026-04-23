@@ -4681,39 +4681,66 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		out_s("\"typeAnnotation\": ")
 		emit_ts_type(v.type_annotation, indent + 1)
 	case ^TSMappedType:
+		// OXC shape (oxc-parser @0.127+):
+		//   key: Identifier  (just the variable name, e.g. K in [K in keyof T])
+		//   constraint: TSType  (the constraint, e.g. keyof T)
+		//   nameType: null | TSType  (the `as` rename clause)
+		//   typeAnnotation: null | TSType  (the value type)
+		//   optional: false | true | "+" | "-"
+		//   readonly: null | true | "+" | "-"
 		print_indent(indent + 1)
 		out_s("\"type\": \"TSMappedType\"")
 		emit_span_fields(v.loc, indent + 1)
 		out_s(",\n")
+		// key: just the identifier part of the type parameter
 		print_indent(indent + 1)
-		out_s("\"typeParameter\": {\n")
+		out_s("\"key\": {\n")
 		print_indent(indent + 2)
-		out_s("\"type\": \"TSTypeParameter\",\n")
-		print_indent(indent + 2)
-		emit_span_leading(v.type_parameter.loc, indent + 2)
-		out_s("\"name\": {\n")
-		print_indent(indent + 3)
 		out_s("\"type\": \"Identifier\",\n")
-		print_indent(indent + 3)
-		emit_span_leading(v.type_parameter.name.loc, indent + 3)
+		print_indent(indent + 2)
+		emit_span_leading(v.type_parameter.name.loc, indent + 2)
 		out_s("\"name\": ")
 		out_string(v.type_parameter.name.name)
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent + 2)
+			out_s("\"typeAnnotation\": null")
+		}
 		out_s("\n")
-		print_indent(indent + 2)
+		print_indent(indent + 1)
 		out_s("},\n")
-		print_indent(indent + 2)
+		// constraint: the `in keyof T` part
+		print_indent(indent + 1)
 		out_s("\"constraint\": ")
-		if c, ok := v.type_parameter.constraint.(^TSType); ok { emit_ts_type(c, indent + 2) } else { out_s("null") }
-		out_s("\n")
-		print_indent(indent + 1)
-		out_s("},\n")
-		print_indent(indent + 1)
-		out_s("\"typeAnnotation\": ")
-		if t, ok := v.type_annotation.(^TSType); ok { emit_ts_type(t, indent + 1) } else { out_s("null") }
+		if c, ok := v.type_parameter.constraint.(^TSType); ok { emit_ts_type(c, indent + 1) } else { out_s("null") }
 		out_s(",\n")
 		print_indent(indent + 1)
 		out_s("\"nameType\": ")
 		if t, ok := v.name_type.(^TSType); ok { emit_ts_type(t, indent + 1) } else { out_s("null") }
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": ")
+		if t, ok := v.type_annotation.(^TSType); ok { emit_ts_type(t, indent + 1) } else { out_s("null") }
+		out_s(",\n")
+		// optional modifier: false | true | "+" | "-"
+		print_indent(indent + 1)
+		out_s("\"optional\": ")
+		switch v.optional {
+		case .None:  out_s("false")
+		case .True:  out_s("true")
+		case .Plus:  out_s("\"+\"")
+		case .Minus: out_s("\"-\"")
+		}
+		out_s(",\n")
+		// readonly modifier: null | true | "+" | "-"
+		print_indent(indent + 1)
+		out_s("\"readonly\": ")
+		switch v.readonly {
+		case .None:  out_s("null")
+		case .True:  out_s("true")
+		case .Plus:  out_s("\"+\"")
+		case .Minus: out_s("\"-\"")
+		}
 	case ^TSConditionalType:
 		print_indent(indent + 1)
 		out_s("\"type\": \"TSConditionalType\"")
