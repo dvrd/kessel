@@ -1,0 +1,175 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 501,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 362,
+      "end": 401,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 368,
+          "end": 400,
+          "id": {
+            "type": "Identifier",
+            "start": 368,
+            "end": 369,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 395,
+            "end": 400,
+            "value": null,
+            "raw": "/foo/",
+            "regex": {
+              "pattern": "foo",
+              "flags": ""
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 402,
+      "end": 451,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 408,
+          "end": 450,
+          "id": {
+            "type": "Identifier",
+            "start": 408,
+            "end": 409,
+            "name": "b"          },
+          "init": {
+            "type": "Literal",
+            "start": 443,
+            "end": 450,
+            "value": null,
+            "raw": "/bar/gi",
+            "regex": {
+              "pattern": "bar",
+              "flags": "gi"
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 452,
+      "end": 500,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 458,
+          "end": 499,
+          "id": {
+            "type": "Identifier",
+            "start": 458,
+            "end": 459,
+            "name": "c"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 482,
+            "end": 499,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 482,
+              "end": 492,
+              "computed": false,
+              "object": {
+                "type": "Literal",
+                "start": 482,
+                "end": 487,
+                "value": null,
+                "raw": "/baz/",
+                "regex": {
+                  "pattern": "baz",
+                  "flags": ""
+                }              },
+              "property": {
+                "type": "Identifier",
+                "start": 488,
+                "end": 492,
+                "name": "test"              }            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 493,
+                "end": 498,
+                "value": "baz",
+                "raw": "'baz'"              }
+            ]          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " Lexical: at the boundary between a comment and a following `/`, the"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 138,
+      "value": " tokeniser's regex-vs-division state must be preserved ACROSS the"
+    },
+    {
+      "type": "Line",
+      "start": 139,
+      "end": 208,
+      "value": " comment. A block comment is whitespace for the grammar, so the `/`"
+    },
+    {
+      "type": "Line",
+      "start": 209,
+      "end": 279,
+      "value": " after it is classified the same way it would be if the comment were"
+    },
+    {
+      "type": "Line",
+      "start": 280,
+      "end": 348,
+      "value": " absent. In each case below, `/foo/` starts a regex literal, not a"
+    },
+    {
+      "type": "Line",
+      "start": 349,
+      "end": 361,
+      "value": " division."
+    },
+    {
+      "type": "Block",
+      "start": 372,
+      "end": 394,
+      "value": " trailing comment "
+    },
+    {
+      "type": "Line",
+      "start": 412,
+      "end": 440,
+      "value": " line comment before regex"
+    },
+    {
+      "type": "Block",
+      "start": 462,
+      "end": 471,
+      "value": " one "
+    },
+    {
+      "type": "Block",
+      "start": 472,
+      "end": 481,
+      "value": " two "
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=15488B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -74,14 +74,24 @@
     "fail": 0,
     "total": 8
   },
+  "interactions": {
+    "pass": 3,
+    "fail": 7,
+    "total": 10
+  },
   "jsx": {
     "pass": 8,
     "fail": 0,
     "total": 8
   },
+  "lexical": {
+    "pass": 7,
+    "fail": 3,
+    "total": 10
+  },
   "regex_disambiguation": {
-    "pass": 11,
-    "fail": 1,
+    "pass": 12,
+    "fail": 0,
     "total": 12
   },
   "typescript": {

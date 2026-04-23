@@ -1,0 +1,156 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 608,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 536,
+      "end": 607,
+      "id": {
+        "type": "Identifier",
+        "start": 542,
+        "end": 545,
+        "name": "Cé"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 550,
+        "end": 607,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+                        "start": 554,
+            "end": 562,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 554,
+              "end": 557,
+              "name": "id"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 560,
+              "end": 561,
+              "value": 1,
+              "raw": "1"
+            },
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+                        "start": 565,
+            "end": 605,
+                        "key": {
+              "type": "Identifier",
+              "start": 565,
+              "end": 572,
+              "name": "méthod"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 576,
+              "end": 605,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 579,
+                "end": 605,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 585,
+                    "end": 601,
+                    "argument": {
+                      "type": "MemberExpression",
+                      "start": 592,
+                      "end": 600,
+                      "computed": false,
+                      "object": {
+                        "type": "ThisExpression",
+                        "start": 592,
+                        "end": 596                      },
+                      "property": {
+                        "type": "PrivateIdentifier",
+                        "start": 597,
+                        "end": 600,
+                        "name": "id"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " Interaction: unicode-escape identifiers used as a class name and in a"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 144,
+      "value": " method name, alongside a private field (`#id`) in the same body. The"
+    },
+    {
+      "type": "Line",
+      "start": 145,
+      "end": 214,
+      "value": " parser must treat `\\u00e9` as an identifier-name character both at"
+    },
+    {
+      "type": "Line",
+      "start": 215,
+      "end": 289,
+      "value": " identifier-start (class name) and identifier-continuation (method name)"
+    },
+    {
+      "type": "Line",
+      "start": 290,
+      "end": 354,
+      "value": " positions, and still recognise `#id` as a private identifier."
+    },
+    {
+      "type": "Line",
+      "start": 355,
+      "end": 357,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 358,
+      "end": 430,
+      "value": " The private name itself is kept ASCII because escape sequences inside"
+    },
+    {
+      "type": "Line",
+      "start": 431,
+      "end": 503,
+      "value": " private names are a separate, narrower parser surface and are covered"
+    },
+    {
+      "type": "Line",
+      "start": 504,
+      "end": 535,
+      "value": " elsewhere in `spec/unicode`."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=15984B reserved=16777216B ratio=0%
+Parse errors: 0

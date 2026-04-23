@@ -1,0 +1,70 @@
+{
+  "parser": "oxc",
+  "families": [
+    "ambiguity",
+    "asi",
+    "escapes",
+    "interactions",
+    "jsx",
+    "lexical",
+    "regex_disambiguation",
+    "typescript",
+    "unicode"
+  ],
+  "summaries": {
+    "ambiguity": {
+      "files": 10,
+      "pass": 7,
+      "fail": 3,
+      "divergences": 3
+    },
+    "asi": {
+      "files": 8,
+      "pass": 8,
+      "fail": 0,
+      "divergences": 0
+    },
+    "escapes": {
+      "files": 8,
+      "pass": 8,
+      "fail": 0,
+      "divergences": 0
+    },
+    "interactions": {
+      "files": 10,
+      "pass": 2,
+      "fail": 8,
+      "divergences": 46
+    },
+    "jsx": {
+      "files": 8,
+      "pass": 8,
+      "fail": 0,
+      "divergences": 0
+    },
+    "lexical": {
+      "files": 10,
+      "pass": 6,
+      "fail": 4,
+      "divergences": 16
+    },
+    "regex_disambiguation": {
+      "files": 12,
+      "pass": 11,
+      "fail": 1,
+      "divergences": 1
+    },
+    "typescript": {
+      "files": 10,
+      "pass": 7,
+      "fail": 3,
+      "divergences": 46
+    },
+    "unicode": {
+      "files": 6,
+      "pass": 6,
+      "fail": 0,
+      "divergences": 0
+    }
+  }
+}

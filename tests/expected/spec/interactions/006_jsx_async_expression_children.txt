@@ -1,0 +1,269 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 486,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 334,
+      "end": 485,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 340,
+          "end": 484,
+          "id": {
+            "type": "Identifier",
+            "start": 340,
+            "end": 342,
+            "name": "UI"          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 345,
+            "end": 484,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": true,
+            "params": [],
+            "body": {
+              "type": "JSXElement",
+              "start": 361,
+              "end": 482,
+              "openingElement": {
+                "type": "JSXOpeningElement",
+                "start": 361,
+                "end": 396,
+                "name": {
+                  "type": "JSXIdentifier",
+                  "start": 362,
+                  "end": 369,
+                  "name": "section"
+                },
+                "attributes": [
+                  {
+                    "type": "JSXAttribute",
+                    "start": 370,
+                    "end": 395,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 370,
+                      "end": 375,
+                      "name": "title"
+                    },
+                    "value": {
+                      "type": "JSXExpressionContainer",
+                      "start": 376,
+                      "end": 395,
+                      "expression": {
+                        "type": "AwaitExpression",
+                        "start": 377,
+                        "end": 394,
+                        "argument": {
+                          "type": "CallExpression",
+                          "start": 383,
+                          "end": 394,
+                          "callee": {
+                            "type": "Identifier",
+                            "start": 383,
+                            "end": 392,
+                            "name": "loadTitle"                          },
+                          "arguments": [
+                          ]                        }
+                      }                    }
+                  }
+                ],
+                "selfClosing": false
+              },
+              "children": [
+                {
+                  "type": "JSXExpressionContainer",
+                  "start": 401,
+                  "end": 469,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 402,
+                    "end": 468,
+                    "callee": {
+                      "type": "MemberExpression",
+                      "start": 402,
+                      "end": 411,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 402,
+                        "end": 407,
+                        "name": "items"                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 408,
+                        "end": 411,
+                        "name": "map"                      }                    },
+                    "arguments": [
+                      {
+                        "type": "ArrowFunctionExpression",
+                        "start": 412,
+                        "end": 467,
+                        "id": null,
+                        "expression": true,
+                        "generator": false,
+                        "async": true,
+                        "params": [
+                          {
+                            "type": "Identifier",
+                            "start": 419,
+                            "end": 420,
+                            "name": "x"
+                          }
+                        ],
+                        "body": {
+                          "type": "JSXElement",
+                          "start": 425,
+                          "end": 467,
+                          "openingElement": {
+                            "type": "JSXOpeningElement",
+                            "start": 425,
+                            "end": 467,
+                            "name": {
+                              "type": "JSXIdentifier",
+                              "start": 426,
+                              "end": 429,
+                              "name": "Row"
+                            },
+                            "attributes": [
+                              {
+                                "type": "JSXAttribute",
+                                "start": 430,
+                                "end": 440,
+                                "name": {
+                                  "type": "JSXIdentifier",
+                                  "start": 430,
+                                  "end": 433,
+                                  "name": "key"
+                                },
+                                "value": {
+                                  "type": "JSXExpressionContainer",
+                                  "start": 434,
+                                  "end": 440,
+                                  "expression": {
+                                    "type": "MemberExpression",
+                                    "start": 435,
+                                    "end": 439,
+                                    "computed": false,
+                                    "object": {
+                                      "type": "Identifier",
+                                      "start": 435,
+                                      "end": 436,
+                                      "name": "x"                                    },
+                                    "property": {
+                                      "type": "Identifier",
+                                      "start": 437,
+                                      "end": 439,
+                                      "name": "id"                                    }
+                                  }                                }
+                              },
+                              {
+                                "type": "JSXAttribute",
+                                "start": 441,
+                                "end": 464,
+                                "name": {
+                                  "type": "JSXIdentifier",
+                                  "start": 441,
+                                  "end": 446,
+                                  "name": "label"
+                                },
+                                "value": {
+                                  "type": "JSXExpressionContainer",
+                                  "start": 447,
+                                  "end": 464,
+                                  "expression": {
+                                    "type": "AwaitExpression",
+                                    "start": 448,
+                                    "end": 463,
+                                    "argument": {
+                                      "type": "CallExpression",
+                                      "start": 454,
+                                      "end": 463,
+                                      "callee": {
+                                        "type": "MemberExpression",
+                                        "start": 454,
+                                        "end": 461,
+                                        "computed": false,
+                                        "object": {
+                                          "type": "Identifier",
+                                          "start": 454,
+                                          "end": 455,
+                                          "name": "x"                                        },
+                                        "property": {
+                                          "type": "Identifier",
+                                          "start": 456,
+                                          "end": 461,
+                                          "name": "label"                                        }                                      },
+                                      "arguments": [
+                                      ]                                    }
+                                  }                                }
+                              }
+                            ],
+                            "selfClosing": true
+                          },
+                          "children": [],
+                          "closingElement": null
+                        }                      }
+                    ]
+                  }
+                }
+              ],
+              "closingElement": {
+                "type": "JSXClosingElement",
+                "start": 472,
+                "end": 482,
+                "name": {
+                  "type": "JSXIdentifier",
+                  "start": 474,
+                  "end": 481,
+                  "name": "section"
+                }
+              }
+            }          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " Interaction: JSX element whose attribute and child expressions contain"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 145,
+      "value": " `await` calls inside an async arrow. Exercises three things at once:"
+    },
+    {
+      "type": "Line",
+      "start": 146,
+      "end": 201,
+      "value": "   1. JSX expression-container in an attribute value,"
+    },
+    {
+      "type": "Line",
+      "start": 202,
+      "end": 260,
+      "value": "   2. JSX expression-container in the children position,"
+    },
+    {
+      "type": "Line",
+      "start": 261,
+      "end": 333,
+      "value": "   3. `await` inside a nested async arrow function inside a JSX child."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=13184B reserved=16777216B ratio=0%
+Parse errors: 0

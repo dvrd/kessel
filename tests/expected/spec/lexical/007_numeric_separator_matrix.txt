@@ -1,0 +1,216 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 495,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 268,
+      "end": 296,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 274,
+          "end": 295,
+          "id": {
+            "type": "Identifier",
+            "start": 274,
+            "end": 281,
+            "name": "decimal"          },
+          "init": {
+            "type": "Literal",
+            "start": 286,
+            "end": 295,
+            "value": 1e+06,
+            "raw": "1_000_000"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 297,
+      "end": 326,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 303,
+          "end": 325,
+          "id": {
+            "type": "Identifier",
+            "start": 303,
+            "end": 306,
+            "name": "hex"          },
+          "init": {
+            "type": "Literal",
+            "start": 315,
+            "end": 325,
+            "value": 1.6777215e+07,
+            "raw": "0xff_ff_ff"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 327,
+      "end": 357,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 333,
+          "end": 356,
+          "id": {
+            "type": "Identifier",
+            "start": 333,
+            "end": 339,
+            "name": "binary"          },
+          "init": {
+            "type": "Literal",
+            "start": 345,
+            "end": 356,
+            "value": 170,
+            "raw": "0b1010_1010"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 358,
+      "end": 384,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 364,
+          "end": 383,
+          "id": {
+            "type": "Identifier",
+            "start": 364,
+            "end": 369,
+            "name": "octal"          },
+          "init": {
+            "type": "Literal",
+            "start": 376,
+            "end": 383,
+            "value": 4095,
+            "raw": "0o77_77"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 385,
+      "end": 410,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 391,
+          "end": 409,
+          "id": {
+            "type": "Identifier",
+            "start": 391,
+            "end": 397,
+            "name": "bigint"          },
+          "init": {
+            "type": "Literal",
+            "start": 403,
+            "end": 409,
+            "value": null,
+            "raw": "1_000n",
+            "bigint": "1_000"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 411,
+      "end": 437,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 417,
+          "end": 436,
+          "id": {
+            "type": "Identifier",
+            "start": 417,
+            "end": 422,
+            "name": "float"          },
+          "init": {
+            "type": "Literal",
+            "start": 429,
+            "end": 436,
+            "value": 10.55,
+            "raw": "1_0.5_5"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 438,
+      "end": 468,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 444,
+          "end": 467,
+          "id": {
+            "type": "Identifier",
+            "start": 444,
+            "end": 452,
+            "name": "exponent"          },
+          "init": {
+            "type": "Literal",
+            "start": 456,
+            "end": 467,
+            "value": 1.055e+11,
+            "raw": "1_0.5_5e1_0"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 469,
+      "end": 494,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 475,
+          "end": 493,
+          "id": {
+            "type": "Identifier",
+            "start": 475,
+            "end": 482,
+            "name": "neg_exp"          },
+          "init": {
+            "type": "Literal",
+            "start": 487,
+            "end": 493,
+            "value": 1e-10,
+            "raw": "1e-1_0"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " Lexical: numeric separators (`_`) across every numeric base and suffix"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 147,
+      "value": " the spec allows. Each literal must tokenise as one NumericLiteral with"
+    },
+    {
+      "type": "Line",
+      "start": 148,
+      "end": 224,
+      "value": " the separators stripped from the cooked value — a `1_000` is the number"
+    },
+    {
+      "type": "Line",
+      "start": 225,
+      "end": 269,
+      "value": " 1000, not `1` followed by something else."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=12992B reserved=16777216B ratio=0%
+Parse errors: 0

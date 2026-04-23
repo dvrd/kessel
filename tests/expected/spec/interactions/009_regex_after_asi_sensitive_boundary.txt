@@ -1,0 +1,147 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 504,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 457,
+      "end": 472,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 463,
+          "end": 472,
+          "id": {
+            "type": "Identifier",
+            "start": 463,
+            "end": 464,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 467,
+            "end": 472,
+            "value": "foo",
+            "raw": "'foo'"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 473,
+      "end": 496,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 479,
+          "end": 496,
+          "id": {
+            "type": "Identifier",
+            "start": 479,
+            "end": 480,
+            "name": "b"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 483,
+            "end": 496,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 483,
+              "end": 493,
+              "computed": false,
+              "object": {
+                "type": "Literal",
+                "start": 483,
+                "end": 488,
+                "value": null,
+                "raw": "/bar/",
+                "regex": {
+                  "pattern": "bar",
+                  "flags": ""
+                }              },
+              "property": {
+                "type": "Identifier",
+                "start": 489,
+                "end": 493,
+                "name": "test"              }            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 494,
+                "end": 495,
+                "name": "a"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 497,
+      "end": 503,
+      "expression": {
+        "type": "UnaryExpression",
+        "start": 497,
+        "end": 503,
+        "operator": "void",
+        "prefix": true,
+        "argument": {
+          "type": "Identifier",
+          "start": 502,
+          "end": 503,
+          "name": "b"        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " Interaction: ASI boundary followed by a line that starts with `/`. The"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 147,
+      "value": " first `const` declaration has no trailing semicolon, so ASI must close"
+    },
+    {
+      "type": "Line",
+      "start": 148,
+      "end": 221,
+      "value": " it; only then does the tokeniser see the following `/` at the start of"
+    },
+    {
+      "type": "Line",
+      "start": 222,
+      "end": 296,
+      "value": " a new statement, where it must be interpreted as a regex literal rather"
+    },
+    {
+      "type": "Line",
+      "start": 297,
+      "end": 355,
+      "value": " than as a division operator against the previous value."
+    },
+    {
+      "type": "Line",
+      "start": 356,
+      "end": 358,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 359,
+      "end": 428,
+      "value": " If ASI or the regex-vs-division disambiguation is wrong, this file"
+    },
+    {
+      "type": "Line",
+      "start": 429,
+      "end": 456,
+      "value": " fails to parse entirely."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=15408B reserved=16777216B ratio=0%
+Parse errors: 0

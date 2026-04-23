@@ -1,0 +1,111 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 394,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 332,
+      "end": 349,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 336,
+          "end": 348,
+          "id": {
+            "type": "Identifier",
+            "start": 336,
+            "end": 344,
+            "name": "abc"          },
+          "init": {
+            "type": "Literal",
+            "start": 347,
+            "end": 348,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 350,
+      "end": 366,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 354,
+          "end": 365,
+          "id": {
+            "type": "Identifier",
+            "start": 354,
+            "end": 361,
+            "name": "bd"          },
+          "init": {
+            "type": "Literal",
+            "start": 364,
+            "end": 365,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 367,
+      "end": 393,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 371,
+          "end": 392,
+          "id": {
+            "type": "Identifier",
+            "start": 371,
+            "end": 388,
+            "name": "c_underscore"          },
+          "init": {
+            "type": "Literal",
+            "start": 391,
+            "end": 392,
+            "value": 3,
+            "raw": "3"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " Lexical: unicode escape at identifier START position. `\\u0061bc` must"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 145,
+      "value": " tokenise as the identifier `abc` (the escape decodes to U+0061 = 'a',"
+    },
+    {
+      "type": "Line",
+      "start": 146,
+      "end": 217,
+      "value": " which is a valid IdentifierStart). The declared variable name in the"
+    },
+    {
+      "type": "Line",
+      "start": 218,
+      "end": 290,
+      "value": " AST must be `abc`, not `\\u0061bc`, because the cooked identifier name"
+    },
+    {
+      "type": "Line",
+      "start": 291,
+      "end": 331,
+      "value": " is what the binding is created under."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=10624B reserved=16777216B ratio=0%
+Parse errors: 0

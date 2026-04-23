@@ -1,0 +1,257 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 734,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ImportDeclaration",
+      "start": 522,
+      "end": 572,
+      "specifiers": [
+        {
+          "type": "ImportDefaultSpecifier",
+          "start": 529,
+          "end": 533,
+          "local": {
+            "type": "Identifier",
+            "start": 529,
+            "end": 533,
+            "name": "data"
+          }
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 539,
+        "end": 549,
+        "value": "./x.json",
+        "raw": "'./x.json'"
+      },
+      "attributes": [
+        {
+          "type": "ImportAttribute",
+          "start": 557,
+          "end": 561,
+          "key": {
+            "type": "Identifier",
+            "start": 557,
+            "end": 561,
+            "name": "type"
+          },
+          "value": {
+            "type": "Literal",
+            "start": 563,
+            "end": 569,
+            "value": "json",
+            "raw": "'json'"
+          }
+        }
+      ]    },
+    {
+      "type": "ImportDeclaration",
+      "start": 573,
+      "end": 626,
+      "specifiers": [
+        {
+          "type": "ImportNamespaceSpecifier",
+          "start": 580,
+          "end": 587,
+          "local": {
+            "type": "Identifier",
+            "start": 585,
+            "end": 587,
+            "name": "ns"
+          }
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 593,
+        "end": 603,
+        "value": "./n.json",
+        "raw": "'./n.json'"
+      },
+      "attributes": [
+        {
+          "type": "ImportAttribute",
+          "start": 611,
+          "end": 615,
+          "key": {
+            "type": "Identifier",
+            "start": 611,
+            "end": 615,
+            "name": "type"
+          },
+          "value": {
+            "type": "Literal",
+            "start": 617,
+            "end": 623,
+            "value": "json",
+            "raw": "'json'"
+          }
+        }
+      ]    },
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 627,
+      "end": 676,
+      "declaration": null,
+      "specifiers": [
+        {
+          "type": "ExportSpecifier",
+          "start": 636,
+          "end": 637,
+          "local": {
+            "type": "Identifier",
+            "start": 636,
+            "end": 637,
+            "name": "y"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 636,
+            "end": 637,
+            "name": "y"
+          }
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 645,
+        "end": 653,
+        "value": "./y.js",
+        "raw": "'./y.js'"
+      },
+      "attributes": [
+        {
+          "type": "ImportAttribute",
+          "start": 661,
+          "end": 665,
+          "key": {
+            "type": "Identifier",
+            "start": 661,
+            "end": 665,
+            "name": "type"
+          },
+          "value": {
+            "type": "Literal",
+            "start": 667,
+            "end": 673,
+            "value": "json",
+            "raw": "'json'"
+          }
+        }
+      ]    },
+    {
+      "type": "ExportAllDeclaration",
+      "start": 677,
+      "end": 733,
+      "exported": {
+        "type": "Identifier",
+        "start": 689,
+        "end": 694,
+        "name": "reexp"
+      },
+      "source": {
+        "type": "Literal",
+        "start": 700,
+        "end": 710,
+        "value": "./z.json",
+        "raw": "'./z.json'"
+      },
+      "attributes": [
+        {
+          "type": "ImportAttribute",
+          "start": 718,
+          "end": 722,
+          "key": {
+            "type": "Identifier",
+            "start": 718,
+            "end": 722,
+            "name": "type"
+          },
+          "value": {
+            "type": "Literal",
+            "start": 724,
+            "end": 730,
+            "value": "json",
+            "raw": "'json'"
+          }
+        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 74,
+      "value": " Interaction: import attributes (`with { type: 'json' }`) applied across"
+    },
+    {
+      "type": "Line",
+      "start": 75,
+      "end": 135,
+      "value": " every import/export form that carries a module specifier."
+    },
+    {
+      "type": "Line",
+      "start": 136,
+      "end": 138,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 139,
+      "end": 180,
+      "value": " - default import       with attributes"
+    },
+    {
+      "type": "Line",
+      "start": 181,
+      "end": 222,
+      "value": " - namespace import     with attributes"
+    },
+    {
+      "type": "Line",
+      "start": 223,
+      "end": 264,
+      "value": " - named re-export from with attributes"
+    },
+    {
+      "type": "Line",
+      "start": 265,
+      "end": 306,
+      "value": " - namespace re-export  with attributes"
+    },
+    {
+      "type": "Line",
+      "start": 307,
+      "end": 309,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 310,
+      "end": 385,
+      "value": " This is a module goal file (import/export at top level). The parser must"
+    },
+    {
+      "type": "Line",
+      "start": 386,
+      "end": 455,
+      "value": " treat the `with { ... }` clause as an attributes list — not as a"
+    },
+    {
+      "type": "Line",
+      "start": 456,
+      "end": 525,
+      "value": " with-statement or a generic block — at every specifier position."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=19584B reserved=16777216B ratio=0%
+Parse errors: 0

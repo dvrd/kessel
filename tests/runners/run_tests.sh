@@ -94,6 +94,13 @@ while IFS= read -r fixture; do
         # <Tag>, generic-call vs relational, generic-arrow, etc.). They need
         # TSX mode so both grammars are live.
         spec/ambiguity/*)   lang_flag="--lang=tsx" ;;
+        # Interaction fixtures are intentionally a mixed-dialect bucket:
+        # most are plain JS, but specific files exercise JSX or TS together
+        # with other features. Rather than move them into dialect-specific
+        # dirs (which hides the "interaction" intent), detect the dialect
+        # from the filename marker: `_jsx_` -> JSX, `_ts_` -> TS.
+        spec/interactions/*_jsx_*) lang_flag="--lang=jsx" ;;
+        spec/interactions/*_ts_*)  lang_flag="--lang=ts"  ;;
     esac
 
     if [[ -n "$lang_flag" ]]; then

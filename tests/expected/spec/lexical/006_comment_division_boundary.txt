@@ -1,0 +1,175 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 379,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 266,
+      "end": 279,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 272,
+          "end": 278,
+          "id": {
+            "type": "Identifier",
+            "start": 272,
+            "end": 273,
+            "name": "x"          },
+          "init": {
+            "type": "Literal",
+            "start": 276,
+            "end": 278,
+            "value": 10,
+            "raw": "10"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 280,
+      "end": 310,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 286,
+          "end": 309,
+          "id": {
+            "type": "Identifier",
+            "start": 286,
+            "end": 287,
+            "name": "a"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 290,
+            "end": 309,
+            "operator": "/",
+            "left": {
+              "type": "Identifier",
+              "start": 290,
+              "end": 291,
+              "name": "x"            },
+            "right": {
+              "type": "Literal",
+              "start": 308,
+              "end": 309,
+              "value": 2,
+              "raw": "2"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 311,
+      "end": 343,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 317,
+          "end": 342,
+          "id": {
+            "type": "Identifier",
+            "start": 317,
+            "end": 318,
+            "name": "b"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 322,
+            "end": 342,
+            "operator": "/",
+            "left": {
+              "type": "Identifier",
+              "start": 322,
+              "end": 323,
+              "name": "x"            },
+            "right": {
+              "type": "Literal",
+              "start": 341,
+              "end": 342,
+              "value": 3,
+              "raw": "3"            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 344,
+      "end": 378,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 350,
+          "end": 377,
+          "id": {
+            "type": "Identifier",
+            "start": 350,
+            "end": 351,
+            "name": "c"          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 354,
+            "end": 377,
+            "operator": "/",
+            "left": {
+              "type": "Identifier",
+              "start": 354,
+              "end": 355,
+              "name": "x"            },
+            "right": {
+              "type": "Literal",
+              "start": 376,
+              "end": 377,
+              "value": 4,
+              "raw": "4"            }          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 68,
+      "value": " Lexical: the mirror of the regex/comment case. When the preceding"
+    },
+    {
+      "type": "Line",
+      "start": 69,
+      "end": 139,
+      "value": " token could be followed by division (an Identifier, a literal, or a"
+    },
+    {
+      "type": "Line",
+      "start": 140,
+      "end": 212,
+      "value": " close-paren/bracket), a `/` after intervening comments must be parsed"
+    },
+    {
+      "type": "Line",
+      "start": 213,
+      "end": 265,
+      "value": " as division, not as the start of a regex literal."
+    },
+    {
+      "type": "Block",
+      "start": 292,
+      "end": 305,
+      "value": " comment "
+    },
+    {
+      "type": "Block",
+      "start": 325,
+      "end": 338,
+      "value": " comment "
+    },
+    {
+      "type": "Line",
+      "start": 356,
+      "end": 371,
+      "value": " line comment"
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=10312B reserved=16777216B ratio=0%
+Parse errors: 0

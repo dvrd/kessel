@@ -1,0 +1,134 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 367,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 332,
+      "end": 341,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 336,
+          "end": 341,
+          "id": {
+            "type": "Identifier",
+            "start": 336,
+            "end": 337,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 340,
+            "end": 341,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 341,
+      "end": 345,
+      "expression": {
+        "type": "Identifier",
+        "start": 341,
+        "end": 345,
+        "name": " var"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 346,
+      "end": 351,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 346,
+        "end": 351,
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "start": 346,
+          "end": 347,
+          "name": "b"        },
+        "right": {
+          "type": "Literal",
+          "start": 350,
+          "end": 351,
+          "value": 2,
+          "raw": "2"        }      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 351,
+      "end": 355,
+      "expression": {
+        "type": "Identifier",
+        "start": 351,
+        "end": 355,
+        "name": " var"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 356,
+      "end": 366,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 356,
+        "end": 365,
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "start": 356,
+          "end": 357,
+          "name": "c"        },
+        "right": {
+          "type": "BinaryExpression",
+          "start": 360,
+          "end": 365,
+          "operator": "+",
+          "left": {
+            "type": "Identifier",
+            "start": 360,
+            "end": 361,
+            "name": "a"          },
+          "right": {
+            "type": "Identifier",
+            "start": 364,
+            "end": 365,
+            "name": "b"          }        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " Lexical: U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH SEPARATOR) are"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 148,
+      "value": " recognised as LineTerminators by the spec. They MUST separate statements"
+    },
+    {
+      "type": "Line",
+      "start": 149,
+      "end": 224,
+      "value": " just as `\\n` does, triggering ASI between them. If the lexer treats them"
+    },
+    {
+      "type": "Line",
+      "start": 225,
+      "end": 299,
+      "value": " as whitespace instead, the three `var` declarations below would be read"
+    },
+    {
+      "type": "Line",
+      "start": 300,
+      "end": 331,
+      "value": " as one malformed expression."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9912B reserved=16777216B ratio=0%
+Parse errors: 0

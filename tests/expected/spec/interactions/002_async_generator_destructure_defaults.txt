@@ -1,0 +1,249 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 423,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 325,
+      "end": 422,
+      "id": {
+        "type": "Identifier",
+        "start": 341,
+        "end": 342,
+        "name": "g"
+      },
+      "expression": false,
+      "generator": true,
+      "async": true,
+      "params": [
+        {
+          "type": "AssignmentPattern",
+          "start": 343,
+          "end": 384,
+          "left": {
+            "type": "ObjectPattern",
+            "start": 343,
+            "end": 379,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 345,
+                "end": 346,
+                "shorthand": true,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 345,
+                  "end": 346,
+                  "name": "a"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 345,
+                  "end": 346,
+                  "name": "a"
+                }
+              },
+              {
+                "type": "Property",
+                "start": 348,
+                "end": 353,
+                "shorthand": true,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 348,
+                  "end": 349,
+                  "name": "b"
+                },
+                "value": {
+                  "type": "AssignmentPattern",
+                  "start": 348,
+                  "end": 353,
+                  "left": {
+                    "type": "Identifier",
+                    "start": 348,
+                    "end": 349,
+                    "name": "b"
+                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 352,
+                    "end": 353,
+                    "value": 1,
+                    "raw": "1"
+                  }
+                }
+              },
+              {
+                "type": "Property",
+                "start": 355,
+                "end": 377,
+                "shorthand": false,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 355,
+                  "end": 361,
+                  "name": "nested"
+                },
+                "value": {
+                  "type": "AssignmentPattern",
+                  "start": 355,
+                  "end": 377,
+                  "left": {
+                    "type": "ObjectPattern",
+                    "start": 363,
+                    "end": 372,
+                    "properties": [
+                      {
+                        "type": "Property",
+                        "start": 365,
+                        "end": 370,
+                        "shorthand": true,
+                        "computed": false,
+                        "kind": "init",
+                        "method": false,
+                        "key": {
+                          "type": "Identifier",
+                          "start": 365,
+                          "end": 366,
+                          "name": "c"
+                        },
+                        "value": {
+                          "type": "AssignmentPattern",
+                          "start": 365,
+                          "end": 370,
+                          "left": {
+                            "type": "Identifier",
+                            "start": 365,
+                            "end": 366,
+                            "name": "c"
+                          },
+                          "right": {
+                            "type": "Literal",
+                            "start": 369,
+                            "end": 370,
+                            "value": 2,
+                            "raw": "2"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "right": {
+                    "type": "ObjectExpression",
+                    "start": 375,
+                    "end": 377,
+                    "properties": [
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "right": {
+            "type": "ObjectExpression",
+            "start": 382,
+            "end": 384,
+            "properties": [
+            ]
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 386,
+        "end": 422,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 390,
+            "end": 398,
+            "expression": {
+              "type": "YieldExpression",
+              "start": 390,
+              "end": 397,
+              "argument": {
+                "type": "Identifier",
+                "start": 396,
+                "end": 397,
+                "name": "a"              },
+              "delegate": false            }          },
+          {
+            "type": "ExpressionStatement",
+            "start": 401,
+            "end": 409,
+            "expression": {
+              "type": "YieldExpression",
+              "start": 401,
+              "end": 408,
+              "argument": {
+                "type": "Identifier",
+                "start": 407,
+                "end": 408,
+                "name": "b"              },
+              "delegate": false            }          },
+          {
+            "type": "ExpressionStatement",
+            "start": 412,
+            "end": 420,
+            "expression": {
+              "type": "YieldExpression",
+              "start": 412,
+              "end": 419,
+              "argument": {
+                "type": "Identifier",
+                "start": 418,
+                "end": 419,
+                "name": "c"              },
+              "delegate": false            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " Interaction: `async function*` with a destructuring parameter that has"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 142,
+      "value": " default values at both the pattern and the whole-parameter level."
+    },
+    {
+      "type": "Line",
+      "start": 143,
+      "end": 210,
+      "value": " Proves async-generator syntax coexists with nested destructuring"
+    },
+    {
+      "type": "Line",
+      "start": 211,
+      "end": 283,
+      "value": " (object-pattern-with-default inside a parameter-with-default-rhs) and"
+    },
+    {
+      "type": "Line",
+      "start": 284,
+      "end": 324,
+      "value": " with `yield` expressions in the body."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=12224B reserved=16777216B ratio=0%
+Parse errors: 0

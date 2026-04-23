@@ -1,0 +1,42 @@
+{
+  "001_hashbang_bom.js": {
+    "status": "fail",
+    "reason": "Program.hashbang is absent after BOM — BOM likely hides the `#!` line"
+  },
+  "002_crlf_restricted_production.js": {
+    "status": "pass",
+    "reason": "CRLF ASI split return from the following literal"
+  },
+  "003_identifier_escape_start.js": {
+    "status": "pass",
+    "reason": "first declarator name is cooked \"abc\""
+  },
+  "004_identifier_escape_continue.js": {
+    "status": "pass",
+    "reason": "first declarator name is cooked \"abc\""
+  },
+  "005_comment_regex_boundary.js": {
+    "status": "pass",
+    "reason": "all 3 initialisers contain a RegExpLiteral"
+  },
+  "006_comment_division_boundary.js": {
+    "status": "pass",
+    "reason": "all 3 boundary initialisers are binary division"
+  },
+  "007_numeric_separator_matrix.js": {
+    "status": "pass",
+    "reason": "all numeric separators cook correctly"
+  },
+  "008_template_raw_vs_cooked.js": {
+    "status": "pass",
+    "reason": "5 TemplateLiteral(s), raw/cooked diverge as expected"
+  },
+  "009_zwj_identifier_contexts.js": {
+    "status": "pass",
+    "reason": "first declarator name contains ZWJ: \"foo‍bar\""
+  },
+  "010_unicode_line_terminator_contexts.js": {
+    "status": "fail",
+    "reason": "1 VariableDeclaration(s) at top level; expected 3"
+  }
+}

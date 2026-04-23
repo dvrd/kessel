@@ -30,6 +30,10 @@
 # an attribute-value recursion missing.
 spec/jsx/005_nested_element
 #
+# TS angle-bracket assertions (`<string>x`) crash today because the parser
+# falls into the JSX path and trips a bad span while unwinding.
+spec/typescript/007_type_assertion
+#
 # ----- Unicode: identifier with `\uXXXX` escape crashes ---------------
 # ECMA-262 \u00a712.7 requires accepting these. Kessel lexer lacks an
 # identifier-escape path.

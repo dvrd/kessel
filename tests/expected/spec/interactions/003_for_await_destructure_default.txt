@@ -1,0 +1,207 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 408,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 262,
+      "end": 407,
+      "id": {
+        "type": "Identifier",
+        "start": 277,
+        "end": 284,
+        "name": "consume"
+      },
+      "expression": false,
+      "generator": false,
+      "async": true,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 285,
+          "end": 289,
+          "name": "iter"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 291,
+        "end": 407,
+        "body": [
+          {
+            "type": "ForOfStatement",
+            "start": 295,
+            "end": 405,
+            "left": {
+              "type": "VariableDeclaration",
+              "start": 306,
+              "end": 344,
+              "kind": "const",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 312,
+                  "end": 344,
+                  "id": {
+                    "type": "ObjectPattern",
+                    "start": 312,
+                    "end": 344,
+                    "properties": [
+                      {
+                        "type": "Property",
+                        "start": 314,
+                        "end": 319,
+                        "shorthand": true,
+                        "computed": false,
+                        "kind": "init",
+                        "method": false,
+                        "key": {
+                          "type": "Identifier",
+                          "start": 314,
+                          "end": 319,
+                          "name": "value"
+                        },
+                        "value": {
+                          "type": "Identifier",
+                          "start": 314,
+                          "end": 319,
+                          "name": "value"
+                        }
+                      },
+                      {
+                        "type": "Property",
+                        "start": 321,
+                        "end": 333,
+                        "shorthand": true,
+                        "computed": false,
+                        "kind": "init",
+                        "method": false,
+                        "key": {
+                          "type": "Identifier",
+                          "start": 321,
+                          "end": 325,
+                          "name": "done"
+                        },
+                        "value": {
+                          "type": "AssignmentPattern",
+                          "start": 321,
+                          "end": 333,
+                          "left": {
+                            "type": "Identifier",
+                            "start": 321,
+                            "end": 325,
+                            "name": "done"
+                          },
+                          "right": {
+                            "type": "Literal",
+                            "start": 328,
+                            "end": 333,
+                            "value": false,
+                            "raw": "false"
+                          }
+                        }
+                      },
+                      {
+                        "type": "RestElement",
+                        "start": 335,
+                        "end": 342,
+                        "argument": {
+                          "type": "Identifier",
+                          "start": 338,
+                          "end": 342,
+                          "name": "rest"
+                        }
+                      }
+                    ]                  },
+                  "init": null                }
+              ]
+            },
+            "right": {
+              "type": "Identifier",
+              "start": 348,
+              "end": 352,
+              "name": "iter"            },
+            "await": true,
+            "body": {
+              "type": "BlockStatement",
+              "start": 354,
+              "end": 405,
+              "body": [
+                {
+                  "type": "IfStatement",
+                  "start": 360,
+                  "end": 376,
+                  "test": {
+                    "type": "Identifier",
+                    "start": 364,
+                    "end": 368,
+                    "name": "done"                  },
+                  "consequent": {
+                    "type": "BreakStatement",
+                    "start": 370,
+                    "end": 376,
+                    "label": null                  },
+                  "alternate": null                },
+                {
+                  "type": "ExpressionStatement",
+                  "start": 381,
+                  "end": 401,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 381,
+                    "end": 400,
+                    "callee": {
+                      "type": "Identifier",
+                      "start": 381,
+                      "end": 387,
+                      "name": "report"                    },
+                    "arguments": [
+                      {
+                        "type": "Identifier",
+                        "start": 388,
+                        "end": 393,
+                        "name": "value"                      },
+                      {
+                        "type": "Identifier",
+                        "start": 395,
+                        "end": 399,
+                        "name": "rest"                      }
+                    ]                  }                }
+              ]            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " Interaction: `for await` iteration over an async iterable where the"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 143,
+      "value": " loop variable is a destructuring pattern that includes default values"
+    },
+    {
+      "type": "Line",
+      "start": 144,
+      "end": 215,
+      "value": " and a rest element. Three features stacked: for-await, destructuring"
+    },
+    {
+      "type": "Line",
+      "start": 216,
+      "end": 261,
+      "value": " with defaults, and rest in object pattern."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=11360B reserved=16777216B ratio=0%
+Parse errors: 0

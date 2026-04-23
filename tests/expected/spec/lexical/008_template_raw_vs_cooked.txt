@@ -1,0 +1,269 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 651,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 347,
+      "end": 381,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 353,
+          "end": 380,
+          "id": {
+            "type": "Identifier",
+            "start": 353,
+            "end": 358,
+            "name": "plain"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 368,
+            "end": 380,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 369,
+                "end": 379,
+                "tail": true,
+                "value": { "raw": "\\u0041\\n\\t", "cooked": "A\n\t" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 430,
+      "end": 466,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 436,
+          "end": 465,
+          "id": {
+            "type": "Identifier",
+            "start": 436,
+            "end": 445,
+            "name": "multiline"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 451,
+            "end": 465,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 452,
+                "end": 464,
+                "tail": true,
+                "value": { "raw": "line1\\nline2", "cooked": "line1\nline2" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 499,
+      "end": 538,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 505,
+          "end": 537,
+          "id": {
+            "type": "Identifier",
+            "start": 505,
+            "end": 515,
+            "name": "tag_cooked"          },
+          "init": {
+            "type": "TaggedTemplateExpression",
+            "start": 520,
+            "end": 537,
+            "tag": {
+              "type": "Identifier",
+              "start": 520,
+              "end": 523,
+              "name": "tag"            },
+            "quasi": {
+              "type": "TemplateLiteral",
+              "start": 523,
+              "end": 537,
+              "quasis": [
+                {
+                  "type": "TemplateElement",
+                  "start": 524,
+                  "end": 530,
+                  "tail": false,
+                  "value": { "raw": "\\u0041", "cooked": "A" }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 534,
+                  "end": 536,
+                  "tail": true,
+                  "value": { "raw": "\\t", "cooked": "\t" }
+                }
+              ],
+              "expressions": [
+                {
+                  "type": "Literal",
+                  "start": 532,
+                  "end": 533,
+                  "value": 1,
+                  "raw": "1"                }
+              ]            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 569,
+      "end": 615,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 575,
+          "end": 614,
+          "id": {
+            "type": "Identifier",
+            "start": 575,
+            "end": 582,
+            "name": "tag_raw"          },
+          "init": {
+            "type": "TaggedTemplateExpression",
+            "start": 590,
+            "end": 614,
+            "tag": {
+              "type": "MemberExpression",
+              "start": 590,
+              "end": 600,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 590,
+                "end": 596,
+                "name": "String"              },
+              "property": {
+                "type": "Identifier",
+                "start": 597,
+                "end": 600,
+                "name": "raw"              }            },
+            "quasi": {
+              "type": "TemplateLiteral",
+              "start": 600,
+              "end": 614,
+              "quasis": [
+                {
+                  "type": "TemplateElement",
+                  "start": 601,
+                  "end": 607,
+                  "tail": false,
+                  "value": { "raw": "\\u0041", "cooked": "A" }
+                },
+                {
+                  "type": "TemplateElement",
+                  "start": 611,
+                  "end": 613,
+                  "tail": true,
+                  "value": { "raw": "\\t", "cooked": "\t" }
+                }
+              ],
+              "expressions": [
+                {
+                  "type": "Literal",
+                  "start": 609,
+                  "end": 610,
+                  "value": 1,
+                  "raw": "1"                }
+              ]            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 616,
+      "end": 650,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 622,
+          "end": 649,
+          "id": {
+            "type": "Identifier",
+            "start": 622,
+            "end": 634,
+            "name": "with_newline"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 637,
+            "end": 649,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 638,
+                "end": 648,
+                "tail": true,
+                "value": { "raw": "hard\nbreak", "cooked": "hard\nbreak" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 74,
+      "value": " Lexical: template literals carry two strings per quasi — a `raw` form"
+    },
+    {
+      "type": "Line",
+      "start": 75,
+      "end": 146,
+      "value": " (exactly the bytes the programmer typed between the backticks) and a"
+    },
+    {
+      "type": "Line",
+      "start": 147,
+      "end": 220,
+      "value": " `cooked` form (with escape sequences decoded). Tagged templates expose"
+    },
+    {
+      "type": "Line",
+      "start": 221,
+      "end": 289,
+      "value": " both via `strings.raw[i]` and `strings[i]`. Each case below has a"
+    },
+    {
+      "type": "Line",
+      "start": 290,
+      "end": 348,
+      "value": " distinct raw/cooked pair so the parser can't fuse them."
+    },
+    {
+      "type": "Line",
+      "start": 391,
+      "end": 431,
+      "value": " cooked: \"A\\n\\t\"; raw: \"\\\\u0041\\\\n\\\\t\""
+    },
+    {
+      "type": "Line",
+      "start": 475,
+      "end": 500,
+      "value": " cooked: \"line1\\nline2\""
+    },
+    {
+      "type": "Line",
+      "start": 544,
+      "end": 570,
+      "value": " cooked quasi seg 0: \"A\""
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=17384B reserved=16777216B ratio=0%
+Parse errors: 0

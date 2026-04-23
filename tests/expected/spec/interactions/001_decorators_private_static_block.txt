@@ -1,0 +1,404 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 854,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 434,
+      "end": 466,
+      "id": {
+        "type": "Identifier",
+        "start": 443,
+        "end": 449,
+        "name": "frozen"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 450,
+          "end": 451,
+          "name": "C"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 453,
+        "end": 466,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 455,
+            "end": 464,
+            "argument": {
+              "type": "Identifier",
+              "start": 462,
+              "end": 463,
+              "name": "C"            }          }
+        ]
+      }    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 467,
+      "end": 531,
+      "id": {
+        "type": "Identifier",
+        "start": 476,
+        "end": 481,
+        "name": "bound"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 482,
+          "end": 489,
+          "name": "_target"
+        },
+        {
+          "type": "Identifier",
+          "start": 491,
+          "end": 495,
+          "name": "_key"
+        },
+        {
+          "type": "Identifier",
+          "start": 497,
+          "end": 507,
+          "name": "descriptor"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 509,
+        "end": 531,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 511,
+            "end": 529,
+            "argument": {
+              "type": "Identifier",
+              "start": 518,
+              "end": 528,
+              "name": "descriptor"            }          }
+        ]
+      }    },
+    {
+      "type": "ClassDeclaration",
+      "start": 533,
+      "end": 853,
+      "decorators": [
+        {
+          "type": "Decorator",
+          "start": 533,
+          "end": 540,
+          "expression": {
+            "type": "Identifier",
+            "start": 534,
+            "end": 540,
+            "name": "frozen"
+          }
+        }
+      ],
+      "id": {
+        "type": "Identifier",
+        "start": 547,
+        "end": 548,
+        "name": "A"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 549,
+        "end": 853,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+                        "start": 553,
+            "end": 571,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 560,
+              "end": 566,
+              "name": "count"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 569,
+              "end": 570,
+              "value": 0,
+              "raw": "0"
+            },
+            "computed": false,
+            "static": true
+          },
+          {
+            "type": "PropertyDefinition",
+                        "start": 574,
+            "end": 578,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 574,
+              "end": 577,
+              "name": "id"
+            },
+            "value": null,
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+                        "start": 582,
+            "end": 638,
+                        "key": {
+              "type": "Identifier",
+              "start": 582,
+              "end": 593,
+              "name": "constructor"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 593,
+              "end": 638,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 594,
+                  "end": 596,
+                  "name": "id"
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 598,
+                "end": 638,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 604,
+                    "end": 618,
+                    "expression": {
+                      "type": "AssignmentExpression",
+                      "start": 604,
+                      "end": 617,
+                      "operator": "=",
+                      "left": {
+                        "type": "MemberExpression",
+                        "start": 604,
+                        "end": 612,
+                        "computed": false,
+                        "object": {
+                          "type": "ThisExpression",
+                          "start": 604,
+                          "end": 608                        },
+                        "property": {
+                          "type": "PrivateIdentifier",
+                          "start": 609,
+                          "end": 612,
+                          "name": "id"                        }                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 615,
+                        "end": 617,
+                        "name": "id"                      }                    }                  },
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 623,
+                    "end": 634,
+                    "expression": {
+                      "type": "UpdateExpression",
+                      "start": 623,
+                      "end": 633,
+                      "operator": "++",
+                      "prefix": false,
+                      "argument": {
+                        "type": "MemberExpression",
+                        "start": 623,
+                        "end": 631,
+                        "computed": false,
+                        "object": {
+                          "type": "Identifier",
+                          "start": 623,
+                          "end": 624,
+                          "name": "A"                        },
+                        "property": {
+                          "type": "PrivateIdentifier",
+                          "start": 625,
+                          "end": 631,
+                          "name": "count"                        }                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "constructor",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+            "decorators": [
+              {
+                "type": "Decorator",
+                "start": 642,
+                "end": 648,
+                "expression": {
+                  "type": "Identifier",
+                  "start": 643,
+                  "end": 648,
+                  "name": "bound"
+                }
+              }
+            ],
+            "start": 642,
+            "end": 685,
+                        "key": {
+              "type": "Identifier",
+              "start": 651,
+              "end": 656,
+              "name": "value"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 656,
+              "end": 685,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 659,
+                "end": 685,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 665,
+                    "end": 681,
+                    "argument": {
+                      "type": "MemberExpression",
+                      "start": 672,
+                      "end": 680,
+                      "computed": false,
+                      "object": {
+                        "type": "ThisExpression",
+                        "start": 672,
+                        "end": 676                      },
+                      "property": {
+                        "type": "PrivateIdentifier",
+                        "start": 677,
+                        "end": 680,
+                        "name": "id"                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "StaticBlock",
+            "start": 689,
+            "end": 851,
+                        "body": [
+              {
+                "type": "ExpressionStatement",
+                "start": 834,
+                "end": 847,
+                "expression": {
+                  "type": "AssignmentExpression",
+                  "start": 834,
+                  "end": 846,
+                  "operator": "=",
+                  "left": {
+                    "type": "MemberExpression",
+                    "start": 834,
+                    "end": 842,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 834,
+                      "end": 835,
+                      "name": "A"                    },
+                    "property": {
+                      "type": "PrivateIdentifier",
+                      "start": 836,
+                      "end": 842,
+                      "name": "count"                    }                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 845,
+                    "end": 846,
+                    "value": 0,
+                    "raw": "0"                  }                }              }
+            ]
+          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " Stacked feature interaction: class decorators + method decorators +"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 145,
+      "value": " private fields + private field initializers + static block initializer."
+    },
+    {
+      "type": "Line",
+      "start": 146,
+      "end": 221,
+      "value": " The parser must handle the decorator positions before `class` and before"
+    },
+    {
+      "type": "Line",
+      "start": 222,
+      "end": 296,
+      "value": " a method, AND still accept `#name` private identifiers, AND still allow"
+    },
+    {
+      "type": "Line",
+      "start": 297,
+      "end": 369,
+      "value": " a `static { ... }` block inside the class body. Each feature alone is"
+    },
+    {
+      "type": "Line",
+      "start": 370,
+      "end": 433,
+      "value": " covered elsewhere in `spec/`; this file proves they coexist."
+    },
+    {
+      "type": "Line",
+      "start": 702,
+      "end": 768,
+      "value": " Static-block initialisers run once per class evaluation and can"
+    },
+    {
+      "type": "Line",
+      "start": 773,
+      "end": 829,
+      "value": " access private static members of the enclosing class."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=22080B reserved=16777216B ratio=0%
+Parse errors: 0

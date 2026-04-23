@@ -62,10 +62,20 @@ function listFixtures_inCategory(dir, category, out) {
 // the right --lang flag from the category so Kessel parses them in the
 // correct grammar mode (otherwise e.g. spec/typescript/007_type_assertion
 // fails with "unexpected <" because JS mode rejects `<Type>expr`).
+//
+// `spec/interactions/` is a deliberately mixed-dialect bucket; dialect is
+// chosen per file via filename markers so that each fixture can sit in its
+// natural interaction bucket instead of being split across dialect dirs:
+//   `_jsx_` -> JSX, `_ts_` -> TS. Everything else in the bucket is JS.
 function langFlag(file) {
   if (file.includes('/spec/jsx/'))        return ' --lang=jsx';
   if (file.includes('/spec/typescript/')) return ' --lang=ts';
   if (file.includes('/spec/ambiguity/'))  return ' --lang=tsx';
+  if (file.includes('/spec/interactions/')) {
+    if (/_jsx_/.test(file)) return ' --lang=jsx';
+    if (/_ts_/.test(file))  return ' --lang=ts';
+    return '';
+  }
   return '';
 }
 

@@ -2,16 +2,44 @@
 // Integration verification: parse with OXC (source of truth) and Kessel raw,
 // walk both ASTs and compare structure + values.
 //
-// Usage: node verify_integration.js <file.js> [--verbose]
+// Usage: node verify_integration.js <file.js> [--verbose] [--baseline] [--update]
+//
+// Default mode is zero-tolerance: any field mismatch fails the gate.
+//
+// `--baseline` switches to a baseline-gated comparison: the per-file
+// mismatch count is compared to `tests/baselines/integration_baseline.json`;
+// an increase fails, a decrease is reported as an improvement, exact match
+// passes. Matches the pattern used by verify_spec_compliance.js so the two
+// gates behave consistently when they share the same real-world corpus.
+//
+// `--update` re-captures the baseline from the current run. Use after an
+// intentional fix or after a deliberate parser change that shifts mismatch
+// counts. Without `--baseline` or `--update`, the gate is strict.
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const { parseSync } = require(path.resolve(__dirname, '../../bench/node_modules/oxc-parser'));
 
-const file = process.argv[2];
-const verbose = process.argv.includes('--verbose');
-if (!file) { console.error('Usage: node verify_integration.js <file.js>'); process.exit(1); }
+const ROOT = path.resolve(__dirname, '../..');
+const BASELINE_PATH = path.join(ROOT, 'tests/baselines/integration_baseline.json');
+
+const argv = process.argv.slice(2);
+const file = argv.find((a) => !a.startsWith('--'));
+const verbose = argv.includes('--verbose');
+const BASELINE_MODE = argv.includes('--baseline');
+const UPDATE = argv.includes('--update');
+if (!file) {
+  console.error('Usage: node verify_integration.js <file.js> [--verbose] [--baseline] [--update]');
+  process.exit(1);
+}
+
+// Baseline paths are stored relative to the repo root so they're stable
+// across `cd` contexts and across developers. Resolve the CLI `file` arg
+// relative to the current working dir, then render the relative form for
+// the baseline key.
+const absFile = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);
+const baselineKey = path.relative(ROOT, absFile);
 
 const kesselBin = path.resolve(__dirname, '../../bin/kessel');
 const source = fs.readFileSync(file, 'utf8');
@@ -529,6 +557,76 @@ console.log(`  OXC parseSync: ${oxcAst.body.length} top-level statements`);
 verifyProgram();
 
 console.log(`  Fields matched: ${matched}`);
+
+// ---------------------------------------------------------------------------
+// Exit policy.
+// ---------------------------------------------------------------------------
+// Three modes, chosen by CLI flags:
+//   - `--update`   : write current mismatch count into the baseline file
+//                    keyed by `baselineKey` and exit 0.
+//   - `--baseline` : compare `errors` to the baselined value for this file.
+//                    Equal or lower passes; higher is a regression (exit 1).
+//                    A decrease is reported as an improvement so it can be
+//                    locked in with --update, matching verify_spec_compliance.
+//   - neither      : zero-tolerance. Any mismatch fails. This is the
+//                    original behaviour and the default.
+function readBaseline() {
+  if (!fs.existsSync(BASELINE_PATH)) return {};
+  try {
+    const raw = fs.readFileSync(BASELINE_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch (err) {
+    console.error(`  baseline unreadable: ${err.message}`);
+    process.exit(2);
+  }
+}
+
+function writeBaseline(obj) {
+  // Keys sorted so the file is stable across runs and reviewable in a diff.
+  const sorted = {};
+  for (const k of Object.keys(obj).sort()) sorted[k] = obj[k];
+  fs.mkdirSync(path.dirname(BASELINE_PATH), { recursive: true });
+  fs.writeFileSync(BASELINE_PATH, JSON.stringify(sorted, null, 2) + '\n');
+}
+
+if (UPDATE) {
+  const baseline = readBaseline();
+  const prev = baseline[baselineKey];
+  baseline[baselineKey] = errors;
+  writeBaseline(baseline);
+  if (prev === undefined) {
+    console.log(`  Baseline created: ${baselineKey} -> ${errors}`);
+  } else if (prev !== errors) {
+    const verb = errors > prev ? 'REGRESSED' : 'IMPROVED';
+    console.log(`  Baseline updated: ${baselineKey} ${prev} -> ${errors} (${verb})`);
+  } else {
+    console.log(`  Baseline unchanged: ${baselineKey} stays at ${errors}`);
+  }
+  process.exit(0);
+}
+
+if (BASELINE_MODE) {
+  const baseline = readBaseline();
+  const prev = baseline[baselineKey];
+  if (prev === undefined) {
+    console.log(`  ❌ no baseline entry for ${baselineKey} — run with --update to create one`);
+    process.exit(1);
+  }
+  if (errors > prev) {
+    console.log(`  ❌ ${errors} mismatches (baseline ${prev}, REGRESSED by ${errors - prev})`);
+    process.exit(1);
+  }
+  if (errors < prev) {
+    console.log(`  ✅ ${errors} mismatches (baseline ${prev}, improved by ${prev - errors})`);
+    console.log('  Run with --update to lock the improvement in.');
+    process.exit(0);
+  }
+  console.log(`  ✅ ${errors} mismatches (baseline)`);
+  process.exit(0);
+}
+
+// Strict mode (original behaviour): any mismatch fails.
 if (errors > 0) {
   console.log(`  ❌ ${errors} mismatches`);
   process.exit(1);

@@ -1,0 +1,154 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 505,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 364,
+      "end": 377,
+      "expression": {
+        "type": "Literal",
+        "start": 364,
+        "end": 376,
+        "value": "use strict",
+        "raw": "\"use strict\""      },
+      "directive": "use strict"    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 378,
+      "end": 504,
+      "id": {
+        "type": "Identifier",
+        "start": 387,
+        "end": 392,
+        "name": "outer"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 395,
+        "end": 504,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 399,
+            "end": 412,
+            "expression": {
+              "type": "Literal",
+              "start": 399,
+              "end": 411,
+              "value": "use strict",
+              "raw": "\"use strict\""            },
+            "directive": "use strict"          },
+          {
+            "type": "FunctionDeclaration",
+            "start": 415,
+            "end": 484,
+            "id": {
+              "type": "Identifier",
+              "start": 424,
+              "end": 429,
+              "name": "inner"
+            },
+            "expression": false,
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "BlockStatement",
+              "start": 432,
+              "end": 484,
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "start": 438,
+                  "end": 451,
+                  "expression": {
+                    "type": "Literal",
+                    "start": 438,
+                    "end": 450,
+                    "value": "use strict",
+                    "raw": "\"use strict\""                  },
+                  "directive": "use strict"                },
+                {
+                  "type": "ReturnStatement",
+                  "start": 456,
+                  "end": 480,
+                  "argument": {
+                    "type": "MemberExpression",
+                    "start": 463,
+                    "end": 479,
+                    "computed": false,
+                    "object": {
+                      "type": "Identifier",
+                      "start": 463,
+                      "end": 472,
+                      "name": "arguments"                    },
+                    "property": {
+                      "type": "Identifier",
+                      "start": 473,
+                      "end": 479,
+                      "name": "length"                    }                  }                }
+              ]
+            }          },
+          {
+            "type": "ReturnStatement",
+            "start": 487,
+            "end": 502,
+            "argument": {
+              "type": "CallExpression",
+              "start": 494,
+              "end": 501,
+              "callee": {
+                "type": "Identifier",
+                "start": 494,
+                "end": 499,
+                "name": "inner"              },
+              "arguments": [
+              ]            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " Interaction: directive-prologue strings at multiple nesting levels."
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 137,
+      "value": " Each function body starts a fresh Directive Prologue region, so"
+    },
+    {
+      "type": "Line",
+      "start": 138,
+      "end": 212,
+      "value": " `\"use strict\"` at the top, inside `outer`, and inside `inner` must each"
+    },
+    {
+      "type": "Line",
+      "start": 213,
+      "end": 287,
+      "value": " be recognised as a Directive (ExpressionStatement with a string literal"
+    },
+    {
+      "type": "Line",
+      "start": 288,
+      "end": 363,
+      "value": " in the prologue slot), not as a plain expression statement further down."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=13072B reserved=16777216B ratio=0%
+Parse errors: 0

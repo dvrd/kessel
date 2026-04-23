@@ -51,19 +51,36 @@ if (!['oxc', 'acorn', 'babel'].includes(PARSER)) {
 
 const KESSEL = path.resolve(__dirname, '../../bin/kessel');
 const source = fs.readFileSync(file, 'utf8');
+// Dialect detection from file path. Both Kessel and OXC need to know the
+// dialect to parse a fixture correctly, and both derive it from this single
+// table so the two sides never disagree on the grammar in play.
+//   - JSX, TypeScript, TSX-ambiguity families have their own directories.
+//   - `spec/interactions/` is a mixed bucket where dialect is encoded in
+//     the filename marker: `_jsx_` -> JSX, `_ts_` -> TS. Everything else
+//     in the bucket is plain JS.
+function detectDialect(p) {
+  if (p.includes('/spec/jsx/'))        return 'jsx';
+  if (p.includes('/spec/typescript/')) return 'ts';
+  if (p.includes('/spec/ambiguity/'))  return 'tsx';
+  if (p.includes('/spec/interactions/')) {
+    if (/_jsx_/.test(p)) return 'jsx';
+    if (/_ts_/.test(p))  return 'ts';
+  }
+  return 'js';
+}
+
 // OXC uses the filename extension to select JS/JSX/TS/TSX parser mode.
 // Our fixtures all end in `.js` regardless of content; synthesize the right
-// extension from the containing category so JSX/TS fixtures parse with
-// OXC's JSX/TS grammar enabled. Kessel already auto-detects via `--lang`
-// in the run_tests.sh runner, so this only affects the reference side.
+// extension so JSX/TS fixtures parse with OXC's JSX/TS grammar enabled.
+// Kessel reads a `--lang=` flag instead (same underlying decision).
 function syntheticName(p) {
   const base = path.basename(p);
-  if (p.includes('/spec/jsx/'))        return base.replace(/\.js$/, '.jsx');
-  if (p.includes('/spec/typescript/')) return base.replace(/\.js$/, '.ts');
-  // Ambiguity fixtures exercise TSX grammar: TS angle-bracket assertions
-  // that conflict with JSX, generic arrows, etc.
-  if (p.includes('/spec/ambiguity/'))  return base.replace(/\.js$/, '.tsx');
-  return base;
+  switch (detectDialect(p)) {
+    case 'jsx': return base.replace(/\.js$/, '.jsx');
+    case 'ts':  return base.replace(/\.js$/, '.ts');
+    case 'tsx': return base.replace(/\.js$/, '.tsx');
+    default:    return base;
+  }
 }
 const name = syntheticName(file);
 
@@ -115,7 +132,12 @@ const KESSEL_STRIP_FIELDS_FOR_PARSER = {
   // comments at the top-level `result.comments`, not on the Program node, so
   // strip from the Kessel side so the compare doesn't flag a semantically-
   // identical AST as divergent.
-  oxc:   new Set(['comments']),
+  // `directive` on ExpressionStatement: Kessel emits the ESTree directive-
+  // prologue field, but OXC surfaces it differently (it never appears on the
+  // ExpressionStatement node). Already stripped from OXC's side via
+  // STRIP_FIELDS_BY_TYPE_PER_PARSER; strip from Kessel too so we don't
+  // generate false "extra" reports.
+  oxc:   new Set(['comments', 'directive']),
   acorn: new Set(['hashbang', 'comments']),
   // Babel's normaliseBabelType produces Literal objects that preserve `raw`
   // (via extra.raw); keep them on the Kessel side so compare symmetrically.
@@ -245,7 +267,11 @@ function stripNode(node) {
   if (typeof node === 'bigint') return null;
   if (node == null || typeof node !== 'object') return node;
   if (Array.isArray(node)) return node.map(stripNode);
-  node = unwrapParens(node);
+  // Only unwrap ParenthesizedExpression from OXC when Kessel is running WITHOUT
+  // --preserve-parens. When PARSER === 'oxc' we now pass --preserve-parens to
+  // Kessel, so both trees emit ParenthesizedExpression and unwrapping would
+  // create a type mismatch (OXC unwrapped → inner type, Kessel kept wrapper).
+  if (PARSER !== 'oxc') node = unwrapParens(node);
   if (node == null || typeof node !== 'object') return node;
   if (PARSER === 'babel') node = normalizeBabelType(node);
   const type = node.type;
@@ -291,11 +317,15 @@ function stripKesselForParser(node) {
 // -----------------------------------------------------------------------------
 function parseKessel(file) {
   // Match the lang hint given to OXC so both sides parse the same grammar.
-  let langFlag = '';
-  if (file.includes('/spec/jsx/'))        langFlag = ' --lang=jsx';
-  else if (file.includes('/spec/typescript/')) langFlag = ' --lang=ts';
-  else if (file.includes('/spec/ambiguity/'))  langFlag = ' --lang=tsx';
-  const raw = execSync(`"${KESSEL}" parse${langFlag} "${file}" --compact`,
+  // `detectDialect` is the single source of truth for this decision.
+  const dialect = detectDialect(file);
+  const langFlag = dialect === 'js' ? '' : ` --lang=${dialect}`;
+  // When comparing against OXC, enable --preserve-parens so Kessel emits
+  // ParenthesizedExpression nodes matching OXC's default behaviour.
+  // Acorn and Babel fold parentheses away (like Kessel's default), so the
+  // flag is intentionally OXC-only here.
+  const parensFlag = PARSER === 'oxc' ? ' --preserve-parens' : '';
+  const raw = execSync(`"${KESSEL}" parse${langFlag}${parensFlag} "${file}" --compact`,
                        { encoding: 'utf8', maxBuffer: 200 * 1024 * 1024 });
   // Kessel appends statistics to stderr; stdout first line is the JSON.
   return JSON.parse(raw.split('\n')[0]);

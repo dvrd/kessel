@@ -3896,12 +3896,17 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if !allow_call {
 				return expr
 			}
+			// Save and clear pending_paren_start before parsing arguments.
+			// The paren-start from the callee must not propagate into argument
+			// sub-expressions (e.g. `(0,f)({prop: g(x)})` — g(x) must not
+			// inherit the outer paren offset and shift its own start).
+			saved_paren_start := p.pending_paren_start
+			p.pending_paren_start = max(u32)
 			args := parse_arguments(p)
 			call, call_e := new_expr(p, CallExpression)
 			call.loc = loc_from_expr(expr)
-			// If parenthesized, use pending_paren_start for CallExpression start
-			if p.pending_paren_start != max(u32) && p.pending_paren_start <= call.loc.span.start {
-				call.loc.span.start = p.pending_paren_start
+			if saved_paren_start != max(u32) && saved_paren_start <= call.loc.span.start {
+				call.loc.span.start = saved_paren_start
 			}
 			call.callee = expr
 			call.arguments = args
@@ -7310,6 +7315,7 @@ loc_from_expr :: #force_inline proc(e: ^Expression) -> Loc {
 	case ^SequenceExpression:       return v.loc
 	case ^ClassExpression:          return v.loc
 	case ^PrivateIdentifier:        return v.loc
+	case ^ParenthesizedExpression:  return v.loc
 	}
 	return {}
 }
@@ -7363,6 +7369,7 @@ get_expr_loc_ptr :: proc(e: ^Expression) -> ^Loc {
 	case ^ClassExpression:           return &v.loc
 	case ^PrivateIdentifier:         return &v.loc
 	case ^ChainExpression:           return &v.loc
+	case ^ParenthesizedExpression:   return &v.loc
 	}
 	return nil
 }

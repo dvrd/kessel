@@ -1,0 +1,105 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 316,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 262,
+      "end": 279,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 266,
+          "end": 278,
+          "id": {
+            "type": "Identifier",
+            "start": 266,
+            "end": 274,
+            "name": "abc"          },
+          "init": {
+            "type": "Literal",
+            "start": 277,
+            "end": 278,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 280,
+      "end": 297,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 284,
+          "end": 296,
+          "id": {
+            "type": "Identifier",
+            "start": 284,
+            "end": 292,
+            "name": "ab2"          },
+          "init": {
+            "type": "Literal",
+            "start": 295,
+            "end": 296,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 298,
+      "end": 315,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 302,
+          "end": 314,
+          "id": {
+            "type": "Identifier",
+            "start": 302,
+            "end": 310,
+            "name": "a_b"          },
+          "init": {
+            "type": "Literal",
+            "start": 313,
+            "end": 314,
+            "value": 3,
+            "raw": "3"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " Lexical: unicode escape at identifier CONTINUATION position. The first"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 148,
+      "value": " code unit is a plain IdentifierStart; subsequent escapes must decode to"
+    },
+    {
+      "type": "Line",
+      "start": 149,
+      "end": 223,
+      "value": " valid IdentifierContinue characters. The cooked names `abc`, `ab2`, and"
+    },
+    {
+      "type": "Line",
+      "start": 224,
+      "end": 261,
+      "value": " `a_b` are what show up in the AST."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=9064B reserved=16777216B ratio=0%
+Parse errors: 0
