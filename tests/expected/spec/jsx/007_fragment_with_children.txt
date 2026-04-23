@@ -27,7 +27,9 @@
             "openingFragment": {
               "type": "JSXOpeningFragment",
               "start": 77,
-              "end": 78
+              "end": 79,
+              "attributes": [],
+              "selfClosing": false
             },
             "children": [
               {
@@ -73,7 +75,7 @@
             ],
             "closingFragment": {
               "type": "JSXClosingFragment",
-              "start": 95,
+              "start": 93,
               "end": 96
             }
           }        }
@@ -100,7 +102,9 @@
             "openingFragment": {
               "type": "JSXOpeningFragment",
               "start": 108,
-              "end": 109
+              "end": 110,
+              "attributes": [],
+              "selfClosing": false
             },
             "children": [
               {
@@ -112,8 +116,8 @@
               },
               {
                 "type": "JSXExpressionContainer",
-                "start": 117,
-                "end": 118,
+                "start": 114,
+                "end": 117,
                 "expression": {
                   "type": "Identifier",
                   "start": 115,
@@ -144,7 +148,7 @@
             ],
             "closingFragment": {
               "type": "JSXClosingFragment",
-              "start": 129,
+              "start": 127,
               "end": 130
             }
           }        }

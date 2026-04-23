@@ -175,8 +175,8 @@
               "attributes": [
                 {
                   "type": "JSXAttribute",
-                  "start": 207,
-                  "end": 208,
+                  "start": 201,
+                  "end": 206,
                   "name": {
                     "type": "JSXIdentifier",
                     "start": 201,
@@ -185,8 +185,8 @@
                   },
                   "value": {
                     "type": "JSXExpressionContainer",
-                    "start": 207,
-                    "end": 208,
+                    "start": 203,
+                    "end": 206,
                     "expression": {
                       "type": "Literal",
                       "start": 204,

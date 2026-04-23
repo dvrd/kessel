@@ -778,10 +778,22 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	}
 
 	// Program.end covers the ENTIRE source (including any trailing whitespace
-	// after the last token). OXC/Acorn/Babel all end Program at source.length;
-	// `prev_end_offset` would stop at the last consumed token, which may be
-	// earlier when the file has trailing newlines or comments.
+	// after the last token). OXC/Acorn/Babel all end Program at source.length
+	// in .js / .jsx mode; `prev_end_offset` would stop at the last consumed
+	// token, which may be earlier when the file has trailing newlines or
+	// comments.
 	program.loc.span.end = u32(p.source_len)
+
+	// OXC-TS quirk: in .ts / .tsx mode OXC sets program.start = body[0].start
+	// (skipping leading comments/whitespace), while still ending at source.length.
+	// Mirror that behaviour here so the deep-compare against OXC matches; no
+	// effect on .js / .jsx where program.start stays 0.
+	if (p.lang == .TS || p.lang == .TSX) && len(program.body) > 0 {
+		first_loc := get_statement_loc(program.body[0])
+		if first_loc.span.start != 0 || first_loc.span.end != 0 {
+			program.loc.span.start = first_loc.span.start
+		}
+	}
 
 	// Auto-detect module vs script sourceType: any top-level import/export makes
 	// this a module per ECMA-262 §16.2. We do this after parse so the body is
@@ -5276,8 +5288,11 @@ parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
 	import_expr.source = specifier
 	import_expr.loc.span.end = prev_end_offset(p)
 
-	// Collect ESM dynamic import record
-	p.has_module_syntax = true
+	// Collect ESM dynamic import record.
+	// NOTE: dynamic `import()` expressions are valid in both Scripts and
+	// Modules per ECMA-262, so they do NOT imply module syntax. Only static
+	// `import`/`export` declarations (and top-level `await`/`import.meta`)
+	// flip has_module_syntax — matches OXC/Acorn/Babel behaviour.
 	esm_dynamic := ESMDynamicImport{
 		start = import_expr.loc.span.start,
 		end = import_expr.loc.span.end,
@@ -5379,13 +5394,20 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	eat(p)
 	if is_token(p, .RAngle) {
 		eat(p)
+		// Opening fragment `<>` spans [<, >] inclusive of both angle brackets
+		// (2 bytes) — matches OXC's JSXOpeningFragment.{start,end}.
+		opening_loc := start
+		opening_loc.span.end = u32(prev_end_offset(p))
 		children := parse_jsx_children(p)
+		// Closing fragment `</>` spans [<, >] — start is at the `<`, not after `</`.
+		closing_start := cur_loc(p)
 		expect_token(p, .LAngle); expect_token(p, .Div)
-		closing_loc := cur_loc(p)
 		expect_token(p, .RAngle)
+		closing_loc := closing_start
+		closing_loc.span.end = u32(prev_end_offset(p))
 		frag := new_node(p, JSXFragment)
 		frag.loc = start
-		frag.opening_fragment = JSXOpeningFragment{loc = start}
+		frag.opening_fragment = JSXOpeningFragment{loc = opening_loc}
 		frag.children = children
 		frag.closing_fragment = JSXClosingFragment{loc = closing_loc}
 		frag.loc.span.end = prev_end_offset(p)
@@ -5538,15 +5560,20 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			}
 		} else if is_token(p, .LBrace) {
 			start := cur_loc(p)
+			// JSXEmptyExpression spans between `{` and `}` (exclusive of both),
+			// matching OXC. `{` is always 1 byte, so empty_start = start + 1.
+			empty_start := start.span.start + 1
 			eat(p)
 			expr: ^Expression = nil
 			if !is_token(p, .RBrace) { expr = parse_assignment_expression(p) }
+			rbrace_start := u32(cur_offset(p))
 			expect_token(p, .RBrace)
 			container := new_node(p, JSXExpressionContainer)
 			container.loc = start
 			if expr != nil { container.expression = expr
 			} else {
-				empty := new_node(p, JSXEmptyExpression); empty.loc = start
+				empty := new_node(p, JSXEmptyExpression)
+				empty.loc = Loc{span = Span{start = empty_start, end = rbrace_start}}
 				container.expression = expression_from(p, empty)
 			}
 			container.loc.span.end = prev_end_offset(p)

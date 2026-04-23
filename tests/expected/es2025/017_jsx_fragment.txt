@@ -16,7 +16,9 @@
         "openingFragment": {
           "type": "JSXOpeningFragment",
           "start": 0,
-          "end": 1
+          "end": 2,
+          "attributes": [],
+          "selfClosing": false
         },
         "children": [
           {
@@ -29,7 +31,7 @@
         ],
         "closingFragment": {
           "type": "JSXClosingFragment",
-          "start": 8,
+          "start": 6,
           "end": 9
         }
       }    }

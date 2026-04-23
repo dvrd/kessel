@@ -1,0 +1,315 @@
+{
+  "type": "Program",
+  "start": 79,
+  "end": 225,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 79,
+      "end": 132,
+      "id": {
+        "type": "Identifier",
+        "start": 84,
+        "end": 92,
+        "name": "Readonly"
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 92,
+        "end": 95,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 93,
+            "end": 94,
+            "name": {
+              "type": "Identifier",
+              "start": 93,
+              "end": 94,
+              "name": "T"
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "typeAnnotation": {
+        "type": "TSMappedType",
+        "start": 98,
+        "end": 131,
+        "typeParameter": {
+          "type": "TSTypeParameter",
+          "start": 110,
+          "end": 111,
+          "name": {
+            "type": "Identifier",
+            "start": 110,
+            "end": 111,
+            "name": "K"
+          },
+          "constraint": {
+            "type": "TSTypeOperator",
+            "start": 115,
+            "end": 122,
+            "operator": "keyof",
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 121,
+              "end": 122,
+              "typeName": {
+                "type": "Identifier",
+                "start": 121,
+                "end": 122,
+                "name": "T"
+              },
+              "typeArguments": null
+            }
+          }
+        },
+        "typeAnnotation": {
+          "type": "TSIndexedAccessType",
+          "start": 125,
+          "end": 129,
+          "objectType": {
+            "type": "TSTypeReference",
+            "start": 125,
+            "end": 126,
+            "typeName": {
+              "type": "Identifier",
+              "start": 125,
+              "end": 126,
+              "name": "T"
+            },
+            "typeArguments": null
+          },
+          "indexType": {
+            "type": "TSTypeReference",
+            "start": 127,
+            "end": 128,
+            "typeName": {
+              "type": "Identifier",
+              "start": 127,
+              "end": 128,
+              "name": "K"
+            },
+            "typeArguments": null
+          }
+        },
+        "nameType": null
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 133,
+      "end": 177,
+      "id": {
+        "type": "Identifier",
+        "start": 138,
+        "end": 145,
+        "name": "Partial"
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 145,
+        "end": 148,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 146,
+            "end": 147,
+            "name": {
+              "type": "Identifier",
+              "start": 146,
+              "end": 147,
+              "name": "T"
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "typeAnnotation": {
+        "type": "TSMappedType",
+        "start": 151,
+        "end": 176,
+        "typeParameter": {
+          "type": "TSTypeParameter",
+          "start": 154,
+          "end": 155,
+          "name": {
+            "type": "Identifier",
+            "start": 154,
+            "end": 155,
+            "name": "K"
+          },
+          "constraint": {
+            "type": "TSTypeOperator",
+            "start": 159,
+            "end": 166,
+            "operator": "keyof",
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 165,
+              "end": 166,
+              "typeName": {
+                "type": "Identifier",
+                "start": 165,
+                "end": 166,
+                "name": "T"
+              },
+              "typeArguments": null
+            }
+          }
+        },
+        "typeAnnotation": {
+          "type": "TSIndexedAccessType",
+          "start": 170,
+          "end": 174,
+          "objectType": {
+            "type": "TSTypeReference",
+            "start": 170,
+            "end": 171,
+            "typeName": {
+              "type": "Identifier",
+              "start": 170,
+              "end": 171,
+              "name": "T"
+            },
+            "typeArguments": null
+          },
+          "indexType": {
+            "type": "TSTypeReference",
+            "start": 172,
+            "end": 173,
+            "typeName": {
+              "type": "Identifier",
+              "start": 172,
+              "end": 173,
+              "name": "K"
+            },
+            "typeArguments": null
+          }
+        },
+        "nameType": null
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 178,
+      "end": 224,
+      "id": {
+        "type": "Identifier",
+        "start": 183,
+        "end": 191,
+        "name": "Required"
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 191,
+        "end": 194,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 192,
+            "end": 193,
+            "name": {
+              "type": "Identifier",
+              "start": 192,
+              "end": 193,
+              "name": "T"
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "typeAnnotation": {
+        "type": "TSMappedType",
+        "start": 197,
+        "end": 223,
+        "typeParameter": {
+          "type": "TSTypeParameter",
+          "start": 200,
+          "end": 201,
+          "name": {
+            "type": "Identifier",
+            "start": 200,
+            "end": 201,
+            "name": "K"
+          },
+          "constraint": {
+            "type": "TSTypeOperator",
+            "start": 205,
+            "end": 212,
+            "operator": "keyof",
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 211,
+              "end": 212,
+              "typeName": {
+                "type": "Identifier",
+                "start": 211,
+                "end": 212,
+                "name": "T"
+              },
+              "typeArguments": null
+            }
+          }
+        },
+        "typeAnnotation": {
+          "type": "TSIndexedAccessType",
+          "start": 217,
+          "end": 221,
+          "objectType": {
+            "type": "TSTypeReference",
+            "start": 217,
+            "end": 218,
+            "typeName": {
+              "type": "Identifier",
+              "start": 217,
+              "end": 218,
+              "name": "T"
+            },
+            "typeArguments": null
+          },
+          "indexType": {
+            "type": "TSTypeReference",
+            "start": 219,
+            "end": 220,
+            "typeName": {
+              "type": "Identifier",
+              "start": 219,
+              "end": 220,
+              "name": "K"
+            },
+            "typeArguments": null
+          }
+        },
+        "nameType": null
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 78,
+      "value": " TS mapped type: `{ [K in keyof T]: V }` with optional + readonly modifiers."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7776B reserved=16777216B ratio=0%
+Parse errors: 0

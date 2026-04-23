@@ -37,8 +37,8 @@
               "attributes": [
                 {
                   "type": "JSXAttribute",
-                  "start": 153,
-                  "end": 154,
+                  "start": 144,
+                  "end": 152,
                   "name": {
                     "type": "JSXIdentifier",
                     "start": 144,
@@ -86,8 +86,8 @@
               "attributes": [
                 {
                   "type": "JSXAttribute",
-                  "start": 183,
-                  "end": 191,
+                  "start": 174,
+                  "end": 182,
                   "name": {
                     "type": "JSXIdentifier",
                     "start": 174,
@@ -98,8 +98,8 @@
                 },
                 {
                   "type": "JSXAttribute",
-                  "start": 192,
-                  "end": 193,
+                  "start": 183,
+                  "end": 191,
                   "name": {
                     "type": "JSXIdentifier",
                     "start": 183,

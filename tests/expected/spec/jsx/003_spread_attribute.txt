@@ -37,8 +37,8 @@
               "attributes": [
                 {
                   "type": "JSXSpreadAttribute",
-                  "start": 124,
-                  "end": 125,
+                  "start": 113,
+                  "end": 123,
                   "argument": {
                     "type": "Identifier",
                     "start": 117,
@@ -84,8 +84,8 @@
               "attributes": [
                 {
                   "type": "JSXAttribute",
-                  "start": 149,
-                  "end": 150,
+                  "start": 143,
+                  "end": 148,
                   "name": {
                     "type": "JSXIdentifier",
                     "start": 143,
@@ -94,8 +94,8 @@
                   },
                   "value": {
                     "type": "JSXExpressionContainer",
-                    "start": 149,
-                    "end": 150,
+                    "start": 145,
+                    "end": 148,
                     "expression": {
                       "type": "Literal",
                       "start": 146,
@@ -106,8 +106,8 @@
                 },
                 {
                   "type": "JSXSpreadAttribute",
-                  "start": 159,
-                  "end": 160,
+                  "start": 149,
+                  "end": 158,
                   "argument": {
                     "type": "Identifier",
                     "start": 153,
@@ -116,8 +116,8 @@
                 },
                 {
                   "type": "JSXAttribute",
-                  "start": 165,
-                  "end": 166,
+                  "start": 159,
+                  "end": 164,
                   "name": {
                     "type": "JSXIdentifier",
                     "start": 159,
@@ -126,8 +126,8 @@
                   },
                   "value": {
                     "type": "JSXExpressionContainer",
-                    "start": 165,
-                    "end": 166,
+                    "start": 161,
+                    "end": 164,
                     "expression": {
                       "type": "Literal",
                       "start": 162,

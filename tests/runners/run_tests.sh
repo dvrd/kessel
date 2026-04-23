@@ -148,6 +148,10 @@ while IFS= read -r fixture; do
     if cmp -s "$normalized_output_file" "$normalized_expected_file"; then
         echo -e "${GREEN}PASS${NC}"
         PASSED=$((PASSED + 1))
+    elif [[ "$UPDATE_MODE" == true ]]; then
+        cp "$output_file" "$expected_file"
+        echo -e "${GREEN}PASS${NC} (updated expected)"
+        PASSED=$((PASSED + 1))
     else
         echo -e "${RED}FAIL (output mismatch)${NC}"
         FAILED=$((FAILED + 1))

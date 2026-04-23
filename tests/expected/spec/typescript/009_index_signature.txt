@@ -1,6 +1,6 @@
 {
   "type": "Program",
-  "start": 0,
+  "start": 147,
   "end": 248,
   "sourceType": "script",
   "hashbang": null,

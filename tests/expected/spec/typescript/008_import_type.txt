@@ -1,0 +1,75 @@
+{
+  "type": "Program",
+  "start": 128,
+  "end": 233,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ImportDeclaration",
+      "start": 128,
+      "end": 161,
+      "specifiers": [
+        {
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 153,
+        "end": 160,
+        "value": "./foo",
+        "raw": "\"./foo\""
+      },
+      "importKind": "type"    },
+    {
+      "type": "ImportDeclaration",
+      "start": 162,
+      "end": 199,
+      "specifiers": [
+        {
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 187,
+        "end": 198,
+        "value": "./default",
+        "raw": "\"./default\""
+      },
+      "importKind": "type"    },
+    {
+      "type": "ImportDeclaration",
+      "start": 200,
+      "end": 232,
+      "specifiers": [
+        {
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 225,
+        "end": 231,
+        "value": "./ns",
+        "raw": "\"./ns\""
+      },
+      "importKind": "type"    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 74,
+      "value": " TS `import type` — type-only import, does not emit a runtime require."
+    },
+    {
+      "type": "Line",
+      "start": 75,
+      "end": 129,
+      "value": " ESTree/TS: ImportDeclaration.importKind === \"type\"."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=8552B reserved=16777216B ratio=0%
+Parse errors: 0

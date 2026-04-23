@@ -3971,7 +3971,13 @@ emit_jsx_fragment_body :: proc(f: ^JSXFragment, indent: int) {
 	print_indent(indent + 1)
 	out_s("\"end\": ")
 	out_u32(to_utf16(f.opening_fragment.loc.span.end))
-	out_s("\n")
+	out_s(",\n")
+	// OXC emits `attributes: []` and `selfClosing: false` on JSXOpeningFragment
+	// for ESTree/TS-ESTree symmetry with JSXOpeningElement. Mirror it.
+	print_indent(indent + 1)
+	out_s("\"attributes\": [],\n")
+	print_indent(indent + 1)
+	out_s("\"selfClosing\": false\n")
 	print_indent(indent)
 	out_s("},\n")
 	print_indent(indent)

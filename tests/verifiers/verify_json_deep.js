@@ -51,7 +51,18 @@ if (!['oxc', 'acorn', 'babel'].includes(PARSER)) {
 
 const KESSEL = path.resolve(__dirname, '../../bin/kessel');
 const source = fs.readFileSync(file, 'utf8');
-const name = path.basename(file);
+// OXC uses the filename extension to select JS/JSX/TS/TSX parser mode.
+// Our fixtures all end in `.js` regardless of content; synthesize the right
+// extension from the containing category so JSX/TS fixtures parse with
+// OXC's JSX/TS grammar enabled. Kessel already auto-detects via `--lang`
+// in the run_tests.sh runner, so this only affects the reference side.
+function syntheticName(p) {
+  const base = path.basename(p);
+  if (p.includes('/spec/jsx/'))        return base.replace(/\.js$/, '.jsx');
+  if (p.includes('/spec/typescript/')) return base.replace(/\.js$/, '.ts');
+  return base;
+}
+const name = syntheticName(file);
 
 // -----------------------------------------------------------------------------
 // Normalisation: fields Kessel doesn't emit today (and we explicitly don't
@@ -94,13 +105,17 @@ const STRIP_FIELDS_BY_PARSER = {
 // Fields Kessel emits that the reference parser doesn't — stripped from the
 // KESSEL side so the compare doesn't flag them as "extra".
 const KESSEL_STRIP_FIELDS_FOR_PARSER = {
-  oxc:   new Set([]),
-  acorn: new Set(['hashbang']),
+  // `comments` is implementation-defined on Program in ESTree. OXC surfaces
+  // comments at the top-level `result.comments`, not on the Program node, so
+  // strip from the Kessel side so the compare doesn't flag a semantically-
+  // identical AST as divergent.
+  oxc:   new Set(['comments']),
+  acorn: new Set(['hashbang', 'comments']),
   // Babel's normaliseBabelType produces Literal objects that preserve `raw`
   // (via extra.raw); keep them on the Kessel side so compare symmetrically.
   // `regex` is a Kessel-only field here — Babel's normalised Literal doesn't
   // include it, so strip it from Kessel to avoid an "extra" flag.
-  babel: new Set(['hashbang', 'regex', 'exported']),
+  babel: new Set(['hashbang', 'regex', 'exported', 'comments']),
 };
 
 // ParenthesizedExpression is an OXC option (preserveParens). ESTree's original
@@ -130,9 +145,9 @@ const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   // MetaProperty: OXC's children have `start`/`end` — we compare those. No extras.
   // RegExp in Literal: OXC emits `regex: {pattern, flags}` — Kessel does too.
   // Program: Kessel and OXC both emit `sourceType` and `hashbang` today.
-  // No fields to strip. If `hashbang` content differs (Kessel emits null when
-  // OXC emits the parsed shebang string), the compare flags it — correct
-  // behaviour, since the lexer currently doesn't preserve the shebang.
+  // If `hashbang` content differs (Kessel emits null when OXC emits the
+  // parsed shebang string), the compare flags it — correct behaviour, since
+  // the lexer currently doesn't preserve the shebang.
   Program:                  new Set([]),
   // Identifier inside certain positions (e.g. ClassDeclaration.id) differs by
   // `typeAnnotation`/`optional` in OXC's TS-aware mode. Stripped; we don't
@@ -250,7 +265,11 @@ function stripKesselForParser(node) {
 // Parse both sides.
 // -----------------------------------------------------------------------------
 function parseKessel(file) {
-  const raw = execSync(`"${KESSEL}" parse "${file}" --compact`,
+  // Match the lang hint given to OXC so both sides parse the same grammar.
+  let langFlag = '';
+  if (file.includes('/spec/jsx/'))        langFlag = ' --lang=jsx';
+  else if (file.includes('/spec/typescript/')) langFlag = ' --lang=ts';
+  const raw = execSync(`"${KESSEL}" parse${langFlag} "${file}" --compact`,
                        { encoding: 'utf8', maxBuffer: 200 * 1024 * 1024 });
   // Kessel appends statistics to stderr; stdout first line is the JSON.
   return JSON.parse(raw.split('\n')[0]);

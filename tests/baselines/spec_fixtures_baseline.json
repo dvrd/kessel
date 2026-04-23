@@ -1,4 +1,9 @@
 {
+  "asi": {
+    "pass": 5,
+    "fail": 3,
+    "total": 8
+  },
   "edge": {
     "pass": 19,
     "fail": 0,
@@ -44,6 +49,11 @@
     "fail": 0,
     "total": 6
   },
+  "es2023": {
+    "pass": 1,
+    "fail": 1,
+    "total": 2
+  },
   "es2024": {
     "pass": 2,
     "fail": 0,
@@ -53,5 +63,30 @@
     "pass": 2,
     "fail": 0,
     "total": 2
+  },
+  "escapes": {
+    "pass": 7,
+    "fail": 1,
+    "total": 8
+  },
+  "jsx": {
+    "pass": 6,
+    "fail": 2,
+    "total": 8
+  },
+  "regex_disambiguation": {
+    "pass": 11,
+    "fail": 1,
+    "total": 12
+  },
+  "typescript": {
+    "pass": 1,
+    "fail": 9,
+    "total": 10
+  },
+  "unicode": {
+    "pass": 6,
+    "fail": 0,
+    "total": 6
   }
 }
