@@ -138,12 +138,19 @@ const KESSEL_STRIP_FIELDS_FOR_PARSER = {
   // STRIP_FIELDS_BY_TYPE_PER_PARSER; strip from Kessel too so we don't
   // generate false "extra" reports.
   oxc:   new Set(['comments', 'directive']),
-  acorn: new Set(['hashbang', 'comments']),
+  // Acorn doesn't implement the import-attributes proposal, so Kessel's
+  // `attributes: []` on every import/export declaration reads as an
+  // "extra" field. Strip from the Kessel side when comparing to acorn.
+  acorn: new Set(['hashbang', 'comments', 'attributes']),
   // Babel's normaliseBabelType produces Literal objects that preserve `raw`
   // (via extra.raw); keep them on the Kessel side so compare symmetrically.
   // `regex` is a Kessel-only field here — Babel's normalised Literal doesn't
   // include it, so strip it from Kessel to avoid an "extra" flag.
-  babel: new Set(['hashbang', 'regex', 'exported', 'comments']),
+  // Babel already surfaces import attributes through its own shapes
+  // (`attributes` on the `ImportAttribute` plugin path, else absent). For the
+  // corpus we compare against, Babel's `attributes` field is absent from the
+  // ESTree-normalised node; strip from Kessel too.
+  babel: new Set(['hashbang', 'regex', 'exported', 'comments', 'attributes']),
 };
 
 // ParenthesizedExpression is an OXC option (preserveParens). ESTree's original
@@ -196,10 +203,10 @@ const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   // PropertyDefinition: Kessel now emits typeAnnotation and optional.
   // readonly/declare/definite/accessibility/override remain stripped (not yet emitted).
   PropertyDefinition:       new Set(['readonly', 'declare', 'definite', 'accessibility', 'override']),
-  // ClassDeclaration/Expression: Kessel now emits typeParameters. Remove from strip.
-  // implements/abstract/declare remain stripped.
-  ClassDeclaration:         new Set(['implements', 'abstract', 'declare']),
-  ClassExpression:          new Set(['implements', 'abstract']),
+  // ClassDeclaration/Expression: Kessel now emits typeParameters, implements,
+  // abstract, and declare. All compared directly.
+  ClassDeclaration:         new Set([]),
+  ClassExpression:          new Set([]),
   VariableDeclaration:      new Set(['declare']),
   VariableDeclarator:       new Set(['definite']),
   // CallExpression / NewExpression: Kessel now emits typeArguments when present.
@@ -350,10 +357,22 @@ function parseKessel(file) {
 
 // Each reference parser gives back a Program node. Acorn returns it directly,
 // Babel wraps in `File { program: Program }`, OXC exposes it on `result.program`.
-function parseReference(kind, src) {
+//
+// `errorsOut` is an optional array the caller can pass to receive the reference
+// parser's error list. OXC's JS binding surfaces errors separately from the
+// Program node; when the caller cares about error-parity (fuzz_diff's
+// --lenient-on-oxc-errors) we pipe them up so the gate can short-circuit when
+// OXC's side is invalid.
+function parseReference(kind, src, errorsOut) {
   const parser = loadParser(kind);
   switch (kind) {
-    case 'oxc':   return parser.parseSync(name, src).program;
+    case 'oxc':   {
+      const r = parser.parseSync(name, src);
+      if (errorsOut && Array.isArray(r.errors)) {
+        for (const e of r.errors) errorsOut.push(e);
+      }
+      return r.program;
+    }
     case 'acorn': return parser.parse(src, {
       ecmaVersion: 'latest',
       sourceType:  'module',  // acorn rejects top-level imports in script mode
@@ -378,11 +397,27 @@ function parseReference(kind, src) {
   }
 }
 
+const LENIENT_ON_REF_ERRORS = process.argv.includes('--lenient-on-oxc-errors');
+
 let kTree, oTree;
+const refErrors = [];
 try { kTree = stripKesselForParser(parseKessel(file)); }
 catch (e) { console.error(`kessel parse failed: ${e.message}`); process.exit(2); }
-try { oTree = stripNode(parseReference(PARSER, source)); }
+try { oTree = stripNode(parseReference(PARSER, source, refErrors)); }
 catch (e) { console.error(`${PARSER} parse failed: ${e.message}`); process.exit(2); }
+
+// --lenient-on-oxc-errors: when the reference parser rejected the input,
+// treat the case as "both sides agree the program is invalid" and exit 0
+// WITHOUT deep-compare. Kessel is intentionally more permissive than OXC in
+// a few documented corners (top-level `return`, `typeof (expr) => body`,
+// empty `()` without a following `=>`, malformed numeric + member syntax);
+// comparing ASTs across a disagreement-on-validity isn't meaningful. Used
+// by fuzz_diff, which generates mutated programs that frequently hit those
+// corners — 25 of the 100 baselined fuzz cases were all of this class.
+if (LENIENT_ON_REF_ERRORS && refErrors.length > 0) {
+  console.log(`  ✅ ${PARSER} rejected input (${refErrors.length} error(s)); skipped deep compare (--lenient-on-oxc-errors)`);
+  process.exit(0);
+}
 
 // -----------------------------------------------------------------------------
 // Deep compare. `path` is a dotted/bracketed ESTree path like

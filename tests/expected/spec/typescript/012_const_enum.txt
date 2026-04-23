@@ -1,0 +1,374 @@
+{
+  "type": "Program",
+  "start": 260,
+  "end": 539,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSEnumDeclaration",
+      "start": 260,
+      "end": 321,
+      "id": {
+        "type": "Identifier",
+        "start": 271,
+        "end": 280,
+        "name": "Direction",
+        "typeAnnotation": null
+      },
+      "body": {
+        "type": "TSEnumBody",
+        "start": 281,
+        "end": 321,
+        "members": [
+          {
+            "type": "TSEnumMember",
+            "start": 285,
+            "end": 287,
+            "id": {
+              "type": "Identifier",
+              "start": 285,
+              "end": 287,
+              "name": "Up",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": null
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 291,
+            "end": 295,
+            "id": {
+              "type": "Identifier",
+              "start": 291,
+              "end": 295,
+              "name": "Down",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": null
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 299,
+            "end": 309,
+            "id": {
+              "type": "Identifier",
+              "start": 299,
+              "end": 303,
+              "name": "Left",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "Literal",
+              "start": 306,
+              "end": 309,
+              "value": 100,
+              "raw": "100"
+            }
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 313,
+            "end": 318,
+            "id": {
+              "type": "Identifier",
+              "start": 313,
+              "end": 318,
+              "name": "Right",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": null
+          }
+        ]
+      },
+      "const": true,
+      "declare": false    },
+    {
+      "type": "TSEnumDeclaration",
+      "start": 323,
+      "end": 390,
+      "id": {
+        "type": "Identifier",
+        "start": 334,
+        "end": 340,
+        "name": "Status",
+        "typeAnnotation": null
+      },
+      "body": {
+        "type": "TSEnumBody",
+        "start": 341,
+        "end": 390,
+        "members": [
+          {
+            "type": "TSEnumMember",
+            "start": 345,
+            "end": 362,
+            "id": {
+              "type": "Identifier",
+              "start": 345,
+              "end": 351,
+              "name": "Active",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "Literal",
+              "start": 354,
+              "end": 362,
+              "value": "ACTIVE",
+              "raw": "\"ACTIVE\""
+            }
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 366,
+            "end": 387,
+            "id": {
+              "type": "Identifier",
+              "start": 366,
+              "end": 374,
+              "name": "Inactive",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "Literal",
+              "start": 377,
+              "end": 387,
+              "value": "INACTIVE",
+              "raw": "\"INACTIVE\""
+            }
+          }
+        ]
+      },
+      "const": true,
+      "declare": false    },
+    {
+      "type": "TSEnumDeclaration",
+      "start": 392,
+      "end": 473,
+      "id": {
+        "type": "Identifier",
+        "start": 403,
+        "end": 408,
+        "name": "Mixed",
+        "typeAnnotation": null
+      },
+      "body": {
+        "type": "TSEnumBody",
+        "start": 409,
+        "end": 473,
+        "members": [
+          {
+            "type": "TSEnumMember",
+            "start": 413,
+            "end": 421,
+            "id": {
+              "type": "Identifier",
+              "start": 413,
+              "end": 417,
+              "name": "Zero",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "Literal",
+              "start": 420,
+              "end": 421,
+              "value": 0,
+              "raw": "0"
+            }
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 425,
+            "end": 437,
+            "id": {
+              "type": "Identifier",
+              "start": 425,
+              "end": 428,
+              "name": "One",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "BinaryExpression",
+              "start": 431,
+              "end": 437,
+              "operator": "<<",
+              "left": {
+                "type": "Literal",
+                "start": 431,
+                "end": 432,
+                "value": 1,
+                "raw": "1"              },
+              "right": {
+                "type": "Literal",
+                "start": 436,
+                "end": 437,
+                "value": 0,
+                "raw": "0"              }
+            }
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 441,
+            "end": 453,
+            "id": {
+              "type": "Identifier",
+              "start": 441,
+              "end": 444,
+              "name": "Two",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "BinaryExpression",
+              "start": 447,
+              "end": 453,
+              "operator": "<<",
+              "left": {
+                "type": "Literal",
+                "start": 447,
+                "end": 448,
+                "value": 1,
+                "raw": "1"              },
+              "right": {
+                "type": "Literal",
+                "start": 452,
+                "end": 453,
+                "value": 1,
+                "raw": "1"              }
+            }
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 457,
+            "end": 470,
+            "id": {
+              "type": "Identifier",
+              "start": 457,
+              "end": 461,
+              "name": "Four",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "BinaryExpression",
+              "start": 464,
+              "end": 470,
+              "operator": "<<",
+              "left": {
+                "type": "Literal",
+                "start": 464,
+                "end": 465,
+                "value": 1,
+                "raw": "1"              },
+              "right": {
+                "type": "Literal",
+                "start": 469,
+                "end": 470,
+                "value": 2,
+                "raw": "2"              }
+            }
+          }
+        ]
+      },
+      "const": true,
+      "declare": false    },
+    {
+      "type": "TSEnumDeclaration",
+      "start": 475,
+      "end": 538,
+      "id": {
+        "type": "Identifier",
+        "start": 494,
+        "end": 506,
+        "name": "AmbientFlags",
+        "typeAnnotation": null
+      },
+      "body": {
+        "type": "TSEnumBody",
+        "start": 507,
+        "end": 538,
+        "members": [
+          {
+            "type": "TSEnumMember",
+            "start": 511,
+            "end": 519,
+            "id": {
+              "type": "Identifier",
+              "start": 511,
+              "end": 515,
+              "name": "None",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "Literal",
+              "start": 518,
+              "end": 519,
+              "value": 0,
+              "raw": "0"
+            }
+          },
+          {
+            "type": "TSEnumMember",
+            "start": 523,
+            "end": 535,
+            "id": {
+              "type": "Identifier",
+              "start": 523,
+              "end": 531,
+              "name": "ReadOnly",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "initializer": {
+              "type": "Literal",
+              "start": 534,
+              "end": 535,
+              "value": 1,
+              "raw": "1"
+            }
+          }
+        ]
+      },
+      "const": true,
+      "declare": true    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " TS-D: `const enum` — numeric, string, and computed initializers,"
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 134,
+      "value": " plus the `const` modifier on the TSEnumDeclaration node. Each"
+    },
+    {
+      "type": "Line",
+      "start": 135,
+      "end": 200,
+      "value": " enum must emit `{ const: true, members: [...] }` with the same"
+    },
+    {
+      "type": "Line",
+      "start": 201,
+      "end": 261,
+      "value": " shape OXC produces, verified by the spec-fixtures runner."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=14256B reserved=16777216B ratio=0%
+Parse errors: 0

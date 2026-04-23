@@ -1,0 +1,450 @@
+{
+  "type": "Program",
+  "start": 379,
+  "end": 681,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 379,
+      "end": 411,
+      "id": {
+        "type": "Identifier",
+        "start": 389,
+        "end": 393,
+        "name": "Base",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "extends": [],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 394,
+        "end": 411,
+        "body": [
+          {
+            "type": "TSPropertySignature",
+            "start": 398,
+            "end": 409,
+            "key": {
+              "type": "Identifier",
+              "start": 398,
+              "end": 400,
+              "name": "id",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "optional": false,
+            "readonly": false,
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 400,
+              "end": 408,
+              "typeAnnotation": {
+                "type": "TSNumberKeyword",
+                "start": 402,
+                "end": 408
+              }
+            }
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 413,
+      "end": 451,
+      "id": {
+        "type": "Identifier",
+        "start": 423,
+        "end": 431,
+        "name": "WithKind",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "extends": [],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 432,
+        "end": 451,
+        "body": [
+          {
+            "type": "TSPropertySignature",
+            "start": 436,
+            "end": 449,
+            "key": {
+              "type": "Identifier",
+              "start": 436,
+              "end": 440,
+              "name": "kind",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "optional": false,
+            "readonly": false,
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 440,
+              "end": 448,
+              "typeAnnotation": {
+                "type": "TSStringKeyword",
+                "start": 442,
+                "end": 448
+              }
+            }
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 453,
+      "end": 501,
+      "id": {
+        "type": "Identifier",
+        "start": 463,
+        "end": 468,
+        "name": "Child",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "extends": [
+        {
+          "type": "TSInterfaceHeritage",
+          "start": 477,
+          "end": 481,
+          "expression": {
+            "type": "Identifier",
+            "start": 477,
+            "end": 481,
+            "name": "Base",
+            "typeAnnotation": null
+          },
+          "typeArguments": null
+        }
+      ],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 482,
+        "end": 501,
+        "body": [
+          {
+            "type": "TSPropertySignature",
+            "start": 486,
+            "end": 499,
+            "key": {
+              "type": "Identifier",
+              "start": 486,
+              "end": 490,
+              "name": "name",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "optional": false,
+            "readonly": false,
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 490,
+              "end": 498,
+              "typeAnnotation": {
+                "type": "TSStringKeyword",
+                "start": 492,
+                "end": 498
+              }
+            }
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 503,
+      "end": 562,
+      "id": {
+        "type": "Identifier",
+        "start": 513,
+        "end": 517,
+        "name": "Many",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "extends": [
+        {
+          "type": "TSInterfaceHeritage",
+          "start": 526,
+          "end": 530,
+          "expression": {
+            "type": "Identifier",
+            "start": 526,
+            "end": 530,
+            "name": "Base",
+            "typeAnnotation": null
+          },
+          "typeArguments": null
+        },
+        {
+          "type": "TSInterfaceHeritage",
+          "start": 532,
+          "end": 540,
+          "expression": {
+            "type": "Identifier",
+            "start": 532,
+            "end": 540,
+            "name": "WithKind",
+            "typeAnnotation": null
+          },
+          "typeArguments": null
+        }
+      ],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 541,
+        "end": 562,
+        "body": [
+          {
+            "type": "TSPropertySignature",
+            "start": 545,
+            "end": 560,
+            "key": {
+              "type": "Identifier",
+              "start": 545,
+              "end": 550,
+              "name": "extra",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "optional": false,
+            "readonly": false,
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 550,
+              "end": 559,
+              "typeAnnotation": {
+                "type": "TSBooleanKeyword",
+                "start": 552,
+                "end": 559
+              }
+            }
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 564,
+      "end": 613,
+      "id": {
+        "type": "Identifier",
+        "start": 574,
+        "end": 581,
+        "name": "Generic",
+        "typeAnnotation": null
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 581,
+        "end": 584,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 582,
+            "end": 583,
+            "name": {
+              "type": "Identifier",
+              "start": 582,
+              "end": 583,
+              "name": "T",
+              "typeAnnotation": null
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "extends": [
+        {
+          "type": "TSInterfaceHeritage",
+          "start": 593,
+          "end": 597,
+          "expression": {
+            "type": "Identifier",
+            "start": 593,
+            "end": 597,
+            "name": "Base",
+            "typeAnnotation": null
+          },
+          "typeArguments": null
+        }
+      ],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 598,
+        "end": 613,
+        "body": [
+          {
+            "type": "TSPropertySignature",
+            "start": 602,
+            "end": 611,
+            "key": {
+              "type": "Identifier",
+              "start": 602,
+              "end": 607,
+              "name": "value",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "optional": false,
+            "readonly": false,
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 607,
+              "end": 610,
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 609,
+                "end": 610,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 609,
+                  "end": 610,
+                  "name": "T",
+                  "typeAnnotation": null
+                },
+                "typeArguments": null
+              }
+            }
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 615,
+      "end": 680,
+      "id": {
+        "type": "Identifier",
+        "start": 625,
+        "end": 640,
+        "name": "QualifiedParent",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "extends": [
+        {
+          "type": "TSInterfaceHeritage",
+          "start": 649,
+          "end": 656,
+          "expression": {
+            "type": "MemberExpression",
+            "start": 649,
+            "end": 656,
+            "computed": false,
+            "object": {
+              "type": "Identifier",
+              "start": 649,
+              "end": 651,
+              "name": "ns",
+              "typeAnnotation": null            },
+            "property": {
+              "type": "Identifier",
+              "start": 652,
+              "end": 656,
+              "name": "Base",
+              "typeAnnotation": null            }
+          },
+          "typeArguments": null
+        }
+      ],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 657,
+        "end": 680,
+        "body": [
+          {
+            "type": "TSPropertySignature",
+            "start": 661,
+            "end": 678,
+            "key": {
+              "type": "Identifier",
+              "start": 661,
+              "end": 665,
+              "name": "hook",
+              "typeAnnotation": null
+            },
+            "computed": false,
+            "optional": false,
+            "readonly": false,
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 665,
+              "end": 677,
+              "typeAnnotation": {
+                "type": "TSFunctionType",
+                "start": 667,
+                "end": 677,
+                "typeParameters": null,
+                "params": [],
+                "returnType": {
+                  "type": "TSTypeAnnotation",
+                  "start": 670,
+                  "end": 677,
+                  "typeAnnotation": {
+                    "type": "TSVoidKeyword",
+                    "start": 673,
+                    "end": 677
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 75,
+      "value": " TS-D: `interface extends` — single-parent, multi-parent, and qualified"
+    },
+    {
+      "type": "Line",
+      "start": 76,
+      "end": 144,
+      "value": " (namespace.Member) parent forms. Each heritage entry parses as an"
+    },
+    {
+      "type": "Line",
+      "start": 145,
+      "end": 213,
+      "value": " `TSInterfaceHeritage` / `TSExpressionWithTypeArguments` node (OXC"
+    },
+    {
+      "type": "Line",
+      "start": 214,
+      "end": 277,
+      "value": " emits the latter) with a typeName/expression + optional type"
+    },
+    {
+      "type": "Line",
+      "start": 278,
+      "end": 348,
+      "value": " arguments. Kessel's shape must match OXC's deep structure, verified"
+    },
+    {
+      "type": "Line",
+      "start": 349,
+      "end": 380,
+      "value": " by the spec-fixtures runner."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=17192B reserved=16777216B ratio=0%
+Parse errors: 0

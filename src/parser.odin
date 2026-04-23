@@ -2017,6 +2017,24 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		super_class = parse_left_hand_side_expr(p)
 	}
 
+	// TS: `class X implements Y, Z<T>` — optional after `extends`. OXC emits
+	// `implements: [TSClassImplements{expression, typeArguments}]`. Kessel's
+	// ClassDeclaration already has an `implements` field; it was simply
+	// never populated by the parser. We reuse parse_ts_heritage_list (same
+	// grammar as interface-extends) because the ESTree heritage-entry
+	// shape is identical.
+	//
+	// `implements` is a contextual keyword (lexed as .Identifier in the
+	// general case so `var implements = 1` still parses), so match by
+	// value rather than token kind. Same pattern the lexer comment
+	// mentions for `interface`.
+	implements_list: [dynamic]TSInterfaceHeritage
+	if (p.lang == .TS || p.lang == .TSX) &&
+	   is_token(p, .Identifier) && p.cur_tok.value == "implements" {
+		eat(p)
+		implements_list = parse_ts_heritage_list(p)
+	}
+
 	body := parse_class_body(p)
 
 	// Allocate ClassDeclaration and Statement separately
@@ -2027,6 +2045,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		super_class     = super_class,
 		body            = body,
 		type_parameters = type_parameters,
+		implements      = implements_list,
 	}
 	decl.expr.loc.span.end = prev_end_offset(p)
 
@@ -6329,8 +6348,18 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				report_error(p, "Expected '=>' in function type")
 				return nil
 			}
+			// Capture the `=>` position BEFORE eating so the returnType's
+			// TSTypeAnnotation can start there. OXC's `TSFunctionType.returnType`
+			// TSTypeAnnotation spans `=> <inner>` — the wrapper's `start` is
+			// the `=>` offset, not the inner type's start. Previously Kessel
+			// started at the inner type, drifting 3–4 bytes on every function
+			// type annotation.
+			arrow_start := u32(cur_offset(p))
 			eat(p) // consume `=>`
 			ret_type := parse_ts_type_annotation_bare(p)
+			if ret_type != nil {
+				ret_type.loc.span.start = arrow_start
+			}
 			fn := new_node(p, TSFunctionType)
 			fn.loc = start
 			fn.params = params
@@ -6986,6 +7015,27 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 	return params
 }
 
+// set_ts_sig_end widens a TSSignature's `loc.span.end` in place. Used
+// after consuming a trailing `;` / `,` / `}` so the member's span
+// includes the terminator (OXC convention). The signature is a tagged
+// union over value-carrying structs; we have to pattern-match and mutate
+// each variant.
+set_ts_sig_end :: proc(sig: ^TSSignature, end: u32) {
+	if sig == nil { return }
+	switch v in sig^ {
+	case TSPropertySignature:
+		p := v; p.loc.span.end = end; sig^ = p
+	case TSMethodSignature:
+		p := v; p.loc.span.end = end; sig^ = p
+	case TSCallSignatureDeclaration:
+		p := v; p.loc.span.end = end; sig^ = p
+	case TSConstructSignatureDeclaration:
+		p := v; p.loc.span.end = end; sig^ = p
+	case TSIndexSignature:
+		p := v; p.loc.span.end = end; sig^ = p
+	}
+}
+
 parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	start := cur_loc(p)
 	readonly := false
@@ -7169,6 +7219,12 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 // a flag on the resulting declaration node. Call it when current token is
 // `.Declare`.
 parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
+	// Capture the `declare` keyword's start BEFORE eating so we can
+	// widen the resulting declaration's span to include it. OXC's TS-ESTree
+	// shape spans the whole `declare <decl>` phrase on the declaration
+	// node; Kessel previously started at whatever followed `declare`,
+	// drifting the span by `len("declare ")` bytes on every ambient form.
+	declare_start := u32(cur_offset(p))
 	eat(p) // consume `declare`
 
 	// Everything under `declare` is ambient: const has no initializer
@@ -7231,6 +7287,8 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			if stmt != nil {
 				if en, ok := stmt^.(^TSEnumDeclaration); ok { en.declare = true }
 			}
+		// `declare` span widening for this branch handled at the bottom
+		// alongside the other cases (see end of proc).
 		case "namespace":
 			if is_next_token(p, .Identifier) {
 				stmt = parse_ts_module_declaration(p, .Namespace)
@@ -7250,8 +7308,63 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 
 	if stmt == nil {
 		report_error(p, "Expected declaration after 'declare'")
+		return stmt
+	}
+
+	// Widen the resulting declaration's span so it starts at `declare`.
+	// Every declaration variant returned above carries its own `loc` on the
+	// inner pointer; find and overwrite span.start in place.
+	#partial switch inner in stmt^ {
+	case ^FunctionDeclaration:    inner.loc.span.start = declare_start
+	case ^ClassDeclaration:       inner.expr.loc.span.start = declare_start
+	case ^VariableDeclaration:    inner.loc.span.start = declare_start
+	case ^TSEnumDeclaration:      inner.loc.span.start = declare_start
+	case ^TSInterfaceDeclaration: inner.loc.span.start = declare_start
+	case ^TSTypeAliasDeclaration: inner.loc.span.start = declare_start
+	case ^TSModuleDeclaration:    inner.loc.span.start = declare_start
 	}
 	return stmt
+}
+
+// Parse the heritage list after `extends` (interface) or `implements`
+// (class). Each entry is a `typeName [<typeArgs>]` pair where `typeName`
+// may be a qualified member chain (`ns.Foo.Bar`). Shape matches OXC's
+// `TSInterfaceHeritage` / `TSClassImplements` deep structure (expression
+// + typeArguments). Previously interface-extends wasn't consumed at all,
+// and the next iteration of the interface‑body loop saw neither `}` nor
+// a recognisable member, looping forever on any input like
+// `interface A extends B {}`. Same heritage grammar is reused by
+// `class X implements Y, Z` (see parse_class_declaration).
+parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
+	out := make([dynamic]TSInterfaceHeritage, 0, 2, p.allocator)
+	for {
+		entry_start := cur_loc(p)
+		if !is_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.cur_type) {
+			break
+		}
+		tok := get_current(p)
+		id := new_node(p, Identifier); id.loc = loc_from_token(tok); id.name = tok.value; eat(p)
+		expr := expression_from(p, id)
+		for is_token(p, .Dot) {
+			eat(p)
+			prop := parse_identifier_name(p)
+			mem := new_node(p, MemberExpression); mem.loc = entry_start; mem.object = expr
+			pid := new_node(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
+			mem.property = expression_from(p, pid); mem.loc.span.end = prev_end_offset(p)
+			expr = expression_from(p, mem)
+		}
+		type_args: Maybe(^TSTypeParameterInstantiation)
+		if is_token(p, .LAngle) { type_args = parse_ts_type_arguments(p) }
+		entry_end := prev_end_offset(p)
+		h := TSInterfaceHeritage{
+			loc = Loc{span = Span{start = entry_start.span.start, end = entry_end}},
+			expression = expr,
+			type_parameters = type_args,
+		}
+		append(&out, h)
+		if !match_token(p, .Comma) { break }
+	}
+	return out
 }
 
 parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
@@ -7260,15 +7373,35 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	id := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}; eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+	extends_list: [dynamic]TSInterfaceHeritage
+	if match_token(p, .Extends) {
+		extends_list = parse_ts_heritage_list(p)
+	}
 	body_start := cur_loc(p)  // position of `{`
 	expect_token(p, .LBrace)
 	members := make([dynamic]^TSSignature, 0, 8, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		prev_member_off := cur_offset(p)
 		sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
+		// Extend the member's span to cover its trailing `;` or `,` — OXC
+		// includes the terminator in the TSPropertySignature/TSMethodSignature
+		// span, but `parse_ts_object_member` returns before we consume it
+		// here. Without this widen, every interface member reports `end` one
+		// byte short of OXC (`items: Array<T>;` — Kessel 408, OXC 409).
+		has_term := is_token(p, .Semi) || is_token(p, .Comma)
 		match_token(p, .Semi); match_token(p, .Comma)
+		if has_term && sig != nil {
+			set_ts_sig_end(sig, prev_end_offset(p))
+		}
+		// Progress guard — matches the same pattern we use in
+		// parse_jsx_children and elsewhere. If a member parse neither
+		// consumes a token nor hits a recognised terminator, break to
+		// avoid an O(∞) loop on malformed input.
+		if cur_offset(p) == prev_member_off { break }
 	}
 	expect_token(p, .RBrace)
 	decl := new_node(p, TSInterfaceDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters
+	decl.extends = extends_list
 	decl.body = TSInterfaceBody{loc = body_start, body = members}; decl.body.loc.span.end = prev_end_offset(p)
 	decl.loc.span.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt

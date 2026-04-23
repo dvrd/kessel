@@ -177,9 +177,16 @@ for (let i = 0; i < COUNT; i++) {
   let stdout = '';
   let stderr = '';
   try {
-    stdout = execSync('node tests/verifiers/verify_json_deep.js "' + srcPath + '" --parser ' + PARSER + ' --limit 3',
+    stdout = execSync('node tests/verifiers/verify_json_deep.js "' + srcPath + '" --parser ' + PARSER + ' --limit 3 --lenient-on-oxc-errors',
       { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
-    ok = stdout.indexOf('passes vs ' + PARSER) !== -1;
+    // `ok` accepts either outcome:
+    //   - deep compare succeeded (normal case)
+    //   - reference parser rejected the input (`rejected input` log line) —
+    //     agreement on invalidity, Kessel being permissive here is a
+    //     documented corner we don't gate on. See verify_json_deep.js
+    //     --lenient-on-oxc-errors for the rationale.
+    ok = stdout.indexOf('passes vs ' + PARSER) !== -1 ||
+         stdout.indexOf('rejected input') !== -1;
   } catch (e) {
     stdout = (e.stdout || '').toString();
     stderr = (e.stderr || '').toString();

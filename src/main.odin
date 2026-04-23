@@ -879,6 +879,18 @@ parse_file :: proc(file_path: string) {
 	// appeared on stdout AFTER the JSON bytes - and without the
 	// intervening newline the JSON and the error header ran together
 	// (...]}}}Parse errors (6):...), breaking every downstream JSON.parse.
+	//
+	// In `--compact` mode `write_direct` strips every `\n` from its input,
+	// so the Program emitter's trailing `"\n}\n"` becomes a bare `}` and the
+	// parse-error preamble ran into it once more. Guarantee a terminator
+	// here unconditionally: if the last emitted byte isn't already `\n`,
+	// append one before flushing. Keeps pretty-print output identical
+	// (pretty mode already ends in `\n`).
+	if direct_pos == 0 || direct_buf[direct_pos-1] != '\n' {
+		direct_reserve(1)
+		direct_buf[direct_pos] = '\n'
+		direct_pos += 1
+	}
 	os.write(os.stdout, direct_buf[:direct_pos])
 
 	// Now emit parse-error diagnostics. Bypass out_printf (which would
@@ -3053,21 +3065,51 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent)
 			out_s("\"superTypeArguments\": null,\n")
 		}
+		// `implements` clause — ts-only. Emit in TS-shape mode always (OXC
+		// always writes the field; null-array or populated), and in JS mode
+		// only when non-empty to keep plain-JS output unchanged.
+		if emit_ts_shape || len(s.expr.implements) > 0 {
+			print_indent(indent)
+			out_s("\"implements\": [")
+			if len(s.expr.implements) == 0 {
+				out_s("],\n")
+			} else {
+				out_s("\n")
+				for h, i in s.expr.implements {
+					emit_ts_heritage_entry(h, "TSClassImplements", indent + 1)
+					if i < len(s.expr.implements) - 1 { out_s(",\n") } else { out_s("\n") }
+				}
+				print_indent(indent)
+				out_s("],\n")
+			}
+		}
 		print_indent(indent)
 		out_println("\"body\": {")
 		print_class_body_inline(&s.body, indent + 1)
 		print_indent(indent)
 		out_print("}")
-		// JS ClassDeclaration: emit `declare`/`abstract` only when true (OXC parity).
-		if s.expr.declare {
+		// `abstract` and `declare`: JS mode emits only when true (keeps JS
+		// output minimal); TS-shape mode always emits (matches OXC's shape).
+		if emit_ts_shape {
 			out_s(",\n")
 			print_indent(indent)
-			out_s("\"declare\": true")
-		}
-		if s.expr.abstract {
+			out_s("\"abstract\": ")
+			out_bool(s.expr.abstract)
 			out_s(",\n")
 			print_indent(indent)
-			out_s("\"abstract\": true")
+			out_s("\"declare\": ")
+			out_bool(s.expr.declare)
+		} else {
+			if s.expr.declare {
+				out_s(",\n")
+				print_indent(indent)
+				out_s("\"declare\": true")
+			}
+			if s.expr.abstract {
+				out_s(",\n")
+				print_indent(indent)
+				out_s("\"abstract\": true")
+			}
 		}
 
 	case ^TryStatement:
@@ -3614,7 +3656,18 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		emit_ts_type_parameter_declaration(s.type_parameters, indent)
 		out_s(",\n")
 		print_indent(indent)
-		out_s("\"extends\": [],\n")
+		out_s("\"extends\": [")
+		if len(s.extends) == 0 {
+			out_s("],\n")
+		} else {
+			out_s("\n")
+			for h, i in s.extends {
+				emit_ts_heritage_entry(h, "TSInterfaceHeritage", indent + 1)
+				if i < len(s.extends) - 1 { out_s(",\n") } else { out_s("\n") }
+			}
+			print_indent(indent)
+			out_s("],\n")
+		}
 		print_indent(indent)
 		out_s("\"body\": {\n")
 		print_indent(indent + 1)
@@ -3669,6 +3722,13 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		emit_span_leading(s.id.loc, indent + 1)
 		out_s("\"name\": ")
 		out_string(s.id.name)
+		// TS-ESTree shape: OXC always emits `typeAnnotation: null` on enum
+		// identifiers (mirrors Identifier's TS-shape nullable fields).
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent + 1)
+			out_s("\"typeAnnotation\": null")
+		}
 		out_s("\n")
 		print_indent(indent)
 		out_s("},\n")
@@ -3693,6 +3753,10 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_s("\n")
 			print_indent(indent + 3)
 			out_s("},\n")
+			// OXC emits `computed: false` on every TSEnumMember (enum keys
+			// are never computed); Kessel previously omitted it entirely.
+			print_indent(indent + 3)
+			out_s("\"computed\": false,\n")
 			print_indent(indent + 3)
 			out_s("\"initializer\": ")
 			if init, ok := m.initializer.(^Expression); ok {
@@ -4509,6 +4573,26 @@ emit_ts_signature :: proc(sig: ^TSSignature, indent: int) {
 		out_s("\n")
 		print_indent(indent + 1)
 		out_s("},\n")
+		// OXC's TSMethodSignature shape carries `kind` ("method" | "get" |
+		// "set"), `typeParameters` (null when absent), and `readonly`
+		// (false when absent) on every signature. Kessel previously
+		// omitted all three, causing every interface method signature to
+		// diverge in TS-shape mode.
+		print_indent(indent + 1)
+		kind_s := "method"
+		#partial switch v.kind {
+		case .Get: kind_s = "get"
+		case .Set: kind_s = "set"
+		}
+		out_s("\"kind\": \"")
+		out_s(kind_s)
+		out_s("\",\n")
+		print_indent(indent + 1)
+		out_s("\"typeParameters\": ")
+		emit_ts_type_parameter_declaration(v.type_parameters, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"readonly\": false,\n")
 		print_indent(indent + 1)
 		out_s("\"computed\": ")
 		out_bool(v.computed)
@@ -4704,6 +4788,36 @@ emit_ts_signature :: proc(sig: ^TSSignature, indent: int) {
 	out_s("}")
 }
 
+// emit_ts_heritage_entry writes one heritage clause (used by
+// `interface X extends A, B` and `class X implements A, B`). OXC shape:
+//   { type: <kind>, expression: <ident-or-member>, typeArguments: <...|null> }
+// where <kind> is `TSInterfaceHeritage` for interface-extends and
+// `TSClassImplements` for class-implements — same underlying shape, only
+// the `type` string differs. Single helper so both emit paths stay in
+// lockstep.
+emit_ts_heritage_entry :: proc(h: TSInterfaceHeritage, type_name: string, indent: int) {
+	print_indent(indent)
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"")
+	out_s(type_name)
+	out_s("\"")
+	emit_span_fields(h.loc, indent + 1)
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"expression\": {\n")
+	print_expression_ast(h.expression, indent + 2)
+	out_s("\n")
+	print_indent(indent + 1)
+	out_s("},\n")
+	print_indent(indent + 1)
+	out_s("\"typeArguments\": ")
+	emit_ts_type_argument_list(h.type_parameters, indent + 1)
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
 // emit_ts_type_argument_list writes a TSTypeParameterInstantiation node
 // (the `<T, U>` part of a generic call/new expression). Used by CallExpression
 // and NewExpression emitters.
@@ -4732,6 +4846,32 @@ emit_ts_type_argument_list :: proc(targs_opt: Maybe(^TSTypeParameterInstantiatio
 		print_indent(indent + 1)
 		out_s("]\n")
 	}
+	print_indent(indent)
+	out_s("}")
+}
+
+// emit_ts_function_param writes one TSFunctionParam (as an Identifier with
+// optional typeAnnotation) — the shape OXC uses for entries in a
+// TSFunctionType's `params` list. The underlying pattern is typically an
+// Identifier, so we reuse print_pattern_ast to stamp type + span + name, then
+// glue on `optional` + `typeAnnotation` from the TS wrapper.
+emit_ts_function_param :: proc(fp: TSFunctionParam, indent: int) {
+	out_s("{\n")
+	print_pattern_ast(fp.pattern, indent + 1)
+	if fp.optional {
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"optional\": true")
+	}
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"typeAnnotation\": ")
+	if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok && ann != nil {
+		emit_ts_type_annotation_node(ann, indent + 1)
+	} else {
+		out_s("null")
+	}
+	out_s("\n")
 	print_indent(indent)
 	out_s("}")
 }
@@ -4934,6 +5074,65 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"elementType\": ")
 		emit_ts_type(v.element_type, indent + 1)
+	case ^TSFunctionType:
+		// `(params) => ret` function types. Previously fell through to the
+		// default TSUnknownType arm, so every function type annotation
+		// surfaced as `TSUnknownType` — observed on every interface method
+		// signature in the spec fixtures. OXC shape:
+		//   { type: "TSFunctionType", typeParameters, params, returnType }
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSFunctionType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeParameters\": ")
+		emit_ts_type_parameter_declaration(v.type_parameters, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"params\": [")
+		if len(v.params) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for fp, i in v.params {
+				print_indent(indent + 2)
+				emit_ts_function_param(fp, indent + 2)
+				if i < len(v.params) - 1 { out_s(",\n") } else { out_s("\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"returnType\": ")
+		if v.return_type != nil {
+			emit_ts_type_annotation_node(v.return_type, indent + 1)
+		} else {
+			out_s("null")
+		}
+	case ^TSTupleType:
+		// `[A, B]` tuple types. Previously fell through to the default
+		// TSUnknownType arm, so every tuple annotation surfaced as
+		// `TSUnknownType` with no element list. OXC field name is
+		// `elementTypes` (plural), matching ESTree's TSTupleType shape.
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSTupleType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"elementTypes\": [")
+		if len(v.element_types) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for et, i in v.element_types {
+				print_indent(indent + 2)
+				emit_ts_type(et, indent + 2)
+				if i < len(v.element_types) - 1 { out_s(",\n") } else { out_s("\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
 	case ^TSIndexedAccessType:
 		print_indent(indent + 1)
 		out_s("\"type\": \"TSIndexedAccessType\"")

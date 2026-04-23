@@ -42,6 +42,7 @@
       },
       "superClass": null,
       "superTypeArguments": null,
+      "implements": [],
       "body": {
         "type": "ClassBody",
         "start": 78,
@@ -245,7 +246,9 @@
             "optional": false
           }
         ]
-      }    },
+      },
+      "abstract": false,
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 168,

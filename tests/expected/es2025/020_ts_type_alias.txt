@@ -73,7 +73,21 @@
       },
       "typeParameters": null,
       "typeAnnotation": {
-        "type": "TSUnknownType"
+        "type": "TSTupleType",
+        "start": 75,
+        "end": 91,
+        "elementTypes": [
+          {
+            "type": "TSStringKeyword",
+            "start": 76,
+            "end": 82
+          },
+          {
+            "type": "TSNumberKeyword",
+            "start": 84,
+            "end": 90
+          }
+        ]
       },
       "declare": false    }
   ]

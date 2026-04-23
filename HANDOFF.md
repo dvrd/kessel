@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post spec-fixtures sweep — 139/140 fixtures passing, 12/12 real files at 0 divergences vs OXC)
-**Repo state:** `main` past `cc96a1c` + follow-ups, ~18 800 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-23 (post TS-D + fuzz-diff sweep — 143/144 spec-fixtures, 100/100 fuzz-diff, 12/12 real files at 0 divergences vs OXC)
+**Repo state:** `main` past `e0fa0de` + follow-ups, ~18 900 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -41,12 +41,12 @@ is fine.
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture |
 | Test262 (curated) | `task test:test262` | **64 / 66** ✅ | 2 known-fail (baselined). Full suite not yet wired. |
-| Spec-fixtures | `task test:spec-fixtures` | **139 / 140** ✅ (baseline-locked) | typescript 10/10, jsx 8/8, all ES years 100%, ambiguity 10/10, interactions 10/10, lexical 9/10. Only lexical/001 (BOM+hashbang spec parity — OXC rejects, Kessel accepts) remains. |
+| Spec-fixtures | `task test:spec-fixtures` | **143 / 144** ✅ (baseline-locked) | typescript 14/14 (+4: interface extends, const enum, class implements, type-param constraints), jsx 8/8, all ES years 100%, ambiguity 10/10, interactions 10/10, lexical 9/10. Only lexical/001 (BOM+hashbang spec parity — OXC rejects, Kessel accepts) remains. |
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | ✅ matches baseline | snabbdom deep-compare passes; jquery integration baseline-gated. |
 | Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel |
 | Spec-compliance | `task test:spec-compliance` | **OK** ✅ (baselined) | Total divergences 11 561 → **0** across all 12 real files vs OXC (`cc96a1c` + follow-ups). Every file (snabbdom, preact, jquery, react.dev, lodash, acorn, react-dom.dev, antd, d3, chalk, petite-vue, zod) matches OXC byte-for-byte. |
-| Fuzz (diff vs OXC) | `task test:fuzz` | **75 / 100** ✅ (baselined) | 25 baselined failures, 0 new. 9 prior failures promoted to pass (`17cdc45`). |
+| Fuzz (diff vs OXC) | `task test:fuzz` | **100 / 100** ✅ (baselined) | All 25 prior baselined failures closed. `--lenient-on-oxc-errors` flag + JSON trailing-newline fix in `--compact` mode closed every case where OXC errored but Kessel parsed. |
 | Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
 | Recovery | `task test:recovery` | **20 / 20** ✅ | All anchors survive, spans sane. |
@@ -166,7 +166,7 @@ main.odin ──→ parser.odin ──→ lexer.odin ──→ simd.odin
 | JavaScript Correctness | **5 / 7** | JS-2 (full Test262), JS-3 (recovery hardening) remain |
 | TypeScript — Core | **12 / 12 ✅** | TS-C1c TSX single-param `<T>` still requires trailing comma |
 | TypeScript — Advanced | **10 / 10 ✅** | — |
-| TypeScript — Declarations | **6 / 7** | TS-D individual verification lacks dedicated test coverage |
+| TypeScript — Declarations | **7 / 7 ✅** | interface extends / const enum / class implements / type-param constraints all fixture-verified vs OXC. |
 | ESTree / TS-ESTree Conformance | **9 / 9 ✅** | EST-5 closed: 22-category spec-fixture gate, 139/140 pass. |
 | ESM Module Record | **5 / 5 ✅** | — |
 | Parser Options | **6 / 6 ✅** | — |
@@ -231,9 +231,10 @@ All fixed in Phase 2.
 - [x] **TS-D declare:** on every declaration kind
 - [x] **TS-D class fields:** `foo: T`, `foo?: T`, `foo!: T = x`
 - [x] **TS-D ambient:** `module "x" { const y: number; function f(): void; }`
-- [ ] **TS-D individual verification:** `interface extends`, `const enum`,
-      `class implements`, type parameter constraints/defaults — most work
-      but lack dedicated test coverage.
+- [x] **TS-D individual verification:** `interface extends`, `const enum`,
+      `class implements`, type parameter constraints/defaults. Dedicated
+      fixtures at `tests/fixtures/spec/typescript/011..014` verify each
+      against OXC (all passing, locked in spec-fixtures baseline).
 
 ### ESTree / TS-ESTree Conformance (6 / 8)
 - [x] Core node types (57 JS node types verified)

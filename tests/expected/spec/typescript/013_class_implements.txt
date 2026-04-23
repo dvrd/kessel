@@ -1,0 +1,580 @@
+{
+  "type": "Program",
+  "start": 293,
+  "end": 655,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 293,
+      "end": 333,
+      "id": {
+        "type": "Identifier",
+        "start": 303,
+        "end": 312,
+        "name": "Printable",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "extends": [],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 313,
+        "end": 333,
+        "body": [
+          {
+            "type": "TSMethodSignature",
+            "start": 317,
+            "end": 331,
+            "key": {
+              "type": "Identifier",
+              "start": 317,
+              "end": 322,
+              "name": "print",
+              "typeAnnotation": null
+            },
+            "kind": "method",
+            "typeParameters": null,
+            "readonly": false,
+            "computed": false,
+            "optional": false,
+            "params": [],
+            "returnType": {
+              "type": "TSTypeAnnotation",
+              "start": 324,
+              "end": 330,
+              "typeAnnotation": {
+                "type": "TSVoidKeyword",
+                "start": 326,
+                "end": 330
+              }
+            }
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 335,
+      "end": 382,
+      "id": {
+        "type": "Identifier",
+        "start": 345,
+        "end": 357,
+        "name": "Serializable",
+        "typeAnnotation": null
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 357,
+        "end": 360,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 358,
+            "end": 359,
+            "name": {
+              "type": "Identifier",
+              "start": 358,
+              "end": 359,
+              "name": "T",
+              "typeAnnotation": null
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "extends": [],
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 361,
+        "end": 382,
+        "body": [
+          {
+            "type": "TSMethodSignature",
+            "start": 365,
+            "end": 380,
+            "key": {
+              "type": "Identifier",
+              "start": 365,
+              "end": 374,
+              "name": "serialize",
+              "typeAnnotation": null
+            },
+            "kind": "method",
+            "typeParameters": null,
+            "readonly": false,
+            "computed": false,
+            "optional": false,
+            "params": [],
+            "returnType": {
+              "type": "TSTypeAnnotation",
+              "start": 376,
+              "end": 379,
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 378,
+                "end": 379,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 378,
+                  "end": 379,
+                  "name": "T",
+                  "typeAnnotation": null
+                },
+                "typeArguments": null
+              }
+            }
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "ClassDeclaration",
+      "start": 384,
+      "end": 439,
+      "id": {
+        "type": "Identifier",
+        "start": 390,
+        "end": 395,
+        "name": "Plain",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "superClass": null,
+      "superTypeArguments": null,
+      "implements": [
+        {
+          "type": "TSClassImplements",
+          "start": 407,
+          "end": 416,
+          "expression": {
+            "type": "Identifier",
+            "start": 407,
+            "end": 416,
+            "name": "Printable",
+            "typeAnnotation": null
+          },
+          "typeArguments": null
+        }
+      ],
+      "body": {
+        "type": "ClassBody",
+        "start": 417,
+        "end": 439,
+        "body": [
+          {
+            "type": "MethodDefinition",
+                        "start": 421,
+            "end": 437,
+                        "key": {
+              "type": "Identifier",
+              "start": 421,
+              "end": 426,
+              "name": "print",
+              "typeAnnotation": null
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 426,
+              "end": 437,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "declare": false,
+              "typeParameters": null,
+              "params": [],
+              "returnType": {
+                "type": "TSTypeAnnotation",
+                "start": 428,
+                "end": 434,
+                "typeAnnotation": {
+                  "type": "TSVoidKeyword",
+                  "start": 430,
+                  "end": 434
+                }
+              },
+              "body": {
+                "type": "BlockStatement",
+                "start": 435,
+                "end": 437,
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false,
+            "optional": false
+          }
+        ]
+      },
+      "abstract": false,
+      "declare": false    },
+    {
+      "type": "ClassDeclaration",
+      "start": 441,
+      "end": 560,
+      "id": {
+        "type": "Identifier",
+        "start": 447,
+        "end": 451,
+        "name": "Dual",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "superClass": null,
+      "superTypeArguments": null,
+      "implements": [
+        {
+          "type": "TSClassImplements",
+          "start": 463,
+          "end": 472,
+          "expression": {
+            "type": "Identifier",
+            "start": 463,
+            "end": 472,
+            "name": "Printable",
+            "typeAnnotation": null
+          },
+          "typeArguments": null
+        },
+        {
+          "type": "TSClassImplements",
+          "start": 474,
+          "end": 494,
+          "expression": {
+            "type": "Identifier",
+            "start": 474,
+            "end": 486,
+            "name": "Serializable",
+            "typeAnnotation": null
+          },
+          "typeArguments": {
+            "type": "TSTypeParameterInstantiation",
+            "start": 486,
+            "end": 494,
+            "params": [
+              {
+                "type": "TSStringKeyword",
+                "start": 487,
+                "end": 493
+              }
+            ]
+          }
+        }
+      ],
+      "body": {
+        "type": "ClassBody",
+        "start": 495,
+        "end": 560,
+        "body": [
+          {
+            "type": "MethodDefinition",
+                        "start": 499,
+            "end": 515,
+                        "key": {
+              "type": "Identifier",
+              "start": 499,
+              "end": 504,
+              "name": "print",
+              "typeAnnotation": null
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 504,
+              "end": 515,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "declare": false,
+              "typeParameters": null,
+              "params": [],
+              "returnType": {
+                "type": "TSTypeAnnotation",
+                "start": 506,
+                "end": 512,
+                "typeAnnotation": {
+                  "type": "TSVoidKeyword",
+                  "start": 508,
+                  "end": 512
+                }
+              },
+              "body": {
+                "type": "BlockStatement",
+                "start": 513,
+                "end": 515,
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false,
+            "optional": false
+          },
+          {
+            "type": "MethodDefinition",
+                        "start": 518,
+            "end": 558,
+                        "key": {
+              "type": "Identifier",
+              "start": 518,
+              "end": 527,
+              "name": "serialize",
+              "typeAnnotation": null
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 527,
+              "end": 558,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "declare": false,
+              "typeParameters": null,
+              "params": [],
+              "returnType": {
+                "type": "TSTypeAnnotation",
+                "start": 529,
+                "end": 537,
+                "typeAnnotation": {
+                  "type": "TSStringKeyword",
+                  "start": 531,
+                  "end": 537
+                }
+              },
+              "body": {
+                "type": "BlockStatement",
+                "start": 538,
+                "end": 558,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 544,
+                    "end": 554,
+                    "argument": {
+                      "type": "Literal",
+                      "start": 551,
+                      "end": 553,
+                      "value": "",
+                      "raw": "\"\""                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false,
+            "optional": false
+          }
+        ]
+      },
+      "abstract": false,
+      "declare": false    },
+    {
+      "type": "ClassDeclaration",
+      "start": 562,
+      "end": 654,
+      "id": {
+        "type": "Identifier",
+        "start": 568,
+        "end": 575,
+        "name": "Generic",
+        "typeAnnotation": null
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 575,
+        "end": 578,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 576,
+            "end": 577,
+            "name": {
+              "type": "Identifier",
+              "start": 576,
+              "end": 577,
+              "name": "T",
+              "typeAnnotation": null
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "superClass": null,
+      "superTypeArguments": null,
+      "implements": [
+        {
+          "type": "TSClassImplements",
+          "start": 590,
+          "end": 605,
+          "expression": {
+            "type": "Identifier",
+            "start": 590,
+            "end": 602,
+            "name": "Serializable",
+            "typeAnnotation": null
+          },
+          "typeArguments": {
+            "type": "TSTypeParameterInstantiation",
+            "start": 602,
+            "end": 605,
+            "params": [
+              {
+                "type": "TSTypeReference",
+                "start": 603,
+                "end": 604,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 603,
+                  "end": 604,
+                  "name": "T",
+                  "typeAnnotation": null
+                },
+                "typeArguments": null
+              }
+            ]
+          }
+        }
+      ],
+      "body": {
+        "type": "ClassBody",
+        "start": 606,
+        "end": 654,
+        "body": [
+          {
+            "type": "MethodDefinition",
+                        "start": 610,
+            "end": 652,
+                        "key": {
+              "type": "Identifier",
+              "start": 610,
+              "end": 619,
+              "name": "serialize",
+              "typeAnnotation": null
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 619,
+              "end": 652,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "declare": false,
+              "typeParameters": null,
+              "params": [],
+              "returnType": {
+                "type": "TSTypeAnnotation",
+                "start": 621,
+                "end": 624,
+                "typeAnnotation": {
+                  "type": "TSTypeReference",
+                  "start": 623,
+                  "end": 624,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 623,
+                    "end": 624,
+                    "name": "T",
+                    "typeAnnotation": null
+                  },
+                  "typeArguments": null
+                }
+              },
+              "body": {
+                "type": "BlockStatement",
+                "start": 625,
+                "end": 652,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 631,
+                    "end": 648,
+                    "argument": {
+                      "type": "TSAsExpression",
+                      "start": 638,
+                      "end": 647,
+                      "expression": {
+                        "type": "Literal",
+                        "start": 638,
+                        "end": 642,
+                        "value": null,
+                        "raw": "null"
+                      },
+                      "typeAnnotation": {
+                        "type": "TSTypeReference",
+                        "start": 646,
+                        "end": 647,
+                        "typeName": {
+                          "type": "Identifier",
+                          "start": 646,
+                          "end": 647,
+                          "name": "T",
+                          "typeAnnotation": null
+                        },
+                        "typeArguments": null
+                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false,
+            "optional": false
+          }
+        ]
+      },
+      "abstract": false,
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " TS-D: `class implements` — single and multi-interface implements"
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 137,
+      "value": " clauses, with and without generic type arguments on each parent."
+    },
+    {
+      "type": "Line",
+      "start": 138,
+      "end": 211,
+      "value": " OXC emits `implements: [TSClassImplements{expression, typeArguments}]`"
+    },
+    {
+      "type": "Line",
+      "start": 212,
+      "end": 280,
+      "value": " (or `TSExpressionWithTypeArguments`); Kessel must match that deep"
+    },
+    {
+      "type": "Line",
+      "start": 281,
+      "end": 294,
+      "value": " structure."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=21120B reserved=16777216B ratio=0%
+Parse errors: 0

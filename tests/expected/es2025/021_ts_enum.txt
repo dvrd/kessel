@@ -30,6 +30,7 @@
               "end": 16,
               "name": "Red"
             },
+            "computed": false,
             "initializer": null
           },
           {
@@ -42,6 +43,7 @@
               "end": 23,
               "name": "Green"
             },
+            "computed": false,
             "initializer": null
           },
           {
@@ -54,6 +56,7 @@
               "end": 29,
               "name": "Blue"
             },
+            "computed": false,
             "initializer": null
           }
         ]
@@ -85,6 +88,7 @@
               "end": 57,
               "name": "Up"
             },
+            "computed": false,
             "initializer": {
               "type": "Literal",
               "start": 60,
@@ -103,6 +107,7 @@
               "end": 67,
               "name": "Down"
             },
+            "computed": false,
             "initializer": {
               "type": "Literal",
               "start": 70,
