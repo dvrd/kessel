@@ -1305,6 +1305,24 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 
 	await := match_token(p, .Await)
 
+	// ECMA-262 §14.7.5 — `for await (...)` is only valid where an
+	// AwaitExpression would be: inside an AsyncFunctionBody /
+	// AsyncGeneratorBody, or at Module top level. We track the same
+	// predicate used for bare `await`: in_async allows it inside any
+	// async function/generator; outside a function AND with module-
+	// syntax auto-detection enabled, top-level await would be lifted,
+	// but `for await` at script top-level is still invalid. Mirror the
+	// plain-await rules.
+	if await {
+		if !p.in_async {
+			if p.in_function {
+				report_error(p, "'for await' outside of async function")
+			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
+				report_error(p, "Top-level 'for await' is only valid in module code")
+			}
+		}
+	}
+
 	if !expect_token(p, .LParen) {
 		return nil
 	}
@@ -2339,6 +2357,24 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 //   * `#x` (field / method) + `get|set #x` — error (mixed kinds).
 //   * `static #x` + instance `#x` — error (private slot is shared
 //     across the class; static vs instance doesn't change that).
+// Resolve a ClassElement's static PropName for identifier / string /
+// number keys. Returns "" for computed or unknown keys (for which the
+// `prototype` check can't statically fire). Mirrors the same resolution
+// that would happen on the emitter side: IdentifierName contributes its
+// `name`, StringLiteral its `value`, NumericLiteral the source `raw`.
+class_element_prop_name :: proc(key: ^Expression) -> string {
+	if key == nil { return "" }
+	#partial switch v in key^ {
+	case ^Identifier:
+		if v != nil { return v.name }
+	case ^StringLiteral:
+		if v != nil { return v.value }
+	case ^NumericLiteral:
+		if v != nil { return v.raw }
+	}
+	return ""
+}
+
 report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 	PrivateSeen :: struct {
 		has_get: bool,
@@ -2351,6 +2387,16 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 
 	for elem in elems {
 		if elem.key == nil { continue }
+
+		// §15.7.1 — static ClassElement whose PropName is `"prototype"`
+		// is a SyntaxError. Applies to every static kind: field, method,
+		// getter, setter, accessor. Non-static `prototype` is legal.
+		if elem.static && !elem.computed {
+			if class_element_prop_name(elem.key) == "prototype" {
+				report_error(p, "Classes may not have a static member named 'prototype'")
+			}
+		}
+
 		pid, is_private := elem.key.(^PrivateIdentifier)
 		if !is_private || pid == nil { continue }
 		name := pid.name
@@ -2845,8 +2891,14 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// contain duplicates. `let x = 1, x = 2;` / `const a, b, a;` / using /
 	// await-using are all SyntaxErrors; `var` is explicitly exempted
 	// (B.3.3 "VarDeclaredNames of a Script may contain repeats").
+	//
+	// §14.3.1.1 also forbids BoundNames containing `"let"` for a
+	// LexicalDeclaration — `let let;` / `const let;` are SyntaxErrors
+	// in both strict and sloppy. The binding check lives here, not in
+	// parse_binding_pattern, so `var let;` keeps working (B.3.4.4).
 	if !is_declare && (kind == .Let || kind == .Const || kind == .Using || kind == .AwaitUsing) {
 		report_duplicate_lexical_names(p, decl.declarations[:])
+		report_let_as_lexical_name(p, decl.declarations[:])
 	}
 
 	decl.loc.span.end = prev_end_offset(p)
@@ -2916,6 +2968,24 @@ report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter) {
 				report_error(p, msg)
 				break
 			}
+		}
+	}
+}
+
+// ECMA-262 §14.3.1.1 — `let` is forbidden as a BoundName inside a
+// LexicalDeclaration (`let` / `const` / `using` / `await using`). Walks
+// every declarator's binding pattern and reports once per occurrence.
+// `var let;` is intentionally allowed (B.3.4.4) and handled by the
+// caller gating on `kind`.
+report_let_as_lexical_name :: proc(p: ^Parser, decls: []VariableDeclarator) {
+	if len(decls) == 0 { return }
+	names: [dynamic]string
+	names.allocator = p.allocator
+	reserve(&names, 4)
+	for d in decls { collect_bound_names(d.id, &names) }
+	for n in names {
+		if n == "let" {
+			report_error(p, "'let' is disallowed as a lexically bound name")
 		}
 	}
 }
@@ -4613,7 +4683,11 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			tagged := new_node(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
-			tagged.quasi = parse_template_literal(p)
+			// Tagged template literals don't enforce the strict-mode
+			// LegacyOctal/\8/\9 escape rules on their quasi; invalid
+			// escapes surface via `cooked: null` at the consumer. Pass
+			// `tagged=true` so parse_template_literal skips the check.
+			tagged.quasi = parse_template_literal(p, true)
 			tagged.loc.span.end = prev_end_offset(p)
 			expr = expression_from(p, tagged)
 		case .Not:
@@ -5082,7 +5156,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return parse_new_expr(p)
 
 	case .Template, .TemplateHead:
-		return parse_template_literal(p)
+		return parse_template_literal(p, false)
 
 	case .RegularExpression:
 		eat(p)
@@ -5744,7 +5818,7 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	return expression_from(p, yield)
 }
 
-parse_template_literal :: proc(p: ^Parser) -> ^Expression {
+parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 	start := cur_loc(p)
 	current := get_current(p)
 
@@ -5771,6 +5845,10 @@ parse_template_literal :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
 		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
+		// Strict-mode legacy-octal / \\8 / \\9 check (untagged only).
+		if !tagged && p.strict_mode && string_raw_has_forbidden_escape(elem.raw) {
+			report_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+		}
 		return expression_from(p, tmpl)
 	}
 
@@ -5830,6 +5908,17 @@ parse_template_literal :: proc(p: ^Parser) -> ^Expression {
 
 		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
 		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
+		// Strict-mode legacy-octal / \\8 / \\9 check (untagged only) —
+		// scan every quasi's raw source; break on the first hit so the
+		// diagnostic fires once per template.
+		if !tagged && p.strict_mode {
+			for q in tmpl.quasis {
+				if string_raw_has_forbidden_escape(q.raw) {
+					report_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+					break
+				}
+			}
+		}
 		return expression_from(p, tmpl)
 	}
 

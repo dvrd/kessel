@@ -1,4 +1,7 @@
 {
+  "tests/fixtures/negative/017_static_prototype_class_member.js": "rejected",
+  "tests/fixtures/negative/016_let_as_lexical_name.js": "rejected",
+  "tests/fixtures/negative/015_for_await_outside_async.js": "rejected",
   "tests/fixtures/negative/014_duplicate_private_class_member.js": "rejected",
   "tests/fixtures/negative/013_break_unknown_label.js": "rejected",
   "tests/fixtures/negative/012_duplicate_label.js": "rejected",
@@ -56,6 +59,7 @@
   "tests/fixtures/early_errors/module_context/003_top_level_await_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/002_import_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/001_export_in_script.js": "rejected",
+  "tests/fixtures/early_errors/strict_mode/013_octal_escape_template.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/012_octal_escape_string.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/011_with_statement.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/010_eval_arguments_assignment.js": "rejected",
