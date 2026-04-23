@@ -162,11 +162,11 @@ main.odin ──→ parser.odin ──→ lexer.odin ──→ simd.odin
 | P0 Regressions | **3 / 3 ✅** | — |
 | JavaScript Correctness | **5 / 7** | — |
 | TypeScript — Core | **12 / 12 ✅** | — |
-| TypeScript — Advanced | **9 / 10** | — |
+| TypeScript — Advanced | **10 / 10 ✅** | — |
 | TypeScript — Declarations | **6 / 7** | — |
-| ESTree / TS-ESTree Conformance | **3 / 8** | — |
+| ESTree / TS-ESTree Conformance | **6 / 8** | EST-4 blocked on Node verifier |
 | ESM Module Record | **5 / 5 ✅** | — |
-| Parser Options | **2 / 6** | — (`--lang`, `--loc` done) |
+| Parser Options | **5 / 6** | OPT-5 blocked on EST-4 |
 | Error Handling | **1 / 4** | — |
 | Test Coverage | **1 / 5** | — |
 | NAPI / FFI Bindings | 0 / 6 | Separate integration phase |
