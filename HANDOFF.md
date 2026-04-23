@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post TS-D + fuzz-diff sweep — 143/144 spec-fixtures, 100/100 fuzz-diff, 12/12 real files at 0 divergences vs OXC)
-**Repo state:** `main` past `e0fa0de` + follow-ups, ~18 900 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-23 (post static-errors sweep — 144/144 spec-fixtures, 100/100 fuzz-diff, 0 divergences vs OXC, negative gate 42/63 rejected)
+**Repo state:** `main` past `88aee15` + follow-ups, ~19 000 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -41,7 +41,7 @@ is fine.
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture |
 | Test262 (curated) | `task test:test262` | **64 / 66** ✅ | 2 known-fail (baselined). Full suite not yet wired. |
-| Spec-fixtures | `task test:spec-fixtures` | **143 / 144** ✅ (baseline-locked) | typescript 14/14 (+4: interface extends, const enum, class implements, type-param constraints), jsx 8/8, all ES years 100%, ambiguity 10/10, interactions 10/10, lexical 9/10. Only lexical/001 (BOM+hashbang spec parity — OXC rejects, Kessel accepts) remains. |
+| Spec-fixtures | `task test:spec-fixtures` | **144 / 144 ✅** | All categories 100%. lexical/001 (BOM+hashbang) now rejects with matching OXC diagnostic. |
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | ✅ matches baseline | snabbdom deep-compare passes; jquery integration baseline-gated. |
 | Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel |

@@ -99,6 +99,32 @@ Lexer :: struct {
 	hashbang_start: u32,
 	hashbang_end:   u32,
 	has_hashbang:   bool,
+
+	// bom_before_hashbang: true when the source opens with UTF-8 BOM
+	// (`EF BB BF`) immediately followed by `#!`. OXC, Acorn, and Babel all
+	// reject this: the hashbang production requires the `#!` to be the
+	// very first bytes of the source, no BOM allowed. V8 accepts it, but
+	// matching the conservative parsers is the stricter (and spec-blessed)
+	// choice for us. The parser reads this flag at startup and emits an
+	// `Invalid character '!'` error to mirror OXC's diagnostic.
+	bom_before_hashbang: bool,
+
+	// Diagnostics emitted by the lexer itself (invalid numeric literals,
+	// malformed escapes, etc.). The parser drains this list after each
+	// advance_token so the surfaced errors mix with parser-side errors
+	// in order. Previously the lexer silently accepted `1_`, `1_.0`,
+	// `1__0`, `1.0n`, `1e1n`, `0b2` and friends because there was no
+	// channel to surface a syntax error at the lexer layer.
+	lexer_errors:   [dynamic]LexerError,
+}
+
+// LexerError carries one diagnostic from the lexer. `offset` is the
+// source byte where the bad construct starts; `message` is a short,
+// spec-tied description that matches the existing parser-side error
+// phrasing (so grepping tests for the diagnostic text stays consistent).
+LexerError :: struct {
+	offset:  u32,
+	message: string,
 }
 
 // Build line offset table in a single pre-pass
@@ -151,10 +177,31 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator) {
 	l.template_stack = make([dynamic]bool, 0, 0, alloc)
 	l.comments = make([dynamic]Comment, 0, 64, alloc)
 	l.collect_comments = true
+	l.lexer_errors = make([dynamic]LexerError, 0, 4, alloc)
+
+	// BOM handling: if the file opens with UTF-8 BOM (`EF BB BF`), skip it
+	// before testing for the hashbang. Spec-wise this is a WhiteSpace
+	// character and is valid at the file start. BUT the hashbang form is
+	// *not* allowed after a BOM — hashbang must be the very first
+	// non-skipped bytes of the source. Record the illegal combination so
+	// the parser can surface a diagnostic matching OXC's
+	// `Invalid character '!'` at position 2 (i.e. post-BOM, post-`#`).
+	if l.at_start_of_file && l.offset + 2 < len(source) &&
+	   l.source_bytes[l.offset] == 0xEF &&
+	   l.source_bytes[l.offset + 1] == 0xBB &&
+	   l.source_bytes[l.offset + 2] == 0xBF {
+		l.offset += 3
+		if l.offset + 1 < len(source) &&
+		   l.source_bytes[l.offset] == '#' &&
+		   l.source_bytes[l.offset + 1] == '!' {
+			l.bom_before_hashbang = true
+		}
+	}
 
 	// Handle hashbang. ES2023 makes `#!` at file start a HashbangComment
 	// that lands on Program.hashbang. Capture content + span for the emitter.
-	if l.at_start_of_file && l.offset + 1 < len(source) && l.source_bytes[l.offset] == '#' && l.source_bytes[l.offset + 1] == '!' {
+	if l.at_start_of_file && !l.bom_before_hashbang &&
+	   l.offset + 1 < len(source) && l.source_bytes[l.offset] == '#' && l.source_bytes[l.offset + 1] == '!' {
 		hb_start := u32(l.offset)
 		l.offset += 2 // skip `#!`
 		content_start := l.offset
@@ -262,9 +309,14 @@ can_start_regex :: proc(l: ^Lexer) -> bool {
 	     .Eq, .NotEq, .EqStrict, .NotEqStrict, .LEq, .GEq,
 	     .In, .Instanceof, .Of,
 	     .Arrow, .Question, .Dot3,
-	     .PlusPlus, .MinusMinus,
 	     .TemplateHead, .TemplateMiddle:
 		return true
+	// `++` / `--` deliberately NOT here: postfix `x++ / y` must treat `/`
+	// as division, not regex. Prefix `++/re/` (legal but rare) would lose
+	// out, but in practice JS code never writes `++/regex/` — the risk/reward
+	// overwhelmingly favours classifying these as operators. Before the
+	// Unterminated-regex error was wired in this mis‑lex silently fell
+	// back to `.Div`; now it surfaces, breaking real files on `x++ / 10`.
 	case:
 		// .LAngle / .RAngle deliberately NOT in the can_start_regex set:
 		// `<` followed by `/` almost always means a JSX closing tag or an
@@ -686,31 +738,53 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		}
 	}
 
-	// Fast integer path: accumulate digits, detect if float/underscore
+	// Fast integer path: accumulate digits, detect if float/underscore.
+	// Validate numeric separator placement inline per ECMA-262 §12.9.3:
+	//   * No leading separator after the digit that opens the literal.
+	//     (The outer lex_token dispatch guarantees `src[start]` is a digit,
+	//     so a leading `_` would already have been lexed as an identifier.)
+	//   * No two separators in a row (`1__0`).
+	//   * No trailing separator at end of integer part (`1_`, `1_.0`).
 	off := l.offset
 	is_simple_int := true
 	acc : u64 = 0
+	prev_was_sep := false
+	had_any_sep := false
 	for off < src_len {
 		ch := src[off]
 		if ch >= '0' && ch <= '9' {
 			acc = acc * 10 + u64(ch - '0')
+			prev_was_sep = false
 			off += 1
 		} else if ch == '_' {
 			is_simple_int = false
+			had_any_sep = true
+			if prev_was_sep {
+				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+			}
+			prev_was_sep = true
 			off += 1
 		} else {
 			break
 		}
 	}
+	if had_any_sep && prev_was_sep {
+		// Trailing `_` at end of integer part (`1_` or `1_.0`).
+		append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+	}
 
 	// Check for decimal point or exponent → not a simple integer
+	had_dot := false
+	had_exp := false
 	if off < src_len && (src[off] == '.' || src[off] == 'e' || src[off] == 'E') {
 		is_simple_int = false
 		if src[off] == '.' {
+			had_dot = true
 			off += 1
 			for off < src_len && (src[off] >= '0' && src[off] <= '9' || src[off] == '_') { off += 1 }
 		}
 		if off < src_len && (src[off] == 'e' || src[off] == 'E') {
+			had_exp = true
 			off += 1
 			if off < src_len && (src[off] == '+' || src[off] == '-') { off += 1 }
 			for off < src_len && (src[off] >= '0' && src[off] <= '9' || src[off] == '_') { off += 1 }
@@ -720,8 +794,16 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	end := u32(off)
 
-	// BigInt suffix
+	// BigInt suffix. Spec: `n` is only legal on integer literals — NOT
+	// after a decimal point and NOT after an exponent. `1.0n` and `1e1n`
+	// are SyntaxErrors.
 	if off < src_len && src[off] == 'n' {
+		if had_dot {
+			append(&l.lexer_errors, LexerError{offset = u32(off), message = "BigInt literal cannot contain a decimal point"})
+		}
+		if had_exp {
+			append(&l.lexer_errors, LexerError{offset = u32(off), message = "BigInt literal cannot contain an exponent"})
+		}
 		l.offset += 1
 		end = u32(l.offset)
 		return FastToken{start = start, end = end, kind = .BigInt, flags = flags}
@@ -790,10 +872,28 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
 	l.offset += 2 // skip 0b
+	digits_seen := 0
 	for l.offset < src_len {
 		c := src[l.offset]
-		if c == '0' || c == '1' || c == '_' { l.offset += 1 }
+		if c == '0' || c == '1' { l.offset += 1; digits_seen += 1 }
+		else if c == '_' { l.offset += 1 }
 		else { break }
+	}
+	// `0b2`, `0bz`, etc. — binary literal followed by a digit / letter
+	// that isn't a valid binary digit but *is* a legal identifier-continue
+	// character. Per §12.9.3 `0b<invalid>` is a SyntaxError; previously the
+	// lexer just stopped at the bad character and let the parser see
+	// `Number(0b)` followed by the trailing char as a separate token.
+	if l.offset < src_len {
+		c := src[l.offset]
+		if (c >= '2' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+			if c != 'n' {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid binary digit"})
+			}
+		}
+	}
+	if digits_seen == 0 {
+		append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Binary literal requires at least one digit"})
 	}
 	end := u32(l.offset)
 	if l.offset < src_len && src[l.offset] == 'n' {
@@ -819,10 +919,25 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
 	l.offset += 2 // skip 0o
+	digits_seen := 0
 	for l.offset < src_len {
 		c := src[l.offset]
-		if (c >= '0' && c <= '7') || c == '_' { l.offset += 1 }
+		if c >= '0' && c <= '7' { l.offset += 1; digits_seen += 1 }
+		else if c == '_' { l.offset += 1 }
 		else { break }
+	}
+	// Same rejection rule as lex_binary: `0o8`, `0o9`, `0oz` etc. are
+	// SyntaxErrors. The `n` suffix is legal and handled below.
+	if l.offset < src_len {
+		c := src[l.offset]
+		if (c == '8' || c == '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+			if c != 'n' {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid octal digit"})
+			}
+		}
+	}
+	if digits_seen == 0 {
+		append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Octal literal requires at least one digit"})
 	}
 	end := u32(l.offset)
 	if l.offset < src_len && src[l.offset] == 'n' {
@@ -856,10 +971,35 @@ lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 	pos, found_quote := simd_find_string_end(remaining, quote)
 
 	if found_quote {
-		// No escape — direct string, literal derived in parser from source[start+1:end-1]
+		// No escape — direct string, literal derived in parser from source[start+1:end-1].
+		// Additional check: simd_find_string_end treats `\n` as a terminator
+		// (which is correct for early-exit) — but if it HAS found a quote
+		// we're fine. We still need to catch the case where EOF hit before
+		// a closing quote, surfaced as !found_quote below.
 		l.offset += pos + 1 // skip content + closing quote
 		end := u32(l.offset)
 		return FastToken{start = start, end = end, kind = .String, flags = flags}
+	}
+
+	// No closing quote before EOF or newline — try the scalar fallback first
+	// (handles escape sequences cleanly) and let it emit a diagnostic if it
+	// also hits EOF. For the pure fast‑path case where simd saw no escape
+	// and no quote, that's an unterminated string no matter what the scalar
+	// path finds; record it here so callers get a clear message.
+	// lex_string_scalar will also emit one if its own scan runs off the end,
+	// but catching it here gives the earliest offset.
+	if len(remaining) == 0 || !found_quote {
+		// Only flag if there's no `\\` in the span — if there is, the
+		// scalar path will re‑scan and make the final call.
+		has_escape := false
+		for b in remaining {
+			if b == '\\' { has_escape = true; break }
+		}
+		if !has_escape {
+			append(&l.lexer_errors, LexerError{offset = start, message = "Unterminated string literal"})
+			l.offset = len(l.source_bytes)
+			return FastToken{start = start, end = u32(l.offset), kind = .String, flags = flags}
+		}
 	}
 
 	// Scalar fallback for strings with escapes
@@ -994,7 +1134,8 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 					l.offset += 2
 				}
 			case 'x':
-				// \xHH — hex escape, treating value as codepoint
+				// \xHH — hex escape, exactly 2 hex digits per §12.9.4.2.
+				escape_off := u32(l.offset)
 				if l.offset + 3 < src_len {
 					h1 := hex_val(src[l.offset + 2])
 					h2 := hex_val(src[l.offset + 3])
@@ -1003,39 +1144,52 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 						append_utf8(&cook_buf, cp)
 						l.offset += 4
 					} else {
-						// Invalid hex; fallback: append backslash and next char as-is
+						// Fewer than 2 hex digits, or non-hex next char.
+						// Report and still consume `\x` so the rest of the
+						// string lexes normally (error recovery).
+						append(&l.lexer_errors, LexerError{offset = escape_off, message = "Invalid \\x escape: expected 2 hex digits"})
 						append(&cook_buf, '\\')
 						append(&cook_buf, next)
 						l.offset += 2
 					}
 				} else {
-					// Not enough chars; fallback
+					append(&l.lexer_errors, LexerError{offset = escape_off, message = "Invalid \\x escape: expected 2 hex digits"})
 					append(&cook_buf, '\\')
 					append(&cook_buf, next)
 					l.offset += 2
 				}
 			case 'u', 'U':
-				// Check for \u{ form
+				// \u escape: \uHHHH (exactly 4 hex digits) or \u{H...H}
+				// (variable-length, code point <= 0x10FFFF).
+				uesc_off := u32(l.offset)
 				if l.offset + 2 < src_len && src[l.offset + 2] == '{' {
-					// \u{H...H} — variable-length hex inside braces
+					// \u{H...H} — variable-length hex inside braces.
 					l.offset += 3 // skip \u{
 					cp: u32 = 0
 					got_hex := false
+					overflow := false
 					for l.offset < src_len && src[l.offset] != '}' {
 						hval := hex_val(src[l.offset])
 						if hval < 0 { break }
 						cp = cp * 16 + u32(hval)
+						if cp > 0x10FFFF { overflow = true }
 						got_hex = true
 						l.offset += 1
 					}
 					if l.offset < src_len && src[l.offset] == '}' {
 						l.offset += 1 // skip }
-						if got_hex {
+						if !got_hex {
+							append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: empty code point"})
+						} else if overflow {
+							append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: code point out of range [0..0x10FFFF]"})
+						} else {
 							append_utf8(&cook_buf, cp)
 						}
+					} else {
+						append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: missing closing '}'"})
 					}
 				} else if l.offset + 5 < src_len {
-					// \uHHHH — exactly 4 hex digits
+					// \uHHHH — exactly 4 hex digits.
 					h1 := hex_val(src[l.offset + 2])
 					h2 := hex_val(src[l.offset + 3])
 					h3 := hex_val(src[l.offset + 4])
@@ -1045,13 +1199,13 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 						append_utf8(&cook_buf, cp)
 						l.offset += 6
 					} else {
-						// Invalid hex; fallback
+						append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits"})
 						append(&cook_buf, '\\')
 						append(&cook_buf, next)
 						l.offset += 2
 					}
 				} else {
-					// Not enough chars for \uHHHH; fallback
+					append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits"})
 					append(&cook_buf, '\\')
 					append(&cook_buf, next)
 					l.offset += 2
@@ -1374,9 +1528,20 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 
 	if l.offset >= src_len || src[l.offset] != '/' {
-		// Invalid regex, treat as division
-		l.offset = int(start) + 1
-		return FastToken{start = start, end = start + 1, kind = .Div, flags = flags}
+		// Unterminated regex — ran to EOF or a line terminator without
+		// finding the closing `/`. Emit a diagnostic at the opening `/`
+		// and return a RegularExpression token spanning the consumed
+		// content so error recovery stays anchored. Previously this
+		// silently fell back to `.Div`, which let `/abc;` at the end of
+		// a file parse cleanly as `a/b/c;` — a spec violation observed on
+		// the negative/007_unterminated_regex fixture.
+		append(&l.lexer_errors, LexerError{offset = start, message = "Unterminated regular expression"})
+		end := u32(l.offset)
+		full_regex := l.source[start:end]
+		l.last_lit_offset = start
+		l.last_lit_value = LiteralValue(full_regex)
+		l.last_lit_type = .Regex
+		return FastToken{start = start, end = end, kind = .RegularExpression, flags = flags}
 	}
 
 	l.offset += 1 // skip closing /

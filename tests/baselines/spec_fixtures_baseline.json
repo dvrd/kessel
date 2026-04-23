@@ -85,8 +85,8 @@
     "total": 8
   },
   "lexical": {
-    "pass": 9,
-    "fail": 1,
+    "pass": 10,
+    "fail": 0,
     "total": 10
   },
   "regex_disambiguation": {

@@ -6,24 +6,58 @@
   "hashbang": null,
   "body": [
     {
-      "type": "ReturnStatement",
-      "start": 79,
-      "end": 92,
-      "argument": {
-        "type": "BinaryExpression",
-        "start": 86,
-        "end": 91,
-        "operator": "+",
-        "left": {
+      "type": "FunctionDeclaration",
+      "start": 54,
+      "end": 94,
+      "id": {
+        "type": "Identifier",
+        "start": 63,
+        "end": 69,
+        "name": "broken"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
           "type": "Identifier",
-          "start": 86,
-          "end": 87,
-          "name": "a"        },
-        "right": {
+          "start": 70,
+          "end": 71,
+          "name": "a"
+        },
+        {
           "type": "Identifier",
-          "start": 90,
-          "end": 91,
-          "name": "b"        }      }    },
+          "start": 73,
+          "end": 74,
+          "name": "b"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 75,
+        "end": 94,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 79,
+            "end": 92,
+            "argument": {
+              "type": "BinaryExpression",
+              "start": 86,
+              "end": 91,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 86,
+                "end": 87,
+                "name": "a"              },
+              "right": {
+                "type": "Identifier",
+                "start": 90,
+                "end": 91,
+                "name": "b"              }            }          }
+        ]
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 95,
@@ -68,5 +102,5 @@ Parse errors (1):
   Line 2, Column 22: Expected ), got {
 
 --- Statistics ---
-Arena: used=8048B reserved=16777216B ratio=0%
+Arena: used=8216B reserved=16777216B ratio=0%
 Parse errors: 1

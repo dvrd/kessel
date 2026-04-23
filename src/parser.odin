@@ -704,6 +704,29 @@ match_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 // ============================================================================
 
 parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset: int) {
+	// Catch stray tokens that aren't valid statement starts (dangling
+	// `else`, orphan `}`, etc.) with a dedicated diagnostic rather than
+	// letting error recovery silently eat them. `.Else` only arrives here
+	// when it didn't match a preceding `if`; `.RBrace` at top-level is an
+	// unmatched closing brace; `.Catch`/`.Finally` without a preceding
+	// `try` are equally stray.
+	#partial switch p.cur_type {
+	case .Else:
+		report_error(p, "Unexpected 'else' without matching 'if'")
+		eat(p)
+		if !is_token(p, .EOF) { _ = parse_statement_or_declaration(p) }
+		return
+	case .RBrace:
+		report_error(p, "Unexpected '}' \u2014 unmatched closing brace")
+		eat(p)
+		return
+	case .Catch, .Finally:
+		report_error(p, "Unexpected 'catch' or 'finally' without matching 'try'")
+		eat(p)
+		if !is_token(p, .EOF) { _ = parse_statement_or_declaration(p) }
+		return
+	}
+
 	stmt := parse_statement_or_declaration(p)
 	if stmt != nil {
 		append(body, stmt)
@@ -753,6 +776,16 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// leading comments and shebang lines.
 	program.loc = Loc{span = Span{start = 0, end = 0}}
 	program.type = source_type
+
+	// BOM-followed-by-hashbang: the lexer already skipped the BOM (it's a
+	// valid WhiteSpace character), but the `#!` that follows is invalid
+	// because hashbang must be the very first bytes of the source.
+	// OXC/Acorn/Babel all reject this; we match with the same diagnostic
+	// text OXC uses ("Invalid character `!`") so the spec-fixtures
+	// parse-error parity escape recognises it as agreement.
+	if p.lexer != nil && p.lexer.bom_before_hashbang {
+		report_error(p, "Invalid character `!`")
+	}
 	// Pre-size body based on source length: ~1 top-level statement per 50 bytes
 	body_cap := 16
 	if p.source_len > 4096 {
@@ -856,6 +889,25 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 				}
 				if program.type == .Module { break }
 			}
+		}
+	}
+
+	// Drain lexer-side diagnostics (invalid numeric separators, bad
+	// BigInt literals, etc.) into p.errors. The lexer couldn't report
+	// directly because error reporting needs line/col lazy-lookup off
+	// the Parser; this is the first point after parse where we're sure
+	// the lexer has seen every token.
+	if p.lexer != nil && len(p.lexer.lexer_errors) > 0 {
+		if p.lexer.num_lines == 0 {
+			build_line_table(p.lexer)
+		}
+		for lex_err in p.lexer.lexer_errors {
+			loc := LexerLoc{offset = int(lex_err.offset)}
+			line, col := offset_to_line_col(p.lexer.line_offsets, lex_err.offset)
+			loc.line = int(line)
+			loc.column = int(col)
+			err := ParseError{loc = loc, message = lex_err.message}
+			append(&p.errors, err)
 		}
 	}
 
@@ -1118,6 +1170,13 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		if_.alternate = parse_statement_or_declaration(p)
 	}
 
+	// Note: detecting a *duplicate* `else` from here isn't safe — after an
+	// inner if/else completes, the outer `else` (dangling-else rule) is a
+	// valid continuation, and parse_if_statement can't see the outer
+	// context. The stray-else case (`if (x) {} else {} else {}` at the
+	// same nesting level) is caught by the top-level statement loop's
+	// unknown-token recovery instead.
+
 	if_.loc.span.end = prev_end_offset(p)
 	return statement_from(p, if_)
 }
@@ -1343,9 +1402,17 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume return
 
+	// ECMA-262 §14.10.1 Static Semantics: a `return` statement is only
+	// valid inside a function/method body. OXC, Acorn, and Babel all
+	// reject top-level `return`; we match (previously this was a deliberate
+	// no-op, with the comment citing "imperfect nested tracking" — that
+	// tracking has since been fixed as part of the async-arrow work, so
+	// the check is safe to enable). The 467-file real-world corpus is
+	// CommonJS-wrapped (`function(...){ return ... }`) so `in_function` is
+	// true at every natural `return` site; bare top-level `return` only
+	// shows up in spec-negative fixtures and mutated fuzz cases.
 	if !p.in_function {
-		// Relaxed: don't report — nested function context tracking is imperfect
-		_ = p.in_function
+		report_error(p, "'return' outside of function")
 	}
 
 	argument: Maybe(^Expression)
@@ -1371,9 +1438,6 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume break
 
-	// Note: we don't validate break context here — nested functions
-	// reset in_loop/in_switch, causing false positives.
-
 	label: Maybe(LabelIdentifier)
 	// Label only if on same line (no LineTerminator between break and identifier)
 	if is_token(p, .Identifier) && !p.cur_tok.had_line_terminator {
@@ -1382,6 +1446,17 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 			name = cur_value(p),
 		}
 		eat(p)
+	}
+
+	// ECMA-262 §13.9.1 Static Semantics: an unlabeled `break;` is only
+	// valid inside an IterationStatement or SwitchStatement. Labeled
+	// `break label;` can target any enclosing LabeledStatement (including
+	// non-iteration ones), which requires label-scope tracking we don't
+	// currently do; skip the check in that arm to avoid false positives.
+	// Previously the unlabeled check was a no-op too, citing "nested
+	// functions reset in_loop/in_switch" — that tracking is stable now.
+	if label == nil && !p.in_loop && !p.in_switch {
+		report_error(p, "'break' outside of loop or switch")
 	}
 
 	match_semicolon_or_asi(p)
@@ -1398,10 +1473,11 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume continue
 
-	if !p.in_loop {
-		// Relaxed: don't report — nested function context tracking is imperfect
-		_ = p.in_loop
-	}
+	// ECMA-262 §13.9.2 — `continue` only valid inside an IterationStatement.
+	// Labeled form `continue label;` requires an enclosing LABELED
+	// IterationStatement; we don't track labels yet, so we only enforce
+	// the unlabeled case (matches how we handle `break` above).
+	// See parse_break_statement for the tracking rationale.
 
 	label: Maybe(LabelIdentifier)
 	// Label only if on same line (no LineTerminator between continue and identifier)
@@ -1411,6 +1487,10 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 			name = cur_value(p),
 		}
 		eat(p)
+	}
+
+	if label == nil && !p.in_loop {
+		report_error(p, "'continue' outside of loop")
 	}
 
 	match_semicolon_or_asi(p)
@@ -1709,7 +1789,15 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	params := parse_function_params(p)
 
 	if !expect_token(p, .RParen) {
-		return nil
+		// Error recovery: skip forward to the next `{` (start of the body)
+		// or a clear statement terminator so we can still build a function
+		// declaration around the intended body. Without this, a malformed
+		// param list like `function f(a, b { ... }` leaked the body to the
+		// top-level parser, and the `return` inside fired the new top-level
+		// return diagnostic — a cascading false positive.
+		for !is_token(p, .LBrace) && !is_token(p, .Semi) && !is_token(p, .EOF) {
+			eat(p)
+		}
 	}
 
 	// TypeScript return type annotation
@@ -2562,6 +2650,30 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	return decl
 }
 
+// is_reserved_word_for_binding classifies the ES-2024 ReservedWords that
+// may NOT appear as a BindingIdentifier (variable / param / catch / label /
+// class name). Contextual keywords (async / static / let / of / from / as /
+// yield / await / type / interface / enum / ...) stay binding-legal
+// because they lex as `.Identifier` in most contexts — this helper only
+// names the tokens whose TokenType is itself a reserved keyword.
+//
+// Strict-mode extras (let, static, yield, implements, interface, package,
+// private, protected, public) are intentionally NOT rejected here; the
+// existing in-flight strict-mode handling already gates them.
+is_reserved_word_for_binding :: #force_inline proc(t: TokenType) -> bool {
+	#partial switch t {
+	case .Class, .Function, .Var, .Const, .New, .Delete, .Typeof, .Void,
+	     .In, .Instanceof, .Extends, .Super, .This, .With, .Debugger,
+	     .Return, .Throw, .Try, .Catch, .Finally,
+	     .If, .Else, .For, .While, .Do, .Switch, .Case,
+	     .Break, .Continue, .Default,
+	     .True, .False, .Null,
+	     .Import, .Export:
+		return true
+	}
+	return false
+}
+
 parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	start := cur_loc(p)
 
@@ -2571,6 +2683,25 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 
 	if is_token(p, .LBracket) {
 		return parse_array_pattern(p)
+	}
+
+	// Reject reserved words in binding position (`var class = 1;`,
+	// `let function = 2;`, etc.). Contextual keywords pass through
+	// because they lex as `.Identifier`; only hard-reserved keyword
+	// tokens trip this branch.
+	if is_reserved_word_for_binding(p.cur_type) {
+		report_error(p, "Reserved word cannot be used as a binding name")
+		// Consume the keyword and return a placeholder identifier so the
+		// rest of the declarator (init expression) still parses, keeping
+		// error recovery tight. The identifier's name carries the raw
+		// source so downstream emits see something stable.
+		id_loc := cur_loc(p)
+		id_name := cur_value(p)
+		eat(p)
+		ident := new_node(p, Identifier)
+		ident.loc = id_loc
+		ident.name = id_name
+		return ident
 	}
 
 	// Identifiers and contextual keywords that can be used as binding names.
@@ -3779,7 +3910,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		return expression_from(p, update)
 
 	case .Await:
-		if p.strict_mode && !p.in_async && p.in_function {
+		// ECMA-262 §15.8 — `await` is only valid as an AwaitExpression
+		// inside an async function (or at module top level, handled via
+		// the separate top-level-await detector below). Used as a unary
+		// prefix anywhere else is a SyntaxError — previously we gated the
+		// check on `strict_mode`, which let `function f() { return await
+		// 1; }` slip through in plain scripts.
+		if !p.in_async && p.in_function {
 			report_error(p, "await outside of async function")
 		}
 		current := p.cur_tok
@@ -4758,13 +4895,21 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if !expect_token(p, .RParen) {
 			return nil
 		}
-		// Set generator context before parsing body
+		// Set generator + async context before parsing body. Previously only
+		// `in_generator` was propagated — `is_async` was stored on the
+		// FunctionExpression but the surrounding parse context was left
+		// untouched, so a nested `await` inside an object method like
+		// `{ async transform(s, a) { await f(); } }` was flagged as
+		// "await outside of async function". Observed on 4 real-world
+		// files (cesium.js, swagger-ui.js, pixi.js, valibot.js) the moment
+		// the await-outside-async check was enabled in non-strict mode.
 		prev_in_generator := p.in_generator
-		if is_generator {
-			p.in_generator = true
-		}
+		prev_in_async := p.in_async
+		p.in_generator = is_generator
+		p.in_async = is_async
 		body := parse_function_body(p)
 		p.in_generator = prev_in_generator
+		p.in_async = prev_in_async
 
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start
@@ -5570,6 +5715,33 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	return expression_from(p, cond)
 }
 
+// is_valid_assignment_target returns true if `left` is a legal LHS for an
+// AssignmentExpression. Per ECMA-262 §13.15:
+//
+//   * SimpleAssignmentTarget: Identifier / MemberExpression /
+//     CallExpression-with-valid-target (rare) / TSNonNullExpression (x!)
+//     / ParenthesizedExpression whose inner is also a valid target.
+//   * AssignmentPattern (for `=`): ArrayExpression / ObjectExpression that
+//     can be reinterpreted as a destructuring pattern.
+//
+// Other expressions (BinaryExpression, UnaryExpression, literals, etc.)
+// are SyntaxErrors in assignment position (`1 + 2 = 3`, `-x = 5`, etc.).
+is_valid_assignment_target :: proc(expr: ^Expression, is_destructure: bool) -> bool {
+	if expr == nil { return false }
+	#partial switch e in expr^ {
+	case ^Identifier, ^MemberExpression, ^CallExpression,
+	     ^TSNonNullExpression, ^TSAsExpression, ^TSSatisfiesExpression,
+	     ^TSTypeAssertion:
+		return true
+	case ^ParenthesizedExpression:
+		return is_valid_assignment_target(e.expression, is_destructure)
+	case ^ArrayExpression, ^ObjectExpression:
+		// Only valid as destructuring targets (operator must be `=`).
+		return is_destructure
+	}
+	return false
+}
+
 parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	start := loc_from_expr(left)
 
@@ -5586,6 +5758,13 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// Validate pattern conversion for = operator (destructuring assignment)
 	if op == .Assign {
 		_, _ = expr_to_pattern(p, left)
+	}
+
+	// LHS validity per §13.15. Only runs AFTER right is parsed so error
+	// recovery keeps the full assignment tree structurally intact for
+	// downstream consumers (emit, walker).
+	if !is_valid_assignment_target(left, op == .Assign) {
+		report_error(p, "Invalid left-hand side in assignment")
 	}
 
 	assign := new_node(p, AssignmentExpression)

@@ -46,8 +46,20 @@ const STRICT = process.argv.includes('--strict');
 const VERBOSE = process.argv.includes('--verbose');
 
 // Directories under tests/fixtures/ whose contents are ALL meant to be rejected.
+// `negative/` covers parse-time rejections (syntax errors, unterminated
+// strings, invalid tokens). `early_errors/` covers early-error rules
+// (ECMA-262 §5.2 static semantics) where the grammar accepts the input
+// but the spec requires a *static* error: `const` without initializer,
+// duplicate lexical declarations, `eval`/`arguments` as binding targets
+// in strict mode, reserved words used as bindings, etc.
+//
+// Both buckets are skipped by the positive-fixture runner
+// (tests/runners/run_tests.sh), so this gate is where they get exercised.
+// The baseline records the current accept/reject split per fixture so we
+// can close errors incrementally without a repo-wide regression each time.
 const NEGATIVE_DIRS = [
   'tests/fixtures/negative',
+  'tests/fixtures/early_errors',
 ];
 
 function listNegativeFixtures() {

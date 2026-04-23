@@ -139,6 +139,12 @@ while IFS= read -r fixture; do
         spec/ambiguity/001_ts_assertion_vs_jsx_simple.js) ;;
         spec/ambiguity/002_ts_assertion_vs_jsx_paren.js) ;;
         spec/ambiguity/004_generic_arrow_vs_relational.js) ;;
+        # BOM + #!hashbang is rejected by OXC/Acorn/Babel per
+        # ECMA-262 hashbang syntax rules. Kessel now emits a matching
+        # "Invalid character `!`" error; the fixture's pinned output
+        # includes that error, so we skip the parse-errors-fatal gate
+        # and fall through to the golden diff below.
+        spec/lexical/001_hashbang_bom.js) ;;
         *)
             if grep -Eq 'Parse errors\s*(\([1-9][0-9]*\)|:\s*[1-9][0-9]*)' "$output_file"; then
                 parse_errors=$(grep -Eo 'Parse errors\s*(\([0-9]+\)|:\s*[0-9]+)' "$output_file" | grep -Eo '[0-9]+' | tail -n1)

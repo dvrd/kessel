@@ -81,13 +81,20 @@
       "line": 4,
       "column": 12,
       "offset": 88
+    },
+    {
+      "message": "Unexpected '}' — unmatched closing brace",
+      "line": 6,
+      "column": 1,
+      "offset": 95
     }
   ]
 }
-Parse errors (2):
+Parse errors (3):
   Line 4, Column 12: Expected }, got number
   Line 4, Column 12: Expected ), got number
+  Line 6, Column 1: Unexpected '}' — unmatched closing brace
 
 --- Statistics ---
-Arena: used=9488B reserved=16777216B ratio=0%
-Parse errors: 2
+Arena: used=9608B reserved=16777216B ratio=0%
+Parse errors: 3

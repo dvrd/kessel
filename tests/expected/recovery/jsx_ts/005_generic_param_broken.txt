@@ -6,14 +6,82 @@
   "hashbang": null,
   "body": [
     {
-      "type": "ReturnStatement",
-      "start": 89,
-      "end": 102,
-      "argument": {
+      "type": "FunctionDeclaration",
+      "start": 57,
+      "end": 104,
+      "id": {
         "type": "Identifier",
-        "start": 96,
-        "end": 101,
-        "name": "value"      }    },
+        "start": 66,
+        "end": 72,
+        "name": "broken"
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 72,
+        "end": 75,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 73,
+            "end": 74,
+            "name": {
+              "type": "Identifier",
+              "start": 73,
+              "end": 74,
+              "name": "T"
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 76,
+          "end": 84,
+          "name": "value",
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 81,
+            "end": 84,
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 83,
+              "end": 84,
+              "typeName": {
+                "type": "Identifier",
+                "start": 83,
+                "end": 84,
+                "name": "T"
+              },
+              "typeArguments": null
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 85,
+        "end": 104,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 89,
+            "end": 102,
+            "argument": {
+              "type": "Identifier",
+              "start": 96,
+              "end": 101,
+              "name": "value"            }          }
+        ]
+      }    },
     {
       "type": "VariableDeclaration",
       "start": 105,
@@ -58,5 +126,5 @@ Parse errors (1):
   Line 2, Column 29: Expected ), got {
 
 --- Statistics ---
-Arena: used=8336B reserved=16777216B ratio=0%
+Arena: used=8504B reserved=16777216B ratio=0%
 Parse errors: 1
