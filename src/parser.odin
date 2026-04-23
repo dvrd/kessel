@@ -3105,6 +3105,21 @@ is_eval_or_arguments :: #force_inline proc(name: string) -> bool {
 	return name == "eval" || name == "arguments"
 }
 
+// ECMA-262 §13.4.1 — in strict mode, the operand of an UpdateExpression
+// must not be an IdentifierReference named `eval` or `arguments`.
+// Helper shared by both prefix and postfix paths. No-op in sloppy mode
+// or when the operand isn't a bare Identifier (member / call / etc.
+// stay legal).
+report_strict_update_on_eval_or_arguments :: proc(p: ^Parser, arg: ^Expression) {
+	if !p.strict_mode || arg == nil { return }
+	ident, is_id := arg.(^Identifier)
+	if !is_id || ident == nil { return }
+	if is_eval_or_arguments(ident.name) {
+		msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", ident.name)
+		report_error(p, msg)
+	}
+}
+
 // A numeric literal's raw source looks like a “0-prefixed integer” if
 // it starts with `0` and the next character is a decimal digit. This
 // covers both LegacyOctalIntegerLiteral (`0777`) and
@@ -4430,6 +4445,17 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		unary.argument = argument
 		unary.prefix = true
 		unary.loc.span.end = prev_end_offset(p)
+		// ECMA-262 §12.5.1.1 — in strict mode, `delete` of an unqualified
+		// IdentifierReference (bare `delete x`) is a SyntaxError. Member
+		// access (`delete x.y`), computed (`delete x[y]`), and arbitrary
+		// non-reference operands stay legal. The restriction only applies
+		// to the identifier shape.
+		if current.type == .Delete && p.strict_mode {
+			if ident, is_id := argument.(^Identifier); is_id && ident != nil {
+				msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
+				report_error(p, msg)
+			}
+		}
 		return expression_from(p, unary)
 
 	case .PlusPlus, .MinusMinus:
@@ -4443,6 +4469,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.argument = argument
 		update.prefix = true
 		update.loc.span.end = prev_end_offset(p)
+		report_strict_update_on_eval_or_arguments(p, argument)
 		return expression_from(p, update)
 
 	case .Await:
@@ -4525,6 +4552,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.argument = expr
 		update.prefix = false
 		update.loc.span.end = prev_end_offset(p)
+		report_strict_update_on_eval_or_arguments(p, expr)
 		return expression_from(p, update)
 	}
 
@@ -4917,6 +4945,16 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return expression_from(p, this)
 
 	case .PrivateIdentifier:
+		// ECMA-262 §13.2 — `#foo` may appear as a PrimaryExpression ONLY
+		// when it is the LHS of an `in` operator (ES2022 ergonomic brand
+		// check: `#foo in obj`). Every other primary-position use is a
+		// SyntaxError, including class-field usages outside a class body
+		// and use as an assignment target. `obj.#foo` / `this.#foo` are
+		// member accesses — those don't come through here because
+		// `parse_lhs_tail` consumes the `#foo` after `.` directly.
+		if p.lexer != nil && p.lexer.nxt.kind != .In {
+			report_error(p, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
+		}
 		// Private field reference: #x (used in expressions like #x in this)
 		name := current.value
 		if len(name) > 0 && name[0] == '#' {
@@ -5709,6 +5747,14 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			meta.loc.span.end = prev_end_offset(p)
 			return expression_from(p, meta)
 		}
+	}
+
+	// ECMA-262 §13.3.12 — `new import(x)` is a SyntaxError. The grammar
+	// production NewExpression : `new` NewExpression has no arm that
+	// reaches an ImportCall (`import(...)`). Catch it here at the start
+	// so the diagnostic points at `import`, not somewhere downstream.
+	if is_token(p, .Import) && p.lexer != nil && p.lexer.nxt.kind == .LParen {
+		report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
 	}
 
 	callee := parse_member_expr(p)

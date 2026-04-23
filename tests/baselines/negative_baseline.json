@@ -1,4 +1,6 @@
 {
+  "tests/fixtures/negative/019_new_dynamic_import.js": "rejected",
+  "tests/fixtures/negative/018_private_identifier_outside_class.js": "rejected",
   "tests/fixtures/negative/017_static_prototype_class_member.js": "rejected",
   "tests/fixtures/negative/016_let_as_lexical_name.js": "rejected",
   "tests/fixtures/negative/015_for_await_outside_async.js": "rejected",
@@ -59,6 +61,8 @@
   "tests/fixtures/early_errors/module_context/003_top_level_await_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/002_import_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/001_export_in_script.js": "rejected",
+  "tests/fixtures/early_errors/strict_mode/015_delete_identifier.js": "rejected",
+  "tests/fixtures/early_errors/strict_mode/014_update_eval_arguments.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/013_octal_escape_template.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/012_octal_escape_string.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/011_with_statement.js": "rejected",

@@ -114,12 +114,19 @@
       "line": 1,
       "column": 4,
       "offset": 3
+    },
+    {
+      "message": "Private identifier can only appear as the LHS of an 'in' expression or as a class member",
+      "line": 1,
+      "column": 4,
+      "offset": 3
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
   Line 1, Column 4: Invalid character `!`
+  Line 1, Column 4: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 
 --- Statistics ---
-Arena: used=14064B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=14384B reserved=16777216B ratio=0%
+Parse errors: 2
