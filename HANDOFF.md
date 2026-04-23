@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post static-errors sweep — 144/144 spec-fixtures, 100/100 fuzz-diff, 0 divergences vs OXC, negative gate 42/63 rejected)
-**Repo state:** `main` past `88aee15` + follow-ups, ~19 000 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-24 (post negative-gate sweep — 144/144 spec-fixtures, 100/100 fuzz-diff, 0 divergences vs OXC, **negative gate 63/63 rejected — perfect**, ratchet engaged)
+**Repo state:** `main` past `420cb52`, ~19 000 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -36,12 +36,12 @@ is fine.
 
 | Suite | Command | Result | Notes |
 |---|---|---|---|
-| Unit | `task test:unit` | **268 / 331** (100%) | 63 skipped (negative-gate owned). Zero failures. |
+| Unit | `task test:unit` | **272 / 335** (100%) | 63 skipped (negative-gate owned). Zero failures. |
 | Regression | `task test:regression` | **11 / 11** ✅ | Structural diff vs OXC for session-fixed bugs |
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture |
-| Test262 (curated) | `task test:test262` | **64 / 66** ✅ | 2 known-fail (baselined). Full suite not yet wired. |
-| Spec-fixtures | `task test:spec-fixtures` | **144 / 144 ✅** | All categories 100%. lexical/001 (BOM+hashbang) now rejects with matching OXC diagnostic. |
+| Test262 (curated) | `task test:test262` | **66 / 66** ✅ | Full curated subset passing; broader Test262 not yet wired. |
+| Spec-fixtures | `task test:spec-fixtures` | **144 / 144 ✅** | All categories 100%. lexical/001 (BOM+hashbang) rejects with matching OXC diagnostic. |
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | ✅ matches baseline | snabbdom deep-compare passes; jquery integration baseline-gated. |
 | Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel |
@@ -50,6 +50,7 @@ is fine.
 | Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
 | Recovery | `task test:recovery` | **20 / 20** ✅ | All anchors survive, spans sane. |
+| Negative gate | `task test:negative` | **63 / 63 rejected** ✅ (baseline 100% clean, ratchet engaged) | 9 static-error classes closed in `420cb52`. Any new fixture that the parser accepts now fails the default gate. `task test:negative:strict` zero-tolerance runs the same set without a baseline. |
 | Bench regression | `task test:bench:regression` | Not run | Use before release |
 
 ### Performance (Apple M-series, `-o:speed -no-bounds-check`)
@@ -290,8 +291,17 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
       emit TS shape, `.JS` / `.JSX` emit plain).
 - [ ] **OPT-6:** `showSemanticErrors` — requires scope/symbol analysis.
 
-### Error Handling (1 / 4)
+### Error Handling (2 / 4)
 - [x] **ERR-1:** `--errors=oxc` for OXC TS-ESTree shape (Phase 3, `75fb36b`).
+- [x] **ERR-5:** Static-error coverage. Negative gate at 63/63 rejected
+      (`420cb52`), up from 42/63 in Session 5. Nine error classes
+      closed at the parser layer: `super` outside method, duplicate
+      `__proto__` init, duplicate lexical names, duplicate params in
+      strict, strict-only reserved words as bindings, `eval`/`arguments`
+      as LHS of `=`, legacy octal in strict, and `import`/`export`/TLA/
+      `import.meta` under `--source-type=script`. Baseline ratchet
+      engaged: once 100% rejected, any new fixture the parser accepts
+      trips the default gate automatically.
 - [ ] **ERR-2:** Error recovery at statement boundaries. *Functionally: `task test:recovery`
       passes 20/20 with anchor survival; formal item still open for editor-tooling quality.*
 - [ ] **ERR-3:** Graceful TS parse failure. *Functionally: 0 SIGTRAPs in current corpus;
@@ -301,10 +311,11 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 
 ### Test Coverage (1 / 5)
 - [x] Curated Test262 (66/66), regression (11/11), real-world (467/467),
-      nodes (57/57), invariants (467/467), spec-fixtures (139/140 across 22
+      nodes (57/57), invariants (467/467), spec-fixtures (144/144 across 22
       categories, all ES years + asi + edge + escapes + jsx + regex + TS + unicode
-      + ambiguity + interactions + lexical at 100%, lexical/001 BOM+hashbang
-      baselined as known-fail).
+      + ambiguity + interactions + lexical at 100%).
+- [x] Negative gate: 63/63 rejected across `tests/fixtures/negative/` +
+      `tests/fixtures/early_errors/` (ratchet-gated, strict mode available).
 - [ ] **TEST-1:** Full Test262 (~45 000 tests).
 - [ ] **TEST-2:** Babel parser test suite.
 - [ ] **TEST-3:** TypeScript parser test suite.
@@ -377,6 +388,8 @@ Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 65
 | `f8656ec` | EST-4 pt.2: 10/10 TS spec fixtures | `new Box<T>()` callee fix (allow_call=false in lhs_tail .LAngle), TSIndexSignature spans + accessibility, FunctionExpression declare/typeParameters/returnType null, ClassDeclaration superTypeArguments, CallExpression/NewExpression typeArguments null, MethodDef/PropertyDef optional, TSInterfaceDeclaration body_start fix. Updated verifier strips. |
 | `880e822` | NAPI/Visitor MVP | `npm/kessel-parser/`: `parseSync()` oxc-parser shim + `walk()`/`findAll()` visitor. |
 | `17cdc45` | Fuzz baseline | 9 prior span-start failures now pass (pending_paren_start fix); promoted to pass. |
+| `43c57dc` | Static-errors sweep 1 | Parse-time rejection for top-level `return`, stray `else`/`}`/`catch`/`finally`, unlabelled `break`/`continue` out of context, invalid LHS of `=`. Lexer diagnostics channel for numeric separators, BigInt invariants, bad binary/octal, unterminated string/regex, bad escapes, BOM+hashbang. Negative gate 20/32 → 42/63. |
+| `420cb52` | Static-errors sweep 2 — **negative gate 63/63** | Closed every remaining baselined gap: `super` outside method, duplicate `__proto__`, duplicate lexical decls, strict-mode directive promotion in function bodies, class-body implicit strict, duplicate params in strict, strict-only reserved words as bindings (`let`/`static`/`yield` + `implements`/`interface`/`package`/`private`/`protected`/`public`), `eval`/`arguments` LHS, legacy octal in strict, and `import`/`export`/TLA/`import.meta` under `--source-type=script`. Verifier auto-passes `--source-type=script` for the `module_context/` dir. Baseline ratchet engaged: once 100% clean, any new accepted fixture fails the default gate. |
 
 ### Process lessons (from this swarm)
 
@@ -424,6 +437,19 @@ Phase 3 (`2ad4487`, `4b543cf`).
 ## 9. What to work on next
 
 Ordered by impact × feasibility.
+
+**Session 6 recap (2026-04-24):**
+- **Negative gate 42/63 → 63/63 rejected.** Nine new static-error classes
+  shipped in `420cb52`. See commit message for the catalog.
+- **Ratchet engaged.** `tests/verifiers/verify_negative.js` now flips to
+  zero-tolerance the moment the baseline is 100% rejected: any new
+  fixture the parser accepts fails the default gate, not just
+  `--strict`. This stops silent drift — either fix the parser first or
+  run `task test:negative:update` to explicitly acknowledge a new gap.
+- **All other suites unchanged.** 144/144 spec-fixtures, 100/100
+  fuzz-diff, 0 divergences vs OXC on 12 real files, 467/467 real-world,
+  66/66 test262, 20/20 recovery.
+
 
 1. ~~K1–K2, K4–K8~~ ✅ All closed.
 2. ~~EST-1, EST-2, EST-6~~ ✅ All shipped.

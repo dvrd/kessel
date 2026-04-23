@@ -189,13 +189,15 @@ if (UPDATE || baseline === null) {
 // Compare.
 const regressions = [];
 const improvements = [];
-const newFixtures = [];
+const newAccepted = [];
+const newRejected = [];
 
 for (const fix of fixtures) {
   const prev = baseline[fix.rel];
   const now = current[fix.rel];
   if (prev === undefined) {
-    newFixtures.push(fix.rel);
+    if (now === 'accepted') newAccepted.push(fix.rel);
+    else newRejected.push(fix.rel);
   } else if (prev === 'rejected' && now === 'accepted') {
     regressions.push(fix.rel);
   } else if (prev === 'accepted' && now === 'rejected') {
@@ -205,9 +207,19 @@ for (const fix of fixtures) {
 // Stale baseline entries (fixture removed).
 const removed = Object.keys(baseline).filter(k => !(k in current));
 
+// Ratchet: once the baseline is 100% clean, stay 100% clean. Any new
+// fixture that is 'accepted' under the current parser is a gate failure
+// even though it wasn't in the baseline yet — you can't cover up the
+// regression by adding the fixture without also fixing it. To land a
+// fixture that the parser can't handle yet, either fix the parser first
+// or relax the baseline with --update (and document the known gap).
+const baselineIsClean = Object.values(baseline).every(v => v === 'rejected');
+
 console.log('');
-if (newFixtures.length)  console.log(`NEW fixtures (not in baseline): ${newFixtures.length}`);
-for (const f of newFixtures) console.log(`    ${f} (currently ${current[f]})`);
+if (newRejected.length) console.log(`NEW fixtures (rejected): ${newRejected.length}`);
+for (const f of newRejected) console.log(`    ${f}`);
+if (newAccepted.length) console.log(`NEW fixtures (accepted — parser bug): ${newAccepted.length}`);
+for (const f of newAccepted) console.log(`    ${f}`);
 if (improvements.length) console.log(`IMPROVEMENTS: ${improvements.length}`);
 for (const f of improvements) console.log(`    ${f}: accepted -> rejected`);
 if (regressions.length)  console.log(`REGRESSIONS: ${regressions.length}`);
@@ -219,10 +231,15 @@ if (regressions.length > 0) {
   console.log('\nFAIL — run with --update after confirming the regressions are intentional.');
   process.exit(1);
 }
-if (improvements.length > 0 || newFixtures.length > 0) {
+if (baselineIsClean && newAccepted.length > 0) {
+  console.log('\nFAIL — baseline is 100% clean; new fixtures must also be rejected.');
+  console.log('Either fix the parser first, or run with --update if this is an intentional known-gap.');
+  process.exit(1);
+}
+if (improvements.length > 0 || newRejected.length > 0 || newAccepted.length > 0) {
   console.log('\nOK (with improvements/new) — run with --update to relock.');
 }
-if (regressions.length === 0 && improvements.length === 0 && newFixtures.length === 0) {
+if (regressions.length === 0 && improvements.length === 0 && newRejected.length === 0 && newAccepted.length === 0) {
   console.log('\nOK — matches baseline exactly.');
 }
 process.exit(0);
