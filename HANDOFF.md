@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-24 (post negative-gate sweep — 144/144 spec-fixtures, 100/100 fuzz-diff, 0 divergences vs OXC, **negative gate 63/63 rejected — perfect**, ratchet engaged)
-**Repo state:** `main` past `420cb52`, ~19 000 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-24 (post negative-gate sweep + K9 close — 144/144 spec-fixtures, 100/100 fuzz-diff, 0 divergences vs OXC on 12 real files, **negative gate 63/63 rejected — perfect**, **estree strict 0 mismatches on every file**, ratchet engaged)
+**Repo state:** `main` past `f7f8caa`, ~19 000 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -427,7 +427,7 @@ Phase 3 (`2ad4487`, `4b543cf`).
 | K6 | ~~`early_errors/016_digit_start_identifier.js`~~ ✅ Fixed. `const 1a = 1;` now parses with structured errors, no SIGTRAP. | | | |
 | K7 | ~~`\u00GG` invalid-hex in identifier~~ ✅ Fixed. Graceful errors, no SIGTRAP. | | | |
 | K8 | ~~`x!!` double non-null~~ ✅ Fixed. Parses clean in TS mode. | | | |
-| K9 | **`task test:estree` — 4 field-type mismatches on jquery.js** vs OXC (NewExpression vs CallExpression, ArrowFunction vs Function). | Low | Classification of specific IIFE shape | Pre-existing; field-type divergence, not crash. |
+| K9 | ~~`task test:estree` — 4 field-type mismatches on jquery.js (+ react-dom.dev.js 3, preact.js 531)~~ ✅ Fixed in `f7f8caa`. Root cause was a stale `EXPR` tag→name table in `tests/verifiers/verify_integration.js`: `^ChainExpression` had been inserted into the `Expression` union between `^Super` and `^ArrayExpression`, shifting every downstream tag by +1; the verifier silently decoded every expression from ArrayExpression onward as the wrong type. Fix added `13:'ChainExpression'` and renumbered. Totals went 538 → 0 mismatches across the integration corpus; `task test:estree:strict` now passes zero-tolerance. | — | — | Fixed. |
 | K10 | ~~TS-ESTree shape diff~~ ✅ Closed (`f8656ec`). All 10 `spec/typescript/*` fixtures pass deep OXC compare. OXC used as reference (typescript-estree verifier not needed). | — | — | Fixed. |
 | K11 | **Debug build linker warnings** — ~50 about missing symbols for JSX/TS generic instantiations. | Cosmetic | Odin toolchain | Binary works. Ignore. |
 | K12 | ~~Class method access modifiers + TSParameterProperty~~ ✅ Fixed in `0513d43` + `b2effaa`. Parses all modifier permutations. Constructor parameter properties now wrapped in `TSParameterProperty { parameter, accessibility, readonly, override, static }` in emit_ts_shape mode. | — | — | Fixed. |
