@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post ASI + JSX + TS-shape parity push)
-**Repo state:** `main` at commit `9d18f09`, ~17 500 LOC of Odin across 7 files.
+**Last updated:** 2026-04-23 (post full-unskip sweep)
+**Repo state:** `main` at commit `88e217d`, ~17 620 LOC of Odin across 7 files.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -41,7 +41,7 @@ is fine.
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture |
 | Test262 | `task test:test262` | **60 / 60** ✅ (100 %) | Curated subset; full suite not yet wired |
-| Spec-fixtures | `task test:spec-fixtures` | **105 / 120** (baseline-locked) | 14 / 18 categories at 100%. Remaining 15 = 9 TS-ESTree deep shape (TSMappedType key/constraint split, ImportSpecifier structure, generic-call-vs-relational disambiguation — EST-4), 1 regex paren-span edge, 5 new ambiguity fixtures (Phase C / chained generic call). |
+| Spec-fixtures | `task test:spec-fixtures` | **113 / 120** (baseline-locked) | 15 / 19 categories at 100%. Remaining 7 = 3 Phase-C-blocked TSX ambiguity, 1 regex paren-span edge, 3 deep TS shape (generic class, mapped type, index signature). |
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | 4 mismatches on jquery.js | Pre-existing field-type diffs (`NewExpression` vs `CallExpression`) |
 | Multi-parser | `task test:multi-parser` | 1 divergence vs acorn (baselined) | ExportAllDeclaration edge case |
