@@ -178,7 +178,7 @@
       ],
       "policy": "baseline-gated",
       "coverage_status": "weak",
-      "notes": "10 stacked-feature fixtures parse cleanly (0 parse errors), but only 2/10 match OXC exactly today; 8/10 diverge and are baseline-tracked. Lifting this to medium requires closing the deep-diff gap on decorators, import attributes, JSX-async, and TS classes."
+      "notes": "10 stacked-feature fixtures parse cleanly (0 parse errors); 3/10 match OXC exactly today; 7/10 diverge and are baseline-tracked. Lifting this to medium requires closing the deep-diff gap on decorators, import attributes, JSX-async, and generic-TS classes."
     },
     {
       "name": "lexical_tokenization",

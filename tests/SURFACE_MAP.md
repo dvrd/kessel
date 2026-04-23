@@ -157,10 +157,10 @@ Status legend:
   `interactions`).
 - **Baselines:** `tests/baselines/spec_fixtures_baseline.json`,
   `tests/baselines/deep_families_baseline.json`.
-- **Notes:** All 10 fixtures parse cleanly (0 parse errors) but only 2/10
-  deep-diff clean vs OXC today. Lifting this to `medium` requires closing
-  the deep-diff gap on decorators, import attributes, JSX-async children,
-  and generic TS classes.
+- **Notes:** All 10 fixtures parse cleanly (0 parse errors); 3/10 deep-diff
+  clean vs OXC today, 7/10 baseline-tracked divergences. Lifting this to
+  `medium` requires closing the deep-diff gap on decorators, import
+  attributes, JSX-async children, and generic TS classes.
 
 ### `lexical_tokenization` — [medium] [baseline-gated]
 - **Claim:** Tokenisation-sensitive cases (BOM, hashbang, identifier
