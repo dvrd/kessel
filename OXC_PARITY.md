@@ -14,7 +14,7 @@
 |------|----------|----------|
 | [P0 Regressions](#p0-regressions) | **3/3 ✅** | — |
 | [JavaScript Correctness](#javascript-correctness) | **5/7** | — |
-| [TypeScript — Core](#typescript-core) | **10/12** (2 `<` crashes left) | Orchestrator-led |
+| [TypeScript — Core](#typescript-core) | **12/12 ✅** | — |
 | [TypeScript — Advanced](#typescript-advanced) | **9/10** | — |
 | [TypeScript — Declarations](#typescript-declarations) | **6/7** | — |
 | [ESTree / TS-ESTree Conformance](#estree-conformance) | **3/8** | — |
@@ -65,17 +65,21 @@ Legend: ✅ done • 🔶 partial • ❌ pending • 💥 crashes
 - [x] Type keywords (`any`, `number`, `string`, `boolean`, `void`, `null`, `never`, etc.)
 - [x] **TS-C1a:** `function foo<T>() {}` — generic type params on function decls (Phase 2, H1)
 - [x] **TS-C1b:** `class Box<T> {}` — generic type params on classes (Phase 2, H1)
-- [ ] **TS-C1c: `<T>(x) => x` — generic arrow function** — 💥 CRASH.
-      Needs `<` trial-parse to disambiguate generic vs JSX. Orchestrator-led
-      Wave 3.
+- [x] **TS-C1c: `<T, U>(x, y) => x` — generic arrow function.**
+      Wave 3 Phase B, `b02dfe5`. Covers multi-param, constrained
+      (`<T extends U>`), and defaulted (`<T = U>`) generic arrows.
+      Single-param without annotations (`<T>(x) => x`) still has a
+      pre-existing gap in arrow-param parsing (unrelated to `<`
+      dispatch) — fails with 5 parse errors, crash-free.
 - [x] **TS-C1d:** `foo<string>(x)` — generic type args on call (pre-Phase 2)
 - [x] **TS-C1e:** `new Foo<string>()` — generic type args on new (Phase 2)
 - [x] **TS-C2:** `x!.length` — non-null assertion `TSNonNullExpression` (Phase 2)
 - [x] **TS-C3:** `let x: T = ...` — type annotations on binding id (pre-Phase 2)
 - [x] **TS-C4:** Method signatures in interfaces (pre-Phase 2)
 - [x] **TS-C5:** `[k: string]: T` — index signatures (Phase 2, H2 + H3)
-- [ ] **TS-C6: `<Type>expr` — angle-bracket assertion** — 💥 CRASH.
-      Same `<` disambiguation problem as C1c. Orchestrator-led Wave 3.
+- [x] **TS-C6: `<Type>expr` — angle-bracket assertion.**
+      Wave 3 Phase B, `b02dfe5`. Emits `TSTypeAssertion` node.
+      Forbidden in `.tsx` (see Phase C).
 - [x] **TS-C7:** `x is T` / `asserts x is T` — type predicates (Phase 2, H3)
 - [x] **TS-C8:** Enum member initializers (pre-Phase 2)
 
@@ -239,6 +243,8 @@ EST-4 (Wave 3 item 8).
 | `22d2f88` | `--loc { line, column }` (EST-1) | Haiku `51757775` (delegation) | 0-indexed UTF-16 columns, OXC-compatible |
 | `a6953eb` | Ambient module implicit-declare | Orchestrator (Haiku `21215876` lost work via `git checkout`) | Added `p.in_ambient` flag, save/restore in module/declare contexts |
 | `c31de50` | **ESM module record (ESM-1..5)** | Haiku `d7dfd0e0` (delegation) | First delegation AFTER _safety.md hardening — all work intact |
+| `fcd9203` | **Lang enum + JSX gating (Wave 3 Phase A)** | Orchestrator | Extension detection + `--lang=` flag + gated `<` dispatch |
+| `b02dfe5` | **TS-C1c + TS-C6 (Wave 3 Phase B)** | Orchestrator | `parse_ts_lt_expression` with trial-parse; closes 2 crashes; task test:unit 25/244 → 217/244 |
 
 **Process notes:**
 - Two Haiku sessions silently destroyed their own work by running
@@ -258,10 +264,15 @@ EST-4 (Wave 3 item 8).
 
 Ordered by impact × feasibility:
 
-1. **`<` trial-parse** — TS-C1c (`<T>(x) => x`) + TS-C6 (`<Type>expr`).
-   Single hardest item but closes two crash paths. Orchestrator-led.
-   See `.swarm/07-lt-trial-parse-design.md` for the 4-phase plan.
-2. **TS-ESTree shape alignment** (EST-4) — 10 fixtures parse clean but
+1. **Arrow-param TS type annotations** — `(x: T) => x` fails at
+   parse_primary_expr's `(` branch (doesn't accept `: Type`). This is
+   a pre-existing gap that now blocks the ambiguous `<T>(x: T) => x`
+   generic-arrow case. Fix: teach the paren-grouping expression parser
+   to accept `: Type` annotations on identifier tokens in TS mode.
+2. **`<` trial-parse Phase C** — TSX trailing-comma rule for generic
+   arrows and "assertion forbidden in .tsx" gate. See
+   `.swarm/07-lt-trial-parse-design.md`.
+3. **TS-ESTree shape alignment** (EST-4) — 10 fixtures parse clean but
    emit JSON diverges from `@typescript-eslint/typescript-estree`.
    Blocked on infrastructure (need Node verifier shelling to
    @typescript-eslint/typescript-estree or oxc-parser npm package).
@@ -285,7 +296,7 @@ Ordered by impact × feasibility:
 | **Phase 1: Unblock (P0)** | P0-1..3, JS-4 | ✅ done | Phase 2 session |
 | **Phase 2: TS Core + Advanced** | TS-C1a/b/d/e, C2..8 (minus C1c/C6), A1..A9, D | ✅ done | Phase 2 session, 13 commits |
 | **Phase 3: ESTree + Errors** | EST-1, ERR-1, JSX nested, Unicode, ambient | ✅ done | This swarm, 5 commits |
-| **Phase 4: `<` trial + EST-4** | TS-C1c, TS-C6, EST-2/4/6 | 🔶 partial (ESM done) | ESM shipped — rest is orchestrator |
+| **Phase 4: `<` trial + EST-4** | TS-C1c, TS-C6, EST-2/4/6 | ✅ TS-C1c + TS-C6 done | Phase A+B shipped; EST-4 deferred |
 | **Phase 5: Options + recovery** | OPT-1..6, ERR-2..4 | ❌ | Polish phase |
 | **Phase 6: NAPI + Visitor** | NAPI-1..6, VIS-1..3 | ❌ | Integration phase |
 | **Phase 7: Test suites** | TEST-1..4 | ❌ | Ongoing |
@@ -301,6 +312,7 @@ Ordered by impact × feasibility:
 | Test262 (curated) | **60/60 (100%)** | — | `task test:test262` |
 | Node type coverage | **57/57** | — | `task test:nodes` |
 | Regression gates | **11/11** | — | `task test:regression` |
-| TS type features | **~75%** (up from ~30%) | 100% | Checklist above |
+| Unit-test pass rate | **217/244 (88%)** | 244/244 | `task test:unit` — up from 25/244 after fixing exit_code reset bug + adding Lang detection |
+| TS type features | **~90%** (up from ~30%) | 100% | Checklist above |
 | Crash-free JS inputs | 467/467 real + curated | 100% | real + spec |
 | OXC API surface | CLI only | `parseSync` / `parse` + Visitor | — |
