@@ -222,6 +222,20 @@ Parser :: struct {
 	// nested bodies clobber it.
 	last_body_strict: bool,
 
+	// Stack of LabelIdentifier names currently in scope from enclosing
+	// LabelledStatement nodes. Labels do NOT cross function boundaries
+	// (ECMA-262 §14.13 — LabelSet is per-function), so entering a
+	// function body saves the current floor, stretches it to
+	// len(label_stack) so outer labels are invisible, and restores on
+	// exit. Only slots in [label_floor..len) are visible to the current
+	// function; push appends past the floor, pop truncates back.
+	// Used for:
+	//   * §14.13.1 — duplicate-label rejection
+	//   * §14.14.1 / §14.14.2 — `break label` / `continue label` must
+	//     target a LabelledStatement that IS in scope.
+	label_stack: [dynamic]string,
+	label_floor: int,
+
 	// Inside a [[HomeObject]]-bearing context — class method (instance,
 	// static, getter, setter, constructor), class field initializer, class
 	// static block, or object-literal method / accessor. `super.foo` and
@@ -420,6 +434,8 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.in_switch = false
 	p.strict_mode = false
 	p.in_method = false
+	p.label_stack = make([dynamic]string, 0, 4, alloc)
+	p.label_floor = 0
 	p.lang = lang
 	p.has_module_syntax = false
 	p.pending_paren_start = max(u32) // sentinel: "no `(` pending"
@@ -1142,7 +1158,19 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				loc  = e.loc,
 				name = e.name,
 			}
+			// ECMA-262 §14.13.1 — `LabelledStatement : LabelIdentifier :
+			// LabelledItem` is a SyntaxError if `LabelIdentifier` is
+			// already in the enclosing LabelSet for the current function.
+			// `label_in_scope` only looks at [label_floor..len), so this
+			// correctly allows `foo: function() { foo: {} }` while
+			// rejecting `foo: { foo: {} }`.
+			if label_in_scope(p, e.name) {
+				msg := fmt.tprintf("Label '%s' has already been declared", e.name)
+				report_error(p, msg)
+			}
+			append(&p.label_stack, e.name)
 			labeled.body = parse_statement_or_declaration(p)
+			pop(&p.label_stack)
 			labeled.loc.span.end = prev_end_offset(p)
 
 			return statement_from(p, labeled)
@@ -1456,6 +1484,18 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	return statement_from(p, ret)
 }
 
+// Linear scan of the in-function slice of p.label_stack. The stack is
+// small in practice (nested-label depth is almost always 0–2 in real
+// code), so the O(N) lookup beats any hash overhead. Only labels at or
+// above `label_floor` are visible — labels below belong to enclosing
+// functions and don't cross function boundaries.
+label_in_scope :: proc(p: ^Parser, name: string) -> bool {
+	for i := p.label_floor; i < len(p.label_stack); i += 1 {
+		if p.label_stack[i] == name { return true }
+	}
+	return false
+}
+
 parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume break
@@ -1472,13 +1512,21 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 
 	// ECMA-262 §13.9.1 Static Semantics: an unlabeled `break;` is only
 	// valid inside an IterationStatement or SwitchStatement. Labeled
-	// `break label;` can target any enclosing LabeledStatement (including
-	// non-iteration ones), which requires label-scope tracking we don't
-	// currently do; skip the check in that arm to avoid false positives.
-	// Previously the unlabeled check was a no-op too, citing "nested
-	// functions reset in_loop/in_switch" — that tracking is stable now.
-	if label == nil && !p.in_loop && !p.in_switch {
-		report_error(p, "'break' outside of loop or switch")
+	// `break label;` is valid iff `label` names an enclosing
+	// LabelledStatement (any kind — the spec doesn't restrict to
+	// iteration). p.label_stack tracks exactly that set; it resets on
+	// function boundaries so `break outer;` can't escape out of a
+	// function expression.
+	if label == nil {
+		if !p.in_loop && !p.in_switch {
+			report_error(p, "'break' outside of loop or switch")
+		}
+	} else {
+		lbl := label.(LabelIdentifier)
+		if !label_in_scope(p, lbl.name) {
+			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
+			report_error(p, msg)
+		}
 	}
 
 	match_semicolon_or_asi(p)
@@ -1511,8 +1559,21 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 		eat(p)
 	}
 
-	if label == nil && !p.in_loop {
-		report_error(p, "'continue' outside of loop")
+	if label == nil {
+		if !p.in_loop {
+			report_error(p, "'continue' outside of loop")
+		}
+	} else {
+		lbl := label.(LabelIdentifier)
+		// Per spec `continue label;` additionally requires the labelled
+		// statement to BE an IterationStatement; we don't yet track that.
+		// Until we do, accept any in-scope label so we don't fire on
+		// legitimate labelled-loop code. The stricter check belongs in a
+		// follow-up once LabelledStatement stores its target kind.
+		if !label_in_scope(p, lbl.name) {
+			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
+			report_error(p, msg)
+		}
 	}
 
 	match_semicolon_or_asi(p)
@@ -1554,10 +1615,22 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	prev_in_switch := p.in_switch
 	p.in_switch = true
 
+	// ECMA-262 §14.12.1 — a SwitchStatement may have at most one
+	// DefaultClause. Track the first one we see; report (once) on every
+	// subsequent default. Always enforced, not strict-gated.
+	default_seen := false
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
+		is_default := is_token(p, .Default)
 		case_ := parse_switch_case(p)
 		if case_ != nil {
+			if is_default {
+				if default_seen {
+					report_error(p, "More than one default clause in switch")
+				} else {
+					default_seen = true
+				}
+			}
 			append(&switch_.cases, case_^)
 		} else if int(cur_offset(p)) == prev_offset {
 			eat(p)
@@ -1734,8 +1807,15 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	eat(p) // consume with
 
 	if p.strict_mode {
-		// Relaxed: don't error on with-in-strict (typescript.js uses it in non-strict context)
-		_ = p.strict_mode
+		// ECMA-262 §13.11.1 — WithStatement is a SyntaxError in strict
+		// mode. Legal in sloppy script (the TypeScript compiler's bundle
+		// itself contains `with(...)` in a non-strict IIFE, which is how
+		// the earlier “relaxed” stub got here). Since we now set
+		// `p.strict_mode = true` only when a `"use strict"` directive is
+		// actually present (or inside a class body), the real-world
+		// relaxation is still there — it just no longer swallows the
+		// strict-mode diagnostic.
+		report_error(p, "'with' statements are not allowed in strict mode")
 	}
 
 	if !expect_token(p, .LParen) {
@@ -2077,6 +2157,12 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	prev_in_generator := p.in_generator
 	prev_in_async := p.in_async
 	prev_strict := p.strict_mode
+	// Labels don't cross function boundaries (§14.13 — LabelSet is
+	// per-function). Move the floor up to the current stack length so
+	// outer labels are invisible for duplicate / break-target checks,
+	// then restore. No copy; the parent labels stay in the backing store.
+	prev_label_floor := p.label_floor
+	p.label_floor = len(p.label_stack)
 
 	p.in_function = true
 
@@ -2119,6 +2205,12 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	p.in_generator = prev_in_generator
 	p.in_async = prev_in_async
 	p.strict_mode = prev_strict
+	// Restore the enclosing label floor. Labels pushed inside this body
+	// should have been popped on their LabelledStatement exit; if not
+	// (parse bail-out, etc.) truncate down so leftovers don't pollute
+	// the parent scope.
+	resize(&p.label_stack, p.label_floor)
+	p.label_floor = prev_label_floor
 	// Surface the directive-prologue result to the caller. `parse_function_
 	// declaration` / `parse_function_expression` / class-method parse /
 	// object-method parse read this immediately after the call to apply
@@ -2229,7 +2321,62 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 	}
 
 	body.loc.span.end = prev_end_offset(p)
+	report_private_class_member_errors(p, body.body[:])
 	return body
+}
+
+// ECMA-262 §15.7.1 Static Semantics — a class body's PrivateBoundIdentifiers
+// must be pairwise distinct UNLESS one is a getter and the other a setter
+// with matching name (the get/set pair binds one slot). Also: the literal
+// name `#constructor` is forbidden for any private member.
+//
+// Runs once per class body after every element has been parsed; walks
+// elements, extracts each private key's name, and tracks per-name how
+// many times it appeared as what kind. The rules:
+//   * `#constructor` — always an error.
+//   * `#x` + `#x` with both not being a getter/setter pair — error.
+//   * `get #x` + `get #x` / `set #x` + `set #x` — error (duplicate accessor).
+//   * `#x` (field / method) + `get|set #x` — error (mixed kinds).
+//   * `static #x` + instance `#x` — error (private slot is shared
+//     across the class; static vs instance doesn't change that).
+report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
+	PrivateSeen :: struct {
+		has_get: bool,
+		has_set: bool,
+		has_other: bool,  // field or method
+	}
+	seen: map[string]PrivateSeen
+	seen.allocator = p.allocator
+	defer delete(seen)
+
+	for elem in elems {
+		if elem.key == nil { continue }
+		pid, is_private := elem.key.(^PrivateIdentifier)
+		if !is_private || pid == nil { continue }
+		name := pid.name
+		if name == "constructor" {
+			report_error(p, "Class private member name cannot be '#constructor'")
+			continue
+		}
+		prev, _ := seen[name]
+		dup := false
+	switch elem.kind {
+		case .Get:
+			if prev.has_get || prev.has_other { dup = true }
+			prev.has_get = true
+		case .Set:
+			if prev.has_set || prev.has_other { dup = true }
+			prev.has_set = true
+		case .Method, .Constructor, .StaticBlock:
+			if prev.has_get || prev.has_set || prev.has_other { dup = true }
+			prev.has_other = true
+		}
+		seen[name] = prev
+		if dup {
+			msg := fmt.tprintf("Duplicate private class member '#%s'", name)
+			report_error(p, msg)
+		}
+	}
 }
 
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
@@ -2900,6 +3047,52 @@ is_legacy_zero_prefixed_integer :: proc(raw: string) -> bool {
 	if raw[0] != '0' { return false }
 	c := raw[1]
 	return c >= '0' && c <= '9'
+}
+
+// Scan a StringLiteral's raw source for escape sequences that the
+// spec forbids in strict code:
+//   * LegacyOctalEscapeSequence: `\0` followed by another digit
+//     (`\00`..`\07`, `\012`, `\377`), OR `\1`..`\7` (`\3`, `\123`).
+//   * NonOctalDecimalEscapeSequence: `\8` or `\9`.
+// `\0` alone (NUL escape) is legal in both modes and explicitly
+// excluded by the spec; we only flag `\0` when the next char is a
+// decimal digit, turning it into a LegacyOctalEscape of the form
+// `\0<digit>...`.
+//
+// The `raw` input includes the enclosing quote characters; the scan
+// tolerates them and any non-escape content. A `\\` consumes the next
+// character (so `\\0` is a literal backslash followed by `0`, not a
+// NUL escape).
+string_raw_has_forbidden_escape :: proc(raw: string) -> bool {
+	i := 0
+	n := len(raw)
+	for i < n {
+		c := raw[i]
+		if c != '\\' { i += 1; continue }
+		// Lone trailing backslash — leave to other diagnostics.
+		if i + 1 >= n { return false }
+		next := raw[i+1]
+		switch next {
+		case '8', '9':
+			return true
+		case '1', '2', '3', '4', '5', '6', '7':
+			return true
+		case '0':
+			// `\0` alone is fine; `\0` followed by another digit is a
+			// LegacyOctalEscapeSequence.
+			if i + 2 < n {
+				d := raw[i+2]
+				if d >= '0' && d <= '9' { return true }
+			}
+			i += 2
+			continue
+		}
+		// Any other escape: consume the backslash + the following char
+		// and resume. This correctly skips `\n`, `\t`, `\"`, `\\`,
+		// `\xHH`, `\uHHHH`, `\u{H+}`, and line continuations.
+		i += 2
+	}
+	return false
 }
 
 parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
@@ -4720,6 +4913,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			str.value = val
 		}
 		str.loc.span.end = prev_end_offset(p)
+		// ECMA-262 §12.9.4 — LegacyOctalEscapeSequence (e.g. `\012`) and
+		// NonOctalDecimalEscapeSequence (`\8` / `\9`) are SyntaxErrors in
+		// a StringLiteral whose surrounding code is strict. `raw` carries
+		// the source text including the outer quotes.
+		if p.strict_mode && string_raw_has_forbidden_escape(current.value) {
+			report_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+		}
 		return str_e
 
 	case .BigInt:

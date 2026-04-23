@@ -1,4 +1,8 @@
 {
+  "tests/fixtures/negative/014_duplicate_private_class_member.js": "rejected",
+  "tests/fixtures/negative/013_break_unknown_label.js": "rejected",
+  "tests/fixtures/negative/012_duplicate_label.js": "rejected",
+  "tests/fixtures/negative/011_duplicate_default_in_switch.js": "rejected",
   "tests/fixtures/negative/010_reserved_word_as_var.js": "rejected",
   "tests/fixtures/negative/009_unexpected_token_after_return.js": "rejected",
   "tests/fixtures/negative/008_bare_function_expression.js": "rejected",
@@ -52,6 +56,8 @@
   "tests/fixtures/early_errors/module_context/003_top_level_await_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/002_import_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/001_export_in_script.js": "rejected",
+  "tests/fixtures/early_errors/strict_mode/012_octal_escape_string.js": "rejected",
+  "tests/fixtures/early_errors/strict_mode/011_with_statement.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/010_eval_arguments_assignment.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/009_duplicate_params_strict_nested.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/008_reserved_yield.js": "rejected",
