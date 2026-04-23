@@ -3301,8 +3301,14 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent)
 			out_println("},")
 		} else if expr, ok := s.left_expr.(^Expression); ok {
+			// `for (LHS in RHS)` — LHS is a destructuring target. Route through
+			// print_expression_as_pattern so array/object literals become
+			// ArrayPattern/ObjectPattern and inner `a = default` defaults
+			// become AssignmentPattern per ESTree. Identifier and
+			// MemberExpression targets pass through unchanged.
 			out_println("{")
-			print_expression_ast(expr, indent + 1)
+			print_expression_as_pattern(expr, indent + 1)
+			out_s("\n")
 			print_indent(indent)
 			out_println("},")
 		} else {
@@ -3333,8 +3339,11 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent)
 			out_println("},")
 		} else if expr, ok := s.left_expr.(^Expression); ok {
+			// `for (LHS of RHS)` — LHS is a destructuring target. See the
+			// ForInStatement case above for the rationale; same conversion.
 			out_println("{")
-			print_expression_ast(expr, indent + 1)
+			print_expression_as_pattern(expr, indent + 1)
+			out_s("\n")
 			print_indent(indent)
 			out_println("},")
 		} else {
@@ -3880,6 +3889,175 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 	case:
 		print_indent(indent)
 		out_s("null")
+	}
+}
+
+// print_expression_as_pattern emits an ^Expression as ESTree pattern JSON.
+// Called from destructuring-target positions where the parser records an
+// expression (AssignmentExpression.left with operator `=`, ForIn/ForOfStatement
+// .left_expr) but ESTree requires a Pattern node:
+//
+//   ArrayExpression      → ArrayPattern
+//   ObjectExpression     → ObjectPattern (Property[].value re-patternised)
+//   AssignmentExpression → AssignmentPattern (only when operator is `=`)
+//   SpreadElement        → RestElement
+//   Identifier / MemberExpression → emit as expression (valid pattern targets)
+//
+// Prior to this helper, destructuring-target array/object literals were
+// routed inline from `case ^AssignmentExpression` (one ad-hoc branch) and
+// for-in/of `left_expr` skipped the conversion entirely. Both paths emitted
+// inner `AssignmentExpression` nodes where ESTree expects `AssignmentPattern`,
+// desynchronising walkers (visitor.js, eslint, any ESTree consumer) the moment
+// they descend into `ForOfStatement.left.elements[*]`. Symptom: 6 real
+// divergences against OXC in antd.js plus ~19 cascading false-positives.
+// Centralising the conversion here makes all pattern positions go through a
+// single recursive emitter that mirrors OXC's shape exactly.
+print_expression_as_pattern :: proc(expr: ^Expression, indent: int) {
+	if expr == nil {
+		print_indent(indent)
+		out_s("null")
+		return
+	}
+	#partial switch e in expr^ {
+	case ^ArrayExpression:
+		print_indent(indent)
+		out_s("\"type\": \"ArrayPattern\",\n")
+		print_indent(indent)
+		emit_span_leading(e.loc, indent)
+		out_s("\"elements\": [")
+		if len(e.elements) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for elem, i in e.elements {
+				if el, ok := elem.(^Expression); ok && el != nil {
+					print_indent(indent + 1)
+					out_s("{\n")
+					print_expression_as_pattern(el, indent + 2)
+					out_s("\n")
+					print_indent(indent + 1)
+					if i < len(e.elements) - 1 { out_s("},\n") } else { out_s("}\n") }
+				} else {
+					// Sparse hole (e.g. `[, , x] = arr`) — ESTree emits null.
+					print_indent(indent + 1)
+					if i < len(e.elements) - 1 { out_s("null,\n") } else { out_s("null\n") }
+				}
+			}
+			print_indent(indent)
+			out_s("]")
+		}
+	case ^ObjectExpression:
+		print_indent(indent)
+		out_s("\"type\": \"ObjectPattern\",\n")
+		print_indent(indent)
+		emit_span_leading(e.loc, indent)
+		out_s("\"properties\": [")
+		if len(e.properties) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for prop, i in e.properties {
+				// Rest element in object destructure: parser stashes `...rest`
+				// as a Property { key: nil, value: ^SpreadElement }. Unwrap it
+				// to a bare RestElement node per ESTree.
+				if prop.key == nil {
+					if se, ok := prop.value^.(^SpreadElement); ok {
+						print_indent(indent + 1)
+						out_s("{\n")
+						print_indent(indent + 2)
+						out_s("\"type\": \"RestElement\",\n")
+						print_indent(indent + 2)
+						emit_span_leading(se.loc, indent + 2)
+						out_s("\"argument\": {\n")
+						print_expression_as_pattern(se.argument, indent + 3)
+						out_s("\n")
+						print_indent(indent + 2)
+						out_s("}\n")
+						print_indent(indent + 1)
+						if i < len(e.properties) - 1 { out_s("},\n") } else { out_s("}\n") }
+						continue
+					}
+				}
+				print_indent(indent + 1)
+				out_s("{\n")
+				print_indent(indent + 2)
+				out_s("\"type\": \"Property\",\n")
+				print_indent(indent + 2)
+				emit_span_leading(prop.loc, indent + 2)
+				out_s("\"shorthand\": ")
+				out_bool(prop.shorthand)
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"computed\": ")
+				out_bool(prop.computed)
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"kind\": \"init\",\n")
+				print_indent(indent + 2)
+				out_s("\"method\": false,\n")
+				print_indent(indent + 2)
+				out_s("\"key\": ")
+				if prop.key != nil {
+					out_s("{\n")
+					print_expression_ast(prop.key, indent + 3)
+					out_s("\n")
+					print_indent(indent + 2)
+					out_s("}")
+				} else {
+					out_s("null")
+				}
+				out_s(",\n")
+				print_indent(indent + 2)
+				out_s("\"value\": {\n")
+				print_expression_as_pattern(prop.value, indent + 3)
+				out_s("\n")
+				print_indent(indent + 2)
+				out_s("}\n")
+				print_indent(indent + 1)
+				if i < len(e.properties) - 1 { out_s("},\n") } else { out_s("}\n") }
+			}
+			print_indent(indent)
+			out_s("]")
+		}
+	case ^AssignmentExpression:
+		// Only `=` forms a destructuring default; `+=`/etc. are not valid
+		// in pattern position. If any other operator appears here it's an
+		// upstream bug — fall through to plain expression emit so the shape
+		// is at least valid JSON rather than corrupt.
+		if e.operator != .Assign {
+			print_expression_ast(expr, indent)
+			return
+		}
+		print_indent(indent)
+		out_s("\"type\": \"AssignmentPattern\",\n")
+		print_indent(indent)
+		emit_span_leading(e.loc, indent)
+		out_s("\"left\": {\n")
+		print_expression_as_pattern(e.left, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"right\": {\n")
+		print_expression_ast(e.right, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	case ^SpreadElement:
+		// `...rest` in an array destructure → RestElement in the pattern.
+		print_indent(indent)
+		out_s("\"type\": \"RestElement\",\n")
+		print_indent(indent)
+		emit_span_leading(e.loc, indent)
+		out_s("\"argument\": {\n")
+		print_expression_as_pattern(e.argument, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+	case:
+		// Identifier, MemberExpression, ParenthesizedExpression, etc. — all
+		// valid pattern targets that share their expression emit shape.
+		print_expression_ast(expr, indent)
 	}
 }
 
@@ -5236,119 +5414,19 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"left\": {\n")
 		if e.operator == .Assign {
-			if ae, ok := e.left^.(^ArrayExpression); ok {
-				// Emit as ArrayPattern for destructuring assignment
-				print_indent(indent + 1)
-				out_s("\"type\": \"ArrayPattern\",\n")
-				print_indent(indent + 1)
-				emit_span_leading(ae.loc, indent + 1)
-				out_s("\"elements\": [\n")
-				for elem, i in ae.elements {
-					if el, ok := elem.(^Expression); ok {
-						print_indent(indent + 2)
-						out_s("{\n")
-						// Check if this is a SpreadElement that should be converted to RestElement in pattern context
-						if se, ok := el^.(^SpreadElement); ok {
-							print_indent(indent + 3)
-							out_s("\"type\": \"RestElement\",\n")
-							print_indent(indent + 3)
-							emit_span_leading(se.loc, indent + 3)
-							out_s("\"argument\": {\n")
-							print_expression_ast(se.argument, indent + 4)
-							print_indent(indent + 3)
-							out_s("}\n")
-						} else {
-							print_expression_ast(el, indent + 3)
-						}
-						print_indent(indent + 2)
-						if i < len(ae.elements) - 1 {
-							out_s("},\n")
-						} else {
-							out_s("}\n")
-						}
-					} else {
-						print_indent(indent + 2)
-						if i < len(ae.elements) - 1 {
-							out_s("null,\n")
-						} else {
-							out_s("null\n")
-						}
-					}
-				}
-				print_indent(indent + 1)
-				out_s("]")
-			} else if oe, ok := e.left^.(^ObjectExpression); ok {
-				// Emit as ObjectPattern for destructuring assignment
-				print_indent(indent + 1)
-				out_s("\"type\": \"ObjectPattern\",\n")
-				print_indent(indent + 1)
-				emit_span_leading(oe.loc, indent + 1)
-				out_s("\"properties\": [\n")
-				for prop, i in oe.properties {
-					print_indent(indent + 2)
-					out_s("{\n")
-					if prop.key == nil && prop.value != nil {
-						if _, is_spread := prop.value^.(^SpreadElement); is_spread {
-							print_indent(indent + 3)
-							out_s("\"type\": \"RestElement\",\n")
-							print_indent(indent + 3)
-							emit_span_leading(prop.loc, indent + 3)
-							if se, ok := prop.value.(^SpreadElement); ok {
-								out_s("\"argument\": {\n")
-								print_expression_ast(se.argument, indent + 4)
-								print_indent(indent + 3)
-								out_s("}\n")
-							}
-						} else {
-							print_expression_ast(prop.value, indent + 3)
-						}
-					} else {
-						print_indent(indent + 3)
-						out_s("\"type\": \"Property\",\n")
-						print_indent(indent + 3)
-						emit_span_leading(prop.loc, indent + 3)
-						out_s("\"shorthand\": ")
-						out_bool(prop.shorthand)
-						out_s(",\n")
-						print_indent(indent + 3)
-						out_s("\"computed\": ")
-						out_bool(prop.computed)
-						out_s(",\n")
-						print_indent(indent + 3)
-						out_s("\"kind\": \"init\",\n")
-						print_indent(indent + 3)
-						out_s("\"method\": false,\n")
-						print_indent(indent + 3)
-						out_s("\"key\": ")
-						if prop.key != nil {
-							out_s("{\n")
-							print_expression_ast(prop.key, indent + 4)
-							print_indent(indent + 3)
-							out_s("}\n")
-						} else {
-							out_s("null\n")
-						}
-						if prop.value != nil {
-							print_indent(indent + 3)
-							out_s(",\n\"value\": {\n")
-							print_expression_ast(prop.value, indent + 4)
-							print_indent(indent + 3)
-							out_s("}\n")
-						}
-					}
-					print_indent(indent + 2)
-					if i < len(oe.properties) - 1 {
-						out_s("},\n")
-					} else {
-						out_s("}\n")
-					}
-				}
-				print_indent(indent + 1)
-				out_s("]")
-			} else {
-				print_expression_ast(e.left, indent + 1)
-			}
+			// Destructuring assignment: left must be a Pattern (ArrayPattern,
+			// ObjectPattern, Identifier, MemberExpression) even though we
+			// stored it as ^Expression. Route through print_expression_as_pattern
+			// which recursively converts nested AssignmentExpression →
+			// AssignmentPattern and SpreadElement → RestElement. Previously
+			// an inline conversion here fixed only the outer wrapper, leaving
+			// inner defaults in `[a = 1, b = 2] = arr` or `{a = 1, b = 2} = obj`
+			// emitting `AssignmentExpression` children that desynchronised
+			// every ESTree walker descending into the pattern.
+			print_expression_as_pattern(e.left, indent + 1)
 		} else {
+			// Non-destructuring forms (`+=`, `-=`, etc.) — left is a regular
+			// assignment target expression; no pattern conversion needed.
 			print_expression_ast(e.left, indent + 1)
 		}
 		print_indent(indent)

@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post all-items sweep — K3/PhaseC/TSParameterProperty/EST4/NAPI-MVP)
-**Repo state:** `main` at commit `495a975`, ~18 700 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-23 (post destructuring-pattern-emit fix — closes 8 antd.js divergences)
+**Repo state:** `main` at commit `495a975` + local, ~18 700 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -45,7 +45,7 @@ is fine.
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | ✅ matches baseline | snabbdom deep-compare passes; jquery integration baseline-gated. |
 | Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel |
-| Spec-compliance | `task test:spec-compliance` | **OK** ✅ (baselined) | Total divergences 11 561 → 74 across 12 real files vs OXC (`66f25e9`). snabbdom/react-dom.dev = 0. |
+| Spec-compliance | `task test:spec-compliance` | **OK** ✅ (baselined) | Total divergences 11 561 → 66 across 12 real files vs OXC. antd.js 25 → 17 via `print_expression_as_pattern` helper (destructuring target shapes). snabbdom/react-dom.dev = 0. |
 | Fuzz (diff vs OXC) | `task test:fuzz` | **75 / 100** ✅ (baselined) | 25 baselined failures, 0 new. 9 prior failures promoted to pass (`17cdc45`). |
 | Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
@@ -395,7 +395,7 @@ Phase 3 (`2ad4487`, `4b543cf`).
 |---|---|---|---|---|
 | K1 | **`task test:fuzz:invalid` — 8 baselined crashes** (was 29). SIGSEGV/SIGTRAP fixed in `07858c4` via emitter nil-pointer + inverted-span guards. Infinite-loops fixed in `491d083` (parse_lhs_tail .Not case + parse_jsx_children progress guard). 8 remaining are SIGTERMs (deadline-crosses) on 350 KB – 4 MB mutated files. | Low | parser (perf on very large mutated input) | Baselined in `tests/baselines/fuzz_invalid_baseline.json`. Not worth further chasing — these are deadline hits, not parser bugs. |
 | K2 | ~~`task test:crashes-known` regressions~~ ✅ Fixed in `491d083`. | | | |
-| K3 | ~~spec-compliance divergences~~ ✅ Closed (`66f25e9`). `pending_paren_start` propagation fixed; verifier updated to pass `--preserve-parens` for OXC compares. Total divergences 11 561 → 74. Remaining 25 in antd.js = 6 real pre-existing structural (AssignmentExpression vs AssignmentPattern) + ~19 cascading. | — | — | Baselined. |
+| K3 | ~~spec-compliance divergences~~ ✅ Closed (`66f25e9`). `pending_paren_start` propagation fixed; verifier updated to pass `--preserve-parens` for OXC compares. Total divergences 11 561 → 66. Destructuring-target emit fix closed 8 more on antd.js (25 → 17) by routing `AssignmentExpression.left` (operator `=`) and `ForIn/ForOfStatement.left_expr` through a shared `print_expression_as_pattern` helper that recursively converts `ArrayExpression/ObjectExpression/AssignmentExpression/SpreadElement → ArrayPattern/ObjectPattern/AssignmentPattern/RestElement`. Remaining 17 in antd.js are span-start bugs inside `ObjectPattern.properties[*].value` (different class). | — | — | Baselined. |
 | K4 | ~~Arrow-param type annotations~~ ✅ Fixed in `c0e1a4d`. `(x: T) => x`, `(...args: T[]) => ...`, `(x: T): R => ...`, generic-arrow `<T>(x: U) => x`, function-type `(cb: (x: number) => string) => ...` all parse clean. | | | |
 | K5 | ~~Deep JSX child recursion crash~~ ✅ Fixed. `spec/jsx/005_nested_element` now passes both `<Outer><Middle><Inner/></Middle></Outer>` and `<Foo bar={<Baz x={1}/>}/>`. Ancestor commits (`70b5652`, Phase 2 span fixes) closed it; handoff entry was stale. | | | |
 | K6 | ~~`early_errors/016_digit_start_identifier.js`~~ ✅ Fixed. `const 1a = 1;` now parses with structured errors, no SIGTRAP. | | | |
@@ -443,9 +443,21 @@ Ordered by impact × feasibility.
 
 **Remaining items** (ordered by impact):
 
-1. **K3 remaining 6 residuals** — 25 divergences in antd.js reduced to 6 real
-   structural (AssignmentExpression vs AssignmentPattern, pre-existing) + ~19
-   cascading from those. Likely needs pattern parsing fix.
+1. **K3 remaining antd.js residuals** — 17 divergences left after the
+   destructuring-emit fix. All are `start`-offset mismatches inside
+   `ObjectPattern.properties[*].value` (Kessel starts 6–11 bytes earlier than
+   OXC). Not a pattern-shape bug; the emit shape is now correct. Likely a
+   span-propagation issue where the property's `value` span inherits the key
+   start instead of the actual value start (or vice versa).
+2. **Pre-existing fix landed (2026-04-23)** — `src/main.odin`
+   `print_expression_as_pattern` helper centralises pattern-emit for
+   destructuring targets. Old inline ArrayExpression→ArrayPattern conversion
+   inside `case ^AssignmentExpression` removed; for-in/of `left_expr` now
+   routes through the helper too. 3 baselines regenerated
+   (`edge/012_generators`, `regression/003_class_for_in_of`,
+   `spec/edge/013_assignment_patterns`) — whitespace-only normalisation to
+   `print_pattern_ast` convention, plus a fix to a pre-existing
+   `,\n"value":` indentation bug in the old ObjectExpression destructure path.
 2. **Full NAPI bindings** — Production-grade zero-spawn NAPI. Requires C ABI
    Odin export + C++ NAPI shim + npm packaging infra. Several weeks.
 3. **Wave 3 Phase C gaps** — TSX `<T>` single-param generic arrow (no

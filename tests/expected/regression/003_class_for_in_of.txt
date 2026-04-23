@@ -232,7 +232,8 @@
                       "type": "Identifier",
                       "start": 762,
                       "end": 763,
-                      "name": "x"                    },
+                      "name": "x"
+                    },
                     "right": {
                       "type": "Identifier",
                       "start": 767,
@@ -299,7 +300,8 @@
                       "type": "Identifier",
                       "start": 820,
                       "end": 821,
-                      "name": "y"                    },
+                      "name": "y"
+                    },
                     "right": {
                       "type": "Identifier",
                       "start": 825,
@@ -420,5 +422,5 @@
 }
 
 --- Statistics ---
-Arena: used=22136B reserved=16777216B ratio=0%
+Arena: used=22160B reserved=16777216B ratio=0%
 Parse errors: 0

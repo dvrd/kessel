@@ -108,12 +108,14 @@
                           "type": "Identifier",
                           "start": 103,
                           "end": 104,
-                          "name": "a"                        },
+                          "name": "a"
+                        },
                         {
                           "type": "Identifier",
                           "start": 106,
                           "end": 107,
-                          "name": "b"                        }
+                          "name": "b"
+                        }
                       ]                    },
                     "right": {
                       "type": "ArrayExpression",
@@ -459,5 +461,5 @@
 }
 
 --- Statistics ---
-Arena: used=11936B reserved=16777216B ratio=0%
+Arena: used=12032B reserved=16777216B ratio=0%
 Parse errors: 0
