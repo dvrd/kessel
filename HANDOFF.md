@@ -167,7 +167,7 @@ main.odin ──→ parser.odin ──→ lexer.odin ──→ simd.odin
 | TypeScript — Core | **12 / 12 ✅** | TS-C1c TSX single-param `<T>` still requires trailing comma |
 | TypeScript — Advanced | **10 / 10 ✅** | — |
 | TypeScript — Declarations | **6 / 7** | TS-D individual verification lacks dedicated test coverage |
-| ESTree / TS-ESTree Conformance | **8 / 8 ✅** | EST-4 closed (`f8656ec`): all 10 TS spec fixtures pass OXC compare |
+| ESTree / TS-ESTree Conformance | **9 / 9 ✅** | EST-5 closed: 22-category spec-fixture gate, 139/140 pass. |
 | ESM Module Record | **5 / 5 ✅** | — |
 | Parser Options | **6 / 6 ✅** | — |
 | Error Handling | **1 / 4** | ERR-2/3 functionally solved (recovery 20/20, 0 SIGTRAPs); formal items remain open |
@@ -259,7 +259,12 @@ All fixed in Phase 2.
       ClassDeclaration superTypeArguments, CallExpression/NewExpression
       typeArguments null, MethodDef/PropertyDef optional, TSInterfaceDeclaration
       body start. OXC used as reference (typescript-estree verifier not needed).
-- [ ] **EST-5:** Per-category spec-fixture gate — expand baseline beyond ES years.
+- [x] **EST-5:** Per-category spec-fixture gate (`96bacd5`+). Baseline now covers
+      22 categories x 140 fixtures (`tests/baselines/spec_fixtures_baseline.json`):
+      asi, edge, es2015–es2025, escapes, ambiguity, interactions, jsx, lexical,
+      regex_disambiguation, typescript, unicode. 139/140 passing; lexical/001
+      (BOM+hashbang) baselined as known-fail. Gate trips on any category
+      regression.
 
 ### ESM Module Record (5 / 5 ✅)
 All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
@@ -294,8 +299,11 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
       SIGTERMs on 350KB–4MB mutated files only; no infinite loops.*
 
 ### Test Coverage (1 / 5)
-- [x] Curated Test262 (64/66), regression (11/11), real-world (467/467),
-      nodes (57/57), invariants (467/467), spec-fixtures (127/140, all TS 10/10).
+- [x] Curated Test262 (66/66), regression (11/11), real-world (467/467),
+      nodes (57/57), invariants (467/467), spec-fixtures (139/140 across 22
+      categories, all ES years + asi + edge + escapes + jsx + regex + TS + unicode
+      + ambiguity + interactions + lexical at 100%, lexical/001 BOM+hashbang
+      baselined as known-fail).
 - [ ] **TEST-1:** Full Test262 (~45 000 tests).
 - [ ] **TEST-2:** Babel parser test suite.
 - [ ] **TEST-3:** TypeScript parser test suite.
