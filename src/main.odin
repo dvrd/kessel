@@ -1769,15 +1769,21 @@ out_u32 :: #force_inline proc(n: u32) {
 // accidental mutation. Hot path: inlined. Invariant: start <= end (asserted;
 // an inverted span is a parser bug and we'd rather crash than emit nonsense).
 emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
-	assert(loc.span.start <= loc.span.end)
+	// Tolerate inverted spans (end < start) that can arise from deeply-nested
+	// JSX children or error-recovery paths — clamp `end := max(start, end)` so
+	// invalid input is still emitted as well-formed JSON instead of SIGTRAPping.
+	// See K5 (deep JSX child recursion) and fuzz:invalid contract.
+	start := loc.span.start
+	end := loc.span.end
+	if end < start { end = start }
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"start\": ")
-	out_u32(to_utf16(loc.span.start))
+	out_u32(to_utf16(start))
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"end\": ")
-	out_u32(to_utf16(loc.span.end))
+	out_u32(to_utf16(end))
 	
 	if emit_loc_enabled {
 		out_s(",\n")
@@ -1815,13 +1821,16 @@ emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
 // ImportSpecifier, CatchClause, Directive, etc.) that don't use `emit_span_fields`'s
 // leading-comma pattern.
 emit_span_leading :: #force_inline proc(loc: Loc, indent: int) {
-	assert(loc.span.start <= loc.span.end)
+	// Tolerate inverted spans — see note on emit_span_fields.
+	start := loc.span.start
+	end := loc.span.end
+	if end < start { end = start }
 	out_s("\"start\": ")
-	out_u32(to_utf16(loc.span.start))
+	out_u32(to_utf16(start))
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"end\": ")
-	out_u32(to_utf16(loc.span.end))
+	out_u32(to_utf16(end))
 	
 	if emit_loc_enabled {
 		out_s(",\n")
@@ -1860,8 +1869,49 @@ emit_span_leading :: #force_inline proc(loc: Loc, indent: int) {
 // extract the `loc: Loc` header that every AST struct shares as its first field.
 // Returned by value; zero-allocation. Used by the top-level print_*_ast procs to
 // emit start/end without threading a loc argument through every variant's case.
+// statement_inner_nil returns true when a ^Statement union holds a nil typed
+// pointer. Error-recovery paths in the parser can append a Statement variant
+// whose inner pointer is nil; dereferencing `s.loc` crashes. Used as a guard
+// at emitter entry and in get_statement_loc to downgrade a crash into a safe
+// placeholder emission. Fixes a class of invalid-input fuzz crashes (K1).
+statement_inner_nil :: proc(stmt: ^Statement) -> bool {
+	if stmt == nil { return true }
+	#partial switch s in stmt^ {
+	case ^ExpressionStatement:       return s == nil
+	case ^EmptyStatement:            return s == nil
+	case ^BlockStatement:            return s == nil
+	case ^DebuggerStatement:         return s == nil
+	case ^ReturnStatement:           return s == nil
+	case ^BreakStatement:            return s == nil
+	case ^ContinueStatement:         return s == nil
+	case ^LabeledStatement:          return s == nil
+	case ^IfStatement:               return s == nil
+	case ^SwitchStatement:           return s == nil
+	case ^WhileStatement:            return s == nil
+	case ^DoWhileStatement:          return s == nil
+	case ^ForStatement:              return s == nil
+	case ^ForInStatement:            return s == nil
+	case ^ForOfStatement:            return s == nil
+	case ^WithStatement:             return s == nil
+	case ^ThrowStatement:            return s == nil
+	case ^TryStatement:              return s == nil
+	case ^FunctionDeclaration:       return s == nil
+	case ^VariableDeclaration:       return s == nil
+	case ^ClassDeclaration:          return s == nil
+	case ^ImportDeclaration:         return s == nil
+	case ^ExportNamedDeclaration:    return s == nil
+	case ^ExportDefaultDeclaration:  return s == nil
+	case ^ExportAllDeclaration:      return s == nil
+	case ^TSInterfaceDeclaration:    return s == nil
+	case ^TSTypeAliasDeclaration:    return s == nil
+	case ^TSEnumDeclaration:         return s == nil
+	case ^TSModuleDeclaration:       return s == nil
+	}
+	return true  // unknown variant — treat as nil to be safe
+}
+
 get_statement_loc :: proc(stmt: ^Statement) -> Loc {
-	if stmt == nil { return Loc{} }
+	if statement_inner_nil(stmt) { return Loc{} }
 	#partial switch s in stmt^ {
 	case ^ExpressionStatement:      return s.loc
 	case ^EmptyStatement:            return s.loc
@@ -1896,8 +1946,60 @@ get_statement_loc :: proc(stmt: ^Statement) -> Loc {
 	return Loc{}
 }
 
+// expression_inner_nil — same contract as statement_inner_nil for ^Expression
+// unions. See commentary on statement_inner_nil for motivation.
+expression_inner_nil :: proc(expr: ^Expression) -> bool {
+	if expr == nil { return true }
+	#partial switch e in expr^ {
+	case ^NullLiteral:              return e == nil
+	case ^BooleanLiteral:           return e == nil
+	case ^NumericLiteral:           return e == nil
+	case ^StringLiteral:            return e == nil
+	case ^BigIntLiteral:            return e == nil
+	case ^RegExpLiteral:            return e == nil
+	case ^TemplateLiteral:          return e == nil
+	case ^TaggedTemplateExpression: return e == nil
+	case ^Identifier:               return e == nil
+	case ^ThisExpression:           return e == nil
+	case ^Super:                    return e == nil
+	case ^ArrayExpression:          return e == nil
+	case ^ObjectExpression:         return e == nil
+	case ^FunctionExpression:       return e == nil
+	case ^ArrowFunctionExpression:  return e == nil
+	case ^ClassExpression:          return e == nil
+	case ^MemberExpression:         return e == nil
+	case ^CallExpression:           return e == nil
+	case ^NewExpression:            return e == nil
+	case ^ConditionalExpression:    return e == nil
+	case ^UpdateExpression:         return e == nil
+	case ^UnaryExpression:          return e == nil
+	case ^BinaryExpression:         return e == nil
+	case ^LogicalExpression:        return e == nil
+	case ^AssignmentExpression:     return e == nil
+	case ^SequenceExpression:       return e == nil
+	case ^SpreadElement:            return e == nil
+	case ^YieldExpression:          return e == nil
+	case ^AwaitExpression:          return e == nil
+	case ^ImportExpression:         return e == nil
+	case ^MetaProperty:             return e == nil
+	case ^PrivateIdentifier:        return e == nil
+	case ^ChainExpression:          return e == nil
+	case ^JSXElement:               return e == nil
+	case ^JSXFragment:              return e == nil
+	case ^JSXText:                  return e == nil
+	case ^JSXExpressionContainer:   return e == nil
+	case ^JSXEmptyExpression:       return e == nil
+	case ^JSXSpreadChild:           return e == nil
+	case ^TSAsExpression:           return e == nil
+	case ^TSSatisfiesExpression:    return e == nil
+	case ^TSNonNullExpression:      return e == nil
+	case ^TSTypeAssertion:          return e == nil
+	}
+	return true
+}
+
 get_expression_loc :: proc(expr: ^Expression) -> Loc {
-	if expr == nil { return Loc{} }
+	if expression_inner_nil(expr) { return Loc{} }
 	#partial switch e in expr^ {
 	case ^NullLiteral:              return e.loc
 	case ^BooleanLiteral:           return e.loc
@@ -2420,6 +2522,16 @@ print_class_element_static_block :: proc(value_expr: ^Expression, indent: int, s
 }
 
 print_statement_ast :: proc(stmt: ^Statement, indent: int) {
+	// Emitter robustness: if the parser appended a Statement with a nil inner
+	// typed pointer (can happen on invalid/fuzzed input), emit a safe
+	// placeholder instead of dereferencing. See statement_inner_nil.
+	// Placeholder carries start=end=0 so the I3_start_end_present invariant holds.
+	if statement_inner_nil(stmt) {
+		print_indent(indent)
+		out_s("\"type\": \"Unknown\"")
+		emit_span_fields(Loc{}, indent)
+		return
+	}
 	print_indent(indent)
 	out_s("\"type\": \"")
 	out_s(get_statement_type_name(stmt))
@@ -4457,6 +4569,16 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 }
 
 print_expression_ast :: proc(expr: ^Expression, indent: int) {
+	// Emitter robustness: same rationale as print_statement_ast. A nil inner
+	// typed pointer on an Expression would crash every downstream emitter
+	// branch that reads `e.<field>`. Emit a safe placeholder with start/end=0
+	// so I3_start_end_present invariant still holds.
+	if expression_inner_nil(expr) {
+		print_indent(indent)
+		out_s("\"type\": \"Unknown\"")
+		emit_span_fields(Loc{}, indent)
+		return
+	}
 	// ESTree Literal short-circuit: collapse six OXC-style literal types into one.
 	// ESTree spec uses a single "Literal" node for Numeric/String/Boolean/Null/BigInt/RegExp.
 	// Every branch emits start/end via emit_span_fields or emit_span_leading so

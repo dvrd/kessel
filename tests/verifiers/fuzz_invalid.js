@@ -343,7 +343,7 @@ if (UPDATE) {
   fs.writeFileSync(BASELINE_PATH, JSON.stringify({
     seed: SEED, count: COUNT, corpus_size: corpus.length,
     known_crashes: crashes,
-  }, null, 2) + '\\n');
+  }, null, 2) + '\n');
   console.log('baseline updated: ' + Object.keys(crashes).length + ' known crash(es) in ' + BASELINE_PATH);
   process.exit(0);
 }
@@ -362,7 +362,7 @@ if (BASELINE) {
     console.log('fuzz_invalid: no crashes, no baseline \u2014 creating empty baseline.');
     fs.writeFileSync(BASELINE_PATH, JSON.stringify({
       seed: SEED, count: COUNT, corpus_size: corpus.length, known_crashes: {},
-    }, null, 2) + '\\n');
+    }, null, 2) + '\n');
     process.exit(0);
   }
   const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
