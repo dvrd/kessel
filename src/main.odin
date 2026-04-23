@@ -5356,6 +5356,17 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_bool(e.async)
 		out_s(",\n")
 		print_indent(indent)
+		// typeParameters: emit when present (generic arrow <T>(x)=>x); emit
+		// null placeholder in TS-shape mode for structural uniformity.
+		if tp, ok := e.type_parameters.(^TSTypeParameterDeclaration); ok && tp != nil {
+			out_s("\"typeParameters\": ")
+			emit_ts_type_parameter_declaration(e.type_parameters, indent)
+			out_s(",\n")
+			print_indent(indent)
+		} else if emit_ts_shape {
+			out_s("\"typeParameters\": null,\n")
+			print_indent(indent)
+		}
 		out_s("\"params\": [")
 		if len(e.params) == 0 {
 			out_s("]")
@@ -5371,6 +5382,18 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			}
 			print_indent(indent)
 			out_s("]")
+		}
+		// returnType: emit the explicit return type annotation when present;
+		// in TS-shape mode always emit the field (null when absent).
+		if ann, ok := e.return_type.(^TSTypeAnnotation); ok && ann != nil {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"returnType\": ")
+			emit_ts_type_annotation_node(ann, indent)
+		} else if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"returnType\": null")
 		}
 		out_s(",\n")
 		print_indent(indent)

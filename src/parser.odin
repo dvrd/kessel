@@ -4380,11 +4380,47 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 
 	case .LAngle:
 		// Dispatch depends on language mode:
-		//   JSX / TSX → JSX element (existing behaviour).
-		//   TS       → TS type assertion `<Type>expr` or generic arrow
-		//               `<T>(x) => x`. No JSX ambiguity in pure TS mode.
-		//   JS       → syntax error (comparison operator needs a LHS).
-		if allow_jsx_mode(p) {
+		//   TS  → TS type assertion `<Type>expr` or generic arrow
+		//          `<T>(x) => x`. No JSX ambiguity in pure TS mode.
+		//   TSX → Genuine ambiguity. OXC/TS-ESTree rule:
+		//          * `<T,>` (trailing comma) → generic arrow.
+		//          * `<T extends ...>` → try generic arrow.
+		//          * `<Type>expr` type-assertions are FORBIDDEN in .tsx
+		//            (use `expr as Type` instead). Fall through to JSX.
+		//          * Anything else → JSX element / fragment.
+		//   JSX → JSX element / fragment (no TS types).
+		//   JS  → syntax error (comparison needs a LHS operand).
+		if p.lang == .TSX {
+			// TSX Phase C: try generic arrow when trailing comma
+			// or `extends` follows the type parameter identifier.
+			// A 2-token speculative peek (no consume): peek past `<`
+			// to the first token; if it's an Identifier, peek again
+			// to see what follows.
+			nxt_kind := p.lexer.nxt.kind
+			if nxt_kind == .Identifier {
+				snap := lexer_snapshot(p)
+				eat(p)  // consume `<`
+				eat(p)  // consume the identifier
+				after := p.cur_type
+				lexer_restore(p, snap)
+				// Trailing comma `<T,>` or `extends` / `=` signal → try
+				// as generic arrow. On failure fall through to JSX.
+				if after == .Comma || after == .Extends || after == .Assign {
+					lt_start := cur_loc(p)
+					snap2 := lexer_snapshot(p)
+					result := parse_ts_generic_arrow(p, lt_start)
+					if result != nil && len(p.errors) == snap2.errors_len {
+						return result
+					}
+					lexer_restore(p, snap2)
+				}
+			}
+			// Fall through to JSX (covers tags, fragments, and the
+			// forbidden-in-TSX `<Type>expr` form which JSX will
+			// reject as a malformed element).
+			return parse_jsx_element_or_fragment(p)
+		}
+		if allow_jsx_mode(p) {  // .JSX only (not .TSX — handled above)
 			return parse_jsx_element_or_fragment(p)
 		}
 		if allow_ts_mode(p) {
