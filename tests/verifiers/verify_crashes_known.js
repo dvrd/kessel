@@ -45,23 +45,15 @@ const VERBOSE = process.argv.includes('--verbose');
 // Removing an entry here means "the parser no longer crashes on this input".
 // The gate enforces that removal is sticky: if you remove an entry and the
 // parser regresses, the gate catches it.
-const KNOWN_CRASHES = [
-  {
-    path: 'spec/jsx/005_nested_element.js',
-    why: 'JSXElement as an attribute value (<Foo bar={<Baz />} />). ' +
-         'The JSX attribute-value parser recurses into an unhandled case.',
-  },
-  {
-    path: 'spec/typescript/007_type_assertion.js',
-    why: 'TS angle-bracket type assertion <Type>expr. The lexer enters ' +
-         'JSX mode on `<` and cannot unwind when the `>` closes a type.',
-  },
-  {
-    path: 'spec/unicode/002_escape_in_identifier.js',
-    why: 'ECMA-262 \u00a712.7: `\\\\u0061bc` must lex as identifier `abc`. ' +
-         'The lexer has no identifier-escape path.',
-  },
-];
+// All three previously-pinned fixtures were fixed across Phase 3:
+//   • spec/jsx/005_nested_element.js       — JSXElement-in-attr handler
+//   • spec/typescript/007_type_assertion.js — TS angle-bracket via Wave 3
+//     Phase B `parse_ts_lt_expression` (b02dfe5)
+//   • spec/unicode/002_escape_in_identifier.js — `\\uXXXX` identifier
+//     escape path (34121c2)
+// Removing them makes the gate enforce "these must keep parsing cleanly".
+// A regression on any of them flips this file from empty-list to must-fix.
+const KNOWN_CRASHES = [];
 
 if (!fs.existsSync(KESSEL)) {
   console.error('verify_crashes_known: missing ' + KESSEL + ' \u2014 run `task build` first');

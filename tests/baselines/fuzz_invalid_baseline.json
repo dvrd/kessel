@@ -3,13 +3,6 @@
   "count": 300,
   "corpus_size": 467,
   "known_crashes": {
-    "66613919": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 3837
-    },
     "32769d9e": {
       "reason": "signal",
       "exit": null,
@@ -24,38 +17,10 @@
       "strategy": "nul_inject",
       "size": 835379
     },
-    "dd3ddd52": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "bit_flip",
-      "size": 1401269
-    },
-    "9868854e": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "bit_flip",
-      "size": 347570
-    },
-    "f471c82a": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 90537
-    },
-    "6f41340a": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 6349
-    },
     "514e51f6": {
-      "reason": "timeout",
+      "reason": "signal",
       "exit": null,
-      "signal": null,
+      "signal": "SIGTERM",
       "strategy": "byte_insert",
       "size": 349581
     },
@@ -67,9 +32,9 @@
       "size": 4156941
     },
     "d78a8185": {
-      "reason": "timeout",
+      "reason": "signal",
       "exit": null,
-      "signal": null,
+      "signal": "SIGTERM",
       "strategy": "bit_flip",
       "size": 1093810
     },
@@ -80,48 +45,6 @@
       "strategy": "utf8_broken",
       "size": 522273
     },
-    "62f5e96a": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "bit_flip",
-      "size": 19542
-    },
-    "656abfd0": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 90570
-    },
-    "7cad172e": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 496581
-    },
-    "e2fdbb23": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 12519
-    },
-    "eeba0df6": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 168953
-    },
-    "cbc109af": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 23766
-    },
     "c887b730": {
       "reason": "signal",
       "exit": null,
@@ -129,33 +52,12 @@
       "strategy": "byte_insert",
       "size": 733950
     },
-    "ef38b4cb": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "bit_flip",
-      "size": 229128
-    },
-    "d6112f76": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 1638
-    },
     "1405969b": {
       "reason": "signal",
       "exit": null,
       "signal": "SIGTERM",
       "strategy": "utf8_broken",
       "size": 590491
-    },
-    "8d5ea725": {
-      "reason": "timeout",
-      "exit": null,
-      "signal": null,
-      "strategy": "ascii_noise",
-      "size": 14150
     }
   }
 }

@@ -3749,7 +3749,21 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			     .Arrow, .EOF, .In, .Instanceof, .As, .Satisfies:
 				allow = true
 			}
-			if !allow { break }
+			// IMPORTANT: in Odin `break` inside `switch` inside `for` exits
+			// the SWITCH only. If we just `break`, the for-loop reruns with
+			// p.cur_type still == .Not — infinite loop. Must exit the tail
+			// walk (the `!` isn't ours; leave it for the caller's expression
+			// parser to treat as an error or binary context).
+			if !allow {
+				if is_chain {
+					chain := new_node(p, ChainExpression)
+					chain.loc = chain_start
+					chain.expression = expr
+					chain.loc.span.end = prev_end_offset(p)
+					return expression_from(p, chain)
+				}
+				return expr
+			}
 			eat(p) // consume `!`
 			nn := new_node(p, TSNonNullExpression)
 			nn.loc = loc_from_expr(expr)
@@ -5512,6 +5526,7 @@ parse_jsx_attribute_name :: proc(p: ^Parser) -> JSXAttributeName {
 parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 	children := make([dynamic]JSXChild, 0, 4, p.allocator)
 	for !is_token(p, .EOF) {
+		prev_off := cur_offset(p)
 		if is_token(p, .LAngle) {
 			if peek_dispatch(p).type == .Div { break }
 			nested := parse_jsx_element_or_fragment(p)
@@ -5540,6 +5555,12 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			text := parse_jsx_text(p)
 			if text != nil && text.value != "" { append(&children, text) }
 		}
+		// Progress guard: if no iteration advanced the cursor (e.g. malformed
+		// input where parse_jsx_element_or_fragment returned without consuming,
+		// or parse_jsx_text had nothing to scan), break instead of looping
+		// forever. Fuzzed input without a proper JSX close tag would otherwise
+		// spin here at O(∞).
+		if cur_offset(p) == prev_off { break }
 	}
 	return children
 }
