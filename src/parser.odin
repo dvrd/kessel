@@ -4069,18 +4069,14 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .LAngle:
 		// Dispatch depends on language mode:
 		//   JSX / TSX → JSX element (existing behaviour).
-		//   TS       → TS type assertion or generic arrow (Phase B — for
-		//               now produce a clean error, crash-free).
+		//   TS       → TS type assertion `<Type>expr` or generic arrow
+		//               `<T>(x) => x`. No JSX ambiguity in pure TS mode.
 		//   JS       → syntax error (comparison operator needs a LHS).
 		if allow_jsx_mode(p) {
 			return parse_jsx_element_or_fragment(p)
 		}
 		if allow_ts_mode(p) {
-			// Phase A placeholder: emit an error instead of crashing in
-			// parse_jsx. Phase B replaces this with a real
-			// parse_ts_lt_expression handling `<Type>expr` + `<T>(x)=>x`.
-			report_error(p, "TS `<Type>expr` / `<T>(x)=>x` not yet wired (Wave 3 Phase B)")
-			return nil
+			return parse_ts_lt_expression(p)
 		}
 		report_error(p, "Unexpected '<' at expression start")
 		return nil
@@ -5863,6 +5859,216 @@ parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 	expect_token(p, .RAngle)
 	inst := new_node(p, TSTypeParameterInstantiation); inst.loc = start; inst.params = params; inst.loc.span.end = prev_end_offset(p)
 	return inst
+}
+
+// parse_ts_lt_expression handles `<` at expression start in TS / TSX mode.
+// Two productions are possible here:
+//
+//   1. Type assertion:  `<Type>expr`                       → TSTypeAssertion
+//   2. Generic arrow:   `<T[, U, ...]>(params) => body`    → ArrowFunctionExpression
+//                                                              with .type_parameters set
+//
+// In pure `.ts` (no JSX), there's no ambiguity with a JSX opening tag — both
+// productions are legal TS at expression position and nothing else starts
+// with `<`. In `.tsx` (JSX enabled), this function is NOT reached because
+// allow_jsx_mode(p) is true; TSX ambiguity is handled by JSX today and
+// deferred to Phase C (trailing-comma rule for generic arrows).
+//
+// Discriminator (1-token lookahead after `<`):
+//
+//   * `<T ,`         → KNOWN generic arrow (multiple type params)
+//   * `<T extends`   → KNOWN generic arrow (constrained type param)
+//   * `<T =`         → KNOWN generic arrow (type param with default)
+//   * `<string>`     → non-identifier type → assertion
+//   * `<number>`     → non-identifier type → assertion
+//   * `<T>`          → ambiguous (could be assertion on parenthesised
+//                      expr OR generic arrow with single param). MVP
+//                      heuristic: treat as assertion. The corner case
+//                      `<T>(x) => x` with a single-char type param
+//                      and identifier-only arg MISPARSES. Documented
+//                      limitation; covered by Phase C proper trial-parse.
+parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
+	start := cur_loc(p)
+	assert(p.cur_type == .LAngle)
+
+	// Decision tree after `<`:
+	//
+	//   A. `<Identifier , ...`   → generic arrow, trial-parse it.
+	//      `<Identifier extends` → generic arrow, trial-parse it.
+	//      `<Identifier =`       → generic arrow, trial-parse it.
+	//      `<Identifier >`       → AMBIGUOUS. Could be generic arrow
+	//                              `<T>(x)=>x` or assertion `<T>(x+y)`.
+	//                              Trial-parse as generic arrow; on
+	//                              failure, restore and parse as assertion.
+	//   B. `<Identifier <other>` → fall through to assertion (best effort).
+	//   C. `<<non-identifier>`   → assertion (type params require an
+	//                              identifier as the first token).
+	//
+	// Every trial-parse path uses lexer_snapshot/restore to undo state
+	// and any errors introduced by the speculative parse. A genuine user
+	// syntax error (e.g. "<T,>(x:T)=>x" where the arrow-param type
+	// annotation hits a pre-existing parser gap) reports a SINGLE clean
+	// error instead of cascading SIGSEGVs.
+	nxt_kind := p.lexer.nxt.kind
+
+	if nxt_kind == .Identifier {
+		snap := lexer_snapshot(p)
+		eat(p)            // consume `<`
+		eat(p)            // consume the identifier after `<`
+		after := p.cur_type
+		lexer_restore(p, snap)
+
+		try_arrow := after == .Comma || after == .Extends || after == .Assign || after == .RAngle
+		if try_arrow {
+			snap2 := lexer_snapshot(p)
+			result := parse_ts_generic_arrow(p, start)
+			if result != nil && len(p.errors) == snap2.errors_len {
+				return result
+			}
+			// Generic-arrow parse failed — roll back and, for the
+			// ambiguous `<T>` case only, fall through to an assertion
+			// attempt. For the KNOWN-arrow signals (`,`/`extends`/`=`)
+			// nothing else is legal: emit one error and bail.
+			lexer_restore(p, snap2)
+			if after != .RAngle {
+				report_error(p, "Malformed generic arrow function")
+				return nil
+			}
+			// fall through to assertion for the ambiguous case
+		}
+	}
+
+	// Assertion `<Type>expr`. Guarded fallback; reports errors via the
+	// normal channel without ad-hoc panics.
+	snap := lexer_snapshot(p)
+	eat(p) // consume `<`
+	type_ann := parse_ts_type(p)
+	if !expect_token(p, .RAngle) {
+		lexer_restore(p, snap)
+		report_error(p, "Unexpected '<': not a valid TS type assertion or generic arrow")
+		return nil
+	}
+	expr := parse_unary_expr(p)
+	if expr == nil {
+		lexer_restore(p, snap)
+		report_error(p, "Unexpected '<': not a valid TS type assertion or generic arrow")
+		return nil
+	}
+	node := new_node(p, TSTypeAssertion)
+	node.loc = start
+	node.type_annotation = type_ann
+	node.expression = expr
+	node.loc.span.end = prev_end_offset(p)
+	return expression_from(p, node)
+}
+
+// Lexer + parser state snapshot used by parse_ts_lt_expression for its
+// cheap 2-token lookahead. Does NOT cover dynamic arrays (templates,
+// comments) because this trial-parse never touches template strings or
+// emits comments; only scalar lex + parser fields matter.
+TrialSnapshot :: struct {
+	// Lexer scalars
+	lex_offset:             int,
+	lex_had_line_terminator: bool,
+	lex_cur:                FastToken,
+	lex_nxt:                FastToken,
+	lex_last_lit_offset:    u32,
+	lex_last_lit_value:     LiteralValue,
+	lex_last_lit_type:      LiteralType,
+	lex_cur_lit_offset:     u32,
+	lex_cur_lit_value:      LiteralValue,
+	lex_cur_lit_type:       LiteralType,
+	lex_template_depth:     u8,
+	lex_template_brace_stack: [8]u8,
+	// Parser scalars
+	cur_type:       TokenType,
+	cur_tok:        Token,
+	prev_token_end: u32,
+	errors_len:     int,
+}
+
+lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
+	l := p.lexer
+	return TrialSnapshot{
+		lex_offset              = l.offset,
+		lex_had_line_terminator = l.had_line_terminator,
+		lex_cur                 = l.cur,
+		lex_nxt                 = l.nxt,
+		lex_last_lit_offset     = l.last_lit_offset,
+		lex_last_lit_value      = l.last_lit_value,
+		lex_last_lit_type       = l.last_lit_type,
+		lex_cur_lit_offset      = l.cur_lit_offset,
+		lex_cur_lit_value       = l.cur_lit_value,
+		lex_cur_lit_type        = l.cur_lit_type,
+		lex_template_depth      = l.template_depth,
+		lex_template_brace_stack = l.template_brace_stack,
+		cur_type                = p.cur_type,
+		cur_tok                 = p.cur_tok,
+		prev_token_end          = p.prev_token_end,
+		errors_len              = len(p.errors),
+	}
+}
+
+lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
+	l := p.lexer
+	l.offset                 = s.lex_offset
+	l.had_line_terminator    = s.lex_had_line_terminator
+	l.cur                    = s.lex_cur
+	l.nxt                    = s.lex_nxt
+	l.last_lit_offset        = s.lex_last_lit_offset
+	l.last_lit_value         = s.lex_last_lit_value
+	l.last_lit_type          = s.lex_last_lit_type
+	l.cur_lit_offset         = s.lex_cur_lit_offset
+	l.cur_lit_value          = s.lex_cur_lit_value
+	l.cur_lit_type           = s.lex_cur_lit_type
+	l.template_depth         = s.lex_template_depth
+	l.template_brace_stack   = s.lex_template_brace_stack
+	p.cur_type               = s.cur_type
+	p.cur_tok                = s.cur_tok
+	p.prev_token_end         = s.prev_token_end
+	// Drop any parse errors accumulated during the speculative parse.
+	if len(p.errors) > s.errors_len { resize(&p.errors, s.errors_len) }
+}
+
+// Parse a generic arrow `<T, ...>(params) [: RetType]? => body` after the
+// caller has already confirmed (by 1-token lookahead) that the `<` opens a
+// type parameter list. We're still positioned AT the `<`.
+parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
+	type_params := parse_ts_type_parameters(p)
+
+	// After the type params we must see `(` for the arrow's parameters.
+	if !is_token(p, .LParen) {
+		report_error(p, "Expected '(' after generic type parameters")
+		return nil
+	}
+
+	// Let the normal primary-expression path parse `(params)` as a
+	// parenthesised expression or SequenceExpression (the same shape
+	// parse_arrow_function expects as its `left` argument).
+	paren_expr := parse_primary_expr(p)
+	if paren_expr == nil { return nil }
+
+	// Optional TS return-type annotation `: T` before `=>`.
+	return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) { return_type = parse_ts_type_annotation(p) }
+
+	if !is_token(p, .Arrow) {
+		report_error(p, "Expected '=>' in generic arrow function")
+		return nil
+	}
+
+	arrow := parse_arrow_function(p, paren_expr)
+	if arrow == nil { return nil }
+
+	// Attach the type parameters + return type to the arrow node, and
+	// extend its span back to the `<` start.
+	#partial switch a in arrow^ {
+	case ^ArrowFunctionExpression:
+		a.type_parameters = type_params
+		if rt, ok := return_type.?; ok { a.return_type = rt }
+		a.loc.span.start = start.span.start
+	}
+	return arrow
 }
 
 parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {

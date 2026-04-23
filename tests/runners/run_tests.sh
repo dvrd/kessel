@@ -46,9 +46,19 @@ for fixture in $(find "$FIXTURES_DIR" -name "*.js" | sort); do
     expected_file="${EXPECTED_DIR}/${rel_path%.js}.txt"
     
     echo -n "Testing ${test_name}... "
-    
+
+    # Path-based Lang mode injection: spec/typescript/* fixtures are .js on
+    # disk but semantically TypeScript; tell the parser so `<T>` dispatches
+    # to the TS handler instead of JSX. spec/jsx/* fixtures are JSX-by-path.
+    lang_flag=""
+    case "$rel_path" in
+        spec/typescript/*) lang_flag="--lang=ts" ;;
+        spec/jsx/*)        lang_flag="--lang=jsx" ;;
+    esac
+
     # Run parser with timeout 10 (REQUIRED)
-    output=$(timeout 10 "$KESSEL_BIN" parse "$fixture" 2>&1) || exit_code=$?
+    exit_code=0
+    output=$(timeout 10 "$KESSEL_BIN" parse $lang_flag "$fixture" 2>&1) || exit_code=$?
     
     if [[ ${exit_code:-0} -eq 124 ]]; then
         echo -e "${RED}TIMEOUT${NC}"
