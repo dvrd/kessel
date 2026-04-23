@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post K1 + K2 + infinite-loop triage)
-**Repo state:** `main` at commit `491d083`, ~17 380 LOC of Odin across 7 files.
+**Last updated:** 2026-04-23 (post spec-fixtures parity push)
+**Repo state:** `main` at commit `2867692`, ~17 410 LOC of Odin across 7 files.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -41,7 +41,7 @@ is fine.
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture |
 | Test262 | `task test:test262` | **60 / 60** ✅ (100 %) | Curated subset; full suite not yet wired |
-| Spec-fixtures | `task test:spec-fixtures` | 55 / 110 (baseline-locked) | es2020/004_dynamic_import has 1 pre-existing diff; TS / JSX buckets not yet gated |
+| Spec-fixtures | `task test:spec-fixtures` | **93 / 110** (baseline-locked) | asi, es2023, escapes, jsx, regex_disambiguation, typescript, unicode all gated now. Remaining 17 = ASI bugs (3), hashbang preserve (1), template cooked escapes (1), JSX edge cases (3), paren-span (1), TS-ESTree shape alignment (9, blocked on EST-4) |
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | 4 mismatches on jquery.js | Pre-existing field-type diffs (`NewExpression` vs `CallExpression`) |
 | Multi-parser | `task test:multi-parser` | 1 divergence vs acorn (baselined) | ExportAllDeclaration edge case |
