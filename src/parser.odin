@@ -209,8 +209,14 @@ Parser :: struct {
 	in_switch:       bool,
 	strict_mode:     bool,
 
-	// JSX support
-	allow_jsx:       bool,
+	// Language mode — controls JSX / TS syntax admissibility.
+	//   .JS  : plain JavaScript. `<` at expression start → syntax error.
+	//   .JSX : JS + JSX. `<` at expression start → JSX element.
+	//   .TS  : TypeScript, no JSX. `<` at expression start → type
+	//          assertion `<Type>expr` or generic arrow `<T>(x)=>x`.
+	//   .TSX : TS + JSX. `<` is ambiguous; OXC rule: assertion is
+	//          forbidden, generic arrow requires trailing comma.
+	lang:            Lang,
 
 	// Disallow 'in' as binary operator (for for-loop init parsing)
 	no_in:           bool,
@@ -335,7 +341,26 @@ intern :: proc(i: ^StringInterner, s: string) -> string {
 
 
 // Initialize parser with lexer
-init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator) {
+// Language mode. Used to gate JSX and TS syntax at parse-dispatch sites.
+// Default .JSX preserves legacy behaviour: every file accepts JSX. Callers
+// that know the file extension or user intent should pass the real mode.
+Lang :: enum u8 {
+	JS,   // plain JavaScript, no JSX
+	JSX,  // JavaScript + JSX — legacy Kessel default
+	TS,   // TypeScript, no JSX
+	TSX,  // TypeScript + JSX
+}
+
+// Helpers — branch once on lang, let the compiler inline.
+allow_jsx_mode :: #force_inline proc(p: ^Parser) -> bool {
+	return p.lang == .JSX || p.lang == .TSX
+}
+
+allow_ts_mode :: #force_inline proc(p: ^Parser) -> bool {
+	return p.lang == .TS || p.lang == .TSX
+}
+
+init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang = .JSX) {
 	p.allocator = alloc
 	p.source_len = len(lexer.source)
 	p.errors = make([dynamic]ParseError, alloc)
@@ -355,7 +380,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator) {
 	p.in_loop = false
 	p.in_switch = false
 	p.strict_mode = false
-	p.allow_jsx = false
+	p.lang = lang
 	p.has_module_syntax = false
 	p.pending_paren_start = max(u32) // sentinel: "no `(` pending"
 
@@ -4042,7 +4067,23 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return expression_from(p, regex)
 
 	case .LAngle:
-		return parse_jsx_element_or_fragment(p)
+		// Dispatch depends on language mode:
+		//   JSX / TSX → JSX element (existing behaviour).
+		//   TS       → TS type assertion or generic arrow (Phase B — for
+		//               now produce a clean error, crash-free).
+		//   JS       → syntax error (comparison operator needs a LHS).
+		if allow_jsx_mode(p) {
+			return parse_jsx_element_or_fragment(p)
+		}
+		if allow_ts_mode(p) {
+			// Phase A placeholder: emit an error instead of crashing in
+			// parse_jsx. Phase B replaces this with a real
+			// parse_ts_lt_expression handling `<Type>expr` + `<T>(x)=>x`.
+			report_error(p, "TS `<Type>expr` / `<T>(x)=>x` not yet wired (Wave 3 Phase B)")
+			return nil
+		}
+		report_error(p, "Unexpected '<' at expression start")
+		return nil
 	case:
 		// Unknown token type
 		return nil

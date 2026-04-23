@@ -31,6 +31,12 @@ compact_json: bool
 // CLI flag: --errors=oxc. Default preserves backward compat with existing consumers.
 error_format: string = "kessel"
 
+// Language mode override from --lang=js|jsx|ts|tsx. When set, takes
+// precedence over extension detection. When nil, detect_lang_from_path
+// decides per file. Nil default preserves legacy JSX-everywhere for .js
+// files and only tightens .ts / .tsx / .mts / .cts / .d.ts.
+cli_lang_override: Maybe(Lang)
+
 // Emit ESTree loc field on every AST node (line/column positions).
 // CLI flag: --loc. Off by default for backward compat. When enabled,
 // run O(source_size) line-table build once, then O(log lines) binary search per node.
@@ -475,6 +481,14 @@ main :: proc() {
 					emit_loc_enabled = true
 			} else if arg == "--module-record" {
 				emit_module_record = true
+			} else if strings.has_prefix(arg, "--lang=") {
+				lang_val := arg[7:]
+				l, ok := parse_lang_flag(lang_val)
+				if !ok {
+					fmt.eprintf("Error: unknown --lang value '%s' (expected js|jsx|ts|tsx)\n", lang_val)
+					os.exit(2)
+				}
+				cli_lang_override = l
 			} else {
 					append(&parse_files, arg)
 				}
@@ -653,9 +667,10 @@ parse_file :: proc(file_path: string) {
 	lex: Lexer
 	init_lexer(&lex, string(source), arena_alloc)
 	
-	// Initialize parser with optimized lexer
+	// Initialize parser with optimized lexer. Language mode is CLI override
+	// when set, else detected from the file extension.
 	p: Parser
-	init_parser(&p, &lex, arena_alloc)
+	init_parser(&p, &lex, arena_alloc, resolve_lang(file_path))
 
 	// Parse program
 	program := parse_program(&p, .Script)
@@ -955,6 +970,46 @@ worker_proc :: proc(data: rawptr) {
 			ctx.error_count += errs
 		}
 	}
+}
+
+// Map a file path to a Lang mode based on its extension. Returns .JSX as
+// a permissive default so anything we can't classify (stdin, no extension,
+// weird suffix) keeps today's JSX-everywhere behaviour. Tighter modes (.JS,
+// .TS) are opt-in via explicit extension or the --lang flag.
+//
+//   .ts / .mts / .cts / .d.ts → Lang.TS   (no JSX)
+//   .tsx                      → Lang.TSX  (TS + JSX)
+//   .jsx                      → Lang.JSX
+//   .js / .mjs / .cjs / other → Lang.JSX  (legacy: JSX permitted in .js
+//                                         for backward compatibility with
+//                                         existing consumers)
+detect_lang_from_path :: proc(path: string) -> Lang {
+	// Longest suffixes first — check .d.ts before .ts.
+	if strings.has_suffix(path, ".d.ts") { return .TS }
+	if strings.has_suffix(path, ".tsx")  { return .TSX }
+	if strings.has_suffix(path, ".jsx")  { return .JSX }
+	if strings.has_suffix(path, ".ts")   { return .TS }
+	if strings.has_suffix(path, ".mts")  { return .TS }
+	if strings.has_suffix(path, ".cts")  { return .TS }
+	return .JSX
+}
+
+// Parse a --lang=<mode> CLI value into a Lang. Returns (lang, ok). `ok=false`
+// if the user typed something unrecognised; caller should error and exit.
+parse_lang_flag :: proc(value: string) -> (Lang, bool) {
+	switch value {
+	case "js":   return .JS,  true
+	case "jsx":  return .JSX, true
+	case "ts":   return .TS,  true
+	case "tsx":  return .TSX, true
+	}
+	return .JSX, false
+}
+
+// Resolve the effective Lang for a file: CLI --lang flag wins, else extension.
+resolve_lang :: proc(path: string) -> Lang {
+	if l, ok := cli_lang_override.?; ok { return l }
+	return detect_lang_from_path(path)
 }
 
 // Extract filename without directory from a path
