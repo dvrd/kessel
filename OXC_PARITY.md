@@ -18,7 +18,7 @@
 | [TypeScript — Advanced](#typescript-advanced) | **9/10** | — |
 | [TypeScript — Declarations](#typescript-declarations) | **6/7** | — |
 | [ESTree / TS-ESTree Conformance](#estree-conformance) | **3/8** | — |
-| [ESM Module Record](#esm-module-record) | **0/5** (in progress) | Delegated |
+| [ESM Module Record](#esm-module-record) | **5/5 ✅** | — |
 | [Parser Options](#parser-options) | **0/6** | — |
 | [NAPI / FFI Bindings](#napi-bindings) | 0/6 | — |
 | [Visitor API](#visitor-api) | 0/3 | — |
@@ -142,15 +142,28 @@ Legend: ✅ done • 🔶 partial • ❌ pending • 💥 crashes
 
 ## ESM Module Record
 
-- [ ] **ESM-1: `hasModuleSyntax`** — 🔶 in progress. Parser has
-      `p.has_module_syntax` field and sets it correctly but does not emit.
-- [ ] **ESM-2: `staticImports` array** — delegated to Haiku `d7dfd0e0`.
-- [ ] **ESM-3: `staticExports` array** — delegated to Haiku `d7dfd0e0`.
-- [ ] **ESM-4: `dynamicImports` array** — delegated to Haiku `d7dfd0e0`.
-- [ ] **ESM-5: `importMetas` span array** — delegated to Haiku `d7dfd0e0`.
+- [x] **ESM-1: `hasModuleSyntax`** — Phase 3, `c31de50`.
+- [x] **ESM-2: `staticImports` array** — Phase 3, `c31de50`.
+- [x] **ESM-3: `staticExports` array** — Phase 3, `c31de50`.
+- [x] **ESM-4: `dynamicImports` array** — Phase 3, `c31de50`.
+- [x] **ESM-5: `importMetas` span array** — Phase 3, `c31de50`.
 
-All five items covered by a single in-flight Haiku session on `.swarm/05-esm-module-record.md`.
-CLI flag: `--module-record`.
+All five items shipped in a single commit via Haiku `d7dfd0e0`
+(\$2.43, 82% ctx). CLI flag: `--module-record`. Default off so
+existing consumers see byte-identical output; when on, emits a
+`"module": { hasModuleSyntax, staticImports, staticExports,
+dynamicImports, importMetas }` object between the program AST and
+the errors array.
+
+This was the first Wave-2b delegation after tightening the
+execute-task `_safety.md` prompt — work landed intact, no silent
+git operations.
+
+Follow-up (not blocking): TS-ESTree alignment for the static
+import/export entries (e.g. `importName.kind` capitalisation may
+differ from OXC's "default"/"namespace"/"name" — current Kessel
+uses "Default"/"Namespace"/"Name"). Forensic diff to come with
+EST-4 (Wave 3 item 8).
 
 ---
 
@@ -225,6 +238,7 @@ CLI flag: `--module-record`.
 | `34121c2` | `\uXXXX` / `\u{...}` in identifiers | Orchestrator (Haiku `f7b18076` failed at $1.74) | Clean design via `FLAG_HAS_ESCAPE` + `LiteralType.Identifier` |
 | `22d2f88` | `--loc { line, column }` (EST-1) | Haiku `51757775` (delegation) | 0-indexed UTF-16 columns, OXC-compatible |
 | `a6953eb` | Ambient module implicit-declare | Orchestrator (Haiku `21215876` lost work via `git checkout`) | Added `p.in_ambient` flag, save/restore in module/declare contexts |
+| `c31de50` | **ESM module record (ESM-1..5)** | Haiku `d7dfd0e0` (delegation) | First delegation AFTER _safety.md hardening — all work intact |
 
 **Process notes:**
 - Two Haiku sessions silently destroyed their own work by running
@@ -246,12 +260,12 @@ Ordered by impact × feasibility:
 
 1. **`<` trial-parse** — TS-C1c (`<T>(x) => x`) + TS-C6 (`<Type>expr`).
    Single hardest item but closes two crash paths. Orchestrator-led.
-   Approach: save lexer state at `<`, attempt generic/assertion parse,
-   restore + fall to JSX on failure.
-2. **ESM module record** — in flight via Haiku `d7dfd0e0`.
-3. **TS-ESTree shape alignment** (EST-4) — 10 fixtures parse clean but
+   See `.swarm/07-lt-trial-parse-design.md` for the 4-phase plan.
+2. **TS-ESTree shape alignment** (EST-4) — 10 fixtures parse clean but
    emit JSON diverges from `@typescript-eslint/typescript-estree`.
-   Forensic diff per fixture; orchestrator-led.
+   Blocked on infrastructure (need Node verifier shelling to
+   @typescript-eslint/typescript-estree or oxc-parser npm package).
+   See `.swarm/08-ts-estree-alignment-design.md`.
 4. **`range: [start, end]`** (EST-2) — additive, CLI-gated.
 5. **`hashbang` content preservation** (EST-6) — additive.
 6. **TS-D1..D4 individual verification** — ensure
@@ -271,7 +285,7 @@ Ordered by impact × feasibility:
 | **Phase 1: Unblock (P0)** | P0-1..3, JS-4 | ✅ done | Phase 2 session |
 | **Phase 2: TS Core + Advanced** | TS-C1a/b/d/e, C2..8 (minus C1c/C6), A1..A9, D | ✅ done | Phase 2 session, 13 commits |
 | **Phase 3: ESTree + Errors** | EST-1, ERR-1, JSX nested, Unicode, ambient | ✅ done | This swarm, 5 commits |
-| **Phase 4: ESM + `<` trial + EST-4** | ESM-2..5, TS-C1c, TS-C6, EST-2/4/6 | 🔶 in progress | ESM delegated; rest orchestrator |
+| **Phase 4: `<` trial + EST-4** | TS-C1c, TS-C6, EST-2/4/6 | 🔶 partial (ESM done) | ESM shipped — rest is orchestrator |
 | **Phase 5: Options + recovery** | OPT-1..6, ERR-2..4 | ❌ | Polish phase |
 | **Phase 6: NAPI + Visitor** | NAPI-1..6, VIS-1..3 | ❌ | Integration phase |
 | **Phase 7: Test suites** | TEST-1..4 | ❌ | Ongoing |
