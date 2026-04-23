@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post full-unskip sweep)
-**Repo state:** `main` at commit `88e217d`, ~17 620 LOC of Odin across 7 files.
+**Last updated:** 2026-04-23 (post K4/EST-2/OPT-1/TS-A10 sweep)
+**Repo state:** `main` at commit `973c9e6`, ~17 900 LOC of Odin across 7 files.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -208,7 +208,7 @@ All fixed in Phase 2.
 - [x] **TS-C7:** `x is T` / `asserts x is T` — type predicates (Phase 2)
 - [x] **TS-C8:** Enum member initializers
 
-### TypeScript — Advanced (9 / 10)
+### TypeScript — Advanced (10 / 10 ✅)
 - [x] **TS-A1:** Conditional types `T extends U ? X : Y`
 - [x] **TS-A2:** Mapped types `{ [K in T]: V }`, `T[K]`, `+?`/`-?`/`+readonly`/`-readonly`
 - [x] **TS-A3:** Template-literal types `` `hello ${T}` ``
@@ -218,7 +218,7 @@ All fixed in Phase 2.
 - [x] **TS-A7:** `namespace Foo { ... }`, `A.B.C`, `module "x" { ... }`, ambient bodies
 - [x] **TS-A8:** Call / construct signatures in object types
 - [x] **TS-A9:** `infer U` in conditional types
-- [ ] **TS-A10:** Overload signatures (multiple function signatures before impl)
+- [x] **TS-A10:** Overload signatures (free functions and class methods), `973c9e6`.
 
 ### TypeScript — Declarations (6 / 7)
 - [x] `interface` declarations (basic + extends)
@@ -231,18 +231,24 @@ All fixed in Phase 2.
       `class implements`, type parameter constraints/defaults — most work
       but lack dedicated test coverage.
 
-### ESTree / TS-ESTree Conformance (3 / 8)
+### ESTree / TS-ESTree Conformance (5 / 8)
 - [x] Core node types (57 JS node types verified)
-- [x] `hashbang` field on Program (emits `null` — see EST-6 to upgrade)
+- [x] `hashbang` field on Program with preserved content (EST-6). The
+      lexer captures `value`, `start`, `end`; the emitter writes
+      `{type: "Hashbang", value, start, end}` or `null`.
 - [x] **EST-1:** `loc { line, column }` on every node via `--loc` flag
        (0-indexed UTF-16 columns).
-- [ ] **EST-2:** `range: [start, end]` flag — not started.
+- [x] **EST-2:** `range: [start, end]` on every node via `--range` flag
+      (`f7577bb`). Emitted between the `end` and `loc` fields so the
+      three can compose independently.
+- [x] **EST-6:** `hashbang` content preservation — already shipped, the
+      old handoff entry was stale. Covered by structural test
+      `tests/fixtures/hashbang/` + real-world verification.
 - [ ] **EST-3:** `ParenthesizedExpression` / `preserveParens` — not started.
 - [ ] **EST-4:** TS-ESTree shape alignment — 10 TS fixtures parse clean
       but JSON diverges from `@typescript-eslint/typescript-estree`.
       Blocked on Node-based verifier infra. See `.swarm/08-ts-estree-alignment-design.md`.
 - [ ] **EST-5:** Per-category spec-fixture gate — expand baseline beyond ES years.
-- [ ] **EST-6:** `hashbang` content preservation (currently always `null`).
 
 ### ESM Module Record (5 / 5 ✅)
 All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
@@ -252,10 +258,13 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 - [x] **ESM-4:** `dynamicImports`
 - [x] **ESM-5:** `importMetas`
 
-### Parser Options (2 / 6)
+### Parser Options (4 / 6)
+- [x] **OPT-1:** `--source-type={script|module|unambiguous}` (`2b3e88b`).
+      `unambiguous` (nil override) keeps the existing auto-upgrade;
+      `script` disables it; `module` pins to Module regardless of body.
 - [x] **OPT-2:** `--lang=js|jsx|ts|tsx` (Phase 3 Wave A, `fcd9203`)
 - [x] **OPT-4:** `--loc` (EST-1, `22d2f88`)
-- [ ] **OPT-1:** `sourceType: 'script' | 'module' | 'unambiguous'` — auto-detected today, no CLI knob.
+- [x] **OPT-range (EST-2):** `--range` (`f7577bb`) — ESLint-style tuple.
 - [ ] **OPT-3:** `preserveParens` — blocked on EST-3.
 - [ ] **OPT-5:** `astType: 'js' | 'ts'` — needed for TS-ESTree defaults (EST-4).
 - [ ] **OPT-6:** `showSemanticErrors` — requires scope/symbol analysis.
@@ -295,7 +304,7 @@ declare / abstract / namespace / import-type.
 
 Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 6562b8b b8ba2fd 492c639 e70ffc9 cbfa3b6 3ae9b31`.
 
-### Phase 3 — this swarm, 13 commits
+### Phase 3 — initial swarm, 13 commits
 
 | Commit | Item | Author | Notes |
 |--------|------|--------|-------|
@@ -312,6 +321,15 @@ Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 65
 | `fcd9203` | Wave 3 Phase A: Lang enum + JSX gating | Orchestrator | `--lang=js|jsx|ts|tsx`, extension detection |
 | `b02dfe5` | Wave 3 Phase B: `parse_ts_lt_expression` | Orchestrator | Closes TS-C1c + TS-C6. Unit tests 25/244 → 217/244 (exposed `exit_code` runner bug too) |
 | `be21a52` | Sync OXC_PARITY post-Phase-B | Orchestrator | TS Core 12/12 ✅ |
+
+### Phase 4 — post-handoff sweep, 4 commits
+
+| Commit | Item | Notes |
+|--------|------|-------|
+| `c0e1a4d` | K4 + TS function type with named params | parse_primary_expr `(` trial-parses as TS arrow params when the opening matches `...` or `Identifier :`; parse_ts_primary_type `(` now routes through parse_ts_sig_params when the paren opens a named-param function type. Closes K4. |
+| `f7577bb` | EST-2 `--range` flag | Emits `"range": [start, end]` on every node between the bare `end` and the optional `loc` field. Default-off, byte-identical legacy output. |
+| `2b3e88b` | OPT-1 `--source-type` flag | Pins Program.sourceType. Parser carries `p.force_source_type: Maybe(SourceType)` to disable the auto-upgrade pass when set. |
+| `973c9e6` | TS-A10 overload signatures | `function foo(): T;` and class-method `foo(): T;` now parse cleanly in TS mode — `parse_function_declaration` and `parse_class_element` both accept a bodyless form when `allow_ts_mode(p)`. |
 
 ### Process lessons (from this swarm)
 
@@ -342,16 +360,17 @@ Phase 3 (`2ad4487`, `4b543cf`).
 | # | Issue | Severity | Where | Fix status |
 |---|---|---|---|---|
 | K1 | **`task test:fuzz:invalid` — 8 baselined crashes** (was 29). SIGSEGV/SIGTRAP fixed in `07858c4` via emitter nil-pointer + inverted-span guards. Infinite-loops fixed in `491d083` (parse_lhs_tail .Not case + parse_jsx_children progress guard). 8 remaining are SIGTERMs (deadline-crosses) on 350 KB – 4 MB mutated files. | Low | parser (perf on very large mutated input) | Baselined in `tests/baselines/fuzz_invalid_baseline.json`. Not worth further chasing — these are deadline hits, not parser bugs. |
-| K2 | ~~`task test:crashes-known` regressions~~ ✅ Fixed in `491d083`. The 3 pinned fixtures all stopped crashing during Phase 3 (JSX nested attr, TS angle assertion, unicode escape in identifier). Removed from `KNOWN_CRASHES`; runner now enforces they keep parsing. Two still have shape-drift owned by deeper gates. | | | |
-| K3 | **`spec-compliance` regression on snabbdom.js** (+1 mismatch vs OXC). MANY improvements elsewhere (zod.js dropped from 27 313 mismatches to 42). | Medium | Emitter shape | Inspect snabbdom.js diff; update baseline if improvement overall. |
-| K4 | **Arrow-param type annotations** don't parse: `(x: T) => x` fails at `parse_primary_expr`'s `(` branch (doesn't accept `:Type`). This blocks the ambiguous `<T>(x: T) => x` generic-arrow case from parsing cleanly (falls to assertion with 5 parse errors, no crash). | Medium | `parser.odin` primary `(` handler | Teach paren-grouping to accept `:Type` annotations on identifier tokens in TS mode. |
-| K5 | **Deep JSX child recursion crash** — `<A><B><C/></B></A>` SIGTRAPs on 3-level nesting. Fixture `spec/jsx/005_nested_element.js` line 2. | Medium | `parse_jsx_element_or_fragment` span math | Likely a loc bug in nested-children path. Single-level (`<A><B/></A>`) works. |
-| K6 | **`early_errors/016_digit_start_identifier.js`** — pre-existing SIGTRAP on `const 1a = 1;` (expected syntax error, got span-invariant assertion failure). | Low | Error recovery | Graceful error instead of assertion. |
-| K7 | **`\u00GG` invalid-hex in identifier** — pre-existing SIGTRAP; my unicode-escape work didn't regress it. | Low | Error recovery | Same as K6. |
-| K8 | **`x!!` double non-null** — edge-case SIGTRAP in LHS tail loop. | Low | `parse_lhs_tail` | Rare in real code. |
+| K2 | ~~`task test:crashes-known` regressions~~ ✅ Fixed in `491d083`. | | | |
+| K3 | **`spec-compliance` 6 regressions** (jquery +2, react.dev +1, acorn +1, react-dom.dev +1, antd +169, d3 +1) vs baseline. Introduced by an earlier unskip-sweep session (not by Phase 4); kept visible via the enforce-baseline script. chalk.js IMPROVED (22 → 4). Needs shape-by-shape diff against OXC to triage. | Medium | Emitter shape | Inspect diffs, update baseline for improvements, fix the regressions. |
+| K4 | ~~Arrow-param type annotations~~ ✅ Fixed in `c0e1a4d`. `(x: T) => x`, `(...args: T[]) => ...`, `(x: T): R => ...`, generic-arrow `<T>(x: U) => x`, function-type `(cb: (x: number) => string) => ...` all parse clean. | | | |
+| K5 | ~~Deep JSX child recursion crash~~ ✅ Fixed. `spec/jsx/005_nested_element` now passes both `<Outer><Middle><Inner/></Middle></Outer>` and `<Foo bar={<Baz x={1}/>}/>`. Ancestor commits (`70b5652`, Phase 2 span fixes) closed it; handoff entry was stale. | | | |
+| K6 | ~~`early_errors/016_digit_start_identifier.js`~~ ✅ Fixed. `const 1a = 1;` now parses with structured errors, no SIGTRAP. | | | |
+| K7 | ~~`\u00GG` invalid-hex in identifier~~ ✅ Fixed. Graceful errors, no SIGTRAP. | | | |
+| K8 | ~~`x!!` double non-null~~ ✅ Fixed. Parses clean in TS mode. | | | |
 | K9 | **`task test:estree` — 4 field-type mismatches on jquery.js** vs OXC (NewExpression vs CallExpression, ArrowFunction vs Function). | Low | Classification of specific IIFE shape | Pre-existing; field-type divergence, not crash. |
 | K10 | **`spec/typescript/*` shape diff vs typescript-eslint** (EST-4). Fixtures parse clean but JSON shape differs from canonical TS-ESTree. | Low | Emitter | Deferred; needs Node verifier infra. See `.swarm/08-ts-estree-alignment-design.md`. |
 | K11 | **Debug build linker warnings** — ~50 about missing symbols for JSX/TS generic instantiations. | Cosmetic | Odin toolchain | Binary works. Ignore. |
+| K12 | **Class method access modifiers** (`public`/`private`/`protected`/`readonly`/`override`) not parsed. `public foo(): void` fails with "Expected (, got identifier". Discovered while verifying TS-A10 overload coverage. | Medium | `parse_class_element` | Add TS modifier consumption after `static`/`abstract` and before the method-name key; extend `ClassElement` with `accessibility` / `readonly` / `override` fields + emitter support. |
 
 ---
 
@@ -359,29 +378,34 @@ Phase 3 (`2ad4487`, `4b543cf`).
 
 Ordered by impact × feasibility.
 
-1. ~~**Triage `fuzz:invalid` 29 crashes (K1).**~~ ✅ Done. 21 root-cause fixes
-   (emitter nil-guards in `07858c4`; parser infinite-loop bugs in
-   `491d083`). 8 remaining are SIGTERM deadline-crosses on >=350 KB input.
-2. ~~**Profile pathological parse time.**~~ ✅ Done in `491d083`. Root cause
-   was an Odin `break`-inside-switch-inside-for bug in `parse_lhs_tail`
-   for the `.Not` (`!`) case. Minimal repro `a!z` used to time out; now 8 ms.
-3. ~~**Triage `crashes-known` regressions (K2).**~~ ✅ Done in `491d083`.
-3. **Arrow-param type annotations (K4).** Unblocks the single-param
-   generic-arrow case `<T>(x: T) => x`. Cleanest fix: teach paren-grouping
-   to accept `:Type` in TS mode. ~50–100 LOC.
-4. **Deep JSX child recursion (K5).** Pre-existing but blocks `spec/jsx/005`
-   from leaving known-failures.
-5. **Wave 3 Phase C** — TSX trailing-comma rule for generic arrows,
+1. ~~K1–K2, K4–K8~~ ✅ All closed. See §8 for pointers.
+2. ~~EST-1, EST-2, EST-6~~ ✅ All shipped. See §6.
+3. ~~OPT-1, OPT-2, OPT-4~~ ✅ Shipped. See §6.
+4. ~~TS-A10~~ ✅ Shipped (`973c9e6`).
+5. **K12 — class method access modifiers.** Found while verifying TS-A10.
+   `public foo(): void` / `private bar()` don't parse. Straightforward
+   fix in `parse_class_element`: consume `public|private|protected|readonly|override`
+   after `static`/`abstract`, add fields to `ClassElement`, emit them.
+   ~100–150 LOC. Unblocks large chunks of real-world TS.
+6. **K3 — `spec-compliance` regressions.** antd.js +169 is the big one;
+   the rest are +1/+2. Triage with a field-level diff against OXC. Accept
+   the improvements (chalk 22→4) or roll back whatever caused antd drift.
+7. **Wave 3 Phase C** — TSX trailing-comma rule for generic arrows,
    forbid `<Type>expr` in `.tsx`. See `.swarm/07-lt-trial-parse-design.md`.
-6. **`range: [start, end]`** (EST-2) — additive, CLI-gated, easy.
-7. **`hashbang` content preservation** (EST-6) — additive, easy.
-8. **TS-ESTree shape alignment** (EST-4) — blocked on Node verifier infra.
-   See `.swarm/08-ts-estree-alignment-design.md`.
-9. **Spec-compliance zod.js update** — run `task test:spec-compliance --update`
-   after inspecting the 27 313 → 42 improvement.
-10. **Full Test262 + Babel + TypeScript parser test suites** — Ongoing.
-11. **Graceful error recovery (ERR-2..4)** — K6/K7/K8 all trace to this.
-12. **NAPI bindings + Visitor API** — Separate integration phase. Biggest
+   Note: the ambiguity fixtures under `tests/fixtures/spec/ambiguity/`
+   (untracked at time of this handoff) are a starting point.
+8. **EST-3 `ParenthesizedExpression` / OPT-3 `preserveParens`.** Tied
+   together: the emitter needs a ParenthesizedExpression node variant,
+   then OPT-3 exposes it. Medium-size change.
+9. **TS-ESTree shape alignment** (EST-4, OPT-5 `astType`) — blocked on
+   Node verifier infra. See `.swarm/08-ts-estree-alignment-design.md`.
+10. **Spec-compliance zod.js / unfixed baseline updates** — run
+    `task test:spec-compliance --update` after the K3 triage is done.
+11. **Full Test262 + Babel + TypeScript parser test suites** — Ongoing.
+12. **Graceful error recovery (ERR-2..4).** Most of the old K6–K8 crashes
+    are fixed but the error recovery is still minimal; ERR-2..4 would
+    make parse-failure behaviour usable in editor tooling.
+13. **NAPI bindings + Visitor API** — Separate integration phase. Biggest
     remaining gap for "drop-in replacement for `oxc-parser` on npm".
 
 ---
@@ -397,13 +421,15 @@ task build                                                  # preferred
 
 ### Parse
 ```bash
-bin/kessel parse <file.js>                         # ESTree JSON on stdout
-bin/kessel parse <file.js> --compact               # minified
-bin/kessel parse <file.ts> --lang=ts               # force TS mode
-bin/kessel parse <file.tsx> --lang=tsx             # TS + JSX
-bin/kessel parse <file.js> --loc                   # include loc{line,column}
-bin/kessel parse <file.js> --errors=oxc            # OXC error shape
-bin/kessel parse <file.js> --module-record         # + "module": {…} record
+bin/kessel parse <file.js>                              # ESTree JSON on stdout
+bin/kessel parse <file.js> --compact                    # minified
+bin/kessel parse <file.ts> --lang=ts                    # force TS mode
+bin/kessel parse <file.tsx> --lang=tsx                  # TS + JSX
+bin/kessel parse <file.js> --loc                        # loc{line,column}
+bin/kessel parse <file.js> --range                      # ESLint range tuple
+bin/kessel parse <file.js> --source-type=module         # pin Program.sourceType
+bin/kessel parse <file.js> --errors=oxc                 # OXC error shape
+bin/kessel parse <file.js> --module-record              # + "module": {…} record
 ```
 
 ### Tests
