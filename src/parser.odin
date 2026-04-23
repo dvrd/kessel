@@ -1806,13 +1806,11 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	param.loc = cur_loc(p)
 
 	// TS "parameter properties" on constructors: access/readonly/override
-	// modifiers before the binding. Syntactically legal on any parameter
-	// in TS source (the type checker narrows to constructor params). We
-	// consume but drop the modifier flags here; a future ESTree-faithful
-	// pass would wrap the param in a TSParameterProperty node carrying
-	// accessibility/readonly/override. Gating on allow_ts_mode keeps JS
-	// rejecting these.
+	// modifiers before the binding. Save them on the FunctionParameter so
+	// the emitter can wrap the param in TSParameterProperty when set.
 	if allow_ts_mode(p) {
+		mod_start := cur_loc(p).span.start  // position of first modifier (or binding if none)
+		found_modifier := false
 		for i := 0; i < 6; i += 1 {
 			cur := p.cur_type
 			nxt := p.lexer.nxt.kind
@@ -1825,14 +1823,27 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			consumed := false
 			#partial switch cur {
 			case .Override:
-				eat(p); consumed = true
+				param.override_ = true; eat(p); consumed = true; found_modifier = true
 			case .Identifier:
 				val := p.cur_tok.value
-				if val == "public" || val == "private" || val == "protected" || val == "readonly" {
-					eat(p); consumed = true
+				switch val {
+				case "public":
+					if param.accessibility == .None { param.accessibility = .Public }
+					eat(p); consumed = true; found_modifier = true
+				case "private":
+					if param.accessibility == .None { param.accessibility = .Private }
+					eat(p); consumed = true; found_modifier = true
+				case "protected":
+					if param.accessibility == .None { param.accessibility = .Protected }
+					eat(p); consumed = true; found_modifier = true
+				case "readonly":
+					param.readonly = true; eat(p); consumed = true; found_modifier = true
 				}
 			}
 			if !consumed { break }
+		}
+		if found_modifier {
+			param.modifier_start = mod_start
 		}
 		param.loc = cur_loc(p)
 	}

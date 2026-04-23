@@ -1010,9 +1010,17 @@ RestElement :: struct {
 }
 
 FunctionParameter :: struct {
-	loc:         Loc,
-	pattern:     Pattern,
-	default_val: Maybe(^Expression),
+	loc:              Loc,
+	pattern:          Pattern,
+	default_val:      Maybe(^Expression),
+	// TS parameter property modifiers. When any is set, the emitter wraps
+	// the parameter in a `TSParameterProperty` node (TS-ESTree shape).
+	// modifier_start is the span.start of the first modifier keyword;
+	// the outer TSParameterProperty node uses [modifier_start, param.loc.span.end].
+	accessibility:    ClassAccessibility,  // None = not a parameter property
+	readonly:         bool,
+	override_:        bool,  // named override_ to avoid clash with Odin builtin
+	modifier_start:   u32,   // source offset of the first modifier (0 = none)
 }
 
 FunctionExpression :: struct {

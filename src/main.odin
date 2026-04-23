@@ -2232,6 +2232,65 @@ print_block_statement_inline :: proc(block: ^BlockStatement, indent: int) {
 // in assertion-error.js, and all the RHS expressions in chance.js /
 // prettier.js / chartjs.js defaults).
 print_function_parameter :: proc(param: FunctionParameter, indent: int) {
+	// TSParameterProperty: when a constructor param has TS modifiers
+	// (accessibility/readonly/override), wrap in a TSParameterProperty node.
+	// Only in TS-shape mode (TS/TSX lang). Additive — plain params are
+	// emitted as before.
+	has_modifiers := param.accessibility != .None || param.readonly || param.override_
+	if has_modifiers && emit_ts_shape {
+		print_indent(indent)
+		out_s("\"type\": \"TSParameterProperty\",\n")
+		print_indent(indent)
+		// Outer span covers the modifier keyword through the param end.
+		outer_start := param.modifier_start
+		outer_end   := param.loc.span.end
+		out_printf("\"start\": %d,\n", outer_start)
+		print_indent(indent)
+		out_printf("\"end\": %d,\n", outer_end)
+		print_indent(indent)
+		switch param.accessibility {
+		case .None:      out_s("\"accessibility\": null,\n")
+		case .Public:    out_s("\"accessibility\": \"public\",\n")
+		case .Private:   out_s("\"accessibility\": \"private\",\n")
+		case .Protected: out_s("\"accessibility\": \"protected\",\n")
+		}
+		print_indent(indent)
+		out_s("\"readonly\": ")
+		out_bool(param.readonly)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"override\": ")
+		out_bool(param.override_)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"static\": false,\n")
+		print_indent(indent)
+		out_s("\"parameter\": {\n")
+		// Inner parameter is the binding without the modifiers.
+		if def, ok := param.default_val.(^Expression); ok && def != nil {
+			print_indent(indent + 1)
+			out_s("\"type\": \"AssignmentPattern\",\n")
+			print_indent(indent + 1)
+			emit_span_leading(param.loc, indent + 1)
+			out_s("\"left\": {\n")
+			print_pattern_ast(param.pattern, indent + 2)
+			out_s("\n")
+			print_indent(indent + 1)
+			out_s("},\n")
+			print_indent(indent + 1)
+			out_s("\"right\": {\n")
+			print_expression_ast(def, indent + 2)
+			out_s("\n")
+			print_indent(indent + 1)
+			out_s("}")
+		} else {
+			print_pattern_ast(param.pattern, indent + 1)
+		}
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+		return
+	}
 	if def, ok := param.default_val.(^Expression); ok && def != nil {
 		print_indent(indent)
 		out_s("\"type\": \"AssignmentPattern\",\n")
