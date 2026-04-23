@@ -40,6 +40,82 @@ Decorator :: struct {
 }
 
 // ============================================================================
+// ESM Module Record Nodes
+// ============================================================================
+
+// Name kind for imports/exports
+ESMNameKind :: enum {
+	Default,
+	Namespace,
+	Name,
+}
+
+// ESM import/export name with kind and optional location info
+ESMNameEntry :: struct {
+	kind:  ESMNameKind,
+	name:  string,
+	start: u32,
+	end:   u32,
+}
+
+// Static import entry (import X from "m")
+ESMStaticImportEntry :: struct {
+	importName: ESMNameEntry,  // the imported name
+	localName:  ESMNameEntry,  // the local binding name
+}
+
+ESMStaticImport :: struct {
+	start:         u32,
+	end:           u32,
+	moduleRequest: struct {
+		value: string,  // the module specifier
+		start: u32,
+		end:   u32,
+	},
+	entries: [dynamic]ESMStaticImportEntry,
+}
+
+// Static export entry (export { x, y as z } or export * from "m")
+ESMExportNameEntry :: struct {
+	kind:  ESMNameKind,  // kind of the export (Default, Name, Namespace)
+	name:  string,
+	start: u32,
+	end:   u32,
+}
+
+ESMStaticExportEntry :: struct {
+	exportName: ESMExportNameEntry,
+	localName:  ESMExportNameEntry,
+}
+
+ESMStaticExport :: struct {
+	start:         u32,
+	end:           u32,
+	moduleRequest: struct {
+		value: string,  // the module specifier (for export * from "m"), empty for local exports
+		start: u32,
+		end:   u32,
+	},
+	entries: [dynamic]ESMStaticExportEntry,
+}
+
+// Dynamic import entry (import("m"))
+ESMDynamicImport :: struct {
+	start:         u32,
+	end:           u32,
+	moduleRequest: struct {
+		start: u32,
+		end:   u32,
+	},
+}
+
+// import.meta access
+ESMImportMeta :: struct {
+	start: u32,
+	end:   u32,
+}
+
+// ============================================================================
 // JSX Nodes
 // ============================================================================
 

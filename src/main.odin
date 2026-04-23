@@ -36,6 +36,10 @@ error_format: string = "kessel"
 // run O(source_size) line-table build once, then O(log lines) binary search per node.
 emit_loc_enabled: bool
 
+// Emit ESM module record (hasModuleSyntax, staticImports, staticExports, etc.).
+// CLI flag: --module-record. Off by default for backward compat.
+emit_module_record: bool
+
 // Line offset table for ESTree loc emission. Populated when emit_loc_enabled is true.
 // Built once via build_line_table before print_program_ast, then used for O(log n) lookups.
 line_offsets_for_loc: []u32
@@ -446,6 +450,7 @@ main :: proc() {
 		parse_raw := false
 		compact_json = false
 		error_format = "kessel"
+		emit_module_record = false
 		{
 			i := 2
 			for i < len(os.args) {
@@ -468,7 +473,9 @@ main :: proc() {
 				} else if arg == "--loc" {
 					// Emit ESTree loc field (line/column positions) on every AST node.
 					emit_loc_enabled = true
-				} else {
+			} else if arg == "--module-record" {
+				emit_module_record = true
+			} else {
 					append(&parse_files, arg)
 				}
 				i += 1
@@ -672,6 +679,11 @@ parse_file :: proc(file_path: string) {
 	out_s("{\n")
 	print_program_ast(program, 1, lex.comments[:])
 
+	// Emit ESM module record if flag is enabled
+	if emit_module_record {
+		print_module_record(&p, 1)
+	}
+
 	// Emit structured errors inside the JSON output
 	if len(p.errors) > 0 {
 		// Ensure line table exists for line/col computation
@@ -866,6 +878,11 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 
 	out_s("{\n")
 	print_program_ast(program, 1)
+
+	// Emit ESM module record if flag is enabled
+	if emit_module_record {
+		print_module_record(&p, 1)
+	}
 	out_s("}\n")
 
 	// Write to file
@@ -1257,6 +1274,263 @@ print_indent :: proc(indent: int) {
 		out_print("  ")
 	}
 }
+
+// Emit ESM module record: hasModuleSyntax, staticImports, staticExports, dynamicImports, importMetas
+print_module_record :: proc(p: ^Parser, indent: int) {
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"module\": {\n")
+	print_indent(indent + 1)
+	out_s("\"hasModuleSyntax\": ")
+	out_bool(p.has_module_syntax)
+	out_s(",\n")
+
+	// Emit staticImports array
+	print_indent(indent + 1)
+	out_s("\"staticImports\": [\n")
+	for imp, i in p.staticImports {
+		print_indent(indent + 2)
+		out_s("{\n")
+		print_indent(indent + 3)
+		out_s("\"start\": ")
+		out_u32(to_utf16(imp.start))
+		out_s(",\n")
+		print_indent(indent + 3)
+		out_s("\"end\": ")
+		out_u32(to_utf16(imp.end))
+		out_s(",\n")
+		print_indent(indent + 3)
+		out_s("\"moduleRequest\": {\n")
+		print_indent(indent + 4)
+		out_s("\"value\": ")
+		out_string(imp.moduleRequest.value)
+		out_s(",\n")
+		print_indent(indent + 4)
+		out_s("\"start\": ")
+		out_u32(to_utf16(imp.moduleRequest.start))
+		out_s(",\n")
+		print_indent(indent + 4)
+		out_s("\"end\": ")
+		out_u32(to_utf16(imp.moduleRequest.end))
+		out_s("\n")
+		print_indent(indent + 3)
+		out_s("},\n")
+		print_indent(indent + 3)
+		out_s("\"entries\": [\n")
+		for entry, j in imp.entries {
+			print_indent(indent + 4)
+			out_s("{\n")
+			print_indent(indent + 5)
+			out_s("\"importName\": {\n")
+			print_indent(indent + 6)
+			out_s("\"kind\": \"")
+			switch entry.importName.kind {
+			case .Default:
+				out_s("Default")
+			case .Namespace:
+				out_s("Namespace")
+			case .Name:
+				out_s("Name")
+			}
+			out_s("\",\n")
+			print_indent(indent + 6)
+			out_s("\"name\": ")
+			out_string(entry.importName.name)
+			out_s("\n")
+			print_indent(indent + 5)
+			out_s("},\n")
+			print_indent(indent + 5)
+			out_s("\"localName\": {\n")
+			print_indent(indent + 6)
+			out_s("\"value\": ")
+			out_string(entry.localName.name)
+			out_s(",\n")
+			print_indent(indent + 6)
+			out_s("\"start\": ")
+			out_u32(to_utf16(entry.localName.start))
+			out_s(",\n")
+			print_indent(indent + 6)
+			out_s("\"end\": ")
+			out_u32(to_utf16(entry.localName.end))
+			out_s("\n")
+			print_indent(indent + 5)
+			out_s("}\n")
+			print_indent(indent + 4)
+			if j < len(imp.entries) - 1 {
+				out_s("},\n")
+			} else {
+				out_s("}\n")
+			}
+		}
+		print_indent(indent + 3)
+		out_s("]\n")
+		print_indent(indent + 2)
+		if i < len(p.staticImports) - 1 {
+			out_s("},\n")
+		} else {
+			out_s("}\n")
+		}
+	}
+	print_indent(indent + 1)
+	out_s("],\n")
+
+	// Emit staticExports array
+	print_indent(indent + 1)
+	out_s("\"staticExports\": [\n")
+	for exp, i in p.staticExports {
+		print_indent(indent + 2)
+		out_s("{\n")
+		print_indent(indent + 3)
+		out_s("\"start\": ")
+		out_u32(to_utf16(exp.start))
+		out_s(",\n")
+		print_indent(indent + 3)
+		out_s("\"end\": ")
+		out_u32(to_utf16(exp.end))
+		out_s(",\n")
+		if exp.moduleRequest.value != "" {
+			print_indent(indent + 3)
+			out_s("\"moduleRequest\": {\n")
+			print_indent(indent + 4)
+			out_s("\"value\": ")
+			out_string(exp.moduleRequest.value)
+			out_s(",\n")
+			print_indent(indent + 4)
+			out_s("\"start\": ")
+			out_u32(to_utf16(exp.moduleRequest.start))
+			out_s(",\n")
+			print_indent(indent + 4)
+			out_s("\"end\": ")
+			out_u32(to_utf16(exp.moduleRequest.end))
+			out_s("\n")
+			print_indent(indent + 3)
+			out_s("},\n")
+		}
+		print_indent(indent + 3)
+		out_s("\"entries\": [\n")
+		for entry, j in exp.entries {
+			print_indent(indent + 4)
+			out_s("{\n")
+			print_indent(indent + 5)
+			out_s("\"exportName\": {\n")
+			print_indent(indent + 6)
+			out_s("\"kind\": \"")
+			switch entry.exportName.kind {
+			case .Default:
+				out_s("Default")
+			case .Namespace:
+				out_s("Namespace")
+			case .Name:
+				out_s("Name")
+			}
+			out_s("\",\n")
+			print_indent(indent + 6)
+			out_s("\"name\": ")
+			out_string(entry.exportName.name)
+			out_s("\n")
+			print_indent(indent + 5)
+			out_s("},\n")
+			print_indent(indent + 5)
+			out_s("\"localName\": {\n")
+			print_indent(indent + 6)
+			out_s("\"kind\": \"")
+			switch entry.localName.kind {
+			case .Default:
+				out_s("Default")
+			case .Namespace:
+				out_s("Namespace")
+			case .Name:
+				out_s("Name")
+			}
+			out_s("\",\n")
+			print_indent(indent + 6)
+			out_s("\"name\": ")
+			out_string(entry.localName.name)
+			out_s("\n")
+			print_indent(indent + 5)
+			out_s("}\n")
+			print_indent(indent + 4)
+			if j < len(exp.entries) - 1 {
+				out_s("},\n")
+			} else {
+				out_s("}\n")
+			}
+		}
+		print_indent(indent + 3)
+		out_s("]\n")
+		print_indent(indent + 2)
+		if i < len(p.staticExports) - 1 {
+			out_s("},\n")
+		} else {
+			out_s("}\n")
+		}
+	}
+	print_indent(indent + 1)
+	out_s("],\n")
+
+	// Emit dynamicImports array
+	print_indent(indent + 1)
+	out_s("\"dynamicImports\": [\n")
+	for dyn, i in p.dynamicImports {
+		print_indent(indent + 2)
+		out_s("{\n")
+		print_indent(indent + 3)
+		out_s("\"start\": ")
+		out_u32(to_utf16(dyn.start))
+		out_s(",\n")
+		print_indent(indent + 3)
+		out_s("\"end\": ")
+		out_u32(to_utf16(dyn.end))
+		out_s(",\n")
+		print_indent(indent + 3)
+		out_s("\"moduleRequest\": {\n")
+		print_indent(indent + 4)
+		out_s("\"start\": ")
+		out_u32(to_utf16(dyn.moduleRequest.start))
+		out_s(",\n")
+		print_indent(indent + 4)
+		out_s("\"end\": ")
+		out_u32(to_utf16(dyn.moduleRequest.end))
+		out_s("\n")
+		print_indent(indent + 3)
+		out_s("}\n")
+		print_indent(indent + 2)
+		if i < len(p.dynamicImports) - 1 {
+			out_s("},\n")
+		} else {
+			out_s("}\n")
+		}
+	}
+	print_indent(indent + 1)
+	out_s("],\n")
+
+	// Emit importMetas array
+	print_indent(indent + 1)
+	out_s("\"importMetas\": [\n")
+	for meta, i in p.importMetas {
+		print_indent(indent + 2)
+		out_s("{\n")
+		print_indent(indent + 3)
+		out_s("\"start\": ")
+		out_u32(to_utf16(meta.start))
+		out_s(",\n")
+		print_indent(indent + 3)
+		out_s("\"end\": ")
+		out_u32(to_utf16(meta.end))
+		out_s("\n")
+		print_indent(indent + 2)
+		if i < len(p.importMetas) - 1 {
+			out_s("},\n")
+		} else {
+			out_s("}\n")
+		}
+	}
+	print_indent(indent + 1)
+	out_s("]\n")
+	print_indent(indent)
+	out_s("}")
+}
+
 
 // ESTree-compatible root node emission.
 //

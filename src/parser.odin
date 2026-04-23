@@ -225,6 +225,12 @@ Parser :: struct {
 	// Track if module syntax was detected (import/export or import.meta)
 	has_module_syntax: bool,
 
+	// ESM module record arrays (populated when module-record flag is enabled)
+	staticImports:  [dynamic]ESMStaticImport,
+	staticExports:  [dynamic]ESMStaticExport,
+	dynamicImports: [dynamic]ESMDynamicImport,
+	importMetas:    [dynamic]ESMImportMeta,
+
 	// Position tracking
 	last_pos:        LexerLoc,
 
@@ -2702,6 +2708,78 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 // Module Import/Export
 // ============================================================================
 
+// Helper: Convert ExportSpecifierName to ESMExportNameEntry
+convert_export_spec_name :: proc(name: ExportSpecifierName) -> ESMExportNameEntry {
+	#partial switch n in name {
+	case IdentifierName:
+		return ESMExportNameEntry{
+			kind = .Name,
+			name = n.name,
+			start = n.loc.span.start,
+			end = n.loc.span.end,
+		}
+	case ^StringLiteral:
+		return ESMExportNameEntry{
+			kind = .Name,
+			name = n.value,
+			start = n.loc.span.start,
+			end = n.loc.span.end,
+		}
+	}
+	return ESMExportNameEntry{}
+}
+
+// Helper: Convert ImportSpecifierSpec to ESMNameEntry + ESMStaticImportEntry
+collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportEntry {
+	entry := ESMStaticImportEntry{}
+
+	#partial switch s in spec^ {
+	case ImportDefaultSpecifier:
+		// import X from "m" — X is the local binding
+		entry.importName = ESMNameEntry{
+			kind = .Default,
+			name = "",
+			start = 0,
+			end = 0,
+		}
+		entry.localName = ESMNameEntry{
+			kind = .Default,
+			name = s.local.name,
+			start = s.local.loc.span.start,
+			end = s.local.loc.span.end,
+		}
+	case ImportNamespaceSpecifier:
+		// import * as X from "m"
+		entry.importName = ESMNameEntry{
+			kind = .Namespace,
+			name = "*",
+			start = 0,
+			end = 0,
+		}
+		entry.localName = ESMNameEntry{
+			kind = .Namespace,
+			name = s.local.name,
+			start = s.local.loc.span.start,
+			end = s.local.loc.span.end,
+		}
+	case ImportSpecifier:
+		// import { x, y as z } from "m"
+		entry.importName = ESMNameEntry{
+			kind = .Name,
+			name = s.imported.name,
+			start = s.imported.loc.span.start,
+			end = s.imported.loc.span.end,
+		}
+		entry.localName = ESMNameEntry{
+			kind = .Name,
+			name = s.local.name,
+			start = s.local.loc.span.start,
+			end = s.local.loc.span.end,
+		}
+	}
+	return entry
+}
+
 parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume import
@@ -2841,6 +2919,26 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 
 	decl.loc.span.end = prev_end_offset(p)
 
+	// Collect ESM static import record
+	p.has_module_syntax = true
+	if len(decl.specifiers) > 0 {
+		esm_import := ESMStaticImport{
+			start = decl.loc.span.start,
+			end = decl.loc.span.end,
+			moduleRequest = {
+				value = decl.source.value,
+				start = decl.source.loc.span.start,
+				end = decl.source.loc.span.end,
+			},
+			entries = make([dynamic]ESMStaticImportEntry, 0, len(decl.specifiers), p.allocator),
+		}
+		for spec in decl.specifiers {
+			entry := collect_esm_import_entry(spec)
+			append(&esm_import.entries, entry)
+		}
+		append(&p.staticImports, esm_import)
+	}
+
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
 	stmt^ = (^ImportDeclaration)(decl)
@@ -2967,6 +3065,29 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	decl.declaration = def
 	decl.loc.span.end = prev_end_offset(p)
 
+	// Collect ESM static export record for export default
+	p.has_module_syntax = true
+	esm_export := ESMStaticExport{
+		start = decl.loc.span.start,
+		end = decl.loc.span.end,
+		entries = make([dynamic]ESMStaticExportEntry, 1, p.allocator),
+	}
+	esm_export.entries[0] = ESMStaticExportEntry{
+		exportName = ESMExportNameEntry{
+			kind = .Default,
+			name = "default",
+			start = start.span.start,
+			end = start.span.end,
+		},
+		localName = ESMExportNameEntry{
+			kind = .Default,
+			name = "default",
+			start = start.span.start,
+			end = start.span.end,
+		},
+	}
+	append(&p.staticExports, esm_export)
+
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportDefaultDeclaration)(decl)
 	return stmt
@@ -3000,6 +3121,40 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	// semantics. Previously the span stopped at the last token of `source`.
 	match_semicolon_or_asi(p)
 	decl.loc.span.end = prev_end_offset(p)
+
+	// Collect ESM static export record for export * from
+	p.has_module_syntax = true
+	esm_export := ESMStaticExport{
+		start = decl.loc.span.start,
+		end = decl.loc.span.end,
+		moduleRequest = {
+			value = decl.source.value,
+			start = decl.source.loc.span.start,
+			end = decl.source.loc.span.end,
+		},
+		entries = make([dynamic]ESMStaticExportEntry, 1, p.allocator),
+	}
+	// Determine the export name based on presence of "as" clause
+	export_name := "*"
+	if v, ok := decl.exported.?; ok {
+		export_name = v.name
+	}
+	esm_export.entries[0] = ESMStaticExportEntry{
+		exportName = ESMExportNameEntry{
+			kind = .Namespace,
+			name = export_name,
+			start = decl.source.loc.span.start,
+			end = decl.source.loc.span.end,
+		},
+		localName = ESMExportNameEntry{
+			kind = .Namespace,
+			name = export_name,
+			start = decl.source.loc.span.start,
+			end = decl.source.loc.span.end,
+		},
+	}
+	append(&p.staticExports, esm_export)
+
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportAllDeclaration)(decl)
 	return stmt
@@ -3064,6 +3219,30 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	match_semicolon_or_asi(p)
 
 	decl.loc.span.end = prev_end_offset(p)
+
+	// Collect ESM static export record for named exports
+	p.has_module_syntax = true
+	if len(decl.specifiers) > 0 {
+		esm_export := ESMStaticExport{
+			start = decl.loc.span.start,
+			end = decl.loc.span.end,
+			entries = make([dynamic]ESMStaticExportEntry, 0, len(decl.specifiers), p.allocator),
+		}
+		// Handle export * from "m" case
+		if v, ok := decl.source.?; ok {
+			esm_export.moduleRequest.value = v.value
+			esm_export.moduleRequest.start = v.loc.span.start
+			esm_export.moduleRequest.end = v.loc.span.end
+		}
+		for spec in decl.specifiers {
+			entry := ESMStaticExportEntry{
+				exportName = convert_export_spec_name(spec.exported),
+				localName = convert_export_spec_name(spec.local),
+			}
+			append(&esm_export.entries, entry)
+		}
+		append(&p.staticExports, esm_export)
+	}
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -3625,6 +3804,12 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 			meta_prop.loc.span.end = prev_end_offset(p)
 			p.has_module_syntax = true
+			// Collect ESM import.meta record
+			esm_import_meta := ESMImportMeta{
+				start = meta_prop.loc.span.start,
+				end = meta_prop.loc.span.end,
+			}
+			append(&p.importMetas, esm_import_meta)
 			return expression_from(p, meta_prop)
 		}
 		// Static import - not valid in expression context
@@ -5039,6 +5224,23 @@ parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
 	import_expr.loc = start
 	import_expr.source = specifier
 	import_expr.loc.span.end = prev_end_offset(p)
+
+	// Collect ESM dynamic import record
+	p.has_module_syntax = true
+	esm_dynamic := ESMDynamicImport{
+		start = import_expr.loc.span.start,
+		end = import_expr.loc.span.end,
+		moduleRequest = {
+			start = 0,
+			end = 0,
+		},
+	}
+	// Try to extract module request span from the specifier if it's a string literal
+	if spec_expr, ok := specifier^.(^StringLiteral); ok {
+		esm_dynamic.moduleRequest.start = spec_expr.loc.span.start
+		esm_dynamic.moduleRequest.end = spec_expr.loc.span.end
+	}
+	append(&p.dynamicImports, esm_dynamic)
 
 	return expression_from(p, import_expr)
 }
