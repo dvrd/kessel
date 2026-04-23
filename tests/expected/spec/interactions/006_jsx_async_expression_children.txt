@@ -2,7 +2,7 @@
   "type": "Program",
   "start": 0,
   "end": 486,
-  "sourceType": "module",
+  "sourceType": "script",
   "hashbang": null,
   "body": [
     {
@@ -79,6 +79,13 @@
                 "selfClosing": false
               },
               "children": [
+                {
+                  "type": "JSXText",
+                  "start": 396,
+                  "end": 401,
+                  "value": "\n    ",
+                  "raw": "\n    "
+                },
                 {
                   "type": "JSXExpressionContainer",
                   "start": 401,
@@ -214,6 +221,13 @@
                         }                      }
                     ]
                   }
+                },
+                {
+                  "type": "JSXText",
+                  "start": 469,
+                  "end": 472,
+                  "value": "\n  ",
+                  "raw": "\n  "
                 }
               ],
               "closingElement": {
@@ -265,5 +279,5 @@
 }
 
 --- Statistics ---
-Arena: used=13184B reserved=16777216B ratio=0%
+Arena: used=13232B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -114,7 +114,7 @@
             "end": 409,
             "value": null,
             "raw": "1_000n",
-            "bigint": "1_000"          }        }
+            "bigint": "1000"          }        }
       ]    },
     {
       "type": "VariableDeclaration",

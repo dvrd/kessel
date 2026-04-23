@@ -16,7 +16,8 @@
         "end": 502,
         "value": "./a",
         "raw": "\"./a\""
-      }    },
+      },
+      "attributes": []    },
     {
       "type": "ExportAllDeclaration",
       "start": 504,
@@ -28,7 +29,8 @@
         "end": 523,
         "value": "./b",
         "raw": "\"./b\""
-      }    },
+      },
+      "attributes": []    },
     {
       "type": "ExportAllDeclaration",
       "start": 525,
@@ -45,7 +47,8 @@
         "end": 550,
         "value": "./c",
         "raw": "\"./c\""
-      }    },
+      },
+      "attributes": []    },
     {
       "type": "VariableDeclaration",
       "start": 553,
@@ -152,5 +155,5 @@
 }
 
 --- Statistics ---
-Arena: used=16104B reserved=16777216B ratio=0%
+Arena: used=16320B reserved=16777216B ratio=0%
 Parse errors: 0

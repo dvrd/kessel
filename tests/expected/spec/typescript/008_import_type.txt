@@ -38,7 +38,8 @@
         "value": "./foo",
         "raw": "\"./foo\""
       },
-      "importKind": "type"    },
+      "importKind": "type",
+      "attributes": []    },
     {
       "type": "ImportDeclaration",
       "start": 162,
@@ -64,7 +65,8 @@
         "value": "./default",
         "raw": "\"./default\""
       },
-      "importKind": "type"    },
+      "importKind": "type",
+      "attributes": []    },
     {
       "type": "ImportDeclaration",
       "start": 200,
@@ -90,7 +92,8 @@
         "value": "./ns",
         "raw": "\"./ns\""
       },
-      "importKind": "type"    }
+      "importKind": "type",
+      "attributes": []    }
   ],
   "comments": [
     {

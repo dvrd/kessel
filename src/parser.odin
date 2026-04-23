@@ -37,6 +37,7 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		p.cur_type = ft.kind
 		p.cur_tok.type = ft.kind
 		p.cur_tok.loc.offset = int(ft.start)
+		p.cur_tok.raw_end = ft.end
 		// Branchless: always write (avoids conditional branch per token)
 		p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
 		if ft.kind < .LBrace {
@@ -57,8 +58,9 @@ advance_token :: #force_inline proc(p: ^Parser) {
 				// Escaped identifier — override the raw span with the cooked
 				// (decoded) name published by lex_identifier_escaped. The raw
 				// span is still the source text including \uXXXX; only the .value
-				// used for AST emission changes. Mirrored in prime_token_cache
-				// and cur_value (the hot-path read site).
+				// used for AST emission changes. raw_end (set above) preserves
+				// the true source end so loc_from_token still produces the
+				// correct span. Mirrored in prime_token_cache and cur_value.
 				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
 					if s, ok := a.cur_lit_value.(string); ok {
 						p.cur_tok.value = s
@@ -77,6 +79,7 @@ peek_token :: #force_inline proc(p: ^Parser) -> Token {
 		tok: Token
 		tok.type = ft.kind
 		tok.loc.offset = int(ft.start)
+		tok.raw_end = ft.end
 		tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
 		if ft.kind < .LBrace && ft.kind != .EOF && ft.start < ft.end {
 			tok.value = p.lexer.source[ft.start:ft.end]
@@ -95,6 +98,7 @@ prime_token_cache :: proc(p: ^Parser) {
 		p.cur_type = ft.kind
 		p.cur_tok.type = ft.kind
 		p.cur_tok.loc.offset = int(ft.start)
+		p.cur_tok.raw_end = ft.end
 		p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
 		if ft.kind < .LBrace && ft.kind != .EOF && ft.start < ft.end {
 			a := p.lexer
@@ -5321,7 +5325,17 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			}
 		}
 	} else {
+		// Expression body — also set in_function so nested `await` / `yield`
+		// / `return` within the expression are recognised as being inside
+		// this arrow, not at module top level. Previously only the block-body
+		// branch above did this, so `async () => expr_with_await` marked the
+		// file as a Module (via the top-level-await detector in
+		// parse_unary_expr `.Await`) even though the `await` was properly
+		// scoped to the async arrow.
+		prev_in_function := p.in_function
+		p.in_function = true
 		body = parse_assignment_expression(p)
+		p.in_function = prev_in_function
 	}
 
 	p.in_async = prev_async
@@ -5618,7 +5632,11 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 			}
 		}
 	} else {
+		// in_function fix — see parse_arrow_function for rationale.
+		prev_in_function := p.in_function
+		p.in_function = true
 		body = parse_assignment_expression(p)
+		p.in_function = prev_in_function
 	}
 
 	p.in_async = prev_async
@@ -5683,7 +5701,15 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 			}
 		}
 	} else {
+		// Same in_function fix as parse_arrow_function's expression arm:
+		// without this, a nested `await` inside an async arrow's expression
+		// body (e.g. `async () => (<x title={await f()}/>)`) falls into the
+		// top-level-await detector in parse_unary_expr `.Await` and spuriously
+		// promotes the whole file to `sourceType: "module"`.
+		prev_in_function := p.in_function
+		p.in_function = true
 		body = parse_assignment_expression(p)
+		p.in_function = prev_in_function
 	}
 
 	p.in_async = prev_async
@@ -5777,7 +5803,14 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 		}
 		if !expect_token(p, .Colon) { break }
 		value := parse_string_literal(p)
-		append(&attributes, ImportAttribute{loc = attr_start, key = key, value = value})
+		// Span end must cover the value literal — `attr_start` captured only
+		// the key's token span at entry (cur_loc), and was never extended
+		// past the value. The previous shape `{ loc = attr_start, … }` left
+		// `loc.span.end` equal to the key's end, so `type: "json"` reported
+		// end=39 (key) instead of end=47 (value).
+		attr_loc := attr_start
+		attr_loc.span.end = value.loc.span.end
+		append(&attributes, ImportAttribute{loc = attr_loc, key = key, value = value})
 		if !match_token(p, .Comma) { break }
 	}
 	expect_token(p, .RBrace)
@@ -5993,6 +6026,20 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 	children := make([dynamic]JSXChild, 0, 4, p.allocator)
 	for !is_token(p, .EOF) {
 		prev_off := cur_offset(p)
+		// ESTree requires JSXText slices between *every* pair of children,
+		// including whitespace-only runs like the leading `\n    ` before a
+		// `{expr}` or the closing `\n  ` before `</div>`. Without consuming
+		// JSXText FIRST on every iteration, the lexer's whitespace skip
+		// (which fires before returning `.LBrace` or `.LAngle`) eats those
+		// bytes and the emitted AST is missing them entirely — observed on
+		// interactions/006 where OXC emitted three children (JSXText,
+		// JSXExpressionContainer, JSXText) but Kessel emitted only the
+		// middle one. parse_jsx_text scans from prev_end_offset to the
+		// next `<` / `{`, so it naturally grabs the leading run when the
+		// current token is already one of those delimiters.
+		if text := parse_jsx_text(p); text != nil && text.value != "" {
+			append(&children, text)
+		}
 		if is_token(p, .LAngle) {
 			if peek_dispatch(p).type == .Div { break }
 			nested := parse_jsx_element_or_fragment(p)
@@ -6022,9 +6069,6 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			}
 			container.loc.span.end = prev_end_offset(p)
 			append(&children, container)
-		} else {
-			text := parse_jsx_text(p)
-			if text != nil && text.value != "" { append(&children, text) }
 		}
 		// Progress guard: if no iteration advanced the cursor (e.g. malformed
 		// input where parse_jsx_element_or_fragment returned without consuming,
@@ -7440,10 +7484,25 @@ cur_loc :: #force_inline proc(p: ^Parser) -> Loc {
 }
 
 loc_from_token :: #force_inline proc(t: Token) -> Loc {
+	// Prefer t.raw_end: it's the true source‑byte end from the FastToken,
+	// which is correct even when .value has been replaced by the cooked
+	// identifier name (escaped identifiers: source `C\u00e9` occupies 7 bytes
+	// but cooked .value is 3 bytes UTF‑8 — computing end from `offset +
+	// len(value)` underestimated by 4, breaking span comparisons against OXC
+	// for every \uXXXX identifier).
+	//
+	// Fall back to the old `offset + len(value)` for Tokens that predate
+	// raw_end population (raw_end stays 0 until set by advance_token /
+	// prime_token_cache / peek_token). This keeps the compile‑time zero‑init
+	// safe for synthetic Tokens constructed outside the lexer pipeline.
+	end := u32(t.loc.offset + len(t.value))
+	if t.raw_end != 0 && t.raw_end > u32(t.loc.offset) {
+		end = t.raw_end
+	}
 	return Loc{
 		span   = Span{
 			start = u32(t.loc.offset),
-			end   = u32(t.loc.offset + len(t.value)),
+			end   = end,
 		},
 		line   = u32(t.loc.line),
 		column = u32(t.loc.column),
@@ -7467,6 +7526,7 @@ loc_from_expr :: #force_inline proc(e: ^Expression) -> Loc {
 	case ^ArrowFunctionExpression:  return v.loc
 	case ^MemberExpression:         return v.loc
 	case ^CallExpression:           return v.loc
+	case ^ChainExpression:          return v.loc
 	case ^NewExpression:            return v.loc
 	case ^ConditionalExpression:    return v.loc
 	case ^UnaryExpression:          return v.loc

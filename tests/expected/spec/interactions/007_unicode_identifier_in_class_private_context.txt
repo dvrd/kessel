@@ -12,7 +12,7 @@
       "id": {
         "type": "Identifier",
         "start": 542,
-        "end": 545,
+        "end": 549,
         "name": "Cé"
       },
       "superClass": null,
@@ -48,7 +48,7 @@
                         "key": {
               "type": "Identifier",
               "start": 565,
-              "end": 572,
+              "end": 576,
               "name": "méthod"
             },
             "value": {
@@ -152,5 +152,5 @@
 }
 
 --- Statistics ---
-Arena: used=15984B reserved=16777216B ratio=0%
+Arena: used=16008B reserved=16777216B ratio=0%
 Parse errors: 0

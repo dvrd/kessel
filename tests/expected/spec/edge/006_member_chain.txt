@@ -184,8 +184,6 @@
       "end": 56,
       "expression": {
         "type": "ChainExpression",
-        "start": 0,
-        "end": 0,
         "start": 45,
         "end": 55,
         "expression": {

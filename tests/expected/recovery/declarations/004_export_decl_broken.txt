@@ -32,7 +32,8 @@
               "raw": "1"            }          }
         ]      },
       "specifiers": [],
-      "source": null    },
+      "source": null,
+      "attributes": []    },
     {
       "type": "ExpressionStatement",
       "start": 80,

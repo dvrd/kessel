@@ -340,12 +340,20 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 
 	// OXC-style branchless double-read: skip one space with arithmetic,
 	// then check if we're at a token. Avoids branch for common single-space case.
+	//
+	// `ws_done` means "no further whitespace/comment skip is needed". We rule
+	// out ASCII whitespace (< ' '), `/` (possible comment), and the UTF-8
+	// lead bytes for spec whitespace/line-terminators: 0xC2 (U+00A0 NBSP),
+	// 0xE2 (U+2028/U+2029 LS/PS), 0xEF (U+FEFF ZWNBSP). Missing any of those
+	// leads lets a multi-byte whitespace char slide straight into the next
+	// token — which silently corrupted `var a = 1\u2028var b = 2` into a
+	// single identifier until the slow path was wired to handle them.
 	ws_done := false
 	if off + 1 < src_len {
 		is_space := int(src[off] == ' ')
 		off += is_space  // branchless advance 0 or 1
 		c0 := src[off]
-		ws_done = c0 > ' ' && c0 != '/'
+		ws_done = c0 > ' ' && c0 != '/' && c0 != 0xC2 && c0 != 0xE2 && c0 != 0xEF
 	}
 	if !ws_done {
 		// Slow path: multi-space, newline, comment, or EOF
@@ -356,6 +364,32 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 			} else if c == '\n' {
 				l.had_line_terminator = true
 				off += 1
+			} else if c == 0x0B || c == 0x0C {
+				// <VT> (U+000B) and <FF> (U+000C) are ES `WhiteSpace` per §5.1.1.
+				// They're not line terminators so no ASI is triggered.
+				off += 1
+			} else if c == 0xE2 && off + 2 < src_len && src[off+1] == 0x80 &&
+			          (src[off+2] == 0xA8 || src[off+2] == 0xA9) {
+				// U+2028 (LINE SEPARATOR, `LS`) and U+2029 (PARAGRAPH
+				// SEPARATOR, `PS`) encoded as 3-byte UTF-8 `E2 80 A8/A9`.
+				// Both are spec line terminators (§12.3) and MUST trigger
+				// ASI just like `\n`. Previously the lexer fell through to
+				// the `else { break }` below, letting these bytes slide into
+				// the next token — on `var a = 1\u2028var b = 2\u2029var c`
+				// the three declarations fused into one garbled
+				// ExpressionStatement whose identifier started with `\u2028`.
+				l.had_line_terminator = true
+				off += 3
+			} else if c == 0xC2 && off + 1 < src_len && src[off+1] == 0xA0 {
+				// U+00A0 NO-BREAK SPACE (`NBSP`). 2-byte UTF-8 `C2 A0`.
+				// WhiteSpace per §5.1.1 — not a line terminator.
+				off += 2
+			} else if c == 0xEF && off + 2 < src_len && src[off+1] == 0xBB && src[off+2] == 0xBF {
+				// U+FEFF ZERO WIDTH NO-BREAK SPACE (ZWNBSP). 3-byte UTF-8
+				// `EF BB BF` — spec WhiteSpace (also doubles as UTF-8 BOM
+				// when at byte 0, handled separately in init). Not a line
+				// terminator.
+				off += 3
 			} else if c == '/' && off + 1 < src_len {
 				n := src[off + 1]
 				if n == '/' {

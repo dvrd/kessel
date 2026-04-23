@@ -83,7 +83,26 @@
                   "name": "Array",
                   "typeAnnotation": null
                 },
-                "typeArguments": null
+                "typeArguments": {
+                  "type": "TSTypeParameterInstantiation",
+                  "start": 439,
+                  "end": 442,
+                  "params": [
+                    {
+                      "type": "TSTypeReference",
+                      "start": 440,
+                      "end": 441,
+                      "typeName": {
+                        "type": "Identifier",
+                        "start": 440,
+                        "end": 441,
+                        "name": "T",
+                        "typeAnnotation": null
+                      },
+                      "typeArguments": null
+                    }
+                  ]
+                }
               }
             }
           },
@@ -424,7 +443,26 @@
                     "name": "Store",
                     "typeAnnotation": null
                   },
-                  "typeArguments": null
+                  "typeArguments": {
+                    "type": "TSTypeParameterInstantiation",
+                    "start": 637,
+                    "end": 640,
+                    "params": [
+                      {
+                        "type": "TSTypeReference",
+                        "start": 638,
+                        "end": 639,
+                        "typeName": {
+                          "type": "Identifier",
+                          "start": 638,
+                          "end": 639,
+                          "name": "T",
+                          "typeAnnotation": null
+                        },
+                        "typeArguments": null
+                      }
+                    ]
+                  }
                 }
               },
               "body": {

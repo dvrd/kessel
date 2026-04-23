@@ -1,7 +1,7 @@
 {
   "ambiguity": {
-    "pass": 7,
-    "fail": 3,
+    "pass": 10,
+    "fail": 0,
     "total": 10
   },
   "asi": {
@@ -75,8 +75,8 @@
     "total": 8
   },
   "interactions": {
-    "pass": 4,
-    "fail": 6,
+    "pass": 10,
+    "fail": 0,
     "total": 10
   },
   "jsx": {
@@ -85,8 +85,8 @@
     "total": 8
   },
   "lexical": {
-    "pass": 7,
-    "fail": 3,
+    "pass": 9,
+    "fail": 1,
     "total": 10
   },
   "regex_disambiguation": {

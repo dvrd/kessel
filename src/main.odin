@@ -2137,6 +2137,7 @@ get_expression_loc :: proc(expr: ^Expression) -> Loc {
 	case ^ClassExpression:           return e.loc
 	case ^MemberExpression:          return e.loc
 	case ^CallExpression:            return e.loc
+	case ^ChainExpression:           return e.loc
 	case ^NewExpression:             return e.loc
 	case ^ConditionalExpression:     return e.loc
 	case ^UpdateExpression:          return e.loc
@@ -3135,10 +3136,15 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		} else {
 			out_s("null")
 		}
-		if len(s.attributes) > 0 {
-			out_s(",\n")
-			print_indent(indent)
-			out_s("\"attributes\": [\n")
+		// OXC always emits `attributes: []` on every Export* declaration.
+		// See the equivalent block on ImportDeclaration for the rationale.
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"attributes\": [")
+		if len(s.attributes) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
 			for attr, i in s.attributes {
 				print_indent(indent + 1)
 				out_s("{\n")
@@ -3197,10 +3203,14 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("\"source\": ")
 		emit_string_literal_object(s.source, indent)
-		if len(s.attributes) > 0 {
-			out_s(",\n")
-			print_indent(indent)
-			out_s("\"attributes\": [\n")
+		// Always emit attributes — see ImportDeclaration block above.
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"attributes\": [")
+		if len(s.attributes) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
 			for attr, i in s.attributes {
 				print_indent(indent + 1)
 				out_s("{\n")
@@ -3441,10 +3451,20 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent)
 			out_s("\"importKind\": \"type\"")
 		}
-		if len(s.attributes) > 0 {
-			out_s(",\n")
-			print_indent(indent)
-			out_s("\"attributes\": [")
+		// Always emit `attributes` on ImportDeclaration (even when empty) to
+		// match OXC's shape — OXC writes `attributes: []` on every import,
+		// and the verifier expects both sides to agree. Previously this
+		// branch skipped the field when empty, which only matched because
+		// the verifier separately stripped it from OXC; removing that strip
+		// exposed the asymmetry on every non-import-attributes import
+		// (observed as 16 snabbdom divergences + 7 chalk + 1 each on
+		// zod/petite-vue when we dropped the strip rule).
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"attributes\": [")
+		if len(s.attributes) == 0 {
+			out_s("]")
+		} else {
 			out_s("\n")
 			for attr, i in s.attributes {
 				print_indent(indent + 1)
@@ -4838,7 +4858,17 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		print_indent(indent + 1)
 		out_s("},\n")
 		print_indent(indent + 1)
-		out_s("\"typeArguments\": null")
+		// `typeArguments` is the TS-ESTree field for the `<A, B>` instantiation
+		// on a reference, e.g. `Array<T>`. The parser records it on
+		// v.type_parameters (an internal Kessel name pre-dating the ESTree
+		// rename); previously this branch always emitted `null`, silently
+		// dropping every generic type reference. Emit the real list when set.
+		if targs, ok := v.type_parameters.(^TSTypeParameterInstantiation); ok && targs != nil {
+			out_s("\"typeArguments\": ")
+			emit_ts_type_argument_list(v.type_parameters, indent + 1)
+		} else {
+			out_s("\"typeArguments\": null")
+		}
 	case ^TSUnionType:
 		print_indent(indent + 1)
 		out_s("\"type\": \"TSUnionType\"")
@@ -5265,9 +5295,15 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 
 
 	case ^ChainExpression:
+		// Span is already emitted by the generic header (now that
+		// get_expression_loc handles ChainExpression). Previously this
+		// branch also called emit_span_leading, producing duplicate
+		// `"start"`/`"end"` keys plus a zero‑inited 0/0 pair from the
+		// header hitting the default `return Loc{}` arm — invalid JSON
+		// that also smashed LogicalExpression.start to 0 via
+		// loc_from_expr when the chain was a logical expr's LHS.
 		out_s(",\n")
 		print_indent(indent)
-		emit_span_leading(e.loc, indent)
 		out_s("\"expression\": {\n")
 		print_expression_ast(e.expression, indent + 1)
 		print_indent(indent)
@@ -6276,7 +6312,16 @@ sort_regex_flags :: proc(flags: string) -> string {
 }
 
 // Convert BigInt source representation to decimal string
-// Handles: decimal (e.g. "123"), hex (e.g. "0xFF"), octal (e.g. "0o77"), binary (e.g. "0b1111")
+// Handles: decimal (e.g. "123"), hex (e.g. "0xFF"), octal (e.g. "0o77"),
+// binary (e.g. "0b1111"), AND numeric separators in any base (e.g. "1_000n",
+// "0xff_ff").
+//
+// ESTree's `Literal.bigint` field is the decimal integer value as a string,
+// with no base prefix, no separators, and no trailing `n` — so `1_000n`
+// becomes `"1000"`, `0xff_ffn` becomes `"65535"`. Previously the decimal
+// path returned the source slice unchanged, leaking `_` separators into
+// `bigint` (e.g. `"1_000"`), which diverged from OXC on any separator-bearing
+// literal. Strip separators first and the rest of the logic works unchanged.
 bigint_to_decimal :: proc(bigint_source: string) -> string {
 	if len(bigint_source) == 0 {
 		return bigint_source
@@ -6286,6 +6331,26 @@ bigint_to_decimal :: proc(bigint_source: string) -> string {
 	source := bigint_source
 	if source[len(source)-1] == 'n' {
 		source = source[:len(source)-1]
+	}
+
+	if len(source) == 0 {
+		return "0"
+	}
+
+	// Strip numeric separators (`_`) — valid in every base. Only allocate
+	// when we actually find one; clean literals pass through unchanged.
+	has_sep := false
+	for i in 0..<len(source) {
+		if source[i] == '_' { has_sep = true; break }
+		}
+	if has_sep {
+		buf := make([dynamic]u8, 0, len(source), context.temp_allocator)
+		for i in 0..<len(source) {
+			if source[i] != '_' {
+				append(&buf, source[i])
+			}
+		}
+		source = string(buf[:])
 	}
 
 	if len(source) == 0 {
@@ -6313,7 +6378,7 @@ bigint_to_decimal :: proc(bigint_source: string) -> string {
 		}
 	}
 
-	// Decimal: return as-is (it's already in decimal)
+	// Decimal: separators already stripped above; return as-is.
 	return source
 }
 

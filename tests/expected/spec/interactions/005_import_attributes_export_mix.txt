@@ -33,7 +33,7 @@
         {
           "type": "ImportAttribute",
           "start": 557,
-          "end": 561,
+          "end": 569,
           "key": {
             "type": "Identifier",
             "start": 557,
@@ -77,7 +77,7 @@
         {
           "type": "ImportAttribute",
           "start": 611,
-          "end": 615,
+          "end": 623,
           "key": {
             "type": "Identifier",
             "start": 611,
@@ -128,7 +128,7 @@
         {
           "type": "ImportAttribute",
           "start": 661,
-          "end": 665,
+          "end": 673,
           "key": {
             "type": "Identifier",
             "start": 661,
@@ -165,7 +165,7 @@
         {
           "type": "ImportAttribute",
           "start": 718,
-          "end": 722,
+          "end": 730,
           "key": {
             "type": "Identifier",
             "start": 718,

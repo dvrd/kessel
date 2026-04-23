@@ -22,13 +22,11 @@
             "name": "out"          },
           "init": {
             "type": "LogicalExpression",
-            "start": 0,
+            "start": 483,
             "end": 529,
             "operator": "??",
             "left": {
               "type": "ChainExpression",
-              "start": 0,
-              "end": 0,
               "start": 483,
               "end": 515,
               "expression": {
@@ -133,13 +131,11 @@
             "name": "any"          },
           "init": {
             "type": "LogicalExpression",
-            "start": 0,
+            "start": 543,
             "end": 566,
             "operator": "??",
             "left": {
               "type": "ChainExpression",
-              "start": 0,
-              "end": 0,
               "start": 543,
               "end": 558,
               "expression": {
@@ -187,13 +183,11 @@
             "name": "deep"          },
           "init": {
             "type": "LogicalExpression",
-            "start": 0,
+            "start": 581,
             "end": 641,
             "operator": "??",
             "left": {
               "type": "ChainExpression",
-              "start": 0,
-              "end": 0,
               "start": 581,
               "end": 630,
               "expression": {

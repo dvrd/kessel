@@ -162,11 +162,14 @@ function unwrapParens(node) {
 // see at a glance which gaps are dialect-specific.
 const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   oxc: {
-  // ImportDeclaration / Export*: OXC emits `attributes: []` (import attributes
-  // proposal). Kessel doesn't emit the field. Tolerated.
-  ImportDeclaration:        new Set(['attributes', 'phase']),
-  ExportAllDeclaration:     new Set(['attributes']),
-  ExportNamedDeclaration:   new Set(['attributes']),
+  // ImportDeclaration / Export*: Kessel now emits `attributes` on all three
+  // (import attributes proposal, `import x from 'y' with { type: 'json' }`);
+  // drop it from the OXC-side strip so the two sides compare directly.
+  // `phase` is an even newer OXC-only field (`import defer`, `import source`
+  // phase imports). Kessel doesn't emit it yet, so keep the strip there.
+  ImportDeclaration:        new Set(['phase']),
+  ExportAllDeclaration:     new Set([]),
+  ExportNamedDeclaration:   new Set([]),
   // ImportExpression: OXC emits `options` and `phase` fields from the newer
   // dynamic-import specs (import() second arg). Kessel doesn't support these.
   ImportExpression:         new Set(['options', 'phase']),
@@ -306,12 +309,20 @@ function stripNode(node) {
 // Symmetric strip on the Kessel side so Kessel-emitted fields that the
 // reference parser doesn't produce (e.g. `hashbang` vs acorn) don't trigger
 // "extra" errors.
+//
+// Also applies STRIP_FIELDS_GLOBAL here — those are fields we intentionally
+// normalise away on BOTH sides (e.g. `decorators: []`, `loc`, `range`).
+// Without this, OXC's side was cleaned by stripNode() but the Kessel side
+// wasn't, so Kessel‑emitted `decorators` (matching OXC exactly) were
+// mis‑reported as "field kessel has that oxc does not" on every class with
+// a decorator (observed on the interactions/001 fixture).
 function stripKesselForParser(node) {
   if (node == null || typeof node !== 'object') return node;
   if (Array.isArray(node)) return node.map(stripKesselForParser);
   const strip = KESSEL_STRIP_FIELDS_FOR_PARSER[PARSER] || new Set();
   const out = {};
   for (const key of Object.keys(node)) {
+    if (STRIP_FIELDS_GLOBAL.has(key)) continue;
     if (strip.has(key)) continue;
     out[key] = stripKesselForParser(node[key]);
   }

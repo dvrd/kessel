@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post spec-compliance sweep — 12/12 real files at 0 divergences vs OXC)
-**Repo state:** `main` past `cc96a1c`, ~18 700 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-23 (post spec-fixtures sweep — 139/140 fixtures passing, 12/12 real files at 0 divergences vs OXC)
+**Repo state:** `main` past `cc96a1c` + follow-ups, ~18 800 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -41,7 +41,7 @@ is fine.
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture |
 | Test262 (curated) | `task test:test262` | **64 / 66** ✅ | 2 known-fail (baselined). Full suite not yet wired. |
-| Spec-fixtures | `task test:spec-fixtures` | **127 / 140** ✅ (baseline-locked) | typescript 10/10, jsx 8/8, all ES years 100%. Remaining: ambiguity (7/10), interactions (3/10), lexical (7/10). |
+| Spec-fixtures | `task test:spec-fixtures` | **139 / 140** ✅ (baseline-locked) | typescript 10/10, jsx 8/8, all ES years 100%, ambiguity 10/10, interactions 10/10, lexical 9/10. Only lexical/001 (BOM+hashbang spec parity — OXC rejects, Kessel accepts) remains. |
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | ✅ matches baseline | snabbdom deep-compare passes; jquery integration baseline-gated. |
 | Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel |

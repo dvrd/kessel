@@ -22,8 +22,6 @@
             "name": "x"          },
           "init": {
             "type": "ChainExpression",
-            "start": 0,
-            "end": 0,
             "start": 10,
             "end": 17,
             "expression": {
@@ -69,8 +67,6 @@
             "name": "y"          },
           "init": {
             "type": "ChainExpression",
-            "start": 0,
-            "end": 0,
             "start": 29,
             "end": 44,
             "expression": {

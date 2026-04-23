@@ -765,7 +765,8 @@
               ]            }          }
         ]      },
       "specifiers": [],
-      "source": null    }
+      "source": null,
+      "attributes": []    }
   ],
   "comments": [
     {
@@ -778,5 +779,5 @@
 }
 
 --- Statistics ---
-Arena: used=20640B reserved=16777216B ratio=0%
+Arena: used=20720B reserved=16777216B ratio=0%
 Parse errors: 0

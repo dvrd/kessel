@@ -33,7 +33,7 @@
         {
           "type": "ImportAttribute",
           "start": 38,
-          "end": 42,
+          "end": 50,
           "key": {
             "type": "Identifier",
             "start": 38,

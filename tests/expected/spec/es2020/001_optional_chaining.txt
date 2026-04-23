@@ -104,8 +104,6 @@
             "name": "val"          },
           "init": {
             "type": "ChainExpression",
-            "start": 0,
-            "end": 0,
             "start": 48,
             "end": 60,
             "expression": {
@@ -161,8 +159,6 @@
             "name": "fn"          },
           "init": {
             "type": "ChainExpression",
-            "start": 0,
-            "end": 0,
             "start": 73,
             "end": 88,
             "expression": {
@@ -204,8 +200,6 @@
             "name": "idx"          },
           "init": {
             "type": "ChainExpression",
-            "start": 0,
-            "end": 0,
             "start": 102,
             "end": 115,
             "expression": {

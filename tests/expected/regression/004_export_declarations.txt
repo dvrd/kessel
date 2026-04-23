@@ -32,7 +32,8 @@
               "raw": "1"            }          }
         ]      },
       "specifiers": [],
-      "source": null    },
+      "source": null,
+      "attributes": []    },
     {
       "type": "ExportNamedDeclaration",
       "start": 746,
@@ -60,7 +61,8 @@
               "raw": "2"            }          }
         ]      },
       "specifiers": [],
-      "source": null    },
+      "source": null,
+      "attributes": []    },
     {
       "type": "ExportNamedDeclaration",
       "start": 769,
@@ -88,7 +90,8 @@
               "raw": "3"            }          }
         ]      },
       "specifiers": [],
-      "source": null    },
+      "source": null,
+      "attributes": []    },
     {
       "type": "ExportNamedDeclaration",
       "start": 792,
@@ -144,7 +147,8 @@
           ]
         }      },
       "specifiers": [],
-      "source": null    },
+      "source": null,
+      "attributes": []    },
     {
       "type": "ExportNamedDeclaration",
       "start": 864,
@@ -293,7 +297,8 @@
           ]
         }      },
       "specifiers": [],
-      "source": null    },
+      "source": null,
+      "attributes": []    },
     {
       "type": "ExportDefaultDeclaration",
       "start": 993,
@@ -435,5 +440,5 @@
 }
 
 --- Statistics ---
-Arena: used=27656B reserved=16777216B ratio=0%
+Arena: used=27816B reserved=16777216B ratio=0%
 Parse errors: 0

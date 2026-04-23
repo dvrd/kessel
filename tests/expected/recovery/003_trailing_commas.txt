@@ -275,7 +275,8 @@
         "end": 211,
         "value": "module",
         "raw": "'module'"
-      }    },
+      },
+      "attributes": []    },
     {
       "type": "ExportNamedDeclaration",
       "start": 213,
@@ -317,7 +318,8 @@
           }
         }
       ],
-      "source": null    },
+      "source": null,
+      "attributes": []    },
     {
       "type": "VariableDeclaration",
       "start": 232,
@@ -424,5 +426,5 @@
 }
 
 --- Statistics ---
-Arena: used=10840B reserved=16777216B ratio=0%
+Arena: used=10896B reserved=16777216B ratio=0%
 Parse errors: 0

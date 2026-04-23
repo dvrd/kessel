@@ -38,7 +38,8 @@
         "value": "./foo",
         "raw": "\"./foo\""
       },
-      "importKind": "type"    },
+      "importKind": "type",
+      "attributes": []    },
     {
       "type": "VariableDeclaration",
       "start": 83,

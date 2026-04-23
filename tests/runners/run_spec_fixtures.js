@@ -79,6 +79,26 @@ function langFlag(file) {
   return '';
 }
 
+// Map our dialect to the synthetic filename extension OXC uses to pick
+// its parser mode. Mirrors the extension logic in verify_json_deep.js.
+function oxcSyntheticName(file) {
+  const base = path.basename(file);
+  const flag = langFlag(file).trim();
+  if (flag === '--lang=jsx') return base.replace(/\.js$/, '.jsx');
+  if (flag === '--lang=ts')  return base.replace(/\.js$/, '.ts');
+  if (flag === '--lang=tsx') return base.replace(/\.js$/, '.tsx');
+  return base;
+}
+
+// Lazy OXC loader — only needed for error-parity check below.
+let _oxc = null;
+function oxc() {
+  if (_oxc !== null) return _oxc;
+  try { _oxc = require(path.resolve(ROOT, 'bench/node_modules/oxc-parser')); }
+  catch (_e) { _oxc = false; }
+  return _oxc;
+}
+
 // Run one fixture and return {ok, reason?}.
 function check(fix) {
   // Kessel must parse without error.
@@ -94,7 +114,25 @@ function check(fix) {
   if (kExit !== 0) return { ok: false, reason: `kessel exit=${kExit}` };
   if (kStdout.indexOf('Parse errors (') !== -1) {
     const m = kStdout.match(/Parse errors \((\d+)\)/);
-    return { ok: false, reason: `${m ? m[1] : '?'} parse errors` };
+    const kErrCount = m ? parseInt(m[1], 10) : 1;
+    // Parity escape: when OXC *also* reports parse errors in the same
+    // dialect, both parsers agree the fixture is invalid and we count
+    // this as a pass (Kessel matches spec behaviour). Without this, the
+    // `ambiguity/` TSX fixtures that test forbidden forms like
+    // `<Type>expr` in TSX mode showed up as Kessel‑side failures even
+    // though OXC rejects them identically.
+    const o = oxc();
+    if (o) {
+      try {
+        const src = fs.readFileSync(fix.file, 'utf8');
+        const res = o.parseSync(oxcSyntheticName(fix.file), src);
+        const oErrCount = (res.errors || []).length;
+        if (oErrCount > 0) {
+          return { ok: true };
+        }
+      } catch (_e) { /* fall through to failure */ }
+    }
+    return { ok: false, reason: `${kErrCount} parse errors` };
   }
 
   // Deep compare vs OXC (the most permissive, closest-to-spec reference

@@ -368,8 +368,6 @@
             "name": "h"          },
           "init": {
             "type": "ChainExpression",
-            "start": 0,
-            "end": 0,
             "start": 246,
             "end": 270,
             "expression": {
@@ -425,8 +423,6 @@
             "name": "i"          },
           "init": {
             "type": "ChainExpression",
-            "start": 0,
-            "end": 0,
             "start": 282,
             "end": 302,
             "expression": {

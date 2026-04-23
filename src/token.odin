@@ -164,7 +164,12 @@ TokenType :: enum {
 Token :: struct {
 	type:     TokenType,
 	loc:      LexerLoc,
-	value:    string,  // Raw source text
+	value:    string,  // Raw source text OR cooked identifier name (for \uXXXX escapes)
+	raw_end:  u32,     // Source‑byte end offset, always from the FastToken. Needed because
+	                  // `value` holds the *cooked* name for escaped identifiers, so
+	                  // `loc.offset + len(value)` can underestimate the span by up to
+	                  // 5 bytes per \uXXXX (source `\uNNNN` is 6 bytes; cooked UTF‑8
+	                  // is 1‑4). Callers reading .value still see the cooked name.
 	literal:  LiteralValue, // Parsed value for literals
 	had_line_terminator: bool, // True if there was a line terminator before this token
 }
