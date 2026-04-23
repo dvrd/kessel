@@ -774,6 +774,20 @@ ArrayExpression :: struct {
 	elements: [dynamic]Maybe(^Expression), // null for sparse arrays
 }
 
+// ParenthesizedExpression is NOT in ESTree core — ESTree treats `(...)` as
+// purely syntactic and discards the grouping in the AST. It IS in the Acorn
+// preserveParens extension, ESLint, and OXC's default output. Shape matches
+// Acorn/OXC: `{ type: "ParenthesizedExpression", expression, start, end }`.
+// Babel uses a different convention (`extra.parenthesized: true` on the
+// inner node) and is intentionally NOT the target here.
+//
+// Kessel gates emission behind `--preserve-parens` so default JS output
+// stays byte-identical for consumers that follow ESTree core.
+ParenthesizedExpression :: struct {
+	loc:        Loc,
+	expression: ^Expression,
+}
+
 PropertyKind :: enum {
 	Init,
 	Get,
@@ -1406,6 +1420,7 @@ Expression :: union {
 	^TSSatisfiesExpression,
 	^TSNonNullExpression,
 	^TSTypeAssertion,
+	^ParenthesizedExpression,
 }
 
 Statement :: union {

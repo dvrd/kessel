@@ -57,6 +57,12 @@ emit_range_enabled: bool
 //   nil       — unambiguous (auto-detect).
 source_type_override: Maybe(SourceType)
 
+// CLI flag: --preserve-parens. When enabled, every genuine `(expr)`
+// paren-grouping is wrapped in a `ParenthesizedExpression` node (Acorn /
+// OXC extension; NOT in ESTree core). Off by default for byte-identical
+// legacy output.
+preserve_parens_enabled: bool
+
 // Emit ESM module record (hasModuleSyntax, staticImports, staticExports, etc.).
 // CLI flag: --module-record. Off by default for backward compat.
 emit_module_record: bool
@@ -520,6 +526,8 @@ main :: proc() {
 						fmt.eprintf("Error: unknown --source-type value '%s' (expected script|module|unambiguous)\n", val)
 						os.exit(2)
 					}
+				} else if arg == "--preserve-parens" {
+					preserve_parens_enabled = true
 			} else if arg == "--module-record" {
 				emit_module_record = true
 			} else if strings.has_prefix(arg, "--lang=") {
@@ -725,6 +733,10 @@ parse_file :: proc(file_path: string) {
 		initial_source_type = st
 		p.force_source_type = st
 	}
+
+	// `--preserve-parens`: thread to the parser so parse_primary_expr can
+	// wrap non-arrow `(expr)` forms in a ParenthesizedExpression node.
+	p.preserve_parens = preserve_parens_enabled
 
 	// Parse program
 	program := parse_program(&p, initial_source_type)
@@ -2099,6 +2111,7 @@ expression_inner_nil :: proc(expr: ^Expression) -> bool {
 	case ^TSSatisfiesExpression:    return e == nil
 	case ^TSNonNullExpression:      return e == nil
 	case ^TSTypeAssertion:          return e == nil
+	case ^ParenthesizedExpression:  return e == nil
 	}
 	return true
 }
@@ -2148,6 +2161,7 @@ get_expression_loc :: proc(expr: ^Expression) -> Loc {
 	case ^TSSatisfiesExpression:    return e.loc
 	case ^TSNonNullExpression:      return e.loc
 	case ^TSTypeAssertion:          return e.loc
+	case ^ParenthesizedExpression:  return e.loc
 	}
 	return Loc{}
 }
@@ -5735,6 +5749,19 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
+	case ^ParenthesizedExpression:
+		// EST-3 / OPT-3. Shape matches Acorn `preserveParens` + OXC default:
+		//   { type: "ParenthesizedExpression", expression, start, end }
+		// The inner expression keeps its own natural span; only the
+		// wrapper span covers the outer `(` ... `)`.
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+
 	case:
 		out_println(",")
 		print_indent(indent)
@@ -5829,6 +5856,7 @@ get_expression_type_name :: proc(expr: ^Expression) -> string {
 	case ^TSSatisfiesExpression: return "TSSatisfiesExpression"
 	case ^TSNonNullExpression:   return "TSNonNullExpression"
 	case ^TSTypeAssertion:       return "TSTypeAssertion"
+	case ^ParenthesizedExpression: return "ParenthesizedExpression"
 	}
 	return "Unknown"
 }

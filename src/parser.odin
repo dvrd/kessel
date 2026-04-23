@@ -228,6 +228,13 @@ Parser :: struct {
 	// parse_program to leave it alone. nil = unambiguous (auto-detect).
 	force_source_type: Maybe(SourceType),
 
+	// CLI `--preserve-parens`. When true, every genuine `(expr)` paren-
+	// grouping wraps its inner expression in a ParenthesizedExpression
+	// node. Off by default for byte-identical legacy output. Does NOT
+	// wrap arrow-param covers (`(x, y) =>`), call / new argument lists,
+	// or control-flow headers — only the expression-position case.
+	preserve_parens:   bool,
+
 	// Inside an ambient TS module / namespace body: every declaration is
 	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
 	// semantics and also the string-named `module "x" { ... }` shortcut
@@ -4307,6 +4314,19 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			p.pending_paren_start = paren_start
 		} else {
 			p.pending_paren_start = prev_pending_paren
+		}
+
+		// EST-3 / OPT-3 `--preserve-parens`: wrap the inner expression in
+		// a ParenthesizedExpression node matching Acorn/OXC's shape. Skip
+		// when `=>` follows — that path is cover-for-arrow-params and the
+		// downstream arrow builder expects the raw inner expression to
+		// lower to FunctionParameter via expr_to_pattern.
+		if p.preserve_parens && !is_token(p, .Arrow) {
+			paren_node := new_node(p, ParenthesizedExpression)
+			paren_node.loc.span.start = paren_start
+			paren_node.loc.span.end = prev_end_offset(p)
+			paren_node.expression = expr
+			return expression_from(p, paren_node)
 		}
 		return expr
 
