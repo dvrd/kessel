@@ -1786,6 +1786,19 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		// Parse the argument (identifier or destructuring pattern)
 		arg_pattern := parse_binding_pattern(p)
 		rest.argument = arg_pattern
+
+		// TS: type annotation on a rest parameter — `...args: T[]`.
+		// Store on the inner Identifier so the emitter surfaces it;
+		// extend the RestElement span to cover the annotation.
+		if is_token(p, .Colon) {
+			ann := parse_ts_type_annotation(p)
+			if ident, ok := arg_pattern.(^Identifier); ok {
+				ident.type_annotation = ann
+				if ann != nil && ann.loc.span.end > ident.loc.span.end {
+					ident.loc.span.end = ann.loc.span.end
+				}
+			}
+		}
 		rest.loc.span.end = prev_end_offset(p)
 
 		// Store RestElement as the pattern
@@ -4116,6 +4129,19 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			return nil
 		}
 
+		// TS trial-parse (K4): `(x: T) => x`, `(...rest: T[]) => ...`, etc.
+		// The `:Type` annotation on a parameter is not valid JS syntax inside
+		// plain paren-grouping, so parse_expr_with_prec would fail. When in
+		// TS / TSX mode and the `(` clearly opens arrow parameters (rest
+		// marker, or `Identifier :`), trial-parse as function parameters and
+		// build the arrow directly. On failure we roll back cleanly and fall
+		// through to the normal paren-grouping path.
+		if allow_ts_mode(p) && looks_like_ts_arrow_params(p) {
+			if arrow := try_parse_ts_arrow_params(p, current); arrow != nil {
+				return arrow
+			}
+		}
+
 		// Regular parenthesized expression. Use Comma precedence to handle
 		// (x, y) => ... arrow function case.
 		//
@@ -5851,6 +5877,37 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	return ann
 }
 
+// parse_ts_type_annotation_bare — like parse_ts_type_annotation but assumes
+// the leading `:` or `=>` has already been consumed. The outer TSFunctionType
+// needs a return type wrapped in TSTypeAnnotation, but the return type starts
+// directly at the current token (no `:` delimiter between `=>` and the type).
+parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
+	start := cur_loc(p)
+	ts_type := parse_ts_type(p)
+	ann := new_node(p, TSTypeAnnotation)
+	ann.loc = start; ann.type_annotation = ts_type
+	ann.loc.span.end = prev_end_offset(p)
+	return ann
+}
+
+// looks_like_ts_function_type — cheap detection for function type vs
+// paren-wrapped type at a `(`. Caller is at `.LParen` in parse_ts_primary_type.
+// See comments at the call site for the signal table.
+looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
+	assert(p.cur_type == .LParen)
+	nxt := p.lexer.nxt.kind
+	if nxt == .RParen { return true }
+	if nxt == .Dot3  { return true }
+	if nxt != .Identifier { return false }
+
+	snap := lexer_snapshot(p)
+	eat(p) // consume `(`
+	eat(p) // consume Identifier
+	after := p.cur_type
+	lexer_restore(p, snap)
+	return after == .Colon || after == .Question
+}
+
 parse_ts_type :: proc(p: ^Parser) -> ^TSType {
 	check := parse_ts_union_type(p)
 	if check == nil { return nil }
@@ -5909,6 +5966,34 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
 	#partial switch p.cur_type {
 	case .LParen:
+		// TS function type with named params: `(x: T, ...) => U`.
+		// Detected cheaply via 1–2 token lookahead because the outer type
+		// grammar has no ambiguity here — a `(` in a type position is
+		// either a function type, a paren-wrapped type, or (illegally) a
+		// tuple typo. Named params and rest params are only legal in a
+		// function type, so their presence is a definitive signal.
+		//
+		// Signals (all require =>-terminated form):
+		//   ()           — zero-arg function type (e.g. `() => void`).
+		//   (...         — rest parameter.
+		//   (Identifier : / (Identifier ?  — named param with annotation.
+		if looks_like_ts_function_type(p) {
+			params := parse_ts_sig_params(p)
+			if !is_token(p, .Arrow) {
+				report_error(p, "Expected '=>' in function type")
+				return nil
+			}
+			eat(p) // consume `=>`
+			ret_type := parse_ts_type_annotation_bare(p)
+			fn := new_node(p, TSFunctionType)
+			fn.loc = start
+			fn.params = params
+			fn.return_type = ret_type
+			fn.loc.span.end = prev_end_offset(p)
+			r := new_node(p, TSType); r^ = fn
+			return parse_ts_postfix(p, r, start)
+		}
+
 		eat(p); inner := parse_ts_type(p); expect_token(p, .RParen)
 		if is_token(p, .Arrow) {
 			eat(p); parse_ts_type(p)
@@ -6221,6 +6306,17 @@ parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
 	paren_expr := parse_primary_expr(p)
 	if paren_expr == nil { return nil }
 
+	// K4: the `.LParen` branch of parse_primary_expr may trial-parse the
+	// paren-contents as TS arrow params and return a complete arrow
+	// (for `<T>(x: U) => x` where the inner `(x: U)` forced the trial).
+	// In that case, the arrow has consumed `=>` and body already; we just
+	// decorate it with our type parameters and extend the span.
+	if arrow_expr, is_arrow := paren_expr^.(^ArrowFunctionExpression); is_arrow {
+		arrow_expr.type_parameters = type_params
+		arrow_expr.loc.span.start = start.span.start
+		return paren_expr
+	}
+
 	// Optional TS return-type annotation `: T` before `=>`.
 	return_type: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) { return_type = parse_ts_type_annotation(p) }
@@ -6242,6 +6338,106 @@ parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
 		a.loc.span.start = start.span.start
 	}
 	return arrow
+}
+
+// looks_like_ts_arrow_params — cheap 2-token lookahead to decide whether
+// a `(` definitely opens TS arrow parameters (as opposed to a paren-wrapped
+// expression). Called only in TS / TSX mode. Used by parse_primary_expr
+// to gate try_parse_ts_arrow_params.
+//
+// Conservative signals (each uniquely identifies arrow params):
+//   * `(...`            — rest parameter is only legal inside arrow params.
+//   * `(Identifier :`   — `:Type` after an identifier in a paren-group is
+//                         only legal as a parameter type annotation.
+//
+// We intentionally DO NOT trigger the trial on `(Identifier ,` /
+// `(Identifier )` / `(Identifier =` / `({...` / `([...` — these all have a
+// working paren-grouping path today that flows into parse_arrow_function via
+// expr_to_pattern when `=>` follows. Expanding coverage to destructured
+// params with type annotations (`({a}: P) => a`) is a future extension and
+// needs the same trial-parse plumbing.
+looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
+	assert(p.cur_type == .LParen)
+	nxt := p.lexer.nxt.kind
+	if nxt == .Dot3 { return true }
+	if nxt != .Identifier { return false }
+
+	// Need 2-token lookahead: current = `(`, nxt = Identifier, after
+	// that = ? Use the trial snapshot to peek without committing.
+	snap := lexer_snapshot(p)
+	eat(p) // consume `(`
+	eat(p) // consume Identifier
+	after := p.cur_type
+	lexer_restore(p, snap)
+	return after == .Colon
+}
+
+// try_parse_ts_arrow_params — speculatively parse `(params) [:RetType]? =>
+// body` starting at `(`. Returns the constructed ArrowFunctionExpression on
+// success, or nil on failure with parser state fully restored to the `(`.
+//
+// The caller has already filtered via looks_like_ts_arrow_params(p), so the
+// snapshot/rollback path is a safety net rather than the common case. On
+// the happy path we build the arrow directly — no conversion from
+// Expression→Pattern needed because parse_function_params already produced
+// proper FunctionParameter nodes with type annotations attached.
+try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression {
+	start_loc := loc_from_token(lparen_tok)
+	snap := lexer_snapshot(p)
+	prev_pending_paren := p.pending_paren_start
+
+	eat(p) // consume `(`
+
+	// parse_function_params already handles: rest (`...x`), optional (`x?`),
+	// type annotation (`x: T`), default value (`x = 1`), and destructuring.
+	params := parse_function_params(p)
+
+	if !is_token(p, .RParen) {
+		lexer_restore(p, snap)
+		p.pending_paren_start = prev_pending_paren
+		return nil
+	}
+	eat(p) // consume `)`
+
+	// Optional return type annotation: `(params): T => body`.
+	return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) {
+		return_type = parse_ts_type_annotation(p)
+	}
+
+	if !is_token(p, .Arrow) {
+		lexer_restore(p, snap)
+		p.pending_paren_start = prev_pending_paren
+		return nil
+	}
+	eat(p) // consume `=>`
+
+	// Body — block or expression. Mirror parse_arrow_function's treatment.
+	is_block_body := is_token(p, .LBrace)
+	body: ArrowFunctionBody
+	if is_block_body {
+		prev_in_function := p.in_function
+		p.in_function = true
+		block_stmt := parse_block_statement(p)
+		p.in_function = prev_in_function
+		if block_stmt != nil {
+			if bs, ok := block_stmt^.(^BlockStatement); ok {
+				body = bs
+			}
+		}
+	} else {
+		body = parse_assignment_expression(p)
+	}
+
+	arrow := new_node(p, ArrowFunctionExpression)
+	arrow.loc = start_loc
+	arrow.params = params
+	arrow.body = body
+	arrow.expression = !is_block_body
+	arrow.async = false
+	if rt, ok := return_type.?; ok { arrow.return_type = rt }
+	arrow.loc.span.end = prev_end_offset(p)
+	return expression_from(p, arrow)
 }
 
 parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
