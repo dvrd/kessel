@@ -1046,6 +1046,17 @@ ClassElementKind :: enum {
 	StaticBlock,  // ES2022 static { ... }
 }
 
+// TS class-member visibility modifier. .None means no modifier was written
+// (the ESTree TS-ESTree shape then either omits `accessibility` or emits it
+// as `null`; we omit unless the emit_ts_shape toggle is on). Order matches
+// TypeScript/typescript-eslint's own string values.
+ClassAccessibility :: enum u8 {
+	None,
+	Public,
+	Private,
+	Protected,
+}
+
 ClassElement :: struct {
 	loc:             Loc,
 	key:             ^Expression,
@@ -1059,6 +1070,9 @@ ClassElement :: struct {
 	type_annotation: Maybe(^TSTypeAnnotation),  // TS: `foo: T`
 	optional:        bool,                        // TS: `foo?:`
 	definite:        bool,                        // TS: `foo!:` (definite assignment)
+	accessibility:   ClassAccessibility,          // TS: public/private/protected
+	readonly:        bool,                        // TS: readonly
+	override_:       bool,                        // TS: override
 }
 
 ClassExpression :: struct {

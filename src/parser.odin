@@ -1798,6 +1798,38 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	param := new_node(p, FunctionParameter)
 	param.loc = cur_loc(p)
 
+	// TS "parameter properties" on constructors: access/readonly/override
+	// modifiers before the binding. Syntactically legal on any parameter
+	// in TS source (the type checker narrows to constructor params). We
+	// consume but drop the modifier flags here; a future ESTree-faithful
+	// pass would wrap the param in a TSParameterProperty node carrying
+	// accessibility/readonly/override. Gating on allow_ts_mode keeps JS
+	// rejecting these.
+	if allow_ts_mode(p) {
+		for i := 0; i < 6; i += 1 {
+			cur := p.cur_type
+			nxt := p.lexer.nxt.kind
+			// Only treat as modifier when followed by a plausible param-start
+			// (identifier, `...`, destructuring opener). Otherwise the keyword
+			// IS the param name (e.g. `(public) => ...`, rare but legal).
+			is_param_start := nxt == .Identifier || nxt == .Dot3 ||
+			                  nxt == .LBrace || nxt == .LBracket
+			if !is_param_start { break }
+			consumed := false
+			#partial switch cur {
+			case .Override:
+				eat(p); consumed = true
+			case .Identifier:
+				val := p.cur_tok.value
+				if val == "public" || val == "private" || val == "protected" || val == "readonly" {
+					eat(p); consumed = true
+				}
+			}
+			if !consumed { break }
+		}
+		param.loc = cur_loc(p)
+	}
+
 	// Check for rest parameter: ...identifier
 	if match_token(p, .Dot3) {
 		// Rest element - create RestElement as the pattern
@@ -2011,8 +2043,67 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		return elem
 	}
 
-	static_ := match_token(p, .Static)
-	is_abstract := match_token(p, .Abstract)
+	// TS class-member modifiers form a LOOSE prefix in front of the name:
+	//   [accessibility] [static] [abstract] [override] [readonly] <name...>
+	// TypeScript itself allows these in a few orderings (e.g. static before
+	// or after access modifier); we accept any order and consume duplicates
+	// permissively, matching OXC/typescript-eslint leniency. The parser just
+	// captures the set; an enforcing type-checker owns ordering / duplicate
+	// rules.
+	//
+	// `public` / `private` / `protected` / `readonly` are lexed as plain
+	// Identifier tokens (contextual keywords, not reserved) so we inspect
+	// the string value; `static` / `abstract` / `override` ARE reserved
+	// keyword tokens in Kessel's lexer and can be matched by kind.
+	static_ := false
+	is_abstract := false
+	accessibility := ClassAccessibility.None
+	is_readonly := false
+	is_override := false
+
+	// Bounded scan. A modifier token is only a modifier if the NEXT token
+	// is a plausible continuation of the member signature — not `(`, `=`,
+	// `;`, `,`, `}` which indicate the keyword is being used AS the member
+	// name (e.g. `readonly()` is a method named readonly).
+	for i := 0; i < 12; i += 1 {
+		cur := p.cur_type
+		nxt := p.lexer.nxt.kind
+		is_member_start := nxt == .LParen || nxt == .Assign || nxt == .Semi ||
+		                   nxt == .Comma || nxt == .RBrace
+		if is_member_start {
+			break
+		}
+		consumed := false
+		#partial switch cur {
+		case .Static:
+			if !static_       { static_       = true; eat(p); consumed = true }
+		case .Abstract:
+			if !is_abstract   { is_abstract   = true; eat(p); consumed = true }
+		case .Override:
+			if !is_override   { is_override   = true; eat(p); consumed = true }
+		case .Identifier:
+			val := p.cur_tok.value
+			switch val {
+			case "public":
+				if accessibility == .None {
+					accessibility = .Public;    eat(p); consumed = true
+				}
+			case "private":
+				if accessibility == .None {
+					accessibility = .Private;   eat(p); consumed = true
+				}
+			case "protected":
+				if accessibility == .None {
+					accessibility = .Protected; eat(p); consumed = true
+				}
+			case "readonly":
+				if !is_readonly {
+					is_readonly = true;         eat(p); consumed = true
+				}
+			}
+		}
+		if !consumed { break }
+	}
 
 	kind := ClassElementKind.Method
 	is_async := false
@@ -2188,6 +2279,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.type_annotation = field_type_ann
 		elem.optional = field_optional
 		elem.definite = field_definite
+		elem.accessibility = accessibility
+		elem.readonly = is_readonly
+		elem.override_ = is_override
 
 		elem.loc.span.end = prev_end_offset(p)
 		return elem
@@ -2264,6 +2358,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	elem.is_accessor = is_accessor
 	elem.abstract = is_abstract
 	elem.decorators = decorators
+	elem.accessibility = accessibility
+	elem.readonly = is_readonly
+	elem.override_ = is_override
 
 	elem.loc.span.end = prev_end_offset(p)
 	return elem

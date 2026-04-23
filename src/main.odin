@@ -2567,6 +2567,35 @@ print_class_element_fields :: proc(elem: ^ClassElement, indent: int) {
 		out_s("\"abstract\": true")
 	}
 
+	// TS class member modifiers (K12). Only emitted when set, matching
+	// OXC / typescript-eslint's convention of omitting null defaults. This
+	// keeps the JS output byte-identical; .ts / .tsx paths get the extra
+	// fields whenever the parser observed them.
+	#partial switch elem.accessibility {
+	case .Public:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"accessibility\": \"public\"")
+	case .Private:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"accessibility\": \"private\"")
+	case .Protected:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"accessibility\": \"protected\"")
+	}
+	if elem.readonly {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"readonly\": true")
+	}
+	if elem.override_ {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"override\": true")
+	}
+
 	// TS field modifiers: optional (`foo?:`) and definite (`foo!:`).
 	if elem.optional {
 		out_s(",\n")
