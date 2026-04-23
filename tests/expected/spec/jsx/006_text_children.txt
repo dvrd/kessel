@@ -112,10 +112,10 @@
               },
               {
                 "type": "JSXText",
-                "start": 229,
+                "start": 228,
                 "end": 234,
-                "value": "after",
-                "raw": "after"
+                "value": " after",
+                "raw": " after"
               }
             ],
             "closingElement": {

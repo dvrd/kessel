@@ -184,7 +184,7 @@
                 "start": 2287,
                 "end": 2308,
                 "tail": true,
-                "value": { "raw": "plain \\uDEAD template", "cooked": "plain \\uDEAD template" }
+                "value": { "raw": "plain \\uDEAD template", "cooked": "plain \udead template" }
               }
             ],
             "expressions": []          }        }

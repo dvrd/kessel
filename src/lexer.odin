@@ -90,6 +90,15 @@ Lexer :: struct {
 	// Comment collection — populated during lexing
 	comments: [dynamic]Comment,
 	collect_comments: bool,
+
+	// Hashbang comment — if the source starts with `#!...`, capture the
+	// content and span. ES2023 elevated this to Program.hashbang in ESTree.
+	// hashbang_value is the text AFTER `#!` up to (but not including) the
+	// first LineTerminator; start/end is the full span including `#!`.
+	hashbang_value: string,
+	hashbang_start: u32,
+	hashbang_end:   u32,
+	has_hashbang:   bool,
 }
 
 // Build line offset table in a single pre-pass
@@ -143,12 +152,35 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator) {
 	l.comments = make([dynamic]Comment, 0, 64, alloc)
 	l.collect_comments = true
 
-	// Handle hashbang
+	// Handle hashbang. ES2023 makes `#!` at file start a HashbangComment
+	// that lands on Program.hashbang. Capture content + span for the emitter.
 	if l.at_start_of_file && l.offset + 1 < len(source) && l.source_bytes[l.offset] == '#' && l.source_bytes[l.offset + 1] == '!' {
+		hb_start := u32(l.offset)
+		l.offset += 2 // skip `#!`
+		content_start := l.offset
+		content_end   := l.offset
 		for l.offset < len(source) {
 			c := l.source_bytes[l.offset]
+			if c == '\n' || c == '\r' { break }
 			l.offset += 1
-			if c == '\n' { break }
+			content_end = l.offset
+		}
+		l.hashbang_value = string(l.source_bytes[content_start:content_end])
+		l.hashbang_start = hb_start
+		l.hashbang_end   = u32(content_end)
+		l.has_hashbang   = true
+		// Consume the terminating line terminator so the rest of the lexer
+		// doesn't see it as a leading newline.
+		if l.offset < len(source) {
+			c := l.source_bytes[l.offset]
+			if c == '\r' {
+				l.offset += 1
+				if l.offset < len(source) && l.source_bytes[l.offset] == '\n' {
+					l.offset += 1
+				}
+			} else if c == '\n' {
+				l.offset += 1
+			}
 		}
 	}
 	l.at_start_of_file = false
@@ -227,13 +259,20 @@ can_start_regex :: proc(l: ^Lexer) -> bool {
 	     .Return, .Case, .Throw, .New, .Delete, .Void, .Typeof,
 	     .Plus, .Minus, .Mul, .Div, .Mod, .Pow, .BitNot, .BitAnd, .BitOr, .BitXor,
 	     .LShift, .RShift, .URShift, .Not, .LogicalAnd, .LogicalOr, .Nullish,
-	     .Eq, .NotEq, .EqStrict, .NotEqStrict, .LAngle, .RAngle, .LEq, .GEq,
+	     .Eq, .NotEq, .EqStrict, .NotEqStrict, .LEq, .GEq,
 	     .In, .Instanceof, .Of,
 	     .Arrow, .Question, .Dot3,
 	     .PlusPlus, .MinusMinus,
 	     .TemplateHead, .TemplateMiddle:
 		return true
 	case:
+		// .LAngle / .RAngle deliberately NOT in the can_start_regex set:
+		// `<` followed by `/` almost always means a JSX closing tag or an
+		// HTML-like comment pattern — never a regex start in practice.
+		// OXC/Acorn/Babel all treat `/` after `<` as division (which parses
+		// as a syntax error in JS but correctly as `</...>` in JSX). Keeping
+		// them here broke deep-nested JSX (K5): `<Outer><Middle><Inner/>`
+		// had the `/` of `</Middle>` lexed as a regex-start.
 		return false
 	}
 }
@@ -1344,6 +1383,16 @@ lex_hash :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 // ============================================================================
 
 // Helper: cook template content (process escape sequences)
+// process_template_escapes decodes ECMA-262 §12.9.6 TemplateCharacter
+// escapes in a raw template body into the "cooked" value. Handles the full
+// escape grammar:
+//   \n \r \t \b \f \v           — simple char escapes
+//   \\ \` \$ \' \"              — literal escapes
+//   \0 (not followed by digit) — NUL
+//   \xHH                        — hex escape
+//   \uHHHH / \u{H...H}          — unicode escape
+//   \<LineTerminator>           — line continuation, produces no output
+//   \<other>                    — identity escape, drops backslash
 process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> string {
 	// Quick path: no backslashes = no escapes
 	has_escape := false
@@ -1357,39 +1406,68 @@ process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> strin
 		return raw
 	}
 
-	// Slow path: process escapes
-	buf := make([dynamic]u8, 0, len(raw), allocator)
-	for i := 0; i < len(raw); i += 1 {
-		ch := raw[i]
-		if ch == '\\' && i + 1 < len(raw) {
-			next := raw[i + 1]
-			switch next {
-			case 'n':
-				append(&buf, u8(0x0A))
-				i += 1
-			case 'r':
-				append(&buf, u8(0x0D))
-				i += 1
-			case 't':
-				append(&buf, u8(0x09))
-				i += 1
-			case 'b':
-				append(&buf, u8(0x08))
-				i += 1
-			case 'f':
-				append(&buf, u8(0x0C))
-				i += 1
-			case 'v':
-				append(&buf, u8(0x0B))
-				i += 1
-			case '\\', '`', '$':
-				append(&buf, next)
-				i += 1
-			case:
+	src := transmute([]u8)raw
+	src_len := len(src)
+	buf := make([dynamic]u8, 0, src_len, allocator)
+	for i := 0; i < src_len; i += 1 {
+		ch := src[i]
+		if ch != '\\' || i + 1 >= src_len {
+			append(&buf, ch)
+			continue
+		}
+		next := src[i + 1]
+		switch next {
+		case 'n':  append(&buf, u8(0x0A)); i += 1
+		case 'r':  append(&buf, u8(0x0D)); i += 1
+		case 't':  append(&buf, u8(0x09)); i += 1
+		case 'b':  append(&buf, u8(0x08)); i += 1
+		case 'f':  append(&buf, u8(0x0C)); i += 1
+		case 'v':  append(&buf, u8(0x0B)); i += 1
+		case '\\', '`', '$', '\'', '"':
+			append(&buf, next); i += 1
+		case '0':
+			// \0 is NUL only when not followed by a decimal digit (else it's
+			// a legacy octal, disallowed in templates — keep literal).
+			if i + 2 >= src_len || src[i + 2] < '0' || src[i + 2] > '9' {
+				append(&buf, u8(0x00)); i += 1
+			} else {
+				append(&buf, ch) // drop to identity path below
+			}
+		case 'x':
+			// \xHH — exactly 2 hex digits.
+			if i + 3 < src_len {
+				h1 := hex_val(src[i + 2])
+				h2 := hex_val(src[i + 3])
+				if h1 >= 0 && h2 >= 0 {
+					append_utf8(&buf, u32(h1) * 16 + u32(h2))
+					i += 3
+					continue
+				}
+			}
+			append(&buf, ch) // malformed — keep backslash literal
+		case 'u':
+			// \uHHHH or \u{H...H}. Reuse the shared decoder.
+			cp, ok, consumed := decode_u_escape(src, i)
+			if ok {
+				append_utf8(&buf, cp)
+				i += consumed - 1
+			} else {
 				append(&buf, ch)
 			}
-		} else {
-			append(&buf, ch)
+		case '\n':
+			// Line continuation — skip the backslash and the newline, emit
+			// nothing (ECMA-262 §12.9.4.1).
+			i += 1
+		case '\r':
+			// \<CR> or \<CR><LF> line continuation.
+			if i + 2 < src_len && src[i + 2] == '\n' {
+				i += 2
+			} else {
+				i += 1
+			}
+		case:
+			// Identity escape — drop the backslash, keep the char.
+			append(&buf, next); i += 1
 		}
 	}
 	return string(buf[:])

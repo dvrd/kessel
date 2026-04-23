@@ -1,238 +1,128 @@
 {
   "type": "Program",
   "start": 0,
-  "end": 499,
+  "end": 325,
   "sourceType": "module",
   "hashbang": null,
   "body": [
     {
       "type": "VariableDeclaration",
-      "start": 50,
-      "end": 69,
+      "start": 41,
+      "end": 60,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 56,
-          "end": 68,
+          "start": 47,
+          "end": 59,
           "id": {
             "type": "Identifier",
-            "start": 56,
-            "end": 61,
+            "start": 47,
+            "end": 52,
             "name": "emoji"          },
           "init": {
             "type": "Literal",
-            "start": 64,
-            "end": 68,
+            "start": 55,
+            "end": 59,
             "value": "🚀",
             "raw": "'🚀'"          }        }
       ]    },
     {
       "type": "VariableDeclaration",
-      "start": 70,
-      "end": 95,
+      "start": 61,
+      "end": 86,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 76,
-          "end": 94,
+          "start": 67,
+          "end": 85,
           "id": {
             "type": "Identifier",
-            "start": 76,
-            "end": 83,
+            "start": 67,
+            "end": 74,
             "name": "unicode"          },
           "init": {
             "type": "Literal",
-            "start": 86,
-            "end": 94,
+            "start": 77,
+            "end": 85,
             "value": "ñáéíóú",
             "raw": "'ñáéíóú'"          }        }
       ]    },
     {
       "type": "VariableDeclaration",
-      "start": 96,
-      "end": 119,
+      "start": 87,
+      "end": 110,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 102,
-          "end": 118,
+          "start": 93,
+          "end": 109,
           "id": {
             "type": "Identifier",
-            "start": 102,
-            "end": 109,
+            "start": 93,
+            "end": 100,
             "name": "chinese"          },
           "init": {
             "type": "Literal",
-            "start": 112,
-            "end": 118,
+            "start": 103,
+            "end": 109,
             "value": "中文测试",
             "raw": "'中文测试'"          }        }
       ]    },
     {
       "type": "VariableDeclaration",
-      "start": 120,
-      "end": 143,
+      "start": 111,
+      "end": 134,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 126,
-          "end": 142,
+          "start": 117,
+          "end": 133,
           "id": {
             "type": "Identifier",
-            "start": 126,
-            "end": 132,
+            "start": 117,
+            "end": 123,
             "name": "arabic"          },
           "init": {
             "type": "Literal",
-            "start": 135,
-            "end": 142,
+            "start": 126,
+            "end": 133,
             "value": "مرحبا",
             "raw": "'مرحبا'"          }        }
       ]    },
     {
       "type": "VariableDeclaration",
-      "start": 144,
-      "end": 172,
+      "start": 135,
+      "end": 163,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 150,
-          "end": 171,
+          "start": 141,
+          "end": 162,
           "id": {
             "type": "Identifier",
-            "start": 150,
-            "end": 155,
+            "start": 141,
+            "end": 146,
             "name": "mixed"          },
           "init": {
             "type": "Literal",
-            "start": 158,
-            "end": 171,
+            "start": 149,
+            "end": 162,
             "value": "Hello 世界 🌍",
             "raw": "'Hello 世界 🌍'"          }        }
       ]    },
     {
-      "type": "VariableDeclaration",
-      "start": 205,
-      "end": 226,
-      "kind": "const",
-      "declarations": [
-        {
-          "type": "VariableDeclarator",
-          "start": 211,
-          "end": 225,
-          "id": {
-            "type": "Identifier",
-            "start": 211,
-            "end": 214,
-            "name": "zwj"          },
-          "init": {
-            "type": "Literal",
-            "start": 217,
-            "end": 225,
-            "value": "‍",
-            "raw": "'\\u200D'"          }        }
-      ]    },
-    {
-      "type": "VariableDeclaration",
-      "start": 227,
-      "end": 249,
-      "kind": "const",
-      "declarations": [
-        {
-          "type": "VariableDeclarator",
-          "start": 233,
-          "end": 248,
-          "id": {
-            "type": "Identifier",
-            "start": 233,
-            "end": 237,
-            "name": "zwnj"          },
-          "init": {
-            "type": "Literal",
-            "start": 240,
-            "end": 248,
-            "value": "‌",
-            "raw": "'\\u200C'"          }        }
-      ]    },
-    {
-      "type": "VariableDeclaration",
-      "start": 278,
-      "end": 305,
-      "kind": "const",
-      "declarations": [
-        {
-          "type": "VariableDeclarator",
-          "start": 284,
-          "end": 304,
-          "id": {
-            "type": "Identifier",
-            "start": 284,
-            "end": 287,
-            "name": "hex"          },
-          "init": {
-            "type": "Literal",
-            "start": 290,
-            "end": 304,
-            "value": "ABC",
-            "raw": "'\\x41\\x42\\x43'"          }        }
-      ]    },
-    {
-      "type": "VariableDeclaration",
-      "start": 306,
-      "end": 334,
-      "kind": "const",
-      "declarations": [
-        {
-          "type": "VariableDeclarator",
-          "start": 312,
-          "end": 333,
-          "id": {
-            "type": "Identifier",
-            "start": 312,
-            "end": 316,
-            "name": "uni4"          },
-          "init": {
-            "type": "Literal",
-            "start": 319,
-            "end": 333,
-            "value": "AB",
-            "raw": "'\\u0041\\u0042'"          }        }
-      ]    },
-    {
-      "type": "VariableDeclaration",
-      "start": 335,
-      "end": 360,
-      "kind": "const",
-      "declarations": [
-        {
-          "type": "VariableDeclarator",
-          "start": 341,
-          "end": 359,
-          "id": {
-            "type": "Identifier",
-            "start": 341,
-            "end": 345,
-            "name": "uni6"          },
-          "init": {
-            "type": "Literal",
-            "start": 348,
-            "end": 359,
-            "value": "😀",
-            "raw": "'\\u{1F600}'"          }        }
-      ]    },
-    {
       "type": "FunctionDeclaration",
-      "start": 386,
-      "end": 445,
+      "start": 212,
+      "end": 271,
       "id": {
         "type": "Identifier",
-        "start": 395,
-        "end": 406,
+        "start": 221,
+        "end": 232,
         "name": "processText"
       },
       "expression": false,
@@ -241,38 +131,38 @@
       "params": [
         {
           "type": "Identifier",
-          "start": 407,
-          "end": 411,
+          "start": 233,
+          "end": 237,
           "name": "text"
         }
       ],
       "body": {
         "type": "BlockStatement",
-        "start": 413,
-        "end": 445,
+        "start": 239,
+        "end": 271,
         "body": [
           {
             "type": "ReturnStatement",
-            "start": 417,
-            "end": 443,
+            "start": 243,
+            "end": 269,
             "argument": {
               "type": "CallExpression",
-              "start": 424,
-              "end": 442,
+              "start": 250,
+              "end": 268,
               "callee": {
                 "type": "MemberExpression",
-                "start": 424,
-                "end": 440,
+                "start": 250,
+                "end": 266,
                 "computed": false,
                 "object": {
                   "type": "Identifier",
-                  "start": 424,
-                  "end": 428,
+                  "start": 250,
+                  "end": 254,
                   "name": "text"                },
                 "property": {
                   "type": "Identifier",
-                  "start": 429,
-                  "end": 440,
+                  "start": 255,
+                  "end": 266,
                   "name": "toUpperCase"                }              },
               "arguments": [
               ]            }          }
@@ -280,56 +170,56 @@
       }    },
     {
       "type": "VariableDeclaration",
-      "start": 447,
-      "end": 480,
+      "start": 273,
+      "end": 306,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 453,
-          "end": 479,
+          "start": 279,
+          "end": 305,
           "id": {
             "type": "Identifier",
-            "start": 453,
-            "end": 458,
+            "start": 279,
+            "end": 284,
             "name": "valid"          },
           "init": {
             "type": "CallExpression",
-            "start": 461,
-            "end": 479,
+            "start": 287,
+            "end": 305,
             "callee": {
               "type": "Identifier",
-              "start": 461,
-              "end": 472,
+              "start": 287,
+              "end": 298,
               "name": "processText"            },
             "arguments": [
               {
                 "type": "Identifier",
-                "start": 473,
-                "end": 478,
+                "start": 299,
+                "end": 304,
                 "name": "emoji"              }
             ]          }        }
       ]    },
     {
       "type": "ExportNamedDeclaration",
-      "start": 481,
-      "end": 498,
+      "start": 307,
+      "end": 324,
       "declaration": null,
       "specifiers": [
         {
           "type": "ExportSpecifier",
-          "start": 490,
-          "end": 495,
+          "start": 316,
+          "end": 321,
           "local": {
             "type": "Identifier",
-            "start": 490,
-            "end": 495,
+            "start": 316,
+            "end": 321,
             "name": "valid"
           },
           "exported": {
             "type": "Identifier",
-            "start": 490,
-            "end": 495,
+            "start": 316,
+            "end": 321,
             "name": "valid"
           }
         }
@@ -340,30 +230,18 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 49,
-      "value": " Unicode string content and edge-case literals."
+      "end": 40,
+      "value": " Recovery with unicode and edge tokens"
     },
     {
       "type": "Line",
-      "start": 201,
-      "end": 231,
-      "value": " Zero-width chars in strings"
-    },
-    {
-      "type": "Line",
-      "start": 278,
-      "end": 304,
-      "value": " Hex and unicode escapes"
-    },
-    {
-      "type": "Line",
-      "start": 389,
-      "end": 412,
-      "value": " Valid code continues"
+      "start": 192,
+      "end": 238,
+      "value": " Valid code continues after potential issues"
     }
   ]
 }
 
 --- Statistics ---
-Arena: used=14560B reserved=16777216B ratio=0%
+Arena: used=10704B reserved=16777216B ratio=0%
 Parse errors: 0

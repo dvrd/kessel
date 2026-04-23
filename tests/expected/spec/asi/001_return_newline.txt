@@ -27,8 +27,13 @@
           {
             "type": "ReturnStatement",
             "start": 223,
+            "end": 229,
+            "argument": null          },
+          {
+            "type": "ExpressionStatement",
+            "start": 232,
             "end": 233,
-            "argument": {
+            "expression": {
               "type": "Literal",
               "start": 232,
               "end": 233,

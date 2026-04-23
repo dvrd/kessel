@@ -48,6 +48,13 @@ emit_module_record: bool
 
 // Line offset table for ESTree loc emission. Populated when emit_loc_enabled is true.
 // Built once via build_line_table before print_program_ast, then used for O(log n) lookups.
+
+// HashbangInfo carries ES2023 hashbang metadata from the lexer to the emitter.
+HashbangInfo :: struct {
+	value: string,
+	start: u32,
+	end:   u32,
+}
 line_offsets_for_loc: []u32
 
 // Direct buffer mode — pre-allocated []byte, zero bufio overhead
@@ -692,7 +699,11 @@ parse_file :: proc(file_path: string) {
 	use_direct_buf = true
 
 	out_s("{\n")
-	print_program_ast(program, 1, lex.comments[:])
+	hb_info: Maybe(HashbangInfo)
+	if lex.has_hashbang {
+		hb_info = HashbangInfo{value = lex.hashbang_value, start = lex.hashbang_start, end = lex.hashbang_end}
+	}
+	print_program_ast(program, 1, lex.comments[:], hb_info)
 
 	// Emit ESM module record if flag is enabled
 	if emit_module_record {
@@ -1599,7 +1610,7 @@ print_module_record :: proc(p: ^Parser, indent: int) {
 //   * hashbang: emit "hashbang" field with null when absent (OXC shape). The
 //     lexer currently skips shebang lines without preserving content — we
 //     still declare the field so consumers don't see it as "missing".
-print_program_ast :: proc(program: ^Program, indent: int, comments: []Comment = nil) {
+print_program_ast :: proc(program: ^Program, indent: int, comments: []Comment = nil, hashbang: Maybe(HashbangInfo) = nil) {
 	source_type_str := "script" if program.type == .Script else "module"
 	print_indent(indent)
 	out_s("\"type\": \"Program\",\n")
@@ -1609,7 +1620,19 @@ print_program_ast :: proc(program: ^Program, indent: int, comments: []Comment = 
 	out_s(source_type_str)
 	out_s("\",\n")
 	print_indent(indent)
-	out_s("\"hashbang\": null,\n")
+	// ES2023 HashbangComment — emit `{type:"Hashbang", value, start, end}` when
+	// the source started with `#!...`. OXC parity shape.
+	if hb, ok := hashbang.?; ok {
+		out_s("\"hashbang\": { \"type\": \"Hashbang\", \"value\": ")
+		out_string(hb.value)
+		out_s(", \"start\": ")
+		out_u32(to_utf16(hb.start))
+		out_s(", \"end\": ")
+		out_u32(to_utf16(hb.end))
+		out_s(" },\n")
+	} else {
+		out_s("\"hashbang\": null,\n")
+	}
 
 	print_indent(indent)
 	out_s("\"body\": [\n")

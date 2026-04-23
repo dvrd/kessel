@@ -1308,7 +1308,11 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	argument: Maybe(^Expression)
-	if !is_token(p, .Semi) && !is_token(p, .RBrace) && !is_token(p, .EOF) {
+	// ECMA-262 §12.10 Restricted Production: `return` followed by a
+	// LineTerminator triggers ASI — the argument belongs to the NEXT
+	// statement, not to this return. Check had_line_terminator on the
+	// current token BEFORE deciding whether to parse an argument.
+	if !is_token(p, .Semi) && !is_token(p, .RBrace) && !is_token(p, .EOF) && !p.cur_tok.had_line_terminator {
 		argument = parse_expression(p)
 	}
 
@@ -3595,7 +3599,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	}
 	if expr == nil { return nil }
 
-	if p.cur_type == .PlusPlus || p.cur_type == .MinusMinus {
+	// ECMA-262 §12.4 Restricted Production: no LineTerminator between the
+	// LHS and postfix `++`/`--`. If there's a newline, ASI inserts a
+	// semicolon so the operator starts the next statement as a prefix op.
+	if (p.cur_type == .PlusPlus || p.cur_type == .MinusMinus) && !p.cur_tok.had_line_terminator {
 		current := p.cur_tok
 		eat(p)
 		update := new_node(p, UpdateExpression)
@@ -4584,10 +4591,18 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	start := cur_loc(p)
 	eat(p) // consume yield
 
-	delegate := match_token(p, .Mul)
+	// ECMA-262 §15.5 Restricted Production: no LineTerminator between
+	// `yield` and AssignmentExpression / `*`. If the next token has a
+	// preceding newline, emit a bare `yield` expression; the rest starts
+	// a new statement.
+	has_newline := p.cur_tok.had_line_terminator
+	delegate := false
+	if !has_newline {
+		delegate = match_token(p, .Mul)
+	}
 
 	argument: Maybe(^Expression)
-	if !is_token(p, .Semi) && !is_token(p, .RParen) && !is_token(p, .RBracket) && !is_token(p, .RBrace) && !is_token(p, .Comma) {
+	if !has_newline && !is_token(p, .Semi) && !is_token(p, .RParen) && !is_token(p, .RBracket) && !is_token(p, .RBrace) && !is_token(p, .Comma) {
 		argument = parse_assignment_expression(p)
 	}
 
@@ -5593,10 +5608,18 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 }
 
 parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
-	start := cur_loc(p)
+	// JSX text starts immediately after the previous token (a `>`, `}`, or
+	// closing `/>`), NOT at the current token's start — the lexer may have
+	// skipped leading whitespace that JSX semantics require preserved.
+	// e.g. `<div>Before {expr} after</div>` — after parsing `{expr}`, the
+	// leading space in ` after` must be kept (OXC does this).
 	src := p.lexer.source
-	off := int(cur_offset(p))
-	text_start := off
+	text_start := int(prev_end_offset(p))
+	// Safety: if prev_end_offset is beyond cur.start (shouldn't happen, but
+	// defensive against lexer quirks), clamp to cur.start.
+	if text_start > int(cur_offset(p)) { text_start = int(cur_offset(p)) }
+	start := Loc{span = Span{start = u32(text_start), end = u32(text_start)}}
+	off := text_start
 	for off < len(src) {
 		c := src[off]
 		if c == '<' || c == '{' { break }

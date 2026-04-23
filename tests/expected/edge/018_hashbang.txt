@@ -3,7 +3,7 @@
   "start": 0,
   "end": 51,
   "sourceType": "script",
-  "hashbang": null,
+  "hashbang": { "type": "Hashbang", "value": "/usr/bin/env node", "start": 0, "end": 19 },
   "body": [
     {
       "type": "VariableDeclaration",

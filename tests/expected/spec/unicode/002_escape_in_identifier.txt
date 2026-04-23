@@ -1,0 +1,83 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 259,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 204,
+      "end": 223,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 210,
+          "end": 222,
+          "id": {
+            "type": "Identifier",
+            "start": 210,
+            "end": 218,
+            "name": "abc"          },
+          "init": {
+            "type": "Literal",
+            "start": 221,
+            "end": 222,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 224,
+      "end": 245,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 230,
+          "end": 244,
+          "id": {
+            "type": "Identifier",
+            "start": 230,
+            "end": 240,
+            "name": "hello"          },
+          "init": {
+            "type": "Literal",
+            "start": 243,
+            "end": 244,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " ECMA-262 §12.7 — UnicodeEscapeSequence inside an identifier MUST"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 138,
+      "value": " denote a code point that is itself a valid IdentifierStart/Part."
+    },
+    {
+      "type": "Line",
+      "start": 139,
+      "end": 208,
+      "value": " `\\u0061` (U+0061 'a') → identifier `a`. So `\\u0061bc` === `abc`."
+    },
+    {
+      "type": "Line",
+      "start": 253,
+      "end": 263,
+      "value": " `hello`"
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=7912B reserved=16777216B ratio=0%
+Parse errors: 0

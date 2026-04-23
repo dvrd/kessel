@@ -104,7 +104,7 @@
                 "start": 275,
                 "end": 285,
                 "tail": true,
-                "value": { "raw": "\\u0041\\x42", "cooked": "\\u0041\\x42" }
+                "value": { "raw": "\\u0041\\x42", "cooked": "AB" }
               }
             ],
             "expressions": []          }        }

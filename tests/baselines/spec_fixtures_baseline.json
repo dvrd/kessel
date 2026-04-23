@@ -1,7 +1,7 @@
 {
   "asi": {
-    "pass": 5,
-    "fail": 3,
+    "pass": 8,
+    "fail": 0,
     "total": 8
   },
   "edge": {
@@ -50,8 +50,8 @@
     "total": 6
   },
   "es2023": {
-    "pass": 1,
-    "fail": 1,
+    "pass": 2,
+    "fail": 0,
     "total": 2
   },
   "es2024": {
@@ -65,13 +65,13 @@
     "total": 2
   },
   "escapes": {
-    "pass": 7,
-    "fail": 1,
+    "pass": 8,
+    "fail": 0,
     "total": 8
   },
   "jsx": {
-    "pass": 6,
-    "fail": 2,
+    "pass": 8,
+    "fail": 0,
     "total": 8
   },
   "regex_disambiguation": {

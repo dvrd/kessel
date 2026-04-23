@@ -30,40 +30,40 @@
     {
       "type": "VariableDeclaration",
       "start": 354,
-      "end": 366,
+      "end": 363,
       "kind": "let",
       "declarations": [
         {
           "type": "VariableDeclarator",
           "start": 358,
-          "end": 366,
+          "end": 363,
           "id": {
             "type": "Identifier",
             "start": 358,
             "end": 359,
             "name": "x"          },
           "init": {
-            "type": "UpdateExpression",
+            "type": "Literal",
             "start": 362,
-            "end": 366,
-            "operator": "++",
-            "prefix": false,
-            "argument": {
-              "type": "Literal",
-              "start": 362,
-              "end": 363,
-              "value": 0,
-              "raw": "0"            }          }        }
+            "end": 363,
+            "value": 0,
+            "raw": "0"          }        }
       ]    },
     {
       "type": "ExpressionStatement",
-      "start": 366,
+      "start": 364,
       "end": 367,
       "expression": {
-        "type": "Identifier",
-        "start": 366,
+        "type": "UpdateExpression",
+        "start": 364,
         "end": 367,
-        "name": "y"      }    }
+        "operator": "++",
+        "prefix": true,
+        "argument": {
+          "type": "Identifier",
+          "start": 366,
+          "end": 367,
+          "name": "y"        }      }    }
   ],
   "comments": [
     {
