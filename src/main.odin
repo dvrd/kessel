@@ -42,6 +42,12 @@ cli_lang_override: Maybe(Lang)
 // run O(source_size) line-table build once, then O(log lines) binary search per node.
 emit_loc_enabled: bool
 
+// CLI flag: --range. Off by default for backward compat. When enabled,
+// every AST node emits `"range": [start, end]` in addition to the separate
+// "start" and "end" fields, for consumers that expect the ESLint-style
+// range tuple (e.g. ESLint custom rules, Acorn-based tooling).
+emit_range_enabled: bool
+
 // Emit ESM module record (hasModuleSyntax, staticImports, staticExports, etc.).
 // CLI flag: --module-record. Off by default for backward compat.
 emit_module_record: bool
@@ -492,6 +498,9 @@ main :: proc() {
 				} else if arg == "--loc" {
 					// Emit ESTree loc field (line/column positions) on every AST node.
 					emit_loc_enabled = true
+				} else if arg == "--range" {
+					// Emit ESLint-style `range: [start, end]` on every AST node.
+					emit_range_enabled = true
 			} else if arg == "--module-record" {
 				emit_module_record = true
 			} else if strings.has_prefix(arg, "--lang=") {
@@ -1820,15 +1829,27 @@ emit_span_fields :: #force_inline proc(loc: Loc, indent: int) {
 	start := loc.span.start
 	end := loc.span.end
 	if end < start { end = start }
+	start_u16 := to_utf16(start)
+	end_u16 := to_utf16(end)
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"start\": ")
-	out_u32(to_utf16(start))
+	out_u32(start_u16)
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"end\": ")
-	out_u32(to_utf16(end))
-	
+	out_u32(end_u16)
+
+	if emit_range_enabled {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"range\": [")
+		out_u32(start_u16)
+		out_s(", ")
+		out_u32(end_u16)
+		out_s("]")
+	}
+
 	if emit_loc_enabled {
 		out_s(",\n")
 		print_indent(indent)
@@ -1869,13 +1890,25 @@ emit_span_leading :: #force_inline proc(loc: Loc, indent: int) {
 	start := loc.span.start
 	end := loc.span.end
 	if end < start { end = start }
+	start_u16 := to_utf16(start)
+	end_u16 := to_utf16(end)
 	out_s("\"start\": ")
-	out_u32(to_utf16(start))
+	out_u32(start_u16)
 	out_s(",\n")
 	print_indent(indent)
 	out_s("\"end\": ")
-	out_u32(to_utf16(end))
-	
+	out_u32(end_u16)
+
+	if emit_range_enabled {
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"range\": [")
+		out_u32(start_u16)
+		out_s(", ")
+		out_u32(end_u16)
+		out_s("]")
+	}
+
 	if emit_loc_enabled {
 		out_s(",\n")
 		print_indent(indent)
