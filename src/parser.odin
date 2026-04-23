@@ -485,16 +485,34 @@ expression_from :: #force_inline proc(p: ^Parser, expr_ptr: ^$T) -> ^Expression 
 
 // Combined alloc: node T + Expression wrapper in one bump, returns ^Expression
 // Saves one allocation for the very common pattern: alloc node + wrap.
+// Round `v` up to the next multiple of `align` (must be a power of two).
+// Used by new_expr / new_stmt to pre-compute alignment padding between the
+// concrete node and its union wrapper, so the single bump_alloc reservation
+// actually covers the wrapper after alignment. Without this the wrapper can
+// overrun the allocation by up to (align_of(Wrapper) - 1) bytes, clobbering
+// the first field(s) of the *next* bump‑pool allocation.
+//
+// Observed symptom (before fix): `f(a.b, false, this)` emitted the `false`
+// argument as `{ type: "Unknown", start: 0, end: 0 }` because the
+// BooleanLiteral's Expression wrapper overflowed its 36‑byte reservation by
+// 4 bytes, smashing the first half of the subsequent `new_node(ThisExpression)`
+// allocation. Only literals whose `size_of(T)` % `align_of(Expression)` != 0
+// were affected, which is why it showed up in the narrow window of
+// `BooleanLiteral, <next-alloc>` pairs.
+round_up_to :: #force_inline proc(v, align: uintptr) -> uintptr {
+	return (v + align - 1) & ~(align - 1)
+}
+
 new_expr :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Expression) {
-	// Try to alloc both in one bump region (node then wrapper, contiguous)
-	total_size := size_of(T) + size_of(Expression)
+	// Reserve the padding between node and wrapper inside total_size so the
+	// bump region actually spans both.
+	node_end := round_up_to(uintptr(size_of(T)), uintptr(align_of(Expression)))
+	total_size := int(node_end) + size_of(Expression)
 	align := max(align_of(T), align_of(Expression))
 	ptr := bump_alloc(&p.node_pool, total_size, align)
 	if ptr != nil {
 		node := transmute(^T)ptr
-		wrap_ptr := rawptr(uintptr(ptr) + uintptr(size_of(T)))
-		wrap_aligned := (uintptr(wrap_ptr) + uintptr(align_of(Expression) - 1)) & ~uintptr(align_of(Expression) - 1)
-		wrap := transmute(^Expression)wrap_aligned
+		wrap := transmute(^Expression)(uintptr(ptr) + node_end)
 		wrap^ = node
 		return node, wrap
 	}
@@ -505,13 +523,14 @@ new_expr :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Expression) {
 }
 
 new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Statement) {
-	total_size := size_of(T) + size_of(Statement)
+	// Same alignment-aware layout as new_expr — see comment there for why.
+	node_end := round_up_to(uintptr(size_of(T)), uintptr(align_of(Statement)))
+	total_size := int(node_end) + size_of(Statement)
 	align := max(align_of(T), align_of(Statement))
 	ptr := bump_alloc(&p.node_pool, total_size, align)
 	if ptr != nil {
 		node := transmute(^T)ptr
-		wrap_aligned := (uintptr(ptr) + uintptr(size_of(T)) + uintptr(align_of(Statement) - 1)) & ~uintptr(align_of(Statement) - 1)
-		wrap := transmute(^Statement)wrap_aligned
+		wrap := transmute(^Statement)(uintptr(ptr) + node_end)
 		wrap^ = node
 		return node, wrap
 	}
@@ -2652,7 +2671,14 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				if match_token(p, .Assign) {
 					default_val := parse_assignment_expression(p)
 					assign := new_node(p, AssignmentPattern)
-					assign.loc = prop_start
+					// AssignmentPattern.start is the start of the LHS pattern,
+					// NOT the enclosing property key. For `{ key: value = 1 }`
+					// OXC (and the ESTree spec) emits AssignmentPattern at
+					// [value_start, default_end]; previously we inherited
+					// prop_start (= key's start), which drifted every nested
+					// destructuring span by the width of `key: ` — ~11 bytes
+					// per hit on antd.js and other framework code.
+					assign.loc = value_ident.loc
 					assign.left = value_ident
 					assign.right = default_val
 					assign.loc.span.end = prev_end_offset(p)
@@ -2687,7 +2713,10 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				if match_token(p, .Assign) {
 					default_val := parse_assignment_expression(p)
 					assign := new_node(p, AssignmentPattern)
-					assign.loc = prop_start
+					// Same LHS-start rule as the identifier case above — the
+					// nested pattern's own span is the start of the
+					// AssignmentPattern, not the outer property's key.
+					assign.loc = get_pattern_loc(nested)
 					assign.left = nested
 					assign.right = default_val
 					assign.loc.span.end = prev_end_offset(p)
@@ -2712,7 +2741,8 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				if match_token(p, .Assign) {
 					default_val := parse_assignment_expression(p)
 					assign := new_node(p, AssignmentPattern)
-					assign.loc = prop_start
+					// Same LHS-start rule — see nested-object case above.
+					assign.loc = get_pattern_loc(nested)
 					assign.left = nested
 					assign.right = default_val
 					assign.loc.span.end = prev_end_offset(p)
@@ -2743,7 +2773,11 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					left_ident.loc = v.loc
 					left_ident.name = v.name
 					assign := new_node(p, AssignmentPattern)
-					assign.loc = prop_start
+					// Shorthand: prop_start == v.loc.span.start in practice
+					// (the key IS the LHS), but spell it out through
+					// left_ident.loc to stay consistent with the other three
+					// AssignmentPattern sites in parse_object_pattern.
+					assign.loc = left_ident.loc
 					assign.left = left_ident
 					assign.right = default_val
 					assign.loc.span.end = prev_end_offset(p)
@@ -3890,11 +3924,29 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			}
 		case .LBracket:
 			eat(p)
+			// Consume pending_paren_start the same way the `.Dot` case
+			// above does. When the object was parenthesized (`(expr)[0]`),
+			// OXC extends the MemberExpression's start to the `(`. More
+			// importantly, the stamp MUST be cleared here — otherwise it
+			// leaks past this computed-member into sibling expressions and
+			// later statements (observed on antd.js where a stray
+			// `(a || b)[0]` expression dragged its paren-start into an
+			// unrelated arrow function 83 UTF-16 units downstream).
+			//
+			// We clear even when we don't actually widen the span (the
+			// `paren_start > member.start` branch), because the stamp was
+			// set for THIS member access by the outer `(expr)` parser; its
+			// intent doesn't survive past us.
+			saved_bracket_paren := p.pending_paren_start
+			p.pending_paren_start = max(u32)
 			prop := parse_assignment_expression(p)
 			if prop == nil { return nil }
 			if !expect_token(p, .RBracket) { return nil }
 			mem2, mem2_e := new_expr(p, MemberExpression)
 			mem2.loc = loc_from_expr(expr)
+			if saved_bracket_paren != max(u32) && saved_bracket_paren <= mem2.loc.span.start {
+				mem2.loc.span.start = saved_bracket_paren
+			}
 			mem2.object = expr
 			mem2.property = prop
 			mem2.computed = true
@@ -4867,6 +4919,19 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 
 	args: [dynamic]^Expression
 	if is_token(p, .LParen) {
+		// Clear pending_paren_start before the arg list. When the callee was
+		// itself parenthesised (`new (expr)(args)`), parse_primary_expr sets
+		// pending_paren_start for the next consumer. parse_lhs_tail with
+		// allow_call=false returns early without consuming it (leaving the
+		// `(` for US to consume as NewExpression args), but this leaves the
+		// stamp stuck. parse_arguments doesn't touch it either, so the stamp
+		// then leaks into the following statement where the first
+		// MemberExpression / CallExpression / arrow widens its start span
+		// backwards to the paren position. Observed on d3.js as a 86-byte
+		// span drift on the `return m.isIdentity ? ... : ...` ternary
+		// directly after `const m = new (typeof DOMMatrix === "function" ?
+		// DOMMatrix : WebKitCSSMatrix)(value + "");`.
+		p.pending_paren_start = max(u32)
 		args = parse_arguments(p)
 	}
 
@@ -5304,6 +5369,30 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				param := FunctionParameter{ loc = e.loc, pattern = pat }
 				append(&params, param)
 			}
+		case ^SpreadElement:
+			// Single rest parameter arrow: `(...rest) => body`. The paren
+			// group parser handled `...strings` via parse_unary_expr, which
+			// produced a ^SpreadElement wrapping the identifier. That slot was
+			// previously uncovered in the single-param switch — the arrow was
+			// built with `params: []`, silently dropping the rest binding
+			// (observed on chalk.js `const chalk = (...strings) => ...` and
+			// similar shapes across multiple frameworks). Promote the inner
+			// argument to an Identifier pattern and wrap in a RestElement so
+			// the emitter sees the ESTree-standard `{ type: "RestElement",
+			// argument: Identifier }` shape.
+			inner := e.argument
+			if inner != nil {
+				inner_pat, ok := expr_to_pattern(p, inner)
+				if ok {
+					rest := new_node(p, RestElement)
+					rest.loc = e.loc
+					rest.argument = inner_pat
+					param := FunctionParameter{ loc = e.loc, pattern = rest }
+					append(&params, param)
+				} else {
+					report_error(p, "Invalid rest parameter target in arrow function")
+				}
+			}
 		case ^SequenceExpression:
 			if len(e.expressions) == 0 {
 				// Empty parameters: () => ... (marker from parse_primary_expr)
@@ -5322,12 +5411,19 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						}
 						append(&params, param)
 					case ^SpreadElement:
-						// Rest parameter: (...rest) => ...
+						// Rest parameter: (a, b, ...rest) => ... (multi-param case).
+						// The SpreadElement was built during the earlier
+						// parse_unary_expr pass over the paren-group; its span
+						// ALREADY covers `...<ident>` exactly. By the time we get
+						// here, the arrow body has also been parsed, so calling
+						// prev_end_offset(p) returns the BODY'S end — which was
+						// stamped onto rest.loc.span.end, blowing the RestElement's
+						// span out to cover the entire function (observed on chalk.js
+						// `(model, level, type, ...arguments_) => { … }` where
+						// params[3].end jumped 458 bytes past the argument name).
+						// Reuse the SpreadElement's own span instead.
 						rest := new_node(p, RestElement)
 						rest.loc = arg.loc
-						// SpreadElement.argument is ^Expression
-						// For arrow params, the argument should be an Identifier
-						// RestElement.argument expects Pattern (^Identifier), so we need to create a new pointer
 						ident_expr := arg.argument
 						if ident_expr != nil {
 							#partial switch id in ident_expr^ {
@@ -5339,7 +5435,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 								report_error(p, "Expected identifier in rest parameter")
 							}
 						}
-						rest.loc.span.end = prev_end_offset(p)
+						// arg.loc already spans `...<ident>` — keep it as-is.
 						param := FunctionParameter{
 							loc     = arg.loc,
 							pattern = rest,

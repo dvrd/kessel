@@ -329,7 +329,7 @@
                 },
                 "value": {
                   "type": "AssignmentPattern",
-                  "start": 1324,
+                  "start": 1327,
                   "end": 1334,
                   "left": {
                     "type": "Identifier",
@@ -1099,5 +1099,5 @@
 }
 
 --- Statistics ---
-Arena: used=45592B reserved=16777216B ratio=0%
+Arena: used=45616B reserved=16777216B ratio=0%
 Parse errors: 0

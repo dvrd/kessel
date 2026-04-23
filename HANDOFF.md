@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-23 (post destructuring-pattern-emit fix — closes 8 antd.js divergences)
-**Repo state:** `main` at commit `495a975` + local, ~18 700 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-23 (post spec-compliance sweep — 12/12 real files at 0 divergences vs OXC)
+**Repo state:** `main` past `cc96a1c`, ~18 700 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -45,7 +45,7 @@ is fine.
 | Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
 | ESTree drift | `task test:estree` | ✅ matches baseline | snabbdom deep-compare passes; jquery integration baseline-gated. |
 | Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel |
-| Spec-compliance | `task test:spec-compliance` | **OK** ✅ (baselined) | Total divergences 11 561 → 66 across 12 real files vs OXC. antd.js 25 → 17 via `print_expression_as_pattern` helper (destructuring target shapes). snabbdom/react-dom.dev = 0. |
+| Spec-compliance | `task test:spec-compliance` | **OK** ✅ (baselined) | Total divergences 11 561 → **0** across all 12 real files vs OXC (`cc96a1c` + follow-ups). Every file (snabbdom, preact, jquery, react.dev, lodash, acorn, react-dom.dev, antd, d3, chalk, petite-vue, zod) matches OXC byte-for-byte. |
 | Fuzz (diff vs OXC) | `task test:fuzz` | **75 / 100** ✅ (baselined) | 25 baselined failures, 0 new. 9 prior failures promoted to pass (`17cdc45`). |
 | Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
@@ -395,7 +395,7 @@ Phase 3 (`2ad4487`, `4b543cf`).
 |---|---|---|---|---|
 | K1 | **`task test:fuzz:invalid` — 8 baselined crashes** (was 29). SIGSEGV/SIGTRAP fixed in `07858c4` via emitter nil-pointer + inverted-span guards. Infinite-loops fixed in `491d083` (parse_lhs_tail .Not case + parse_jsx_children progress guard). 8 remaining are SIGTERMs (deadline-crosses) on 350 KB – 4 MB mutated files. | Low | parser (perf on very large mutated input) | Baselined in `tests/baselines/fuzz_invalid_baseline.json`. Not worth further chasing — these are deadline hits, not parser bugs. |
 | K2 | ~~`task test:crashes-known` regressions~~ ✅ Fixed in `491d083`. | | | |
-| K3 | ~~spec-compliance divergences~~ ✅ Closed (`66f25e9`). `pending_paren_start` propagation fixed; verifier updated to pass `--preserve-parens` for OXC compares. Total divergences 11 561 → 66. Destructuring-target emit fix closed 8 more on antd.js (25 → 17) by routing `AssignmentExpression.left` (operator `=`) and `ForIn/ForOfStatement.left_expr` through a shared `print_expression_as_pattern` helper that recursively converts `ArrayExpression/ObjectExpression/AssignmentExpression/SpreadElement → ArrayPattern/ObjectPattern/AssignmentPattern/RestElement`. Remaining 17 in antd.js are span-start bugs inside `ObjectPattern.properties[*].value` (different class). | — | — | Baselined. |
+| K3 | ~~spec-compliance divergences~~ ✅ Closed twice over. 11 561 → 74 via `pending_paren_start` fixes + `--preserve-parens` wiring (`66f25e9`). 74 → **0** in the 2026-04-23 spec-compliance sweep via eight follow-up fixes (see §9 below). | — | — | Baselined at 0. |
 | K4 | ~~Arrow-param type annotations~~ ✅ Fixed in `c0e1a4d`. `(x: T) => x`, `(...args: T[]) => ...`, `(x: T): R => ...`, generic-arrow `<T>(x: U) => x`, function-type `(cb: (x: number) => string) => ...` all parse clean. | | | |
 | K5 | ~~Deep JSX child recursion crash~~ ✅ Fixed. `spec/jsx/005_nested_element` now passes both `<Outer><Middle><Inner/></Middle></Outer>` and `<Foo bar={<Baz x={1}/>}/>`. Ancestor commits (`70b5652`, Phase 2 span fixes) closed it; handoff entry was stale. | | | |
 | K6 | ~~`early_errors/016_digit_start_identifier.js`~~ ✅ Fixed. `const 1a = 1;` now parses with structured errors, no SIGTRAP. | | | |
@@ -443,21 +443,69 @@ Ordered by impact × feasibility.
 
 **Remaining items** (ordered by impact):
 
-1. **K3 remaining antd.js residuals** — 17 divergences left after the
-   destructuring-emit fix. All are `start`-offset mismatches inside
-   `ObjectPattern.properties[*].value` (Kessel starts 6–11 bytes earlier than
-   OXC). Not a pattern-shape bug; the emit shape is now correct. Likely a
-   span-propagation issue where the property's `value` span inherits the key
-   start instead of the actual value start (or vice versa).
-2. **Pre-existing fix landed (2026-04-23)** — `src/main.odin`
-   `print_expression_as_pattern` helper centralises pattern-emit for
-   destructuring targets. Old inline ArrayExpression→ArrayPattern conversion
-   inside `case ^AssignmentExpression` removed; for-in/of `left_expr` now
-   routes through the helper too. 3 baselines regenerated
-   (`edge/012_generators`, `regression/003_class_for_in_of`,
-   `spec/edge/013_assignment_patterns`) — whitespace-only normalisation to
-   `print_pattern_ast` convention, plus a fix to a pre-existing
-   `,\n"value":` indentation bug in the old ObjectExpression destructure path.
+1. **K3 fully closed (2026-04-23 sweep)** — Eight consecutive fixes brought
+   OXC-compare divergences from 74 to 0 across all 12 curated real files:
+
+   1. **`print_expression_as_pattern` helper** (`src/main.odin`) — routes
+      destructuring-target expressions through a recursive pattern emitter so
+      `AssignmentExpression.left` (op `=`), `ForInStatement.left_expr`, and
+      `ForOfStatement.left_expr` emit `ArrayPattern / ObjectPattern /
+      AssignmentPattern / RestElement` instead of raw expressions. (antd.js
+      25 → 17.)
+
+   2. **AssignmentPattern span fix** (`src/parser.odin parse_object_pattern`)
+      — `{ key: value = default }` now records the AssignmentPattern start at
+      the LHS (`value`) rather than the property key (`key`). Four identical
+      spots patched. (antd.js 17 → 2; petite-vue 1 → 0.)
+
+   3. **`pending_paren_start` leak from computed-member** (`parse_lhs_tail`
+      `.LBracket`) — `(expr)[k]` now consumes+clears the stamp the way the
+      `.Dot` case already did. Stale stamps no longer drift into unrelated
+      arrow functions downstream. (antd.js 17 → 1; d3.js 12 → 2; jquery 6 → 1;
+      preact 2 → 0.)
+
+   4. **`new_expr` / `new_stmt` buffer overrun** (`src/parser.odin`) —
+      `total_size` now includes alignment padding between node and wrapper
+      (`round_up_to(size_of(T), align_of(Wrapper))`). Previously the wrapper
+      could overflow its reservation by up to `align - 1` bytes, clobbering
+      the first fields of the next bump allocation. Latent memory bug —
+      triggered whenever `size_of(T) % align_of(Expression) != 0`. Symptom:
+      `f(a.b, false, this)` emitted `{ type: "Unknown" }` for the
+      BooleanLiteral because its 16-byte wrapper smashed the following
+      ThisExpression. (acorn 20 → 0; multiple other subtle corruptions
+      cleaned up.)
+
+   5. **Single-param rest-arrow** (`parse_arrow_function`) — added a
+      `case ^SpreadElement` arm in the single-param switch. Before the fix
+      `const f = (...strings) => …` parsed with `params: []`. (chalk.js
+      3 → 1.)
+
+   6. **Regex flags canonicalisation** (`src/main.odin sort_regex_flags`) —
+      `regex.flags` is now sorted alphabetically (ASCII insertion sort) to
+      match OXC / V8 normalisation. `raw` still keeps the source-literal
+      order. (jquery 1 → 0.)
+
+   7. **MetaProperty hard-coded names** (`src/main.odin`) — the emitter now
+      reads `e.meta.name` / `e.property.name` instead of writing the literal
+      strings `"import"` / `"meta"`, so `new.target` emits correctly. (zod
+      2 → 0.)
+
+   8. **Sparse array holes + NewExpression paren leak + multi-param rest
+      arrow end-span** — three smaller fixes in the same sweep. Sparse holes
+      in `ArrayExpression.elements` now emit `null` instead of being
+      dropped; `parse_new_expr` clears `pending_paren_start` before its arg
+      list to stop `new (expr)(args)` from leaking into the next statement;
+      the multi-param `^SpreadElement` arrow case keeps the original
+      SpreadElement span instead of stamping `prev_end_offset(p)` (which by
+      then was the function body's end). (lodash 2 → 0; d3 2 → 0; antd 1 →
+      0; chalk 1 → 0.)
+
+   Five baselines regenerated along the way (`edge/012_generators`,
+   `regression/003_class_for_in_of`, `regression/009_destructure_patterns`,
+   `spec/edge/013_assignment_patterns`, `spec/interactions/002_async_generator_destructure_defaults`,
+   `real/015_functional_utils`, `es2015/006_rest`) — whitespace-only or
+   span-correction follow-ons. Spec-fixtures now 128/140 (interactions
+   3 → 4).
 2. **Full NAPI bindings** — Production-grade zero-spawn NAPI. Requires C ABI
    Odin export + C++ NAPI shim + npm packaging infra. Several weeks.
 3. **Wave 3 Phase C gaps** — TSX `<T>` single-param generic arrow (no

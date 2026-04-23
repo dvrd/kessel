@@ -5212,7 +5212,14 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s(",\n")
 		print_indent(indent + 1)
 		out_s("\"flags\": ")
-		out_string(e.flags)
+		// `regex.flags` is canonicalised: OXC / V8 normalise flag order by
+		// sorting each flag character alphabetically (so `/…/mg` and `/…/gm`
+		// both report `"gm"`), mirroring `new RegExp().flags` at runtime.
+		// `raw` keeps the source order (via `out_string(e.raw)` above); only
+		// the structured `regex.flags` view gets the sorted form. ASCII-only
+		// sort is sufficient here — every valid ES regex flag is one of
+		// `dgimsuvy` (all < 0x80), so byte-sort == code-point sort.
+		out_string(sort_regex_flags(e.flags))
 		out_s("\n")
 		print_indent(indent)
 		out_s("}")
@@ -5271,7 +5278,7 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("\"elements\": [\n")
 		for elem, i in e.elements {
-			if el, ok := elem.(^Expression); ok {
+			if el, ok := elem.(^Expression); ok && el != nil {
 				print_indent(indent + 1)
 				out_s("{\n")
 				print_expression_ast(el, indent + 2)
@@ -5280,6 +5287,19 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 					out_s("},\n")
 				} else {
 					out_s("}\n")
+				}
+			} else {
+				// Sparse hole (e.g. `[, x]` / `[x,,,y]`) — ESTree spec requires
+				// these to appear as `null` in the `elements` array so
+				// positional indexing matches the source. Previously these were
+				// silently skipped, making `[, -0]` look like `[-0]` to any
+				// downstream ESTree walker (observed on lodash.js where a
+				// `new Set([,-0])` expression diverged vs OXC).
+				print_indent(indent + 1)
+				if i < len(e.elements) - 1 {
+					out_s("null,\n")
+				} else {
+					out_s("null\n")
 				}
 			}
 		}
@@ -5874,6 +5894,12 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("}")
 
 	case ^MetaProperty:
+		// ESTree MetaProperty covers both `import.meta` AND `new.target` —
+		// the parser records the actual identifier names in `e.meta.name`
+		// and `e.property.name`. Hard-coding "import" / "meta" here (as we
+		// did before) silently rewrote every `new.target` into `import.meta`
+		// in the emitted AST, corrupting zod.js and any other code that
+		// checks the constructor target. Emit the real names instead.
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"meta\": {\n")
@@ -5881,7 +5907,9 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
 		emit_span_leading(e.meta.loc, indent + 1)
-		out_s("\"name\": \"import\"\n")
+		out_s("\"name\": ")
+		out_string(e.meta.name)
+		out_s("\n")
 		print_indent(indent)
 		out_s("},\n")
 		print_indent(indent)
@@ -5890,7 +5918,9 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("\"type\": \"Identifier\",\n")
 		print_indent(indent + 1)
 		emit_span_leading(e.property.loc, indent + 1)
-		out_s("\"name\": \"meta\"\n")
+		out_s("\"name\": ")
+		out_string(e.property.name)
+		out_s("\n")
 		print_indent(indent)
 		out_s("}")
 
@@ -6213,6 +6243,36 @@ assignment_op_to_string :: proc(op: AssignmentOperator) -> string {
 	case .AssignNullish:       return "??="
 	}
 	return "unknown"
+}
+
+// Sort the flag characters of a regex flag string in ascending ASCII
+// order. All valid ES regex flags (`dgimsuvy`) live in 7-bit ASCII, so a
+// byte-level insertion sort is both correct and O(n²)-trivially bounded by
+// the 8-flag maximum. The returned slice is freshly allocated in the parser
+// arena (via `strings.clone(... , p.allocator)` is overkill here — just use
+// the shared temp allocator) and is stable across calls.
+sort_regex_flags :: proc(flags: string) -> string {
+	n := len(flags)
+	if n < 2 { return flags }
+	// Fast path: already sorted.
+	sorted := true
+	for i in 1..<n {
+		if flags[i-1] > flags[i] { sorted = false; break }
+	}
+	if sorted { return flags }
+	buf := make([]u8, n, context.temp_allocator)
+	for i in 0..<n { buf[i] = flags[i] }
+	// Insertion sort — at most 8 distinct ES regex flags, so O(n²) is
+	// 64 byte swaps worst case. No need for a heavier algorithm.
+	for i in 1..<n {
+		k := buf[i]
+		j := i
+		for ; j > 0 && buf[j-1] > k; j -= 1 {
+			buf[j] = buf[j-1]
+		}
+		buf[j] = k
+	}
+	return string(buf)
 }
 
 // Convert BigInt source representation to decimal string

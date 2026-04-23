@@ -75,8 +75,8 @@
     "total": 8
   },
   "interactions": {
-    "pass": 3,
-    "fail": 7,
+    "pass": 4,
+    "fail": 6,
     "total": 10
   },
   "jsx": {

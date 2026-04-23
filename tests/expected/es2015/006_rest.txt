@@ -80,7 +80,7 @@
               {
                 "type": "RestElement",
                 "start": 51,
-                "end": 67,
+                "end": 58,
                 "argument": {
                   "type": "Identifier",
                   "start": 54,
@@ -99,5 +99,5 @@
 }
 
 --- Statistics ---
-Arena: used=7040B reserved=16777216B ratio=0%
+Arena: used=7096B reserved=16777216B ratio=0%
 Parse errors: 0

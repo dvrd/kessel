@@ -3,36 +3,36 @@
     "oxc": 0
   },
   "bench/real_world/batch2/preact.js": {
-    "oxc": 2
+    "oxc": 0
   },
   "bench/real_world/jquery.js": {
-    "oxc": 6
+    "oxc": 0
   },
   "bench/real_world/react.dev.js": {
     "oxc": 0
   },
   "bench/real_world/lodash.js": {
-    "oxc": 2
+    "oxc": 0
   },
   "bench/real_world/batch2/acorn.js": {
-    "oxc": 20
+    "oxc": 0
   },
   "bench/real_world/react-dom.dev.js": {
     "oxc": 0
   },
   "bench/real_world/antd.js": {
-    "oxc": 17
+    "oxc": 0
   },
   "bench/real_world/d3.js": {
-    "oxc": 12
+    "oxc": 0
   },
   "bench/real_world/batch4/chalk.js": {
-    "oxc": 3
+    "oxc": 0
   },
   "bench/real_world/batch4/petite-vue.js": {
-    "oxc": 1
+    "oxc": 0
   },
   "bench/real_world/batch2/zod.js": {
-    "oxc": 2
+    "oxc": 0
   }
 }

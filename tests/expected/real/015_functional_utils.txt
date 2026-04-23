@@ -28,7 +28,19 @@
             "expression": true,
             "generator": false,
             "async": false,
-            "params": [],
+            "params": [
+              {
+                "type": "RestElement",
+                "start": 50,
+                "end": 56,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 53,
+                  "end": 56,
+                  "name": "fns"
+                }
+              }
+            ],
             "body": {
               "type": "ArrowFunctionExpression",
               "start": 61,
@@ -133,7 +145,19 @@
             "expression": true,
             "generator": false,
             "async": false,
-            "params": [],
+            "params": [
+              {
+                "type": "RestElement",
+                "start": 114,
+                "end": 120,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 117,
+                  "end": 120,
+                  "name": "fns"
+                }
+              }
+            ],
             "body": {
               "type": "ArrowFunctionExpression",
               "start": 125,
@@ -254,7 +278,19 @@
               "expression": true,
               "generator": false,
               "async": false,
-              "params": [],
+              "params": [
+                {
+                  "type": "RestElement",
+                  "start": 187,
+                  "end": 194,
+                  "argument": {
+                    "type": "Identifier",
+                    "start": 190,
+                    "end": 194,
+                    "name": "args"
+                  }
+                }
+              ],
               "body": {
                 "type": "ConditionalExpression",
                 "start": 201,
@@ -840,5 +876,5 @@
 }
 
 --- Statistics ---
-Arena: used=17744B reserved=16777216B ratio=0%
+Arena: used=18424B reserved=16777216B ratio=0%
 Parse errors: 0
