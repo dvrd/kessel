@@ -90,6 +90,22 @@ function listNegativeFixtures() {
   return out;
 }
 
+// Some fixtures only trip an early error under a specific source-type.
+// The module_context/ dir contains programs that are legal as ES modules
+// but SyntaxErrors as classic scripts (top-level `import`/`export`,
+// `import.meta`, top-level `await`). The verifier pins sourceType via
+// `--source-type=script` so the parser can emit those diagnostics.
+//
+// Returning an extra-args array keeps this table-driven: if a future
+// fixture needs `--lang=ts` or `--source-type=module`, add another entry
+// here rather than sprinkling conditionals through the code.
+function extraArgsFor(rel) {
+  if (rel.startsWith('tests/fixtures/early_errors/module_context/')) {
+    return ['--source-type=script'];
+  }
+  return [];
+}
+
 // Run Kessel on `file` and decide whether it rejected the program.
 //
 // Rejection criterion (either suffices):
@@ -99,8 +115,9 @@ function listNegativeFixtures() {
 // We deliberately accept BOTH signals. Some illegal programs trip the lexer
 // and exit non-zero; others are caught by the parser and reported via
 // "Parse errors: N". Either proves the parser isn't silently accepting.
-function kesselRejects(abs) {
-  const r = spawnSync(KESSEL, ['parse', abs], {
+function kesselRejects(abs, rel) {
+  const args = ['parse', abs, ...extraArgsFor(rel)];
+  const r = spawnSync(KESSEL, args, {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
     timeout: 10_000,
@@ -125,7 +142,7 @@ if (fixtures.length === 0) {
 // Measure current state: {fixture -> 'rejected'|'accepted'}.
 const current = {};
 for (const fix of fixtures) {
-  const r = kesselRejects(fix.abs);
+  const r = kesselRejects(fix.abs, fix.rel);
   current[fix.rel] = r.rejected ? 'rejected' : 'accepted';
   if (VERBOSE) {
     const mark = r.rejected ? 'OK  ' : 'FAIL';
