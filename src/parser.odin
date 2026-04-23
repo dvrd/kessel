@@ -1696,8 +1696,18 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// In declare / ambient-module context, allow no body (just a semicolon).
 	// An ambient module body (`module "x" { function f(): void; }`) or a
 	// `declare function f(): void;` both elide the implementation.
+	//
+	// TS-A10: also allow a body-less declaration in plain TS mode to support
+	// overload signatures:
+	//   function foo(x: string): string;
+	//   function foo(x: number): number;
+	//   function foo(x: any): any { return x; }
+	// We don't validate the overload set (implementation signature, shape
+	// agreement, etc.) — the parser just keeps the syntax; a downstream type
+	// checker owns the semantics. Gated on allow_ts_mode so pure JS keeps
+	// rejecting bodyless function declarations.
 	body: FunctionBody
-	allow_no_body_here := allow_no_body || p.in_ambient
+	allow_no_body_here := allow_no_body || p.in_ambient || allow_ts_mode(p)
 	if allow_no_body_here && is_token(p, .Semi) {
 		eat(p) // consume semicolon
 		body = FunctionBody{
@@ -2202,9 +2212,18 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		method_return_type = parse_ts_return_type_annotation(p)
 	}
 
-	// For abstract methods, there's no body — just a semicolon
+	// For abstract methods and for TS overload signatures there's no body
+	// — just a semicolon. Overload signature (TS-A10):
+	//   class C {
+	//     get(x: string): string;
+	//     get(x: number): number;
+	//     get(x: any): any { return x; }
+	//   }
+	// The parser tolerates the syntax; semantics (overload set shape,
+	// implementation agreement) are the type checker's job.
 	body: FunctionBody
-	if is_abstract && is_token(p, .Semi) {
+	is_overload_sig := allow_ts_mode(p) && is_token(p, .Semi)
+	if (is_abstract || is_overload_sig) && is_token(p, .Semi) {
 		match_semicolon_or_asi(p)
 		// Leave body empty
 	} else {
