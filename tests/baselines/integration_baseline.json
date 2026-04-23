@@ -1,6 +1,6 @@
 {
-  "bench/real_world/batch2/preact.js": 531,
+  "bench/real_world/batch2/preact.js": 0,
   "bench/real_world/batch3/snabbdom.js": 0,
-  "bench/real_world/jquery.js": 4,
-  "bench/real_world/react-dom.dev.js": 3
+  "bench/real_world/jquery.js": 0,
+  "bench/real_world/react-dom.dev.js": 0
 }

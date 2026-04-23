@@ -85,17 +85,31 @@ function str(off) {
 function dyn(off) { return { data: u32(off), len: u32(off + 4) }; }
 function union(off) { return { ptr: u32(off), tag: u8(off + 8) }; }
 
-// Tag → type name mappings (from ast.odin union order)
+// Tag → type name mappings. MUST track src/ast.odin's `Expression ::
+// union { ... }` declaration in declaration order, because Odin tags
+// union variants 1..N in source order. When a new variant is added to
+// the union (e.g. ^ChainExpression between Super and ArrayExpression),
+// every subsequent tag shifts by one — this table needs to move with
+// it or the raw-transfer verifier reads every downstream node as the
+// wrong type.
 const EXPR = { 1:'NullLiteral',2:'BooleanLiteral',3:'NumericLiteral',4:'StringLiteral',
   5:'BigIntLiteral',6:'RegExpLiteral',7:'TemplateLiteral',8:'TaggedTemplateExpression',
   9:'Identifier',10:'PrivateIdentifier',11:'ThisExpression',12:'Super',
-  13:'ArrayExpression',14:'ObjectExpression',15:'FunctionExpression',
-  16:'ArrowFunctionExpression',17:'ClassExpression',18:'MemberExpression',
-  19:'CallExpression',20:'NewExpression',21:'ConditionalExpression',
-  22:'UpdateExpression',23:'UnaryExpression',24:'BinaryExpression',
-  25:'LogicalExpression',26:'AssignmentExpression',27:'SequenceExpression',
-  28:'SpreadElement',29:'YieldExpression',30:'AwaitExpression',
-  31:'ImportExpression',32:'MetaProperty' };
+  13:'ChainExpression',
+  14:'ArrayExpression',15:'ObjectExpression',16:'FunctionExpression',
+  17:'ArrowFunctionExpression',18:'ClassExpression',19:'MemberExpression',
+  20:'CallExpression',21:'NewExpression',22:'ConditionalExpression',
+  23:'UpdateExpression',24:'UnaryExpression',25:'BinaryExpression',
+  26:'LogicalExpression',27:'AssignmentExpression',28:'SequenceExpression',
+  29:'SpreadElement',30:'YieldExpression',31:'AwaitExpression',
+  32:'ImportExpression',33:'MetaProperty',
+  // JSX + TS variants come next but aren't currently walked by the
+  // integration verifier; list them so tag lookups don't return
+  // `undefined` and mislead the caller.
+  34:'JSXElement',35:'JSXFragment',36:'JSXText',
+  37:'JSXExpressionContainer',38:'JSXEmptyExpression',39:'JSXSpreadChild',
+  40:'TSAsExpression',41:'TSSatisfiesExpression',42:'TSNonNullExpression',
+  43:'TSTypeAssertion',44:'ParenthesizedExpression' };
 
 const STMT = { 1:'ExpressionStatement',2:'EmptyStatement',3:'BlockStatement',
   4:'DebuggerStatement',5:'ReturnStatement',6:'BreakStatement',
