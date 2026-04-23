@@ -73,6 +73,16 @@ emit_module_record: bool
 // OXC's TS-mode shape. Off for .js / .jsx.
 emit_ts_shape: bool
 
+// OPT-5: explicit `--ast-type=js|ts` override for the TS-ESTree shape.
+// Overrides the lang-driven auto-detection above. Mirrors oxc-parser's
+// `astType` option, which lets callers pin the AST dialect independent of
+// the parse grammar: parse as TS but emit plain-JS shape (or vice versa).
+//   nil    - auto (default: emit_ts_shape = lang in {TS, TSX})
+//   .JS    - force emit_ts_shape = false
+//   .TS    - force emit_ts_shape = true
+AstType :: enum { Auto, JS, TS }
+ast_type_override: AstType = .Auto
+
 // Line offset table for ESTree loc emission. Populated when emit_loc_enabled is true.
 // Built once via build_line_table before print_program_ast, then used for O(log n) lookups.
 
@@ -528,6 +538,20 @@ main :: proc() {
 					}
 				} else if arg == "--preserve-parens" {
 					preserve_parens_enabled = true
+				} else if strings.has_prefix(arg, "--ast-type=") {
+					// OPT-5: pin TS-ESTree shape independent of the parse lang.
+					// `js` forces plain-ESTree output (drops TS-only null-field
+					// padding); `ts` forces TS-ESTree output. `auto` (default)
+					// keeps the existing lang-driven detection.
+					val := arg[11:]
+					switch val {
+					case "js":   ast_type_override = .JS
+					case "ts":   ast_type_override = .TS
+					case "auto": ast_type_override = .Auto
+					case:
+						fmt.eprintf("Error: unknown --ast-type value '%s' (expected js|ts|auto)\n", val)
+						os.exit(2)
+					}
 			} else if arg == "--module-record" {
 				emit_module_record = true
 			} else if strings.has_prefix(arg, "--lang=") {
@@ -722,8 +746,13 @@ parse_file :: proc(file_path: string) {
 	init_parser(&p, &lex, arena_alloc, resolve_lang(file_path))
 	// TS-shape emitter toggle - mirror OXC's behaviour of emitting unconditional
 	// TS-ESTree fields (typeAnnotation: null, optional: false, etc.) only when
-	// parsing TypeScript. Keeps JS output unchanged.
-	emit_ts_shape = p.lang == .TS || p.lang == .TSX
+	// parsing TypeScript. Keeps JS output unchanged. OPT-5 `--ast-type=` pins
+	// the shape independent of the parse grammar.
+	switch ast_type_override {
+	case .JS:   emit_ts_shape = false
+	case .TS:   emit_ts_shape = true
+	case .Auto: emit_ts_shape = p.lang == .TS || p.lang == .TSX
+	}
 
 	// `--source-type=` override: nil = unambiguous (auto-detect), else pin
 	// to Script or Module. The parser reads p.force_source_type to know

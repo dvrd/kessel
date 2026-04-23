@@ -169,7 +169,7 @@ main.odin ──→ parser.odin ──→ lexer.odin ──→ simd.odin
 | TypeScript — Declarations | **6 / 7** | TS-D individual verification lacks dedicated test coverage |
 | ESTree / TS-ESTree Conformance | **8 / 8 ✅** | EST-4 closed (`f8656ec`): all 10 TS spec fixtures pass OXC compare |
 | ESM Module Record | **5 / 5 ✅** | — |
-| Parser Options | **5 / 6** | OPT-5 (`astType`) still pending |
+| Parser Options | **6 / 6 ✅** | — |
 | Error Handling | **1 / 4** | ERR-2/3 functionally solved (recovery 20/20, 0 SIGTRAPs); formal items remain open |
 | Test Coverage | **1 / 5** | Full Test262 / Babel / TS test suites still pending |
 | NAPI / FFI Bindings | **1 / 6** 🔶 | CLI-backed `parseSync()` shim in `npm/kessel-parser/` (`880e822`). Full zero-spawn NAPI pending. |
@@ -277,7 +277,11 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 - [x] **OPT-3:** `--preserve-parens` (`c8f9dff`) — Acorn-style wrapper.
 - [x] **OPT-4:** `--loc` (EST-1, `22d2f88`)
 - [x] **OPT-range (EST-2):** `--range` (`f7577bb`) — ESLint-style tuple.
-- [ ] **OPT-5:** `astType: 'js' | 'ts'` — needed for TS-ESTree defaults (EST-4).
+- [x] **OPT-5:** `--ast-type=js|ts|auto` (`96bacd5`+). Pins the TS-ESTree shape
+      independent of the parse grammar. `js` forces plain-ESTree output
+      (no TS null-field padding); `ts` forces TS-ESTree output; `auto`
+      (default) keeps the existing lang-driven detection (`.TS` / `.TSX`
+      emit TS shape, `.JS` / `.JSX` emit plain).
 - [ ] **OPT-6:** `showSemanticErrors` — requires scope/symbol analysis.
 
 ### Error Handling (1 / 4)
