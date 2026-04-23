@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-22 (post Phase-3 swarm + Wave-3 A+B)
-**Repo state:** `main` at commit `be21a52`, 17 257 LOC of Odin across 7 files.
+**Last updated:** 2026-04-23 (post K1 emitter-nil-guard triage)
+**Repo state:** `main` at commit `07858c4`, ~17 360 LOC of Odin across 7 files.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -47,7 +47,7 @@ is fine.
 | Multi-parser | `task test:multi-parser` | 1 divergence vs acorn (baselined) | ExportAllDeclaration edge case |
 | Spec-compliance | `task test:spec-compliance` | 1 regression (snabbdom), MANY improvements | zod.js went from 27 313 mismatches to 42 — huge improvement, needs `--update` |
 | Fuzz (diff vs OXC) | `task test:fuzz` | Baseline drift | Span-end mismatches, baselined |
-| Fuzz (invalid input) | `task test:fuzz:invalid` | 29 new crashes (no baseline) | Needs triage — see §8 Known Issues |
+| Fuzz (invalid input) | `task test:fuzz:invalid` | **22 / 22** ✅ (baselined) | All SIGSEGV/SIGTRAP fixed in `07858c4`; 22 remaining are timeouts/SIGTERMs on pathological inputs (pinned) |
 | Crashes-known | `task test:crashes-known` | Needs update | New crashes discovered this session |
 | Bench regression | `task test:bench:regression` | Not run in swarm | Use before release |
 
@@ -341,7 +341,7 @@ Phase 3 (`2ad4487`, `4b543cf`).
 
 | # | Issue | Severity | Where | Fix status |
 |---|---|---|---|---|
-| K1 | **`task test:fuzz:invalid` — 29 new crashes** against mutated real-world input (bit flips, truncation, broken UTF-8, nul-injection). No baseline yet — needs triage. | High | parser error paths | Untriaged. Run `task test:fuzz:invalid:update` only after auditing each. |
+| K1 | **`task test:fuzz:invalid` — 22 baselined crashes** (was 29). All SIGSEGV/SIGTRAP fixed in `07858c4` via emitter nil-pointer + inverted-span guards. The 22 remaining are all timeouts (16) or SIGTERMs (6) on pathological inputs — pathological parse-time bugs, separate from the never-crash contract. | Medium | parser (perf on ASCII noise + huge mutated input) | Baselined in `tests/baselines/fuzz_invalid_baseline.json`. Next: profile `case_66613919.js` (3.8 KB ASCII noise triggering ~exponential parse) to find the backtracking culprit. |
 | K2 | **`task test:crashes-known` reports new crashes** beyond the 3 pinned in `KNOWN_CRASHES`. Probably some new SIGTRAPs introduced (or surfaced) this session. | High | Various | Run with verbose output, triage each, either fix or pin. |
 | K3 | **`spec-compliance` regression on snabbdom.js** (+1 mismatch vs OXC). MANY improvements elsewhere (zod.js dropped from 27 313 mismatches to 42). | Medium | Emitter shape | Inspect snabbdom.js diff; update baseline if improvement overall. |
 | K4 | **Arrow-param type annotations** don't parse: `(x: T) => x` fails at `parse_primary_expr`'s `(` branch (doesn't accept `:Type`). This blocks the ambiguous `<T>(x: T) => x` generic-arrow case from parsing cleanly (falls to assertion with 5 parse errors, no crash). | Medium | `parser.odin` primary `(` handler | Teach paren-grouping to accept `:Type` annotations on identifier tokens in TS mode. |
@@ -359,11 +359,15 @@ Phase 3 (`2ad4487`, `4b543cf`).
 
 Ordered by impact × feasibility.
 
-1. **Triage `fuzz:invalid` 29 crashes (K1).** Highest priority — these are
-   security-relevant (malformed input shouldn't SIGTRAP). For each crash
-   fixture: reproduce, fix or pin in baseline.
-2. **Triage `crashes-known` regressions (K2).** Similar — identify what my
-   changes this session touched that created new crashes, fix or pin.
+1. ~~**Triage `fuzz:invalid` 29 crashes (K1).**~~ ✅ Done in `07858c4`. 13
+   hard crashes fixed (SIGSEGV/SIGTRAP in the emitter on nil inner pointers
+   and inverted spans). Remaining 22 are all timeouts/SIGTERMs, baselined.
+2. **Profile pathological parse time (new K1-followup).** `case_66613919.js`
+   (3.8 KB ASCII noise with `` ` `` and `<` density) takes >20 s. Suspects:
+   `<` trial-parse backtracking, template-literal depth, ambiguous-arrow
+   trial. Fix once root cause is known; then re-run `fuzz:invalid:update`.
+3. **Triage `crashes-known` regressions (K2).** Similar — identify what the
+   previous session touched that created new crashes, fix or pin.
 3. **Arrow-param type annotations (K4).** Unblocks the single-param
    generic-arrow case `<T>(x: T) => x`. Cleanest fix: teach paren-grouping
    to accept `:Type` in TS mode. ~50–100 LOC.
