@@ -3088,7 +3088,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// Check if this is a field (has = but no () ) or method. `.Colon` was
 	// consumed above as part of the type annotation, so after that point the
 	// next token is either `;`/`,`/`}` (bare field) or `=` (initializer).
-	if field_type_ann != nil || is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) {
+	//
+	// ASI: a bare field with no explicit `;` / `=` ends at a line
+	// terminator before the next class element. `class C { #x\n#y }`
+	// must parse as two fields, not `#x` method missing `(`.
+	is_field_by_asi := p.cur_tok.had_line_terminator &&
+	                    p.cur_type != .LParen &&
+	                    p.cur_type != .Colon &&
+	                    p.cur_type != .Question &&
+	                    p.cur_type != .Not
+	if field_type_ann != nil || is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) || is_field_by_asi {
 		// Class field with initializer or just declaration
 		value: Maybe(^Expression)
 
