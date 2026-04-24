@@ -1174,10 +1174,15 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 	case .Semi:
 		return parse_empty_statement(p)
 	case .Import:
-		// Check if this is a dynamic import (import followed by ()
-		if is_next_token(p, .LParen) {
-			// Dynamic import expression - treat as expression, not statement
-			return nil  // Let expression parsing handle it
+		// Check if this is a dynamic import / import.meta. ImportCall
+		// (`import(...)`) and MetaProperty (`import.meta`) are expression
+		// productions, not declarations; dispatch them through the regular
+		// ExpressionStatement path so they work at every statement position
+		// (top-level, block, arrow body, labeled-stmt…). Returning nil here
+		// used to let the block loop report "Invalid statement in block" for
+		// `{ import('x')(); }` under source-type=script.
+		if is_next_token(p, .LParen) || is_next_token(p, .Dot) {
+			return parse_expression_or_labeled_statement(p)
 		}
 		return parse_import_declaration(p)
 	case .Export:
