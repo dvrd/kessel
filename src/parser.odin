@@ -2685,6 +2685,18 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
 			report_error(p, msg)
 		}
+		// Escaped-ReservedWord in the BindingIdentifier position. Class
+		// names are strict-mode-only, so `class l\u0065t` reaches the
+		// strict-only branch too.
+		if p.cur_tok.has_escape {
+			if is_always_reserved_word_name(current.value) ||
+			   is_strict_reserved_name(current.value) ||
+			   current.value == "let" || current.value == "static" ||
+			   current.value == "yield" {
+				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", current.value)
+				report_error(p, msg)
+			}
+		}
 		eat(p)
 	}
 
@@ -3170,7 +3182,14 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	prev_method_async_params := p.in_async_params
 	p.in_generator_params = is_generator
 	p.in_async_params = is_async
+	// Class body is implicitly strict (§15.7.3); method parameter
+	// parsing inherits strict mode so “yield” / “let” / etc. as param
+	// defaults surface as strict-mode IdentifierReference errors
+	// (§12.6.1.1).
+	prev_strict_params := p.strict_mode
+	p.strict_mode = true
 	params := parse_function_params(p)
+	p.strict_mode = prev_strict_params
 	p.in_generator_params = prev_method_gen_params
 	p.in_async_params = prev_method_async_params
 
