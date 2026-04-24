@@ -23,6 +23,7 @@ TEST262_DIR="${KESSEL_TEST262_DIR:-${ROOT_DIR}/vendor/test262}"
 TIMEOUT="${KESSEL_T262_TIMEOUT:-5}"
 FILTER="${KESSEL_T262_FILTER:-}"    # substring filter on relative path
 OUT_JSON="${KESSEL_T262_JSON:-}"    # optional path for machine-readable output
+ALL_FAIL="${KESSEL_T262_ALL_FAILURES:-}"  # set=1 to record every failure (triage mode)
 
 if [ ! -x "$BINARY" ]; then
   echo "Error: kessel binary not found at $BINARY"
@@ -62,4 +63,5 @@ exec node "$DRIVER" \
   --binary "$BINARY" \
   --timeout "$TIMEOUT" \
   ${FILTER:+--filter "$FILTER"} \
-  ${OUT_JSON:+--json-out "$OUT_JSON"}
+  ${OUT_JSON:+--json-out "$OUT_JSON"} \
+  ${ALL_FAIL:+--all-failures}

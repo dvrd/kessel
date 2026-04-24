@@ -4090,19 +4090,47 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				append(&elements, Maybe(Pattern)(ident))
 			}
 		} else if is_token(p, .LBrace) {
-			// Nested object pattern
+			// Nested object pattern, possibly with an Initializer:
+			//   BindingElement : BindingPattern Initializer_opt  (§14.3.3)
+			// Mirrors parse_object_pattern's nested-LBrace branch so
+			// `[{x} = {x: 1}]` wraps in AssignmentPattern just like the
+			// object-shorthand case does for `{a: {x} = {x: 1}}`.
 			nested := parse_object_pattern(p)
 			if nested == nil {
 				return nil
 			}
-			append(&elements, Maybe(Pattern)(nested))
+			val: Pattern = nested
+			if match_token(p, .Assign) {
+				default_val := parse_assignment_expression(p)
+				assign := new_node(p, AssignmentPattern)
+				assign.loc = get_pattern_loc(nested)
+				assign.left = nested
+				assign.right = default_val
+				assign.loc.span.end = prev_end_offset(p)
+				val = assign
+			}
+			append(&elements, Maybe(Pattern)(val))
 		} else if is_token(p, .LBracket) {
-			// Nested array pattern (recursive)
+			// Nested array pattern, possibly with an Initializer.
+			// Same spec rule as the LBrace branch above — closes the
+			// Test262 language/statements/class/dstr/* cases where
+			// `[[x, y, z] = [4, 5, 6]]` appears in a method parameter
+			// list.
 			nested := parse_array_pattern(p)
 			if nested == nil {
 				return nil
 			}
-			append(&elements, Maybe(Pattern)(nested))
+			val: Pattern = nested
+			if match_token(p, .Assign) {
+				default_val := parse_assignment_expression(p)
+				assign := new_node(p, AssignmentPattern)
+				assign.loc = get_pattern_loc(nested)
+				assign.left = nested
+				assign.right = default_val
+				assign.loc.span.end = prev_end_offset(p)
+				val = assign
+			}
+			append(&elements, Maybe(Pattern)(val))
 		} else {
 			report_error(p, "Expected pattern in array pattern")
 			return nil

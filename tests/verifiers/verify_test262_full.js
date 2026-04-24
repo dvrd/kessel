@@ -21,6 +21,9 @@
 //   --filter       <str>    Substring filter on relative path.
 //   --json-out     <path>   Machine-readable summary output.
 //   --verbose               Per-file logging.
+//   --all-failures          Record every failure (not just the first 50) in
+//                           the JSON summary, plus a per-subcategory
+//                           (top-two-level) breakdown. Used for triage.
 
 'use strict';
 
@@ -138,7 +141,9 @@ const counts = {
   timeout: 0,
 };
 const perDir = new Map();
+const perSubdir = new Map();
 const failures = [];
+const failureCap = args.allFailures ? Infinity : 50;
 
 for (const fixture of fixtures) {
   const source = fs.readFileSync(fixture.abs, 'utf8');
@@ -146,15 +151,27 @@ for (const fixture of fixtures) {
   const res = run(fixture, meta);
   const verdict = classify(fixture, meta, res);
   counts[verdict]++;
-  const dir = fixture.rel.split('/')[0];
+  const parts = fixture.rel.split('/');
+  const dir = parts[0];
+  const subdir = parts.slice(0, 2).join('/');
   const dc = perDir.get(dir) || { pass: 0, fail: 0, crash: 0, timeout: 0 };
   if (verdict === 'pass') dc.pass++;
   else if (verdict === 'crash') dc.crash++;
   else if (verdict === 'timeout') dc.timeout++;
   else dc.fail++;
   perDir.set(dir, dc);
-  if (verdict !== 'pass' && failures.length < 50) {
-    failures.push({ file: fixture.rel, verdict });
+  if (verdict !== 'pass') {
+    const sc = perSubdir.get(subdir) || { pass: 0, fail: 0, crash: 0, timeout: 0,
+                                          'accepted-should-reject': 0,
+                                          'rejected-should-accept': 0 };
+    sc.fail++;
+    if (verdict === 'crash') sc.crash++;
+    else if (verdict === 'timeout') sc.timeout++;
+    else sc[verdict]++;
+    perSubdir.set(subdir, sc);
+    if (failures.length < failureCap) {
+      failures.push({ file: fixture.rel, verdict });
+    }
   }
   if (args.verbose && verdict !== 'pass') {
     console.error(`  ${verdict.padEnd(22)} ${fixture.rel}`);
@@ -190,7 +207,10 @@ if (args.jsonOut) {
   const payload = {
     total, counts,
     perDir: Object.fromEntries(perDir),
-    sample_failures: failures,
+    perSubdir: Object.fromEntries(
+      [...perSubdir.entries()].sort((a, b) => b[1].fail - a[1].fail)),
+    sample_failures: args.allFailures ? failures.slice(0, 50) : failures,
+    all_failures: args.allFailures ? failures : undefined,
     rate: parseFloat(rate),
     generated_at: new Date().toISOString(),
   };
@@ -215,6 +235,7 @@ function parseArgs(argv) {
     else if (a === '--filter') out.filter = argv[++i];
     else if (a === '--json-out') out.jsonOut = argv[++i];
     else if (a === '--verbose') out.verbose = true;
+    else if (a === '--all-failures') out.allFailures = true;
   }
   return out;
 }
