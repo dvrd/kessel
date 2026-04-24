@@ -9,7 +9,7 @@
     "lexical/literals_object_S11.1.5_A1_T1.js": "pass",
     "lexical/literals_regular-expression_S7.8.5_A1.1_T1.js": "pass",
     "lexical/literals_regular-expression_S7.8.5_A1.1_T2.js": "pass",
-    "lexical/literals_string_S7.8.4_A1.1_T1.js": "known_fail",
+    "lexical/literals_string_S7.8.4_A1.1_T1.js": "pass",
     "lexical/literals_string_S7.8.4_A1.1_T2.js": "known_fail",
     "lexical/literals_string_S7.8.4_A1.1_T3.js": "pass",
     "expressions/expressions_addition_S11.6.1_A1.js": "pass",
@@ -69,8 +69,8 @@
   },
   "by_category": {
     "lexical": {
-      "pass": 10,
-      "known_fail": 2,
+      "pass": 11,
+      "known_fail": 1,
       "unexpected_fail": 0,
       "total": 12
     },
@@ -106,8 +106,8 @@
     }
   },
   "overall": {
-    "pass": 64,
-    "known_fail": 2,
+    "pass": 65,
+    "known_fail": 1,
     "unexpected_fail": 0,
     "total": 66
   }

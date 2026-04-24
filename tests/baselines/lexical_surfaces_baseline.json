@@ -1,7 +1,7 @@
 {
   "001_hashbang_bom.js": {
     "status": "fail",
-    "reason": "Program.hashbang is absent after BOM — BOM likely hides the `#!` line"
+    "reason": "parse failed: 2 parse error(s)"
   },
   "002_crlf_restricted_production.js": {
     "status": "pass",
@@ -36,7 +36,7 @@
     "reason": "first declarator name contains ZWJ: \"foo‍bar\""
   },
   "010_unicode_line_terminator_contexts.js": {
-    "status": "fail",
-    "reason": "1 VariableDeclaration(s) at top level; expected 3"
+    "status": "pass",
+    "reason": "3 VariableDeclarations separated by U+2028/U+2029"
   }
 }
