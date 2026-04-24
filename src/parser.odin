@@ -8052,6 +8052,22 @@ parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
 		return nil
 	}
 
+	// ImportCall (§13.3.10):
+	//   import( AssignmentExpression ,opt )
+	//   import( AssignmentExpression , AssignmentExpression ,opt )
+	//
+	// Accept trailing comma after the specifier, plus the optional
+	// second argument (import attributes object) with its own optional
+	// trailing comma.
+	options: ^Expression = nil
+	if match_token(p, .Comma) {
+		if !is_token(p, .RParen) {
+			options = parse_assignment_expression(p)
+			// Trailing comma after the options argument is allowed.
+			match_token(p, .Comma)
+		}
+	}
+
 	// consume )
 	if !is_token(p, .RParen) {
 		report_error(p, "Expected ) after import specifier")
@@ -8062,6 +8078,7 @@ parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
 	import_expr := new_node(p, ImportExpression)
 	import_expr.loc = start
 	import_expr.source = specifier
+	import_expr.options = options
 	import_expr.loc.span.end = prev_end_offset(p)
 
 	// Collect ESM dynamic import record.

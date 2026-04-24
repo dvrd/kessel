@@ -6253,7 +6253,19 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		out_s("\"source\": {\n")
 		print_expression_ast(e.source, indent + 1)
 		print_indent(indent)
-		out_s("}")
+		out_s("},\n")
+		// Import Attributes stage-3 `options` field. null when the
+		// second argument of ImportCall is absent.
+		print_indent(indent)
+		out_s("\"options\": ")
+		if e.options == nil {
+			out_s("null")
+		} else {
+			out_s("{\n")
+			print_expression_ast(e.options, indent + 1)
+			print_indent(indent)
+			out_s("}")
+		}
 
 	case ^MetaProperty:
 		// ESTree MetaProperty covers both `import.meta` AND `new.target` —

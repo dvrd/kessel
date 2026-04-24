@@ -941,6 +941,11 @@ AwaitExpression :: struct {
 ImportExpression :: struct {
 	loc:      Loc,
 	source:   ^Expression,
+	// Import attributes object from the second argument of ImportCall:
+	//   import('./x.js', { assert: { type: 'json' } })
+	// null when absent. Matches the `options` field OXC/Acorn emit for
+	// the stage-3 Import Attributes proposal.
+	options:  ^Expression,
 }
 
 MetaProperty :: struct {
