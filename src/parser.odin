@@ -3650,6 +3650,46 @@ report_escaped_reserved_word :: proc(p: ^Parser) {
 // Helper shared by both prefix and postfix paths. No-op in sloppy mode
 // or when the operand isn't a bare Identifier (member / call / etc.
 // stay legal).
+// Walk an AssignmentExpression's LHS and report any IdentifierReference
+// or destructuring-target that's named `eval` or `arguments`. Per
+// §13.15.1 / §13.5.1.1, these names are SyntaxErrors as assignment
+// targets in strict mode. The walker descends the same shapes that
+// expr_to_pattern accepts (ArrayExpression / ObjectExpression / spread /
+// assignment-init) so a destructuring-assignment LHS is fully covered.
+report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^Identifier:
+		if is_eval_or_arguments(e.name) {
+			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
+			report_error(p, msg)
+		}
+	case ^ParenthesizedExpression:
+		report_strict_eval_arguments_in_target(p, e.expression)
+	case ^ArrayExpression:
+		for elem in e.elements {
+			if inner, ok := elem.(^Expression); ok && inner != nil {
+				report_strict_eval_arguments_in_target(p, inner)
+			}
+		}
+	case ^ObjectExpression:
+		for prop in e.properties {
+			// Property is a struct, not a union — walk the value field
+			// directly. Shorthand shorthand-default (`{x = 1}`) lowers
+			// to an AssignmentExpression whose LHS is the identifier,
+			// handled by the ^AssignmentExpression case below.
+			report_strict_eval_arguments_in_target(p, prop.value)
+		}
+	case ^SpreadElement:
+		report_strict_eval_arguments_in_target(p, e.argument)
+	case ^AssignmentExpression:
+		// Default-init form in a destructuring target: walk only the LHS.
+		if e.operator == .Assign {
+			report_strict_eval_arguments_in_target(p, e.left)
+		}
+	}
+}
+
 report_strict_update_on_eval_or_arguments :: proc(p: ^Parser, arg: ^Expression) {
 	if !p.strict_mode || arg == nil { return }
 	ident, is_id := arg.(^Identifier)
@@ -7356,9 +7396,26 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 			//     elements allowed).
 			//   * BindingRestElement does NOT accept an Initializer, unlike
 			//     the other BindingElements.
+			//   * No TRAILING comma after BindingRestElement. The cover path
+			//     parses ArrayExpression which legally drops a trailing comma
+			//     into nothing; re-detect by scanning the source between the
+			//     spread's end and the array's end for a `,`.
 			if spread, is_spread := elem^.(^SpreadElement); is_spread {
 				if i != len(e.elements) - 1 {
 					report_error(p, "Rest element must be last in array pattern")
+				} else if p.lexer != nil {
+					src := p.lexer.source_bytes
+					search_start := int(spread.loc.span.end)
+					search_end := int(e.loc.span.end)
+					if search_end > len(src) { search_end = len(src) }
+					for k := search_start; k < search_end; k += 1 {
+						c := src[k]
+						if c == ']' { break }
+						if c == ',' {
+							report_error(p, "Rest element may not have a trailing comma")
+							break
+						}
+					}
 				}
 				inner_expr := spread.argument
 				// `[...x = init]` — AssignmentExpression whose LHS is the rest
@@ -7978,15 +8035,11 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 
 	// ECMA-262 §13.15.1 — in strict mode it's a SyntaxError for the LHS
 	// of an AssignmentExpression to be an IdentifierReference whose name
-	// is `eval` or `arguments`. Only the Identifier case (not member
-	// access, destructuring, etc.) is forbidden.
+	// is `eval` or `arguments`. Applies at every target position inside a
+	// destructuring pattern too: `[eval] = []`, `({x: arguments} = {})`,
+	// and `[...eval] = []` are all SyntaxErrors.
 	if p.strict_mode {
-		if ident, is_id := left.(^Identifier); is_id && ident != nil {
-			if is_eval_or_arguments(ident.name) {
-				msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", ident.name)
-				report_error(p, msg)
-			}
-		}
+		report_strict_eval_arguments_in_target(p, left)
 	}
 
 	assign := new_node(p, AssignmentExpression)
