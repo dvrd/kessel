@@ -5183,6 +5183,25 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	decl.loc = start
 	decl.specifiers = make([dynamic]^ImportSpecifierSpec, 0, 4, p.allocator)
 
+	// Phase Imports stage-3: §16.2 ImportDeclaration extended with
+	//   import defer * as ns from "x"
+	//   import source x from "x"
+	// `defer` and `source` are contextual keywords — lex as .Identifier
+	// here. Detect by peeking the next token: `defer` must be followed
+	// by `*` (NameSpaceImport-only per the import-defer proposal);
+	// `source` must be followed by an Identifier (default binding).
+	if p.cur_type == .Identifier && p.cur_tok.value == "defer" {
+		if p.lexer != nil && p.lexer.nxt.kind == .Mul {
+			decl.phase = "defer"
+			eat(p) // consume `defer`
+		}
+	} else if p.cur_type == .Identifier && p.cur_tok.value == "source" {
+		if p.lexer != nil && p.lexer.nxt.kind == .Identifier {
+			decl.phase = "source"
+			eat(p) // consume `source`
+		}
+	}
+
 	// TS `import type ...` — type-only import. `type` lexes as Identifier.
 	// Disambiguate from `import type from "m"` (value import of default binding
 	// named "type"): after `type`, the next token must be `{`, `*`, or an

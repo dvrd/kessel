@@ -3665,6 +3665,17 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent)
 			out_s("]")
 		}
+		// Phase Imports stage-3 `phase` field. null for plain
+		// `import x from ...`, "defer" for `import defer * as ns from ...`,
+		// "source" for `import source x from ...`. Matches OXC shape.
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"phase\": ")
+		if s.phase == "" {
+			out_s("null")
+		} else {
+			out_string(s.phase)
+		}
 
 	case ^BreakStatement:
 		out_println(",")

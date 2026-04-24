@@ -1322,6 +1322,10 @@ ImportDeclaration :: struct {
 	source:      StringLiteral,
 	attributes:  [dynamic]ImportAttribute,
 	import_kind: ImportExportKind,
+	// Phase Imports stage-3: `import defer * as ns from "x"` or
+	// `import source x from "x"`. "" for plain imports; "defer" or
+	// "source" otherwise. Matches OXC's ImportDeclaration.phase.
+	phase:       string,
 }
 
 ImportExportKind :: enum {

@@ -169,12 +169,11 @@ function unwrapParens(node) {
 // see at a glance which gaps are dialect-specific.
 const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   oxc: {
-  // ImportDeclaration / Export*: Kessel now emits `attributes` on all three
-  // (import attributes proposal, `import x from 'y' with { type: 'json' }`);
-  // drop it from the OXC-side strip so the two sides compare directly.
-  // `phase` is an even newer OXC-only field (`import defer`, `import source`
-  // phase imports). Kessel doesn't emit it yet, so keep the strip there.
-  ImportDeclaration:        new Set(['phase']),
+  // ImportDeclaration: Kessel emits `attributes` (import attributes
+  // proposal) and `phase` ("defer" / "source" / null per the Phase
+  // Imports stage-3 proposal, shipped in Session 10). Both compare
+  // directly against OXC.
+  ImportDeclaration:        new Set([]),
   ExportAllDeclaration:     new Set([]),
   ExportNamedDeclaration:   new Set([]),
   // ImportExpression: OXC emits `options` (Import Attributes stage-3,
