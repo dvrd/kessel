@@ -339,6 +339,14 @@ Parser :: struct {
 	// strict-mode early-errors without having to patch the source.
 	force_strict: bool,
 
+	// Pending CoverInitializedName offsets (§13.2.5.1). Every
+	// `{ ident = init }` shorthand-with-default appends its start
+	// offset; expr_to_pattern (when the ObjectExpression gets promoted
+	// to an ObjectPattern) removes the entries for that object. At the
+	// end of parse_program any remaining entries are reported — the
+	// form is only legal INSIDE a destructuring cover.
+	pending_cover_inits: [dynamic]u32,
+
 	// CLI `--preserve-parens`. When true, every genuine `(expr)` paren-
 	// grouping wraps its inner expression in a ParenthesizedExpression
 	// node. Off by default for byte-identical legacy output. Does NOT
@@ -489,6 +497,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.allocator = alloc
 	p.source_len = len(lexer.source)
 	p.errors = make([dynamic]ParseError, alloc)
+	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
 
 	// Bump pool: scale with source size
 	// Small files (<64KB): tight pool to avoid wasting init time on mmap
@@ -1036,6 +1045,18 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// --show-semantic-errors will later enable additional passes (TDZ,
 	// used-before-decl, closure capture). For now it's a no-op.
 	verify_scopes(p, program)
+
+	// §13.2.5.1 CoverInitializedName: any ObjectExpression that parsed
+	// with a `{ ident = init }` shorthand but didn't get promoted to
+	// an ObjectPattern (via expr_to_pattern) is a SyntaxError. Reported
+	// after all expr_to_pattern calls have had a chance to clear their
+	// entries from p.pending_cover_inits.
+	for off in p.pending_cover_inits {
+		append(&p.errors, ParseError{
+			loc     = LexerLoc{offset = int(off)},
+			message = "Invalid shorthand property initializer",
+		})
+	}
 
 	// Drain lexer-side diagnostics (invalid numeric separators, bad
 	// BigInt literals, etc.) into p.errors. The lexer couldn't report
@@ -3186,6 +3207,23 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// arm covers duplicates already, and force_when_non_simple is a
 		// no-op when params are simple and we're in strict.
 		report_duplicate_param_names(p, params[:], true)
+
+		// §15.4.3 / §15.4.4 — class accessor arity (same rule as
+		// object-literal accessors; see parse_property for the parallel
+		// check).
+		if kind == .Get && len(params) != 0 {
+			report_error(p, "Getter must not have any formal parameters")
+		}
+		if kind == .Set {
+			if len(params) != 1 {
+				report_error(p, "Setter must have exactly one formal parameter")
+			} else {
+				pp := params[0].pattern
+				if _, is_rest := pp.(^RestElement); is_rest {
+					report_error(p, "Setter parameter cannot be a rest element")
+				}
+			}
+		}
 	}
 
 	// Create the method as a FunctionExpression
@@ -6752,6 +6790,27 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		_ = body_strict
 		report_duplicate_param_names(p, params[:], true)
 
+		// §15.4.3 / §15.4.4 PropertySetParameterList / PropertyGetParameter
+		// enforce exact arity:
+		//   get  — zero parameters.
+		//   set  — exactly one non-rest parameter, no default.
+		if is_getter && len(params) != 0 {
+			report_error(p, "Getter must not have any formal parameters")
+		}
+		if is_setter {
+			// PropertySetParameterList : FormalParameter — exactly one,
+			// non-rest. Default initializers ARE allowed per
+			// BindingElement : SingleNameBinding Initializer_opt.
+			if len(params) != 1 {
+				report_error(p, "Setter must have exactly one formal parameter")
+			} else {
+				pp := params[0].pattern
+				if _, is_rest := pp.(^RestElement); is_rest {
+					report_error(p, "Setter parameter cannot be a rest element")
+				}
+			}
+		}
+
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start
 		fn.params = params
@@ -6827,8 +6886,13 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Use Assignment precedence - comma separates properties, not expressions
 		value = parse_expr_with_prec(p, .Assignment)
 	} else if match_token(p, .Assign) {
-		// Shorthand with default: { foo = defaultValue } (destructuring assignment pattern)
-		// Parsed as AssignmentExpression with = operator
+		// Shorthand with default: { foo = defaultValue } — only legal as
+		// CoverInitializedName inside a destructuring assignment cover
+		// (§13.2.5.1 / §13.15.5.2). Parse permissively here; record the
+		// offset in p.pending_cover_inits. expr_to_pattern clears the
+		// entry when the ObjectExpression gets promoted to an
+		// ObjectPattern; anything left after parse_program is a
+		// SyntaxError.
 		default_val := parse_expr_with_prec(p, .Assignment)
 		assign := new_node(p, AssignmentExpression)
 		assign.loc = start
@@ -6838,6 +6902,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		assign.loc.span.end = prev_end_offset(p)
 		shorthand = true
 		value = expression_from(p, assign)
+		append(&p.pending_cover_inits, start.span.start)
 	} else {
 		// Shorthand property: { foo } means { foo: foo }
 		// Not valid for generators/getters/setters
@@ -7303,6 +7368,22 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// the form `({a, b: c = 1, ...rest}) => ...`. Symptom: every nested
 		// default string / identifier inside destructured arrow params was
 		// invisible to downstream walkers (framer-motion.js, swagger-ui.js).
+		//
+		// Clear any pending CoverInitializedName offsets that fall inside
+		// this object's span — once promoted to an ObjectPattern, the
+		// `{foo = init}` shorthand is legal (§13.2.5.1 / §13.15.5.2).
+		if len(p.pending_cover_inits) > 0 {
+			write := 0
+			for off, read in p.pending_cover_inits {
+				if off >= e.loc.span.start && off < e.loc.span.end {
+					continue // swallow — this one's covered
+				}
+				p.pending_cover_inits[write] = off
+				write += 1
+				_ = read
+			}
+			resize(&p.pending_cover_inits, write)
+		}
 		op := new_node(p, ObjectPattern)
 		op.loc = e.loc
 		op.properties = make([dynamic]ObjectPatternProperty, 0, len(e.properties), p.allocator)
