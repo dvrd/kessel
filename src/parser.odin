@@ -1328,6 +1328,40 @@ parse_expression_or_labeled_statement :: proc(p: ^Parser) -> ^Statement {
 	return parse_expression_statement(p)
 }
 
+// Enforce the §13.5 "StatementList accepts only Statement, not
+// Declaration" rule for body positions in if / while / for / do-while.
+// Per the grammar:
+//
+//   Statement does NOT include LexicalDeclaration, ClassDeclaration,
+//   AsyncFunctionDeclaration, GeneratorDeclaration,
+//   AsyncGeneratorDeclaration.
+//
+// Annex B.3.2 grants FunctionDeclaration one narrow carve-out — but
+// only in sloppy-mode IfStatement consequent/alternate, never in
+// iteration bodies. `allow_plain_function` selects between the two
+// cases; callers in loops pass false, if-statement callers pass
+// !strict_mode.
+report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain_function: bool) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^VariableDeclaration:
+		if v == nil { return }
+		if v.kind == .Let || v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing {
+			msg := "Lexical declaration cannot appear in a single-statement context"
+			report_error(p, msg)
+		}
+	case ^ClassDeclaration:
+		report_error(p, "Class declaration cannot appear in a single-statement context")
+	case ^FunctionDeclaration:
+		if v == nil { return }
+		if v.async || v.generator {
+			report_error(p, "Async / generator function declaration cannot appear in a single-statement context")
+		} else if !allow_plain_function {
+			report_error(p, "Function declaration cannot appear in a single-statement context")
+		}
+	}
+}
+
 parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume if
@@ -1346,6 +1380,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	consequent := parse_statement_or_declaration(p)
+	report_statement_only_position(p, consequent, !p.strict_mode)
 
 	if_ := new_node(p, IfStatement)
 	if_.loc = start
@@ -1353,7 +1388,9 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	if_.consequent = consequent
 
 	if match_token(p, .Else) {
-		if_.alternate = parse_statement_or_declaration(p)
+		alt := parse_statement_or_declaration(p)
+		report_statement_only_position(p, alt, !p.strict_mode)
+		if_.alternate = alt
 	}
 
 	// Note: detecting a *duplicate* `else` from here isn't safe — after an
@@ -1388,6 +1425,7 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 	p.in_loop = true
 	body := parse_statement_or_declaration(p)
 	p.in_loop = prev_in_loop
+	report_statement_only_position(p, body, false)
 
 	while_ := new_node(p, WhileStatement)
 	while_.loc = start
@@ -1406,6 +1444,7 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 	p.in_loop = true
 	body := parse_statement_or_declaration(p)
 	p.in_loop = prev_in_loop
+	report_statement_only_position(p, body, false)
 
 	if !expect_token(p, .While) {
 		return nil
@@ -1597,6 +1636,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		p.in_loop = true
 		body := parse_statement_or_declaration(p)
 		p.in_loop = prev_in_loop
+		report_statement_only_position(p, body, false)
 
 		if is_in {
 			// for-in - use separate fields for declaration vs expression
@@ -1666,6 +1706,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	p.in_loop = true
 	body := parse_statement_or_declaration(p)
 	p.in_loop = prev_in_loop
+	report_statement_only_position(p, body, false)
 
 	for_ := new_node(p, ForStatement)
 	for_.loc = start
