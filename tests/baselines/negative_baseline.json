@@ -1,4 +1,7 @@
 {
+  "tests/fixtures/negative/030_duplicate_constructor.js": "rejected",
+  "tests/fixtures/negative/029_throw_line_terminator.js": "rejected",
+  "tests/fixtures/negative/028_delete_private_field.js": "rejected",
   "tests/fixtures/negative/027_rest_trailing_comma.js": "rejected",
   "tests/fixtures/negative/026_class_named_strict_reserved.js": "rejected",
   "tests/fixtures/negative/025_legacy_octal_bigint.js": "rejected",

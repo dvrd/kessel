@@ -1801,6 +1801,13 @@ parse_throw_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume throw
 
+	// ECMA-262 §14.14 Restricted Production — no LineTerminator between
+	// `throw` and the argument expression. ASI does NOT apply to throw;
+	// a bare `throw` with a newline before the argument is a SyntaxError.
+	if p.cur_tok.had_line_terminator {
+		report_error(p, "Illegal newline after 'throw'")
+	}
+
 	argument := parse_expression(p)
 	if argument == nil {
 		report_error(p, "Expected expression after throw")
@@ -2438,6 +2445,12 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 	seen.allocator = p.allocator
 	defer delete(seen)
 
+	// §15.7.1 — at most one ClassElement whose PropName is
+	// `"constructor"` AND whose kind is Method (not a getter, setter,
+	// or static method). Instance constructors only; static methods
+	// named `constructor` don't count.
+	constructor_seen := false
+
 	for elem in elems {
 		if elem.key == nil { continue }
 
@@ -2447,6 +2460,18 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		if elem.static && !elem.computed {
 			if class_element_prop_name(elem.key) == "prototype" {
 				report_error(p, "Classes may not have a static member named 'prototype'")
+			}
+		}
+
+		// §15.7.1 — at most one constructor per class. Detect by name
+		// + kind (Method or Constructor) + non-static + non-computed.
+		if !elem.static && !elem.computed && (elem.kind == .Method || elem.kind == .Constructor) {
+			if class_element_prop_name(elem.key) == "constructor" {
+				if constructor_seen {
+					report_error(p, "Duplicate constructor in class")
+				} else {
+					constructor_seen = true
+				}
 			}
 		}
 
@@ -4567,6 +4592,18 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			if ident, is_id := argument.(^Identifier); is_id && ident != nil {
 				msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
 				report_error(p, msg)
+			}
+		}
+
+		// ECMA-262 §13.5.1 — `delete` of a PrivateFieldReference (
+		// `delete x.#y`, `delete this.#y`) is ALWAYS a SyntaxError,
+		// regardless of strict / sloppy mode. Private slots can't be
+		// removed.
+		if current.type == .Delete {
+			if me, is_member := argument.(^MemberExpression); is_member && me != nil {
+				if _, is_private := me.property.(^PrivateIdentifier); is_private {
+					report_error(p, "Private fields cannot be deleted")
+				}
 			}
 		}
 		return expression_from(p, unary)
