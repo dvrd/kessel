@@ -1,4 +1,5 @@
 {
+  "tests/fixtures/negative/041_yield_in_generator_params.js": "rejected",
   "tests/fixtures/negative/040_duplicate_import_binding.js": "rejected",
   "tests/fixtures/negative/039_for_of_assignment_lhs.js": "rejected",
   "tests/fixtures/negative/038_for_in_assignment_lhs.js": "rejected",

@@ -256,6 +256,20 @@ Parser :: struct {
 	// (they introduce their own — absent — HomeObject).
 	in_method:       bool,
 
+	// Inside the FormalParameters of a GeneratorFunction /
+	// GeneratorMethod / async generator. ECMA-262 §15.5.1 / §15.6.1 — "It
+	// is a Syntax Error if FormalParameters Contains YieldExpression is
+	// true." Set before parse_function_params and cleared after; the
+	// yield-expression constructor consults it so we don't need a
+	// post-parse AST walker.
+	in_generator_params: bool,
+
+	// Same for AsyncArrowFunction: "It is a Syntax Error if
+	// ArrowParameters Contains AwaitExpression is true." (§15.9.1). Set
+	// by parse_async_arrow_with_parens before committing to the arrow
+	// form; the await-expression constructor consults it.
+	in_async_arrow_params: bool,
+
 	// Inside the constructor of a class with an `extends` clause.
 	// `super(...)` (SuperCall) is a SyntaxError outside such a
 	// constructor (ECMA-262 §15.7.3 / §13.3.7). Arrow functions inherit
@@ -457,6 +471,8 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.in_switch = false
 	p.strict_mode = false
 	p.in_method = false
+	p.in_generator_params = false
+	p.in_async_arrow_params = false
 	p.in_derived_constructor = false
 	p.class_has_extends = false
 	p.label_stack = make([dynamic]string, 0, 4, alloc)
@@ -2035,7 +2051,15 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		return nil
 	}
 
+	// §15.5.1 / §15.6.1 — mark FormalParameters of a generator so
+	// parse_yield_expr can reject `yield` inside default initializers.
+	// Save/restore to nest correctly when generator functions declare
+	// parameters of another function type (unlikely but cheap to
+	// preserve).
+	prev_in_gen_params := p.in_generator_params
+	p.in_generator_params = generator
 	params := parse_function_params(p)
+	p.in_generator_params = prev_in_gen_params
 
 	if !expect_token(p, .RParen) {
 		// Error recovery: skip forward to the next `{` (start of the body)
@@ -2902,7 +2926,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		return nil
 	}
 
+	// §15.5.1 / §15.6.1 — yield-in-params guard for generator methods
+	// (including class getters/setters/methods). Same save/restore as
+	// parse_function_declaration.
+	prev_method_gen_params := p.in_generator_params
+	p.in_generator_params = is_generator
 	params := parse_function_params(p)
+	p.in_generator_params = prev_method_gen_params
 
 	if !expect_token(p, .RParen) {
 		return nil
@@ -4903,6 +4933,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error(p, "Top-level 'await' is only valid in module code")
 			}
 		}
+		// ECMA-262 §15.9.1 — "It is a Syntax Error if ArrowParameters
+		// Contains AwaitExpression is true." An AwaitExpression in the
+		// default initializer of an AsyncArrowFunction parameter is
+		// forbidden even though the arrow body itself is async.
+		if p.in_async_arrow_params {
+			report_error(p, "'await' expression is not allowed in formal parameters of an async arrow")
+		}
 		current := p.cur_tok
 		eat(p)
 		argument := parse_unary_expr(p)
@@ -5977,8 +6014,12 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if !expect_token(p, .LParen) {
 			return nil
 		}
-		// Parse params (getters have empty params, setters have one param)
+		// Parse params (getters have empty params, setters have one param).
+		// §15.5.1 / §15.6.1 — yield-in-params guard for generator methods.
+		prev_gp_obj_acc := p.in_generator_params
+		p.in_generator_params = is_generator
 		params := parse_function_params(p)
+		p.in_generator_params = prev_gp_obj_acc
 		if !expect_token(p, .RParen) {
 			return nil
 		}
@@ -6017,7 +6058,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if !expect_token(p, .LParen) {
 			return nil
 		}
+		// §15.5.1 / §15.6.1 — yield-in-params guard for generator methods.
+		prev_gp_obj_meth := p.in_generator_params
+		p.in_generator_params = is_generator
 		params := parse_function_params(p)
+		p.in_generator_params = prev_gp_obj_meth
 		if !expect_token(p, .RParen) {
 			return nil
 		}
@@ -6317,6 +6362,16 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 
 parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	start := cur_loc(p)
+	// ECMA-262 §15.5.1 — "It is a Syntax Error if FormalParameters
+	// Contains YieldExpression is true." A YieldExpression that appears
+	// inside a GeneratorFunction's / GeneratorMethod's FormalParameters
+	// (typically the default initializer of a parameter) is forbidden;
+	// the generator scope only starts INSIDE the body. We flag the
+	// parent parser to mark this window with `in_generator_params`; the
+	// yield-expression constructor here consults it.
+	if p.in_generator_params {
+		report_error(p, "'yield' expression is not allowed in formal parameters of a generator")
+	}
 	eat(p) // consume yield
 
 	// ECMA-262 §15.5 Restricted Production: no LineTerminator between
