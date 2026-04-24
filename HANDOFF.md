@@ -1,8 +1,8 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-24 — Session 6 closed.
-**Status headline:** 144/144 spec-fixtures; 100/100 fuzz-diff; 0 divergences vs OXC on 12 real files; **90/90 negative-gate rejections across 29 static-error classes (ratchet engaged)**; **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; 20/20 recovery; 467/467 invariants; 57/57 node-type coverage; 11/11 regression.
-**Repo state:** `main` at `e6d100d` (most recent handoff sync), ~20 800 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-24 — Session 7 in-flight (post-handoff sweep).
+**Status headline:** 144/144 spec-fixtures; 100/100 fuzz-diff; 0 divergences vs OXC on 12 real files; **102/102 negative-gate rejections across 41 static-error classes (ratchet engaged)**; **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; 20/20 recovery; 467/467 invariants; 57/57 node-type coverage; 11/11 regression.
+**Repo state:** `main` at `e736088` (latest Session-7 commit), ~20 850 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -37,7 +37,7 @@ is fine.
 
 | Suite | Command | Result | Notes |
 |---|---|---|---|
-| Unit | `task test:unit` | **272 / 362** (100% pass rate) | 90 skipped = negative-gate-owned early-error fixtures. Zero failures. |
+| Unit | `task test:unit` | **272 / 374** (100% pass rate) | 102 skipped = negative-gate-owned early-error fixtures. Zero failures. |
 | Regression | `task test:regression` | **11 / 11** ✅ | Structural diff vs OXC for session-fixed bugs. |
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures across the full real-world corpus. |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture. |
@@ -52,8 +52,8 @@ is fine.
 | Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not parser bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
 | Recovery | `task test:recovery` | **20 / 20** ✅ | All anchors survive; spans stay sane. |
-| **Negative gate** | `task test:negative` | **90 / 90 rejected** ✅ (ratchet engaged) | **29 static-error classes** enforced across `tests/fixtures/negative/` + `tests/fixtures/early_errors/`: 9 from Session 5 (`43c57dc`) + 20 from Session 6 (`420cb52`, `92ee5bb`, `716f916`, `b708c10`, `50a849f`, `397e966`, `a3bdf5a`, `ab1f14c`). Baseline is 100% “rejected” so the verifier auto-strictifies: any new fixture the parser accepts fails the default gate. See ERR-5 below for the full catalog. |
-| Negative gate (strict) | `task test:negative:strict` | **90 / 90 rejected** ✅ | Zero-tolerance variant, no baseline. Run before a release. |
+| **Negative gate** | `task test:negative` | **102 / 102 rejected** ✅ (ratchet engaged) | **41 static-error classes** enforced across `tests/fixtures/negative/` + `tests/fixtures/early_errors/`: 9 from Session 5 (`43c57dc`) + 20 from Session 6 + 12 from Session 7 (`b151f44`, `05782a8`, `a1cd67e`, `b0101bf`, `b394ba0`, `e736088`). Baseline is 100% “rejected” so the verifier auto-strictifies: any new fixture the parser accepts fails the default gate. See ERR-5 below for the full catalog. |
+| Negative gate (strict) | `task test:negative:strict` | **102 / 102 rejected** ✅ | Zero-tolerance variant, no baseline. Run before a release. |
 | Bench regression | `task test:bench:regression` | Not run | Use before release. |
 
 ### Performance (Apple M-series, `-o:speed -no-bounds-check`)
@@ -308,10 +308,11 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 
 ### Error Handling (2 / 5)
 - [x] **ERR-1:** `--errors=oxc` for OXC TS-ESTree shape (Phase 3, `75fb36b`).
-- [x] **ERR-5:** Static-error coverage. Negative gate at **90/90
-      rejected** (end of Session 6, commit `e6d100d`) across 90
-      fixtures. **29 static-error classes** enforced at the parser
-      layer: 9 from Session 5 (`43c57dc`) + 20 from Session 6.
+- [x] **ERR-5:** Static-error coverage. Negative gate at **102/102
+      rejected** (Session 7, commit `e736088`) across 102 fixtures.
+      **41 static-error classes** enforced at the parser layer: 9
+      from Session 5 (`43c57dc`) + 20 from Session 6 + 12 from
+      Session 7.
 
       *Session 5 additions (9 classes, `43c57dc`):* top-level `return`
       outside function; unlabelled `break` / `continue` outside
@@ -355,6 +356,74 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
       rest), arrow / method / accessor UniqueFormalParameters
       rules (§15.3.1 / §15.4.*).
 
+      *Session 7 additions (12 classes, `b151f44`..`e736088`):*
+
+      *Class / super semantics:* `super(...)` outside instance
+      constructor of a derived class (§15.7.3 / §13.3.7 —
+      `in_derived_constructor` flag threaded through class body;
+      static blocks / field initializers / object methods / non-
+      derived constructors all reject; arrow functions inherit the
+      derived-constructor context so lexical `super(...)` works).
+
+      *Escape / ReservedWord rule:* IdentifierName written with a
+      `\UnicodeEscapeSequence` whose cooked StringValue matches a
+      ReservedWord — rejected at every Identifier production site
+      (IdentifierReference / BindingIdentifier / LabelIdentifier),
+      kept legal at IdentifierName positions (member access,
+      property key, method name, import/export specifier). Covers
+      always-reserved keywords unconditionally plus the strict-only
+      FutureReservedWords (`let` / `static` / `yield` /
+      `implements` / `interface` / `package` / `private` /
+      `protected` / `public`) when `p.strict_mode` is on, plus
+      `yield` in generator / `await` in async context.
+
+      *Restricted productions:* LineTerminator between ArrowParameters
+      and `=>` (§15.3); LineTerminator between `async` and
+      `function` in AsyncFunctionDeclaration (§15.8); LineTerminator
+      between `async` and the next token in AsyncArrowFunction
+      (§15.9 — treats `async` as a bare identifier and ASI splits
+      the two statements). `throw`, postfix `++`/`--`, `return`,
+      `yield`, `break`/`continue` label — all already handled.
+
+      *Labels / continue:* `continue label;` requires the target
+      label to name an IterationStatement (§14.8.1 — K14 closed).
+      New `label_is_iteration` parallel stack indexed same as
+      `label_stack`, eager lookahead at LabelledStatement push
+      catches chained labels `foo: bar: for(...)` correctly.
+
+      *Strict-mode delete:* `delete ( IdentifierReference )` —
+      strict mode rejects both bare `delete x` (already shipped)
+      and the parenthesised form `delete (x)` / `delete ((x))`
+      (§13.5.1 / "CoverParenthesizedExpression whose contents are
+      an IdentifierReference"). Paren peeling stops at any non-
+      ParenthesizedExpression wrapper so `delete (x, y)` and
+      `delete (x.y)` stay legal.
+
+      *Tagged templates:* `obj?.foo\`t\`` / tagged template literal
+      on an optional-chain tag (§13.3.5 — parse_lhs_tail tracks
+      `is_chain`; any template tail inside the chain reports).
+
+      *For-in / for-of:* LeftHandSideExpression cannot be an
+      AssignmentExpression (§14.7.5.1 — `for (a = 1 in b)` and
+      `for (a = 1 of b)` both fail). Annex B.3.5 `for (var X =
+      init in Expr)` routes through `left_decl` so the narrow
+      sloppy-mode carve-out is unaffected.
+
+      *Import bindings:* Duplicate BoundNames across all
+      ImportClause specifier kinds (§16.2.2). O(n²) pairwise scan
+      runs post-specifier-parse via `import_spec_local_name(spec)`;
+      catches every combination of default / named / namespace
+      specifiers.
+
+      *Generator params:* YieldExpression in FormalParameters of a
+      GeneratorFunction / GeneratorMethod (§15.5.1 / §15.6.1).
+      New `in_generator_params` flag set before parse_function_
+      params in function decl / class method / object-literal
+      accessor+method paths. Symmetric `in_async_arrow_params`
+      scaffolded for §15.9.1 but not yet wired (async arrow
+      params go through CoverCallExpression + trial-parse; needs a
+      secondary hook).
+
       Baseline ratchet: once 100% rejected, any new fixture the
       parser accepts fails the default gate automatically.
       `task test:negative:strict` runs the same set without a
@@ -371,9 +440,9 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
       nodes (57/57), invariants (467/467), spec-fixtures (144/144 across 22
       categories, all ES years + asi + edge + escapes + jsx + regex + TS + unicode
       + ambiguity + interactions + lexical at 100%).
-- [x] **Negative gate: 90/90 rejected** across `tests/fixtures/negative/`
+- [x] **Negative gate: 102/102 rejected** across `tests/fixtures/negative/`
       + `tests/fixtures/early_errors/` (ratchet-gated, strict mode
-      available). 29 static-error classes enforced; see ERR-5 above for
+      available). 41 static-error classes enforced; see ERR-5 above for
       the catalog.
 - [ ] **TEST-1:** Full Test262 (~45 000 tests).
 - [ ] **TEST-2:** Babel parser test suite.
@@ -448,6 +517,22 @@ Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 65
 | `880e822` | NAPI/Visitor MVP | `npm/kessel-parser/`: `parseSync()` oxc-parser shim + `walk()`/`findAll()` visitor. |
 | `17cdc45` | Fuzz baseline | 9 prior span-start failures now pass (pending_paren_start fix); promoted to pass. |
 | `43c57dc` | Static-errors sweep 1 | Parse-time rejection for top-level `return`, stray `else`/`}`/`catch`/`finally`, unlabelled `break`/`continue` out of context, invalid LHS of `=`. Lexer diagnostics channel for numeric separators, BigInt invariants, bad binary/octal, unterminated string/regex, bad escapes, BOM+hashbang. Negative gate 20/32 → 42/63. |
+
+### Phase 7 — early-errors continuation + K14 close, 6 commits (2026-04-24)
+
+Session 7 extended the ratchet from 90/90 (29 classes) to **102/102 (41
+classes)**. K14 (`continue label` iteration-target check) closed.
+Delete-of-paren-identifier tightened under `--preserve-parens`. No
+new K-issues introduced; all other suites stayed green.
+
+| Commit | Item | Notes |
+|--------|------|-------|
+| `b151f44` | SuperCall outside derived constructor | §15.7.3 / §13.3.7. New `in_derived_constructor` + `class_has_extends` parser fields; set only for instance constructor of a class with `extends`. Arrow functions inherit (lexical super-call); every non-arrow boundary resets both flags. Fixtures 031, 032. |
+| `05782a8` | Escaped-keyword as Identifier | §12.7.2. Token grows `has_escape: bool` preserved from FLAG_HAS_ESCAPE across `eat()`. New `report_escaped_reserved_word(p)` fires at IdentifierReference (parse_unary_expr fast-path + parse_primary_expr), BindingIdentifier, and LabelIdentifier sites. IdentifierName positions (member/property/method/import-spec) deliberately unchanged. Fixtures 033, 034, strict_mode/018. |
+| `a1cd67e` | ArrowFunction / Async restricted productions | §15.3 (LT before `=>`), §15.8 (LT between `async` and `function` in decl), §15.9 (LT between `async` and next in arrow). `had_line_terminator` checked at the relevant dispatch points. Fixture 035. |
+| `b0101bf` | K14 close + delete-paren-identifier | §14.8.1 (continue-label must name an iteration). New `label_is_iteration` parallel stack; eager `label_chain_leads_to_iteration(p)` uses lexer snapshot/restore to walk through `Identifier :` chains so `foo: bar: for(...)` correctly marks both labels iteration-valid. §13.5.1 (`delete (x)` in strict) — parse_unary_expr now peels `ParenthesizedExpression` wrappers before the Identifier check. Fixture 036. |
+| `b394ba0` | 3 more classes | §13.3.5 tagged template on optional chain (parse_lhs_tail tracks `is_chain`); §14.7.5.1 for-in/for-of LHS cannot be AssignmentExpression; §16.2.2 duplicate import BoundNames (new helper `import_spec_local_name(spec)` over every specifier kind, O(n²) pairwise). Fixtures 037, 038, 039, 040. |
+| `e736088` | YieldExpression in generator FormalParameters | §15.5.1 / §15.6.1. New `in_generator_params: bool` flag wrapped around parse_function_params in function decl / class method / object-literal accessor+method paths; parse_yield_expr reports on entry. Symmetric `in_async_arrow_params` added for §15.9.1 but deferred wiring (async arrow params go through CoverCallExpression + trial-parse). Fixture 041. |
 
 ### Phase 6 — negative-gate closure + early-errors sweep, 13 commits (2026-04-24)
 
@@ -535,18 +620,42 @@ caught by the fixture `function f(a,b,a,b) { 'use strict'; }`.
 | K11 | **Debug build linker warnings** — ~50 about missing symbols for JSX/TS generic instantiations. | Cosmetic | Odin toolchain | Binary works. Ignore. |
 | K12 | ~~Class method access modifiers + TSParameterProperty~~ ✅ Fixed in `0513d43` + `b2effaa`. Parses all modifier permutations. Constructor parameter properties now wrapped in `TSParameterProperty { parameter, accessibility, readonly, override, static }` in emit_ts_shape mode. | — | — | Fixed. |
 | K13 | **Module-syntax errors only fire under `--source-type=script`**. `import` / `export` / top-level `await` / `import.meta` in a script-mode file are correctly rejected when the caller pins sourceType. Without the flag, the parser auto-upgrades to `module` and stays silent. Matches OXC's default behaviour but leaves the rejection conditional. | Low | `parse_import_declaration` / `parse_export_declaration` / `parse_primary_expr.Import` / `parse_unary_expr.Await` | Documented. To tighten further, the auto-upgrade needs a “warn-on-implicit-module” mode; not spec-required. |
-| K14 | **`continue label` doesn't yet check the label targets an IterationStatement.** We validate that the label exists in scope; we don't yet know whether it's bound to a for/while/do-while (vs. a labelled block). Per §14.8.1 `continue foo;` is only legal if `foo` labels an iteration. Currently accepts labelled non-iteration targets. | Low | `parse_continue_statement` | Needs LabelledStatement to track its target kind; future refactor. |
+| K14 | ~~`continue label` doesn't check the label targets an IterationStatement~~ ✅ Fixed in `b0101bf`. New `label_is_iteration` parallel stack indexed same as `label_stack`; eager `label_chain_leads_to_iteration(p)` uses lexer snapshot/restore to walk through `Identifier :` chains so chained labels like `foo: bar: for(...)` correctly mark both as iteration-valid. `continue foo;` inside a labelled block now errors as spec. | — | — | Fixed. |
 | K15 | **No scope / symbol analysis.** Cross-statement bindings like `let x; var x;`, block-scoped redeclaration, undefined `break`/`continue`-like semantics below the grammar, and the full `showSemanticErrors` surface all require a scope pass we haven't built. | Low | parser-wide | OPT-6 tracker item. |
 
 ---
 
 ## 9. What to work on next
 
-All previously tracked items up to Session 5 are closed. Session 6
-drove the negative gate from 42/63 to **90/90** (9 → 29 static-error
-classes enforced at the parser layer) and closed K9 (integration drift
-538 → 0 across the real-world corpus). What remains is mostly
-corpus-expansion or multi-week infrastructure.
+Session 7 (in-flight) pushed the ratchet from 90/90 to **102/102**
+(29 → 41 static-error classes), closed K14, and expanded
+`--preserve-parens` correctness. All other suites stayed green.
+What remains is mostly corpus-expansion or multi-week infrastructure.
+
+### Session 7 accomplishments (2026-04-24)
+
+- **Negative gate 90/90 → 102/102 rejected.** **12 new static-error
+  classes** over 6 parser commits. See ERR-5 in §6 for the full
+  catalog and §7 “Phase 7” for the per-commit breakdown.
+- **K14 closed.** `continue label` now verifies the target label
+  names an IterationStatement (directly or via a chain of
+  LabelledStatements). New `label_is_iteration` parallel stack plus
+  a `label_chain_leads_to_iteration(p)` helper that uses lexer
+  snapshot/restore to walk through `Identifier :` chains eagerly.
+- **`delete (Identifier)` under --preserve-parens.** Strict-mode
+  rejection was slipping through when the Identifier was wrapped by
+  ParenthesizedExpression; parse_unary_expr now peels the wrapper
+  before the Identifier check.
+- **Token carries has_escape.** New `Token.has_escape` preserves
+  FLAG_HAS_ESCAPE across `eat()` so the parser can enforce §12.7.2
+  at all Identifier-production sites. Lexer stays context-free.
+- **New parser fields:** `in_derived_constructor`, `class_has_
+  extends`, `label_is_iteration`, `in_generator_params`,
+  `in_async_arrow_params` (scaffold only, not yet wired).
+- **All other suites stayed green**: 144/144 spec-fixtures, 100/100
+  fuzz-diff, 0 spec-compliance divergences, 467/467 real-world,
+  66/66 test262, 20/20 recovery, 57/57 nodes, 11/11 regression,
+  `test:estree:strict` still zero-tolerance clean.
 
 ### Session 6 accomplishments (2026-04-24)
 
@@ -617,30 +726,41 @@ corpus-expansion or multi-week infrastructure.
 
 ### Known spec gaps I spotted but didn't add fixtures for
 
-Preserving these so the next session can pick them up:
+Preserving these so the next session can pick them up. Session 7
+already closed: escaped-keyword as keyword, `super()` in non-derived
+constructor, `delete CoverParenthesizedExpression` (identifier
+subcase), and the restricted-production gap for async/arrow LT.
+Remaining:
 
-- **Escaped keyword as keyword** (§12.7.2) — `\u0069f (x) {}` uses the
-  `if` keyword via Unicode escape. Spec forbids this; we currently
-  accept. Complex because the escape handling runs at lex time and
-  the keyword check happens at parse time. Lexer would need to flag
-  `FLAG_HAS_ESCAPE` tokens that match reserved-word spellings.
-- **`super()` in non-derived constructor** (§15.7.3) — requires
-  tracking whether the enclosing class declaration has `extends`.
-  Solvable with one more parser flag (`in_derived_constructor`) +
-  propagation around class-body parse; fixture ready in head.
-- **`delete CoverParenthesizedExpression` subtleties** — spec has
-  specific rules about delete-of-parenthesised-identifier vs
-  delete-of-arrow-cover; we haven't enumerated.
-- **ASI “[no LineTerminator here]” restricted productions beyond
-  `throw` and postfix `++`/`--`** — there are more sites (`yield`,
-  `async`, labelled-statement `break` / `continue`) that follow the
-  same grammar rule. We cover a subset; full pass would be
-  mechanical but tedious.
+- **AwaitExpression in AsyncArrowFunction FormalParameters**
+  (§15.9.1) — flag `in_async_arrow_params` scaffolded in `e736088`
+  but not wired. The arrow params go through CoverCallExpression +
+  trial-parse so the await-in-default case is parsed before we know
+  we're an async arrow. Needs a secondary hook at arrow-commit time
+  to walk the params for AwaitExpression and emit retroactively.
+- **AwaitExpression in AsyncFunction/AsyncMethod FormalParameters**
+  — spec ambiguity: some sources say §15.8.1 forbids it, others
+  limit it to AsyncArrow. Verify against OXC + V8 behaviour before
+  implementing.
 - **Regex pattern-body validation** — we validate flags (duplicates,
   invalid) and basic structural escapes, but not the full
   AtomEscape / CharacterEscape / CharacterClassEscape / GroupName
   surface of RegExp/v flag grammar. OXC defers most of this to a
   separate regex parser.
+- **`yield expr` outside generator (non-strict).** Currently parsed
+  as YieldExpression unconditionally; spec says outside a generator
+  `yield` is just an identifier, so `var a = yield 1;` should fail
+  (identifier followed by number without operator). Needs a gate in
+  parse_yield_expr against `p.in_generator` / `p.strict_mode`.
+- **ExportNamedDeclaration local must exist.** `export { foo };`
+  where `foo` isn't declared in the module — spec says it's a
+  SyntaxError. Requires a post-parse resolution pass (OPT-6
+  semantic-analysis adjacent, but more local).
+- **`var` in `for (var X = init in Expr)` Annex B.3.5 support.**
+  Currently rejected with an unrelated error (“Expected ; got )”)
+  because parse_variable_declaration's `no_in` propagation into the
+  declarator init is off. Low-priority — few real-world files use
+  the Annex B shape, but OXC accepts it in sloppy mode.
 
 ### Session 5 (2026-04-23) — archived
 
