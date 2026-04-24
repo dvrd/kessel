@@ -5466,6 +5466,9 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.prefix = true
 		update.loc.span.end = prev_end_offset(p)
 		report_strict_update_on_eval_or_arguments(p, argument)
+		if !is_simple_assignment_target(argument, !p.strict_mode) {
+			report_error(p, "Invalid left-hand side expression in prefix operation")
+		}
 		return expression_from(p, update)
 
 	case .Await:
@@ -5582,6 +5585,9 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.prefix = false
 		update.loc.span.end = prev_end_offset(p)
 		report_strict_update_on_eval_or_arguments(p, expr)
+		if !is_simple_assignment_target(expr, !p.strict_mode) {
+			report_error(p, "Invalid left-hand side expression in postfix operation")
+		}
 		return expression_from(p, update)
 	}
 
@@ -7827,6 +7833,32 @@ is_valid_assignment_target :: proc(expr: ^Expression, is_destructure: bool) -> b
 	case ^ArrayExpression, ^ObjectExpression:
 		// Only valid as destructuring targets (operator must be `=`).
 		return is_destructure
+	}
+	return false
+}
+
+// is_simple_assignment_target returns true if `expr` has the spec's
+// SIMPLE AssignmentTargetType per §12.6.2.3 — i.e. it's a legal operand
+// for UpdateExpression (`++` / `--`) and for `delete` in strict mode.
+// Narrower than is_valid_assignment_target: ImportCall /
+// ArrayExpression-as-destructure / ObjectExpression-as-destructure are
+// all INVALID here. Paren-wrapped simple targets stay simple.
+//
+// sloppy_legacy_call: Annex B.3.4 extends AssignmentTargetType of
+// CallExpression to SIMPLE in sloppy (non-strict) mode. Passing true
+// lets `f()++` through in sloppy mode; strict-mode callers must pass
+// false so the early error fires.
+is_simple_assignment_target :: proc(expr: ^Expression, sloppy_legacy_call: bool) -> bool {
+	if expr == nil { return false }
+	#partial switch e in expr^ {
+	case ^Identifier, ^MemberExpression,
+	     ^TSNonNullExpression, ^TSAsExpression, ^TSSatisfiesExpression,
+	     ^TSTypeAssertion:
+		return true
+	case ^CallExpression:
+		return sloppy_legacy_call
+	case ^ParenthesizedExpression:
+		return is_simple_assignment_target(e.expression, sloppy_legacy_call)
 	}
 	return false
 }
