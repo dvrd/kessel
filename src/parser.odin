@@ -3895,6 +3895,76 @@ is_legacy_zero_prefixed_integer :: proc(raw: string) -> bool {
 // tolerates them and any non-escape content. A `\\` consumes the next
 // character (so `\\0` is a literal backslash followed by `0`, not a
 // NUL escape).
+// Walk an untagged TemplateLiteral raw body for §12.9.6 invalid
+// EscapeSequences. Untagged templates (no MemberExpression tag
+// precedes the backtick) reject every EscapeSequence kind that's
+// illegal under the NoSubstitutionTemplate production:
+//   * LegacyOctalEscapeSequence (\0-\7 with a trailing digit-ish)
+//   * NonOctalDecimalEscapeSequence (\8, \9)
+//   * HexEscapeSequence with fewer than 2 hex digits (\x0, \xZZ)
+//   * UnicodeEscapeSequence fewer than 4 hex digits (\u00)
+//   * \u{H+} missing `}` or non-hex
+untagged_template_raw_has_invalid_escape :: proc(raw: string) -> bool {
+	i := 0
+	n := len(raw)
+	for i < n {
+		c := raw[i]
+		if c != '\\' { i += 1; continue }
+		if i + 1 >= n { return false }
+		next := raw[i+1]
+		switch next {
+		case '8', '9':
+			return true
+		case '1', '2', '3', '4', '5', '6', '7':
+			return true
+		case '0':
+			if i + 2 < n {
+				d := raw[i+2]
+				if d >= '0' && d <= '9' { return true }
+			}
+			i += 2
+			continue
+		case 'x':
+			// Need exactly 2 hex digits after \x.
+			if i + 3 >= n { return true }
+			h1 := raw[i+2]
+			h2 := raw[i+3]
+			if !is_hex_digit(h1) || !is_hex_digit(h2) { return true }
+			i += 4
+			continue
+		case 'u':
+			if i + 2 >= n { return true }
+			if raw[i+2] == '{' {
+				// \u{H+} — at least one hex digit, terminated by `}`.
+				j := i + 3
+				digits := 0
+				for j < n && raw[j] != '}' {
+					if !is_hex_digit(raw[j]) { return true }
+					digits += 1
+					j += 1
+				}
+				if j >= n || digits == 0 { return true }
+				i = j + 1
+				continue
+			} else {
+				// \uHHHH
+				if i + 5 >= n { return true }
+				for k := i + 2; k < i + 6; k += 1 {
+					if !is_hex_digit(raw[k]) { return true }
+				}
+				i += 6
+				continue
+			}
+		}
+		i += 2
+	}
+	return false
+}
+
+is_hex_digit :: #force_inline proc(c: u8) -> bool {
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
 string_raw_has_forbidden_escape :: proc(raw: string) -> bool {
 	i := 0
 	n := len(raw)
@@ -8005,6 +8075,11 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		if !tagged && p.strict_mode && string_raw_has_forbidden_escape(elem.raw) {
 			report_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
+		// Untagged templates reject §12.9.6 invalid EscapeSequences in
+		// ALL modes — truncated \xH, \uH, \u{bad}, legacy-octal, etc.
+		if !tagged && untagged_template_raw_has_invalid_escape(elem.raw) {
+			report_error(p, "Invalid escape sequence in template literal")
+		}
 		return expression_from(p, tmpl)
 	}
 
@@ -8077,6 +8152,14 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 			for q in tmpl.quasis {
 				if string_raw_has_forbidden_escape(q.raw) {
 					report_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+					break
+				}
+			}
+		}
+		if !tagged {
+			for q in tmpl.quasis {
+				if untagged_template_raw_has_invalid_escape(q.raw) {
+					report_error(p, "Invalid escape sequence in template literal")
 					break
 				}
 			}
