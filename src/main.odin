@@ -57,6 +57,15 @@ emit_range_enabled: bool
 //   nil       - unambiguous (auto-detect).
 source_type_override: Maybe(SourceType)
 
+// CLI flag: --strict-source-type. When set, the parser refuses to auto-
+// upgrade Script → Module on implicit module syntax (top-level import /
+// export / import.meta / top-level await). Without an explicit
+// --source-type, the default is promoted to Script so the module-syntax-
+// in-script gate fires; with --source-type=module the behaviour is
+// unchanged (explicit opt-in). Closes K13 — previously implicit module
+// syntax silently flipped sourceType even when the caller never asked.
+strict_source_type_enabled: bool
+
 // CLI flag: --preserve-parens. When enabled, every genuine `(expr)`
 // paren-grouping is wrapped in a `ParenthesizedExpression` node (Acorn /
 // OXC extension; NOT in ESTree core). Off by default for byte-identical
@@ -536,6 +545,8 @@ main :: proc() {
 						fmt.eprintf("Error: unknown --source-type value '%s' (expected script|module|unambiguous)\n", val)
 						os.exit(2)
 					}
+				} else if arg == "--strict-source-type" {
+					strict_source_type_enabled = true
 				} else if arg == "--preserve-parens" {
 					preserve_parens_enabled = true
 				} else if strings.has_prefix(arg, "--ast-type=") {
@@ -757,10 +768,21 @@ parse_file :: proc(file_path: string) {
 	// `--source-type=` override: nil = unambiguous (auto-detect), else pin
 	// to Script or Module. The parser reads p.force_source_type to know
 	// whether to run the auto-upgrade pass after parsing the body.
+	//
+	// `--strict-source-type` (K13): when no explicit --source-type is
+	// given, promote the default to Script so implicit module-syntax
+	// (top-level import / export / import.meta / TLA) is rejected by
+	// the existing module-syntax-in-script gate instead of silently
+	// auto-upgrading. When --source-type=module is explicitly given,
+	// strict-mode is a no-op (caller opted in). When --source-type=script
+	// is explicit, strict-mode is already the behaviour.
 	initial_source_type: SourceType = .Script
 	if st, ok := source_type_override.?; ok {
 		initial_source_type = st
 		p.force_source_type = st
+	} else if strict_source_type_enabled {
+		initial_source_type = .Script
+		p.force_source_type = .Script
 	}
 
 	// `--preserve-parens`: thread to the parser so parse_primary_expr can
