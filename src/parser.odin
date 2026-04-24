@@ -6742,6 +6742,136 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 	return nil, false
 }
 
+// ECMA-262 §15.3.1 (and §15.9.1 for AsyncArrow):
+//   "It is a Syntax Error if ArrowParameters Contains YieldExpression is
+//   true."
+//   "It is a Syntax Error if CoverCallExpressionAndAsyncArrowHead Contains
+//   AwaitExpression is true."
+//
+// `Contains` is a compile-time predicate that descends through expressions
+// but stops at every function-like / class-like boundary — FunctionBody,
+// ConciseBody, AsyncConciseBody, GeneratorBody, ClassTail, etc. — because
+// a nested function / class introduces its own Yield / Await scope.
+//
+// The cover `(...)` is parsed in the outer context (which may be a
+// generator or async function where `yield` / `await` are legal as
+// expressions), so we only know the enclosing form is actually an arrow
+// after the `=>` is seen. This walker runs at that commit point and
+// reports retroactively. At most one error of each kind is emitted per
+// arrow so diagnostics stay focused even when a pattern has many
+// offending defaults.
+scan_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression) {
+	if expr == nil { return }
+	saw_yield := false
+	saw_await := false
+	arrow_cover_walk_expr(expr, &saw_yield, &saw_await)
+	if saw_yield {
+		report_error(p, "Yield expression is not allowed in arrow function parameters")
+	}
+	if saw_await {
+		report_error(p, "Await expression is not allowed in arrow function parameters")
+	}
+}
+
+arrow_cover_walk_expr :: proc(expr: ^Expression, saw_yield, saw_await: ^bool) {
+	if expr == nil { return }
+	if saw_yield^ && saw_await^ { return } // both already found
+	switch e in expr^ {
+	// Leaves — cannot contain yield / await.
+	case ^NullLiteral, ^BooleanLiteral, ^NumericLiteral, ^StringLiteral,
+	     ^BigIntLiteral, ^RegExpLiteral, ^Identifier, ^PrivateIdentifier,
+	     ^ThisExpression, ^Super, ^MetaProperty, ^JSXText,
+	     ^JSXEmptyExpression:
+		return
+
+	// Scope boundaries — `Contains` stops here per spec.
+	case ^FunctionExpression, ^ArrowFunctionExpression, ^ClassExpression:
+		return
+
+	// The two target productions.
+	case ^YieldExpression:
+		saw_yield^ = true
+		if arg, ok := e.argument.(^Expression); ok {
+			arrow_cover_walk_expr(arg, saw_yield, saw_await)
+		}
+	case ^AwaitExpression:
+		saw_await^ = true
+		arrow_cover_walk_expr(e.argument, saw_yield, saw_await)
+
+	// Compound expressions — recurse into every expression child.
+	case ^TemplateLiteral:
+		for sub in e.expressions { arrow_cover_walk_expr(sub, saw_yield, saw_await) }
+	case ^TaggedTemplateExpression:
+		arrow_cover_walk_expr(e.tag, saw_yield, saw_await)
+		arrow_cover_walk_expr(e.quasi, saw_yield, saw_await)
+	case ^ArrayExpression:
+		for maybe_elem in e.elements {
+			if elem, ok := maybe_elem.(^Expression); ok {
+				arrow_cover_walk_expr(elem, saw_yield, saw_await)
+			}
+		}
+	case ^ObjectExpression:
+		for prop in e.properties {
+			arrow_cover_walk_expr(prop.key, saw_yield, saw_await)
+			arrow_cover_walk_expr(prop.value, saw_yield, saw_await)
+		}
+	case ^MemberExpression:
+		arrow_cover_walk_expr(e.object, saw_yield, saw_await)
+		if e.computed {
+			arrow_cover_walk_expr(e.property, saw_yield, saw_await)
+		}
+	case ^CallExpression:
+		arrow_cover_walk_expr(e.callee, saw_yield, saw_await)
+		for arg in e.arguments { arrow_cover_walk_expr(arg, saw_yield, saw_await) }
+	case ^NewExpression:
+		arrow_cover_walk_expr(e.callee, saw_yield, saw_await)
+		for arg in e.arguments { arrow_cover_walk_expr(arg, saw_yield, saw_await) }
+	case ^ConditionalExpression:
+		arrow_cover_walk_expr(e.test, saw_yield, saw_await)
+		arrow_cover_walk_expr(e.consequent, saw_yield, saw_await)
+		arrow_cover_walk_expr(e.alternate, saw_yield, saw_await)
+	case ^UpdateExpression:
+		arrow_cover_walk_expr(e.argument, saw_yield, saw_await)
+	case ^UnaryExpression:
+		arrow_cover_walk_expr(e.argument, saw_yield, saw_await)
+	case ^BinaryExpression:
+		arrow_cover_walk_expr(e.left, saw_yield, saw_await)
+		arrow_cover_walk_expr(e.right, saw_yield, saw_await)
+	case ^LogicalExpression:
+		arrow_cover_walk_expr(e.left, saw_yield, saw_await)
+		arrow_cover_walk_expr(e.right, saw_yield, saw_await)
+	case ^AssignmentExpression:
+		arrow_cover_walk_expr(e.left, saw_yield, saw_await)
+		arrow_cover_walk_expr(e.right, saw_yield, saw_await)
+	case ^SequenceExpression:
+		for sub in e.expressions { arrow_cover_walk_expr(sub, saw_yield, saw_await) }
+	case ^SpreadElement:
+		arrow_cover_walk_expr(e.argument, saw_yield, saw_await)
+	case ^ChainExpression:
+		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
+	case ^ImportExpression:
+		arrow_cover_walk_expr(e.source, saw_yield, saw_await)
+	case ^ParenthesizedExpression:
+		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
+
+	// TS type-carrying expressions — the expression subtree is still live.
+	case ^TSAsExpression:
+		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
+	case ^TSSatisfiesExpression:
+		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
+	case ^TSNonNullExpression:
+		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
+	case ^TSTypeAssertion:
+		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
+
+	// JSX cannot syntactically appear inside arrow params (params open with
+	// `(`, not `<Tag>`), but handle defensively — JSX bodies don't participate
+	// in the Yield / Await contains predicate.
+	case ^JSXElement, ^JSXFragment, ^JSXExpressionContainer, ^JSXSpreadChild:
+		return
+	}
+}
+
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
 	start: Loc
 	if left != nil {
@@ -6776,6 +6906,14 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// left should be parameters (identifier or parenthesized expression)
 	// nil left means empty params: () => ...
 	eat(p) // consume =>
+
+	// §15.3.1 Contains check. Runs on the raw cover-expression before it
+	// is lowered to Pattern nodes, so the walker sees any YieldExpression
+	// / AwaitExpression that the outer scope allowed (e.g. inside a
+	// generator / async body) and retroactively rejects it.
+	if left != nil {
+		scan_arrow_cover_for_yield_await(p, left)
+	}
 
 	// Set async context for body parsing
 	prev_async := p.in_async
