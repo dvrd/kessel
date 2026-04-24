@@ -1,8 +1,8 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-24 — Session 7 in-flight (post-handoff sweep).
-**Status headline:** 144/144 spec-fixtures; 100/100 fuzz-diff; 0 divergences vs OXC on 12 real files; **102/102 negative-gate rejections across 41 static-error classes (ratchet engaged)**; **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; 20/20 recovery; 467/467 invariants; 57/57 node-type coverage; 11/11 regression.
-**Repo state:** `main` at `e736088` (latest Session-7 commit), ~20 850 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-24 — Session 8 in-flight.
+**Status headline:** 144/144 spec-fixtures; 100/100 fuzz-diff; 0 divergences vs OXC on 12 real files; **117/117 negative-gate rejections across 48 static-error classes (ratchet engaged)**; **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; 20/20 recovery; 467/467 invariants; 57/57 node-type coverage; 11/11 regression.
+**Repo state:** `main` at `a9f9ab0` (latest Session-8 commit), ~21 100 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -37,7 +37,7 @@ is fine.
 
 | Suite | Command | Result | Notes |
 |---|---|---|---|
-| Unit | `task test:unit` | **272 / 374** (100% pass rate) | 102 skipped = negative-gate-owned early-error fixtures. Zero failures. |
+| Unit | `task test:unit` | **272 / 387** (100% pass rate) | 117 skipped = negative-gate-owned early-error fixtures. Zero failures. |
 | Regression | `task test:regression` | **11 / 11** ✅ | Structural diff vs OXC for session-fixed bugs. |
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures across the full real-world corpus. |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture. |
@@ -52,8 +52,8 @@ is fine.
 | Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not parser bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
 | Recovery | `task test:recovery` | **20 / 20** ✅ | All anchors survive; spans stay sane. |
-| **Negative gate** | `task test:negative` | **102 / 102 rejected** ✅ (ratchet engaged) | **41 static-error classes** enforced across `tests/fixtures/negative/` + `tests/fixtures/early_errors/`: 9 from Session 5 (`43c57dc`) + 20 from Session 6 + 12 from Session 7 (`b151f44`, `05782a8`, `a1cd67e`, `b0101bf`, `b394ba0`, `e736088`). Baseline is 100% “rejected” so the verifier auto-strictifies: any new fixture the parser accepts fails the default gate. See ERR-5 below for the full catalog. |
-| Negative gate (strict) | `task test:negative:strict` | **102 / 102 rejected** ✅ | Zero-tolerance variant, no baseline. Run before a release. |
+| **Negative gate** | `task test:negative` | **117 / 117 rejected** ✅ (ratchet engaged) | **48 static-error classes** enforced across `tests/fixtures/negative/` + `tests/fixtures/early_errors/`: 9 from Session 5 (`43c57dc`) + 20 from Session 6 + 12 from Session 7 + 7 from Session 8 (`bea6c76`, `0fb23c1`, `ad31919`, `681fcc2`, `0ce291e`, `a9f9ab0`). Baseline is 100% “rejected” so the verifier auto-strictifies: any new fixture the parser accepts fails the default gate. See ERR-5 below for the full catalog. |
+| Negative gate (strict) | `task test:negative:strict` | **117 / 117 rejected** ✅ | Zero-tolerance variant, no baseline. Run before a release. |
 | Bench regression | `task test:bench:regression` | Not run | Use before release. |
 
 ### Performance (Apple M-series, `-o:speed -no-bounds-check`)
@@ -308,11 +308,11 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 
 ### Error Handling (2 / 5)
 - [x] **ERR-1:** `--errors=oxc` for OXC TS-ESTree shape (Phase 3, `75fb36b`).
-- [x] **ERR-5:** Static-error coverage. Negative gate at **102/102
-      rejected** (Session 7, commit `e736088`) across 102 fixtures.
-      **41 static-error classes** enforced at the parser layer: 9
+- [x] **ERR-5:** Static-error coverage. Negative gate at **117/117
+      rejected** (Session 8, commit `a9f9ab0`) across 117 fixtures.
+      **48 static-error classes** enforced at the parser layer: 9
       from Session 5 (`43c57dc`) + 20 from Session 6 + 12 from
-      Session 7.
+      Session 7 + 7 from Session 8.
 
       *Session 5 additions (9 classes, `43c57dc`):* top-level `return`
       outside function; unlabelled `break` / `continue` outside
@@ -424,6 +424,75 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
       params go through CoverCallExpression + trial-parse; needs a
       secondary hook).
 
+      *Session 8 additions (7 classes, `bea6c76`..`a9f9ab0`):*
+
+      *Contextual yield / await:* YieldExpression outside a
+      GeneratorBody (§15.5) — `yield 1;` at script / non-generator
+      function level. Outside a generator, `yield` is parsed as
+      IdentifierReference whenever the lookahead is a continuation
+      (binary / logical / assignment / postfix / member / call /
+      tagged-template / terminator) or has a line terminator, and
+      as YieldExpression with "'yield' expression is only allowed
+      in a generator body" when the next token cleanly starts an
+      AssignmentExpression. Matches Acorn / OXC / V8 on the clear
+      cases.
+
+      *Async parameter defaults:* AwaitExpression in the
+      FormalParameters of an AsyncFunctionDeclaration /
+      AsyncFunctionExpression (§15.8.1), AsyncGenerator* (§15.6.1),
+      async method shorthand (class + object literal), and
+      AsyncArrowFunction paren-head (§15.9.1). The stub
+      `in_async_arrow_params` flag was renamed to `in_async_params`
+      and wired at every async function-like param entry point
+      (parse_function_declaration, parse_class_element method,
+      parse_object_literal accessor + method, parse_async_arrow_
+      with_parens). Checked at parse_unary_expr .Await on entry so
+      errors fire before the parse tree is built.
+
+      *Arrow cover Contains check:* YieldExpression /
+      AwaitExpression in the ArrowParameters cover of a non-async
+      arrow (§15.3.1). The cover parses legally inside an outer
+      generator / async body; the walker runs at parse_arrow_
+      function's `=>` commit and retroactively rejects. Stops at
+      every function-like / class boundary per spec Contains
+      semantics (FunctionExpression / ArrowFunctionExpression /
+      ClassExpression). At most one error of each kind per arrow.
+
+      *Async arrow params cross-ref:* §15.9.1 final clause folds in
+      the §15.3.1 yield ban for async arrow params. The async-arrow
+      path builds params directly via parse_function_params (no
+      cover trial parse), so a parallel walker
+      `scan_arrow_params_for_yield_only` descends the lowered
+      Pattern tree (AssignmentPattern / ObjectPattern / ArrayPattern
+      / RestElement) to find yield in default-init positions. Await
+      is already caught by the in_async_params fast-path to avoid
+      double-reporting.
+
+      *For-in/of initializer + Annex B.3.5:* Core grammar
+      (§14.7.5.1) forbids initializers on ForDeclaration. Only the
+      sloppy-mode `for (var BindingIdentifier = init in Expr)`
+      carve-out (Annex B.3.5) survives — not destructuring, not
+      `let`/`const`/`using`, not for-of, not multiple declarators.
+      Also rejects the parallel "multiple declarators in for-in/of
+      head" case (`for (var x, y in z)`). To make the carve-out
+      reachable, `parse_for_statement` now sets `p.no_in` around
+      the var-init declarator parse; `parse_function_body` saves
+      and resets no_in so a nested function inside the for-init
+      declarator keeps `in` as a binary operator.
+
+      *Export-local resolution:* `export { foo };` (no `from`)
+      requires `foo` to be declared in the module (§16.2.2 —
+      ExportedBindings ⊆ VarDeclaredNames ∪ LexicallyDeclaredNames).
+      String-literal `export { "foo" };` without a `from` clause
+      is also rejected (local must be a BindingIdentifier).
+      Implemented as a post-parse pass in parse_program that
+      collects the module's top-level binding set
+      (VariableDeclaration + FunctionDeclaration + ClassDeclaration
+      + ImportDeclaration specifiers + TS type-level declarations
+      + inner declarations of `export var/function/class`) and
+      then verifies every ExportNamedDeclaration without a `from`
+      clause.
+
       Baseline ratchet: once 100% rejected, any new fixture the
       parser accepts fails the default gate automatically.
       `task test:negative:strict` runs the same set without a
@@ -517,6 +586,24 @@ Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 65
 | `880e822` | NAPI/Visitor MVP | `npm/kessel-parser/`: `parseSync()` oxc-parser shim + `walk()`/`findAll()` visitor. |
 | `17cdc45` | Fuzz baseline | 9 prior span-start failures now pass (pending_paren_start fix); promoted to pass. |
 | `43c57dc` | Static-errors sweep 1 | Parse-time rejection for top-level `return`, stray `else`/`}`/`catch`/`finally`, unlabelled `break`/`continue` out of context, invalid LHS of `=`. Lexer diagnostics channel for numeric separators, BigInt invariants, bad binary/octal, unterminated string/regex, bad escapes, BOM+hashbang. Negative gate 20/32 → 42/63. |
+
+### Phase 8 — contextual yield/await + for-in carve-out + export resolution, 6 commits (2026-04-24)
+
+Session 8 extended the ratchet from 102/102 (41 classes) to **117/117
+(48 classes)**. Seven new static-error classes landed, all of which
+required deeper parser plumbing than the drop-in checks of Session 7.
+All other suites stayed green (272/272 unit · 467/467 real · 144/144
+spec-fixtures · 66/66 test262 · 100/100 fuzz · 20/20 recovery · 0
+spec-compliance divergences · test:estree:strict zero-tolerance clean).
+
+| Commit | Item | Notes |
+|--------|------|-------|
+| `bea6c76` | YieldExpression outside generator | §15.5. `parse_unary_expr` .Yield now makes a contextual choice in non-generator scope: lookahead drives "yield as IdentifierReference" (terminator / binary / postfix / call / member / tagged-template continuation) vs "yield-expression form — error" (literal / identifier-starter / unary keyword / `!` / `~`). New helper `yield_next_is_expression_argument(p)`. Fixtures 042, 043. |
+| `0fb23c1` | Await in async-function / method / arrow params | §15.8.1 / §15.9.1 / §15.6.1. Session 7's stub `in_async_arrow_params` flag renamed to `in_async_params` and wired at every async function-like param entry point (parse_function_declaration, parse_class_element method, parse_object_literal accessor + method, parse_async_arrow_with_parens). The existing parse_unary_expr .Await check fires on entry. Fixtures 044, 045, 046. |
+| `ad31919` | Yield / await in arrow params (§15.3.1) | The cover `(x = await 1)` parses legally inside an outer generator / async body; detection has to happen at the `=>` commit. New `scan_arrow_cover_for_yield_await` walks the raw cover Expression in `parse_arrow_function`. Stops at every FunctionExpression / ArrowFunctionExpression / ClassExpression boundary per spec Contains semantics. At most one error of each kind per arrow. Fixtures 047, 048. |
+| `681fcc2` | Yield in async arrow params (§15.9.1 cross-ref) | The async-arrow path builds params directly via parse_function_params (no cover trial-parse), so the cover walker from `ad31919` doesn't see them. Adds a parallel `scan_arrow_params_for_yield_only` + `arrow_cover_walk_pattern` that descends AssignmentPattern / ObjectPattern / ArrayPattern / RestElement. Await already covered by in_async_params; yield-only to avoid double-reporting. Fixture 049. |
+| `0ce291e` | For-in/of initializer + Annex B.3.5 | Sets `p.no_in` around the for-init VariableDeclaration parse so `for (var x = 1 in y)` routes through the for-in arm instead of the misleading "Expected ;" from the regular-for path. Post-branch gate enforces core §14.7.5.1 "no initializer on ForDeclaration" with the sloppy-mode `for (var BindingIdentifier = init in Expr)` Annex B.3.5 carve-out. Also rejects multiple declarators in a for-in/of head (comma-list). `parse_function_body` saves / resets no_in so a nested `function() { if (a && "x" in y) {}}` inside the for-init keeps `in` as a binary operator — restored mathjs.js / deckgl.js which regressed on the initial change. Fixtures 050–053 + strict_mode/019. |
+| `a9f9ab0` | Export-local binding resolution (§16.2.2) | `export { foo };` (no `from`) requires `foo` to be declared in the module. String-literal `export { "foo" };` without `from` also rejected. Post-parse pass in `parse_program` collects the module's top-level binding set (VariableDeclaration + FunctionDeclaration + ClassDeclaration + ImportDeclaration specifiers + TS type-level decls + inner decls of `export var/function/class`) and verifies every ExportNamedDeclaration without a `from` clause. Skipped for Script source-type (already diagnosed). Helpers: `collect_pattern_bound_names`, `collect_module_top_level_names`, `verify_export_locals`. Fixtures 054, 055. |
 
 ### Phase 7 — early-errors continuation + K14 close, 6 commits (2026-04-24)
 
@@ -627,10 +714,58 @@ caught by the fixture `function f(a,b,a,b) { 'use strict'; }`.
 
 ## 9. What to work on next
 
-Session 7 (in-flight) pushed the ratchet from 90/90 to **102/102**
-(29 → 41 static-error classes), closed K14, and expanded
-`--preserve-parens` correctness. All other suites stayed green.
-What remains is mostly corpus-expansion or multi-week infrastructure.
+Session 8 (in-flight) pushed the ratchet from 102/102 to **117/117**
+(41 → 48 static-error classes). Seven new contextual / cross-scope
+error classes: yield-outside-generator, await-in-async-params
+(all variants), yield/await-in-arrow-params (cover + lowered-pattern),
+for-in/of initializer with Annex B.3.5 carve-out, export-local
+binding resolution. All other suites stayed green. What remains is
+mostly corpus-expansion or multi-week infrastructure.
+
+### Session 8 accomplishments (2026-04-24)
+
+- **Negative gate 102/102 → 117/117 rejected.** **7 new static-error
+  classes** over 6 parser commits. See ERR-5 in §6 for the full
+  catalog and §7 “Phase 8” for the per-commit breakdown.
+- **YieldExpression outside generator (§15.5).** Contextual
+  lookahead in parse_unary_expr .Yield: yield is an identifier when
+  the next token continues as a binary / postfix / call / member /
+  terminator, and yield-expression-with-error when the next token
+  cleanly starts an expression argument. Matches Acorn / OXC / V8
+  on the clear cases.
+- **Await in async function/method/arrow params (§15.8.1, §15.9.1,
+  §15.6.1).** Renamed `in_async_arrow_params` → `in_async_params`
+  and wired all five entry points. parse_unary_expr .Await reports
+  on entry.
+- **Yield / await in arrow params (§15.3.1).** New
+  scan_arrow_cover_for_yield_await walker runs at parse_arrow_
+  function's `=>` commit, traversing the raw cover Expression. Stops
+  at FunctionExpression / ArrowFunctionExpression / ClassExpression
+  scope boundaries per spec Contains semantics.
+- **Yield in async arrow params (§15.9.1 cross-ref).** Parallel
+  `scan_arrow_params_for_yield_only` for the async-arrow path which
+  builds params directly via parse_function_params.
+- **For-in/of initializer + Annex B.3.5 carve-out.** `parse_for_
+  statement` sets `p.no_in` around the var-init declarator so
+  `for (var x = 1 in y)` reaches the for-in arm. Post-branch gate
+  enforces core §14.7.5.1 initializer ban with the sloppy-mode
+  `for (var BindingIdentifier = init in Expr)` carve-out.
+  `parse_function_body` saves/restores no_in so nested function
+  bodies keep `in` as a binary operator.
+- **Export-local resolution (§16.2.2).** New post-parse pass in
+  parse_program collects the module's top-level binding set and
+  verifies every ExportNamedDeclaration without a `from` clause.
+  Also rejects `export { "foo" };` (string-literal local without
+  `from`).
+- **New helpers:** `yield_next_is_expression_argument`,
+  `scan_arrow_cover_for_yield_await`, `arrow_cover_walk_expr`,
+  `scan_arrow_params_for_yield_only`, `arrow_cover_walk_pattern`,
+  `collect_pattern_bound_names`, `collect_module_top_level_names`,
+  `verify_export_locals`.
+- **All other suites stayed green**: 144/144 spec-fixtures, 100/100
+  fuzz-diff, 0 spec-compliance divergences, 467/467 real-world,
+  66/66 test262, 20/20 recovery, 57/57 nodes, 11/11 regression,
+  `test:estree:strict` zero-tolerance clean.
 
 ### Session 7 accomplishments (2026-04-24)
 
@@ -727,40 +862,39 @@ What remains is mostly corpus-expansion or multi-week infrastructure.
 ### Known spec gaps I spotted but didn't add fixtures for
 
 Preserving these so the next session can pick them up. Session 7
-already closed: escaped-keyword as keyword, `super()` in non-derived
+closed: escaped-keyword as keyword, `super()` in non-derived
 constructor, `delete CoverParenthesizedExpression` (identifier
 subcase), and the restricted-production gap for async/arrow LT.
+Session 8 closed: yield-expression outside generator,
+await/yield-in-async-arrow-params (§15.9.1), await-in-async-
+function/method-params (§15.8.1 / §15.6.1), yield/await-in-arrow-
+params (§15.3.1), for-in/of initializer + Annex B.3.5 carve-out,
+export-local binding resolution (§16.2.2).
+
 Remaining:
 
-- **AwaitExpression in AsyncArrowFunction FormalParameters**
-  (§15.9.1) — flag `in_async_arrow_params` scaffolded in `e736088`
-  but not wired. The arrow params go through CoverCallExpression +
-  trial-parse so the await-in-default case is parsed before we know
-  we're an async arrow. Needs a secondary hook at arrow-commit time
-  to walk the params for AwaitExpression and emit retroactively.
-- **AwaitExpression in AsyncFunction/AsyncMethod FormalParameters**
-  — spec ambiguity: some sources say §15.8.1 forbids it, others
-  limit it to AsyncArrow. Verify against OXC + V8 behaviour before
-  implementing.
 - **Regex pattern-body validation** — we validate flags (duplicates,
   invalid) and basic structural escapes, but not the full
   AtomEscape / CharacterEscape / CharacterClassEscape / GroupName
   surface of RegExp/v flag grammar. OXC defers most of this to a
   separate regex parser.
-- **`yield expr` outside generator (non-strict).** Currently parsed
-  as YieldExpression unconditionally; spec says outside a generator
-  `yield` is just an identifier, so `var a = yield 1;` should fail
-  (identifier followed by number without operator). Needs a gate in
-  parse_yield_expr against `p.in_generator` / `p.strict_mode`.
-- **ExportNamedDeclaration local must exist.** `export { foo };`
-  where `foo` isn't declared in the module — spec says it's a
-  SyntaxError. Requires a post-parse resolution pass (OPT-6
-  semantic-analysis adjacent, but more local).
-- **`var` in `for (var X = init in Expr)` Annex B.3.5 support.**
-  Currently rejected with an unrelated error (“Expected ; got )”)
-  because parse_variable_declaration's `no_in` propagation into the
-  declarator init is off. Low-priority — few real-world files use
-  the Annex B shape, but OXC accepts it in sloppy mode.
+- **Duplicate LexicallyDeclaredNames across top-level Module.** The
+  Session-6 duplicate-lexical-binding check fires inside Block /
+  FunctionBody / SwitchCase scopes but doesn't look across top-level
+  `let/const` at Program scope. Mostly a scope-pass concern.
+- **`let { a, b }` shorthand-property edge cases.** Needs review
+  against Test262 when we wire up the full suite.
+- **ImportBindingName / ExportBindingName kind cross-check.** When
+  an imported name is used as a re-export source (`import type`
+  vs value), some tools flag type-only-in-value-position mismatches.
+  Low priority; requires scope tracking.
+- **Default export redeclaration.** `export default class X {} export
+  { X };` — X is the class name and the default export name. Edge
+  case in export-local resolution; kessel currently accepts.
+- **Labeled FunctionDeclaration in strict (Session 6 closure).**
+  Verify the Session-6 check still fires through the new `no_in`
+  save/restore interactions — sanity check only, no action needed
+  unless a regression surfaces.
 
 ### Session 5 (2026-04-23) — archived
 
@@ -802,7 +936,7 @@ bin/kessel parse <file.js> --module-record              # + "module": {…} reco
 ### Tests
 ```bash
 task test                      # all suites (chain, baseline-gated)
-task test:unit                 # 362 fixtures, 272 passing + 90 negative-skipped
+task test:unit                 # 389 fixtures, 272 passing + 117 negative-skipped
 task test:regression           # 11 structural checks vs OXC
 task test:real                 # 467 real-world JS files (zero failures)
 task test:nodes                # 57 ESTree node-type coverage
@@ -817,7 +951,7 @@ task test:fuzz                 # differential fuzz vs OXC (100 seeds, baselined)
 task test:fuzz:invalid         # mutation fuzzer (parser-must-not-crash contract)
 task test:crashes-known        # pinned SIGTRAPs must keep crashing
 task test:recovery             # 20 anchor-survival scenarios
-task test:negative             # 90 negative fixtures, ratcheted (auto-strict once clean)
+task test:negative             # 117 negative fixtures, ratcheted (auto-strict once clean)
 task test:negative:strict      # zero-tolerance variant, no baseline
 task test:bench:regression     # perf regression gate (before release)
 ```
