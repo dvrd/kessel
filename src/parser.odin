@@ -3949,7 +3949,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	//     sourceType=module (future work).
 	// Both tokens already have dedicated TokenTypes in Kessel's lexer,
 	// so the check is a simple kind comparison.
-	if p.in_generator && p.cur_type == .Yield {
+	if (p.in_generator || p.in_generator_params) && p.cur_type == .Yield {
 		report_error(p, "'yield' is reserved as a binding name inside a generator")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
@@ -3959,7 +3959,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		ident.name = id_name
 		return ident
 	}
-	if p.in_async && p.cur_type == .Await {
+	if (p.in_async || p.in_async_params) && p.cur_type == .Await {
 		report_error(p, "'await' is reserved as a binding name inside an async function")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
