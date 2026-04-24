@@ -1,4 +1,7 @@
 {
+  "tests/fixtures/negative/026_class_named_strict_reserved.js": "rejected",
+  "tests/fixtures/negative/025_legacy_octal_bigint.js": "rejected",
+  "tests/fixtures/negative/024_new_target_outside_function.js": "rejected",
   "tests/fixtures/negative/023_await_as_binding_in_async.js": "rejected",
   "tests/fixtures/negative/022_yield_as_binding_in_generator.js": "rejected",
   "tests/fixtures/negative/021_arrow_duplicate_params.js": "rejected",
@@ -65,6 +68,7 @@
   "tests/fixtures/early_errors/module_context/003_top_level_await_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/002_import_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/001_export_in_script.js": "rejected",
+  "tests/fixtures/early_errors/strict_mode/016_function_name_eval.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/015_delete_identifier.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/014_update_eval_arguments.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/013_octal_escape_template.js": "rejected",

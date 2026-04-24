@@ -1976,6 +1976,17 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// UniqueFormalParameters rule even in sloppy mode (§15.1.2).
 	if p.strict_mode || body_strict {
 		report_duplicate_param_names(p, params[:])
+		// ECMA-262 §15.1.1 — in strict mode, `function eval() {}` /
+		// `function arguments() {}` is a SyntaxError. `let`/`static`/
+		// etc. as the function name were already rejected at binding
+		// time via is_strict_reserved_word; `eval` / `arguments` lex as
+		// plain identifiers so the check has to run on the saved name.
+		if fn_id, have := id.(BindingIdentifier); have {
+			if is_eval_or_arguments(fn_id.name) {
+				msg := fmt.tprintf("Function name '%s' is not allowed in strict mode", fn_id.name)
+				report_error(p, msg)
+			}
+		}
 	} else {
 		report_duplicate_param_names(p, params[:], true)
 	}
@@ -2254,11 +2265,26 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	eat(p) // consume class
 
 	id: Maybe(BindingIdentifier)
+	name_tok_type := p.cur_type
 	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 		current := get_current(p)
 		id = BindingIdentifier{
 			loc  = loc_from_token(current),
 			name = current.value,
+		}
+		// ECMA-262 §15.7.1 — the ClassDeclaration / ClassExpression
+		// BindingIdentifier is always parsed in strict mode (class
+		// bodies are implicitly strict, and the name is in the
+		// enclosing TDZ with strict-reservation rules applied). So
+		// `class let`, `class implements`, `class yield`, `class eval`
+		// etc. are always SyntaxErrors, regardless of enclosing strict
+		// / sloppy setting.
+		if is_strict_reserved_word(name_tok_type) || is_strict_reserved_name(current.value) {
+			msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value)
+			report_error(p, msg)
+		} else if is_eval_or_arguments(current.value) {
+			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
+			report_error(p, msg)
 		}
 		eat(p)
 	}
@@ -5100,6 +5126,14 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		big.loc = loc_from_token(current)
 		big.raw = current.value
 		big.value = current.value  // Store as string
+		// ECMA-262 §12.9.3 — a LegacyOctalIntegerLiteral cannot form a
+		// BigInt. `0123n` is a SyntaxError (`0o123n` is the modern way).
+		// Always enforced, not strict-gated. Uses the same `0<digit>+`
+		// shape detector as numeric-literal strict-mode handling; the
+		// raw text still carries the trailing `n`, so we strip it first.
+		if is_legacy_zero_prefixed_integer(current.value) {
+			report_error(p, "Legacy octal literals cannot be BigInt")
+		}
 		big.loc.span.end = prev_end_offset(p)
 		return expression_from(p, big)
 
@@ -5800,6 +5834,12 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			eat(p) // consume .
 			target_tok := get_current(p)
 			eat(p) // consume target
+			// ECMA-262 §13.3.12 / §15.2 — `new.target` is only valid inside
+			// a function / method / constructor body. At script / module
+			// top-level (outside any enclosing function) it's a SyntaxError.
+			if !p.in_function {
+				report_error(p, "'new.target' is only allowed inside functions")
+			}
 			meta := new_node(p, MetaProperty)
 			meta.loc = start
 			meta.meta = Identifier{loc = start, name = "new"}
