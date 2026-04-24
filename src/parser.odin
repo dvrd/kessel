@@ -235,7 +235,13 @@ Parser :: struct {
 	//   * §14.13.1 — duplicate-label rejection
 	//   * §14.14.1 / §14.14.2 — `break label` / `continue label` must
 	//     target a LabelledStatement that IS in scope.
+	//   * §14.8.1 — `continue label` additionally requires the target
+	//     label to name an IterationStatement (directly or via a chain of
+	//     LabelledStatements). `label_is_iteration` is a parallel stack
+	//     recording exactly that per-label bit; computed eagerly at push
+	//     time via a lexer-snapshot scan over `Identifier :` chains.
 	label_stack: [dynamic]string,
+	label_is_iteration: [dynamic]bool,
 	label_floor: int,
 
 	// Inside a [[HomeObject]]-bearing context — class method (instance,
@@ -454,6 +460,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.in_derived_constructor = false
 	p.class_has_extends = false
 	p.label_stack = make([dynamic]string, 0, 4, alloc)
+	p.label_is_iteration = make([dynamic]bool, 0, 4, alloc)
 	p.label_floor = 0
 	p.lang = lang
 	p.has_module_syntax = false
@@ -1194,8 +1201,16 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				report_error(p, msg)
 			}
 			append(&p.label_stack, e.name)
+			// ECMA-262 §14.8.1 — `continue label` requires the target label
+			// to name an IterationStatement (directly or via a chain of
+			// LabelledStatements). Decide it eagerly here with a 1-pass
+			// lexer-snapshot scan over `Identifier :` chains; nested
+			// `continue foo;` inside the body can then check the flag
+			// without any retroactive fix-up.
+			append(&p.label_is_iteration, label_chain_leads_to_iteration(p))
 			labeled.body = parse_statement_or_declaration(p)
 			pop(&p.label_stack)
+			pop(&p.label_is_iteration)
 			labeled.loc.span.end = prev_end_offset(p)
 			// ECMA-262 §14.13.1 — the LabelledItem of a LabelledStatement
 			// cannot be a FunctionDeclaration in strict mode. Annex B.3.2
@@ -1549,6 +1564,51 @@ label_in_scope :: proc(p: ^Parser, name: string) -> bool {
 	return false
 }
 
+// `continue label` (ECMA-262 §14.8.1) requires `label` to name an
+// IterationStatement that is ContainedIn the enclosing function. We track
+// that per-label via `label_is_iteration`, parallel to `label_stack`, so
+// this helper is just `label_in_scope` gated on the iteration bit.
+label_iter_in_scope :: proc(p: ^Parser, name: string) -> bool {
+	for i := p.label_floor; i < len(p.label_stack); i += 1 {
+		if p.label_stack[i] == name { return p.label_is_iteration[i] }
+	}
+	return false
+}
+
+// Peek at the current (post-colon) token position to determine whether a
+// LabelledStatement's label will ultimately precede an IterationStatement.
+// Chases through any chain of `Identifier :` labels. Uses a lexer snapshot
+// so the caller's parse state is unchanged. Covers:
+//   `foo: for (...)`                 → true
+//   `foo: while (...)` / `foo: do`   → true
+//   `foo: bar: for (...)`            → true (outer + inner both)
+//   `foo: { ... }`                   → false
+//   `foo: if (x) ...`                → false
+//   `foo: function () {}`            → false
+label_chain_leads_to_iteration :: proc(p: ^Parser) -> bool {
+	snap := lexer_snapshot(p)
+	defer lexer_restore(p, snap)
+	for {
+		#partial switch p.cur_type {
+		case .For, .While, .Do:
+			return true
+		case .Identifier, .Get, .Set, .From, .Of, .As, .Let, .Static,
+		     .Assert, .Asserts, .Abstract, .Declare, .Readonly, .Override,
+		     .Keyof, .Infer, .Is, .Satisfies, .Never, .Unique, .Namespace,
+		     .Module, .Implements, .Require, .Package, .Private, .Protected,
+		     .Public, .Accessor, .Target, .Await, .Yield, .Async, .Type:
+			// A potential chained label: only treat as such when the very
+			// next token is `:`. Otherwise we've reached an ordinary
+			// expression / identifier-statement body — not iteration.
+			if p.lexer == nil || p.lexer.nxt.kind != .Colon { return false }
+			eat(p) // consume identifier
+			eat(p) // consume colon
+		case:
+			return false
+		}
+	}
+}
+
 parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume break
@@ -1625,12 +1685,14 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	} else {
 		lbl := label.(LabelIdentifier)
 		// Per spec `continue label;` additionally requires the labelled
-		// statement to BE an IterationStatement; we don't yet track that.
-		// Until we do, accept any in-scope label so we don't fire on
-		// legitimate labelled-loop code. The stricter check belongs in a
-		// follow-up once LabelledStatement stores its target kind.
+		// statement to BE an IterationStatement (or to wrap one via a
+		// chain of LabelledStatements). `label_is_iteration` tracks that
+		// bit per-label.
 		if !label_in_scope(p, lbl.name) {
 			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
+			report_error(p, msg)
+		} else if !label_iter_in_scope(p, lbl.name) {
+			msg := fmt.tprintf("Label '%s' does not label an iteration statement", lbl.name)
 			report_error(p, msg)
 		}
 	}
@@ -4718,15 +4780,27 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		unary.argument = argument
 		unary.prefix = true
 		unary.loc.span.end = prev_end_offset(p)
-		// ECMA-262 §12.5.1.1 — in strict mode, `delete` of an unqualified
-		// IdentifierReference (bare `delete x`) is a SyntaxError. Member
-		// access (`delete x.y`), computed (`delete x[y]`), and arbitrary
-		// non-reference operands stay legal. The restriction only applies
-		// to the identifier shape.
+		// ECMA-262 §12.5.1.1 / §13.5.1 — in strict mode, `delete` of an
+		// IdentifierReference is a SyntaxError. This covers both the bare
+		// form `delete x` AND the parenthesised form `delete (x)` (spec:
+		// "CoverParenthesizedExpressionAndArrowParameterList whose contents
+		// are an IdentifierReference"). Member access (`delete x.y`),
+		// computed (`delete x[y]`), and arbitrary non-reference operands
+		// stay legal. Parens around a SequenceExpression (`delete (a, b)`)
+		// or around a non-identifier expression aren't caught either; the
+		// rule only fires when peeling parens leaves a lone Identifier.
 		if current.type == .Delete && p.strict_mode {
-			if ident, is_id := argument.(^Identifier); is_id && ident != nil {
-				msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
-				report_error(p, msg)
+			inner := argument
+			for inner != nil {
+				pe, is_paren := inner.(^ParenthesizedExpression)
+				if !is_paren || pe == nil { break }
+				inner = pe.expression
+			}
+			if inner != nil {
+				if ident, is_id := inner.(^Identifier); is_id && ident != nil {
+					msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
+					report_error(p, msg)
+				}
 			}
 		}
 
