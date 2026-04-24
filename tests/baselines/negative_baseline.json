@@ -1,4 +1,8 @@
 {
+  "tests/fixtures/negative/040_duplicate_import_binding.js": "rejected",
+  "tests/fixtures/negative/039_for_of_assignment_lhs.js": "rejected",
+  "tests/fixtures/negative/038_for_in_assignment_lhs.js": "rejected",
+  "tests/fixtures/negative/037_tagged_template_on_optional_chain.js": "rejected",
   "tests/fixtures/negative/036_continue_non_iteration_label.js": "rejected",
   "tests/fixtures/negative/035_arrow_line_terminator_before_arrow.js": "rejected",
   "tests/fixtures/negative/034_escaped_keyword_as_binding.js": "rejected",

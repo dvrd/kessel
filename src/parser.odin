@@ -1417,6 +1417,25 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		is_in := is_token(p, .In)
 		eat(p) // consume in/of
 
+		// ECMA-262 §14.7.5.1 — for-in/of LeftHandSideExpression must have a
+		// simple AssignmentTargetType. `a = 1` is an AssignmentExpression,
+		// not a LeftHandSideExpression, so `for (a = 1 in b)` and
+		// `for (a = 1 of b)` are both SyntaxErrors. The one historical
+		// exception is Annex B.3.5: `for (var X = init in Expr) ...` (sloppy
+		// mode, `var` only, `in` only — never `of`, never strict, never
+		// `let`/`const`). Declarations carry their initializer on
+		// VariableDeclarator.init, not as an AssignmentExpression wrapper,
+		// so the Annex B case naturally reaches this point via `left_decl`
+		// and bypasses the error.
+		if left_expr != nil {
+			if ae, is_ae := left_expr.(^AssignmentExpression); is_ae && ae != nil {
+				kind_name := "of"
+				if is_in { kind_name = "in" }
+				msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
+				report_error(p, msg)
+			}
+		}
+
 		right := parse_expression(p)
 		if right == nil {
 			return nil
@@ -3983,6 +4002,23 @@ convert_export_spec_name :: proc(name: ExportSpecifierName) -> ESMExportNameEntr
 	return ESMExportNameEntry{}
 }
 
+// Extract the local BindingIdentifier name from any ImportSpecifierSpec
+// variant. Used by the ECMA-262 §16.2.2 BoundNames-uniqueness check.
+// Returns "" when the specifier is malformed (so the duplicate scan
+// naturally skips it).
+import_spec_local_name :: proc(spec: ^ImportSpecifierSpec) -> string {
+	if spec == nil { return "" }
+	#partial switch s in spec {
+	case ImportSpecifier:
+		return s.local.name
+	case ImportDefaultSpecifier:
+		return s.local.name
+	case ImportNamespaceSpecifier:
+		return s.local.name
+	}
+	return ""
+}
+
 // Helper: Convert ImportSpecifierSpec to ESMNameEntry + ESMStaticImportEntry
 collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportEntry {
 	entry := ESMStaticImportEntry{}
@@ -4195,6 +4231,25 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	decl.attributes = parse_import_attributes(p)
 
 	match_semicolon_or_asi(p)
+
+	// ECMA-262 §16.2.2 — BoundNames of ImportClause must not contain any
+	// duplicate entries. All specifier kinds (ImportSpecifier,
+	// ImportDefaultSpecifier, ImportNamespaceSpecifier) contribute their
+	// *local* name (after `as`, for the default / namespace case it's
+	// just the bound identifier). Count is small in practice — the O(n²)
+	// scan is faster than setting up a map.
+	for i := 0; i < len(decl.specifiers); i += 1 {
+		li := import_spec_local_name(decl.specifiers[i])
+		if li == "" { continue }
+		for j := 0; j < i; j += 1 {
+			lj := import_spec_local_name(decl.specifiers[j])
+			if li == lj {
+				msg := fmt.tprintf("Duplicate import binding '%s'", li)
+				report_error(p, msg)
+				break
+			}
+		}
+	}
 
 	decl.loc.span.end = prev_end_offset(p)
 
@@ -5083,6 +5138,16 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			call.loc.span.end = prev_end_offset(p)
 			expr = call_e
 		case .TemplateHead, .Template:
+			// ECMA-262 §13.3.5 — `TaggedTemplateExpression` is a SyntaxError
+			// when the tag is an OptionalExpression: the grammar rule
+			// `MemberExpression : MemberExpression TemplateLiteral` (and the
+			// CallExpression form) cannot compose with optional chaining
+			// because the runtime would have to handle `undefined?.foo\`t\``
+			// which the spec explicitly forbids. Once we're inside an
+			// optional chain (`is_chain`), any template tail is an error.
+			if is_chain {
+				report_error(p, "Tagged template literals cannot appear in an optional chain")
+			}
 			tagged := new_node(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
