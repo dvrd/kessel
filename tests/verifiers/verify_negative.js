@@ -99,9 +99,16 @@ function listNegativeFixtures() {
 // Returning an extra-args array keeps this table-driven: if a future
 // fixture needs `--lang=ts` or `--source-type=module`, add another entry
 // here rather than sprinkling conditionals through the code.
+// Pattern: negative/06*_semantic_*.js fixtures exercise OPT-6 scope
+// verification, which is off by default. Flip it on for that slice so
+// the verifier sees the expected diagnostic.
 function extraArgsFor(rel) {
   if (rel.startsWith('tests/fixtures/early_errors/module_context/')) {
     return ['--source-type=script'];
+  }
+  const base = rel.split('/').pop();
+  if (/^\d+_semantic_/.test(base)) {
+    return ['--show-semantic-errors'];
   }
   return [];
 }

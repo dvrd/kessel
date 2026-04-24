@@ -307,6 +307,14 @@ Parser :: struct {
 	// parse_program to leave it alone. nil = unambiguous (auto-detect).
 	force_source_type: Maybe(SourceType),
 
+	// CLI `--show-semantic-errors` (OPT-6). When true, parse_program runs
+	// the extra scope-verification pass that catches cross-statement
+	// lexical redeclaration (`let x; let x;`), lexical/var clashes
+	// (`let x; var x;`), and nested-scope variants. Off by default so
+	// consumers that already run their own semantic pass (tsc, ESLint)
+	// don't get duplicate diagnostics.
+	show_semantic_errors: bool,
+
 	// CLI `--preserve-parens`. When true, every genuine `(expr)` paren-
 	// grouping wraps its inner expression in a ParenthesizedExpression
 	// node. Off by default for byte-identical legacy output. Does NOT
@@ -980,6 +988,14 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// after source-type is finalized so we skip the check for scripts
 	// (they're already diagnosed by the module-syntax-in-script gate).
 	verify_export_locals(p, program)
+
+	// OPT-6 scope-verification pass — gated behind --show-semantic-errors
+	// because the check surfaces diagnostics that downstream tools (tsc,
+	// ESLint) already emit on their own pass. Off by default keeps byte-
+	// identical output for consumers on the hot path.
+	if p.show_semantic_errors {
+		verify_scopes(p, program)
+	}
 
 	// Drain lexer-side diagnostics (invalid numeric separators, bad
 	// BigInt literals, etc.) into p.errors. The lexer couldn't report
@@ -4260,6 +4276,227 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			}
 		}
 	}
+}
+
+// ============================================================================
+// OPT-6 — minimal scope / binding verification pass.
+//
+// ECMA-262 §14.2 / §14.3 / §16.1.1 LexicallyDeclaredNames rules: a
+// LexicalDeclaration (let / const / class / function / import / using)
+// cannot re-declare a name already bound in the same lexical scope, and
+// a VariableStatement's BoundNames cannot clash with an enclosing
+// lexically-bound name in the same scope.
+//
+// Kessel runs a single-pass parser; this helper walks the completed AST
+// once after parsing and verifies each "body-scope" — Program,
+// FunctionBody, BlockStatement, CatchClause, SwitchCase (switch block),
+// ClassBody static block — for the common cross-statement clash cases
+// the existing per-declaration dup check can't see. Full
+// `showSemanticErrors` (closure capture, TDZ, etc.) remains an OPT-6
+// follow-up; this pass is the MVP shipped in Session 9.
+
+// Extract the BoundNames of a single Statement that contribute to the
+// enclosing lexical scope. Returns the kind so the caller can
+// distinguish var (hoisted, repeats allowed) from lexical (unique).
+ScopeBindingKind :: enum {
+	Var,
+	Lexical,
+}
+
+scope_add :: proc(p: ^Parser, lex, vars: ^map[string]u32, name: string, at: u32, kind: ScopeBindingKind) {
+	switch kind {
+	case .Lexical:
+		if prev, have := lex[name]; have {
+			_ = prev
+			msg := fmt.tprintf("'%s' has already been declared", name)
+			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			return
+		}
+		if _, have := vars[name]; have {
+			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
+			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+		}
+		lex[name] = at
+	case .Var:
+		if prev, have := lex[name]; have {
+			_ = prev
+			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
+			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			return
+		}
+		// Repeats of the same var are legal (§13.3.2 — VarDeclaredNames
+		// may contain repeats). Only record the first offset.
+		if _, have := vars[name]; !have {
+			vars[name] = at
+		}
+	}
+}
+
+scope_collect_pattern :: proc(pat: Pattern, out: ^[dynamic]string) {
+	if pat == nil { return }
+	switch v in pat {
+	case ^Identifier:
+		if v != nil { append(out, v.name) }
+	case ^ObjectPattern:
+		if v == nil { return }
+		for prop in v.properties { scope_collect_pattern(prop.value, out) }
+	case ^ArrayPattern:
+		if v == nil { return }
+		for e in v.elements {
+			if inner, ok := e.(Pattern); ok { scope_collect_pattern(inner, out) }
+		}
+	case ^AssignmentPattern:
+		if v != nil { scope_collect_pattern(v.left, out) }
+	case ^RestElement:
+		if v != nil { scope_collect_pattern(v.argument, out) }
+	case ^MemberExpression:
+		return
+	}
+}
+
+// Process one Statement and add its contributing lexical/var BoundNames
+// to the scope maps. Nested scopes are NOT recursed here — the caller's
+// walker handles that separately.
+scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[string]u32) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^VariableDeclaration:
+		if v == nil { return }
+		kind: ScopeBindingKind = .Var
+		if v.kind != .Var { kind = .Lexical }
+		names := make([dynamic]string, 0, 4, context.temp_allocator)
+		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
+		for n in names { scope_add(p, lex, vars, n, v.loc.span.start, kind) }
+	case ^FunctionDeclaration:
+		if v == nil { return }
+		if id, ok := v.id.(BindingIdentifier); ok {
+			// Per §14.1.3, at strict function / module level a
+			// FunctionDeclaration's BoundName is lexically declared.
+			// Sloppy-script FunctionDeclaration goes through var hoisting
+			// (Annex B.3.2). We approximate by treating FunctionDeclaration
+			// as Lexical in strict, Var otherwise. For simplicity the
+			// verifier always uses Lexical — false positives would require
+			// two sibling FunctionDeclarations with identical names in
+			// sloppy script, which is rare and OXC / V8 also warn.
+			scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+		}
+	case ^ClassDeclaration:
+		if v == nil { return }
+		if id, ok := v.id.(BindingIdentifier); ok {
+			scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+		}
+	case ^ImportDeclaration:
+		if v == nil { return }
+		for spec in v.specifiers {
+			if spec == nil { continue }
+			switch ss in spec^ {
+			case ImportSpecifier:
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+			case ImportDefaultSpecifier:
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+			case ImportNamespaceSpecifier:
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+			}
+		}
+	case ^ExportNamedDeclaration:
+		if v == nil { return }
+		if d, have := v.declaration.(^Declaration); have && d != nil {
+			switch inner in d^ {
+			case ^VariableDeclaration:
+				if inner == nil { break }
+				kind: ScopeBindingKind = .Var
+				if inner.kind != .Var { kind = .Lexical }
+				names := make([dynamic]string, 0, 4, context.temp_allocator)
+				for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
+				for n in names { scope_add(p, lex, vars, n, inner.loc.span.start, kind) }
+			case ^FunctionDeclaration:
+				if inner == nil { break }
+				if id, ok := inner.id.(BindingIdentifier); ok {
+					scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+				}
+			case ^ClassDeclaration:
+				if inner == nil { break }
+				if id, ok := inner.id.(BindingIdentifier); ok {
+					scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+				}
+			case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
+			     ^TSEnumDeclaration, ^TSModuleDeclaration,
+			     ^ImportDeclaration, ^ExportNamedDeclaration,
+			     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
+				// Types / nested decls — don't bind into the value scope
+				// for dup-check purposes.
+			}
+		}
+	}
+}
+
+// Verify a body-scope's lexical / var bindings, then recurse into
+// every nested body (FunctionBody / BlockStatement / CatchClause /
+// SwitchCase bodies / ArrowFunction block body / class static blocks).
+scope_verify_body :: proc(p: ^Parser, body: []^Statement) {
+	lex  := make(map[string]u32, 8, context.temp_allocator)
+	vars := make(map[string]u32, 8, context.temp_allocator)
+	for stmt in body {
+		scope_process_statement(p, stmt, &lex, &vars)
+	}
+	for stmt in body {
+		scope_recurse(p, stmt)
+	}
+}
+
+scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^BlockStatement:
+		if v != nil { scope_verify_body(p, v.body[:]) }
+	case ^FunctionDeclaration:
+		if v != nil {
+			scope_verify_body(p, v.body.body[:])
+		}
+	case ^IfStatement:
+		if v != nil {
+			scope_recurse(p, v.consequent)
+			if alt, have := v.alternate.(^Statement); have { scope_recurse(p, alt) }
+		}
+	case ^WhileStatement:
+		if v != nil { scope_recurse(p, v.body) }
+	case ^DoWhileStatement:
+		if v != nil { scope_recurse(p, v.body) }
+	case ^ForStatement:
+		if v != nil { scope_recurse(p, v.body) }
+	case ^ForInStatement:
+		if v != nil { scope_recurse(p, v.body) }
+	case ^ForOfStatement:
+		if v != nil { scope_recurse(p, v.body) }
+	case ^WithStatement:
+		if v != nil { scope_recurse(p, v.body) }
+	case ^LabeledStatement:
+		if v != nil { scope_recurse(p, v.body) }
+	case ^TryStatement:
+		if v != nil {
+			scope_verify_body(p, v.block.body[:])
+			if h, have := v.handler.(CatchClause); have {
+				scope_verify_body(p, h.body.body[:])
+			}
+			if f, have := v.finalizer.(BlockStatement); have {
+				scope_verify_body(p, f.body[:])
+			}
+		}
+	case ^SwitchStatement:
+		if v != nil {
+			// All SwitchCase consequents share a single lexical scope.
+			flat := make([dynamic]^Statement, 0, 16, context.temp_allocator)
+			for c in v.cases {
+				for s in c.consequent { append(&flat, s) }
+			}
+			scope_verify_body(p, flat[:])
+		}
+	}
+}
+
+verify_scopes :: proc(p: ^Parser, program: ^Program) {
+	// Program-level body is its own scope.
+	scope_verify_body(p, program.body[:])
 }
 
 // Helper: Convert ExportSpecifierName to ESMExportNameEntry

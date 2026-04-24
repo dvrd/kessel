@@ -1,4 +1,7 @@
 {
+  "tests/fixtures/negative/063_semantic_import_shadow.js": "rejected",
+  "tests/fixtures/negative/062_semantic_let_var_clash.js": "rejected",
+  "tests/fixtures/negative/061_semantic_duplicate_lexical.js": "rejected",
   "tests/fixtures/negative/060_regex_unterminated_group.js": "rejected",
   "tests/fixtures/negative/059_regex_unmatched_paren.js": "rejected",
   "tests/fixtures/negative/058_regex_uv_mutually_exclusive.js": "rejected",

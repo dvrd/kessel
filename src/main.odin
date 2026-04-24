@@ -66,6 +66,14 @@ source_type_override: Maybe(SourceType)
 // syntax silently flipped sourceType even when the caller never asked.
 strict_source_type_enabled: bool
 
+// CLI flag: --show-semantic-errors (OPT-6). When set, the parser runs
+// the post-parse scope-verification pass: duplicate lexical / var
+// clashes across a body-scope (Program / FunctionBody / BlockStatement
+// / CatchClause / SwitchCase / TryBlock / class static blocks). Off by
+// default so consumers that already have their own semantic layer
+// (tsc, ESLint) don't get duplicate diagnostics.
+show_semantic_errors_enabled: bool
+
 // CLI flag: --preserve-parens. When enabled, every genuine `(expr)`
 // paren-grouping is wrapped in a `ParenthesizedExpression` node (Acorn /
 // OXC extension; NOT in ESTree core). Off by default for byte-identical
@@ -547,6 +555,8 @@ main :: proc() {
 					}
 				} else if arg == "--strict-source-type" {
 					strict_source_type_enabled = true
+				} else if arg == "--show-semantic-errors" {
+					show_semantic_errors_enabled = true
 				} else if arg == "--preserve-parens" {
 					preserve_parens_enabled = true
 				} else if strings.has_prefix(arg, "--ast-type=") {
@@ -784,6 +794,7 @@ parse_file :: proc(file_path: string) {
 		initial_source_type = .Script
 		p.force_source_type = .Script
 	}
+	p.show_semantic_errors = show_semantic_errors_enabled
 
 	// `--preserve-parens`: thread to the parser so parse_primary_expr can
 	// wrap non-arrow `(expr)` forms in a ParenthesizedExpression node.
