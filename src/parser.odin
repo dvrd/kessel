@@ -4633,6 +4633,12 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 ScopeBindingKind :: enum {
 	Var,
 	Lexical,
+	// Annex B.3.2 sloppy FunctionDeclaration inside a Block — a hybrid
+	// that clashes with Lexical (same as Lexical would) and clashes
+	// with Var (per §14.2.1 LexicallyDeclaredNames ∩ VarDeclaredNames),
+	// but tolerates same-kind siblings per §B.3.3 (the `{ function f(){}
+	// function f(){} }` sloppy carve-out).
+	FunctionAnnexB,
 }
 
 scope_add :: proc(p: ^Parser, lex, vars: ^map[string]u32, name: string, at: u32, kind: ScopeBindingKind) {
@@ -4661,6 +4667,32 @@ scope_add :: proc(p: ^Parser, lex, vars: ^map[string]u32, name: string, at: u32,
 		if _, have := vars[name]; !have {
 			vars[name] = at
 		}
+	case .FunctionAnnexB:
+		// Annex B.3.2 FunctionDeclaration-in-Block. Sibling-FunctionDecls
+		// with the same name are OK (§B.3.3), but clashes with any
+		// lexical or var binding are errors.
+		if prev, have := lex[name]; have {
+			_ = prev
+			// Silent on same-name previous FunctionDecl; error on
+			// let/const/class. Distinguish by probing vars too: a
+			// .FunctionAnnexB entry is also written into `vars` below,
+			// while a .Lexical isn't. If the name is in `lex` but NOT
+			// in `vars`, it came from let/const/class — clash.
+			if _, vh := vars[name]; !vh {
+				msg := fmt.tprintf("'%s' has already been declared", name)
+				append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			}
+			return
+		}
+		if _, have := vars[name]; have {
+			// var-from-real-var before us. `{ var f; function f(){} }`
+			// in sloppy rejects per Acorn / V8.
+			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
+			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			return
+		}
+		lex[name] = at
+		vars[name] = at
 	}
 }
 
@@ -4689,7 +4721,7 @@ scope_collect_pattern :: proc(pat: Pattern, out: ^[dynamic]string) {
 // Process one Statement and add its contributing lexical/var BoundNames
 // to the scope maps. Nested scopes are NOT recursed here — the caller's
 // walker handles that separately.
-scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[string]u32) {
+scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[string]u32, is_block_scope: bool = false) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
 	case ^VariableDeclaration:
@@ -4702,17 +4734,24 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			// Annex B.3.2 / §14.1.3: at strict function / module level a
-			// FunctionDeclaration's BoundName IS lexically declared.
-			// Sloppy-mode plain FunctionDeclaration inside a Block does
-			// NOT lexically bind — Annex B gives it var-style hoisting to
-			// avoid breaking legacy code like `{ function f(){} function
-			// f(){} }`. AsyncFunction, GeneratorFunction, and
-			// AsyncGeneratorFunction do NOT qualify for the carve-out and
-			// always bind lexically.
+			// Annex B.3.2 / §14.1.3:
+			//   - strict mode: FunctionDeclaration BoundName is always
+			//     lexical.
+			//   - sloppy async / generator / async-generator: always
+			//     lexical (they don't qualify for B.3.2).
+			//   - sloppy plain FunctionDeclaration in a BLOCK scope:
+			//     .FunctionAnnexB — sibling dups legal (B.3.3), mixed
+			//     let/const/class/var collisions error (§14.2.1).
+			//   - sloppy plain FunctionDeclaration at function / Script
+			//     Program scope: .Var — var-hoisted; clashes with same-
+			//     name var are legal per long-standing convention.
 			kind: ScopeBindingKind = .Lexical
 			if !p.strict_mode && !v.async && !v.generator {
-				kind = .Var
+				if is_block_scope {
+					kind = .FunctionAnnexB
+				} else {
+					kind = .Var
+				}
 			}
 			scope_add(p, lex, vars, id.name, id.loc.span.start, kind)
 		}
@@ -4769,11 +4808,17 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 // Verify a body-scope's lexical / var bindings, then recurse into
 // every nested body (FunctionBody / BlockStatement / CatchClause /
 // SwitchCase bodies / ArrowFunction block body / class static blocks).
-scope_verify_body :: proc(p: ^Parser, body: []^Statement) {
+//
+// is_block_scope=true when this body is an inner Block / CatchClause /
+// SwitchCase / for-body — contexts where Annex B.3.2 sloppy
+// FunctionDeclaration binds with the hybrid kind. false for the top-
+// level Program body and FunctionBody, where sloppy plain FunctionDecl
+// hoists as a regular var.
+scope_verify_body :: proc(p: ^Parser, body: []^Statement, is_block_scope: bool = false) {
 	lex  := make(map[string]u32, 8, context.temp_allocator)
 	vars := make(map[string]u32, 8, context.temp_allocator)
 	for stmt in body {
-		scope_process_statement(p, stmt, &lex, &vars)
+		scope_process_statement(p, stmt, &lex, &vars, is_block_scope)
 	}
 	for stmt in body {
 		scope_recurse(p, stmt)
@@ -4784,10 +4829,10 @@ scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
 	case ^BlockStatement:
-		if v != nil { scope_verify_body(p, v.body[:]) }
+		if v != nil { scope_verify_body(p, v.body[:], true) }
 	case ^FunctionDeclaration:
 		if v != nil {
-			scope_verify_body(p, v.body.body[:])
+			scope_verify_body(p, v.body.body[:], false)
 		}
 	case ^IfStatement:
 		if v != nil {
@@ -4810,12 +4855,12 @@ scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
 		if v != nil { scope_recurse(p, v.body) }
 	case ^TryStatement:
 		if v != nil {
-			scope_verify_body(p, v.block.body[:])
+			scope_verify_body(p, v.block.body[:], true)
 			if h, have := v.handler.(CatchClause); have {
-				scope_verify_body(p, h.body.body[:])
+				scope_verify_body(p, h.body.body[:], true)
 			}
 			if f, have := v.finalizer.(BlockStatement); have {
-				scope_verify_body(p, f.body[:])
+				scope_verify_body(p, f.body[:], true)
 			}
 		}
 	case ^SwitchStatement:
@@ -4825,7 +4870,7 @@ scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
 			for c in v.cases {
 				for s in c.consequent { append(&flat, s) }
 			}
-			scope_verify_body(p, flat[:])
+			scope_verify_body(p, flat[:], true)
 		}
 	}
 }
