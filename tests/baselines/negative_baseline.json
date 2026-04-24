@@ -1,4 +1,7 @@
 {
+  "tests/fixtures/negative/046_await_in_async_method_params.js": "rejected",
+  "tests/fixtures/negative/045_await_in_async_function_params.js": "rejected",
+  "tests/fixtures/negative/044_await_in_async_arrow_params.js": "rejected",
   "tests/fixtures/negative/043_yield_expr_in_plain_function.js": "rejected",
   "tests/fixtures/negative/042_yield_expr_outside_generator.js": "rejected",
   "tests/fixtures/negative/041_yield_in_generator_params.js": "rejected",

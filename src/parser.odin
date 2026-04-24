@@ -264,11 +264,14 @@ Parser :: struct {
 	// post-parse AST walker.
 	in_generator_params: bool,
 
-	// Same for AsyncArrowFunction: "It is a Syntax Error if
-	// ArrowParameters Contains AwaitExpression is true." (§15.9.1). Set
-	// by parse_async_arrow_with_parens before committing to the arrow
-	// form; the await-expression constructor consults it.
-	in_async_arrow_params: bool,
+	// Inside the FormalParameters of any async function-like form —
+	// AsyncArrowFunction (§15.9.1: "It is a Syntax Error if
+	// CoverCallExpressionAndAsyncArrowHead Contains AwaitExpression is
+	// true."), AsyncFunctionDeclaration / AsyncFunctionExpression
+	// (§15.8.1), AsyncMethod, AsyncGeneratorDeclaration /
+	// AsyncGeneratorMethod (§15.6.1). The await-expression constructor
+	// consults this flag so we don't need a post-parse AST walker.
+	in_async_params: bool,
 
 	// Inside the constructor of a class with an `extends` clause.
 	// `super(...)` (SuperCall) is a SyntaxError outside such a
@@ -472,7 +475,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.strict_mode = false
 	p.in_method = false
 	p.in_generator_params = false
-	p.in_async_arrow_params = false
+	p.in_async_params = false
 	p.in_derived_constructor = false
 	p.class_has_extends = false
 	p.label_stack = make([dynamic]string, 0, 4, alloc)
@@ -2053,13 +2056,16 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	// §15.5.1 / §15.6.1 — mark FormalParameters of a generator so
 	// parse_yield_expr can reject `yield` inside default initializers.
-	// Save/restore to nest correctly when generator functions declare
-	// parameters of another function type (unlikely but cheap to
-	// preserve).
+	// §15.8.1 — same for async function: `await` in a parameter default
+	// is a SyntaxError. Save/restore to nest correctly when a generator /
+	// async function declares parameters of another function type.
 	prev_in_gen_params := p.in_generator_params
+	prev_in_async_params := p.in_async_params
 	p.in_generator_params = generator
+	p.in_async_params = async
 	params := parse_function_params(p)
 	p.in_generator_params = prev_in_gen_params
+	p.in_async_params = prev_in_async_params
 
 	if !expect_token(p, .RParen) {
 		// Error recovery: skip forward to the next `{` (start of the body)
@@ -2926,13 +2932,17 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		return nil
 	}
 
-	// §15.5.1 / §15.6.1 — yield-in-params guard for generator methods
-	// (including class getters/setters/methods). Same save/restore as
+	// §15.5.1 / §15.6.1 — yield-in-params guard for generator methods.
+	// §15.8.1 / §15.6.1 — await-in-params guard for async methods (same
+	// rule for async generators). Same save/restore as
 	// parse_function_declaration.
 	prev_method_gen_params := p.in_generator_params
+	prev_method_async_params := p.in_async_params
 	p.in_generator_params = is_generator
+	p.in_async_params = is_async
 	params := parse_function_params(p)
 	p.in_generator_params = prev_method_gen_params
+	p.in_async_params = prev_method_async_params
 
 	if !expect_token(p, .RParen) {
 		return nil
@@ -4933,12 +4943,14 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error(p, "Top-level 'await' is only valid in module code")
 			}
 		}
-		// ECMA-262 §15.9.1 — "It is a Syntax Error if ArrowParameters
-		// Contains AwaitExpression is true." An AwaitExpression in the
-		// default initializer of an AsyncArrowFunction parameter is
-		// forbidden even though the arrow body itself is async.
-		if p.in_async_arrow_params {
-			report_error(p, "'await' expression is not allowed in formal parameters of an async arrow")
+		// ECMA-262 §15.8.1 / §15.9.1 / §15.6.1 — "It is a Syntax Error if
+		// FormalParameters (or CoverCallExpressionAndAsyncArrowHead)
+		// Contains AwaitExpression is true." An AwaitExpression in a
+		// parameter default of any async function-like form is forbidden
+		// even though the body itself is async — params are evaluated in
+		// the outer context.
+		if p.in_async_params {
+			report_error(p, "'await' expression is not allowed in formal parameters of an async function")
 		}
 		current := p.cur_tok
 		eat(p)
@@ -6036,10 +6048,16 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 		// Parse params (getters have empty params, setters have one param).
 		// §15.5.1 / §15.6.1 — yield-in-params guard for generator methods.
+		// §15.8.1 — await-in-params guard for async accessors (rare but valid
+		// syntactic reach via `async get`/`async set` in extended proposals;
+		// keeps the invariant symmetric with method shorthand below).
 		prev_gp_obj_acc := p.in_generator_params
+		prev_ap_obj_acc := p.in_async_params
 		p.in_generator_params = is_generator
+		p.in_async_params = is_async
 		params := parse_function_params(p)
 		p.in_generator_params = prev_gp_obj_acc
+		p.in_async_params = prev_ap_obj_acc
 		if !expect_token(p, .RParen) {
 			return nil
 		}
@@ -6079,10 +6097,15 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			return nil
 		}
 		// §15.5.1 / §15.6.1 — yield-in-params guard for generator methods.
+		// §15.8.1 / §15.6.1 — await-in-params guard for async methods
+		// (including async generator method shorthand `async *m() {}`).
 		prev_gp_obj_meth := p.in_generator_params
+		prev_ap_obj_meth := p.in_async_params
 		p.in_generator_params = is_generator
+		p.in_async_params = is_async
 		params := parse_function_params(p)
 		p.in_generator_params = prev_gp_obj_meth
+		p.in_async_params = prev_ap_obj_meth
 		if !expect_token(p, .RParen) {
 			return nil
 		}
@@ -7186,7 +7209,13 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		return nil
 	}
 
+	// §15.9.1 — CoverCallExpressionAndAsyncArrowHead Contains
+	// AwaitExpression is a SyntaxError. Flag the params window so the
+	// await-expression constructor reports on entry.
+	prev_in_async_params := p.in_async_params
+	p.in_async_params = true
 	params := parse_function_params(p)
+	p.in_async_params = prev_in_async_params
 
 	if !expect_token(p, .RParen) {
 		return nil
