@@ -101,6 +101,14 @@ function run(fixture, meta) {
                meta.flags.includes('raw')    ? 'script' :
                                                'script';
   const argsList = ['parse', fixture.abs, `--source-type=${mode}`];
+  // Test262 `flags: [onlyStrict]` means the fixture must be parsed as
+  // strict-mode code, without the fixture itself containing a
+  // "use strict" directive. Wire this through the parser's
+  // --force-strict flag so strict-only early errors (LegacyOctalEscape,
+  // for-in initializer, eval/arguments binding, …) fire on this corpus.
+  if (meta.flags.includes('onlyStrict')) {
+    argsList.push('--force-strict');
+  }
   const r = spawnSync(args.binary, argsList, {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,

@@ -74,6 +74,13 @@ strict_source_type_enabled: bool
 // (tsc, ESLint) don't get duplicate diagnostics.
 show_semantic_errors_enabled: bool
 
+// CLI flag: --force-strict. When set, the parser starts with strict
+// mode enabled regardless of the source text's directive prologue.
+// Used by the Test262 runner for `flags: [onlyStrict]` fixtures so
+// strict-mode early errors (LegacyOctalEscape, for-in initializer,
+// …) fire on corpus fixtures that don't contain `"use strict";`.
+force_strict_enabled: bool
+
 // CLI flag: --preserve-parens. When enabled, every genuine `(expr)`
 // paren-grouping is wrapped in a `ParenthesizedExpression` node (Acorn /
 // OXC extension; NOT in ESTree core). Off by default for byte-identical
@@ -557,6 +564,8 @@ main :: proc() {
 					strict_source_type_enabled = true
 				} else if arg == "--show-semantic-errors" {
 					show_semantic_errors_enabled = true
+				} else if arg == "--force-strict" {
+					force_strict_enabled = true
 				} else if arg == "--preserve-parens" {
 					preserve_parens_enabled = true
 				} else if strings.has_prefix(arg, "--ast-type=") {
@@ -860,6 +869,7 @@ parse_file :: proc(file_path: string) {
 		p.force_source_type = .Script
 	}
 	p.show_semantic_errors = show_semantic_errors_enabled
+	p.force_strict = force_strict_enabled
 
 	// `--preserve-parens`: thread to the parser so parse_primary_expr can
 	// wrap non-arrow `(expr)` forms in a ParenthesizedExpression node.

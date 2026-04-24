@@ -333,6 +333,12 @@ Parser :: struct {
 	// don't get duplicate diagnostics.
 	show_semantic_errors: bool,
 
+	// CLI `--force-strict`. When true, parse_program starts with
+	// strict_mode on, bypassing the directive-prologue detection. Used
+	// by test262's `onlyStrict` fixtures so the harness can enforce
+	// strict-mode early-errors without having to patch the source.
+	force_strict: bool,
+
 	// CLI `--preserve-parens`. When true, every genuine `(expr)` paren-
 	// grouping wraps its inner expression in a ParenthesizedExpression
 	// node. Off by default for byte-identical legacy output. Does NOT
@@ -498,6 +504,8 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.in_async = false
 	p.in_loop = false
 	p.in_switch = false
+	// strict_mode starts sloppy; parse_program promotes it via the
+	// directive-prologue pass or when p.force_strict is set.
 	p.strict_mode = false
 	p.in_method = false
 	p.in_generator_params = false
@@ -885,6 +893,15 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// leading comments and shebang lines.
 	program.loc = Loc{span = Span{start = 0, end = 0}}
 	program.type = source_type
+
+	// --force-strict (CLI) opts into strict mode regardless of the body's
+	// directive prologue. Set here (not in init_parser) because main.odin
+	// flips p.force_strict AFTER init_parser has already zeroed
+	// p.strict_mode. Used by the Test262 runner for `flags: [onlyStrict]`
+	// fixtures.
+	if p.force_strict {
+		p.strict_mode = true
+	}
 
 	// BOM-followed-by-hashbang: the lexer already skipped the BOM (it's a
 	// valid WhiteSpace character), but the `#!` that follows is invalid
@@ -6885,8 +6902,14 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	// production NewExpression : `new` NewExpression has no arm that
 	// reaches an ImportCall (`import(...)`). Catch it here at the start
 	// so the diagnostic points at `import`, not somewhere downstream.
-	if is_token(p, .Import) && p.lexer != nil && p.lexer.nxt.kind == .LParen {
-		report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
+	// Same rule applies to phase-import call forms (§Phase Imports):
+	//   `new import.defer(x)` / `new import.source(x)` are SyntaxErrors.
+	if is_token(p, .Import) && p.lexer != nil {
+		if p.lexer.nxt.kind == .LParen {
+			report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
+		} else if p.lexer.nxt.kind == .Dot {
+			report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
+		}
 	}
 
 	callee := parse_member_expr(p)
@@ -8102,6 +8125,26 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 		return nil
 	}
 	eat(p)
+
+	// §13.3.10 ImportCall: the specifier AssignmentExpression is
+	// mandatory. `import()` and `import.defer()` are SyntaxErrors.
+	if is_token(p, .RParen) {
+		report_error(p, "'import()' requires a specifier")
+		eat(p)
+		import_expr := new_node(p, ImportExpression)
+		import_expr.loc = start
+		import_expr.phase = phase
+		import_expr.loc.span.end = prev_end_offset(p)
+		return expression_from(p, import_expr)
+	}
+
+	// §13.3.10: spread (`...x`) is not allowed. ImportCall uses
+	// AssignmentExpression directly, not Arguments, so the rest-element
+	// production never reaches it.
+	if is_token(p, .Dot3) {
+		report_error(p, "'...' is not allowed in 'import()' call")
+		eat(p) // consume ... and keep parsing so recovery stays reasonable
+	}
 
 	specifier := parse_assignment_expression(p)
 	if specifier == nil {
