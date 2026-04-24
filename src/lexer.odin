@@ -713,7 +713,12 @@ lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	l.last_lit_offset = start
 	l.last_lit_value = LiteralValue(string(cooked[:]))
 	l.last_lit_type = .Identifier
-	// Always .Identifier — never a keyword (ECMA-262 §12.7.2).
+	// Always .Identifier — never a keyword (ECMA-262 §12.7.2). The
+	// "escaped keyword used as Identifier" Syntax Error is enforced on
+	// the parser side, because IdentifierName positions (property name,
+	// property access, method name, import/export specifier name) do
+	// permit escaped reserved words — only the narrower Identifier
+	// production (`IdentifierName but not ReservedWord`) rejects them.
 	return FastToken{start = start, end = end, kind = .Identifier, flags = flags | FLAG_HAS_ESCAPE}
 }
 

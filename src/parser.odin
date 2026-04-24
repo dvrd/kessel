@@ -40,6 +40,7 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		p.cur_tok.raw_end = ft.end
 		// Branchless: always write (avoids conditional branch per token)
 		p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
+		p.cur_tok.has_escape = (ft.flags & FLAG_HAS_ESCAPE) != 0
 		if ft.kind < .LBrace {
 			p.cur_tok.value = a.source[ft.start:ft.end]
 			if ft.kind == .String {
@@ -100,6 +101,7 @@ prime_token_cache :: proc(p: ^Parser) {
 		p.cur_tok.loc.offset = int(ft.start)
 		p.cur_tok.raw_end = ft.end
 		p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
+		p.cur_tok.has_escape = (ft.flags & FLAG_HAS_ESCAPE) != 0
 		if ft.kind < .LBrace && ft.kind != .EOF && ft.start < ft.end {
 			a := p.lexer
 			p.cur_tok.value = a.source[ft.start:ft.end]
@@ -1548,6 +1550,9 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	label: Maybe(LabelIdentifier)
 	// Label only if on same line (no LineTerminator between break and identifier)
 	if is_token(p, .Identifier) && !p.cur_tok.had_line_terminator {
+		// LabelIdentifier is an Identifier position — escaped ReservedWord
+		// (e.g. `break \u0069f;`) is a Syntax Error (§12.7.2).
+		report_escaped_reserved_word(p)
 		label = LabelIdentifier{
 			loc  = cur_loc(p),
 			name = cur_value(p),
@@ -1597,6 +1602,9 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	label: Maybe(LabelIdentifier)
 	// Label only if on same line (no LineTerminator between continue and identifier)
 	if is_token(p, .Identifier) && !p.cur_tok.had_line_terminator {
+		// LabelIdentifier is an Identifier position — escaped ReservedWord
+		// (e.g. `continue \u0069f;`) is a Syntax Error (§12.7.2).
+		report_escaped_reserved_word(p)
 		label = LabelIdentifier{
 			loc  = cur_loc(p),
 			name = cur_value(p),
@@ -3258,6 +3266,67 @@ is_eval_or_arguments :: #force_inline proc(name: string) -> bool {
 	return name == "eval" || name == "arguments"
 }
 
+// ECMA-262 §12.7.2 — "A code point in a ReservedWord cannot be expressed
+// by a \UnicodeEscapeSequence." When an IdentifierName written with a
+// Unicode escape has a StringValue that matches a ReservedWord and is
+// used in an Identifier position (BindingIdentifier / IdentifierReference
+// / LabelIdentifier), the narrower `Identifier : IdentifierName but not
+// ReservedWord` production fails. IdentifierName positions — member
+// access (`obj.\u0069f`), property key (`{\u0069f:1}`), method name
+// (`class C { \u0069f(){} }`), import/export specifier names — allow
+// escaped reserved words and therefore must NOT call this helper.
+//
+// Always-reserved keywords (if / var / return / function / ...) are
+// rejected unconditionally. Strict-only FutureReservedWords (let /
+// static / yield / implements / interface / package / private /
+// protected / public) are rejected only when `p.strict_mode` is on.
+// `yield` / `await` additionally flip to reserved inside a generator /
+// async body even in sloppy mode. Non-reserved contextual keywords
+// (async / of / from / as / let-in-sloppy / ...) pass through.
+is_always_reserved_word_name :: #force_inline proc(name: string) -> bool {
+	switch name {
+	case "break", "case", "catch", "class", "const", "continue",
+	     "debugger", "default", "delete", "do", "else", "enum",
+	     "export", "extends", "false", "finally", "for", "function",
+	     "if", "import", "in", "instanceof", "new", "null", "return",
+	     "super", "switch", "this", "throw", "true", "try", "typeof",
+	     "var", "void", "while", "with":
+		return true
+	}
+	return false
+}
+
+// Call BEFORE eating the identifier token — `report_error` uses the
+// current token's offset for diagnostics, so the message points at the
+// right source location. Non-current-token call sites (e.g. a stashed
+// binding identifier consumed earlier) can still use this by passing
+// a freshly-constructed Token and accepting the current-cursor offset
+// fallback; in practice every caller reports pre-eat.
+report_escaped_reserved_word :: proc(p: ^Parser) {
+	if !p.cur_tok.has_escape { return }
+	if p.cur_type != .Identifier { return }
+	name := p.cur_tok.value
+	reserved := is_always_reserved_word_name(name)
+	if !reserved && p.strict_mode {
+		switch name {
+		case "let", "static", "yield",
+		     "implements", "interface", "package",
+		     "private", "protected", "public":
+			reserved = true
+		}
+	}
+	if !reserved && p.in_generator && name == "yield" {
+		reserved = true
+	}
+	if !reserved && p.in_async && name == "await" {
+		reserved = true
+	}
+	if reserved {
+		msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", name)
+		report_error(p, msg)
+	}
+}
+
 // ECMA-262 §13.4.1 — in strict mode, the operand of an UpdateExpression
 // must not be an IdentifierReference named `eval` or `arguments`.
 // Helper shared by both prefix and postfix paths. No-op in sloppy mode
@@ -3413,6 +3482,11 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// Identifiers and contextual keywords that can be used as binding names.
 	// All contextual keywords are valid binding identifiers in JS.
 	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+		// ECMA-262 §12.7.2 — BindingIdentifier is an Identifier position,
+		// so an escaped ReservedWord (cooked value matches a keyword) is a
+		// Syntax Error regardless of strict-mode reservation. Runs before
+		// eat so report_error points at the escaped token.
+		report_escaped_reserved_word(p)
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -4721,6 +4795,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	if p.cur_type == .Identifier || p.cur_type == .Get || p.cur_type == .Set ||
 	   p.cur_type == .From || p.cur_type == .Of || p.cur_type == .As ||
 	   p.cur_type == .Let || p.cur_type == .Static || p.cur_type == .Constructor {
+		// ECMA-262 §12.7.2 — escaped-ReservedWord in IdentifierReference
+		// position. This fast-path bypasses parse_primary_expr, so the
+		// same check that lives on the slow path has to run here too.
+		report_escaped_reserved_word(p)
 		// Inline identifier parse + LHS tail
 		id_tok := p.cur_tok
 		eat(p)
@@ -5303,6 +5381,10 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// All contextual keywords are valid identifiers in expression context.
 		// TS keywords (type, interface, enum) lex as Identifier and are
 		// handled via string-value check in parse_statement_or_declaration.
+		// ECMA-262 §12.7.2: if the identifier arrived via \uXXXX escape and
+		// its cooked StringValue matches a ReservedWord, IdentifierReference
+		// is a Syntax Error (check runs before eat so loc is correct).
+		report_escaped_reserved_word(p)
 		eat(p)
 		id, id_expr := new_expr(p, Identifier)
 		id.loc = loc_from_token(current)

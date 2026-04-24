@@ -172,6 +172,11 @@ Token :: struct {
 	                  // is 1‑4). Callers reading .value still see the cooked name.
 	literal:  LiteralValue, // Parsed value for literals
 	had_line_terminator: bool, // True if there was a line terminator before this token
+	has_escape: bool,  // FLAG_HAS_ESCAPE from FastToken. Preserved so the parser can
+	                  // enforce the ECMA-262 §12.7.2 rule that a ReservedWord's code
+	                  // points cannot be expressed via \UnicodeEscapeSequence — the
+	                  // check needs to know AFTER the token has been eaten whether
+	                  // the identifier arrived via escape.
 }
 
 // LiteralValue holds the parsed value of a literal token
