@@ -1058,6 +1058,12 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		})
 	}
 
+	// §15.7.3 AllPrivateIdentifiersValid — every PrivateIdentifier
+	// reference (member access `.#x`, `#x in obj`) must resolve to a
+	// PrivateName declared by some lexically enclosing ClassBody. Walks
+	// the full AST with a stack of declared private-name sets.
+	verify_private_names(p, program)
+
 	// Drain lexer-side diagnostics (invalid numeric separators, bad
 	// BigInt literals, etc.) into p.errors. The lexer couldn't report
 	// directly because error reporting needs line/col lazy-lookup off
@@ -3226,10 +3232,11 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		p.in_derived_constructor = prev_in_derived_ctor
 
 		// Class methods always have UniqueFormalParameters; retro-check.
-		// Force the non-simple arm on too, for consistency — the strict
-		// arm covers duplicates already, and force_when_non_simple is a
-		// no-op when params are simple and we're in strict.
-		report_duplicate_param_names(p, params[:], true)
+		// Pass strict_override=true because class bodies are implicitly
+		// strict (§15.7.1) and the outer p.strict_mode has already been
+		// restored above, so the strict-arm check needs the override to
+		// actually fire on `class C { foo(a, a) {} }`.
+		report_duplicate_param_names(p, params[:], true, true)
 
 		// §15.4.3 / §15.4.4 — class accessor arity (same rule as
 		// object-literal accessors; see parse_property for the parallel
@@ -4761,6 +4768,299 @@ scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
 verify_scopes :: proc(p: ^Parser, program: ^Program) {
 	// Program-level body is its own scope.
 	scope_verify_body(p, program.body[:])
+}
+
+// =========================================================================
+// §15.7.3 AllPrivateIdentifiersValid (Private Name Resolution)
+// =========================================================================
+//
+// A PrivateIdentifier reference (member access `obj.#x`, `this.#x`, or
+// `#x in obj`) is only legal when `#x` has been declared as a
+// ClassElement in some lexically-enclosing class. The declared names of
+// a class are:
+//
+//   - PropertyDefinition keys that are PrivateIdentifier
+//   - MethodDefinition  keys that are PrivateIdentifier
+//   - StaticBlock        doesn't declare a name but runs with access to
+//                        the enclosing class's names
+//
+// verify_private_names walks the full AST with a stack of declared
+// name sets; each ClassExpression / ClassDeclaration pushes its set
+// for the duration of its ClassBody. Outside any class the stack is
+// empty and every private-name reference is a Syntax Error.
+
+PrivateNameStack :: [dynamic]map[string]bool
+
+verify_private_names :: proc(p: ^Parser, program: ^Program) {
+	stack: PrivateNameStack
+	stack.allocator = context.temp_allocator
+	for stmt in program.body {
+		pn_walk_stmt(p, stmt, &stack)
+	}
+}
+
+pn_collect_class_names :: proc(body: ClassBody) -> map[string]bool {
+	names := make(map[string]bool, 8, context.temp_allocator)
+	for elem in body.body {
+		if elem.key == nil { continue }
+		if pid, ok := elem.key.(^PrivateIdentifier); ok && pid != nil {
+			names[pid.name] = true
+		}
+	}
+	return names
+}
+
+pn_stack_has :: proc(stack: ^PrivateNameStack, name: string) -> bool {
+	for i := len(stack^) - 1; i >= 0; i -= 1 {
+		if _, ok := stack^[i][name]; ok { return true }
+	}
+	return false
+}
+
+pn_visit_class :: proc(p: ^Parser, cls: ^ClassExpression, stack: ^PrivateNameStack) {
+	if cls == nil { return }
+	// super_class is evaluated in the outer scope — no private-names
+	// from this class visible there yet.
+	if sc, have := cls.super_class.(^Expression); have && sc != nil {
+		pn_walk_expr(p, sc, stack)
+	}
+	names := pn_collect_class_names(cls.body)
+	append(stack, names)
+	for elem in cls.body.body {
+		if elem.key != nil { pn_walk_expr(p, elem.key, stack) }
+		if v, have := elem.value.(^Expression); have && v != nil {
+			pn_walk_expr(p, v, stack)
+		}
+	}
+	pop(stack)
+}
+
+pn_walk_stmt :: proc(p: ^Parser, stmt: ^Statement, stack: ^PrivateNameStack) {
+	if stmt == nil { return }
+	switch v in stmt^ {
+	case ^BlockStatement:            if v != nil { for s in v.body { pn_walk_stmt(p, s, stack) } }
+	case ^ExpressionStatement:       if v != nil { pn_walk_expr(p, v.expression, stack) }
+	case ^EmptyStatement, ^DebuggerStatement, ^BreakStatement,
+	     ^ContinueStatement, ^WithStatement,
+	     ^ImportDeclaration, ^ExportAllDeclaration,
+	     ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
+	     ^TSEnumDeclaration, ^TSModuleDeclaration:
+		// No class-scoped sub-expressions to visit for the private-name
+		// walker. ImportDeclaration specifiers don't reference
+		// PrivateIdentifiers; TS type-level declarations don't emit
+		// runtime code.
+		return
+	case ^IfStatement:
+		if v == nil { return }
+		pn_walk_expr(p, v.test, stack)
+		pn_walk_stmt(p, v.consequent, stack)
+		if a, have := v.alternate.(^Statement); have && a != nil { pn_walk_stmt(p, a, stack) }
+	case ^ForStatement:
+		if v == nil { return }
+		if e, have := v.init_expr.(^Expression); have && e != nil { pn_walk_expr(p, e, stack) }
+		if d, have := v.init_decl.(^VariableDeclaration); have && d != nil { pn_walk_var_decl(p, d, stack) }
+		if t, have := v.test.(^Expression); have && t != nil { pn_walk_expr(p, t, stack) }
+		if u, have := v.update.(^Expression); have && u != nil { pn_walk_expr(p, u, stack) }
+		pn_walk_stmt(p, v.body, stack)
+	case ^ForInStatement:
+		if v == nil { return }
+		if e, have := v.left_expr.(^Expression); have && e != nil { pn_walk_expr(p, e, stack) }
+		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { pn_walk_var_decl(p, d, stack) }
+		pn_walk_expr(p, v.right, stack)
+		pn_walk_stmt(p, v.body, stack)
+	case ^ForOfStatement:
+		if v == nil { return }
+		if e, have := v.left_expr.(^Expression); have && e != nil { pn_walk_expr(p, e, stack) }
+		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { pn_walk_var_decl(p, d, stack) }
+		pn_walk_expr(p, v.right, stack)
+		pn_walk_stmt(p, v.body, stack)
+	case ^WhileStatement:            if v != nil { pn_walk_expr(p, v.test, stack); pn_walk_stmt(p, v.body, stack) }
+	case ^DoWhileStatement:          if v != nil { pn_walk_stmt(p, v.body, stack); pn_walk_expr(p, v.test, stack) }
+	case ^ReturnStatement:
+		if v == nil { return }
+		if e, have := v.argument.(^Expression); have && e != nil { pn_walk_expr(p, e, stack) }
+	case ^ThrowStatement:            if v != nil { pn_walk_expr(p, v.argument, stack) }
+	case ^TryStatement:
+		if v == nil { return }
+		for s in v.block.body { pn_walk_stmt(p, s, stack) }
+		if h, have := v.handler.(CatchClause); have {
+			for s in h.body.body { pn_walk_stmt(p, s, stack) }
+		}
+		if f, have := v.finalizer.(BlockStatement); have {
+			for s in f.body { pn_walk_stmt(p, s, stack) }
+		}
+	case ^SwitchStatement:
+		if v == nil { return }
+		pn_walk_expr(p, v.discriminant, stack)
+		for sc in v.cases {
+			if t, have := sc.test.(^Expression); have && t != nil { pn_walk_expr(p, t, stack) }
+			for s in sc.consequent { pn_walk_stmt(p, s, stack) }
+		}
+	case ^LabeledStatement:          if v != nil { pn_walk_stmt(p, v.body, stack) }
+	case ^VariableDeclaration:       if v != nil { pn_walk_var_decl(p, v, stack) }
+	case ^FunctionDeclaration:
+		if v == nil { return }
+		for pr in v.params {
+			if d, have := pr.default_val.(^Expression); have && d != nil { pn_walk_expr(p, d, stack) }
+		}
+		for s in v.body.body { pn_walk_stmt(p, s, stack) }
+	case ^ClassDeclaration:          if v != nil { pn_visit_class(p, &v.expr, stack) }
+	case ^ExportNamedDeclaration:
+		if v == nil { return }
+		if d, have := v.declaration.(^Declaration); have && d != nil {
+			#partial switch inner in d^ {
+			case ^FunctionDeclaration: if inner != nil {
+				for s in inner.body.body { pn_walk_stmt(p, s, stack) }
+			}
+			case ^ClassDeclaration:    if inner != nil { pn_visit_class(p, &inner.expr, stack) }
+			case ^VariableDeclaration: if inner != nil { pn_walk_var_decl(p, inner, stack) }
+			}
+		}
+	case ^ExportDefaultDeclaration:
+		if v == nil || v.declaration == nil { return }
+		#partial switch inner in v.declaration^ {
+		case ^Expression:             if inner != nil { pn_walk_expr(p, inner, stack) }
+		case ^Declaration:            if inner != nil { pn_walk_export_default_decl(p, inner, stack) }
+		}
+	}
+}
+
+pn_walk_export_default_decl :: proc(p: ^Parser, d: ^Declaration, stack: ^PrivateNameStack) {
+	if d == nil { return }
+	#partial switch inner in d^ {
+	case ^FunctionDeclaration:    if inner != nil {
+		for s in inner.body.body { pn_walk_stmt(p, s, stack) }
+	}
+	case ^ClassDeclaration:       if inner != nil { pn_visit_class(p, &inner.expr, stack) }
+	}
+}
+
+pn_walk_var_decl :: proc(p: ^Parser, decl: ^VariableDeclaration, stack: ^PrivateNameStack) {
+	if decl == nil { return }
+	for d in decl.declarations {
+		if init, have := d.init.(^Expression); have && init != nil {
+			pn_walk_expr(p, init, stack)
+		}
+	}
+}
+
+pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^MemberExpression:
+		if e == nil { return }
+		pn_walk_expr(p, e.object, stack)
+		if e.property != nil {
+			if pid, ok := e.property^.(^PrivateIdentifier); ok && pid != nil {
+				if !pn_stack_has(stack, pid.name) {
+					msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
+					append(&p.errors, ParseError{
+						loc = LexerLoc{offset = int(pid.loc.span.start)},
+						message = msg,
+					})
+				}
+			} else {
+				pn_walk_expr(p, e.property, stack)
+			}
+		}
+	case ^PrivateIdentifier:
+		// Bare private-identifier not via member access — only legal as
+		// the LHS of `#x in obj`. The BinaryExpression case below handles
+		// the legitimate position; anything that reaches here is a stray.
+		if !pn_stack_has(stack, e.name) {
+			msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", e.name)
+			append(&p.errors, ParseError{
+				loc = LexerLoc{offset = int(e.loc.span.start)},
+				message = msg,
+			})
+		}
+	case ^BinaryExpression:
+		if e == nil { return }
+		// `#x in obj` — left is PrivateIdentifier; check declared without
+		// diving into the PrivateIdentifier case above (which would fire
+		// the stray-name error). Right is a regular expression.
+		pid_left: ^PrivateIdentifier
+		if e.left != nil {
+			pid_left, _ = e.left^.(^PrivateIdentifier)
+		}
+		if pid_left != nil && e.operator == .In {
+			if !pn_stack_has(stack, pid_left.name) {
+				msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid_left.name)
+				append(&p.errors, ParseError{
+					loc = LexerLoc{offset = int(pid_left.loc.span.start)},
+					message = msg,
+				})
+			}
+		} else {
+			pn_walk_expr(p, e.left, stack)
+		}
+		pn_walk_expr(p, e.right, stack)
+	case ^LogicalExpression:
+		if e == nil { return }
+		pn_walk_expr(p, e.left, stack)
+		pn_walk_expr(p, e.right, stack)
+	case ^AssignmentExpression:
+		if e == nil { return }
+		pn_walk_expr(p, e.left, stack)
+		pn_walk_expr(p, e.right, stack)
+	case ^ConditionalExpression:
+		if e == nil { return }
+		pn_walk_expr(p, e.test, stack)
+		pn_walk_expr(p, e.consequent, stack)
+		pn_walk_expr(p, e.alternate, stack)
+	case ^CallExpression:
+		if e == nil { return }
+		pn_walk_expr(p, e.callee, stack)
+		for a in e.arguments { pn_walk_expr(p, a, stack) }
+	case ^NewExpression:
+		if e == nil { return }
+		pn_walk_expr(p, e.callee, stack)
+		for a in e.arguments { pn_walk_expr(p, a, stack) }
+	case ^ArrayExpression:
+		if e == nil { return }
+		for el in e.elements {
+			if inner, have := el.(^Expression); have && inner != nil { pn_walk_expr(p, inner, stack) }
+		}
+	case ^ObjectExpression:
+		if e == nil { return }
+		for prop in e.properties {
+			if prop.key != nil { pn_walk_expr(p, prop.key, stack) }
+			if prop.value != nil { pn_walk_expr(p, prop.value, stack) }
+		}
+	case ^SpreadElement:             if e != nil { pn_walk_expr(p, e.argument, stack) }
+	case ^UnaryExpression:           if e != nil { pn_walk_expr(p, e.argument, stack) }
+	case ^UpdateExpression:          if e != nil { pn_walk_expr(p, e.argument, stack) }
+	case ^SequenceExpression:        if e != nil { for s in e.expressions { pn_walk_expr(p, s, stack) } }
+	case ^TemplateLiteral:           if e != nil { for s in e.expressions { pn_walk_expr(p, s, stack) } }
+	case ^TaggedTemplateExpression:  if e != nil { pn_walk_expr(p, e.tag, stack); pn_walk_expr(p, e.quasi, stack) }
+	case ^ParenthesizedExpression:   if e != nil { pn_walk_expr(p, e.expression, stack) }
+	case ^AwaitExpression:           if e != nil { pn_walk_expr(p, e.argument, stack) }
+	case ^YieldExpression:
+		if e == nil { return }
+		if a, have := e.argument.(^Expression); have && a != nil { pn_walk_expr(p, a, stack) }
+	case ^ChainExpression:           if e != nil { pn_walk_expr(p, e.expression, stack) }
+	case ^ImportExpression:
+		if e == nil { return }
+		pn_walk_expr(p, e.source, stack)
+		pn_walk_expr(p, e.options, stack)
+	case ^ArrowFunctionExpression:
+		if e == nil { return }
+		for pr in e.params {
+			if d, have := pr.default_val.(^Expression); have && d != nil { pn_walk_expr(p, d, stack) }
+		}
+		#partial switch body in e.body {
+		case ^Expression:      if body != nil { pn_walk_expr(p, body, stack) }
+		case ^BlockStatement:  if body != nil { for s in body.body { pn_walk_stmt(p, s, stack) } }
+		}
+	case ^FunctionExpression:
+		if e == nil { return }
+		for pr in e.params {
+			if d, have := pr.default_val.(^Expression); have && d != nil { pn_walk_expr(p, d, stack) }
+		}
+		for s in e.body.body { pn_walk_stmt(p, s, stack) }
+	case ^ClassExpression:
+		if e != nil { pn_visit_class(p, e, stack) }
+	}
 }
 
 // Helper: Convert ExportSpecifierName to ESMExportNameEntry
