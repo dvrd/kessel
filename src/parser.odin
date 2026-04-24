@@ -4966,8 +4966,28 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		return expression_from(p, spread)
 
 	case .Yield:
-		// Relaxed: don't validate yield context (nested function tracking imperfect)
-		return parse_yield_expr(p)
+		// ECMA-262 §15.5 — YieldExpression is only grammatically
+		// valid inside a GeneratorBody. Outside a generator `yield`
+		// is an IdentifierReference (in sloppy mode) or a strict-
+		// reserved word flagged by the binding checks. We still catch
+		// the common `yield expr` mistake in a non-generator: if the
+		// lookahead unambiguously starts an AssignmentExpression
+		// argument (no newline, no operator / postfix / call /
+		// terminator that could continue `yield` as an identifier)
+		// we emit the "only allowed in a generator body" error and
+		// still parse as YieldExpression for recovery. Otherwise we
+		// fall through to the identifier path so `yield;`, `yield(1)`,
+		// `yield.x`, `yield + 1`, `yield || 1`, `yield?1:2`,
+		// `` yield`t` `` all behave as OXC / Acorn expect.
+		if p.in_generator {
+			return parse_yield_expr(p)
+		}
+		if yield_next_is_expression_argument(p) {
+			report_error(p, "'yield' expression is only allowed in a generator body")
+			return parse_yield_expr(p)
+		}
+		// Fall through — `yield` is parsed as IdentifierReference by
+		// parse_left_hand_side_expr → parse_primary_expr (line 5577).
 	}
 
 	// Common path: primary expression + optional postfix ++ / -- (inlined parse_update_expr)
@@ -6358,6 +6378,51 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 	}
 
 	return args
+}
+
+// True when the token immediately following the current `yield`
+// (at p.cur_tok) cleanly starts an AssignmentExpression argument —
+// i.e. the user wrote `yield <expr>` rather than `yield;`,
+// `yield + 1`, `yield.x`, `yield(x)`, `` yield`t` ``, etc. A
+// line-terminator between `yield` and the next token triggers ASI
+// and counts as no-argument. Used in non-generator contexts to
+// distinguish the yield-expression form (SyntaxError) from `yield`
+// used as an IdentifierReference.
+yield_next_is_expression_argument :: proc(p: ^Parser) -> bool {
+	nxt := peek_token(p)
+	if nxt.had_line_terminator { return false }
+	#partial switch nxt.type {
+	// Statement / list terminators — no argument.
+	case .Semi, .Comma, .Colon, .RParen, .RBracket, .RBrace, .EOF, .Invalid,
+	// Binary / logical / coalescing operators — yield is LHS identifier.
+	     .Plus, .Minus, .Mul, .Div, .Mod, .Pow,
+	     .LShift, .RShift, .URShift,
+	     .BitAnd, .BitOr, .BitXor,
+	     .LogicalAnd, .LogicalOr, .Nullish,
+	// Assignment operators — yield on the left of `=` / compound assigns.
+	     .Assign, .AssignAdd, .AssignSub, .AssignMul, .AssignDiv,
+	     .AssignMod, .AssignPow,
+	     .AssignLShift, .AssignRShift, .AssignURShift,
+	     .AssignBitAnd, .AssignBitOr, .AssignBitXor,
+	     .AssignLogicalAnd, .AssignLogicalOr, .AssignNullish,
+	// Comparisons / equality.
+	     .Eq, .NotEq, .EqStrict, .NotEqStrict,
+	     .LAngle, .RAngle, .LEq, .GEq,
+	     .In, .Instanceof,
+	// Ternary / arrow / postfix.
+	     .Question, .Arrow,
+	     .PlusPlus, .MinusMinus,
+	// Member / call / tagged-template continuations.
+	     .Dot, .OptionalChain, .LParen, .LBracket,
+	     .Template, .TemplateHead:
+		return false
+	}
+	// Everything else — identifiers, literals, `new`, `function`,
+	// `class`, `this`, `super`, `typeof` / `void` / `delete`,
+	// `!` / `~`, `{`, `/` regex (lexed as RegularExpression), etc.
+	// — begins a fresh AssignmentExpression, so we read the
+	// `yield` as yield-expression form.
+	return true
 }
 
 parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
