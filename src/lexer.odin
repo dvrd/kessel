@@ -1511,25 +1511,67 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
 
-	// Scan pattern (handle character classes [...]  where / is literal)
+	// Scan pattern. Tracks:
+	//   • in_class  — inside `[...]` where `/` is literal.
+	//   • group_depth — paren-balance `(` / `)` for group validation.
+	// ECMA-262 §22.2 Pattern grammar validates more than just delimiter
+	// balance (quantifier positions, AtomEscape / CharacterClassEscape /
+	// GroupName surface, assertion forms, Unicode flag subset, etc.) —
+	// the full validator is deferred to a dedicated regex parser. What
+	// kessel enforces here is the set of common malformed-pattern cases
+	// that OXC / V8 also catch at parse time.
 	in_class := false
+	group_depth := 0
+	pattern_start := l.offset
 	for l.offset < src_len {
 		c := src[l.offset]
-		if c == '\\' && l.offset + 1 < src_len {
+		if c == '\\' {
+			// AtomEscape — swallow the next code unit. `\` at the very
+			// end of the pattern (before closing `/`) is a SyntaxError.
+			if l.offset + 1 >= src_len {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Trailing backslash in regular expression"})
+				l.offset += 1
+				break
+			}
+			nxt := src[l.offset + 1]
+			if nxt == '\n' || nxt == '\r' {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Unterminated regular expression (escape before newline)"})
+				break
+			}
 			l.offset += 2
-		} else if c == '[' && !in_class {
+			continue
+		}
+		if c == '[' && !in_class {
 			in_class = true
 			l.offset += 1
-		} else if c == ']' && in_class {
+			continue
+		}
+		if c == ']' && in_class {
 			in_class = false
 			l.offset += 1
-		} else if c == '/' && !in_class {
-			break
-		} else if c == '\n' || c == '\r' {
-			break
-		} else {
-			l.offset += 1
+			continue
 		}
+		if c == '(' && !in_class {
+			group_depth += 1
+			l.offset += 1
+			continue
+		}
+		if c == ')' && !in_class {
+			if group_depth == 0 {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Unmatched ')' in regular expression"})
+			} else {
+				group_depth -= 1
+			}
+			l.offset += 1
+			continue
+		}
+		if c == '/' && !in_class {
+			break
+		}
+		if c == '\n' || c == '\r' {
+			break
+		}
+		l.offset += 1
 	}
 
 	if l.offset >= src_len || src[l.offset] != '/' {
@@ -1549,13 +1591,47 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		return FastToken{start = start, end = end, kind = .RegularExpression, flags = flags}
 	}
 
+	if in_class {
+		append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated character class in regular expression"})
+	}
+	if group_depth > 0 {
+		append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
+	}
+
 	l.offset += 1 // skip closing /
 
-	// Parse flags
+	// Parse and validate flags (§22.2.1 RegExp constructor, Step 3).
+	// Valid single-char flags: d g i m s u v y. Each may appear at most
+	// once. `u` and `v` are mutually exclusive. The validator emits one
+	// diagnostic per offending character so the lexer diag channel keeps
+	// precise offsets.
+	flags_start := l.offset
+	seen_flags: [26]u8 // a-z bit set
 	for l.offset < src_len {
 		c := src[l.offset]
-		if c >= 'a' && c <= 'z' { l.offset += 1 }
-		else { break }
+		if !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9') && c != '$' && c != '_' {
+			break
+		}
+		if !(c >= 'a' && c <= 'z') {
+			append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid regular expression flag"})
+			l.offset += 1
+			continue
+		}
+		switch c {
+		case 'd', 'g', 'i', 'm', 's', 'u', 'v', 'y':
+			idx := int(c - 'a')
+			if seen_flags[idx] != 0 {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Duplicate regular expression flag"})
+			}
+			seen_flags[idx] = 1
+		case:
+			append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid regular expression flag"})
+		}
+		l.offset += 1
+	}
+	// u and v are mutually exclusive (§22.2.1 Step 3 check).
+	if seen_flags[int('u' - 'a')] != 0 && seen_flags[int('v' - 'a')] != 0 {
+		append(&l.lexer_errors, LexerError{offset = u32(flags_start), message = "Regular expression flags 'u' and 'v' are mutually exclusive"})
 	}
 
 	end := u32(l.offset)
