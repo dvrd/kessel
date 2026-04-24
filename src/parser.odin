@@ -1592,6 +1592,13 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
 				report_error(p, msg)
 			}
+			// Strict-mode early-error: eval / arguments as an assignment
+			// target in the for-in/of head (covers destructuring too):
+			//   for ([arguments] of x) ;
+			//   for ({eval: y} in x) ;
+			if p.strict_mode {
+				report_strict_eval_arguments_in_target(p, left_expr)
+			}
 		}
 
 		// ECMA-262 Annex B.3.5 gate. A VariableDeclaration in a for-in/of
