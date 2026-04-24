@@ -248,6 +248,21 @@ Parser :: struct {
 	// (they introduce their own — absent — HomeObject).
 	in_method:       bool,
 
+	// Inside the constructor of a class with an `extends` clause.
+	// `super(...)` (SuperCall) is a SyntaxError outside such a
+	// constructor (ECMA-262 §15.7.3 / §13.3.7). Arrow functions inherit
+	// this (lexical super-call); every non-arrow function body resets it,
+	// as do object-literal methods / getters / setters / static blocks /
+	// field initializers and non-constructor class methods.
+	in_derived_constructor: bool,
+
+	// Set by parse_class_declaration / parse_class_expression before
+	// recursing into parse_class_body, so parse_class_element can decide
+	// whether the (instance, non-static) constructor body should enable
+	// `in_derived_constructor`. Saved / restored across nested class
+	// declarations so inner classes don't leak their extends state.
+	class_has_extends: bool,
+
 	// Language mode — controls JSX / TS syntax admissibility.
 	//   .JS  : plain JavaScript. `<` at expression start → syntax error.
 	//   .JSX : JS + JSX. `<` at expression start → JSX element.
@@ -434,6 +449,8 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.in_switch = false
 	p.strict_mode = false
 	p.in_method = false
+	p.in_derived_constructor = false
+	p.class_has_extends = false
 	p.label_stack = make([dynamic]string, 0, 4, alloc)
 	p.label_floor = 0
 	p.lang = lang
@@ -1953,6 +1970,11 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// is a SyntaxError. Arrow functions keep inherited `in_method`.
 	prev_in_method := p.in_method
 	p.in_method = false
+	// Same rule for `in_derived_constructor` — a regular function inside
+	// a derived-class constructor gets its own (non-constructor)
+	// function environment, so `super(...)` inside it is a SyntaxError.
+	prev_in_derived_ctor := p.in_derived_constructor
+	p.in_derived_constructor = false
 
 	// In declare / ambient-module context, allow no body (just a semicolon).
 	// An ambient module body (`module "x" { function f(): void; }`) or a
@@ -1985,6 +2007,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.in_async = prev_async
 	p.in_generator = prev_gen
 	p.in_method = prev_in_method
+	p.in_derived_constructor = prev_in_derived_ctor
 
 	// Retroactive StrictFormalParameters check: if either the enclosing
 	// context was already strict or the body declared `"use strict"`, the
@@ -2327,6 +2350,14 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
 	}
+
+	// Thread "this class has an extends clause" through parse_class_body so
+	// parse_class_element can enable `in_derived_constructor` only for the
+	// instance constructor of a derived class. Saved / restored so nested
+	// class declarations don't leak.
+	prev_class_has_extends := p.class_has_extends
+	p.class_has_extends = (super_class != nil)
+	defer p.class_has_extends = prev_class_has_extends
 
 	// TS: `class X implements Y, Z<T>` — optional after `extends`. OXC emits
 	// `implements: [TSClassImplements{expression, typeArguments}]`. Kessel's
@@ -2731,11 +2762,15 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if match_token(p, .Assign) {
 			// Class field initializer runs in a synthetic method with the
 			// class as [[HomeObject]] — `super.x` is legal in this
-			// position (ECMA-262 §15.7.5).
+			// position (ECMA-262 §15.7.5). But it is not a constructor, so
+			// `super(...)` is not legal; reset `in_derived_constructor`.
 			prev_in_method := p.in_method
 			p.in_method = true
+			prev_in_derived_ctor := p.in_derived_constructor
+			p.in_derived_constructor = false
 			init_expr := parse_assignment_expression(p)
 			p.in_method = prev_in_method
+			p.in_derived_constructor = prev_in_derived_ctor
 			if init_expr != nil {
 				value = init_expr
 			}
@@ -2805,6 +2840,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		prev_in_async := p.in_async
 		prev_in_method := p.in_method
 		prev_strict := p.strict_mode
+		prev_in_derived_ctor := p.in_derived_constructor
 
 		p.in_function = true
 		p.in_generator = is_generator
@@ -2816,6 +2852,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// strict-mode rules even without a `"use strict"` directive.
 		p.in_method = true
 		p.strict_mode = true
+		// `super(...)` (SuperCall) is only legal in the instance constructor
+		// of a class with `extends` (ECMA-262 §15.7.3). `static` methods
+		// named `constructor` are ordinary static methods and don't qualify.
+		p.in_derived_constructor = kind == .Constructor && !static_ && p.class_has_extends
 
 		body = parse_function_body(p)
 
@@ -2824,6 +2864,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		p.in_async = prev_in_async
 		p.in_method = prev_in_method
 		p.strict_mode = prev_strict
+		p.in_derived_constructor = prev_in_derived_ctor
 
 		// Class methods always have UniqueFormalParameters; retro-check.
 		// Force the non-simple arm on too, for consistency — the strict
@@ -2871,6 +2912,11 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	prev_in_method := p.in_method
 	p.in_method = true
 	defer p.in_method = prev_in_method
+	// Static blocks are not constructors — `super(...)` is not legal here
+	// even if the surrounding class has `extends`.
+	prev_in_derived_ctor := p.in_derived_constructor
+	p.in_derived_constructor = false
+	defer p.in_derived_constructor = prev_in_derived_ctor
 
 	// Parse block statement. parse_block_statement returns a ^Statement
 	// union wrapping a ^BlockStatement; extract the ^BlockStatement variant
@@ -4840,6 +4886,18 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if !allow_call {
 				return expr
 			}
+			// SuperCall early-error (ECMA-262 §15.7.3 / §13.3.7): `super(...)`
+			// is a SyntaxError outside the instance constructor of a class
+			// with `extends`. The bare-super check in parse_primary already
+			// guarded SuperProperty (`super.x` / `super[x]`) for any
+			// [[HomeObject]]-bearing context; this narrower check rejects the
+			// call form even inside a non-derived constructor or
+			// non-constructor method.
+			if _, is_super := expr^.(^Super); is_super {
+				if !p.in_derived_constructor {
+					report_error(p, "'super' call is only allowed in the constructor of a derived class")
+				}
+			}
 			// Save and clear pending_paren_start before parsing arguments.
 			// The paren-start from the callee must not propagate into argument
 			// sub-expressions (e.g. `(0,f)({prop: g(x)})` — g(x) must not
@@ -5684,9 +5742,15 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 		prev_in_method := p.in_method
 		p.in_method = true
+		// Object-literal getter / setter — not a constructor, so
+		// `super(...)` is not legal even inside a method body that inherits
+		// a surrounding derived-constructor context.
+		prev_in_derived_ctor := p.in_derived_constructor
+		p.in_derived_constructor = false
 		body := parse_function_body(p)
 		body_strict := p.last_body_strict
 		p.in_method = prev_in_method
+		p.in_derived_constructor = prev_in_derived_ctor
 
 		// Getters / setters always have UniqueFormalParameters
 		// (ECMA-262 §15.4.3 / §15.4.4). A setter with two params named
@@ -5726,16 +5790,20 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		prev_in_generator := p.in_generator
 		prev_in_async := p.in_async
 		prev_in_method := p.in_method
+		prev_in_derived_ctor := p.in_derived_constructor
 		p.in_generator = is_generator
 		p.in_async = is_async
 		// Object-literal method shorthand — [[HomeObject]] is the object
-		// literal. `super.x` is legal inside.
+		// literal. `super.x` is legal inside. Object methods are not
+		// constructors, so `super(...)` is not legal.
 		p.in_method = true
+		p.in_derived_constructor = false
 		body := parse_function_body(p)
 		body_strict := p.last_body_strict
 		p.in_generator = prev_in_generator
 		p.in_async = prev_in_async
 		p.in_method = prev_in_method
+		p.in_derived_constructor = prev_in_derived_ctor
 
 		// Object-literal methods run under UniqueFormalParameters rules
 		// (ECMA-262 §15.4.1 / §15.4.5) — duplicates are always a
@@ -5874,6 +5942,11 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
 	}
+
+	// See parse_class_declaration for the rationale — same save/restore.
+	prev_class_has_extends := p.class_has_extends
+	p.class_has_extends = (super_class != nil)
+	defer p.class_has_extends = prev_class_has_extends
 
 	body := parse_class_body(p)
 

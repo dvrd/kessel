@@ -1,4 +1,6 @@
 {
+  "tests/fixtures/negative/032_super_call_in_non_constructor_method.js": "rejected",
+  "tests/fixtures/negative/031_super_call_in_non_derived_constructor.js": "rejected",
   "tests/fixtures/negative/030_duplicate_constructor.js": "rejected",
   "tests/fixtures/negative/029_throw_line_terminator.js": "rejected",
   "tests/fixtures/negative/028_delete_private_field.js": "rejected",
