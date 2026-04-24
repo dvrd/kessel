@@ -6532,6 +6532,15 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 	arr.loc = start
 	arr.elements = make([dynamic]Maybe(^Expression), 0, 8, p.allocator)
 
+	// Inside an ArrayExpression literal, `in` is always valid as a
+	// binary operator — the enclosing §no_in flag (used to peek for
+	// for-in/of heads) must NOT leak into element sub-expressions.
+	// `for ([ x = 'x' in {} ] of y)` needs the inner `'x' in {}` to
+	// parse as a binary expression, not bail at `in`.
+	prev_no_in := p.no_in
+	p.no_in = false
+	defer p.no_in = prev_no_in
+
 	for !is_token(p, .RBracket) && !is_token(p, .EOF) {
 		if match_token(p, .Comma) {
 			// Sparse element
@@ -6604,6 +6613,13 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	obj := new_node(p, ObjectExpression)
 	obj.loc = start
 	obj.properties = make([dynamic]Property, 0, 4, p.allocator)
+
+	// Inside an ObjectExpression literal, `in` is always valid as a
+	// binary operator — same rule as parse_array_expr. Clear no_in so
+	// `for ({a: 'x' in {}} of y)` works.
+	prev_no_in := p.no_in
+	p.no_in = false
+	defer p.no_in = prev_no_in
 
 	// ECMA-262 §13.2.5.1 — if an ObjectLiteral has more than one
 	// PropertyDefinition whose PropertyName is the literal identifier /
@@ -7290,6 +7306,12 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		}
 		append(&tmpl.quasis, elem)
 		eat(p) // consume TemplateHead
+
+		// Template substitution bodies (`${...}`) are independent
+		// AssignmentExpressions — the enclosing no_in must not leak.
+		prev_no_in := p.no_in
+		p.no_in = false
+		defer p.no_in = prev_no_in
 
 		// Parse embedded expressions and middle/tail parts
 		for {
