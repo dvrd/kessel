@@ -833,6 +833,19 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 	l.last_lit_offset = start; l.last_lit_value = LiteralValue(value); l.last_lit_type = .Number
 
+	// §12.9.3 — "The SourceCharacter immediately following a
+	// NumericLiteral must not be an IdentifierStart or DecimalDigit."
+	// `1a`, `1e1x`, `00b0`, `0.5c` are all SyntaxErrors. Without this
+	// check the lexer stops at the bad char and lets the parser see a
+	// Number followed by an Identifier; ASI then accepts the two as
+	// separate statements on the same line, masking the error.
+	if end < u32(src_len) {
+		c := src[end]
+		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '_' {
+			append(&l.lexer_errors, LexerError{offset = end, message = "Identifier directly after number"})
+		}
+	}
+
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
 
@@ -840,11 +853,31 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
 	l.offset += 2 // skip 0x
+	digits_seen := 0
 	for l.offset < src_len {
 		c := src[l.offset]
-		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '_' {
+		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
+			l.offset += 1
+			digits_seen += 1
+		} else if c == '_' {
 			l.offset += 1
 		} else { break }
+	}
+	// §12.9.3 HexIntegerLiteral requires at least one HexDigit after `0x`.
+	if digits_seen == 0 {
+		append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Hex literal requires at least one digit"})
+	}
+	// Reject identifier-continue chars immediately following the hex body
+	// (`0xzzz`, `0xfoo` — the bad char is kept separate; surface the error
+	// before ASI merges the next token as an identifier). `n` is the legal
+	// BigInt suffix handled below.
+	if l.offset < src_len {
+		c := src[l.offset]
+		if (c >= 'g' && c <= 'z') || (c >= 'G' && c <= 'Z') {
+			if c != 'n' {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid hex digit"})
+			}
+		}
 	}
 	end := u32(l.offset)
 	if l.offset < src_len && src[l.offset] == 'n' {
