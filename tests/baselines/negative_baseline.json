@@ -1,4 +1,8 @@
 {
+  "tests/fixtures/negative/023_await_as_binding_in_async.js": "rejected",
+  "tests/fixtures/negative/022_yield_as_binding_in_generator.js": "rejected",
+  "tests/fixtures/negative/021_arrow_duplicate_params.js": "rejected",
+  "tests/fixtures/negative/020_duplicate_destructured_params.js": "rejected",
   "tests/fixtures/negative/019_new_dynamic_import.js": "rejected",
   "tests/fixtures/negative/018_private_identifier_outside_class.js": "rejected",
   "tests/fixtures/negative/017_static_prototype_class_member.js": "rejected",

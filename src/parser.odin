@@ -1971,9 +1971,13 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	// Retroactive StrictFormalParameters check: if either the enclosing
 	// context was already strict or the body declared `"use strict"`, the
-	// params must have no duplicate bound names.
+	// params must have no duplicate bound names. Non-simple parameter
+	// lists (destructuring, default values, rest) additionally force the
+	// UniqueFormalParameters rule even in sloppy mode (§15.1.2).
 	if p.strict_mode || body_strict {
 		report_duplicate_param_names(p, params[:])
+	} else {
+		report_duplicate_param_names(p, params[:], true)
 	}
 
 	if is_expr {
@@ -2748,7 +2752,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		p.strict_mode = prev_strict
 
 		// Class methods always have UniqueFormalParameters; retro-check.
-		report_duplicate_param_names(p, params[:])
+		// Force the non-simple arm on too, for consistency — the strict
+		// arm covers duplicates already, and force_when_non_simple is a
+		// no-op when params are simple and we're in strict.
+		report_duplicate_param_names(p, params[:], true)
 	}
 
 	// Create the method as a FunctionExpression
@@ -2942,19 +2949,36 @@ collect_bound_names :: proc(pat: Pattern, names: ^[dynamic]string) {
 	// ^MemberExpression: destructuring-assignment target, not a binding.
 }
 
+// A FormalParameter is “simple” iff it's a plain Identifier with no
+// default value, no destructuring, and not a rest element. ECMA-262
+// §15.1.2 Static Semantics IsSimpleParameterList returns true only
+// when EVERY parameter is simple. The moment any param is non-simple,
+// UniqueFormalParameters applies regardless of strict/sloppy mode —
+// duplicates in `function f(a, {a}) {}` are a SyntaxError even in
+// sloppy script.
+params_are_simple :: proc(params: []FunctionParameter) -> bool {
+	for p in params {
+		if _, has_def := p.default_val.(^Expression); has_def { return false }
+		if _, is_id := p.pattern.(^Identifier); !is_id { return false }
+	}
+	return true
+}
+
 // Scan a FormalParameters list for duplicate binding names and report
-// each duplicate. Called by function / method / object-method parsers
-// AFTER the body has been parsed, iff `p.strict_mode || p.last_body_strict`.
-// ECMA-262 §15.2.1: StrictFormalParameters have no duplicate bound names,
-// regardless of whether the duplicates are in simple identifiers or inside
-// destructuring patterns. Sloppy-mode functions with SIMPLE param lists
-// are allowed to repeat names (B.3.1); anything else — rest, defaults,
-// destructuring — already forces the stricter check even without `"use
-// strict"`, but Kessel accepts those at parse-time today and the dup
-// check here runs only under strict-mode to match what the negative gate
-// is asking for.
-report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter) {
+// each duplicate. Callers decide when to run it:
+//   * function / function expression — always safe to call; no-op in
+//     sloppy mode when params are simple (B.3.1 allows dups there).
+//   * class methods, object-literal methods, arrow functions — always
+//     UniqueFormalParameters.
+// ECMA-262 §15.2.1 StrictFormalParameters forbids dups whenever the
+// code is strict; §15.1.2 extends the ban to any non-simple param list
+// regardless of mode. The `force_when_non_simple` bool threads that
+// second rule through at the call site so we don't rescan the params.
+report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, force_when_non_simple: bool = false) {
 	if len(params) < 2 { return }
+	strict := p.strict_mode
+	force_non_simple := force_when_non_simple && !params_are_simple(params)
+	if !strict && !force_non_simple { return }
 	names: [dynamic]string
 	names.allocator = p.allocator
 	reserve(&names, 4)
@@ -2964,7 +2988,12 @@ report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter) {
 	for i := 1; i < n; i += 1 {
 		for j := 0; j < i; j += 1 {
 			if names[i] == names[j] {
-				msg := fmt.tprintf("Duplicate parameter name '%s' in strict mode", names[i])
+				msg: string
+				if strict {
+					msg = fmt.tprintf("Duplicate parameter name '%s' in strict mode", names[i])
+				} else {
+					msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i])
+				}
 				report_error(p, msg)
 				break
 			}
@@ -3217,6 +3246,37 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	if p.strict_mode && is_strict_reserved_word(p.cur_type) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
 		report_error(p, msg)
+		id_loc := cur_loc(p)
+		id_name := cur_value(p)
+		eat(p)
+		ident := new_node(p, Identifier)
+		ident.loc = id_loc
+		ident.name = id_name
+		return ident
+	}
+
+	// Context-sensitive reserved words for bindings:
+	//   * `yield` is reserved in a GeneratorBody / GeneratorDeclaration
+	//     (ECMA-262 §13.2). `p.in_generator` carries exactly that
+	//     context.
+	//   * `await` is reserved in an AsyncFunction / AsyncGenerator /
+	//     AsyncArrow / Module. We use `p.in_async` for the function
+	//     forms; module top-level is covered by the caller that pins
+	//     sourceType=module (future work).
+	// Both tokens already have dedicated TokenTypes in Kessel's lexer,
+	// so the check is a simple kind comparison.
+	if p.in_generator && p.cur_type == .Yield {
+		report_error(p, "'yield' is reserved as a binding name inside a generator")
+		id_loc := cur_loc(p)
+		id_name := cur_value(p)
+		eat(p)
+		ident := new_node(p, Identifier)
+		ident.loc = id_loc
+		ident.name = id_name
+		return ident
+	}
+	if p.in_async && p.cur_type == .Await {
+		report_error(p, "'await' is reserved as a binding name inside an async function")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -5535,7 +5595,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// the same is a SyntaxError regardless of strict mode. Retro-check
 		// covers this without tracking "method-kind" through param parse.
 		_ = body_strict
-		report_duplicate_param_names(p, params[:])
+		report_duplicate_param_names(p, params[:], true)
 
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start
@@ -5584,7 +5644,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// SyntaxError. The retro-check also covers the enclosing strict
 		// mode / body directive cases.
 		_ = body_strict
-		report_duplicate_param_names(p, params[:])
+		report_duplicate_param_names(p, params[:], true)
 
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start
@@ -6382,6 +6442,10 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	arrow.async = false
 	arrow.loc.span.end = prev_end_offset(p)
 
+	// ArrowFunction params are always UniqueFormalParameters
+	// (ECMA-262 §15.3.1). No sloppy-mode escape hatch.
+	report_duplicate_param_names(p, params[:], true)
+
 	return expression_from(p, arrow)
 }
 
@@ -6568,6 +6632,10 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	arrow.async = true
 	arrow.loc.span.end = prev_end_offset(p)
 
+	// Single-param async arrow: only one FormalParameter, so nothing
+	// to dedupe. Still run the helper for consistency / future-proof.
+	report_duplicate_param_names(p, params[:], true)
+
 	return expression_from(p, arrow)
 }
 
@@ -6630,6 +6698,9 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	arrow.expression = !is_block_body
 	arrow.async = true
 	arrow.loc.span.end = prev_end_offset(p)
+
+	// Async arrow with paren'd params: UniqueFormalParameters always.
+	report_duplicate_param_names(p, params[:], true)
 
 	return expression_from(p, arrow)
 }
@@ -7702,6 +7773,10 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	arrow.async = false
 	if rt, ok := return_type.?; ok { arrow.return_type = rt }
 	arrow.loc.span.end = prev_end_offset(p)
+
+	// TS generic arrow — same UniqueFormalParameters rule as plain arrow.
+	report_duplicate_param_names(p, params[:], true)
+
 	return expression_from(p, arrow)
 }
 
