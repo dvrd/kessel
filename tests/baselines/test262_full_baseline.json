@@ -1,0 +1,240 @@
+{
+  "total": 49729,
+  "counts": {
+    "pass": 44620,
+    "accepted-should-reject": 2091,
+    "rejected-should-accept": 3017,
+    "crash": 1,
+    "timeout": 0
+  },
+  "perDir": {
+    "annexB": {
+      "pass": 1082,
+      "fail": 4,
+      "crash": 0,
+      "timeout": 0
+    },
+    "built-ins": {
+      "pass": 23323,
+      "fail": 191,
+      "crash": 0,
+      "timeout": 0
+    },
+    "language": {
+      "pass": 18748,
+      "fail": 4897,
+      "crash": 0,
+      "timeout": 0
+    },
+    "staging": {
+      "pass": 1467,
+      "fail": 16,
+      "crash": 1,
+      "timeout": 0
+    }
+  },
+  "sample_failures": [
+    {
+      "file": "annexB/language/comments/single-line-html-open.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "annexB/language/expressions/assignmenttargettype/cover-callexpression-and-asyncarrowhead.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "annexB/language/statements/for-in/strict-initializer.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_N-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_N.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_No-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_No.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_T-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_T.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Y-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Y.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Yes-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Yes.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/character-class-range-end.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/character-class-range-no-dash-end.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/character-class-range-no-dash-start.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/character-class-range-start.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-CharacterClass.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-P.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-u.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-CharacterClass.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-P.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-u.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-CharacterClass.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-P.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-u.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-CharacterClass.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-P.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-u.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-CharacterClass.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-P.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-u.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-CharacterClass.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-P.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-u.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-CharacterClass.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-P.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-u.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-circumflex-negation-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-circumflex-negation.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-empty-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-empty.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Block-implicit-negated.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Block-implicit.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit-negated.js",
+      "verdict": "accepted-should-reject"
+    }
+  ],
+  "rate": 89.73,
+  "generated_at": "2026-04-24T12:42:00.848Z"
+}

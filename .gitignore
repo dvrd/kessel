@@ -8,3 +8,4 @@ bench/
 AGENTS.md
 .task/
 .firecrawl/
+vendor/

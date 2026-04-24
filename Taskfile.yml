@@ -201,6 +201,37 @@ tasks:
     cmds:
       - node tests/verifiers/verify_test262_subset.js --strict
 
+  test:test262:full:
+    desc: "Full Test262 corpus parse gate (≤45 000 tests). Requires a test262 checkout at vendor/test262 (git clone https://github.com/tc39/test262.git vendor/test262) or KESSEL_TEST262_DIR=... Expect minutes to run; off the default chain."
+    deps: [build]
+    silent: true
+    cmds:
+      - bash tests/runners/run_test262_full.sh
+
+  test:test262:full:json:
+    desc: "Full Test262 corpus with JSON output (for baselining and drift tracking). Writes to tmp/test262_full_run.json."
+    deps: [build]
+    silent: true
+    cmds:
+      - mkdir -p tmp
+      - KESSEL_T262_JSON=tmp/test262_full_run.json bash tests/runners/run_test262_full.sh
+
+  test:test262:full:regression:
+    desc: "Compare the latest Test262 full-corpus run against the baseline; fail on any regression (pass count drop, crash growth, per-dir regression). Requires a preceding `task test:test262:full:json` run."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_test262_full_regression.js
+
+  test:test262:full:update:
+    desc: "Relock the Test262 full-corpus baseline after an intentional improvement."
+    deps: [build]
+    silent: true
+    cmds:
+      - mkdir -p tmp
+      - KESSEL_T262_JSON=tmp/test262_full_run.json bash tests/runners/run_test262_full.sh
+      - node tests/verifiers/verify_test262_full_regression.js --update
+
   test:multi-parser:
     desc: ESTree cross-parser compat — compare Kessel against Acorn and Babel
     deps: [build]
