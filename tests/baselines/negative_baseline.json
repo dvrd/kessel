@@ -1,4 +1,5 @@
 {
+  "tests/fixtures/negative/027_rest_trailing_comma.js": "rejected",
   "tests/fixtures/negative/026_class_named_strict_reserved.js": "rejected",
   "tests/fixtures/negative/025_legacy_octal_bigint.js": "rejected",
   "tests/fixtures/negative/024_new_target_outside_function.js": "rejected",
@@ -68,6 +69,7 @@
   "tests/fixtures/early_errors/module_context/003_top_level_await_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/002_import_in_script.js": "rejected",
   "tests/fixtures/early_errors/module_context/001_export_in_script.js": "rejected",
+  "tests/fixtures/early_errors/strict_mode/017_labeled_function_declaration.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/016_function_name_eval.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/015_delete_identifier.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/014_update_eval_arguments.js": "rejected",

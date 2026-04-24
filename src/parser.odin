@@ -1172,6 +1172,16 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			labeled.body = parse_statement_or_declaration(p)
 			pop(&p.label_stack)
 			labeled.loc.span.end = prev_end_offset(p)
+			// ECMA-262 §14.13.1 — the LabelledItem of a LabelledStatement
+			// cannot be a FunctionDeclaration in strict mode. Annex B.3.2
+			// relaxes this in sloppy script (narrow shape: no async /
+			// generator, not inside an IfStatement); we accept any
+			// FunctionDeclaration in sloppy and reject in strict.
+			if p.strict_mode && labeled.body != nil {
+				if _, is_fn := labeled.body^.(^FunctionDeclaration); is_fn {
+					report_error(p, "Labeled function declarations are not allowed in strict mode")
+				}
+			}
 
 			return statement_from(p, labeled)
 		}
@@ -1974,8 +1984,9 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// params must have no duplicate bound names. Non-simple parameter
 	// lists (destructuring, default values, rest) additionally force the
 	// UniqueFormalParameters rule even in sloppy mode (§15.1.2).
-	if p.strict_mode || body_strict {
-		report_duplicate_param_names(p, params[:])
+	strict_for_check := p.strict_mode || body_strict
+	if strict_for_check {
+		report_duplicate_param_names(p, params[:], false, true)
 		// ECMA-262 §15.1.1 — in strict mode, `function eval() {}` /
 		// `function arguments() {}` is a SyntaxError. `let`/`static`/
 		// etc. as the function name were already rejected at binding
@@ -2053,6 +2064,18 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 		param := parse_function_param(p)
 		if param != nil {
 			append(&params, param^)
+		}
+
+		// ECMA-262 §15.1 / §15.3 — no trailing comma is permitted after
+		// a RestElement. The trailing-comma allowance applies to non-rest
+		// BindingElements only. Detect via the just-parsed param's
+		// pattern shape and report before consuming the stray comma.
+		if param != nil {
+			if _, is_rest := param.pattern.(^RestElement); is_rest {
+				if is_token(p, .Comma) {
+					report_error(p, "Rest element may not have a trailing comma")
+				}
+			}
 		}
 
 		if !match_token(p, .Comma) {
@@ -3000,9 +3023,13 @@ params_are_simple :: proc(params: []FunctionParameter) -> bool {
 // code is strict; §15.1.2 extends the ban to any non-simple param list
 // regardless of mode. The `force_when_non_simple` bool threads that
 // second rule through at the call site so we don't rescan the params.
-report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, force_when_non_simple: bool = false) {
+// `strict_override` lets a caller force-on the strict arm even when
+// `p.strict_mode` has already been restored from a nested body (eg.
+// parse_function_declaration reads body_strict after the body parse
+// but before the param check runs).
+report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, force_when_non_simple: bool = false, strict_override: bool = false) {
 	if len(params) < 2 { return }
-	strict := p.strict_mode
+	strict := p.strict_mode || strict_override
 	force_non_simple := force_when_non_simple && !params_are_simple(params)
 	if !strict && !force_non_simple { return }
 	names: [dynamic]string
