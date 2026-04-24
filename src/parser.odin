@@ -995,8 +995,14 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 	case .Function:
 		return parse_function_declaration(p)
 	case .Async:
-		// async function declaration or async expression
-		if is_next_token(p, .Function) {
+		// async function declaration or async expression.
+		// ECMA-262 §15.8 Restricted Production: `async [no LineTerminator
+		// here] function`. A LineTerminator between `async` and `function`
+		// breaks the AsyncFunctionDeclaration rule — `async` is then a bare
+		// IdentifierReference and the following `function` starts its own
+		// FunctionDeclaration statement via ASI.
+		next_after_async := peek_dispatch(p)
+		if next_after_async.type == .Function && !next_after_async.had_line_terminator {
 			return parse_function_declaration(p)
 		}
 		return parse_expression_or_labeled_statement(p)
@@ -4617,6 +4623,15 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// Handle special operator-like tokens
 		if op_prec == .Assignment {
 			if cur_type == .Arrow {
+				// ECMA-262 §15.3 Restricted Production:
+				//   ArrowFunction : ArrowParameters [no LineTerminator here] => ConciseBody
+				// A LineTerminator between the parameters and `=>` fails the
+				// production. Report it but still parse the arrow so the rest of
+				// the expression parses cleanly (the arrow body carries the
+				// `=>` span regardless).
+				if p.cur_tok.had_line_terminator {
+					report_error(p, "Unexpected line terminator before '=>' (restricted production)")
+				}
 				return parse_arrow_function(p, left)
 			}
 			if is_assignment_operator(cur_type) {
@@ -5341,10 +5356,16 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// async function expression or arrow function
 		// Lookahead to check what follows async
 		next := peek_dispatch(p)
-		if next.type == .Function {
+		// ECMA-262 §15.8 / §15.9 Restricted Productions: no LineTerminator
+		// between `async` and the following `function` / BindingIdentifier /
+		// `(`. If there is one, the grammar rule fails and ASI treats `async`
+		// as a bare IdentifierReference; the lookahead token starts a new
+		// statement/expression.
+		async_lt_break := next.had_line_terminator
+		if !async_lt_break && next.type == .Function {
 			// async function() {} - function expression
 			return parse_function_expression(p)
-		} else if next.type == .Identifier || next.type == .LParen {
+		} else if !async_lt_break && (next.type == .Identifier || next.type == .LParen) {
 			// This might be an async arrow function: async x => x or async () => {}
 			if next.type == .Identifier {
 				// async x => ...

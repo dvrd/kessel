@@ -1,4 +1,5 @@
 {
+  "tests/fixtures/negative/035_arrow_line_terminator_before_arrow.js": "rejected",
   "tests/fixtures/negative/034_escaped_keyword_as_binding.js": "rejected",
   "tests/fixtures/negative/033_escaped_keyword_as_keyword.js": "rejected",
   "tests/fixtures/negative/032_super_call_in_non_constructor_method.js": "rejected",
