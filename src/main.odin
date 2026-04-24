@@ -4086,6 +4086,30 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 						out_s("\n")
 						print_indent(indent + 2)
 						out_s("}")
+					case ^NumericLiteral:
+						// §14.3.3 PropertyName : NumericLiteral — ESTree emits
+						// as a plain Literal with `value` and `raw`. Matches
+						// the main NumericLiteral path (Inf / NaN substitution).
+						out_s("{\n")
+						print_indent(indent + 3)
+						out_s("\"type\": \"Literal\",\n")
+						print_indent(indent + 3)
+						emit_span_leading(k.loc, indent + 3)
+						out_s("\"value\": ")
+						if math.classify_f64(k.value) == .Inf {
+							out_s(k.value > 0 ? "1e+400" : "-1e+400")
+						} else if math.classify_f64(k.value) == .NaN {
+							out_s("null")
+						} else {
+							out_printf("%v", k.value)
+						}
+						out_s(",\n")
+						print_indent(indent + 3)
+						out_s("\"raw\": ")
+						out_string(k.raw)
+						out_s("\n")
+						print_indent(indent + 2)
+						out_s("}")
 					}
 				} else {
 					out_s("null")

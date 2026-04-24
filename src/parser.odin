@@ -1599,6 +1599,13 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			if p.strict_mode {
 				report_strict_eval_arguments_in_target(p, left_expr)
 			}
+			// for-in/of LHS is an AssignmentTarget; when it's an object /
+			// array literal it reinterprets as a destructuring pattern
+			// (§13.15.5.2). Run expr_to_pattern to trigger the same
+			// CoverInitializedName clearing path the regular
+			// AssignmentExpression uses, so `for ({x = 1} of [{}])` stops
+			// reporting "Invalid shorthand property initializer".
+			_, _ = expr_to_pattern(p, left_expr)
 		}
 
 		// ECMA-262 Annex B.3.5 gate. A VariableDeclaration in a for-in/of
@@ -4001,6 +4008,20 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			str_lit.raw = current.value
 			str_lit.loc.span.end = cur_offset(p) + u32(len(current.value))
 			key = str_lit
+			eat(p)
+		} else if is_token(p, .Number) {
+			// Numeric key: `{ 0: v, 1: w }` (§14.3.3 PropertyName :
+			// NumericLiteral path). Must be followed by `:` — numeric
+			// keys don't support shorthand.
+			current := get_current(p)
+			num_lit := new_node(p, NumericLiteral)
+			num_lit.loc = loc_from_token(current)
+			num_lit.raw = current.value
+			if v, ok := current.literal.(f64); ok {
+				num_lit.value = v
+			}
+			num_lit.loc.span.end = cur_offset(p) + u32(len(current.value))
+			key = num_lit
 			eat(p)
 		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 			// Identifier or keyword used as key.

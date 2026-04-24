@@ -987,6 +987,7 @@ Pattern :: union {
 ObjectPatternPropertyKey :: union {
 	IdentifierName,
 	^StringLiteral,
+	^NumericLiteral,
 	^Expression, // computed key
 }
 
