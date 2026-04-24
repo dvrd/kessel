@@ -1,0 +1,139 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 133,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 64,
+      "end": 102,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 70,
+          "end": 101,
+          "id": {
+            "type": "Identifier",
+            "start": 70,
+            "end": 76,
+            "name": "broken"          },
+          "init": {
+            "type": "JSXFragment",
+            "start": 79,
+            "end": 101,
+            "openingFragment": {
+              "type": "JSXOpeningFragment",
+              "start": 79,
+              "end": 81,
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXElement",
+                "start": 81,
+                "end": 98,
+                "openingElement": {
+                  "type": "JSXOpeningElement",
+                  "start": 81,
+                  "end": 89,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 82,
+                    "end": 86,
+                    "name": "span"
+                  },
+                  "attributes": [
+                    {
+                      "type": "JSXAttribute",
+                      "start": 87,
+                      "end": 89,
+                      "name": {
+                        "type": "JSXIdentifier",
+                        "start": 87,
+                        "end": 89,
+                        "name": "id"
+                      },
+                      "value": null
+                    }
+                  ],
+                  "selfClosing": false
+                },
+                "children": [
+                  {
+                    "type": "JSXText",
+                    "start": 89,
+                    "end": 91,
+                    "value": "=>",
+                    "raw": "=>"
+                  }
+                ],
+                "closingElement": {
+                  "type": "JSXClosingElement",
+                  "start": 91,
+                  "end": 98,
+                  "name": {
+                    "type": "JSXIdentifier",
+                    "start": 93,
+                    "end": 97,
+                    "name": "span"
+                  }
+                }
+              }
+            ],
+            "closingFragment": {
+              "type": "JSXClosingFragment",
+              "start": 98,
+              "end": 101
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 103,
+      "end": 132,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 109,
+          "end": 131,
+          "id": {
+            "type": "Identifier",
+            "start": 109,
+            "end": 127,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 130,
+            "end": 131,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 63,
+      "value": " JSX fragment with a malformed attribute on an inner element."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected >, got =>",
+      "line": 2,
+      "column": 26,
+      "offset": 89
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 26: Expected >, got =>
+
+--- Statistics ---
+Arena: used=8976B reserved=16777216B ratio=0%
+Parse errors: 1

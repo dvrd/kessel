@@ -2408,7 +2408,12 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	}
 
 	if match_token(p, .Assign) {
-		param.default_val = parse_assignment_expression(p)
+		default_expr := parse_assignment_expression(p)
+		if default_expr == nil {
+			report_error(p, "Expected initializer expression after '='")
+		} else {
+			param.default_val = default_expr
+		}
 	}
 
 	param.loc.span.end = prev_end_offset(p)
@@ -3391,7 +3396,18 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 
 	init: Maybe(^Expression)
 	if match_token(p, .Assign) {
-		init = parse_assignment_expression(p)
+		init_expr := parse_assignment_expression(p)
+		if init_expr == nil {
+			// `var x = ;` / `let x = ;` etc. The `=` committed us to an
+			// initializer, but the expression parser could not find one.
+			// Report so the recovery verifier and editor-tooling see
+			// the problem; the declarator still emits with init = nil
+			// so the caller's for-statement / declaration parse can
+			// continue from the next `;` / `,` / `)`.
+			report_error(p, "Expected initializer expression after '='")
+		} else {
+			init = init_expr
+		}
 	} else if kind == .Const && !in_for && !is_declare && !p.in_ambient {
 		// `const x;` without init is legal inside an ambient module body.
 		report_error(p, "const declarations must have an initializer")
@@ -6607,6 +6623,13 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 					spread.argument = arg
 					spread.loc.span.end = prev_end_offset(p)
 					append(&args, expression_from(p, spread))
+				} else {
+					// `...` in argument position must be followed by an
+					// AssignmentExpression (the spread target). `fn(..., x)`
+					// and `fn(...)` (empty) are both SyntaxErrors. Report so
+					// the recovery verifier and error-reporting consumers
+					// see the problem; parse continues at `,` / `)`.
+					report_error(p, "Expected expression after '...'")
 				}
 			} else {
 				arg := parse_assignment_expression(p)
@@ -8793,8 +8816,24 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		eat(p) // consume identifier
 		constraint: Maybe(^TSType)
 		default_: Maybe(^TSType)
-		if is_token(p, .Extends) { eat(p); constraint = parse_ts_type(p) }
-		if is_token(p, .Assign)  { eat(p); default_  = parse_ts_type(p) }
+		if is_token(p, .Extends) {
+			eat(p)
+			c := parse_ts_type(p)
+			if c == nil {
+				report_error(p, "Expected type after 'extends'")
+			} else {
+				constraint = c
+			}
+		}
+		if is_token(p, .Assign) {
+			eat(p)
+			d := parse_ts_type(p)
+			if d == nil {
+				report_error(p, "Expected type after '='")
+			} else {
+				default_ = d
+			}
+		}
 		param := TSTypeParameter{
 			loc = param_start, name = name,
 			constraint = constraint, default_ = default_,

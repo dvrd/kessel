@@ -1,0 +1,147 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 131,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 54,
+      "end": 100,
+      "id": {
+        "type": "Identifier",
+        "start": 63,
+        "end": 65,
+        "name": "id"
+      },
+      "typeParameters": {
+        "type": "TSTypeParameterDeclaration",
+        "start": 65,
+        "end": 77,
+        "params": [
+          {
+            "type": "TSTypeParameter",
+            "start": 66,
+            "end": 75,
+            "name": {
+              "type": "Identifier",
+              "start": 66,
+              "end": 67,
+              "name": "T"
+            },
+            "constraint": null,
+            "default": null,
+            "in": false,
+            "out": false,
+            "const": false
+          }
+        ]
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 78,
+          "end": 82,
+          "name": "x",
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 79,
+            "end": 82,
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 81,
+              "end": 82,
+              "typeName": {
+                "type": "Identifier",
+                "start": 81,
+                "end": 82,
+                "name": "T"
+              },
+              "typeArguments": null
+            }
+          }
+        }
+      ],
+      "returnType": {
+        "type": "TSTypeAnnotation",
+        "start": 83,
+        "end": 86,
+        "typeAnnotation": {
+          "type": "TSTypeReference",
+          "start": 85,
+          "end": 86,
+          "typeName": {
+            "type": "Identifier",
+            "start": 85,
+            "end": 86,
+            "name": "T"
+          },
+          "typeArguments": null
+        }
+      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 87,
+        "end": 100,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 89,
+            "end": 98,
+            "argument": {
+              "type": "Identifier",
+              "start": 96,
+              "end": 97,
+              "name": "x"            }          }
+        ]
+      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 101,
+      "end": 130,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 107,
+          "end": 129,
+          "id": {
+            "type": "Identifier",
+            "start": 107,
+            "end": 125,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 128,
+            "end": 129,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 53,
+      "value": " TS generic type-parameter constraint is malformed."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected type after 'extends'",
+      "line": 2,
+      "column": 23,
+      "offset": 76
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 23: Expected type after 'extends'
+
+--- Statistics ---
+Arena: used=8864B reserved=16777216B ratio=0%
+Parse errors: 1

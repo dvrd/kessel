@@ -1,0 +1,179 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 238,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ForStatement",
+      "start": 129,
+      "end": 207,
+      "init": {
+        "type": "VariableDeclaration",
+        "start": 134,
+        "end": 143,
+        "kind": "let",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 138,
+            "end": 143,
+            "id": {
+              "type": "Identifier",
+              "start": 138,
+              "end": 139,
+              "name": "i"            },
+            "init": {
+              "type": "Literal",
+              "start": 142,
+              "end": 143,
+              "value": 0,
+              "raw": "0"            }          }
+        ]
+      },
+      "test": {
+        "type": "BinaryExpression",
+        "start": 145,
+        "end": 151,
+        "operator": "<",
+        "left": {
+          "type": "Identifier",
+          "start": 145,
+          "end": 146,
+          "name": "i"        },
+        "right": {
+          "type": "Literal",
+          "start": 149,
+          "end": 151,
+          "value": 10,
+          "raw": "10"        }      },
+      "update": {
+        "type": "UpdateExpression",
+        "start": 153,
+        "end": 156,
+        "operator": "++",
+        "prefix": false,
+        "argument": {
+          "type": "Identifier",
+          "start": 153,
+          "end": 154,
+          "name": "i"        }      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 158,
+        "end": 207,
+        "body": [
+          {
+            "type": "ForStatement",
+            "start": 162,
+            "end": 205,
+            "init": {
+              "type": "VariableDeclaration",
+              "start": 167,
+              "end": 174,
+              "kind": "let",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 171,
+                  "end": 174,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 171,
+                    "end": 172,
+                    "name": "j"                  },
+                  "init": null                }
+              ]
+            },
+            "test": {
+              "type": "BinaryExpression",
+              "start": 177,
+              "end": 183,
+              "operator": "<",
+              "left": {
+                "type": "Identifier",
+                "start": 177,
+                "end": 178,
+                "name": "j"              },
+              "right": {
+                "type": "Literal",
+                "start": 181,
+                "end": 183,
+                "value": 10,
+                "raw": "10"              }            },
+            "update": {
+              "type": "UpdateExpression",
+              "start": 185,
+              "end": 188,
+              "operator": "++",
+              "prefix": false,
+              "argument": {
+                "type": "Identifier",
+                "start": 185,
+                "end": 186,
+                "name": "j"              }            },
+            "body": {
+              "type": "BlockStatement",
+              "start": 190,
+              "end": 205,
+              "body": [
+                {
+                  "type": "BreakStatement",
+                  "start": 196,
+                  "end": 201,
+                  "label": null                }
+              ]            }          }
+        ]      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 208,
+      "end": 237,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 214,
+          "end": 236,
+          "id": {
+            "type": "Identifier",
+            "start": 214,
+            "end": 232,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 235,
+            "end": 236,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " Inner for-loop header is malformed; the anchor must survive despite"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 128,
+      "value": " the nested block body still being parsed for recovery."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected initializer expression after '='",
+      "line": 4,
+      "column": 16,
+      "offset": 175
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 16: Expected initializer expression after '='
+
+--- Statistics ---
+Arena: used=9624B reserved=16777216B ratio=0%
+Parse errors: 1

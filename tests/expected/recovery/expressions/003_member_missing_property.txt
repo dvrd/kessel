@@ -59,12 +59,19 @@
       "line": 2,
       "column": 24,
       "offset": 67
+    },
+    {
+      "message": "Expected initializer expression after '='",
+      "line": 2,
+      "column": 24,
+      "offset": 67
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
   Line 2, Column 24: Expected ], got ;
+  Line 2, Column 24: Expected initializer expression after '='
 
 --- Statistics ---
-Arena: used=8008B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=8560B reserved=16777216B ratio=0%
+Parse errors: 2

@@ -1,0 +1,68 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 104,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ThrowStatement",
+      "start": 57,
+      "end": 73,
+      "argument": {
+        "type": "NewExpression",
+        "start": 63,
+        "end": 73,
+        "callee": {
+          "type": "Identifier",
+          "start": 67,
+          "end": 72,
+          "name": "Error"        },
+        "arguments": [
+        ]      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 74,
+      "end": 103,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 80,
+          "end": 102,
+          "id": {
+            "type": "Identifier",
+            "start": 80,
+            "end": 98,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 101,
+            "end": 102,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 56,
+      "value": " Throw statement with a malformed argument expression."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected ), got const",
+      "line": 3,
+      "column": 1,
+      "offset": 74
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 1: Expected ), got const
+
+--- Statistics ---
+Arena: used=8320B reserved=16777216B ratio=0%
+Parse errors: 1

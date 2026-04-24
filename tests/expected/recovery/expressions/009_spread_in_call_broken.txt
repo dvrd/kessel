@@ -1,0 +1,80 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 110,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 64,
+      "end": 79,
+      "expression": {
+        "type": "CallExpression",
+        "start": 64,
+        "end": 78,
+        "callee": {
+          "type": "Identifier",
+          "start": 64,
+          "end": 66,
+          "name": "fn"        },
+        "arguments": [
+          {
+            "type": "Literal",
+            "start": 67,
+            "end": 68,
+            "value": 1,
+            "raw": "1"          },
+          {
+            "type": "Literal",
+            "start": 76,
+            "end": 77,
+            "value": 2,
+            "raw": "2"          }
+        ]      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 80,
+      "end": 109,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 86,
+          "end": 108,
+          "id": {
+            "type": "Identifier",
+            "start": 86,
+            "end": 104,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 107,
+            "end": 108,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 63,
+      "value": " Spread argument missing its target expression inside a call."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after '...'",
+      "line": 2,
+      "column": 11,
+      "offset": 74
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 11: Expected expression after '...'
+
+--- Statistics ---
+Arena: used=8320B reserved=16777216B ratio=0%
+Parse errors: 1

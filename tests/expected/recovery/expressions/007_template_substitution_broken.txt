@@ -1,0 +1,103 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 186,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 118,
+      "end": 155,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 124,
+          "end": 154,
+          "id": {
+            "type": "Identifier",
+            "start": 124,
+            "end": 130,
+            "name": "broken"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 133,
+            "end": 154,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 134,
+                "end": 140,
+                "tail": false,
+                "value": { "raw": "hello ", "cooked": "hello " }
+              },
+              {
+                "type": "TemplateElement",
+                "start": 147,
+                "end": 153,
+                "tail": true,
+                "value": { "raw": " world", "cooked": " world" }
+              }
+            ],
+            "expressions": [
+              {
+                "type": "Literal",
+                "start": 142,
+                "end": 143,
+                "value": 1,
+                "raw": "1"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 156,
+      "end": 185,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 162,
+          "end": 184,
+          "id": {
+            "type": "Identifier",
+            "start": 162,
+            "end": 180,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 183,
+            "end": 184,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " Template literal with a broken substitution — the closing `${` must"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 119,
+      "value": " not swallow the outer statement terminator."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 3,
+      "column": 30,
+      "offset": 149
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 30: Expected expression after operator
+
+--- Statistics ---
+Arena: used=8856B reserved=16777216B ratio=0%
+Parse errors: 1

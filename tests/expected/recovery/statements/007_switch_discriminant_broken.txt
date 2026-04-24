@@ -1,0 +1,95 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 133,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "SwitchStatement",
+      "start": 50,
+      "end": 102,
+      "discriminant": {
+        "type": "Identifier",
+        "start": 58,
+        "end": 59,
+        "name": "x"      },
+      "cases": [
+        {
+          "type": "SwitchCase",
+          "start": 68,
+          "end": 82,
+          "test": {
+            "type": "Literal",
+            "start": 73,
+            "end": 74,
+            "value": 1,
+            "raw": "1"          },
+          "consequent": [
+            {
+              "type": "BreakStatement",
+              "start": 76,
+              "end": 82,
+              "label": null            }
+          ]
+        },
+        {
+          "type": "SwitchCase",
+          "start": 85,
+          "end": 100,
+          "test": null,
+          "consequent": [
+            {
+              "type": "BreakStatement",
+              "start": 94,
+              "end": 100,
+              "label": null            }
+          ]
+        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 103,
+      "end": 132,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 109,
+          "end": 131,
+          "id": {
+            "type": "Identifier",
+            "start": 109,
+            "end": 127,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 130,
+            "end": 131,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 49,
+      "value": " Switch discriminant is a malformed expression."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 2,
+      "column": 13,
+      "offset": 62
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 13: Expected expression after operator
+
+--- Statistics ---
+Arena: used=9376B reserved=16777216B ratio=0%
+Parse errors: 1

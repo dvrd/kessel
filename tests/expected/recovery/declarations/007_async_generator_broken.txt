@@ -1,0 +1,126 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 154,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 69,
+      "end": 123,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 75,
+          "end": 122,
+          "id": {
+            "type": "Identifier",
+            "start": 75,
+            "end": 78,
+            "name": "obj"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 81,
+            "end": 122,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 85,
+                "end": 120,
+                "kind": "init",
+                "method": true,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 92,
+                  "end": 95,
+                  "name": "gen"                },
+                "value": {
+                  "type": "FunctionExpression",
+                  "start": 95,
+                  "end": 120,
+                  "id": null,
+                  "expression": false,
+                  "generator": true,
+                  "async": true,
+                  "params": [
+                    {
+                      "type": "Identifier",
+                      "start": 96,
+                      "end": 97,
+                      "name": "x"
+                    }
+                  ],
+                  "body": {
+                    "type": "BlockStatement",
+                    "start": 102,
+                    "end": 120,
+                    "body": [
+                      {
+                        "type": "ExpressionStatement",
+                        "start": 108,
+                        "end": 116,
+                        "expression": {
+                          "type": "YieldExpression",
+                          "start": 108,
+                          "end": 115,
+                          "argument": {
+                            "type": "Identifier",
+                            "start": 114,
+                            "end": 115,
+                            "name": "x"                          },
+                          "delegate": false                        }                      }
+                    ]
+                  }                }
+              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 124,
+      "end": 153,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 130,
+          "end": 152,
+          "id": {
+            "type": "Identifier",
+            "start": 130,
+            "end": 148,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 151,
+            "end": 152,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 68,
+      "value": " Async generator method header with a malformed parameter default."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected initializer expression after '='",
+      "line": 3,
+      "column": 18,
+      "offset": 100
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 18: Expected initializer expression after '='
+
+--- Statistics ---
+Arena: used=9040B reserved=16777216B ratio=0%
+Parse errors: 1

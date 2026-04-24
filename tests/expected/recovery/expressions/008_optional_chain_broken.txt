@@ -1,0 +1,80 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 179,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 127,
+      "end": 148,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 133,
+          "end": 147,
+          "id": {
+            "type": "Identifier",
+            "start": 133,
+            "end": 139,
+            "name": "broken"          },
+          "init": {
+            "type": "Identifier",
+            "start": 142,
+            "end": 145,
+            "name": "obj"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 149,
+      "end": 178,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 155,
+          "end": 177,
+          "id": {
+            "type": "Identifier",
+            "start": 155,
+            "end": 173,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 176,
+            "end": 177,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " Optional-chain continuation followed by a statement terminator —"
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 128,
+      "value": " the `?.` has no property / bracket / call continuation."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Unexpected token after ?.",
+      "line": 3,
+      "column": 21,
+      "offset": 149
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 21: Unexpected token after ?.
+
+--- Statistics ---
+Arena: used=8560B reserved=16777216B ratio=0%
+Parse errors: 1

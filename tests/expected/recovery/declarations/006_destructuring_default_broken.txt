@@ -1,0 +1,129 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 122,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 63,
+      "end": 91,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 69,
+          "end": 90,
+          "id": {
+            "type": "ObjectPattern",
+            "start": 69,
+            "end": 84,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 71,
+                "end": 78,
+                "shorthand": true,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 71,
+                  "end": 72,
+                  "name": "a"
+                },
+                "value": {
+                  "type": "AssignmentPattern",
+                  "start": 71,
+                  "end": 78,
+                  "left": {
+                    "type": "Identifier",
+                    "start": 71,
+                    "end": 72,
+                    "name": "a"
+                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 75,
+                    "end": 76,
+                    "value": 1,
+                    "raw": "1"
+                  }
+                }
+              },
+              {
+                "type": "Property",
+                "start": 81,
+                "end": 82,
+                "shorthand": true,
+                "computed": false,
+                "kind": "init",
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 81,
+                  "end": 82,
+                  "name": "b"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 81,
+                  "end": 82,
+                  "name": "b"
+                }
+              }
+            ]          },
+          "init": {
+            "type": "Identifier",
+            "start": 87,
+            "end": 90,
+            "name": "obj"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 92,
+      "end": 121,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 98,
+          "end": 120,
+          "id": {
+            "type": "Identifier",
+            "start": 98,
+            "end": 116,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 119,
+            "end": 120,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 62,
+      "value": " Destructuring binding with a malformed default initializer."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected expression after operator",
+      "line": 2,
+      "column": 17,
+      "offset": 79
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 17: Expected expression after operator
+
+--- Statistics ---
+Arena: used=8912B reserved=16777216B ratio=0%
+Parse errors: 1
