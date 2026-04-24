@@ -7351,9 +7351,24 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 			if !has_elem || elem == nil {
 				continue // sparse hole — leave as nil Maybe
 			}
-			// Spread element -> RestElement (must be last, but we don't enforce here).
+			// Spread element -> RestElement. Per §14.3.3:
+			//   * BindingRestElement must be LAST in the list (no trailing
+			//     elements allowed).
+			//   * BindingRestElement does NOT accept an Initializer, unlike
+			//     the other BindingElements.
 			if spread, is_spread := elem^.(^SpreadElement); is_spread {
-				inner, ok := expr_to_pattern(p, spread.argument)
+				if i != len(e.elements) - 1 {
+					report_error(p, "Rest element must be last in array pattern")
+				}
+				inner_expr := spread.argument
+				// `[...x = init]` — AssignmentExpression whose LHS is the rest
+				// target. The cover keeps it legal as an ArrayExpression /
+				// SpreadElement; reject at pattern conversion.
+				if ae, is_ae := inner_expr^.(^AssignmentExpression); is_ae && ae.operator == .Assign {
+					report_error(p, "Rest element cannot have a default initializer")
+					inner_expr = ae.left
+				}
+				inner, ok := expr_to_pattern(p, inner_expr)
 				if ok {
 					rest := new_node(p, RestElement)
 					rest.loc = spread.loc
