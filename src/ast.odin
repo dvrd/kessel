@@ -946,6 +946,11 @@ ImportExpression :: struct {
 	// null when absent. Matches the `options` field OXC/Acorn emit for
 	// the stage-3 Import Attributes proposal.
 	options:  ^Expression,
+	// Phase imports (stage-3). "" = regular import() call,
+	// "defer"  = import.defer(x)   (import-defer proposal),
+	// "source" = import.source(x)  (import-source / module source proposal).
+	// Emitted as JSON string when non-empty, else null — matches OXC.
+	phase:    string,
 }
 
 MetaProperty :: struct {

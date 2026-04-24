@@ -6266,6 +6266,16 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent)
 			out_s("}")
 		}
+		// Phase Imports stage-3 `phase` field. null for plain import(...),
+		// "defer" for import.defer(...), "source" for import.source(...).
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"phase\": ")
+		if e.phase == "" {
+			out_s("null")
+		} else {
+			out_string(e.phase)
+		}
 
 	case ^MetaProperty:
 		// ESTree MetaProperty covers both `import.meta` AND `new.target` —

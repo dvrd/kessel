@@ -5949,15 +5949,32 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .Import:
 		// Check for dynamic import: import(specifier)
 		if is_next_token(p, .LParen) {
-			return parse_dynamic_import(p)
+			return parse_dynamic_import(p, "")
 		}
-		// Check for import.meta
+		// Check for import.<property> forms:
+		//   import.meta             — MetaProperty (§13.3.12)
+		//   import.defer(specifier) — Phase Imports (stage-3, import-defer)
+		//   import.source(specifier)— Phase Imports (stage-3, import-source)
 		if is_next_token(p, .Dot) {
 			eat(p) // consume import
 			if !expect_token(p, .Dot) {
 				return nil
 			}
 			meta_name := parse_identifier(p)
+
+			// Phase-import call form: import.defer(...) / import.source(...).
+			// Only matches when the property is a known phase AND the next
+			// token is `(` — otherwise falls through to MetaProperty so an
+			// error surfaces for the bare form.
+			if is_token(p, .LParen) &&
+			   (meta_name.name == "defer" || meta_name.name == "source") {
+				// Hand off to parse_dynamic_import_tail so the import()
+				// grammar (AssignmentExpression ,opt [, AssignmentExpression
+				// ,opt ]) is shared. Start-loc is the `import` keyword
+				// (current, before eat); the helper uses prev_end_offset for
+				// the closing paren.
+				return parse_dynamic_import_tail(p, loc_from_token(current), meta_name.name)
+			}
 
 			meta_prop := new_node(p, MetaProperty)
 			meta_prop.loc = loc_from_token(current)
@@ -8035,11 +8052,18 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 // Dynamic Import Helper
 // ============================================================================
 
-parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
+parse_dynamic_import :: proc(p: ^Parser, phase: string) -> ^Expression {
 	start := cur_loc(p)
 
 	eat(p) // consume import
 
+	return parse_dynamic_import_tail(p, start, phase)
+}
+
+// Shared tail of import(), import.defer(), import.source(). Assumes the
+// `import` keyword (and optional `.defer` / `.source` property) has already
+// been consumed; `start` points at the `import` keyword, cur is `(`.
+parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Expression {
 	// consume (
 	if !is_token(p, .LParen) {
 		report_error(p, "Expected ( after import")
@@ -8058,12 +8082,13 @@ parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
 	//
 	// Accept trailing comma after the specifier, plus the optional
 	// second argument (import attributes object) with its own optional
-	// trailing comma.
+	// trailing comma. Phase-import proposal does not currently allow a
+	// second argument, but accepting it here degrades gracefully — the
+	// spec will either adopt the same shape or reject at a later stage.
 	options: ^Expression = nil
 	if match_token(p, .Comma) {
 		if !is_token(p, .RParen) {
 			options = parse_assignment_expression(p)
-			// Trailing comma after the options argument is allowed.
 			match_token(p, .Comma)
 		}
 	}
@@ -8079,6 +8104,7 @@ parse_dynamic_import :: proc(p: ^Parser) -> ^Expression {
 	import_expr.loc = start
 	import_expr.source = specifier
 	import_expr.options = options
+	import_expr.phase = phase
 	import_expr.loc.span.end = prev_end_offset(p)
 
 	// Collect ESM dynamic import record.

@@ -178,10 +178,10 @@ const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   ExportAllDeclaration:     new Set([]),
   ExportNamedDeclaration:   new Set([]),
   // ImportExpression: OXC emits `options` (Import Attributes stage-3,
-  // `import('x', { type: 'json' })`) and `phase` (import-defer / import-
-  // source phase imports). Kessel now emits `options`; still missing
-  // `phase`, so keep it stripped for now.
-  ImportExpression:         new Set(['phase']),
+  // `import('x', { type: 'json' })`) and `phase` ("defer" / "source" /
+  // null, Phase Imports stage-3). Kessel now emits both in the same
+  // shape — compare directly.
+  ImportExpression:         new Set([]),
   // MetaProperty: OXC's children have `start`/`end` — we compare those. No extras.
   // RegExp in Literal: OXC emits `regex: {pattern, flags}` — Kessel does too.
   // Program: Kessel and OXC both emit `sourceType` and `hashbang` today.
