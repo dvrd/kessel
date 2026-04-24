@@ -3276,6 +3276,17 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// actually fire on `class C { foo(a, a) {} }`.
 		report_duplicate_param_names(p, params[:], true, true)
 
+		// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — "It is a Syntax
+		// Error if ContainsUseStrict of FunctionBody is true and
+		// IsSimpleParameterList of FormalParameters is false." Class
+		// methods use parse_function_body, which sets p.last_body_strict
+		// when an in-body "use strict" directive is seen. The class body
+		// being implicitly strict doesn't count — only an explicit
+		// directive in the method body triggers this rule.
+		if p.last_body_strict && !params_are_simple(params[:]) {
+			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
+
 		// §15.4.3 / §15.4.4 — class accessor arity (same rule as
 		// object-literal accessors; see parse_property for the parallel
 		// check).
@@ -6236,6 +6247,12 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if !p.in_async && p.in_function {
 			report_error(p, "await outside of async function")
 		}
+		// §14.13.1 LabelIdentifier — in async context, “await” is a
+		// reserved word, so `await:` as a LabelledStatement head is a
+		// SyntaxError.
+		if p.in_async && p.lexer != nil && p.lexer.nxt.kind == .Colon {
+			report_error(p, "'await' cannot be used as a label identifier in an async function")
+		}
 		// Top-level `await` is Module syntax. When the caller pinned
 		// `--source-type=script` it's a SyntaxError.
 		if !p.in_function {
@@ -6255,7 +6272,22 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		current := p.cur_tok
 		eat(p)
 		argument := parse_unary_expr(p)
-		if argument == nil { return nil }
+		if argument == nil {
+			// `await` without an operand. Legal only as an
+			// IdentifierReference, which is forbidden in async context
+			// anyway. Report and synthesise an identifier so the parse
+			// tree stays structurally valid; the earlier
+			// "await outside of async function" check at the top of
+			// this branch already covers non-async contexts.
+			if p.in_async || !p.in_function {
+				report_error(p, "'await' expression requires an operand")
+			}
+			id := new_node(p, Identifier)
+			id.loc = loc_from_token(current)
+			id.name = "await"
+			id.loc.span.end = current.raw_end
+			return expression_from(p, id)
+		}
 		await := new_node(p, AwaitExpression)
 		await.loc = loc_from_token(current)
 		await.argument = argument
@@ -7885,6 +7917,13 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	// yield-expression constructor here consults it.
 	if p.in_generator_params {
 		report_error(p, "'yield' expression is not allowed in formal parameters of a generator")
+	}
+	// §14.13.1 LabelIdentifier — in generator context, “yield” is a
+	// reserved word, so `yield:` as a LabelledStatement head is a
+	// SyntaxError. Detect by peeking at the next token before we
+	// commit to the YieldExpression form.
+	if p.lexer != nil && p.lexer.nxt.kind == .Colon {
+		report_error(p, "'yield' cannot be used as a label identifier in a generator")
 	}
 	eat(p) // consume yield
 
