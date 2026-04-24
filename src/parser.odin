@@ -7169,17 +7169,27 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	          is_keyword_usable_as_property_name(p.cur_type) {
 		// Capture has_escape + name BEFORE parse_property_name consumes
 		// the token. Used below if the property ends up shorthand
-		// (§12.7.2: escaped ReservedWord in IdentifierReference position).
+		// (§12.7.2: escaped ReservedWord in IdentifierReference position,
+		// §12.6.1.1 in strict mode).
+		key_tok_type := p.cur_type
 		key_had_escape := p.cur_tok.has_escape && p.cur_type == .Identifier
 		key_name := p.cur_tok.value
 		key = parse_property_name(p)
-		// If this property turns out to be a shorthand (no `:` / `(` after
-		// the key), the key doubles as an IdentifierReference — an escaped
-		// ReservedWord there is a Syntax Error.
-		if key_had_escape && is_always_reserved_word_name(key_name) {
-			if !is_token(p, .Colon) && !is_token(p, .LParen) {
+		// Shorthand-only post-check. `{ foo }` = `{ foo: foo }` where the
+		// value is an IdentifierReference to `foo`; `{ key: value }` and
+		// `{ key() { … } }` exit through earlier branches. Distinguish by
+		// looking at the next token.
+		if !is_token(p, .Colon) && !is_token(p, .LParen) {
+			if key_had_escape && is_always_reserved_word_name(key_name) {
 				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
 				report_error(p, msg)
+			}
+			// Strict-mode IdentifierReference check (§12.6.1.1).
+			if p.strict_mode {
+				if is_strict_reserved_word(key_tok_type) || is_strict_reserved_name(key_name) {
+					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", key_name)
+					report_error(p, msg)
+				}
 			}
 		}
 	} else {
