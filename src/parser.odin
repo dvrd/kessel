@@ -1610,8 +1610,12 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			// (§13.15.5.2). Run expr_to_pattern to trigger the same
 			// CoverInitializedName clearing path the regular
 			// AssignmentExpression uses, so `for ({x = 1} of [{}])` stops
-			// reporting "Invalid shorthand property initializer".
-			_, _ = expr_to_pattern(p, left_expr)
+			// reporting "Invalid shorthand property initializer". Gate on
+			// is_destructure_target_candidate so Annex B.3.4 `for (f() in x)`
+			// in sloppy mode doesn't trip the pattern-walker's error arm.
+			if is_destructure_target_candidate(left_expr) {
+				_, _ = expr_to_pattern(p, left_expr)
+			}
 		}
 
 		// ECMA-262 Annex B.3.5 gate. A VariableDeclaration in a for-in/of
@@ -8016,7 +8020,30 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 	case ^MemberExpression:
 		// ESTree allows MemberExpression as a destructure target.
 		return e, true
+	case ^ParenthesizedExpression:
+		// Paren-wrapped destructure target — unwrap. `(x)` stays a legal
+		// target, but `(x, y)` (SequenceExpression inside) reaches the
+		// default arm below and errors.
+		if e == nil { return nil, false }
+		return expr_to_pattern(p, e.expression)
+	case ^TSNonNullExpression:
+		// `x!` as a destructure target in TS mode — unwrap.
+		if e == nil { return nil, false }
+		return expr_to_pattern(p, e.expression)
+	case ^TSAsExpression:
+		if e == nil { return nil, false }
+		return expr_to_pattern(p, e.expression)
+	case ^TSSatisfiesExpression:
+		if e == nil { return nil, false }
+		return expr_to_pattern(p, e.expression)
+	case ^TSTypeAssertion:
+		if e == nil { return nil, false }
+		return expr_to_pattern(p, e.expression)
 	}
+	// Everything else that reached here (Literal, SequenceExpression,
+	// CallExpression, BinaryExpression, UnaryExpression, …) is NOT a
+	// legal AssignmentTarget per §12.6.2.3 / §13.15.5.2.
+	report_error(p, "Invalid destructuring assignment target")
 	return nil, false
 }
 
@@ -8546,6 +8573,22 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 //
 // Other expressions (BinaryExpression, UnaryExpression, literals, etc.)
 // are SyntaxErrors in assignment position (`1 + 2 = 3`, `-x = 5`, etc.).
+// Returns true if `left` is an Array / Object literal (or paren-wrapper
+// thereof) — the only shapes that legitimately need expr_to_pattern
+// conversion on an AssignmentExpression. Plain Identifier / Member /
+// Call (Annex B.3.4 sloppy) / TS-escape-hatch targets go through
+// is_valid_assignment_target directly and skip the pattern walker.
+is_destructure_target_candidate :: proc(expr: ^Expression) -> bool {
+	if expr == nil { return false }
+	#partial switch e in expr^ {
+	case ^ArrayExpression, ^ObjectExpression:
+		return true
+	case ^ParenthesizedExpression:
+		return e != nil && is_destructure_target_candidate(e.expression)
+	}
+	return false
+}
+
 is_valid_assignment_target :: proc(expr: ^Expression, is_destructure: bool) -> bool {
 	if expr == nil { return false }
 	#partial switch e in expr^ {
@@ -8601,8 +8644,13 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 		return nil
 	}
 
-	// Validate pattern conversion for = operator (destructuring assignment)
-	if op == .Assign {
+	// Validate pattern conversion for = operator (destructuring assignment).
+	// Only fire expr_to_pattern when the LHS is actually a destructure
+	// candidate (Array / Object literal, or a paren-wrapped version);
+	// otherwise CallExpression (§Annex B.3.4 `f() = x` in sloppy) and
+	// TS-escape-hatch wrappers would trigger the "Invalid destructuring
+	// assignment target" error added to expr_to_pattern's default arm.
+	if op == .Assign && is_destructure_target_candidate(left) {
 		_, _ = expr_to_pattern(p, left)
 	}
 
