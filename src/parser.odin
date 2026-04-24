@@ -4040,28 +4040,41 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			continue
 		}
 
-		// Check for rest element: ...identifier
+		// Check for rest element:
+		//   BindingRestElement : ... BindingIdentifier
+		//                      | ... BindingPattern   (§14.3.3)
 		if is_token(p, .Dot3) {
 			rest_start := cur_loc(p) // Capture location of ... before eating
 			eat(p) // consume ...
-			if !is_token(p, .Identifier) {
-				report_error(p, "Expected identifier after ... in array pattern")
-				return nil
-			}
-			arl := cur_loc(p); arn := cur_value(p)
-			eat(p)
 
 			rest := new_node(p, RestElement)
 			rest.loc = rest_start
-			rest_ident := new_node(p, Identifier)
-			rest_ident.loc = arl
-			rest_ident.name = arn
-			rest.argument = rest_ident
+
+			if is_token(p, .LBracket) {
+				nested := parse_array_pattern(p)
+				if nested == nil { return nil }
+				rest.argument = nested
+			} else if is_token(p, .LBrace) {
+				nested := parse_object_pattern(p)
+				if nested == nil { return nil }
+				rest.argument = nested
+			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+				arl := cur_loc(p); arn := cur_value(p)
+				eat(p)
+				rest_ident := new_node(p, Identifier)
+				rest_ident.loc = arl
+				rest_ident.name = arn
+				rest.argument = rest_ident
+			} else {
+				report_error(p, "Expected identifier or pattern after ... in array pattern")
+				return nil
+			}
 			rest.loc.span.end = prev_end_offset(p)
 
 			append(&elements, Maybe(Pattern)(rest))
 
-			// Rest element must be last
+			// Rest element must be last — and cannot take an Initializer
+			// (§14.3.3: no `= default` on BindingRestElement).
 			if !is_token(p, .RBracket) && !is_token(p, .EOF) {
 				report_error(p, "Rest element must be last in array pattern")
 			}
