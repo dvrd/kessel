@@ -3449,6 +3449,31 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		report_let_as_lexical_name(p, decl.declarations[:])
 	}
 
+	// §14.3.3 `const` and §Explicit Resource Management `using` /
+	// `await using` require an Initializer on every VariableDeclarator.
+	// `const x;`, `using x;`, `await using x;` are all SyntaxErrors.
+	// `in_for` skips the check so `for (const x of y)` / `for (using x
+	// of y)` (where the binding is initialised by the loop iteration)
+	// keeps working. `is_declare` for ambient TS (`declare const x;`)
+	// also skips per TS rules. `let` allows no initializer.
+	if !is_declare && !in_for && (kind == .Const || kind == .Using || kind == .AwaitUsing) {
+		kind_name: string
+		switch kind {
+		case .Const:       kind_name = "const"
+		case .Using:       kind_name = "using"
+		case .AwaitUsing:  kind_name = "await using"
+		case .Let, .Var:   kind_name = ""
+		}
+		if kind_name != "" {
+			for d in decl.declarations {
+				if _, have := d.init.(^Expression); !have {
+					msg := fmt.tprintf("Missing initializer in '%s' declaration", kind_name)
+					report_error(p, msg)
+				}
+			}
+		}
+	}
+
 	decl.loc.span.end = prev_end_offset(p)
 	stmt := new_node(p, Statement)
 	stmt^ = decl
@@ -3616,10 +3641,12 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 		} else {
 			init = init_expr
 		}
-	} else if kind == .Const && !in_for && !is_declare && !p.in_ambient {
-		// `const x;` without init is legal inside an ambient module body.
-		report_error(p, "const declarations must have an initializer")
 	}
+	// NOTE: `const x;` / `using x;` / `await using x;` missing-initializer
+	// check now lives in parse_variable_declaration so every declarator
+	// variant reports once (ambient / for-head special cases handled
+	// there). The old per-declarator check here fired a duplicate error
+	// for `const` in non-for / non-ambient contexts.
 
 	decl := new_node(p, VariableDeclarator)
 	decl.loc = start
