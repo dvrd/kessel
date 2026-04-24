@@ -2346,6 +2346,9 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// params must have no duplicate bound names. Non-simple parameter
 	// lists (destructuring, default values, rest) additionally force the
 	// UniqueFormalParameters rule even in sloppy mode (§15.1.2).
+	// §15.5.1 GeneratorBody and §15.8.1 AsyncFunctionBody also require
+	// UniqueFormalParameters unconditionally — pass strict_override=true
+	// for them regardless of outer strict mode.
 	strict_for_check := p.strict_mode || body_strict
 	if strict_for_check {
 		report_duplicate_param_names(p, params[:], false, true)
@@ -2360,6 +2363,10 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 				report_error(p, msg)
 			}
 		}
+	} else if generator || async {
+		// Generator / async / async-generator bodies inherit
+		// UniqueFormalParameters regardless of outer strict mode.
+		report_duplicate_param_names(p, params[:], true, true)
 	} else {
 		report_duplicate_param_names(p, params[:], true)
 	}
@@ -8467,8 +8474,10 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	arrow.loc.span.end = prev_end_offset(p)
 
 	// ArrowFunction params are always UniqueFormalParameters
-	// (ECMA-262 §15.3.1). No sloppy-mode escape hatch.
-	report_duplicate_param_names(p, params[:], true)
+	// (ECMA-262 §15.3.1). No sloppy-mode escape hatch — pass
+	// strict_override=true so the duplicate-check fires even when the
+	// outer function isn't strict.
+	report_duplicate_param_names(p, params[:], true, true)
 
 	return expression_from(p, arrow)
 }
@@ -8680,7 +8689,9 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 
 	// Single-param async arrow: only one FormalParameter, so nothing
 	// to dedupe. Still run the helper for consistency / future-proof.
-	report_duplicate_param_names(p, params[:], true)
+	// Pass strict_override=true per §15.9.1 — async arrows always have
+	// UniqueFormalParameters.
+	report_duplicate_param_names(p, params[:], true, true)
 
 	return expression_from(p, arrow)
 }
@@ -8762,7 +8773,8 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	arrow.loc.span.end = prev_end_offset(p)
 
 	// Async arrow with paren'd params: UniqueFormalParameters always.
-	report_duplicate_param_names(p, params[:], true)
+	// Pass strict_override=true per §15.9.1.
+	report_duplicate_param_names(p, params[:], true, true)
 
 	return expression_from(p, arrow)
 }
