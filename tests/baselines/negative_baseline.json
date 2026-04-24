@@ -1,4 +1,5 @@
 {
+  "tests/fixtures/negative/049_yield_in_async_arrow_params.js": "rejected",
   "tests/fixtures/negative/048_yield_in_arrow_params.js": "rejected",
   "tests/fixtures/negative/047_await_in_non_async_arrow_params.js": "rejected",
   "tests/fixtures/negative/046_await_in_async_method_params.js": "rejected",

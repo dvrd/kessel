@@ -6773,6 +6773,67 @@ scan_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression) {
 	}
 }
 
+// Walk an already-lowered FunctionParameter list (pattern + default) and
+// report YieldExpression / AwaitExpression. Used by the async-arrow
+// path in parse_async_arrow_with_parens, which builds params directly
+// via parse_function_params instead of going through the cover trial
+// parse. The AwaitExpression case overlaps with the in_async_params
+// fast-path; the walker is primarily for YieldExpression, which is
+// legal inside the params' AssignmentExpression context when the
+// outer scope is a generator (`function*g(){ return async (x = yield
+// 1) => x; }`). Per §15.9.1 the "all early errors of
+// ArrowFormalParameters apply" clause folds in the §15.3.1
+// yield-in-arrow-params ban.
+scan_arrow_params_for_yield_only :: proc(p: ^Parser, params: []FunctionParameter) {
+	// Yield-only variant — AwaitExpression is reported eagerly by the
+	// in_async_params fast-path in parse_unary_expr, so reusing the
+	// combined walker would double-count the diagnostic.
+	saw_yield := false
+	saw_await_ignored := false
+	for param in params {
+		arrow_cover_walk_pattern(param.pattern, &saw_yield, &saw_await_ignored)
+		if expr, have := param.default_val.(^Expression); have {
+			arrow_cover_walk_expr(expr, &saw_yield, &saw_await_ignored)
+		}
+	}
+	if saw_yield {
+		report_error(p, "Yield expression is not allowed in arrow function parameters")
+	}
+}
+
+arrow_cover_walk_pattern :: proc(pat: Pattern, saw_yield, saw_await: ^bool) {
+	if pat == nil { return }
+	if saw_yield^ && saw_await^ { return }
+	switch pp in pat {
+	case ^Identifier, ^MemberExpression:
+		return
+	case ^AssignmentPattern:
+		arrow_cover_walk_pattern(pp.left, saw_yield, saw_await)
+		arrow_cover_walk_expr(pp.right, saw_yield, saw_await)
+	case ^ObjectPattern:
+		for prop in pp.properties {
+			// Computed property keys carry arbitrary expressions. Non-computed
+			// keys are IdentifierName / StringLiteral literals — nothing to walk.
+			if key, have := prop.key.(ObjectPatternPropertyKey); have {
+				if prop.computed {
+					if expr, ok := key.(^Expression); ok {
+						arrow_cover_walk_expr(expr, saw_yield, saw_await)
+					}
+				}
+			}
+			arrow_cover_walk_pattern(prop.value, saw_yield, saw_await)
+		}
+	case ^ArrayPattern:
+		for elem in pp.elements {
+			if inner, have := elem.(Pattern); have {
+				arrow_cover_walk_pattern(inner, saw_yield, saw_await)
+			}
+		}
+	case ^RestElement:
+		arrow_cover_walk_pattern(pp.argument, saw_yield, saw_await)
+	}
+}
+
 arrow_cover_walk_expr :: proc(expr: ^Expression, saw_yield, saw_await: ^bool) {
 	if expr == nil { return }
 	if saw_yield^ && saw_await^ { return } // both already found
@@ -7358,6 +7419,16 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	if !expect_token(p, .RParen) {
 		return nil
 	}
+
+	// §15.9.1 final clause: "All early error rules for
+	// ArrowFormalParameters and their derived productions also apply to
+	// CoverCallExpressionAndAsyncArrowHead when that production covers
+	// an AsyncArrowHead." That folds in §15.3.1's YieldExpression ban.
+	// AwaitExpression is already caught by the in_async_params fast-path
+	// above; this walker targets yield that an outer generator context
+	// allowed at param-parse time (`function*g(){ return async (x =
+	// yield 1) => x; }`).
+	scan_arrow_params_for_yield_only(p, params[:])
 
 	if !expect_token(p, .Arrow) {
 		return nil
