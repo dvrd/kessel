@@ -2363,6 +2363,14 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 				report_error(p, msg)
 			}
 		}
+		// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1: "It is a Syntax Error if
+		// ContainsUseStrict of FunctionBody is true and
+		// IsSimpleParameterList of FormalParameters is false."
+		// Fires only when body_strict came from an in-body `"use strict"`
+		// (the enclosing context being strict doesn't matter per spec).
+		if body_strict && !p.strict_mode && !params_are_simple(params[:]) {
+			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
 	} else if generator || async {
 		// Generator / async / async-generator bodies inherit
 		// UniqueFormalParameters regardless of outer strict mode.
@@ -8479,6 +8487,23 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// outer function isn't strict.
 	report_duplicate_param_names(p, params[:], true, true)
 
+	// §15.3.1 / §15.9.1 — concise/async arrow body cannot contain
+	// "use strict" when the parameter list is non-simple. Arrow block
+	// body comes from parse_block_statement (no built-in directive
+	// prologue handling), so post-scan the leading ExpressionStatement
+	// for a literal "use strict" string.
+	if is_block_body {
+		if bs, ok := body.(^BlockStatement); ok && bs != nil && len(bs.body) > 0 {
+			if es, eok := bs.body[0]^.(^ExpressionStatement); eok && es != nil {
+				if str, sok := es.expression.(^StringLiteral); sok && str != nil {
+					if str.value == "use strict" && !params_are_simple(params[:]) {
+						report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+					}
+				}
+			}
+		}
+	}
+
 	return expression_from(p, arrow)
 }
 
@@ -8775,6 +8800,20 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// Async arrow with paren'd params: UniqueFormalParameters always.
 	// Pass strict_override=true per §15.9.1.
 	report_duplicate_param_names(p, params[:], true, true)
+
+	// §15.9.1 — async arrow with block body + "use strict" + non-simple
+	// params rejects. Same shape as the plain-arrow check.
+	if is_block_body {
+		if bs, ok := body.(^BlockStatement); ok && bs != nil && len(bs.body) > 0 {
+			if es, eok := bs.body[0]^.(^ExpressionStatement); eok && es != nil {
+				if str, sok := es.expression.(^StringLiteral); sok && str != nil {
+					if str.value == "use strict" && !params_are_simple(params[:]) {
+						report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+					}
+				}
+			}
+		}
+	}
 
 	return expression_from(p, arrow)
 }
