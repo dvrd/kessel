@@ -1,7 +1,7 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-24 (post negative-gate sweep + K9 close — 144/144 spec-fixtures, 100/100 fuzz-diff, 0 divergences vs OXC on 12 real files, **negative gate 63/63 rejected — perfect**, **estree strict 0 mismatches on every file**, ratchet engaged)
-**Repo state:** `main` past `f7f8caa`, ~19 000 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-24 (post negative-gate sweep + K9 + 20 static-error classes — 144/144 spec-fixtures, 100/100 fuzz-diff, 0 divergences vs OXC on 12 real files, **negative gate 90/90 rejected — perfect across 30 new fixtures in 8 new error classes added this half**, **estree strict 0 mismatches on every file**, ratchet engaged)
+**Repo state:** `main` past `9898e054`, ~19 000 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -50,7 +50,7 @@ is fine.
 | Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
 | Recovery | `task test:recovery` | **20 / 20** ✅ | All anchors survive, spans sane. |
-| Negative gate | `task test:negative` | **63 / 63 rejected** ✅ (baseline 100% clean, ratchet engaged) | 9 static-error classes closed in `420cb52`. Any new fixture that the parser accepts now fails the default gate. `task test:negative:strict` zero-tolerance runs the same set without a baseline. |
+| Negative gate | `task test:negative` | **90 / 90 rejected** ✅ (baseline 100% clean, ratchet engaged) | **20 static-error classes** closed across this session (420cb52, 2117a33e, 15b88444, 5f41bdd3, 784ca574, 7c189388, 9898e054). Every fixture in `tests/fixtures/negative/` + `tests/fixtures/early_errors/` now reports at least one parse error. Any new fixture the parser accepts fails the default gate. `task test:negative:strict` zero-tolerance runs the same set without a baseline. |
 | Bench regression | `task test:bench:regression` | Not run | Use before release |
 
 ### Performance (Apple M-series, `-o:speed -no-bounds-check`)
@@ -293,15 +293,43 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 
 ### Error Handling (2 / 4)
 - [x] **ERR-1:** `--errors=oxc` for OXC TS-ESTree shape (Phase 3, `75fb36b`).
-- [x] **ERR-5:** Static-error coverage. Negative gate at 63/63 rejected
-      (`420cb52`), up from 42/63 in Session 5. Nine error classes
-      closed at the parser layer: `super` outside method, duplicate
-      `__proto__` init, duplicate lexical names, duplicate params in
-      strict, strict-only reserved words as bindings, `eval`/`arguments`
-      as LHS of `=`, legacy octal in strict, and `import`/`export`/TLA/
-      `import.meta` under `--source-type=script`. Baseline ratchet
-      engaged: once 100% rejected, any new fixture the parser accepts
-      trips the default gate automatically.
+- [x] **ERR-5:** Static-error coverage. Negative gate at **90/90** rejected
+      (ending commit `9898e054`), up from 42/63 at the start of Session 6.
+      **20 error classes** closed at the parser layer across the session:
+
+      *Structural / grammar:* `super` outside method, duplicate `__proto__`
+      init, duplicate lexical-binding names, `let` as lexical-BoundName,
+      duplicate / unknown-target labels, duplicate `default`, duplicate
+      `constructor`, duplicate private-class-member + `#constructor`,
+      `static prototype` class member, rest-element trailing-comma,
+      `new.target` outside function, `new import(...)`, private
+      identifier outside `in`-expression, `throw` with line-terminator,
+      `delete` of a private field, duplicate case-default.
+
+      *Strict-mode:* `with` statement, LegacyOctal / `\8` / `\9`
+      in strings AND untagged templates, LegacyOctal integer literals,
+      LegacyOctal BigInts, strict-mode FutureReservedWord bindings
+      (`implements` / `interface` / `package` / `private` / `protected`
+      / `public` / `let` / `static` / `yield`), `eval` / `arguments`
+      as binding / LHS / update-operand, `delete <ident>`,
+      `function eval` / `function arguments`, class name strict-
+      reserved check, labeled-function-declaration, duplicate-params
+      in strict.
+
+      *Context-sensitive:* strict-mode function-body directive
+      promotion + retroactive param validation, `yield` as binding in
+      generator, `await` as binding in async function, `for await`
+      outside async context, `import`/`export`/top-level-await/
+      `import.meta` under `--source-type=script`.
+
+      *Param validation:* UniqueFormalParameters forced by non-simple
+      param list (§15.1.2 — destructuring / default / rest), arrow /
+      method / accessor UniqueFormalParameters rules (§15.3.1 /
+      §15.4.*).
+
+      Baseline ratchet: once 100% rejected, any new fixture the parser
+      accepts fails the default gate automatically. `task test:negative:strict`
+      runs the same set without a baseline for release gating.
 - [ ] **ERR-2:** Error recovery at statement boundaries. *Functionally: `task test:recovery`
       passes 20/20 with anchor survival; formal item still open for editor-tooling quality.*
 - [ ] **ERR-3:** Graceful TS parse failure. *Functionally: 0 SIGTRAPs in current corpus;
@@ -439,16 +467,23 @@ Phase 3 (`2ad4487`, `4b543cf`).
 Ordered by impact × feasibility.
 
 **Session 6 recap (2026-04-24):**
-- **Negative gate 42/63 → 63/63 rejected.** Nine new static-error classes
-  shipped in `420cb52`. See commit message for the catalog.
-- **Ratchet engaged.** `tests/verifiers/verify_negative.js` now flips to
-  zero-tolerance the moment the baseline is 100% rejected: any new
-  fixture the parser accepts fails the default gate, not just
-  `--strict`. This stops silent drift — either fix the parser first or
-  run `task test:negative:update` to explicitly acknowledge a new gap.
+- **Negative gate 42/63 → 90/90 rejected.** **20 new error classes** over
+  seven commits (`420cb52`, `2117a33e`, `15b88444`, `5f41bdd3`,
+  `784ca574`, `7c189388`, `9898e054`). See ERR-5 above for the full
+  catalog.
+- **Ratchet engaged.** `tests/verifiers/verify_negative.js` flips to
+  zero-tolerance once the baseline is 100% rejected: any new fixture
+  the parser accepts fails the default gate automatically. Stops silent
+  drift — either fix the parser first or run `task test:negative:update`
+  to explicitly acknowledge a gap.
+- **K9 closed.** `verify_integration`'s `EXPR` tag table was stale after
+  `^ChainExpression` was inserted in the `Expression` union; every
+  downstream tag was silently off-by-one. Fixed in `f7f8caa`. Total
+  integration drift went 538 → 0; `task test:estree:strict` now passes
+  zero-tolerance on every real-world file.
 - **All other suites unchanged.** 144/144 spec-fixtures, 100/100
   fuzz-diff, 0 divergences vs OXC on 12 real files, 467/467 real-world,
-  66/66 test262, 20/20 recovery.
+  66/66 test262, 20/20 recovery, 57/57 nodes, 11/11 regression.
 
 
 1. ~~K1–K2, K4–K8~~ ✅ All closed.
