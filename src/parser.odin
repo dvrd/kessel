@@ -67,6 +67,16 @@ advance_token :: #force_inline proc(p: ^Parser) {
 						p.cur_tok.value = s
 					}
 				}
+			} else if ft.kind == .PrivateIdentifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
+				// Escaped private identifier — same cooked-name swap as above.
+				// lex_private_identifier_escaped publishes the cooked body WITH
+				// the leading '#' so downstream parser code (which strips '#')
+				// keeps working unchanged.
+				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
+					if s, ok := a.cur_lit_value.(string); ok {
+						p.cur_tok.value = s
+					}
+				}
 			}
 		}
 	}
@@ -116,6 +126,14 @@ prime_token_cache :: proc(p: ^Parser) {
 					p.cur_tok.literal = a.cur_lit_value
 				}
 			} else if ft.kind == .Identifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
+				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
+					if s, ok := a.cur_lit_value.(string); ok {
+						p.cur_tok.value = s
+					}
+				}
+			} else if ft.kind == .PrivateIdentifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
+				// Escaped private identifier — see advance_token for the
+				// matching case and rationale (cooked name includes '#').
 				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
 					if s, ok := a.cur_lit_value.(string); ok {
 						p.cur_tok.value = s

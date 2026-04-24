@@ -1648,14 +1648,85 @@ lex_hash :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	l.offset += 1 // skip #
 	src := l.source_bytes
 	src_len := len(src)
+
+	// §12.7.2: PrivateIdentifier : '#' IdentifierName. The IdentifierName
+	// body accepts \uXXXX / \u{H...H} escapes in the same positions as a
+	// regular identifier. If the body starts with `\`, or later contains
+	// one, fall back to the escape-aware slow path.
+	if l.offset < src_len && src[l.offset] == '\\' {
+		return lex_private_identifier_escaped(l, start, flags)
+	}
 	if l.offset < src_len && is_id_start_fast(src[l.offset]) {
 		l.offset += 1
-		for l.offset < src_len && is_id_cont_fast(src[l.offset]) {
+		for l.offset < src_len {
+			c := src[l.offset]
+			if c == '\\' && l.offset + 1 < src_len && src[l.offset + 1] == 'u' {
+				return lex_private_identifier_escaped(l, start, flags)
+			}
+			if !is_id_cont_fast(c) { break }
 			l.offset += 1
 		}
 	}
 	end := u32(l.offset)
 	return FastToken{start = start, end = end, kind = .PrivateIdentifier, flags = flags}
+}
+
+// Escape-aware private identifier. Mirrors lex_identifier_escaped but
+// starts after the '#' and emits a .PrivateIdentifier token. The cooked
+// name INCLUDES the leading '#' so downstream parser code (which strips
+// a leading '#' from cur_tok.value when building the PrivateIdentifier
+// AST node) keeps working without a special case.
+lex_private_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+	src := l.source_bytes
+	src_len := len(src)
+	off := int(start) + 1 // past the '#'
+
+	cooked := make([dynamic]u8, 0, 32, l.allocator)
+	append(&cooked, u8('#'))
+
+	first := true
+	for off < src_len {
+		c := src[off]
+		if c == '\\' && off + 1 < src_len && src[off + 1] == 'u' {
+			cp, ok, consumed := decode_u_escape(src, off)
+			if !ok {
+				l.offset = off + 1
+				return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
+			}
+			if first {
+				if !is_id_start_codepoint(cp) {
+					l.offset = off + consumed
+					return FastToken{start = start, end = u32(off + consumed), kind = .Invalid, flags = flags}
+				}
+			} else {
+				if !is_id_cont_codepoint(cp) { break }
+			}
+			append_utf8(&cooked, cp)
+			off += consumed
+			first = false
+		} else {
+			if first {
+				if !is_id_start_fast(c) {
+					l.offset = off + 1
+					return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
+				}
+				append(&cooked, c)
+				off += 1
+				first = false
+			} else {
+				if !is_id_cont_fast(c) { break }
+				append(&cooked, c)
+				off += 1
+			}
+		}
+	}
+
+	end := u32(off)
+	l.offset = off
+	l.last_lit_offset = start
+	l.last_lit_value = LiteralValue(string(cooked[:]))
+	l.last_lit_type = .Identifier
+	return FastToken{start = start, end = end, kind = .PrivateIdentifier, flags = flags | FLAG_HAS_ESCAPE}
 }
 
 // ============================================================================
