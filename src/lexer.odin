@@ -308,6 +308,7 @@ can_start_regex :: proc(l: ^Lexer) -> bool {
 	     .LShift, .RShift, .URShift, .Not, .LogicalAnd, .LogicalOr, .Nullish,
 	     .Eq, .NotEq, .EqStrict, .NotEqStrict, .LEq, .GEq,
 	     .In, .Instanceof, .Of,
+	     .Await, .Yield,
 	     .Arrow, .Question, .Dot3,
 	     .TemplateHead, .TemplateMiddle:
 		return true
