@@ -1,8 +1,8 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-24 — Session 9 complete.
-**Status headline:** 144/144 spec-fixtures; 100/100 fuzz-diff; 0 divergences vs OXC on 12 real files; **125/125 negative-gate rejections across 54 static-error classes (ratchet engaged)**; **Test262 full corpus baselined at 44 620/49 729 (89.73%)**; **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; **32/32 recovery**; 467/467 invariants; 57/57 node-type coverage; 11/11 regression.
-**Repo state:** `main` at `5aef393` (latest Session-9 commit), ~21 500 LOC of Odin across 7 files + npm/kessel-parser shim with async server-mode bridge.
+**Last updated:** 2026-04-24 — Session 10 complete.
+**Status headline:** 144/144 spec-fixtures; 100/100 fuzz-diff; 0 divergences vs OXC on 12 real files; **125/125 negative-gate rejections across 54 static-error classes (ratchet engaged)**; **Test262 full corpus baselined at 47 889 / 49 729 (96.30%)** — up from 44 620 (89.73%) at Session-9 end; **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; **32/32 recovery**; 467/467 invariants; 57/57 node-type coverage; 11/11 regression.
+**Repo state:** `main` at `f871fa4` (latest Session-10 commit), ~21 700 LOC of Odin across 7 files + npm/kessel-parser shim with async server-mode bridge.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -55,7 +55,7 @@ is fine.
 | **Negative gate** | `task test:negative` | **125 / 125 rejected** ✅ (ratchet engaged) | **54 static-error classes** enforced across `tests/fixtures/negative/` + `tests/fixtures/early_errors/`: 9 from Session 5 (`43c57dc`) + 20 from Session 6 + 12 from Session 7 + 7 from Session 8 + 6 from Session 9 (`795f442`, `e64ee36`, `62a7b61`). Baseline is 100% “rejected” so the verifier auto-strictifies: any new fixture the parser accepts fails the default gate. See ERR-5 below for the full catalog. |
 | Negative gate (strict) | `task test:negative:strict` | **125 / 125 rejected** ✅ | Zero-tolerance variant, no baseline. Run before a release. |
 | Recovery | `task test:recovery` | **32 / 32** ✅ | Expanded from 20 in Session 9; 12 new fixtures across expressions / statements / declarations / jsx_ts. |
-| **Test262 full** | `task test:test262:full:regression` | **44 620 / 49 729 (89.73%)** baselined | First-pass baseline from Session 9. Requires a local checkout (`git clone https://github.com/tc39/test262.git vendor/test262`). Off the default chain — runs in ~2m30s. `task test:test262:full:update` after an intentional improvement. |
+| **Test262 full** | `task test:test262:full:regression` | **47 889 / 49 729 (96.30%)** baselined | **+3 269 tests closed in Session 10** via 19 parser + lexer patches (destructuring defaults, private-ident escapes, ImportCall + Phase Imports, CoverInitializedName, §13.5 statement-only positions, §14.2.1 lex-dedup always-on, §13.4.1 simple update target, strict-mode IdentifierReference, class field ASI, no_in scope fix, regex after await, numeric smooth-following). Requires a local checkout (`git clone https://github.com/tc39/test262.git vendor/test262`). Off the default chain — runs in ~2m30s. `task test:test262:full:update` after an intentional improvement. |
 | Bench regression | `task test:bench:regression` | Not run | Use before release. |
 
 ### Performance (Apple M-series, `-o:speed -no-bounds-check`)
@@ -532,6 +532,126 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
       parser accepts fails the default gate automatically.
       `task test:negative:strict` runs the same set without a
       baseline for release gating.
+
+      *Session 10 additions (19 Test262-driven patches, no new
+      fixtures in the negative/ slice yet):* Session 10 focused on
+      closing gaps found via the full Test262 corpus run rather
+      than writing new named-fixture negative tests. The negative
+      gate stays at 125/125 for release polish; the new classes
+      live in the parser/lexer and show up as pass-count delta on
+      Test262. Summary (each landed as its own commit; see §7
+      "Phase 10" for per-commit detail):
+
+      *Destructuring grammar holes:*
+        - BindingElement : BindingPattern Initializer_opt in
+          nested-array-pattern element positions (`[[x] = []]`,
+          `[{a} = {}]`) — pattern conversion now wraps in
+          AssignmentPattern.
+        - BindingRestElement : ... BindingIdentifier | ...
+          BindingPattern — rest-element no longer identifier-only.
+        - Arrow cover: `[...x, y]` and `[...x = []]` at the
+          AssignmentExpression-to-pattern conversion point report
+          "rest must be last" / "rest cannot have default".
+        - §14.3.3: trailing comma after rest in destructuring
+          assignment (`[...x,] = []`) — detected by scanning source
+          bytes between the spread end and the array close.
+
+      *Lexer escapes:* PrivateIdentifier accepts `\uXXXX` /
+      `\u{H...H}` escapes at every IdentifierName position;
+      `#\u0041`, `#\u{1F600}_`, `get #\u2118()` all parse clean.
+      Fixes §12.7.2 compliance for the private name form.
+
+      *Lexer numeric literals:*
+        - §12.9.3 smooth-following: the source character
+          immediately after a NumericLiteral cannot be an
+          IdentifierStart or DecimalDigit. `00b0`, `1a`, `0.5c`
+          now reject.
+        - HexIntegerLiteral requires at least one HexDigit after
+          `0x`; `0x;` and `0xn;` reject.
+        - `Invalid hex digit` diagnostic mid-literal (`0xfoo`),
+          mirroring the existing binary / octal parallels.
+
+      *§13.3.10 ImportCall / Phase Imports:*
+        - `import()` requires a specifier; `import()` alone
+          rejects.
+        - `import(...spread)` rejects (AssignmentExpression, not
+          Arguments).
+        - `new import.defer(x)` / `new import.source(x)` extend
+          the existing `new import(x)` rejection.
+        - ImportCall second argument (Import Attributes) +
+          trailing comma: `import('x', { type: 'json' },)`.
+        - ImportCall / MetaProperty / ImportExpression with
+          §Phase Imports: `import.defer(x)` / `import.source(x)`
+          parse as a single ImportExpression with phase set to
+          "defer" / "source", matching OXC.
+
+      *§13.2.5.1 CoverInitializedName:* `{ a = 1 }` is only legal
+      inside a destructuring cover. Tracked via a pending-list on
+      Parser; expr_to_pattern clears entries when the object gets
+      promoted; anything left at end-of-parse reports.
+
+      *§13.5 statement-only position gate:* if-consequent /
+      else-alternate / while / for / do-while body cannot be a
+      Declaration (LexicalDeclaration, ClassDeclaration,
+      AsyncFunctionDeclaration, GeneratorDeclaration,
+      AsyncGeneratorDeclaration). Annex B.3.2 carve-out kept for
+      plain FunctionDeclaration in the IfStatement if-body only.
+
+      *§14.2.1 LexicallyDeclaredNames duplicate-scan — always on.*
+      Removed the `--show-semantic-errors` gate from
+      scope_verify_body; duplicate lexical bindings across a
+      Block / FunctionBody / CatchClause / SwitchCase / static-
+      block scope are now always a parse error. Annex B.3.2 handled
+      via a strict/sloppy-aware kind switch: sloppy plain
+      FunctionDeclaration in a Block binds as .Var, not .Lexical.
+
+      *§13.4.1 SimpleAssignmentTarget for UpdateExpression:*
+      `import('')++`, `(a=1)++`, `true--` all reject. Annex B.3.4
+      preserved: sloppy-mode `f()++` stays legal.
+
+      *§13.15.1 / §13.5.1.1 strict eval/arguments:* Walker covers
+      the destructuring-assignment LHS (`[arguments] = []`,
+      `({x: eval} = {})`, `[...arguments] = []`) and the for-in/of
+      head target. Previously only the direct `eval = x`
+      assignment was caught.
+
+      *§15.4.3 / §15.4.4 accessor arity:* getter rejects any param,
+      setter rejects zero or >1 params and rest elements. Defaults
+      on setter params are legal (SingleNameBinding Initializer_opt).
+
+      *§12.6.1.1 strict-mode IdentifierReference:* `let`, `yield`,
+      `static`, `implements`, `interface`, `package`, `private`,
+      `protected`, `public` reject as IdentifierReferences in
+      strict mode. Covers both the dedicated-token channel and
+      the .Identifier + contextual-name channel.
+
+      *ImportCall / import.meta as ExpressionStatement in Block:*
+      `{ import('x')(); }` and `() => { import('x')(); }` now
+      parse; the statement dispatcher recognises ImportCall /
+      MetaProperty as expression productions and routes through
+      the ExpressionStatement path.
+
+      *Parser state leaks:* no_in no longer leaks through
+      ArrayExpression / ObjectExpression / TemplateLiteral
+      substitution bodies (`for ([x='y' in z] of w)` etc.).
+
+      *Lexer token context:* .Await and .Yield added to
+      can_start_regex — `await /1/` / `yield /a/.test(x)` now
+      lex the `/` as a regex literal.
+
+      *Class body ASI:* `class C { #x\n#y }` parses as two fields.
+      The method-vs-field discriminator now accepts the implicit
+      ASI when the cur token is on a new line and isn't `(` /
+      `:` / `?` / `!`.
+
+      *Test harness: --force-strict.* New CLI flag for the
+      Test262 runner's `flags: [onlyStrict]` fixtures. Without it
+      ~332 strict-only early-error fixtures couldn't fire.
+
+      *CoverInitializedName pending list, test262 full
+      --all-failures, per-subdir aggregation* — triage
+      infrastructure, in-file under tests/verifiers/ and
+      tests/runners/.
 - [ ] **ERR-2:** Error recovery at statement boundaries. *Functionally: `task test:recovery`
       passes 20/20 with anchor survival; formal item still open for editor-tooling quality.*
 - [ ] **ERR-3:** Graceful TS parse failure. *Functionally: 0 SIGTRAPs in current corpus;
@@ -621,6 +741,86 @@ Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 65
 | `880e822` | NAPI/Visitor MVP | `npm/kessel-parser/`: `parseSync()` oxc-parser shim + `walk()`/`findAll()` visitor. |
 | `17cdc45` | Fuzz baseline | 9 prior span-start failures now pass (pending_paren_start fix); promoted to pass. |
 | `43c57dc` | Static-errors sweep 1 | Parse-time rejection for top-level `return`, stray `else`/`}`/`catch`/`finally`, unlabelled `break`/`continue` out of context, invalid LHS of `=`. Lexer diagnostics channel for numeric separators, BigInt invariants, bad binary/octal, unterminated string/regex, bad escapes, BOM+hashbang. Negative gate 20/32 → 42/63. |
+
+### Phase 10 — Test262 grind, 19 commits (2026-04-24)
+
+Session 10 drove Test262 full-corpus pass rate from 89.73% to
+**96.30%** (+3 269 tests) by closing systematic parser / lexer
+gaps surfaced by the full-corpus runner. Most commits are
+small, precise, and each carries its per-commit Test262 delta
+in the message. No new negative fixtures added this session —
+the gate stays at 125/125 and the new classes live in the
+parser/lexer where the test262-driven errors now fire.
+
+| Commit | Item | +tests |
+|--------|------|--------|
+| `e4d4eb6` | BindingPattern Initializer_opt in nested-array element (`[[x] = []]`) | +1 081 |
+| `00bfe9b` | BindingRestElement accepts nested pattern (`[...[x, y]]`) | +451 |
+| `704cd03` | `\uXXXX` escapes in PrivateIdentifier (`#\u0041`) | +745 |
+| `3e05519` | ImportCall / import.meta as ExpressionStatement in Block | +100 |
+| `41dea8e` | ImportCall §Import Attributes + trailing comma | +62 |
+| `92a875b` | §Phase Imports: `import.defer(x)` / `import.source(x)` | +40 |
+| `9c16839` | §13.4.1 SimpleAssignmentTarget for UpdateExpression | ∼0 (opens) |
+| `567c00c` | ImportCall early-errors + `--force-strict` | +332 |
+| `86797ff` | §14.2.1 duplicate LexicallyDeclaredNames always-on | +143 |
+| `f9598bf` | §13.5 Statement-only position gate | +102 |
+| `6769293` | BindingRestElement early-errors in arrow cover | +15 |
+| `67a0d08` | strict eval/arguments in destructuring targets | +24 |
+| `5467df6` | CoverInitializedName + getter/setter arity | net (no change, errors offset) |
+| `023ad4b` | strict eval/arguments in for-in/of head | +5 |
+| `abd72b5` | no_in leak fix (array / object / template substitution) | +7 |
+| `93a02e5` | `.Await` / `.Yield` added to can_start_regex | +13 |
+| `f35422b` | class field ASI (`class C { #x\n#y }`) | +123 |
+| `57909e8` | §12.6.1.1 strict-mode IdentifierReference check | +45 |
+| `f871fa4` | §12.9.3 smooth-following + hex-empty checks | +16 |
+
+Triage infrastructure added to support the grind:
+
+  * `verify_test262_full.js --all-failures` — record every
+    failure in the JSON summary instead of the first 50 only.
+  * Per-subdir aggregation (`perSubdir` in the summary) for
+    fast pattern-finding across 2k+ failures.
+  * `KESSEL_T262_ALL_FAILURES=1 bash tests/runners/run_test262_full.sh`
+    threads the flag through the runner.
+
+Key design lessons:
+
+  * **The fast-path and the slow path must both carry the
+    early-error checks.** `parse_unary_expr` has an inline
+    fast-path for `.Identifier / .Get / .Set / .Let / .Static /
+    .Constructor / ...` that skips `parse_primary_expr`. Several
+    strict-mode IdentifierReference checks were only in the slow
+    path until this session's commit `57909e8` added them to
+    both.
+  * **Parser state leaks.** `no_in` was set at the
+    for-statement level to disable `in` as a binary operator in
+    the for-init expression, but leaked into nested ArrayExpr /
+    ObjectExpr / TemplateLiteral substitution bodies. Fixed in
+    `abd72b5` by save/reset/restore at each natural expression
+    boundary, matching the existing paren-grouping reset.
+  * **ASI at class body level.** The method-vs-field
+    discriminator originally checked only explicit terminators
+    (`;`, `=`, `,`, `}`). A line terminator between the field
+    name and the next class element also terminates the field,
+    mirroring the §12.10 ASI rule. Fixed in `f35422b`.
+  * **Cover-form early errors fire at the conversion point.**
+    `{a = 1}` is a CoverInitializedName — legal inside a
+    destructuring-assignment cover, SyntaxError as a plain
+    ObjectExpression. Rather than refusing it at parse time
+    (which would break the cover use), `5467df6` tracks pending
+    cover-init offsets on the Parser; `expr_to_pattern` clears
+    entries when the object gets promoted; leftovers at
+    end-of-parse are reported.
+
+Positive gates at end of Session 10 (unchanged or improved):
+  272/272 unit · 467/467 real-world · 144/144 spec-fixtures ·
+  125/125 negative · 66/66 curated test262 · 32/32 recovery ·
+  57/57 nodes · 11/11 regression · 467/467 invariants ·
+  0 spec-compliance divergences · 100/100 fuzz-diff ·
+  8/8 fuzz-invalid (baselined) · 0 crashes-known ·
+  `test:estree:strict` zero-tolerance clean ·
+  Test262 full 47 889 / 49 729 (96.30%) baselined (up from
+  44 620 / 49 729 at Session-9 end).
 
 ### Phase 9 — close all handoff targets, 6 commits (2026-04-24)
 
@@ -771,8 +971,46 @@ caught by the fixture `function f(a,b,a,b) { 'use strict'; }`.
 
 ## 9. What to work on next
 
-Session 9 closed every one of the Session-8 next-session items plus
-shipped new infrastructure. Summary:
+Session 10 drove the full Test262 corpus from 89.73% → **96.30%**
+(+3 269 tests) by closing systematic parser + lexer early-error
+gaps surfaced by running the full corpus with per-subdir
+triage. The surviving failures are distributed across:
+
+- **1 504 accepted-should-reject** — parse-time early errors
+  still missing. Biggest clusters: regex grammar (≥336, needs a
+  real regex parser), class elements (327, mostly private-name
+  resolution + decorator-proposal coverage), for-of/in dstr
+  yield/arguments in obscure targets (70+).
+- **335 rejected-should-accept** — real parser bugs where we
+  refuse valid code. Biggest clusters: class elements (99 +
+  30), `language/import/import-defer` (87, static import-defer
+  declaration form), for-await-of (48, mostly object-pattern
+  numeric key), module-code/top-level-await (25).
+
+### Session 10 accomplishments (2026-04-24)
+
+- **Test262 full 89.73% → 96.30%** (44 620 → 47 889). Baseline
+  relocked at this higher pass count —
+  `tests/baselines/test262_full_baseline.json` updated.
+- **19 parser/lexer patches** for systematic early-error and
+  cover-grammar gaps. See §7 "Phase 10" for the per-commit
+  table and §6 ERR-5 for the catalog of new classes.
+- **Triage infra:** `verify_test262_full.js --all-failures` +
+  `perSubdir` aggregation in the JSON summary. Every future
+  session can triage without re-running.
+- **--force-strict CLI flag** for Test262's `onlyStrict`
+  fixtures; enables the strict-only early-error surface
+  (LegacyOctalEscape, for-in initializer, eval/arguments
+  binding, …) on a corpus without `"use strict"`.
+- **All other gates stayed green.** `test:real` 467/467,
+  `test:spec-fixtures` 144/144, `test:spec-compliance` 0
+  divergences, `test:estree:strict` zero-tolerance clean,
+  `test:negative` 125/125, `test:recovery` 32/32.
+
+### Session 9 accomplishments (earlier, for reference)
+
+Session 9 closed every one of the Session-8 next-session items
+plus shipped new infrastructure:
 
 - **K13 closed** via `--strict-source-type` flag.
 - **ERR-2 partially** closed: recovery gate expanded 20/20 → 32/32
@@ -905,45 +1143,83 @@ shipped new infrastructure. Summary:
 
 ### Remaining items (ordered by impact × feasibility)
 
-1. **Test262 grind** (TEST-1 continuation). Runner is wired and
-   baseline is at 89.73% (44 620/49 729). Closing the remaining
-   10.27% is months of incremental work across language/ subdir:
-   subtle ASI, escaped keywords, complex destructuring, regex
-   semantics, early-error classes. Use `task test:test262:full:json`
-   then inspect `tmp/test262_full_run.json` to triage.
+1. **Test262 class-element grind.** 327 fixtures still
+   accepted-should-reject in `language/{expressions,statements}/
+   class/elements/*`. The big sub-clusters:
+   * **Private-name resolution** (§15.7.3) — `AllPrivateIdentifiers
+     Valid`. A PrivateIdentifier reference must resolve to a
+     declared PrivateName in some enclosing class on the lexical
+     stack. ~28 fixtures under
+     `.../elements/syntax/early-errors/invalid-names/` wait on
+     this. Needs a class-scope stack + per-class private-name
+     set + post-parse walker of class method / field initializer
+     bodies.
+   * **§13.2.5.1 CoverInitializedName edge cases beyond the
+     bare `({a = 1})` form.**
+   * **Decorator proposal coverage** (~10 fixtures under
+     `.../decorator/syntax/*`). Kessel parses the basic
+     `@decorator class {}` surface; more complex decorator
+     expressions (member / call / parenthesized) still pending.
 
-2. **Full Regex pattern validation** (ERR-5 continuation). Structural
-   + flag checks ship in Session 9; full AtomEscape /
+2. **Test262 rejected-should-accept (parser bugs): 335 left.**
+   Triage bucket in order of volume:
+   * `language/expressions/class` (99) and `language/
+     statements/class` (30) — class-element parser
+     shortcomings. ASI-at-body was just fixed in `f35422b`; a
+     handful of residual cases remain around escaped keywords
+     in class names and static-block edge cases.
+   * `language/import/import-defer` (87) — the static
+     `import defer * as ns from "x"` declaration form. Dynamic
+     `import.defer(…)` ships in `92a875b`; the declaration form
+     needs an extension to `parse_import_declaration`.
+   * `language/statements/for-await-of` (48) — mostly object
+     patterns with numeric keys (`{0: v, 1: w}`) that
+     `parse_object_pattern` doesn't accept. Separate from the
+     no_in fix already shipped.
+   * `language/module-code/top-level-await` (25) — await
+     expressions in more exotic positions (await in class
+     extends, computed member keys, etc.).
+   Use `jq -r '.all_failures[] | select(.verdict ==
+   "rejected-should-accept") | .file' tmp/test262_full_run.json |
+   awk -F/ '{print $1"/"$2"/"$3}' | sort | uniq -c | sort -rn` to
+   re-triage after each fix.
+
+3. **Full Regex pattern validation** (ERR-5 continuation).
+   Structural + flag checks ship in Session 9; full AtomEscape /
    CharacterEscape / CharacterClassEscape / GroupName surface of
    RegExp/v flag grammar is still deferred to a dedicated regex
-   parser (OXC uses oxc_regular_expression).
+   parser (OXC uses oxc_regular_expression). ~336 fixtures
+   blocked on this (`language/literals/regexp` 173 +
+   `built-ins/RegExp/{property-escapes,prototype}` 163+28). High
+   effort, high reward.
 
-3. **Scope / symbol analysis deepening** (OPT-6 continuation).
-   Session-9 MVP catches duplicate LexicallyDeclaredNames /
-   lexical·var clashes. Remaining: TDZ violations, used-before-
-   declaration, closure capture analysis, parameter shadowing,
-   `continue label` where label isn't an IterationStatement
-   retroactively (K14 closed at parse-time but scope-pass would
-   catch more cases).
+4. **Scope / symbol analysis deepening** (OPT-6 continuation).
+   Session 10 promoted the §14.2.1 duplicate-LexicallyDeclaredNames
+   check to always-on. Remaining semantic errors (still gated
+   behind `--show-semantic-errors`): TDZ violations,
+   used-before-declaration, closure capture analysis, parameter
+   shadowing, `continue label` where label isn't an
+   IterationStatement retroactively (K14 closed at parse-time but
+   scope-pass would catch more cases).
 
-4. **Full NAPI bindings** (NAPI-2 / NAPI-3). Server mode + async
+5. **Full NAPI bindings** (NAPI-2 / NAPI-3). Server mode + async
    bridge ship in Session 9 (3.7× spawn-per-call), but a true
    sync NAPI still needs: C ABI export from Odin, node-addon-api
    wrapper, platform-specific npm packaging. Several weeks.
    Alternative: `worker_threads` + `Atomics.wait` to make
-   `parseSync` work over the server protocol without NAPI — viable,
-   messy.
+   `parseSync` work over the server protocol without NAPI —
+   viable, messy.
 
-5. **Transform API + scope-aware walker**. Mutation / replacement
-   on top of the visitor API, using #3's scope tree.
+6. **Transform API + scope-aware walker**. Mutation / replacement
+   on top of the visitor API, using #4's scope tree.
 
-6. **Babel parser test suite** (TEST-2). Wide proposal coverage;
+7. **Babel parser test suite** (TEST-2). Wide proposal coverage;
    largely overlaps Test262 but covers more stage-0–3 features.
 
-7. **TypeScript parser test suite** (TEST-3). TS-specific grammar
+8. **TypeScript parser test suite** (TEST-3). TS-specific grammar
    edges; complements the TS shape-diff we have against OXC.
 
-8. **Error recovery editor-tooling polish** (ERR-2 continuation).
+9. **Error recovery editor-tooling polish** (ERR-2 continuation).
    Session-9 recovery closes 4 parse gaps (32/32 fixtures); the
    remaining editor-tooling work is span-stability across error
    boundaries, phrase-level error hints, and an expanded anchor
@@ -963,7 +1239,17 @@ export-local binding resolution (§16.2.2). Session 9 closed: regex
 structural + flag validation, recovery gaps in parse_arguments /
 var-declarator / param-default / TS-type-parameter, K13
 (`--strict-source-type`), Test262 full runner + baseline, server
-mode + async bridge, OPT-6 MVP.
+mode + async bridge, OPT-6 MVP. Session 10 closed: nested-pattern
++ rest-pattern destructuring defaults, PrivateIdentifier escapes,
+ImportCall + Phase Imports, CoverInitializedName, §13.5
+statement-only positions, §14.2.1 LexicallyDeclaredNames duplicate
+always-on with Annex B.3.2 sloppy-mode carve-out, §13.4.1
+SimpleAssignmentTarget for UpdateExpression, strict
+eval/arguments in destructuring + for-in/of, §15.4.3/4 accessor
+arity, §12.6.1.1 strict-mode IdentifierReference, class-body
+ASI, no_in leak fix, can_start_regex after Await/Yield, §12.9.3
+numeric smooth-following. See §7 Phase 10 for the commit table
+and §6 ERR-5 for the spec citations.
 
 Remaining:
 
@@ -995,6 +1281,23 @@ Remaining:
   Verify the Session-6 check still fires through the new `no_in`
   save/restore interactions — sanity check only, no action needed
   unless a regression surfaces.
+- **§15.7.3 PrivateIdentifier resolution (AllPrivateIdentifiers
+  Valid).** Every `#x` reference must resolve to a declared
+  PrivateName in some lexically enclosing class. Needs a class
+  scope stack + per-class private-name set + post-parse walker.
+  ~28 Test262 fixtures wait on this.
+- **Static `import defer * as ns from "x"` declaration form.**
+  Session 10 shipped the dynamic `import.defer(x)` / `import.
+  source(x)` call form. The static declaration form is a
+  separate §16.2.1 extension — ~87 Test262 fixtures blocked.
+- **Object pattern with numeric key** (`{0: v, 1: w}`).
+  parse_object_pattern's key parse accepts String and Identifier
+  but not Number. Blocks most `for-await-of/async-func-decl-
+  dstr-array-ptrn-rest-obj-prop-id*` fixtures (~48).
+- **Template-literal ASI + class-body methods.** Sanity check
+  that the class-field ASI fix (`f35422b`) doesn't regress
+  template literals in any class-initializer edge case. None
+  found in the corpus; no action needed unless surfaced.
 
 ### Session 5 (2026-04-23) — archived
 
@@ -1029,6 +1332,9 @@ bin/kessel parse <file.js> --loc                        # loc{line,column}
 bin/kessel parse <file.js> --range                      # ESLint range tuple
 bin/kessel parse <file.js> --preserve-parens            # Acorn/OXC paren wrapper
 bin/kessel parse <file.js> --source-type=module         # pin Program.sourceType
+bin/kessel parse <file.js> --strict-source-type         # disable auto-upgrade Script→Module (K13)
+bin/kessel parse <file.js> --force-strict               # start parse in strict mode (Test262 onlyStrict)
+bin/kessel parse <file.js> --show-semantic-errors       # OPT-6 scope-verification pass
 bin/kessel parse <file.js> --errors=oxc                 # OXC error shape
 bin/kessel parse <file.js> --module-record              # + "module": {…} record
 ```
@@ -1045,6 +1351,11 @@ task test:test262:full         # full Test262 corpus (requires vendor/test262 ch
 task test:test262:full:json    # full corpus + write JSON summary to tmp/
 task test:test262:full:regression  # compare tmp/ output against tests/baselines/test262_full_baseline.json
 task test:test262:full:update  # re-run and relock the full-corpus baseline
+# Triage:
+KESSEL_T262_ALL_FAILURES=1 KESSEL_T262_JSON=tmp/t262.json bash tests/runners/run_test262_full.sh
+# Then jq the JSON: bucket by verdict + subdir
+jq -r '.all_failures[] | "\(.verdict)\t\(.file)"' tmp/t262.json | \
+  awk -F'\t' '{split($2,p,"/"); print $1"\t"p[1]"/"p[2]"/"p[3]}' | sort | uniq -c | sort -rn | head -20
 task test:spec-fixtures        # 144 per-category spec fixtures vs OXC, baseline-locked
 task test:invariants           # structural ESTree invariants on real corpus
 task test:estree               # deep-walk diff vs OXC (jquery/react-dom/preact/snabbdom)

@@ -1,16 +1,16 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 44620,
-    "accepted-should-reject": 2091,
-    "rejected-should-accept": 3017,
+    "pass": 47889,
+    "accepted-should-reject": 1504,
+    "rejected-should-accept": 335,
     "crash": 1,
     "timeout": 0
   },
   "perDir": {
     "annexB": {
-      "pass": 1082,
-      "fail": 4,
+      "pass": 1084,
+      "fail": 2,
       "crash": 0,
       "timeout": 0
     },
@@ -21,16 +21,194 @@
       "timeout": 0
     },
     "language": {
-      "pass": 18748,
-      "fail": 4897,
+      "pass": 22014,
+      "fail": 1631,
       "crash": 0,
       "timeout": 0
     },
     "staging": {
-      "pass": 1467,
-      "fail": 16,
+      "pass": 1468,
+      "fail": 15,
       "crash": 1,
       "timeout": 0
+    }
+  },
+  "perSubdir": {
+    "language/expressions": {
+      "pass": 0,
+      "fail": 533,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 454,
+      "rejected-should-accept": 79
+    },
+    "language/statements": {
+      "pass": 0,
+      "fail": 515,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 381,
+      "rejected-should-accept": 134
+    },
+    "language/literals": {
+      "pass": 0,
+      "fail": 242,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 236,
+      "rejected-should-accept": 6
+    },
+    "built-ins/RegExp": {
+      "pass": 0,
+      "fail": 191,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 191,
+      "rejected-should-accept": 0
+    },
+    "language/module-code": {
+      "pass": 0,
+      "fail": 158,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 145,
+      "rejected-should-accept": 13
+    },
+    "language/import": {
+      "pass": 0,
+      "fail": 87,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 0,
+      "rejected-should-accept": 87
+    },
+    "language/block-scope": {
+      "pass": 0,
+      "fail": 19,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 19,
+      "rejected-should-accept": 0
+    },
+    "staging/sm": {
+      "pass": 0,
+      "fail": 15,
+      "crash": 1,
+      "timeout": 0,
+      "accepted-should-reject": 3,
+      "rejected-should-accept": 11
+    },
+    "language/comments": {
+      "pass": 0,
+      "fail": 13,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 11,
+      "rejected-should-accept": 2
+    },
+    "language/line-terminators": {
+      "pass": 0,
+      "fail": 13,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 13,
+      "rejected-should-accept": 0
+    },
+    "language/keywords": {
+      "pass": 0,
+      "fail": 9,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 9,
+      "rejected-should-accept": 0
+    },
+    "language/punctuators": {
+      "pass": 0,
+      "fail": 9,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 9,
+      "rejected-should-accept": 0
+    },
+    "language/asi": {
+      "pass": 0,
+      "fail": 8,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 8,
+      "rejected-should-accept": 0
+    },
+    "language/identifiers": {
+      "pass": 0,
+      "fail": 7,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 7,
+      "rejected-should-accept": 0
+    },
+    "language/reserved-words": {
+      "pass": 0,
+      "fail": 7,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 7,
+      "rejected-should-accept": 0
+    },
+    "language/global-code": {
+      "pass": 0,
+      "fail": 5,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 5,
+      "rejected-should-accept": 0
+    },
+    "annexB/language": {
+      "pass": 0,
+      "fail": 2,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 0,
+      "rejected-should-accept": 2
+    },
+    "language/types": {
+      "pass": 0,
+      "fail": 2,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 2,
+      "rejected-should-accept": 0
+    },
+    "language/white-space": {
+      "pass": 0,
+      "fail": 2,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 2,
+      "rejected-should-accept": 0
+    },
+    "language/export": {
+      "pass": 0,
+      "fail": 1,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 1,
+      "rejected-should-accept": 0
+    },
+    "language/future-reserved-words": {
+      "pass": 0,
+      "fail": 1,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 1,
+      "rejected-should-accept": 0
+    },
+    "staging/decorators": {
+      "pass": 0,
+      "fail": 1,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 0,
+      "rejected-should-accept": 1
     }
   },
   "sample_failures": [
@@ -41,14 +219,6 @@
     {
       "file": "annexB/language/expressions/assignmenttargettype/cover-callexpression-and-asyncarrowhead.js",
       "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "annexB/language/statements/for-in/strict-initializer.js",
-      "verdict": "accepted-should-reject"
     },
     {
       "file": "built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F-negated.js",
@@ -233,8 +403,16 @@
     {
       "file": "built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit-negated.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-negated.js",
+      "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 89.73,
-  "generated_at": "2026-04-24T12:42:00.848Z"
+  "rate": 96.3,
+  "generated_at": "2026-04-24T17:59:56.610Z"
 }
