@@ -4940,9 +4940,135 @@ pn_visit_class :: proc(p: ^Parser, cls: ^ClassExpression, stack: ^PrivateNameSta
 		if elem.key != nil { pn_walk_expr(p, elem.key, stack) }
 		if v, have := elem.value.(^Expression); have && v != nil {
 			pn_walk_expr(p, v, stack)
+			// §15.7.5 — ClassFieldInitializer must not Contain
+			// “arguments”. Fields are ClassElement entries where the
+			// .value isn't a FunctionExpression (methods / getters /
+			// setters / constructor wrap the function in a
+			// FunctionExpression). Walk the initializer expression tree
+			// and report any bare `arguments` IdentifierReference that
+			// isn't shadowed by a nested function's arguments object.
+			is_field := true
+			if _, is_fn := v.(^FunctionExpression); is_fn { is_field = false }
+			if is_field && elem.kind != .Constructor {
+				scan_field_init_arguments(p, v)
+			}
 		}
 	}
 	pop(stack)
+}
+
+// Walk a class-field initializer expression tree and report any bare
+// `arguments` IdentifierReference. Nested FunctionExpression /
+// FunctionDeclaration / ClassExpression boundaries bring their own
+// `arguments` / class-init scope — stop there. ArrowFunctionExpression
+// does NOT stop: arrows inherit the enclosing class-init scope's lack
+// of `arguments`, so §15.7.5 catches `x = () => arguments` too.
+scan_field_init_arguments :: proc(p: ^Parser, expr: ^Expression) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^Identifier:
+		if e != nil && e.name == "arguments" {
+			report_error(p, "'arguments' cannot appear in a class field initializer")
+		}
+	case ^FunctionExpression:
+		// Nested function — has its own arguments binding. Stop.
+		return
+	case ^ClassExpression:
+		// Nested class — its own field-init boundaries. Stop.
+		return
+	case ^ArrowFunctionExpression:
+		if e == nil { return }
+		for pr in e.params {
+			if d, have := pr.default_val.(^Expression); have && d != nil { scan_field_init_arguments(p, d) }
+		}
+		#partial switch body in e.body {
+		case ^Expression:     scan_field_init_arguments(p, body)
+		case ^BlockStatement: if body != nil { for s in body.body { scan_field_init_arguments_stmt(p, s) } }
+		}
+	case ^MemberExpression:
+		if e == nil { return }
+		scan_field_init_arguments(p, e.object)
+		if e.computed {
+			scan_field_init_arguments(p, e.property)
+		}
+	case ^BinaryExpression:
+		if e == nil { return }
+		scan_field_init_arguments(p, e.left)
+		scan_field_init_arguments(p, e.right)
+	case ^LogicalExpression:
+		if e == nil { return }
+		scan_field_init_arguments(p, e.left)
+		scan_field_init_arguments(p, e.right)
+	case ^AssignmentExpression:
+		if e == nil { return }
+		scan_field_init_arguments(p, e.left)
+		scan_field_init_arguments(p, e.right)
+	case ^ConditionalExpression:
+		if e == nil { return }
+		scan_field_init_arguments(p, e.test)
+		scan_field_init_arguments(p, e.consequent)
+		scan_field_init_arguments(p, e.alternate)
+	case ^CallExpression:
+		if e == nil { return }
+		scan_field_init_arguments(p, e.callee)
+		for a in e.arguments { scan_field_init_arguments(p, a) }
+	case ^NewExpression:
+		if e == nil { return }
+		scan_field_init_arguments(p, e.callee)
+		for a in e.arguments { scan_field_init_arguments(p, a) }
+	case ^ArrayExpression:
+		if e == nil { return }
+		for el in e.elements {
+			if inner, have := el.(^Expression); have && inner != nil { scan_field_init_arguments(p, inner) }
+		}
+	case ^ObjectExpression:
+		if e == nil { return }
+		for prop in e.properties {
+			// `arguments` as a property key is legal; only walk value.
+			scan_field_init_arguments(p, prop.value)
+		}
+	case ^SpreadElement:             if e != nil { scan_field_init_arguments(p, e.argument) }
+	case ^UnaryExpression:           if e != nil { scan_field_init_arguments(p, e.argument) }
+	case ^UpdateExpression:          if e != nil { scan_field_init_arguments(p, e.argument) }
+	case ^SequenceExpression:        if e != nil { for s in e.expressions { scan_field_init_arguments(p, s) } }
+	case ^TemplateLiteral:           if e != nil { for s in e.expressions { scan_field_init_arguments(p, s) } }
+	case ^TaggedTemplateExpression:  if e != nil { scan_field_init_arguments(p, e.tag); scan_field_init_arguments(p, e.quasi) }
+	case ^ParenthesizedExpression:   if e != nil { scan_field_init_arguments(p, e.expression) }
+	case ^AwaitExpression:           if e != nil { scan_field_init_arguments(p, e.argument) }
+	case ^YieldExpression:
+		if e == nil { return }
+		if a, have := e.argument.(^Expression); have && a != nil { scan_field_init_arguments(p, a) }
+	case ^ChainExpression:           if e != nil { scan_field_init_arguments(p, e.expression) }
+	case ^ImportExpression:
+		if e == nil { return }
+		scan_field_init_arguments(p, e.source)
+		scan_field_init_arguments(p, e.options)
+	}
+}
+
+scan_field_init_arguments_stmt :: proc(p: ^Parser, stmt: ^Statement) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^ExpressionStatement:
+		if v != nil { scan_field_init_arguments(p, v.expression) }
+	case ^BlockStatement:
+		if v != nil { for s in v.body { scan_field_init_arguments_stmt(p, s) } }
+	case ^ReturnStatement:
+		if v == nil { return }
+		if a, have := v.argument.(^Expression); have && a != nil { scan_field_init_arguments(p, a) }
+	case ^IfStatement:
+		if v == nil { return }
+		scan_field_init_arguments(p, v.test)
+		scan_field_init_arguments_stmt(p, v.consequent)
+		if a, have := v.alternate.(^Statement); have && a != nil { scan_field_init_arguments_stmt(p, a) }
+	case ^VariableDeclaration:
+		if v == nil { return }
+		for d in v.declarations {
+			if init, have := d.init.(^Expression); have && init != nil {
+				scan_field_init_arguments(p, init)
+			}
+		}
+	}
 }
 
 pn_walk_stmt :: proc(p: ^Parser, stmt: ^Statement, stack: ^PrivateNameStack) {
