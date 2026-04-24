@@ -2624,6 +2624,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// runs in the caller).
 	in_prologue := true
 	body_use_strict := false
+	prologue_raws := make([dynamic]^StringLiteral, 0, 2, context.temp_allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
 		stmt := parse_statement_or_declaration(p)
@@ -2635,6 +2636,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 					str_lit, is_str := es.expression.(^StringLiteral)
 					if is_str && str_lit != nil {
 						es.directive = str_lit.value
+						append(&prologue_raws, str_lit)
 						if str_lit.value == "use strict" {
 							body_use_strict = true
 							p.strict_mode = true
@@ -2648,6 +2650,27 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 			}
 		} else if int(cur_offset(p)) == prev_offset {
 			eat(p)
+		}
+	}
+
+	// §12.9.4 Annex B.1.2 / §12.9.4.1 — if the function body's prologue
+	// contains a "use strict" directive, EVERY prologue StringLiteral
+	// (including strings BEFORE the "use strict" one, and the directive
+	// itself) must not contain a LegacyOctalEscapeSequence or
+	// NonOctalDecimalEscapeSequence. Classic test262 shape:
+	//   function f() { "\1"; "use strict"; }
+	// The `"\1"` passes lexing (legal in sloppy), then the later
+	// "use strict" retroactively makes it illegal. Walk the collected
+	// prologue strings and report each offender.
+	if body_use_strict {
+		for str_lit in prologue_raws {
+			if str_lit == nil { continue }
+			if string_raw_has_forbidden_escape(str_lit.raw) {
+				append(&p.errors, ParseError{
+					loc     = LexerLoc{offset = int(str_lit.loc.span.start)},
+					message = "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
+				})
+			}
 		}
 	}
 
