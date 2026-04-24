@@ -1,7 +1,8 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-24 (post negative-gate sweep + K9 + 20 static-error classes — 144/144 spec-fixtures, 100/100 fuzz-diff, 0 divergences vs OXC on 12 real files, **negative gate 90/90 rejected — perfect across 30 new fixtures in 8 new error classes added this half**, **estree strict 0 mismatches on every file**, ratchet engaged)
-**Repo state:** `main` past `9898e054`, ~19 000 LOC of Odin across 7 files + npm/kessel-parser shim.
+**Last updated:** 2026-04-24 — Session 6 closed.
+**Status headline:** 144/144 spec-fixtures; 100/100 fuzz-diff; 0 divergences vs OXC on 12 real files; **90/90 negative-gate rejections across 29 static-error classes (ratchet engaged)**; **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; 20/20 recovery; 467/467 invariants; 57/57 node-type coverage; 11/11 regression.
+**Repo state:** `main` at `e6d100d` (most recent handoff sync), ~20 800 LOC of Odin across 7 files + npm/kessel-parser shim.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -36,22 +37,24 @@ is fine.
 
 | Suite | Command | Result | Notes |
 |---|---|---|---|
-| Unit | `task test:unit` | **272 / 335** (100%) | 63 skipped (negative-gate owned). Zero failures. |
-| Regression | `task test:regression` | **11 / 11** ✅ | Structural diff vs OXC for session-fixed bugs |
-| Real-world | `task test:real` | **467 / 467** ✅ | Zero failures |
-| Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture |
-| Test262 (curated) | `task test:test262` | **66 / 66** ✅ | Full curated subset passing; broader Test262 not yet wired. |
-| Spec-fixtures | `task test:spec-fixtures` | **144 / 144 ✅** | All categories 100%. lexical/001 (BOM+hashbang) rejects with matching OXC diagnostic. |
-| Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree checks across real corpus |
-| ESTree drift | `task test:estree` | ✅ matches baseline | snabbdom deep-compare passes; jquery integration baseline-gated. |
-| Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel |
-| Spec-compliance | `task test:spec-compliance` | **OK** ✅ (baselined) | Total divergences 11 561 → **0** across all 12 real files vs OXC (`cc96a1c` + follow-ups). Every file (snabbdom, preact, jquery, react.dev, lodash, acorn, react-dom.dev, antd, d3, chalk, petite-vue, zod) matches OXC byte-for-byte. |
-| Fuzz (diff vs OXC) | `task test:fuzz` | **100 / 100** ✅ (baselined) | All 25 prior baselined failures closed. `--lenient-on-oxc-errors` flag + JSON trailing-newline fix in `--compact` mode closed every case where OXC errored but Kessel parsed. |
-| Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not bugs). |
+| Unit | `task test:unit` | **272 / 362** (100% pass rate) | 90 skipped = negative-gate-owned early-error fixtures. Zero failures. |
+| Regression | `task test:regression` | **11 / 11** ✅ | Structural diff vs OXC for session-fixed bugs. |
+| Real-world | `task test:real` | **467 / 467** ✅ | Zero failures across the full real-world corpus. |
+| Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture. |
+| Test262 (curated) | `task test:test262` | **66 / 66** ✅ | Full curated subset passing; broader Test262 (~45 000) not wired yet. |
+| Spec-fixtures | `task test:spec-fixtures` | **144 / 144** ✅ | All 22 categories at 100%. lexical/001 (BOM+hashbang) rejects with matching OXC diagnostic. |
+| Invariants | `task test:invariants` | **467 / 467** ✅ | Structural ESTree invariants across real corpus. |
+| ESTree drift | `task test:estree` | ✅ 0 mismatches | jquery / react-dom.dev / preact / snabbdom all deep-compare against OXC byte-for-byte via `verify_integration`. |
+| ESTree drift (strict) | `task test:estree:strict` | ✅ 0 mismatches | Zero-tolerance variant of the above for release gating. |
+| Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel. |
+| Spec-compliance | `task test:spec-compliance` | **0 divergences** ✅ (baselined) | All 12 curated real files (snabbdom, preact, jquery, react.dev, lodash, acorn, react-dom.dev, antd, d3, chalk, petite-vue, zod) match OXC byte-for-byte. 11 561 → 0 across two sweeps. |
+| Fuzz (diff vs OXC) | `task test:fuzz` | **100 / 100** ✅ (baselined) | All 25 prior baselined failures closed. |
+| Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not parser bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
-| Recovery | `task test:recovery` | **20 / 20** ✅ | All anchors survive, spans sane. |
-| Negative gate | `task test:negative` | **90 / 90 rejected** ✅ (baseline 100% clean, ratchet engaged) | **20 static-error classes** closed across this session (420cb52, 2117a33e, 15b88444, 5f41bdd3, 784ca574, 7c189388, 9898e054). Every fixture in `tests/fixtures/negative/` + `tests/fixtures/early_errors/` now reports at least one parse error. Any new fixture the parser accepts fails the default gate. `task test:negative:strict` zero-tolerance runs the same set without a baseline. |
-| Bench regression | `task test:bench:regression` | Not run | Use before release |
+| Recovery | `task test:recovery` | **20 / 20** ✅ | All anchors survive; spans stay sane. |
+| **Negative gate** | `task test:negative` | **90 / 90 rejected** ✅ (ratchet engaged) | **29 static-error classes** enforced across `tests/fixtures/negative/` + `tests/fixtures/early_errors/`: 9 from Session 5 (`43c57dc`) + 20 from Session 6 (`420cb52`, `92ee5bb`, `716f916`, `b708c10`, `50a849f`, `397e966`, `a3bdf5a`, `ab1f14c`). Baseline is 100% “rejected” so the verifier auto-strictifies: any new fixture the parser accepts fails the default gate. See ERR-5 below for the full catalog. |
+| Negative gate (strict) | `task test:negative:strict` | **90 / 90 rejected** ✅ | Zero-tolerance variant, no baseline. Run before a release. |
+| Bench regression | `task test:bench:regression` | Not run | Use before release. |
 
 ### Performance (Apple M-series, `-o:speed -no-bounds-check`)
 
@@ -108,16 +111,16 @@ table → identifier / keyword / operator dispatch. Parser `advance_token` swaps
 
 | File | LOC | Purpose |
 |---|---|---|
-| `src/ast.odin` | ~1 500 | All AST node types — JS, JSX (15), TS (52+), ESM record (7), union types. Added: FunctionParameter modifier fields, TSParameterProperty logic. |
-| `src/token.odin` | ~370 | TokenType enum, FastToken, LiteralValue, FLAG_NEW_LINE, FLAG_HAS_ESCAPE |
-| `src/lexer.odin` | ~1 700 | Lexer state + `lex_token` hot path + SIMD comment scanners + escaped-identifier slow path |
-| `src/parser.odin` | ~6 900 | Recursive-descent parser. Added: Phase C TSX generic-arrow disambiguation, pending_paren_start save/restore fix, TSIndexSignature span fixes, TSInterface body_start, new Box<T>() allow_call fix. |
-| `src/main.odin` | ~5 900 | CLI, JSON emitter, TS emitter. Added: TSParameterProperty wrap, TSMappedType key+constraint shape, CallExpr/NewExpr typeArguments, FunctionExpr declare/typeParameters/returnType, ClassDecl superTypeArguments, MethodDef/PropertyDef optional, emit_ts_type_argument_list helper. |
-| `src/simd.odin` | ~130 | SIMD comment scanners (`simd_skip_line_comment`, `simd_skip_block_comment`) |
-| `src/raw_transfer.odin` | ~650 | Experimental binary AST buffer output (not on JSON path) |
-| `npm/kessel-parser/index.js` | ~120 | oxc-parser-compatible `parseSync()` shim backed by CLI binary |
-| `npm/kessel-parser/visitor.js` | ~180 | ESTree `walk()` + `findAll()` visitor API |
-| **Total** | **~18 700** | |
+| `src/ast.odin` | ~1 500 | All AST node types — JS, JSX (15), TS (52+), ESM record (7), union types. FunctionParameter modifier fields + TSParameterProperty logic. |
+| `src/token.odin` | ~370 | TokenType enum, FastToken, LiteralValue, FLAG_NEW_LINE, FLAG_HAS_ESCAPE. |
+| `src/lexer.odin` | ~1 970 | Lexer state + `lex_token` hot path + SIMD comment scanners + escaped-identifier slow path + diagnostic channel (`lexer_errors`) for numeric separators, BigInt invariants, bad escapes, unterminated strings/regex. |
+| `src/parser.odin` | ~8 880 | Recursive-descent parser. Carries 29 static-error classes (Session 6 sweep). New parser fields this session: `in_method` (HomeObject context), `last_body_strict` (directive-prologue surfaced to caller), `label_stack` + `label_floor` (per-function label set). New helpers: `collect_bound_names`, `report_duplicate_lexical_names`, `report_duplicate_param_names`, `params_are_simple`, `report_let_as_lexical_name`, `report_private_class_member_errors`, `class_element_prop_name`, `property_is_literal_proto_init`, `string_raw_has_forbidden_escape`, `is_legacy_zero_prefixed_integer`, `is_strict_reserved_word`, `is_strict_reserved_name`, `is_eval_or_arguments`, `report_strict_update_on_eval_or_arguments`, `label_in_scope`. |
+| `src/main.odin` | ~6 910 | CLI, JSON emitter, TS emitter. TSParameterProperty wrap, TSMappedType key+constraint shape, CallExpr/NewExpr typeArguments, FunctionExpr declare/typeParameters/returnType, ClassDecl superTypeArguments, MethodDef/PropertyDef optional, destructuring-target pattern emitter. |
+| `src/simd.odin` | ~240 | SIMD comment scanners (`simd_skip_line_comment`, `simd_skip_block_comment`). |
+| `src/raw_transfer.odin` | ~650 | Experimental binary AST buffer output (not on JSON path). |
+| `npm/kessel-parser/index.js` | ~140 | oxc-parser-compatible `parseSync()` shim backed by CLI binary. |
+| `npm/kessel-parser/visitor.js` | ~190 | ESTree `walk()` + `findAll()` visitor API. |
+| **Total** | **~20 850** | |
 
 Dependency graph (all in `package main`):
 ```
@@ -152,6 +155,17 @@ main.odin ──→ parser.odin ──→ lexer.odin ──→ simd.odin
 8. **Default-off for all new output formats.** `--errors=oxc`, `--loc`,
    `--module-record` all keep byte-identical default output so existing
    consumers never break.
+9. **Static-error classes are always on.** The 29 negative-gate error
+   classes run unconditionally; they never change the shape of a valid
+   AST, only add entries to `p.errors[]` when input is invalid. The
+   module-syntax-in-script class gates on `--source-type=script` because
+   auto-detect would silently upgrade; every other class fires on every
+   parse.
+10. **Ratcheted negative gate.** `tests/verifiers/verify_negative.js`
+    flips to zero-tolerance the moment the baseline is 100% “rejected”.
+    Any new fixture the parser accepts fails the default gate, not just
+    `--strict`. Stops silent drift where “new fixture” would previously
+    hide a regression.
 
 ---
 
@@ -168,11 +182,11 @@ main.odin ──→ parser.odin ──→ lexer.odin ──→ simd.odin
 | TypeScript — Core | **12 / 12 ✅** | TS-C1c TSX single-param `<T>` still requires trailing comma |
 | TypeScript — Advanced | **10 / 10 ✅** | — |
 | TypeScript — Declarations | **7 / 7 ✅** | interface extends / const enum / class implements / type-param constraints all fixture-verified vs OXC. |
-| ESTree / TS-ESTree Conformance | **9 / 9 ✅** | EST-5 closed: 22-category spec-fixture gate, 139/140 pass. |
+| ESTree / TS-ESTree Conformance | **9 / 9 ✅** | EST-5 closed: 22-category spec-fixture gate at 144/144. |
 | ESM Module Record | **5 / 5 ✅** | — |
 | Parser Options | **6 / 6 ✅** | — |
-| Error Handling | **1 / 4** | ERR-2/3 functionally solved (recovery 20/20, 0 SIGTRAPs); formal items remain open |
-| Test Coverage | **1 / 5** | Full Test262 / Babel / TS test suites still pending |
+| Error Handling | **2 / 5** | ERR-1 + ERR-5 shipped; ERR-2/3/4 functionally solved on current corpus (recovery 20/20, 0 SIGTRAPs, 0 infinite loops); formal items remain open. |
+| Test Coverage | **2 / 5** | Curated + **negative-gate ratchet** shipped; full Test262 / Babel / TS parser test suites still pending. |
 | NAPI / FFI Bindings | **1 / 6** 🔶 | CLI-backed `parseSync()` shim in `npm/kessel-parser/` (`880e822`). Full zero-spawn NAPI pending. |
 | Visitor API | **1 / 3** 🔶 | `walk()` + `findAll()` shipped (`880e822`). Transform API + scope analysis pending. |
 
@@ -225,7 +239,7 @@ All fixed in Phase 2.
 - [x] **TS-A9:** `infer U` in conditional types
 - [x] **TS-A10:** Overload signatures (free functions and class methods), `973c9e6`.
 
-### TypeScript — Declarations (6 / 7)
+### TypeScript — Declarations (7 / 7 ✅)
 - [x] `interface` declarations (basic + extends)
 - [x] `type` alias declarations
 - [x] `enum` declarations (basic + const enum)
@@ -237,7 +251,7 @@ All fixed in Phase 2.
       fixtures at `tests/fixtures/spec/typescript/011..014` verify each
       against OXC (all passing, locked in spec-fixtures baseline).
 
-### ESTree / TS-ESTree Conformance (6 / 8)
+### ESTree / TS-ESTree Conformance (9 / 9 ✅)
 - [x] Core node types (57 JS node types verified)
 - [x] `hashbang` field on Program with preserved content (EST-6). The
       lexer captures `value`, `start`, `end`; the emitter writes
@@ -261,12 +275,13 @@ All fixed in Phase 2.
       ClassDeclaration superTypeArguments, CallExpression/NewExpression
       typeArguments null, MethodDef/PropertyDef optional, TSInterfaceDeclaration
       body start. OXC used as reference (typescript-estree verifier not needed).
-- [x] **EST-5:** Per-category spec-fixture gate (`96bacd5`+). Baseline now covers
-      22 categories x 140 fixtures (`tests/baselines/spec_fixtures_baseline.json`):
-      asi, edge, es2015–es2025, escapes, ambiguity, interactions, jsx, lexical,
-      regex_disambiguation, typescript, unicode. 139/140 passing; lexical/001
-      (BOM+hashbang) baselined as known-fail. Gate trips on any category
-      regression.
+- [x] **EST-5:** Per-category spec-fixture gate (`96bacd5`+). Baseline
+      covers 22 categories x 144 fixtures
+      (`tests/baselines/spec_fixtures_baseline.json`): asi, edge,
+      es2015–es2025, escapes, ambiguity, interactions, jsx, lexical,
+      regex_disambiguation, typescript, unicode. **144/144 passing**.
+      lexical/001 (BOM+hashbang) rejects with matching OXC diagnostic.
+      Gate trips on any category regression.
 
 ### ESM Module Record (5 / 5 ✅)
 All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
@@ -276,7 +291,7 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 - [x] **ESM-4:** `dynamicImports`
 - [x] **ESM-5:** `importMetas`
 
-### Parser Options (5 / 6)
+### Parser Options (6 / 6 ✅)
 - [x] **OPT-1:** `--source-type={script|module|unambiguous}` (`2b3e88b`).
       `unambiguous` (nil override) keeps the existing auto-upgrade;
       `script` disables it; `module` pins to Module regardless of body.
@@ -291,45 +306,59 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
       emit TS shape, `.JS` / `.JSX` emit plain).
 - [ ] **OPT-6:** `showSemanticErrors` — requires scope/symbol analysis.
 
-### Error Handling (2 / 4)
+### Error Handling (2 / 5)
 - [x] **ERR-1:** `--errors=oxc` for OXC TS-ESTree shape (Phase 3, `75fb36b`).
-- [x] **ERR-5:** Static-error coverage. Negative gate at **90/90** rejected
-      (ending commit `9898e054`), up from 42/63 at the start of Session 6.
-      **20 error classes** closed at the parser layer across the session:
+- [x] **ERR-5:** Static-error coverage. Negative gate at **90/90
+      rejected** (end of Session 6, commit `e6d100d`) across 90
+      fixtures. **29 static-error classes** enforced at the parser
+      layer: 9 from Session 5 (`43c57dc`) + 20 from Session 6.
 
-      *Structural / grammar:* `super` outside method, duplicate `__proto__`
-      init, duplicate lexical-binding names, `let` as lexical-BoundName,
-      duplicate / unknown-target labels, duplicate `default`, duplicate
-      `constructor`, duplicate private-class-member + `#constructor`,
-      `static prototype` class member, rest-element trailing-comma,
-      `new.target` outside function, `new import(...)`, private
-      identifier outside `in`-expression, `throw` with line-terminator,
-      `delete` of a private field, duplicate case-default.
+      *Session 5 additions (9 classes, `43c57dc`):* top-level `return`
+      outside function; unlabelled `break` / `continue` outside
+      loop / switch; stray `else` / `}` / `catch` / `finally` at
+      statement position; invalid LHS of `=`; reserved keyword as
+      binding identifier; `await` as unary prefix outside async;
+      lexer diagnostics (numeric separators, BigInt invariants, bad
+      binary / octal, unterminated string / regex, bad `\x`/`\u`
+      escapes, BOM+hashbang `!`); function-param bail-out recovery.
+
+      *Session 6 additions (20 classes, `420cb52`..`ab1f14c`):*
+
+      *Structural / grammar:* `super` outside method, duplicate
+      `__proto__` init, duplicate lexical-binding names, `let` as
+      lexical-BoundName, duplicate / unknown-target labels,
+      duplicate `default`, duplicate `constructor`, duplicate
+      private-class-member + `#constructor`, `static prototype`
+      class member, rest-element trailing-comma, `new.target`
+      outside function, `new import(...)`, private identifier
+      outside `in`-expression, `throw` with line-terminator,
+      `delete` of a private field.
 
       *Strict-mode:* `with` statement, LegacyOctal / `\8` / `\9`
-      in strings AND untagged templates, LegacyOctal integer literals,
-      LegacyOctal BigInts, strict-mode FutureReservedWord bindings
-      (`implements` / `interface` / `package` / `private` / `protected`
-      / `public` / `let` / `static` / `yield`), `eval` / `arguments`
-      as binding / LHS / update-operand, `delete <ident>`,
-      `function eval` / `function arguments`, class name strict-
-      reserved check, labeled-function-declaration, duplicate-params
-      in strict.
+      in strings AND untagged templates, LegacyOctal integer
+      literals, LegacyOctal BigInts, strict-mode FutureReservedWord
+      bindings (`implements` / `interface` / `package` / `private`
+      / `protected` / `public` / `let` / `static` / `yield`),
+      `eval` / `arguments` as binding / LHS / update-operand,
+      `delete <ident>`, `function eval` / `function arguments`,
+      class name strict-reserved check, labeled-function-
+      declaration, duplicate-params in strict.
 
       *Context-sensitive:* strict-mode function-body directive
-      promotion + retroactive param validation, `yield` as binding in
-      generator, `await` as binding in async function, `for await`
-      outside async context, `import`/`export`/top-level-await/
-      `import.meta` under `--source-type=script`.
+      promotion + retroactive param validation, `yield` as binding
+      in generator, `await` as binding in async function, `for
+      await` outside async context, `import`/`export`/top-level-
+      await/`import.meta` under `--source-type=script`.
 
-      *Param validation:* UniqueFormalParameters forced by non-simple
-      param list (§15.1.2 — destructuring / default / rest), arrow /
-      method / accessor UniqueFormalParameters rules (§15.3.1 /
-      §15.4.*).
+      *Param validation:* UniqueFormalParameters forced by
+      non-simple param list (§15.1.2 — destructuring / default /
+      rest), arrow / method / accessor UniqueFormalParameters
+      rules (§15.3.1 / §15.4.*).
 
-      Baseline ratchet: once 100% rejected, any new fixture the parser
-      accepts fails the default gate automatically. `task test:negative:strict`
-      runs the same set without a baseline for release gating.
+      Baseline ratchet: once 100% rejected, any new fixture the
+      parser accepts fails the default gate automatically.
+      `task test:negative:strict` runs the same set without a
+      baseline for release gating.
 - [ ] **ERR-2:** Error recovery at statement boundaries. *Functionally: `task test:recovery`
       passes 20/20 with anchor survival; formal item still open for editor-tooling quality.*
 - [ ] **ERR-3:** Graceful TS parse failure. *Functionally: 0 SIGTRAPs in current corpus;
@@ -337,13 +366,15 @@ All shipped in Phase 3 Wave 2b (`c31de50`). CLI: `--module-record`.
 - [ ] **ERR-4:** Timeout prevention on infinite parse loops. *Functionally: 8 baselined
       SIGTERMs on 350KB–4MB mutated files only; no infinite loops.*
 
-### Test Coverage (1 / 5)
+### Test Coverage (2 / 5)
 - [x] Curated Test262 (66/66), regression (11/11), real-world (467/467),
       nodes (57/57), invariants (467/467), spec-fixtures (144/144 across 22
       categories, all ES years + asi + edge + escapes + jsx + regex + TS + unicode
       + ambiguity + interactions + lexical at 100%).
-- [x] Negative gate: 63/63 rejected across `tests/fixtures/negative/` +
-      `tests/fixtures/early_errors/` (ratchet-gated, strict mode available).
+- [x] **Negative gate: 90/90 rejected** across `tests/fixtures/negative/`
+      + `tests/fixtures/early_errors/` (ratchet-gated, strict mode
+      available). 29 static-error classes enforced; see ERR-5 above for
+      the catalog.
 - [ ] **TEST-1:** Full Test262 (~45 000 tests).
 - [ ] **TEST-2:** Babel parser test suite.
 - [ ] **TEST-3:** TypeScript parser test suite.
@@ -417,11 +448,29 @@ Key commits: `457eb57 1868aa6 5adc034 8adafb0 c322e81 abb2e3b 965e062 fc3795a 65
 | `880e822` | NAPI/Visitor MVP | `npm/kessel-parser/`: `parseSync()` oxc-parser shim + `walk()`/`findAll()` visitor. |
 | `17cdc45` | Fuzz baseline | 9 prior span-start failures now pass (pending_paren_start fix); promoted to pass. |
 | `43c57dc` | Static-errors sweep 1 | Parse-time rejection for top-level `return`, stray `else`/`}`/`catch`/`finally`, unlabelled `break`/`continue` out of context, invalid LHS of `=`. Lexer diagnostics channel for numeric separators, BigInt invariants, bad binary/octal, unterminated string/regex, bad escapes, BOM+hashbang. Negative gate 20/32 → 42/63. |
-| `420cb52` | Static-errors sweep 2 — **negative gate 63/63** | Closed every remaining baselined gap: `super` outside method, duplicate `__proto__`, duplicate lexical decls, strict-mode directive promotion in function bodies, class-body implicit strict, duplicate params in strict, strict-only reserved words as bindings (`let`/`static`/`yield` + `implements`/`interface`/`package`/`private`/`protected`/`public`), `eval`/`arguments` LHS, legacy octal in strict, and `import`/`export`/TLA/`import.meta` under `--source-type=script`. Verifier auto-passes `--source-type=script` for the `module_context/` dir. Baseline ratchet engaged: once 100% clean, any new accepted fixture fails the default gate. |
 
-### Process lessons (from this swarm)
+### Phase 6 — negative-gate closure + early-errors sweep, 13 commits (2026-04-24)
 
-**Haiku silent work-loss.** Two Haiku sessions ran `git stash` or
+From 42/63 rejected (9 error classes) at session start to **90/90 rejected (29 error classes)** at session end. Every other suite stayed green; one secondary fix (K9) dropped integration drift from 538 to 0.
+
+| Commit | Item | Notes |
+|--------|------|-------|
+| `420cb52` | Static-errors sweep 2 — **negative gate 63/63** | Closed every session-5 baselined gap in one commit: 9 classes — `super` outside method, duplicate `__proto__`, duplicate lexical decls, strict-mode directive promotion in function bodies, class-body implicit strict, duplicate params in strict, strict-only reserved words as bindings (`let`/`static`/`yield` + `implements`/`interface`/`package`/`private`/`protected`/`public`), `eval`/`arguments` as binding / LHS, legacy octal in strict, and `import`/`export`/TLA/`import.meta` under `--source-type=script`. Verifier auto-passes `--source-type=script` for the `module_context/` dir. |
+| `322a6a6` | Verifier ratchet | `verify_negative.js` now flips to zero-tolerance once baseline is 100% clean: new accepted fixtures fail the default gate. Manually verified by adding a probe file. |
+| `f7f8caa` | **K9 closed** — `verify_integration` EXPR tag table | `^ChainExpression` had been inserted into `Expression` union between `^Super` and `^ArrayExpression`, shifting every downstream tag by +1; verifier decoded every expression from ArrayExpression onward as the wrong type. Added `13:'ChainExpression'` and renumbered. Also added the JSX + TS variants (34–44) that the table had been silently missing. jquery 4 → 0 / react-dom.dev 3 → 0 / preact 531 → 0 / snabbdom 0 → 0. `test:estree:strict` now passes. |
+| `6d7cf07` | Handoff sync after K9 | |
+| `92ee5bb` | 5 more classes — negative 69/69 | `with`-in-strict (§13.11.1), legacy-octal / `\8` / `\9` in strict StringLiteral (§12.9.4), duplicate DefaultClause in switch (§14.12.1), duplicate LabelIdentifier + unknown break/continue target (§14.13.1, §14.14.1/2), duplicate private class member + `#constructor` (§15.7.1). New `p.label_stack` + `p.label_floor` wiring; labels don't cross function boundaries. |
+| `716f916` | 4 more classes — negative 73/73 | Legacy-octal / `\8` / `\9` in untagged TemplateLiteral (§12.9.4/6), `for await` outside async context (§14.7.5), `let` as lexical BoundName in both modes (§14.3.1.1), static class member named `prototype` (§15.7.1). |
+| `b708c10` | 4 more classes — negative 77/77 | UpdateExpression on `eval`/`arguments` in strict (§13.4.1), `delete <ident>` in strict (§12.5.1.1), PrivateIdentifier outside `in`-expression (§13.2), `new import(...)` (§13.3.12). |
+| `50a849f` | 4 more classes — negative 81/81 | UniqueFormalParameters forced by non-simple param list (§15.1.2), arrow / async-arrow / TS-generic-arrow UniqueFormalParameters always (§15.3.1), `yield` as binding in generator body (§13.2), `await` as binding in async function body (§13.2). |
+| `784ca574` (397e966) | 4 more classes — negative 85/85 | `new.target` outside function (§13.3.12/§15.2), LegacyOctal BigInt (`0123n`, §12.9.3), `function eval` / `function arguments` in strict (§15.1.1), ClassDeclaration / ClassExpression with a strict-reserved name (§15.7.1). |
+| `a3bdf5a` | 3 more classes + strict-retro fix — negative 87/87 | `report_duplicate_param_names` gained a `strict_override` parameter so retro-checks after a nested body-strict promotion actually fire; trailing comma after RestElement (§15.1/15.3); labeled FunctionDeclaration in strict (§14.13.1). |
+| `ab1f14c` | 3 more classes — **negative 90/90** | `delete x.#y` / `delete this.#y` (§13.5.1), `throw` with LineTerminator before argument (§14.14 Restricted Production), duplicate `constructor` in class (§15.7.1). |
+| `e6d100d` | Handoff sync — session close | Comprehensive ERR-5 section with full catalog of 20 classes. |
+
+### Process lessons (from the swarms / sessions)
+
+**Haiku silent work-loss (Phase 3).** Two Haiku sessions ran `git stash` or
 `git checkout -- <file>` in their final cleanup, silently destroying
 completed work that had passed verification. Upstream
 `~/.agents/skills/execute-task/prompts/_safety.md` had forbidden
@@ -432,14 +481,40 @@ clean / rebase / merge / cherry-pick / revert / branch / switch / tag /
 worktree). The one Haiku delegation after the hardening (`d7dfd0e0`, ESM
 module record) landed intact with zero silent git operations.
 
-**Test-runner `exit_code` bug.** `tests/runners/run_tests.sh` didn't reset
-`exit_code` between iterations; one crashing fixture poisoned every
-subsequent fixture's exit-code check. Result: apparent 10 % pass rate that
-was actually 88 %. Fixed in `b02dfe5` alongside Phase B.
+**Test-runner `exit_code` bug (Phase 3).** `tests/runners/run_tests.sh`
+didn't reset `exit_code` between iterations; one crashing fixture poisoned
+every subsequent fixture's exit-code check. Result: apparent 10 % pass rate
+that was actually 88 %. Fixed in `b02dfe5` alongside Phase B.
 
 **Phase 2 → Phase 3 tracker drift.** The parity tracker showed ~0 items
 closed when the session report documented 23 closed. Sync'd twice in
 Phase 3 (`2ad4487`, `4b543cf`).
+
+**Stale verifier tables on union-variant insert (Phase 6).** Adding
+`^ChainExpression` to the `Expression` union in `ast.odin` silently
+shifted every downstream tag by +1 in the raw-transfer binary output.
+`verify_integration.js`'s `EXPR` table wasn't updated, so every
+CallExpression got decoded as NewExpression, every FunctionExpression
+as ArrowFunctionExpression, etc. Existed for weeks unnoticed because the
+baseline captured the drift as “expected”. Fixed in `f7f8caa`; added a
+header comment to the `EXPR` table spelling out the “track ast.odin
+declaration order” invariant so the next insertion doesn't repeat it.
+
+**Baseline ratchet (Phase 6).** The session-5 `verify_negative.js` only
+failed on `rejected→accepted` regressions. New fixtures that the parser
+couldn't handle were logged but didn't fail the gate — a drift window.
+Post-ratchet, once the baseline reaches 100% “rejected”, any new fixture
+the parser accepts fails the default run. Verified by dropping a
+known-legal probe into `tests/fixtures/negative/` and confirming the gate
+tripped with a pointer to `--update`.
+
+**Strict-mode retro-checks need their own flag (Phase 6).**
+`parse_function_body` sets `p.strict_mode = true` when it sees a `"use
+strict"` directive, then restores on exit. By the time the caller runs
+the StrictFormalParameters dup check `p.strict_mode` is already false
+again. The fix was to surface the body's strict-ness as
+`p.last_body_strict` and pass `strict_override` through to the helper;
+caught by the fixture `function f(a,b,a,b) { 'use strict'; }`.
 
 ---
 
@@ -459,137 +534,125 @@ Phase 3 (`2ad4487`, `4b543cf`).
 | K10 | ~~TS-ESTree shape diff~~ ✅ Closed (`f8656ec`). All 10 `spec/typescript/*` fixtures pass deep OXC compare. OXC used as reference (typescript-estree verifier not needed). | — | — | Fixed. |
 | K11 | **Debug build linker warnings** — ~50 about missing symbols for JSX/TS generic instantiations. | Cosmetic | Odin toolchain | Binary works. Ignore. |
 | K12 | ~~Class method access modifiers + TSParameterProperty~~ ✅ Fixed in `0513d43` + `b2effaa`. Parses all modifier permutations. Constructor parameter properties now wrapped in `TSParameterProperty { parameter, accessibility, readonly, override, static }` in emit_ts_shape mode. | — | — | Fixed. |
+| K13 | **Module-syntax errors only fire under `--source-type=script`**. `import` / `export` / top-level `await` / `import.meta` in a script-mode file are correctly rejected when the caller pins sourceType. Without the flag, the parser auto-upgrades to `module` and stays silent. Matches OXC's default behaviour but leaves the rejection conditional. | Low | `parse_import_declaration` / `parse_export_declaration` / `parse_primary_expr.Import` / `parse_unary_expr.Await` | Documented. To tighten further, the auto-upgrade needs a “warn-on-implicit-module” mode; not spec-required. |
+| K14 | **`continue label` doesn't yet check the label targets an IterationStatement.** We validate that the label exists in scope; we don't yet know whether it's bound to a for/while/do-while (vs. a labelled block). Per §14.8.1 `continue foo;` is only legal if `foo` labels an iteration. Currently accepts labelled non-iteration targets. | Low | `parse_continue_statement` | Needs LabelledStatement to track its target kind; future refactor. |
+| K15 | **No scope / symbol analysis.** Cross-statement bindings like `let x; var x;`, block-scoped redeclaration, undefined `break`/`continue`-like semantics below the grammar, and the full `showSemanticErrors` surface all require a scope pass we haven't built. | Low | parser-wide | OPT-6 tracker item. |
 
 ---
 
 ## 9. What to work on next
 
-Ordered by impact × feasibility.
+All previously tracked items up to Session 5 are closed. Session 6
+drove the negative gate from 42/63 to **90/90** (9 → 29 static-error
+classes enforced at the parser layer) and closed K9 (integration drift
+538 → 0 across the real-world corpus). What remains is mostly
+corpus-expansion or multi-week infrastructure.
 
-**Session 6 recap (2026-04-24):**
-- **Negative gate 42/63 → 90/90 rejected.** **20 new error classes** over
-  seven commits (`420cb52`, `2117a33e`, `15b88444`, `5f41bdd3`,
-  `784ca574`, `7c189388`, `9898e054`). See ERR-5 above for the full
-  catalog.
-- **Ratchet engaged.** `tests/verifiers/verify_negative.js` flips to
-  zero-tolerance once the baseline is 100% rejected: any new fixture
-  the parser accepts fails the default gate automatically. Stops silent
-  drift — either fix the parser first or run `task test:negative:update`
-  to explicitly acknowledge a gap.
-- **K9 closed.** `verify_integration`'s `EXPR` tag table was stale after
-  `^ChainExpression` was inserted in the `Expression` union; every
-  downstream tag was silently off-by-one. Fixed in `f7f8caa`. Total
-  integration drift went 538 → 0; `task test:estree:strict` now passes
-  zero-tolerance on every real-world file.
-- **All other suites unchanged.** 144/144 spec-fixtures, 100/100
-  fuzz-diff, 0 divergences vs OXC on 12 real files, 467/467 real-world,
-  66/66 test262, 20/20 recovery, 57/57 nodes, 11/11 regression.
+### Session 6 accomplishments (2026-04-24)
 
+- **Negative gate 42/63 → 90/90 rejected.** **20 new static-error classes**
+  over 11 parser commits. See ERR-5 in §6 for the full catalog and
+  §7 “Phase 6” for the per-commit breakdown.
+- **Verifier ratchet engaged.** Once the baseline is 100% “rejected”,
+  `verify_negative.js` auto-strictifies the default gate: new accepted
+  fixtures fail immediately. Confirmed by dropping a probe file.
+- **K9 closed.** `verify_integration`'s `EXPR` tag table was stale
+  after `^ChainExpression` was added to the `Expression` union.
+  Integration drift went 538 → 0; `test:estree:strict` now passes
+  zero-tolerance.
+- **Legacy items archived.** K1–K8, K10, K12 all closed in prior
+  phases; K9 closed in Phase 6. K11 (debug linker warnings) remains
+  cosmetic. K13–K15 are new Session-6 observations — all low-severity.
+- **All other suites stayed green**: 144/144 spec-fixtures, 100/100
+  fuzz-diff, 0 spec-compliance divergences, 467/467 real-world, 66/66
+  test262, 20/20 recovery, 57/57 nodes, 11/11 regression.
 
-1. ~~K1–K2, K4–K8~~ ✅ All closed.
-2. ~~EST-1, EST-2, EST-6~~ ✅ All shipped.
-3. ~~OPT-1, OPT-2, OPT-4~~ ✅ Shipped.
-4. ~~TS-A10~~ ✅ Shipped.
-5. ~~K12 / EST-3 / OPT-3~~ ✅ All closed.
-6. ~~K3~~ ✅ Closed (`66f25e9`). Fixed `pending_paren_start` propagation
-   (loc_from_expr missing ParenthesizedExpression case; save/clear before
-   parse_arguments so paren-start doesn't leak into argument sub-exprs).
-   Verifier updated: passes `--preserve-parens` to Kessel for OXC compares;
-   disables unwrapParens for OXC; strips `directive` from Kessel-side.
-   spec-compliance total divergences: 11561 → 74 across all 12 files.
-7. ~~Wave 3 Phase C~~ ✅ Closed (`7fa2b40`). TSX mode: `<T,>` / `<T extends>`
-   disambiguates to generic arrow; falls through to JSX otherwise.
-   `--preserve-parens` flag. ArrowFunctionExpression emitter: typeParameters
-   and returnType fields.
-8. ~~TSParameterProperty~~ ✅ Closed (`b2effaa`). FunctionParameter AST
-   now tracks accessibility/readonly/override_/modifier_start. Emitter
-   wraps in `TSParameterProperty` in emit_ts_shape mode.
-9. ~~EST-4 / TS-ESTree shape alignment~~ ✅ Closed (`f8656ec`).
-   All 10 spec/typescript/*.js fixtures pass deep OXC compare (was 7/10).
-   Fixes: TSMappedType key+constraint shape, new Box<T>() callee fix,
-   TSIndexSignature spans + accessibility, FunctionExpression declare/
-   typeParameters/returnType null, ClassDeclaration superTypeArguments,
-   CallExpression/NewExpression typeArguments null, MethodDef/PropertyDef
-   optional field, TSInterfaceDeclaration body start.
-10. ~~NAPI/Visitor MVP~~ ✅ Closed (`880e822`). `npm/kessel-parser/` provides
-    `parseSync(filename, source, opts?)` matching oxc-parser's API shape
-    (CLI-backed shim) + `walk()`/`findAll()` visitor API.
+### Remaining items (ordered by impact × feasibility)
 
-**Remaining items** (ordered by impact):
+1. **Full Test262 integration** (TEST-1). Currently 66 curated tests
+   pass; the full ~45 000-test stage-4 suite would surface a long tail
+   of edge cases (subtle ASI, escaped keywords, complex destructuring,
+   regex semantics, early-error classes we haven't seen yet). Days
+   to wire the runner + category-baseline; months to grind through
+   the findings.
 
-1. **K3 fully closed (2026-04-23 sweep)** — Eight consecutive fixes brought
-   OXC-compare divergences from 74 to 0 across all 12 curated real files:
+2. **Scope / symbol analysis → OPT-6 `showSemanticErrors`**.
+   Enables: `let x; var x;` cross-statement, block-scoped
+   redeclaration, `continue label` where label isn't an
+   IterationStatement (K14), `break`/`continue` target-existence
+   retroactively (currently we check the label stack but don't track
+   its kind), variable-used-before-declaration. Requires a scope
+   tree pass over the AST after parse. ~1–2 weeks to design + ship
+   minimum viable.
 
-   1. **`print_expression_as_pattern` helper** (`src/main.odin`) — routes
-      destructuring-target expressions through a recursive pattern emitter so
-      `AssignmentExpression.left` (op `=`), `ForInStatement.left_expr`, and
-      `ForOfStatement.left_expr` emit `ArrayPattern / ObjectPattern /
-      AssignmentPattern / RestElement` instead of raw expressions. (antd.js
-      25 → 17.)
+3. **Full NAPI bindings**. Production-grade zero-spawn NAPI; C ABI
+   export from Odin + C++ NAPI shim + npm packaging. Several weeks.
+   The existing CLI-shim `parseSync` (`880e822`) is fine for
+   correctness-testing but imposes spawn overhead per parse.
 
-   2. **AssignmentPattern span fix** (`src/parser.odin parse_object_pattern`)
-      — `{ key: value = default }` now records the AssignmentPattern start at
-      the LHS (`value`) rather than the property key (`key`). Four identical
-      spots patched. (antd.js 17 → 2; petite-vue 1 → 0.)
+4. **Transform API + scope/binding analysis tracker**. Node
+   replacement / mutation on top of the visitor API, and a
+   scope-aware walk. Both depend on #2.
 
-   3. **`pending_paren_start` leak from computed-member** (`parse_lhs_tail`
-      `.LBracket`) — `(expr)[k]` now consumes+clears the stamp the way the
-      `.Dot` case already did. Stale stamps no longer drift into unrelated
-      arrow functions downstream. (antd.js 17 → 1; d3.js 12 → 2; jquery 6 → 1;
-      preact 2 → 0.)
+5. **Babel parser test suite** (TEST-2). Wide coverage of
+   transform-era grammar; largely overlaps Test262 but covers more
+   proposal-stage features.
 
-   4. **`new_expr` / `new_stmt` buffer overrun** (`src/parser.odin`) —
-      `total_size` now includes alignment padding between node and wrapper
-      (`round_up_to(size_of(T), align_of(Wrapper))`). Previously the wrapper
-      could overflow its reservation by up to `align - 1` bytes, clobbering
-      the first fields of the next bump allocation. Latent memory bug —
-      triggered whenever `size_of(T) % align_of(Expression) != 0`. Symptom:
-      `f(a.b, false, this)` emitted `{ type: "Unknown" }` for the
-      BooleanLiteral because its 16-byte wrapper smashed the following
-      ThisExpression. (acorn 20 → 0; multiple other subtle corruptions
-      cleaned up.)
+6. **TypeScript parser test suite** (TEST-3). TS-specific grammar
+   edge cases. Good complement to the TS shape-diff we have against
+   OXC already.
 
-   5. **Single-param rest-arrow** (`parse_arrow_function`) — added a
-      `case ^SpreadElement` arm in the single-param switch. Before the fix
-      `const f = (...strings) => …` parsed with `params: []`. (chalk.js
-      3 → 1.)
+7. **Error recovery hardening** (ERR-2). Functionally 20/20 on our
+   anchors, but editor-tooling quality needs stricter guarantees:
+   span-stability across error boundaries, don't drop siblings, keep
+   phrase-level hints. Needs an anchor-set expansion + resume-point
+   catalog. Days.
 
-   6. **Regex flags canonicalisation** (`src/main.odin sort_regex_flags`) —
-      `regex.flags` is now sorted alphabetically (ASCII insertion sort) to
-      match OXC / V8 normalisation. `raw` still keeps the source-literal
-      order. (jquery 1 → 0.)
+8. **Auto-detect source-type tightening** (K13). `import` /
+   `export` / TLA / `import.meta` in a script-mode file silently
+   auto-upgrade to module rather than erroring. OXC does the same
+   by default; the rejection path only fires under `--source-type=
+   script`. Not spec-required, but a `--strict-source-type` flag
+   would close the remaining surface. Hours.
 
-   7. **MetaProperty hard-coded names** (`src/main.odin`) — the emitter now
-      reads `e.meta.name` / `e.property.name` instead of writing the literal
-      strings `"import"` / `"meta"`, so `new.target` emits correctly. (zod
-      2 → 0.)
+### Known spec gaps I spotted but didn't add fixtures for
 
-   8. **Sparse array holes + NewExpression paren leak + multi-param rest
-      arrow end-span** — three smaller fixes in the same sweep. Sparse holes
-      in `ArrayExpression.elements` now emit `null` instead of being
-      dropped; `parse_new_expr` clears `pending_paren_start` before its arg
-      list to stop `new (expr)(args)` from leaking into the next statement;
-      the multi-param `^SpreadElement` arrow case keeps the original
-      SpreadElement span instead of stamping `prev_end_offset(p)` (which by
-      then was the function body's end). (lodash 2 → 0; d3 2 → 0; antd 1 →
-      0; chalk 1 → 0.)
+Preserving these so the next session can pick them up:
 
-   Five baselines regenerated along the way (`edge/012_generators`,
-   `regression/003_class_for_in_of`, `regression/009_destructure_patterns`,
-   `spec/edge/013_assignment_patterns`, `spec/interactions/002_async_generator_destructure_defaults`,
-   `real/015_functional_utils`, `es2015/006_rest`) — whitespace-only or
-   span-correction follow-ons. Spec-fixtures now 128/140 (interactions
-   3 → 4).
-2. **Full NAPI bindings** — Production-grade zero-spawn NAPI. Requires C ABI
-   Odin export + C++ NAPI shim + npm packaging infra. Several weeks.
-3. **Wave 3 Phase C gaps** — TSX `<T>` single-param generic arrow (no
-   trailing comma) — fails in TSX mode (correct per spec; user must write
-   `<T,>`). Also JSX nested attribute/fragment fixtures (005/006/009).
-4. **Error recovery (ERR-2..4)** — Recovery is already 20/20; deeper
-   improvements for editor tooling.
-5. **Full Test262, Babel, TypeScript parser test suites** — Ongoing.
+- **Escaped keyword as keyword** (§12.7.2) — `\u0069f (x) {}` uses the
+  `if` keyword via Unicode escape. Spec forbids this; we currently
+  accept. Complex because the escape handling runs at lex time and
+  the keyword check happens at parse time. Lexer would need to flag
+  `FLAG_HAS_ESCAPE` tokens that match reserved-word spellings.
+- **`super()` in non-derived constructor** (§15.7.3) — requires
+  tracking whether the enclosing class declaration has `extends`.
+  Solvable with one more parser flag (`in_derived_constructor`) +
+  propagation around class-body parse; fixture ready in head.
+- **`delete CoverParenthesizedExpression` subtleties** — spec has
+  specific rules about delete-of-parenthesised-identifier vs
+  delete-of-arrow-cover; we haven't enumerated.
+- **ASI “[no LineTerminator here]” restricted productions beyond
+  `throw` and postfix `++`/`--`** — there are more sites (`yield`,
+  `async`, labelled-statement `break` / `continue`) that follow the
+  same grammar rule. We cover a subset; full pass would be
+  mechanical but tedious.
+- **Regex pattern-body validation** — we validate flags (duplicates,
+  invalid) and basic structural escapes, but not the full
+  AtomEscape / CharacterEscape / CharacterClassEscape / GroupName
+  surface of RegExp/v flag grammar. OXC defers most of this to a
+  separate regex parser.
 
+### Session 5 (2026-04-23) — archived
 
+Session 5 drove spec-compliance divergences 74 → **0** across the 12-file
+real-world corpus, via eight consecutive fixes:
+`print_expression_as_pattern` helper (destructuring-target emit),
+AssignmentPattern span fix in object patterns, `pending_paren_start`
+leak from computed-member, `new_expr`/`new_stmt` alignment-padding
+overrun (latent memory bug), single-param rest-arrow, regex flags
+canonicalisation, MetaProperty hard-coded names, sparse-array hole +
+NewExpression paren leak + multi-param rest-arrow end-span. See
+commit `cc96a1c` and its follow-ups for the full per-fix detail.
 
 ---
 
@@ -618,31 +681,36 @@ bin/kessel parse <file.js> --module-record              # + "module": {…} reco
 
 ### Tests
 ```bash
-task test                  # all suites (chain)
-task test:unit             # 244 fixtures, pass rate gate
-task test:regression       # 11 structural checks vs OXC
-task test:real             # 467 real-world JS files
-task test:nodes            # 57 ESTree node-type coverage
-task test:test262          # 60-test curated subset
-task test:spec-fixtures    # ES / edge fixtures vs OXC, baseline-locked
-task test:invariants       # structural ESTree invariants
-task test:estree           # string-escape + deep-walk diff vs OXC
-task test:multi-parser     # cross-parser compat (Acorn + Babel)
-task test:spec-compliance  # deep JSON diff on curated real files
-task test:fuzz             # differential fuzz vs OXC (baselined)
-task test:fuzz:invalid     # mutation fuzzer (parser-must-not-crash contract)
-task test:crashes-known    # pinned SIGTRAPs must keep crashing
-task test:bench:regression # perf regression gate (before release)
+task test                      # all suites (chain, baseline-gated)
+task test:unit                 # 362 fixtures, 272 passing + 90 negative-skipped
+task test:regression           # 11 structural checks vs OXC
+task test:real                 # 467 real-world JS files (zero failures)
+task test:nodes                # 57 ESTree node-type coverage
+task test:test262              # 66-test curated subset
+task test:spec-fixtures        # 144 per-category spec fixtures vs OXC, baseline-locked
+task test:invariants           # structural ESTree invariants on real corpus
+task test:estree               # deep-walk diff vs OXC (jquery/react-dom/preact/snabbdom)
+task test:estree:strict        # zero-tolerance variant for release gating
+task test:multi-parser         # cross-parser compat (Acorn + Babel)
+task test:spec-compliance      # deep JSON diff on 12 curated real files (zero divergences)
+task test:fuzz                 # differential fuzz vs OXC (100 seeds, baselined)
+task test:fuzz:invalid         # mutation fuzzer (parser-must-not-crash contract)
+task test:crashes-known        # pinned SIGTRAPs must keep crashing
+task test:recovery             # 20 anchor-survival scenarios
+task test:negative             # 90 negative fixtures, ratcheted (auto-strict once clean)
+task test:negative:strict      # zero-tolerance variant, no baseline
+task test:bench:regression     # perf regression gate (before release)
 ```
 
 ### Update baselines (after an intentional fix / improvement)
 ```bash
-task test:negative:update
+task test:negative:update       # after adding a new negative fixture / error class
 task test:spec-compliance:update
 task test:spec-fixtures:update
 task test:invariants:update
 task test:fuzz:update
 task test:fuzz:invalid:update
+task test:integration:update    # after a fix that changes raw-transfer field shape
 task test:bench:regression:update
 ```
 
