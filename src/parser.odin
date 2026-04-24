@@ -5718,6 +5718,18 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// position. This fast-path bypasses parse_primary_expr, so the
 		// same check that lives on the slow path has to run here too.
 		report_escaped_reserved_word(p)
+		// §12.6.1.1 — strict-mode IdentifierReference cannot be `let` /
+		// `yield` / `implements` / `interface` / `package` / `private` /
+		// `protected` / `public` / `static`. Mirrors the check in
+		// parse_primary_expr's fallback ident branch; this fast-path
+		// must run it too (lexer emits `implements` / `interface` / etc.
+		// as plain .Identifier with a contextual value string).
+		if p.strict_mode {
+			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(p.cur_tok.value) {
+				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", p.cur_tok.value)
+				report_error(p, msg)
+			}
+		}
 		// Inline identifier parse + LHS tail
 		id_tok := p.cur_tok
 		eat(p)
@@ -6340,6 +6352,20 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// its cooked StringValue matches a ReservedWord, IdentifierReference
 		// is a Syntax Error (check runs before eat so loc is correct).
 		report_escaped_reserved_word(p)
+		// §12.6.1.1 — strict-mode IdentifierReference cannot be “let” /
+		// “yield” / “implements” / “interface” / “package” /
+		// “private” / “protected” / “public” / “static”. The lexer emits
+		// .Let / .Static / .Yield as dedicated tokens and the rest as
+		// .Identifier, so check both channels. `yield` inside a generator
+		// and `await` inside async are handled by the dedicated keyword
+		// paths earlier in parse_unary_expr — we only reach here for
+		// IdentifierReference uses.
+		if p.strict_mode && current.type != .Await {
+			if is_strict_reserved_word(current.type) || is_strict_reserved_name(current.value) {
+				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
+				report_error(p, msg)
+			}
+		}
 		eat(p)
 		id, id_expr := new_expr(p, Identifier)
 		id.loc = loc_from_token(current)
