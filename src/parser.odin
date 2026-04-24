@@ -1024,13 +1024,18 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// (they're already diagnosed by the module-syntax-in-script gate).
 	verify_export_locals(p, program)
 
-	// OPT-6 scope-verification pass — gated behind --show-semantic-errors
-	// because the check surfaces diagnostics that downstream tools (tsc,
-	// ESLint) already emit on their own pass. Off by default keeps byte-
-	// identical output for consumers on the hot path.
-	if p.show_semantic_errors {
-		verify_scopes(p, program)
-	}
+	// §14.2.1 early-error pass: duplicate LexicallyDeclaredNames in any
+	// Block / FunctionBody / CatchClause / SwitchCase / static-block
+	// scope, plus the lexical/var clash (§14.3.1.1). These are Static
+	// Semantics SyntaxErrors, not downstream-tool concerns, so this
+	// walker always runs. FunctionDeclaration Annex B.3.2 nuance
+	// (sloppy-mode plain FunctionDeclaration doesn't bind lexically,
+	// letting `{ function f(){} function f(){} }` stay legal outside
+	// strict mode) is handled in scope_process_statement.
+	//
+	// --show-semantic-errors will later enable additional passes (TDZ,
+	// used-before-decl, closure capture). For now it's a no-op.
+	verify_scopes(p, program)
 
 	// Drain lexer-side diagnostics (invalid numeric separators, bad
 	// BigInt literals, etc.) into p.errors. The lexer couldn't report
@@ -4451,15 +4456,19 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			// Per §14.1.3, at strict function / module level a
-			// FunctionDeclaration's BoundName is lexically declared.
-			// Sloppy-script FunctionDeclaration goes through var hoisting
-			// (Annex B.3.2). We approximate by treating FunctionDeclaration
-			// as Lexical in strict, Var otherwise. For simplicity the
-			// verifier always uses Lexical — false positives would require
-			// two sibling FunctionDeclarations with identical names in
-			// sloppy script, which is rare and OXC / V8 also warn.
-			scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+			// Annex B.3.2 / §14.1.3: at strict function / module level a
+			// FunctionDeclaration's BoundName IS lexically declared.
+			// Sloppy-mode plain FunctionDeclaration inside a Block does
+			// NOT lexically bind — Annex B gives it var-style hoisting to
+			// avoid breaking legacy code like `{ function f(){} function
+			// f(){} }`. AsyncFunction, GeneratorFunction, and
+			// AsyncGeneratorFunction do NOT qualify for the carve-out and
+			// always bind lexically.
+			kind: ScopeBindingKind = .Lexical
+			if !p.strict_mode && !v.async && !v.generator {
+				kind = .Var
+			}
+			scope_add(p, lex, vars, id.name, id.loc.span.start, kind)
 		}
 	case ^ClassDeclaration:
 		if v == nil { return }
