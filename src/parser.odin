@@ -1416,7 +1416,19 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// previously a stub). left_expr was also transmuted here, but that
 		// branch is dead — downstream only reads left_expr when left_decl is
 		// nil, which never happens in this arm.
+		//
+		// no_in gates `in` as a binary operator inside the declarator init
+		// (§13.15.5 / §14.7.4). Without it `for (var x = 1 in y)` parses
+		// the init as `1 in y` and the parser then expects a `;`. With
+		// no_in, the init stops at `1`, the outer for-statement sees `in`,
+		// and the Annex B.3.5 carve-out (sloppy-mode `for (var Id = init
+		// in Expr)`) becomes reachable. Parenthesised sub-expressions
+		// reset no_in inside the parens, so `for (var x = (a in b); ...)`
+		// keeps working.
+		prev_no_in := p.no_in
+		p.no_in = true
 		decl_stmt := parse_variable_declaration(p, nil, false, true)
+		p.no_in = prev_no_in
 		if decl_stmt != nil {
 			if vd, ok := decl_stmt^.(^VariableDeclaration); ok {
 				left_decl = vd
@@ -1452,6 +1464,52 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				if is_in { kind_name = "in" }
 				msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
 				report_error(p, msg)
+			}
+		}
+
+		// ECMA-262 Annex B.3.5 gate. A VariableDeclaration in a for-in/of
+		// head normally forbids initializers, but sloppy-mode `for (var
+		// BindingIdentifier = AssignmentExpression in Expr) Statement`
+		// survives for web-compat. Every other combination — strict mode,
+		// `let`/`const`/`using`, for-of, multiple declarators, a
+		// destructuring pattern, even a single declarator where the
+		// binding is a BindingPattern — is a SyntaxError per the core
+		// grammar restriction "It is a Syntax Error if DeclarationPart of
+		// ForDeclaration has an Initializer."
+		//
+		// Core grammar also only allows a SINGLE ForBinding /
+		// ForDeclaration in the for-in/of head — no comma-list — so even
+		// init-free `for (var x, y in z)` is a SyntaxError.
+		if left_decl != nil {
+			if len(left_decl.declarations) > 1 {
+				kind_name := "of"
+				if is_in { kind_name = "in" }
+				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_name)
+				report_error(p, msg)
+			}
+			for_in_init_ok := is_in &&
+			                  !p.strict_mode &&
+			                  left_decl.kind == .Var &&
+			                  len(left_decl.declarations) == 1
+			if for_in_init_ok {
+				// Single declarator — tighten further: Annex B requires the
+				// binding to be a simple Identifier (BindingIdentifier). A
+				// destructuring pattern with an init — `for (var {a} = z in
+				// y)` — is NOT covered by Annex B and must error.
+				if _, is_id := left_decl.declarations[0].id.(^Identifier); !is_id {
+					for_in_init_ok = false
+				}
+			}
+			if !for_in_init_ok {
+				for decl in left_decl.declarations {
+					if _, have_init := decl.init.(^Expression); have_init {
+						kind_name := "of"
+						if is_in { kind_name = "in" }
+						msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_name)
+						report_error(p, msg)
+						break
+					}
+				}
 			}
 		}
 
@@ -2374,6 +2432,14 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// then restore. No copy; the parent labels stay in the backing store.
 	prev_label_floor := p.label_floor
 	p.label_floor = len(p.label_stack)
+	// A FunctionBody is its own expression scope — the outer for-init
+	// no_in restriction (set in parse_for_statement so Annex B.3.5
+	// `for (var x = expr in y)` routes through the for-in arm) must
+	// not leak into nested function bodies. Without this, a nested
+	// `function() { if (a && "x" in y) {} }` inside a for-init's
+	// declarator would reject the inner `in`.
+	prev_no_in := p.no_in
+	p.no_in = false
 
 	p.in_function = true
 
@@ -2416,6 +2482,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	p.in_generator = prev_in_generator
 	p.in_async = prev_in_async
 	p.strict_mode = prev_strict
+	p.no_in = prev_no_in
 	// Restore the enclosing label floor. Labels pushed inside this body
 	// should have been popped on their LabelledStatement exit; if not
 	// (parse bail-out, etc.) truncate down so leftovers don't pollute
