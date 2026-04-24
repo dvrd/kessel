@@ -835,13 +835,13 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	// §12.9.3 — "The SourceCharacter immediately following a
 	// NumericLiteral must not be an IdentifierStart or DecimalDigit."
-	// `1a`, `1e1x`, `00b0`, `0.5c` are all SyntaxErrors. Without this
-	// check the lexer stops at the bad char and lets the parser see a
-	// Number followed by an Identifier; ASI then accepts the two as
-	// separate statements on the same line, masking the error.
+	// `1a`, `1e1x`, `00b0`, `0.5c`, `0\u0062` are all SyntaxErrors.
+	// Without this check the lexer stops at the bad char and lets the
+	// parser see a Number followed by an Identifier; ASI then accepts
+	// the two as separate statements on the same line, masking the error.
 	if end < u32(src_len) {
 		c := src[end]
-		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '_' {
+		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '_' || c == '\\' {
 			append(&l.lexer_errors, LexerError{offset = end, message = "Identifier directly after number"})
 		}
 	}
@@ -868,12 +868,12 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Hex literal requires at least one digit"})
 	}
 	// Reject identifier-continue chars immediately following the hex body
-	// (`0xzzz`, `0xfoo` — the bad char is kept separate; surface the error
-	// before ASI merges the next token as an identifier). `n` is the legal
-	// BigInt suffix handled below.
+	// (`0xzzz`, `0xfoo`, `0xff\u006fff` — the bad char is kept separate;
+	// surface the error before ASI merges the next token as an
+	// identifier). `n` is the legal BigInt suffix handled below.
 	if l.offset < src_len {
 		c := src[l.offset]
-		if (c >= 'g' && c <= 'z') || (c >= 'G' && c <= 'Z') {
+		if (c >= 'g' && c <= 'z') || (c >= 'G' && c <= 'Z') || c == '$' || c == '\\' {
 			if c != 'n' {
 				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid hex digit"})
 			}
@@ -918,14 +918,15 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		else if c == '_' { l.offset += 1 }
 		else { break }
 	}
-	// `0b2`, `0bz`, etc. — binary literal followed by a digit / letter
-	// that isn't a valid binary digit but *is* a legal identifier-continue
-	// character. Per §12.9.3 `0b<invalid>` is a SyntaxError; previously the
-	// lexer just stopped at the bad character and let the parser see
-	// `Number(0b)` followed by the trailing char as a separate token.
+	// `0b2`, `0bz`, `0b1\u006fff`, etc. — binary literal followed by a
+	// digit / letter / \uXXXX that isn't a valid binary digit but *is* a
+	// legal identifier-continue character. Per §12.9.3 the char
+	// immediately after a NumericLiteral must not be IdentifierStart /
+	// DecimalDigit; previously the lexer just stopped at the bad char
+	// and ASI accepted the two as separate tokens.
 	if l.offset < src_len {
 		c := src[l.offset]
-		if (c >= '2' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+		if (c >= '2' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '\\' {
 			if c != 'n' {
 				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid binary digit"})
 			}
@@ -965,11 +966,11 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		else if c == '_' { l.offset += 1 }
 		else { break }
 	}
-	// Same rejection rule as lex_binary: `0o8`, `0o9`, `0oz` etc. are
-	// SyntaxErrors. The `n` suffix is legal and handled below.
+	// Same rejection rule as lex_binary: `0o8`, `0o9`, `0oz`, `0o7\u006fff`
+	// etc. are SyntaxErrors. The `n` suffix is legal and handled below.
 	if l.offset < src_len {
 		c := src[l.offset]
-		if (c == '8' || c == '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+		if (c == '8' || c == '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '\\' {
 			if c != 'n' {
 				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid octal digit"})
 			}
