@@ -12,6 +12,7 @@ function test(a, b, c,) {
 const fn = (x, y,) => x + y;
 
 import { a, b, } from 'module';
+const x = 1, y = 2;
 export { x, y, };
 
 const nested = {

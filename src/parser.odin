@@ -975,6 +975,12 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		}
 	}
 
+	// §16.2.2 ExportedBindings resolution: `export { foo };` (no `from`)
+	// must refer to a binding actually declared in the module. This runs
+	// after source-type is finalized so we skip the check for scripts
+	// (they're already diagnosed by the module-syntax-in-script gate).
+	verify_export_locals(p, program)
+
 	// Drain lexer-side diagnostics (invalid numeric separators, bad
 	// BigInt literals, etc.) into p.errors. The lexer couldn't report
 	// directly because error reporting needs line/col lazy-lookup off
@@ -4087,6 +4093,158 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 // ============================================================================
 // Module Import/Export
 // ============================================================================
+
+// Collect BoundNames from a binding pattern. Handles the full pattern
+// grammar (Identifier / ObjectPattern / ArrayPattern / AssignmentPattern /
+// RestElement / MemberExpression destructuring target). Used by the
+// post-parse export-local check to build the module-level binding set.
+collect_pattern_bound_names :: proc(pat: Pattern, names: ^map[string]bool) {
+	if pat == nil { return }
+	switch v in pat {
+	case ^Identifier:
+		if v != nil { names[v.name] = true }
+	case ^ObjectPattern:
+		if v == nil { return }
+		for prop in v.properties {
+			collect_pattern_bound_names(prop.value, names)
+		}
+	case ^ArrayPattern:
+		if v == nil { return }
+		for elem in v.elements {
+			if inner, ok := elem.(Pattern); ok {
+				collect_pattern_bound_names(inner, names)
+			}
+		}
+	case ^AssignmentPattern:
+		if v == nil { return }
+		collect_pattern_bound_names(v.left, names)
+	case ^RestElement:
+		if v == nil { return }
+		collect_pattern_bound_names(v.argument, names)
+	case ^MemberExpression:
+		// MemberExpression as a destructure target introduces no new binding;
+		// it writes to an existing property (`({x: obj.k} = ...)`).
+		return
+	}
+}
+
+// Collect names visible at the module top level for the purposes of
+// ECMA-262 §16.2.2 "It is a Syntax Error if any element of the
+// ExportedBindings of ModuleItemList does not also occur in either the
+// VarDeclaredNames of ModuleItemList or the LexicallyDeclaredNames of
+// ModuleItemList." We walk top-level statements only — nested var
+// declarations inside a function body don't hoist out of the function.
+collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string]bool) {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^VariableDeclaration:
+			if v == nil { continue }
+			for decl in v.declarations {
+				collect_pattern_bound_names(decl.id, names)
+			}
+		case ^FunctionDeclaration:
+			if v == nil { continue }
+			if id, ok := v.id.(BindingIdentifier); ok { names[id.name] = true }
+		case ^ClassDeclaration:
+			if v == nil { continue }
+			if id, ok := v.id.(BindingIdentifier); ok { names[id.name] = true }
+		case ^ImportDeclaration:
+			if v == nil { continue }
+			for spec in v.specifiers {
+				if spec == nil { continue }
+				switch ss in spec^ {
+				case ImportSpecifier:
+					names[ss.local.name] = true
+				case ImportDefaultSpecifier:
+					names[ss.local.name] = true
+				case ImportNamespaceSpecifier:
+					names[ss.local.name] = true
+				}
+			}
+		case ^ExportNamedDeclaration:
+			if v == nil { continue }
+			// `export var x;`, `export function f()`, `export class C` — the
+			// inner declaration still introduces module-level bindings.
+			if d, have := v.declaration.(^Declaration); have && d != nil {
+				switch inner in d^ {
+				case ^VariableDeclaration:
+					if inner == nil { break }
+					for decl in inner.declarations {
+						collect_pattern_bound_names(decl.id, names)
+					}
+				case ^FunctionDeclaration:
+					if inner == nil { break }
+					if id, ok := inner.id.(BindingIdentifier); ok { names[id.name] = true }
+				case ^ClassDeclaration:
+					if inner == nil { break }
+					if id, ok := inner.id.(BindingIdentifier); ok { names[id.name] = true }
+				case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
+				     ^TSEnumDeclaration, ^TSModuleDeclaration,
+				     ^ImportDeclaration, ^ExportNamedDeclaration,
+				     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
+					// Not bindable as ExportedBindings-targets for our purposes.
+				}
+			}
+		case ^TSInterfaceDeclaration:
+			if v != nil { names[v.id.name] = true }
+		case ^TSTypeAliasDeclaration:
+			if v != nil { names[v.id.name] = true }
+		case ^TSEnumDeclaration:
+			if v != nil { names[v.id.name] = true }
+		case ^TSModuleDeclaration:
+			if v != nil && v.id != nil {
+				if ident, is_id := v.id.(^Identifier); is_id && ident != nil {
+					names[ident.name] = true
+				}
+			}
+		}
+	}
+}
+
+// ECMA-262 §16.2.2 ExportDeclaration Early Errors:
+//   • It is a Syntax Error if any element of the ExportedBindings of
+//     ModuleItemList does not also occur in either the VarDeclaredNames or
+//     LexicallyDeclaredNames of ModuleItemList.
+//   • It is a Syntax Error if ReferencedBindings of NamedExports contains
+//     any StringLiterals (i.e. `export { "foo" }` with no `from` clause).
+// Called once from parse_program after the full body is known.
+verify_export_locals :: proc(p: ^Parser, program: ^Program) {
+	// Only applies in Module context. Script mode is already forbidden
+	// from containing `export` via the module-syntax-in-script check.
+	if program.type != .Module { return }
+	names := make(map[string]bool, 32, p.allocator)
+	collect_module_top_level_names(program.body[:], &names)
+	for stmt in program.body {
+		if stmt == nil { continue }
+		export, is_export := stmt^.(^ExportNamedDeclaration)
+		if !is_export || export == nil { continue }
+		// `export ... from "m"` is a re-export; the local name refers to
+		// the source module's export table, not this module's bindings.
+		if _, from_source := export.source.(StringLiteral); from_source { continue }
+		for spec in export.specifiers {
+			switch local in spec.local {
+			case IdentifierName:
+				if !(local.name in names) {
+					msg := fmt.tprintf("Export '%s' is not defined in the module", local.name)
+					err := ParseError{
+						loc = LexerLoc{offset = int(local.loc.span.start)},
+						message = msg,
+					}
+					append(&p.errors, err)
+				}
+			case ^StringLiteral:
+				if local != nil {
+					err := ParseError{
+						loc = LexerLoc{offset = int(local.loc.span.start)},
+						message = "A string literal cannot be used as an exported binding without `from`",
+					}
+					append(&p.errors, err)
+				}
+			}
+		}
+	}
+}
 
 // Helper: Convert ExportSpecifierName to ESMExportNameEntry
 convert_export_spec_name :: proc(name: ExportSpecifierName) -> ESMExportNameEntry {

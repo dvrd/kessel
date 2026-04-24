@@ -1,4 +1,6 @@
 {
+  "tests/fixtures/negative/055_export_string_local_without_from.js": "rejected",
+  "tests/fixtures/negative/054_export_undefined_local.js": "rejected",
   "tests/fixtures/negative/053_for_var_destructuring_init_in.js": "rejected",
   "tests/fixtures/negative/052_for_var_multiple_declarators_in.js": "rejected",
   "tests/fixtures/negative/051_for_var_init_of.js": "rejected",
