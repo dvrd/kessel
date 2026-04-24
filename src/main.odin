@@ -687,6 +687,9 @@ main :: proc() {
 			os.exit(1)
 		}
 
+	case "server":
+		run_server_mode()
+
 	case "help", "-h", "--help":
 		print_usage()
 
@@ -734,7 +737,69 @@ print_usage :: proc() {
 // Parse Command
 // ============================================================================
 
+// Server mode — long-lived subprocess that reads file paths from stdin
+// and writes AST JSON framed by sentinels to stdout. Eliminates the
+// per-call spawn overhead of the CLI shim path without the C-ABI /
+// NAPI complexity.
+//
+// Protocol:
+//   Request:  one file path per line (UTF-8, LF-terminated, no JSON).
+//             Empty line or EOF closes the server.
+//   Response: AST JSON followed by a sentinel line:
+//               <json body>\n
+//               <kessel-statistics-and-errors>\n
+//               @@KESSEL_END\n
+//             The client reads until the sentinel, then re-uses the
+//             subprocess for the next parse.
+//
+// CLI flags from the invoking `kessel server ...` command are sticky —
+// they apply to every subsequent request. A client that needs to vary
+// flags per file can either send a new file path (flags persist) or
+// tear down and restart the subprocess.
+//
+// Invocation example:
+//   $ kessel server --compact
+//   /tmp/a.js
+//   { ...compact AST... }
+//   Parse errors: 0
+//   @@KESSEL_END
+//   /tmp/b.ts
+//   ...
+SERVER_SENTINEL :: "@@KESSEL_END"
 
+run_server_mode :: proc() {
+	buf := make([]byte, 65536, context.allocator)
+	defer delete(buf, context.allocator)
+	line_buf := make([dynamic]u8, 0, 1024, context.allocator)
+	defer delete(line_buf)
+
+	for {
+		// Read a newline-delimited path from stdin. Done inline because
+		// core:bufio.Reader over os.stdin has some platform quirks on the
+		// Odin vendor; os.read returns raw bytes and we do our own split.
+		clear(&line_buf)
+		at_eof := false
+		read_err: os.Error
+		for {
+			n: int
+			n, read_err = os.read(os.stdin, buf[:1])
+			if n <= 0 || read_err != nil {
+				at_eof = true
+				break
+			}
+			if buf[0] == '\n' { break }
+			if buf[0] != '\r' { append(&line_buf, buf[0]) }
+		}
+		if at_eof && len(line_buf) == 0 { return }
+		path := string(line_buf[:])
+		if len(path) == 0 { continue }
+
+		parse_file(path)
+		out_printf("\n%s\n", SERVER_SENTINEL)
+		flush_stdout_writer()
+		if at_eof { return }
+	}
+}
 
 parse_file :: proc(file_path: string) {
 	// Read file
