@@ -4024,13 +4024,31 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			key = num_lit
 			eat(p)
 		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-			// Identifier or keyword used as key.
+			// Identifier or keyword used as key. When the property becomes
+			// a shorthand binding (`{ foo }` = `{ foo: foo }`), the key
+			// doubles as a BindingIdentifier — escaped-ReservedWord
+			// (§12.7.2) must reject. Capture has_escape now, report below
+			// only if the property ends up shorthand (explicit `key: val`
+			// / `key = init` forms make the key an IdentifierName position,
+			// where escapes stay legal).
+			key_had_escape := p.cur_tok.has_escape
 			id_name := IdentifierName{
 				loc  = cur_loc(p),
 				name = cur_value(p),
 			}
 			key = id_name
 			eat(p)
+			if key_had_escape && is_always_reserved_word_name(id_name.name) {
+				// The cooked name is a ReservedWord; any later use as
+				// shorthand or default-shorthand position is an error.
+				// Shorthand always reaches the `else` / `.Assign` arm below;
+				// explicit `:` forms exit via the type-annotated path and
+				// don't fire. Gate the diagnostic by peeking.
+				if !is_token(p, .Colon) {
+					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", id_name.name)
+					report_error(p, msg)
+				}
+			}
 		} else {
 			report_error(p, "Expected property key in object pattern")
 			return nil
@@ -6811,7 +6829,21 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 	} else if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
 	          is_keyword_usable_as_property_name(p.cur_type) {
+		// Capture has_escape + name BEFORE parse_property_name consumes
+		// the token. Used below if the property ends up shorthand
+		// (§12.7.2: escaped ReservedWord in IdentifierReference position).
+		key_had_escape := p.cur_tok.has_escape && p.cur_type == .Identifier
+		key_name := p.cur_tok.value
 		key = parse_property_name(p)
+		// If this property turns out to be a shorthand (no `:` / `(` after
+		// the key), the key doubles as an IdentifierReference — an escaped
+		// ReservedWord there is a Syntax Error.
+		if key_had_escape && is_always_reserved_word_name(key_name) {
+			if !is_token(p, .Colon) && !is_token(p, .LParen) {
+				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
+				report_error(p, msg)
+			}
+		}
 	} else {
 		return nil
 	}
