@@ -1160,8 +1160,35 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_expression_or_labeled_statement(p)
 	case .At:
 		return parse_decorated_class(p)
-	case .Let, .Var:
+	case .Var:
 		return parse_variable_declaration(p, nil, true)
+	case .Let:
+		// §14.3.1 — LexicalDeclaration : `let` BindingList. The
+		// `let` keyword only starts a LexicalDeclaration when followed
+		// by a BindingIdentifier / `[` / `{`. Otherwise it's an
+		// IdentifierReference (sloppy script): `let = 4;`,
+		// `let.x = 1;`, `let + 1`. Same `[lookahead ∉ { let [ }]`
+		// rule as in for-head; mirror the conservative whitelist.
+		nxt_let := peek_dispatch(p)
+		let_is_decl := false
+		#partial switch nxt_let.type {
+		case .Identifier, .LBracket, .LBrace,
+		     .Yield, .Await, .Let,
+		     .Get, .Set, .Async, .Static, .Of, .From, .As,
+		     .Type, .Interface, .Enum,
+		     .Implements, .Package, .Private, .Protected, .Public:
+			let_is_decl = true
+		}
+		// In strict mode `let` is itself a reserved word — always a
+		// declaration there. The strict-mode binding-name check fires
+		// downstream if the next token isn't valid.
+		if p.strict_mode {
+			let_is_decl = true
+		}
+		if let_is_decl {
+			return parse_variable_declaration(p, nil, true)
+		}
+		return parse_expression_or_labeled_statement(p)
 	case .Using:
 		// `using x = ...` is a declaration; `using(...)` or `using.foo` is an expression.
 		// A using declaration requires an identifier or destructuring as the next token.
@@ -1555,7 +1582,28 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	left_expr: ^Expression
 	left_decl: ^VariableDeclaration
 
-	if is_token(p, .Var) || is_token(p, .Let) || is_token(p, .Const) || is_token(p, .Using) ||
+	// §14.7.4 / §14.7.5 — in a for-head, `let` is only a ForDeclaration
+	// keyword when followed by a BindingIdentifier / `[` / `{`. Per the
+	// `[lookahead ∉ { let [ }]` rule and Acorn / V8 / OXC behaviour,
+	// `for (let in obj)`, `for (let.x in obj)`, `for (let + 1; ...)` all
+	// treat `let` as an IdentifierReference. Kessel was unconditionally
+	// committing to a let-declaration, breaking those programs.
+	let_starts_decl := false
+	if is_token(p, .Let) {
+		nxt := peek_dispatch(p)
+		// Conservative whitelist of tokens that legally start a
+		// LexicalBinding after `let`. Anything else falls through to
+		// the expression-head path.
+		#partial switch nxt.type {
+		case .Identifier, .LBracket, .LBrace,
+		     .Yield, .Await,  // identifier-like in non-strict
+		     .Get, .Set, .Async, .Static, .Of, .From, .As,
+		     .Type, .Interface, .Enum,
+		     .Implements, .Package, .Private, .Protected, .Public:
+			let_starts_decl = true
+		}
+	}
+	if is_token(p, .Var) || (is_token(p, .Let) && let_starts_decl) || is_token(p, .Const) || is_token(p, .Using) ||
 	   (is_token(p, .Await) && peek_dispatch(p).type == .Using) {
 		// Variable declaration - parse it. parse_variable_declaration returns a
 		// ^Statement union wrapping a ^VariableDeclaration; extract the inner
@@ -1618,13 +1666,37 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				report_error(p, msg)
 			}
 			// §14.7.5.1 — the LHS of a for-of head cannot be the literal
-			// IdentifierReference `async`. Avoids ambiguity with the
-			// CoverCallExpressionAndAsyncArrowHead production: `async of
-			// xs` is otherwise indistinguishable from `async (of xs)` /
-			// `async => of xs`.
-			if !is_in {
+			// IdentifierReference `async` (avoids ambiguity with the
+			// CoverCallExpressionAndAsyncArrowHead production: `async of xs`
+			// is otherwise indistinguishable from `async (of xs)`). Per spec,
+			// the rule is a source-text lookahead `[lookahead ∉ { async of }]`,
+			// so it doesn't fire when `async` is escaped (`\u0061sync`) or
+			// parenthesized (`(async)`). It also doesn't fire for
+			// for-await-of (`for await (async of xs)` is legal).
+			if !is_in && !await {
 				if id, ok := left_expr.(^Identifier); ok && id != nil && id.name == "async" {
-					report_error(p, "The left-hand side of a for-of loop may not be 'async'")
+					// Source-text lookahead: only the bare unescaped `async`
+					// identifier triggers. Detect escapes by checking the
+					// raw source slice; detect parens by seeing if the byte
+					// before the identifier's start is `(`.
+					span_start := id.loc.span.start
+					span_end := id.loc.span.end
+					has_escape := false
+					paren_wrapped := false
+					if p.lexer != nil && int(span_end) <= len(p.lexer.source_bytes) {
+						slice := p.lexer.source_bytes[span_start:span_end]
+						for b in slice { if b == '\\' { has_escape = true; break } }
+						i := int(span_start) - 1
+						for i >= 0 {
+							ch := p.lexer.source_bytes[i]
+							if ch == '(' { paren_wrapped = true; break }
+							if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+							break
+						}
+					}
+					if !has_escape && !paren_wrapped {
+						report_error(p, "The left-hand side of a for-of loop may not be 'async'")
+					}
 				}
 			}
 			// §14.7.5.1 — the LHS expression must have a valid
@@ -6833,7 +6905,13 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				expr = expression_from(p, member)
 			} else if is_token(p, .LBracket) {
 				eat(p)
-				prop := parse_assignment_expression(p)
+				// Same Expression-not-AssignmentExpression rule as the
+				// non-optional `[…]` case above. Optional-chain subscript
+				// `obj?.[0, 1]` is legal too.
+				prev_no_in_opt := p.no_in
+				p.no_in = false
+				prop := parse_expression(p)
+				p.no_in = prev_no_in_opt
 				if prop == nil { return nil }
 				if !expect_token(p, .RBracket) { return nil }
 				member := new_node(p, MemberExpression)
@@ -6874,7 +6952,13 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// intent doesn't survive past us.
 			saved_bracket_paren := p.pending_paren_start
 			p.pending_paren_start = max(u32)
-			prop := parse_assignment_expression(p)
+			// MemberExpression [ Expression ] — Expression includes the
+			// comma operator, so `a[0, 1]` is legal (evaluates to a[1]).
+			// Reset no_in inside `[…]` so `for (x[a in b]; ...)` parses.
+			prev_no_in_sub := p.no_in
+			p.no_in = false
+			prop := parse_expression(p)
+			p.no_in = prev_no_in_sub
 			if prop == nil { return nil }
 			if !expect_token(p, .RBracket) { return nil }
 			mem2, mem2_e := new_expr(p, MemberExpression)
