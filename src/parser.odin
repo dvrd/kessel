@@ -1344,9 +1344,14 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 
 	block, block_stmt := new_stmt(p, BlockStatement)
 	block.loc = start
-	// Pre-size: large files have bigger blocks on average
-	block_cap := 8 + (p.source_len >> 16)  // +1 per 64KB
-	block.body = make([dynamic]^Statement, 0, block_cap, p.allocator)
+	// Lazy alloc — empty blocks (`{}`) are common as no-op `else` arms,
+	// catch-clause bodies, optional method bodies, etc. Defer the bump
+	// reservation until we know there's at least one statement.
+	if !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		// Pre-size: large files have bigger blocks on average.
+		block_cap := 8 + (p.source_len >> 16)  // +1 per 64 KB
+		block.body = make([dynamic]^Statement, 0, block_cap, p.allocator)
+	}
 
 	// A nested block introduces its own StatementList, so the
 	// case-clause direct-child constraint no longer applies inside.
@@ -8015,7 +8020,13 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 
 	arr := new_node(p, ArrayExpression)
 	arr.loc = start
-	arr.elements = make([dynamic]Maybe(^Expression), 0, 8, p.allocator)
+	// Lazy alloc — empty array literals (`[]`) are common as default
+	// values, accumulator initializers (`reduce((acc=[], x) => ...)`),
+	// and explicit no-op cases. Defer the bump reservation until we
+	// know there's at least one element.
+	if !is_token(p, .RBracket) && !is_token(p, .EOF) {
+		arr.elements = make([dynamic]Maybe(^Expression), 0, 8, p.allocator)
+	}
 
 	// Inside an ArrayExpression literal, `in` is always valid as a
 	// binary operator — the enclosing §no_in flag (used to peek for
@@ -8097,7 +8108,12 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 
 	obj := new_node(p, ObjectExpression)
 	obj.loc = start
-	obj.properties = make([dynamic]Property, 0, 4, p.allocator)
+	// Lazy alloc — empty object literals (`{}`) are common as default
+	// argument values, options bags, factory return shapes, etc. Defer
+	// the bump reservation until we know there's at least one property.
+	if !is_token(p, .RBrace) && !is_token(p, .EOF) && !is_token(p, .Semi) {
+		obj.properties = make([dynamic]Property, 0, 4, p.allocator)
+	}
 
 	// Inside an ObjectExpression literal, `in` is always valid as a
 	// binary operator — same rule as parse_array_expr. Clear no_in so
