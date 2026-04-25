@@ -32,9 +32,9 @@
     },
     "interactions": {
       "files": 10,
-      "pass": 3,
-      "fail": 7,
-      "divergences": 22
+      "pass": 10,
+      "fail": 0,
+      "divergences": 0
     },
     "jsx": {
       "files": 8,
@@ -44,9 +44,9 @@
     },
     "lexical": {
       "files": 10,
-      "pass": 7,
-      "fail": 3,
-      "divergences": 15
+      "pass": 9,
+      "fail": 1,
+      "divergences": 2
     },
     "regex_disambiguation": {
       "files": 12,
@@ -55,8 +55,8 @@
       "divergences": 0
     },
     "typescript": {
-      "files": 10,
-      "pass": 10,
+      "files": 14,
+      "pass": 14,
       "fail": 0,
       "divergences": 0
     },

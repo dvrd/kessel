@@ -1,0 +1,22 @@
+{
+  "iterations": 30,
+  "quick": false,
+  "machine_hint": {
+    "node": "25.9.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 10
+  },
+  "files": {
+    "bench/real_world/batch3/snabbdom.js": 3.167,
+    "bench/real_world/batch2/preact.js": 172.417,
+    "bench/real_world/lodash.js": 1374.875,
+    "bench/real_world/jquery.js": 1667.25,
+    "bench/real_world/d3.js": 5032.709,
+    "bench/real_world/react.dev.js": 423.708,
+    "bench/real_world/react-dom.dev.js": 3974.916,
+    "bench/real_world/antd.js": 23166.542,
+    "bench/real_world/batch2/monaco.js": 37642.917,
+    "bench/real_world/typescript.js": 44566.167
+  }
+}

@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 48697,
-    "accepted-should-reject": 922,
-    "rejected-should-accept": 109,
+    "pass": 48989,
+    "accepted-should-reject": 683,
+    "rejected-should-accept": 56,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 22824,
-      "fail": 821,
+      "pass": 23116,
+      "fail": 529,
       "crash": 0,
       "timeout": 0
     },
@@ -34,30 +34,6 @@
     }
   },
   "perSubdir": {
-    "language/statements": {
-      "pass": 0,
-      "fail": 203,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 175,
-      "rejected-should-accept": 28
-    },
-    "language/expressions": {
-      "pass": 0,
-      "fail": 196,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 154,
-      "rejected-should-accept": 42
-    },
-    "language/literals": {
-      "pass": 0,
-      "fail": 196,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 190,
-      "rejected-should-accept": 6
-    },
     "built-ins/RegExp": {
       "pass": 0,
       "fail": 195,
@@ -66,12 +42,36 @@
       "accepted-should-reject": 191,
       "rejected-should-accept": 4
     },
+    "language/literals": {
+      "pass": 0,
+      "fail": 152,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 150,
+      "rejected-should-accept": 2
+    },
     "language/module-code": {
       "pass": 0,
-      "fail": 144,
+      "fail": 131,
       "crash": 0,
       "timeout": 0,
       "accepted-should-reject": 131,
+      "rejected-should-accept": 0
+    },
+    "language/statements": {
+      "pass": 0,
+      "fail": 92,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 70,
+      "rejected-should-accept": 22
+    },
+    "language/expressions": {
+      "pass": 0,
+      "fail": 88,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 75,
       "rejected-should-accept": 13
     },
     "language/block-scope": {
@@ -81,14 +81,6 @@
       "timeout": 0,
       "accepted-should-reject": 15,
       "rejected-should-accept": 0
-    },
-    "language/comments": {
-      "pass": 0,
-      "fail": 13,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 11,
-      "rejected-should-accept": 2
     },
     "language/line-terminators": {
       "pass": 0,
@@ -103,16 +95,8 @@
       "fail": 13,
       "crash": 1,
       "timeout": 0,
-      "accepted-should-reject": 1,
-      "rejected-should-accept": 11
-    },
-    "language/keywords": {
-      "pass": 0,
-      "fail": 9,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 9,
-      "rejected-should-accept": 0
+      "accepted-should-reject": 2,
+      "rejected-should-accept": 10
     },
     "language/asi": {
       "pass": 0,
@@ -122,28 +106,36 @@
       "accepted-should-reject": 8,
       "rejected-should-accept": 0
     },
-    "language/identifiers": {
+    "language/keywords": {
       "pass": 0,
-      "fail": 7,
+      "fail": 8,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 7,
+      "accepted-should-reject": 8,
+      "rejected-should-accept": 0
+    },
+    "language/comments": {
+      "pass": 0,
+      "fail": 6,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 4,
+      "rejected-should-accept": 2
+    },
+    "language/identifiers": {
+      "pass": 0,
+      "fail": 5,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 5,
       "rejected-should-accept": 0
     },
     "language/reserved-words": {
       "pass": 0,
-      "fail": 7,
+      "fail": 4,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 7,
-      "rejected-should-accept": 0
-    },
-    "language/punctuators": {
-      "pass": 0,
-      "fail": 3,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 3,
+      "accepted-should-reject": 4,
       "rejected-should-accept": 0
     },
     "annexB/language": {
@@ -405,6 +397,6 @@
       "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 97.92,
-  "generated_at": "2026-04-25T05:56:20.619Z"
+  "rate": 98.51,
+  "generated_at": "2026-04-25T11:51:43.999Z"
 }
