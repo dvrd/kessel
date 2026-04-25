@@ -1432,6 +1432,16 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		} else if !allow_plain_function {
 			report_error(p, "Function declaration cannot appear in a single-statement context")
 		}
+	case ^LabeledStatement:
+		// Recurse through labels: `label1: label2: function f() {}` in
+		// a single-statement position (iteration body, with body, ...)
+		// must propagate the check to the innermost LabelledItem. Per
+		// §13.5 / §B.3.2, a plain FunctionDeclaration is allowed inside
+		// LabelledStatement only when the LabelledStatement itself is at
+		// StatementListItem position; inside an iteration body or
+		// `with`-body it is always forbidden, even in sloppy script.
+		if v == nil { return }
+		report_statement_only_position(p, v.body, allow_plain_function)
 	}
 }
 
@@ -1707,6 +1717,14 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			// the more general AssignmentTargetType handles the rest.
 			if _, is_ae := left_expr.(^AssignmentExpression); !is_ae {
 				if !is_valid_assignment_target(left_expr, true) {
+					kind_name := "of"
+					if is_in { kind_name = "in" }
+					msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
+					report_error(p, msg)
+				}
+				// CallExpression as for-in/of LHS is invalid in strict mode
+				// (Annex B.3.4 only relaxes it in sloppy script).
+				if p.strict_mode && is_call_expression_target(left_expr) {
 					kind_name := "of"
 					if is_in { kind_name = "in" }
 					msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
@@ -6701,6 +6719,19 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		argument := parse_unary_expr(p)
 		if argument == nil { return nil }
+		// §13.5 UnaryExpression : <op> UnaryExpression. YieldExpression
+		// is at AssignmentExpression precedence — the spec disallows it as
+		// the operand of a unary operator. Catches `void yield`, `!yield`,
+		// `typeof yield`, `delete yield`, `+yield`, `-yield`, `~yield` in a
+		// generator body. (`yield` outside a generator is an Identifier,
+		// which IS a valid UnaryExpression operand, so the check is fine.)
+		// Note: AssignmentExpression as operand is technically also illegal
+		// by the grammar, but with --preserve-parens off `+(a=b)` reaches
+		// here as `+ AssignmentExpression`, which IS legal in source. Skip
+		// that gate until we have reliable paren-wrapping info.
+		if _, is_yield := argument.(^YieldExpression); is_yield {
+			report_error(p, "'yield' expression cannot be the operand of a unary operator")
+		}
 		unary := new_node(p, UnaryExpression)
 		unary.loc = loc_from_token(current)
 		unary.operator = token_to_unary_op(current.type)
@@ -8122,6 +8153,13 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 
+		// Strict-mode param names (eval / arguments / let / yield / static
+		// / FutureReservedWords). When the body opted in via "use strict",
+		// param names must satisfy strict-mode reservation rules.
+		if body_strict {
+			report_strict_param_names(p, params[:])
+		}
+
 		// §15.4.3 / §15.4.4 PropertySetParameterList / PropertyGetParameter
 		// enforce exact arity:
 		//   get  — zero parameters.
@@ -8206,6 +8244,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Same rule as for class methods and top-level functions.
 		if body_strict && !params_are_simple(params[:]) {
 			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
+
+		// Strict-mode param-name reservation. See accessor case above.
+		if body_strict {
+			report_strict_param_names(p, params[:])
 		}
 
 		fn := new_node(p, FunctionExpression)
@@ -8360,6 +8403,18 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, msg)
 		} else if current.value == "await" && await_is_reserved_here(p) {
 			report_error(p, "'await' cannot be used as a class name in module / async context")
+		}
+		// §12.7.2 escaped-ReservedWord in BindingIdentifier position.
+		// Class names are strict-mode-only (§15.7.1), so the strict-only
+		// reservation list applies to escapes too.
+		if p.cur_tok.has_escape {
+			if is_always_reserved_word_name(current.value) ||
+			   is_strict_reserved_name(current.value) ||
+			   current.value == "let" || current.value == "static" ||
+			   current.value == "yield" {
+				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", current.value)
+				report_error(p, msg)
+			}
 		}
 		eat(p)
 	}
@@ -8773,12 +8828,19 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		op := new_node(p, ObjectPattern)
 		op.loc = e.loc
 		op.properties = make([dynamic]ObjectPatternProperty, 0, len(e.properties), p.allocator)
-		for prop in e.properties {
+		prop_count := len(e.properties)
+		for prop, idx in e.properties {
 			// Spread element in object expression -> RestElement in pattern.
 			// Detected by nil key + SpreadElement value (parse_object_expression
 			// stashes the SpreadElement in the value slot with key=nil).
 			if prop.key == nil {
 				if spread, ok := prop.value.(^SpreadElement); ok {
+					// §13.15.5 Object destructuring: BindingRestProperty
+					// must be the last element of the ObjectBindingPattern.
+					// `for ({...rest, b} of …)` is a SyntaxError.
+					if idx != prop_count - 1 {
+						report_error(p, "Rest element must be last in object pattern")
+					}
 					inner, inner_ok := expr_to_pattern(p, spread.argument)
 					if inner_ok {
 						rest := new_node(p, RestElement)
