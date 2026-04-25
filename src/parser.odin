@@ -3386,7 +3386,11 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.key = key
 		elem.value = value
 		elem.kind = kind  // Still .Method but value is not a function
-		elem.computed = false
+		// Use the parsed `computed` flag so `static [propname]` fields
+		// emit with computed=true — the §15.7.1 "static prototype" check
+		// gates on !elem.computed, so the previous hardcoded `false` made
+		// `class { static ['prototype'] = 42 }` falsely error.
+		elem.computed = computed
 		elem.static = static_
 		elem.is_accessor = is_accessor
 		elem.abstract = is_abstract
@@ -3423,7 +3427,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// (§12.6.1.1).
 	prev_strict_params := p.strict_mode
 	p.strict_mode = true
+	// `super.x` in a class method's default-param initializer is legal
+	// (param scope inherits the method's [[HomeObject]]). Same
+	// in_method = true save / restore as the body parsing below.
+	prev_method_in_method := p.in_method
+	p.in_method = true
 	params := parse_function_params(p)
+	p.in_method = prev_method_in_method
 	p.strict_mode = prev_strict_params
 	p.in_generator_params = prev_method_gen_params
 	p.in_async_params = prev_method_async_params
@@ -3565,6 +3575,12 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	prev_in_derived_ctor := p.in_derived_constructor
 	p.in_derived_constructor = false
 	defer p.in_derived_constructor = prev_in_derived_ctor
+	// §15.7.5 — a static block is its own ClassStaticBlockBody function;
+	// `new.target` and `return` are legal inside (§13.3.12 / §14.10).
+	// Promote in_function so the new.target gate doesn't false-positive.
+	prev_in_function_sb := p.in_function
+	p.in_function = true
+	defer p.in_function = prev_in_function_sb
 
 	// Parse block statement. parse_block_statement returns a ^Statement
 	// union wrapping a ^BlockStatement; extract the ^BlockStatement variant
@@ -6880,17 +6896,20 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				is_chain = true
 			}
 			eat(p)
-			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) || is_token(p, .PrivateIdentifier) {
+				is_private_chain := is_token(p, .PrivateIdentifier)
 				prop := parse_identifier_name(p)
 				member := new_node(p, MemberExpression)
 				member.loc = loc_from_expr(expr)
 				member.object = expr
-				// Check if this is a private identifier (starts with #)
-				if len(prop.name) > 0 && prop.name[0] == '#' {
-					// Create PrivateIdentifier, strip the # prefix
+				// `obj?.#priv` — PrivateIdentifier on the RHS of an optional
+				// chain is legal per the OptionalChain grammar (§13.3.10).
+				if is_private_chain || (len(prop.name) > 0 && prop.name[0] == '#') {
 					pid := new_node(p, PrivateIdentifier)
 					pid.loc = prop.loc
-					pid.name = prop.name[1:]
+					name := prop.name
+					if len(name) > 0 && name[0] == '#' { name = name[1:] }
+					pid.name = name
 					member.property = expression_from(p, pid)
 				} else {
 					// Create regular Identifier
@@ -7548,6 +7567,27 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 
 	case .Class:
 		return parse_class_expression(p)
+
+	case .At:
+		// Decorator on a class expression: `@dec class {}`. Same
+		// `parse_decorators` walker as the statement-position decorated
+		// class. Decorator-on-expression is the stage-3 form (only
+		// applies to ClassExpression — nothing else accepts decorators).
+		decorators := parse_decorators(p)
+		if !is_token(p, .Class) {
+			report_error(p, "Decorators can only be applied to class expressions")
+			return nil
+		}
+		cls := parse_class_expression(p)
+		if cls != nil {
+			if ce, ok := cls.(^ClassExpression); ok && ce != nil {
+				ce.decorators = decorators
+				if len(decorators) > 0 {
+					ce.loc.span.start = decorators[0].loc.span.start
+				}
+			}
+		}
+		return cls
 
 	case .New:
 		return parse_new_expr(p)

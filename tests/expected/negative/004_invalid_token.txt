@@ -8,13 +8,13 @@
     {
       "type": "VariableDeclaration",
       "start": 35,
-      "end": 44,
+      "end": 47,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
           "start": 41,
-          "end": 44,
+          "end": 46,
           "id": {
             "type": "Identifier",
             "start": 41,
@@ -33,29 +33,29 @@
   ],
   "errors": [
     {
-      "message": "Expected initializer expression after '='",
-      "line": 2,
-      "column": 11,
-      "offset": 45
-    },
-    {
-      "message": "Missing initializer in 'const' declaration",
-      "line": 2,
-      "column": 11,
-      "offset": 45
-    },
-    {
-      "message": "Expected class after decorator",
+      "message": "Decorators can only be applied to class expressions",
       "line": 2,
       "column": 12,
       "offset": 46
+    },
+    {
+      "message": "Expected initializer expression after '='",
+      "line": 2,
+      "column": 12,
+      "offset": 46
+    },
+    {
+      "message": "Missing initializer in 'const' declaration",
+      "line": 3,
+      "column": 1,
+      "offset": 48
     }
   ]
 }
 Parse errors (3):
-  Line 2, Column 11: Expected initializer expression after '='
-  Line 2, Column 11: Missing initializer in 'const' declaration
-  Line 2, Column 12: Expected class after decorator
+  Line 2, Column 12: Decorators can only be applied to class expressions
+  Line 2, Column 12: Expected initializer expression after '='
+  Line 3, Column 1: Missing initializer in 'const' declaration
 
 --- Statistics ---
 Arena: used=8400B reserved=16777216B ratio=0%
