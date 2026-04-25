@@ -2239,15 +2239,39 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 	// at the keyword, not the opening paren/brace that begins our local work.
 	param: Maybe(Pattern)
 
-	// Optional catch binding: try {} catch {} or try {} catch (e) {}
+	// Optional catch binding: try {} catch {} or try {} catch (e) {}.
+	// `try {} catch () {}` (empty parens) is a SyntaxError per §14.15:
+	// the catch parameter list either omits the parens entirely
+	// (optional-catch-binding proposal) or contains exactly one
+	// CatchParameter (BindingIdentifier or BindingPattern). Empty parens
+	// are not the same as no parens.
 	if is_token(p, .LParen) {
 		eat(p)
-		if !is_token(p, .RParen) {
-			// Parse catch parameter
+		if is_token(p, .RParen) {
+			report_error(p, "Catch parameter is missing")
+		} else {
 			param = parse_binding_pattern(p)
 		}
 		if !expect_token(p, .RParen) {
 			return nil
+		}
+	}
+
+	// §14.15 — BoundNames of a CatchParameter must be unique. Catches
+	// the destructuring cases `catch ([x, x]) {}` and `catch ({x: a, y:
+	// a}) {}`. Use the existing collect helper (which dedups by map
+	// insertion) and pre-walk a manual list so duplicate detection works.
+	if p_pat, have := param.(Pattern); have {
+		name_list := make([dynamic]string, 0, 4, context.temp_allocator)
+		collect_pattern_bound_names_list(p_pat, &name_list)
+		for i := 0; i < len(name_list); i += 1 {
+			for j := i + 1; j < len(name_list); j += 1 {
+				if name_list[i] == name_list[j] {
+					msg := fmt.tprintf("Identifier '%s' has already been declared in catch clause", name_list[i])
+					report_error(p, msg)
+					break
+				}
+			}
 		}
 	}
 
@@ -2517,6 +2541,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	strict_for_check := p.strict_mode || body_strict
 	if strict_for_check {
 		report_duplicate_param_names(p, params[:], false, true)
+		report_strict_param_names(p, params[:])
 		// ECMA-262 §15.1.1 — in strict mode, `function eval() {}` /
 		// `function arguments() {}` is a SyntaxError. `let`/`static`/
 		// etc. as the function name were already rejected at binding
@@ -3803,10 +3828,14 @@ params_are_simple :: proc(params: []FunctionParameter) -> bool {
 // parse_function_declaration reads body_strict after the body parse
 // but before the param check runs).
 report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, force_when_non_simple: bool = false, strict_override: bool = false) {
-	if len(params) < 2 { return }
+	if len(params) == 0 { return }
 	strict := p.strict_mode || strict_override
 	force_non_simple := force_when_non_simple && !params_are_simple(params)
 	if !strict && !force_non_simple { return }
+	// Note: a single param can introduce multiple bound names via
+	// destructuring (`([x, x]) => 1`), so we cannot early-exit on
+	// `len(params) < 2`. The post-collect `len(names) < 2` guard
+	// below catches the truly-empty case.
 	names: [dynamic]string
 	names.allocator = p.allocator
 	reserve(&names, 4)
@@ -4087,6 +4116,53 @@ report_escaped_reserved_word :: proc(p: ^Parser) {
 // targets in strict mode. The walker descends the same shapes that
 // expr_to_pattern accepts (ArrayExpression / ObjectExpression / spread /
 // assignment-init) so a destructuring-assignment LHS is fully covered.
+// Walk a function-parameter list and report §15.1.1 strict-mode
+// violations: param names that are `eval`, `arguments`, or any strict-
+// reserved word are SyntaxErrors. Used after parse_function_body when
+// the body's directive prologue contained `"use strict"` or the
+// enclosing context was strict.
+report_strict_param_names :: proc(p: ^Parser, params: []FunctionParameter) {
+	for param in params {
+		report_strict_param_pattern(p, param.pattern)
+	}
+}
+
+report_strict_param_pattern :: proc(p: ^Parser, pat: Pattern) {
+	if pat == nil { return }
+	switch v in pat {
+	case ^Identifier:
+		if v == nil { return }
+		if is_eval_or_arguments(v.name) {
+			msg := fmt.tprintf("Parameter name '%s' is not allowed in strict mode", v.name)
+			report_error(p, msg)
+		} else if is_strict_reserved_name(v.name) ||
+		          v.name == "let" || v.name == "static" || v.name == "yield" {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
+			report_error(p, msg)
+		}
+	case ^ObjectPattern:
+		if v == nil { return }
+		for prop in v.properties {
+			report_strict_param_pattern(p, prop.value)
+		}
+	case ^ArrayPattern:
+		if v == nil { return }
+		for elem in v.elements {
+			if inner, ok := elem.(Pattern); ok {
+				report_strict_param_pattern(p, inner)
+			}
+		}
+	case ^AssignmentPattern:
+		if v == nil { return }
+		report_strict_param_pattern(p, v.left)
+	case ^RestElement:
+		if v == nil { return }
+		report_strict_param_pattern(p, v.argument)
+	case ^MemberExpression:
+		return
+	}
+}
+
 report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -4845,6 +4921,37 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 // ============================================================================
 // Module Import/Export
 // ============================================================================
+
+// List variant of collect_pattern_bound_names. Used by the catch-clause
+// duplicate-check which needs to see the same name twice (the map variant
+// silently dedups).
+collect_pattern_bound_names_list :: proc(pat: Pattern, out: ^[dynamic]string) {
+	if pat == nil { return }
+	switch v in pat {
+	case ^Identifier:
+		if v != nil { append(out, v.name) }
+	case ^ObjectPattern:
+		if v == nil { return }
+		for prop in v.properties {
+			collect_pattern_bound_names_list(prop.value, out)
+		}
+	case ^ArrayPattern:
+		if v == nil { return }
+		for elem in v.elements {
+			if inner, ok := elem.(Pattern); ok {
+				collect_pattern_bound_names_list(inner, out)
+			}
+		}
+	case ^AssignmentPattern:
+		if v == nil { return }
+		collect_pattern_bound_names_list(v.left, out)
+	case ^RestElement:
+		if v == nil { return }
+		collect_pattern_bound_names_list(v.argument, out)
+	case ^MemberExpression:
+		return
+	}
+}
 
 // Collect BoundNames from a binding pattern. Handles the full pattern
 // grammar (Identifier / ObjectPattern / ArrayPattern / AssignmentPattern /
@@ -8002,9 +8109,10 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 
 		// Getters / setters always have UniqueFormalParameters
 		// (ECMA-262 §15.4.3 / §15.4.4). A setter with two params named
-		// the same is a SyntaxError regardless of strict mode. Retro-check
-		// covers this without tracking "method-kind" through param parse.
-		report_duplicate_param_names(p, params[:], true)
+		// the same is a SyntaxError regardless of strict mode. strict_override
+		// = true forces the duplicate-name check independent of
+		// p.strict_mode (which has been restored above).
+		report_duplicate_param_names(p, params[:], true, true)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — "It is a Syntax Error if
 		// ContainsUseStrict of FunctionBody is true and IsSimpleParameterList
@@ -8089,9 +8197,9 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 
 		// Object-literal methods run under UniqueFormalParameters rules
 		// (ECMA-262 §15.4.1 / §15.4.5) — duplicates are always a
-		// SyntaxError. The retro-check also covers the enclosing strict
-		// mode / body directive cases.
-		report_duplicate_param_names(p, params[:], true)
+		// SyntaxError. strict_override = true forces the check even when
+		// the surrounding context is sloppy.
+		report_duplicate_param_names(p, params[:], true, true)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — "use strict" directive in a
 		// method body whose params aren't all simple is a SyntaxError.
@@ -8136,6 +8244,19 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if is_generator || is_async {
 			report_error(p, "Generator/async shorthand property not allowed")
 			return nil
+		}
+		// §13.2.5.1 PropertyDefinition shorthand only accepts an
+		// IdentifierReference — computed `[expr]` and numeric / string
+		// keys cannot stand alone. `({[x]})`, `({0})`, `({"foo"})` are
+		// SyntaxErrors. Other key shapes (Identifier / contextual keyword)
+		// fall through to the regular shorthand path.
+		if computed {
+			report_error(p, "Computed property name requires a value")
+		} else if key != nil {
+			#partial switch _ in key^ {
+			case ^NumericLiteral, ^StringLiteral, ^BigIntLiteral:
+				report_error(p, "Numeric / string property name requires a value")
+			}
 		}
 		shorthand = true
 		value = key

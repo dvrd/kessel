@@ -754,11 +754,25 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	//     so a leading `_` would already have been lexed as an identifier.)
 	//   * No two separators in a row (`1__0`).
 	//   * No trailing separator at end of integer part (`1_`, `1_.0`).
+	//   * Separators are forbidden in LegacyOctalIntegerLiteral and
+	//     NonOctalDecimalIntegerLiteral (raw form `0` followed by digits
+	//     or `_`). The grammar permits them only in the modern
+	//     `NonZeroDigit (NumericLiteralSeparator? DecimalDigits)?` shape.
 	off := l.offset
 	is_simple_int := true
 	acc : u64 = 0
 	prev_was_sep := false
 	had_any_sep := false
+	// Detect 0-prefixed integer (Legacy octal / NonOctalDecimal). When
+	// the literal starts with `0` AND the next char is a digit OR `_`,
+	// any separator inside is a SyntaxError.
+	legacy_zero_prefix := false
+	if off < src_len && src[off] == '0' && off + 1 < src_len {
+		n := src[off + 1]
+		if (n >= '0' && n <= '9') || n == '_' {
+			legacy_zero_prefix = true
+		}
+	}
 	for off < src_len {
 		ch := src[off]
 		if ch >= '0' && ch <= '9' {
@@ -766,9 +780,12 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			prev_was_sep = false
 			off += 1
 		} else if ch == '_' {
+			if legacy_zero_prefix {
+				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator not allowed in legacy octal / non-octal-decimal literal"})
+			}
 			is_simple_int = false
 			had_any_sep = true
-			if prev_was_sep {
+			if prev_was_sep && !legacy_zero_prefix {
 				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
 			}
 			prev_was_sep = true
