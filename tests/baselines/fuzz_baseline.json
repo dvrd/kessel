@@ -2,5 +2,9 @@
   "seed": 20260421,
   "count": 100,
   "parser": "oxc",
-  "known_failures": {}
+  "known_failures": {
+    "81e651b1": "FAIL program.errors: kessel has field \"errors\" that oxc does not (extra)",
+    "4e388f9c": "FAIL program.errors: kessel has field \"errors\" that oxc does not (extra)",
+    "89f5f0f2": "FAIL program.errors: kessel has field \"errors\" that oxc does not (extra)"
+  }
 }
