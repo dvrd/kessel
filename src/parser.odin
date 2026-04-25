@@ -8078,6 +8078,18 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
 				report_error(p, msg)
 			}
+			// Escaped strict-reserved word in BindingIdentifier position is
+			// also forbidden by §12.7.2 (always, not just in strict mode):
+			// `({ l\u0065t })`, `({ st\u0061tic })`, `({ yi\u0065ld })` are
+			// SyntaxErrors regardless of enclosing strict / sloppy.
+			if key_had_escape {
+				if is_strict_reserved_name(key_name) ||
+				   key_name == "let" || key_name == "static" ||
+				   key_name == "yield" {
+					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
+					report_error(p, msg)
+				}
+			}
 			// Strict-mode IdentifierReference check (§12.6.1.1).
 			if p.strict_mode {
 				if is_strict_reserved_word(key_tok_type) || is_strict_reserved_name(key_name) {
@@ -8296,9 +8308,19 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if computed {
 			report_error(p, "Computed property name requires a value")
 		} else if key != nil {
-			#partial switch _ in key^ {
+			#partial switch k in key^ {
 			case ^NumericLiteral, ^StringLiteral, ^BigIntLiteral:
 				report_error(p, "Numeric / string property name requires a value")
+			case ^Identifier:
+				// Shorthand binding name must be a valid IdentifierReference.
+				// Hard reserved keywords (default, extends, class, function,
+				// if, ...) cannot be used. Escaped-reserved variants are
+				// caught at the IdentifierName branch above via the
+				// has_escape pre-capture.
+				if k != nil && is_always_reserved_word_name(k.name) {
+					msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", k.name)
+					report_error(p, msg)
+				}
 			}
 		}
 		shorthand = true
@@ -9368,6 +9390,24 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			// argument to an Identifier pattern and wrap in a RestElement so
 			// the emitter sees the ESTree-standard `{ type: "RestElement",
 			// argument: Identifier }` shape.
+			//
+			// §15.3 ArrowParameters — a top-level rest must be wrapped in
+			// parens (`(...x) => x`). Bare `...x => x` is a SyntaxError
+			// because `...x` isn't a legal expression on its own. Detect via
+			// the byte preceding the SpreadElement.
+			paren_wrapped_spread := false
+			if p.lexer != nil {
+				i := int(e.loc.span.start) - 1
+				for i >= 0 {
+					ch := p.lexer.source_bytes[i]
+					if ch == '(' { paren_wrapped_spread = true; break }
+					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+					break
+				}
+			}
+			if !paren_wrapped_spread {
+				report_error(p, "Rest parameter must be wrapped in parentheses")
+			}
 			inner := e.argument
 			if inner != nil {
 				inner_pat, ok := expr_to_pattern(p, inner)
