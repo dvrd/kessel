@@ -39,7 +39,8 @@
         "raw": "\"./foo\""
       },
       "importKind": "type",
-      "attributes": []    },
+      "attributes": [],
+      "phase": null    },
     {
       "type": "ImportDeclaration",
       "start": 162,
@@ -66,7 +67,8 @@
         "raw": "\"./default\""
       },
       "importKind": "type",
-      "attributes": []    },
+      "attributes": [],
+      "phase": null    },
     {
       "type": "ImportDeclaration",
       "start": 200,
@@ -93,7 +95,8 @@
         "raw": "\"./ns\""
       },
       "importKind": "type",
-      "attributes": []    }
+      "attributes": [],
+      "phase": null    }
   ],
   "comments": [
     {
@@ -112,5 +115,5 @@
 }
 
 --- Statistics ---
-Arena: used=8816B reserved=16777216B ratio=0%
+Arena: used=9992B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -48,10 +48,11 @@
             "raw": "\"json\""
           }
         }
-      ]    }
+      ],
+      "phase": null    }
   ]
 }
 
 --- Statistics ---
-Arena: used=7072B reserved=16777216B ratio=0%
+Arena: used=8264B reserved=16777216B ratio=0%
 Parse errors: 0

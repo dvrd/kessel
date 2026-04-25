@@ -33,11 +33,13 @@
                 "start": 25,
                 "end": 38,
                 "value": "./module.js",
-                "raw": "\"./module.js\""              }            }          }        }
+                "raw": "\"./module.js\""              },
+              "options": null,
+              "phase": null            }          }        }
       ]    }
   ]
 }
 
 --- Statistics ---
-Arena: used=6584B reserved=16777216B ratio=0%
+Arena: used=7944B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -80,7 +80,9 @@
                           "start": 60,
                           "end": 64,
                           "name": "name"                        }
-                      ]                    }                  }                }              }
+                      ]                    },
+                    "options": null,
+                    "phase": null                  }                }              }
             ]          },
           {
             "type": "ReturnStatement",
@@ -107,5 +109,5 @@
 }
 
 --- Statistics ---
-Arena: used=7144B reserved=16777216B ratio=0%
+Arena: used=7544B reserved=16777216B ratio=0%
 Parse errors: 0

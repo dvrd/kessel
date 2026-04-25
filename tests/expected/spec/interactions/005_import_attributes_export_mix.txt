@@ -48,7 +48,8 @@
             "raw": "'json'"
           }
         }
-      ]    },
+      ],
+      "phase": null    },
     {
       "type": "ImportDeclaration",
       "start": 573,
@@ -92,7 +93,8 @@
             "raw": "'json'"
           }
         }
-      ]    },
+      ],
+      "phase": null    },
     {
       "type": "ExportNamedDeclaration",
       "start": 627,
@@ -253,5 +255,5 @@
 }
 
 --- Statistics ---
-Arena: used=19584B reserved=16777216B ratio=0%
+Arena: used=20744B reserved=16777216B ratio=0%
 Parse errors: 0

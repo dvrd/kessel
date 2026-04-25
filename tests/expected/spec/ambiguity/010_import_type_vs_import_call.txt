@@ -39,7 +39,8 @@
         "raw": "\"./foo\""
       },
       "importKind": "type",
-      "attributes": []    },
+      "attributes": [],
+      "phase": null    },
     {
       "type": "VariableDeclaration",
       "start": 83,
@@ -65,7 +66,9 @@
               "start": 102,
               "end": 109,
               "value": "./foo",
-              "raw": "\"./foo\""            }          }        }
+              "raw": "\"./foo\""            },
+            "options": null,
+            "phase": null          }        }
       ]    }
   ],
   "comments": [
@@ -79,5 +82,5 @@
 }
 
 --- Statistics ---
-Arena: used=7152B reserved=16777216B ratio=0%
+Arena: used=8520B reserved=16777216B ratio=0%
 Parse errors: 0

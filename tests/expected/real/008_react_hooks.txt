@@ -86,7 +86,8 @@
         "value": "react",
         "raw": "'react'"
       },
-      "attributes": []    },
+      "attributes": [],
+      "phase": null    },
     {
       "type": "FunctionDeclaration",
       "start": 92,
@@ -640,5 +641,5 @@
 }
 
 --- Statistics ---
-Arena: used=17272B reserved=16777216B ratio=0%
+Arena: used=19208B reserved=16777216B ratio=0%
 Parse errors: 0
