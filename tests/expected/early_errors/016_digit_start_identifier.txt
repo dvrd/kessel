@@ -78,6 +78,12 @@
       "offset": 204
     },
     {
+      "message": "Expected '=', ',', or ';' after variable binding",
+      "line": 4,
+      "column": 7,
+      "offset": 204
+    },
+    {
       "message": "Missing initializer in 'const' declaration",
       "line": 4,
       "column": 7,
@@ -91,11 +97,12 @@
     }
   ]
 }
-Parse errors (3):
+Parse errors (4):
   Line 4, Column 7: Expected binding pattern
+  Line 4, Column 7: Expected '=', ',', or ';' after variable binding
   Line 4, Column 7: Missing initializer in 'const' declaration
   Line 4, Column 8: Identifier directly after number
 
 --- Statistics ---
 Arena: used=8448B reserved=16777216B ratio=0%
-Parse errors: 3
+Parse errors: 4

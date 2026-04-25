@@ -109,12 +109,6 @@
   ],
   "errors": [
     {
-      "message": "'yield' expression is only allowed in a generator body",
-      "line": 10,
-      "column": 17,
-      "offset": 533
-    },
-    {
       "message": "'yield' expression is not allowed in formal parameters of a generator",
       "line": 10,
       "column": 17,
@@ -122,10 +116,9 @@
     }
   ]
 }
-Parse errors (2):
-  Line 10, Column 17: 'yield' expression is only allowed in a generator body
+Parse errors (1):
   Line 10, Column 17: 'yield' expression is not allowed in formal parameters of a generator
 
 --- Statistics ---
 Arena: used=15128B reserved=16777216B ratio=0%
-Parse errors: 2
+Parse errors: 1

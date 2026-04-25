@@ -82,7 +82,7 @@
   ],
   "errors": [
     {
-      "message": "Labeled function declarations are not allowed in strict mode",
+      "message": "Function declaration cannot appear in a single-statement context",
       "line": 8,
       "column": 1,
       "offset": 366
@@ -90,7 +90,7 @@
   ]
 }
 Parse errors (1):
-  Line 8, Column 1: Labeled function declarations are not allowed in strict mode
+  Line 8, Column 1: Function declaration cannot appear in a single-statement context
 
 --- Statistics ---
 Arena: used=11544B reserved=16777216B ratio=0%

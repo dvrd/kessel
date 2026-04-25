@@ -71,6 +71,12 @@
   ],
   "errors": [
     {
+      "message": "Reserved word 'return' is not a valid binding identifier",
+      "line": 4,
+      "column": 12,
+      "offset": 88
+    },
+    {
       "message": "Expected }, got number",
       "line": 4,
       "column": 12,
@@ -90,11 +96,12 @@
     }
   ]
 }
-Parse errors (3):
+Parse errors (4):
+  Line 4, Column 12: Reserved word 'return' is not a valid binding identifier
   Line 4, Column 12: Expected }, got number
   Line 4, Column 12: Expected ), got number
   Line 6, Column 1: Unexpected '}' — unmatched closing brace
 
 --- Statistics ---
-Arena: used=9608B reserved=16777216B ratio=0%
-Parse errors: 3
+Arena: used=9888B reserved=16777216B ratio=0%
+Parse errors: 4

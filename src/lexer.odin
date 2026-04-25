@@ -677,11 +677,13 @@ lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			cp, ok, consumed := decode_u_escape(src, off)
 			if !ok {
 				// Invalid escape — produce Invalid token, advance past backslash.
+				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid Unicode escape in identifier"})
 				l.offset = off + 1
 				return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
 			}
 			if first {
 				if !is_id_start_codepoint(cp) {
+					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in identifier escape"})
 					l.offset = off + consumed
 					return FastToken{start = start, end = u32(off + consumed), kind = .Invalid, flags = flags}
 				}
@@ -695,6 +697,7 @@ lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			if first {
 				if !is_id_start_fast(c) {
 					// No valid start at all (e.g. `\x` with no id start) — bail.
+					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in identifier"})
 					l.offset = off + 1
 					return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
 				}
@@ -779,7 +782,11 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
 	}
 
-	// Check for decimal point or exponent → not a simple integer
+	// Check for decimal point or exponent → not a simple integer.
+	// Validate separator placement in the fraction part and the exponent
+	// part the same way we did for the integer part above. §12.9.3
+	// forbids leading (`._1`, `e_1`), trailing (`1.0_`, `1e1_`), and
+	// double (`1.0__0`) separators in every digit-run of a numeric literal.
 	had_dot := false
 	had_exp := false
 	if off < src_len && (src[off] == '.' || src[off] == 'e' || src[off] == 'E') {
@@ -787,13 +794,53 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		if src[off] == '.' {
 			had_dot = true
 			off += 1
-			for off < src_len && (src[off] >= '0' && src[off] <= '9' || src[off] == '_') { off += 1 }
+			frac_start := off
+			prev_sep := true // leading sep illegal (`._1`)
+			frac_digits := 0
+			for off < src_len {
+				ch := src[off]
+				if ch >= '0' && ch <= '9' {
+					prev_sep = false
+					frac_digits += 1
+					off += 1
+				} else if ch == '_' {
+					if prev_sep {
+						append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+					}
+					prev_sep = true
+					off += 1
+				} else { break }
+			}
+			if prev_sep && frac_digits > 0 {
+				// Trailing `_` in fraction (`1.0_` or `1.0_e1`).
+				append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+			}
+			_ = frac_start
 		}
 		if off < src_len && (src[off] == 'e' || src[off] == 'E') {
 			had_exp = true
 			off += 1
 			if off < src_len && (src[off] == '+' || src[off] == '-') { off += 1 }
-			for off < src_len && (src[off] >= '0' && src[off] <= '9' || src[off] == '_') { off += 1 }
+			prev_sep := true // leading sep illegal (`1e_1`)
+			exp_digits := 0
+			for off < src_len {
+				ch := src[off]
+				if ch >= '0' && ch <= '9' {
+					prev_sep = false
+					exp_digits += 1
+					off += 1
+				} else if ch == '_' {
+					if prev_sep {
+						append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+					}
+					prev_sep = true
+					off += 1
+				} else { break }
+			}
+			if prev_sep && exp_digits > 0 {
+				// Trailing `_` in exponent (`1e10_`).
+				append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+			}
 		}
 	}
 	l.offset = off
@@ -854,14 +901,24 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src_len := len(src)
 	l.offset += 2 // skip 0x
 	digits_seen := 0
+	prev_was_sep := true // start: leading separator illegal (`0x_F`)
 	for l.offset < src_len {
 		c := src[l.offset]
 		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
 			l.offset += 1
 			digits_seen += 1
+			prev_was_sep = false
 		} else if c == '_' {
+			if prev_was_sep {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
+			}
 			l.offset += 1
+			prev_was_sep = true
 		} else { break }
+	}
+	if prev_was_sep && digits_seen > 0 {
+		// Trailing `_` (`0xF_`).
+		append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
 	}
 	// §12.9.3 HexIntegerLiteral requires at least one HexDigit after `0x`.
 	if digits_seen == 0 {
@@ -912,11 +969,22 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src_len := len(src)
 	l.offset += 2 // skip 0b
 	digits_seen := 0
+	prev_was_sep := true // start: leading separator illegal (`0b_1`)
 	for l.offset < src_len {
 		c := src[l.offset]
-		if c == '0' || c == '1' { l.offset += 1; digits_seen += 1 }
-		else if c == '_' { l.offset += 1 }
+		if c == '0' || c == '1' { l.offset += 1; digits_seen += 1; prev_was_sep = false }
+		else if c == '_' {
+			if prev_was_sep {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
+			}
+			l.offset += 1
+			prev_was_sep = true
+		}
 		else { break }
+	}
+	if prev_was_sep && digits_seen > 0 {
+		// Trailing `_` (`0b1_`).
+		append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
 	}
 	// `0b2`, `0bz`, `0b1\u006fff`, etc. — binary literal followed by a
 	// digit / letter / \uXXXX that isn't a valid binary digit but *is* a
@@ -960,11 +1028,22 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src_len := len(src)
 	l.offset += 2 // skip 0o
 	digits_seen := 0
+	prev_was_sep := true // start: leading separator illegal (`0o_7`)
 	for l.offset < src_len {
 		c := src[l.offset]
-		if c >= '0' && c <= '7' { l.offset += 1; digits_seen += 1 }
-		else if c == '_' { l.offset += 1 }
+		if c >= '0' && c <= '7' { l.offset += 1; digits_seen += 1; prev_was_sep = false }
+		else if c == '_' {
+			if prev_was_sep {
+				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
+			}
+			l.offset += 1
+			prev_was_sep = true
+		}
 		else { break }
+	}
+	if prev_was_sep && digits_seen > 0 {
+		// Trailing `_` (`0o7_`).
+		append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
 	}
 	// Same rejection rule as lex_binary: `0o8`, `0o9`, `0oz`, `0o7\u006fff`
 	// etc. are SyntaxErrors. The `n` suffix is legal and handled below.
@@ -1897,11 +1976,13 @@ lex_private_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> Fast
 		if c == '\\' && off + 1 < src_len && src[off + 1] == 'u' {
 			cp, ok, consumed := decode_u_escape(src, off)
 			if !ok {
+				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid Unicode escape in private identifier"})
 				l.offset = off + 1
 				return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
 			}
 			if first {
 				if !is_id_start_codepoint(cp) {
+					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in private identifier"})
 					l.offset = off + consumed
 					return FastToken{start = start, end = u32(off + consumed), kind = .Invalid, flags = flags}
 				}
@@ -1914,6 +1995,7 @@ lex_private_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> Fast
 		} else {
 			if first {
 				if !is_id_start_fast(c) {
+					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in private identifier"})
 					l.offset = off + 1
 					return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
 				}

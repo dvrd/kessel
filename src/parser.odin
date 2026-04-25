@@ -439,6 +439,27 @@ is_keyword_usable_as_property_name :: #force_inline proc(t: TokenType) -> bool {
 	}
 }
 
+// Token types that can stand in for a BindingIdentifier per §12.6.1.1.
+// Strict reserved words (Identifier + contextual keywords). Excludes
+// hard reserved keywords (`extends`, `class`, `function`, `if`, `for`,
+// `var`, `const`, `return`, etc.) which can never be a binding name.
+// Caller is still expected to do strict-mode reservation checks (let,
+// yield, await, eval, arguments, package, private, ...).
+can_be_binding_identifier :: #force_inline proc(t: TokenType) -> bool {
+	#partial switch t {
+	case .Identifier,
+	     .Get, .Set, .Async, .Static, .Let, .Of, .From, .As, .Constructor, .Accessor,
+	     .Yield, .Await,
+	     .Assert, .Asserts, .Abstract, .Declare, .Readonly, .Override,
+	     .Keyof, .Infer, .Is, .Satisfies, .Never, .Unique, .Namespace, .Module,
+	     .Implements, .Require, .Package, .Private, .Protected, .Public, .Target, .Using,
+	     .Type, .Interface, .Enum:
+		return true
+	case:
+		return false
+	}
+}
+
 // Maximum iterations for error recovery to prevent infinite loops
 MAX_ERROR_RECOVERY_ITERATIONS :: 10000
 
@@ -1325,16 +1346,14 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			pop(&p.label_stack)
 			pop(&p.label_is_iteration)
 			labeled.loc.span.end = prev_end_offset(p)
-			// ECMA-262 §14.13.1 — the LabelledItem of a LabelledStatement
-			// cannot be a FunctionDeclaration in strict mode. Annex B.3.2
-			// relaxes this in sloppy script (narrow shape: no async /
-			// generator, not inside an IfStatement); we accept any
-			// FunctionDeclaration in sloppy and reject in strict.
-			if p.strict_mode && labeled.body != nil {
-				if _, is_fn := labeled.body^.(^FunctionDeclaration); is_fn {
-					report_error(p, "Labeled function declarations are not allowed in strict mode")
-				}
-			}
+			// ECMA-262 §14.13.1 — LabelledItem : FunctionDeclaration |
+			// Statement. Statement excludes LexicalDeclaration,
+			// ClassDeclaration, AsyncFunctionDeclaration,
+			// GeneratorDeclaration, AsyncGeneratorDeclaration. Annex B.3.2
+			// relaxes plain FunctionDeclaration in sloppy script (narrow
+			// shape: no async / generator, not inside an IfStatement); we
+			// accept any FunctionDeclaration in sloppy and reject in strict.
+			report_statement_only_position(p, labeled.body, !p.strict_mode)
 
 			return statement_from(p, labeled)
 		}
@@ -1598,6 +1617,30 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
 				report_error(p, msg)
 			}
+			// §14.7.5.1 — the LHS of a for-of head cannot be the literal
+			// IdentifierReference `async`. Avoids ambiguity with the
+			// CoverCallExpressionAndAsyncArrowHead production: `async of
+			// xs` is otherwise indistinguishable from `async (of xs)` /
+			// `async => of xs`.
+			if !is_in {
+				if id, ok := left_expr.(^Identifier); ok && id != nil && id.name == "async" {
+					report_error(p, "The left-hand side of a for-of loop may not be 'async'")
+				}
+			}
+			// §14.7.5.1 — the LHS expression must have a valid
+			// AssignmentTargetType. `for (this of [])`, `for (1 of [])`,
+			// `for ((a + b) of [])` are all SyntaxErrors. is_destructure
+			// is true so Array / Object literals reinterpret as patterns.
+			// CallExpression is allowed in sloppy script (§Annex B.3.4) and
+			// the more general AssignmentTargetType handles the rest.
+			if _, is_ae := left_expr.(^AssignmentExpression); !is_ae {
+				if !is_valid_assignment_target(left_expr, true) {
+					kind_name := "of"
+					if is_in { kind_name = "in" }
+					msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
+					report_error(p, msg)
+				}
+			}
 			// Strict-mode early-error: eval / arguments as an assignment
 			// target in the for-in/of head (covers destructuring too):
 			//   for ([arguments] of x) ;
@@ -1638,6 +1681,14 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_name)
 				report_error(p, msg)
 			}
+			// §Explicit Resource Management — `using` and `await using` are
+			// only legal in a for-of (or for-await-of) head, never for-in.
+			if is_in && (left_decl.kind == .Using || left_decl.kind == .AwaitUsing) {
+				kn := "using"
+				if left_decl.kind == .AwaitUsing { kn = "await using" }
+				msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
+				report_error(p, msg)
+			}
 			for_in_init_ok := is_in &&
 			                  !p.strict_mode &&
 			                  left_decl.kind == .Var &&
@@ -1664,7 +1715,15 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 		}
 
-		right := parse_expression(p)
+		// §14.7.5 — for-in head accepts the full Expression (comma list
+		// allowed); for-of head accepts AssignmentExpression only. Picking
+		// the wrong production silently accepts `for (let x of [], [])`.
+		right: ^Expression
+		if is_in {
+			right = parse_expression(p)
+		} else {
+			right = parse_assignment_expression(p)
+		}
 		if right == nil {
 			return nil
 		}
@@ -2209,6 +2268,13 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	body := parse_statement_or_declaration(p)
+	// ECMA-262 §14.11.1 — WithStatement : with ( Expression ) Statement.
+	// Statement excludes hoistable declarations (LexicalDeclaration,
+	// ClassDeclaration, AsyncFunctionDeclaration, GeneratorDeclaration,
+	// AsyncGeneratorDeclaration). Plain FunctionDeclaration is also banned
+	// since `with` is itself strict-mode-illegal but in sloppy script the
+	// body cannot be a Declaration form per the grammar.
+	report_statement_only_position(p, body, false)
 
 	with_ := new_node(p, WithStatement)
 	with_.loc = start
@@ -2250,6 +2316,20 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			id = BindingIdentifier{
 				loc  = loc_from_token(current),
 				name = current.value,
+			}
+			// §15.8.1 / §15.5.1 / §15.9.1 — the BindingIdentifier of an
+			// AsyncFunctionExpression / GeneratorExpression /
+			// AsyncGeneratorExpression is parsed under [+Await] / [+Yield],
+			// so `await` / `yield` cannot be used as the function name in
+			// expression position. The Declaration form's binding is in the
+			// enclosing context, where `await` may be a regular identifier
+			// (Script, non-async outer) — only the expression form is
+			// unconditionally restricted.
+			if is_expr && async && current.value == "await" {
+				report_error(p, "'await' cannot be used as the name of an async function expression")
+			}
+			if is_expr && generator && current.value == "yield" {
+				report_error(p, "'yield' cannot be used as the name of a generator function expression")
 			}
 			eat(p)
 		} else if !is_expr {
@@ -2707,7 +2787,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 
 	id: Maybe(BindingIdentifier)
 	name_tok_type := p.cur_type
-	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+	if can_be_binding_identifier(p.cur_type) {
 		current := get_current(p)
 		id = BindingIdentifier{
 			loc  = loc_from_token(current),
@@ -3104,15 +3184,45 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		key = expression_from(p, new_identifier(p, current))
 		eat(p)
 
-		// Check if it's actually a constructor
-		if current.type == .Constructor || (current.type == .Identifier && current.value == "constructor") {
+		// Check if it's actually a constructor. Only promote to .Constructor
+		// when no get/set modifier was seen — `get constructor() {}` is a
+		// non-instance accessor named "constructor" and stays in its own
+		// .Get / .Set kind so the post-parse §15.7.6 check below can flag
+		// it as a SyntaxError.
+		if (current.type == .Constructor || (current.type == .Identifier && current.value == "constructor")) &&
+		   kind == .Method && !is_async && !is_generator && !static_ {
 			kind = .Constructor
+		}
+		// §15.7.6 ClassElement — a non-static method named "constructor"
+		// must be a plain Method (not get / set / async / generator). Catch
+		// the disallowed shapes here, where we still see the original
+		// modifiers + the literal name.
+		if !static_ && !is_private && !computed &&
+		   (current.type == .Constructor || (current.type == .Identifier && current.value == "constructor")) {
+			if is_async {
+				report_error(p, "Class constructor cannot be an async method")
+			}
+			if is_generator {
+				report_error(p, "Class constructor cannot be a generator method")
+			}
+			if kind == .Get {
+				report_error(p, "Class constructor cannot be a getter")
+			}
+			if kind == .Set {
+				report_error(p, "Class constructor cannot be a setter")
+			}
 		}
 	} else if is_token(p, .LBracket) {
 		// Computed property: [expr]
 		computed = true
 		eat(p)
+		// `[` opens a fresh expression context — the enclosing for-head
+		// no_in restriction does not apply inside computed property keys
+		// (`for (C = class { set ['x' in y](v) {} }; ; )` is legal).
+		prev_no_in_cls := p.no_in
+		p.no_in = false
 		key = parse_assignment_expression(p)
+		p.no_in = prev_no_in_cls
 		if !expect_token(p, .RBracket) {
 			return nil
 		}
@@ -3483,6 +3593,21 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		report_let_as_lexical_name(p, decl.declarations[:])
 	}
 
+	// §Explicit Resource Management — the bindings of a `using` /
+	// `await using` declaration must each be a BindingIdentifier; array /
+	// object destructuring patterns are not allowed (`using [] = null;`,
+	// `await using {} = null;`).
+	if !is_declare && (kind == .Using || kind == .AwaitUsing) {
+		for d in decl.declarations {
+			if _, is_ident := d.id.(^Identifier); !is_ident {
+				kn := "using"
+				if kind == .AwaitUsing { kn = "await using" }
+				msg := fmt.tprintf("'%s' declaration requires a binding identifier", kn)
+				report_error(p, msg)
+			}
+		}
+	}
+
 	// §14.3.3 `const` and §Explicit Resource Management `using` /
 	// `await using` require an Initializer on every VariableDeclarator.
 	// `const x;`, `using x;`, `await using x;` are all SyntaxErrors.
@@ -3658,6 +3783,21 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 		ann := parse_ts_type_annotation(p)
 		if ident, ok := pattern.(^Identifier); ok {
 			ident.type_annotation = ann
+		}
+	}
+
+	// §14.3 / §14.7.5.1 — after the BindingIdentifier / BindingPattern
+	// the only legal continuations are `=`, `,`, `;`, `in`, `of`, `)`,
+	// `]`, `}`, EOF, or a line terminator (ASI). Anything else —
+	// `var x += 1;`, `var x | y;`, `var x*1;`, `var x : T = …` (TS, handled
+	// above) — is a SyntaxError. Reporting here avoids the recovery path
+	// silently swallowing the bad operator and salvaging a partial AST.
+	if !p.cur_tok.had_line_terminator {
+		#partial switch p.cur_type {
+		case .Assign, .Comma, .Semi, .In, .Of,
+		     .RParen, .RBracket, .RBrace, .EOF: // legal
+		case:
+			report_error(p, "Expected '=', ',', or ';' after variable binding")
 		}
 	}
 
@@ -4160,10 +4300,14 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 		computed := false
 
 		if is_token(p, .LBracket) {
-			// Computed property: [expr]
+			// Computed property: [expr] — same `[` no_in carve-out as in
+			// parse_class_element / parse_property.
 			computed = true
 			eat(p)
+			prev_no_in_op := p.no_in
+			p.no_in = false
 			expr_key := parse_assignment_expression(p)
+			p.no_in = prev_no_in_op
 			if expr_key != nil {
 				key = (^Expression)(expr_key)
 			}
@@ -4345,6 +4489,15 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				val := k.?  // unwrap Maybe
 				#partial switch v in val {
 				case IdentifierName:
+					// §13.2.5.1 / §12.6.1.1 — a shorthand key in an object
+					// pattern doubles as a BindingIdentifier; reserved
+					// keywords (`default`, `extends`, `class`, ...) are not
+					// legal binding names. Same gate fires for the bare
+					// `{ default }` shorthand below.
+					if is_always_reserved_word_name(v.name) {
+						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
+						report_error(p, msg)
+					}
 					left_ident := new_node(p, Identifier)
 					left_ident.loc = v.loc
 					left_ident.name = v.name
@@ -4357,7 +4510,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					assign.left = left_ident
 					assign.right = default_val
 					assign.loc.span.end = prev_end_offset(p)
-					
+
 					prop := ObjectPatternProperty{
 						loc       = prop_start,
 						key       = key,
@@ -4375,10 +4528,17 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				val := k.?  // unwrap Maybe
 				#partial switch v in val {
 				case IdentifierName:
+					// Shorthand binding name must be a valid BindingIdentifier
+					// (§13.2.5.1). See the §Assign branch above for the
+					// rationale.
+					if is_always_reserved_word_name(v.name) {
+						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
+						report_error(p, msg)
+					}
 					left_ident := new_node(p, Identifier)
 					left_ident.loc = v.loc
 					left_ident.name = v.name
-					
+
 					prop := ObjectPatternProperty{
 						loc       = prop_start,
 						key       = key,
@@ -6234,6 +6394,38 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		}
 
 		// Binary/logical operator
+		// §13.6.1 — ExponentiationExpression : UnaryExpression `**`
+		// ExponentiationExpression. The grammar specifically disallows an
+		// unparenthesized UnaryExpression as the base, so `-3 ** 2`,
+		// `!x ** 2`, `typeof x ** 2`, `delete o.x ** 2` etc. are all
+		// SyntaxErrors. `(-3) ** 2` and `-(3 ** 2)` are legal because the
+		// parentheses promote the inner UnaryExpression to a
+		// PrimaryExpression (or because the unary applies to the whole
+		// `**` form). Detect by inspecting the raw source span of the
+		// left operand — a leading `(` means paren-wrapped.
+		if cur_type == .Pow && left != nil {
+			if _, is_unary := left.(^UnaryExpression); is_unary {
+				lhs_start := loc_from_expr(left).span.start
+				paren_wrapped := false
+				if p.lexer != nil && int(lhs_start) < len(p.lexer.source_bytes) {
+					// Without --preserve-parens the UnaryExpression's span
+					// is [unary_op, end) and the optional `(` lives one byte
+					// before. Walk backwards over insignificant whitespace
+					// (rare in practice) to detect the wrapper.
+					i := int(lhs_start) - 1
+					for i >= 0 {
+						ch := p.lexer.source_bytes[i]
+						if ch == '(' { paren_wrapped = true; break }
+						if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+						break
+					}
+				}
+				if !paren_wrapped {
+					report_error(p, "Unparenthesized unary expression cannot appear as the left operand of '**'")
+				}
+			}
+		}
+
 		eat(p)
 		next_min_prec := Precedence(int(op_prec) + 1)
 
@@ -6341,13 +6533,37 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .Await:
 		// ECMA-262 §15.8 — `await` is only valid as an AwaitExpression
 		// inside an async function (or at module top level, handled via
-		// the separate top-level-await detector below). Used as a unary
-		// prefix anywhere else is a SyntaxError — previously we gated the
-		// check on `strict_mode`, which let `function f() { return await
-		// 1; }` slip through in plain scripts.
-		if !p.in_async && p.in_function {
+		// the separate top-level-await detector below). In a non-async,
+		// non-module context `await` is just an IdentifierReference —
+		// `function f(await) { return await; }`, `await: 1;` (label),
+		// `class await {}` (binding name) all need to fall through to
+		// the identifier path. Mirror the `yield` handling: when the
+		// lookahead is unambiguously NOT the start of an argument
+		// (semicolon, operator, terminator), fall through. Otherwise
+		// keep the long-standing diagnostic for `await expr` typos.
+	if !p.in_async && !p.in_async_params {
+		at_module_top := !p.in_function
+		if !at_module_top {
+			// Inside a non-async function in script: `await` is an
+			// identifier. Fall through unless the next token clearly
+			// continues as an expression argument (typo case).
+			if !yield_next_is_expression_argument(p) {
+				break
+			}
 			report_error(p, "await outside of async function")
+		} else {
+			// At top level. In Module source-type or auto-detect,
+			// top-level `await` is TLA. In pinned Script (or auto with
+			// no module syntax), `await` may still be an identifier
+			// reference — e.g. `await: 1;` (label), `await;` (bare ref)
+			// in a script. Use the same lookahead heuristic as the
+			// in-function case to fall through to identifier when the
+			// next token doesn't start an expression argument.
+			if !yield_next_is_expression_argument(p) {
+				break
+			}
 		}
+	}
 		// §14.13.1 LabelIdentifier — in async context, “await” is a
 		// reserved word, so `await:` as a LabelledStatement head is a
 		// SyntaxError.
@@ -6425,6 +6641,14 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `yield.x`, `yield + 1`, `yield || 1`, `yield?1:2`,
 		// `` yield`t` `` all behave as OXC / Acorn expect.
 		if p.in_generator {
+			return parse_yield_expr(p)
+		}
+		// §15.5.1 — inside a generator's FormalParameters, even bare
+		// `yield` (no argument) is a YieldExpression and a SyntaxError.
+		// parse_yield_expr's own in_generator_params check fires the
+		// diagnostic; we just have to commit to the YieldExpression
+		// production here so it actually runs.
+		if p.in_generator_params {
 			return parse_yield_expr(p)
 		}
 		if yield_next_is_expression_argument(p) {
@@ -7508,7 +7732,12 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	// Parse key
 	if match_token(p, .LBracket) {
 		computed = true
+		// `[` clears the for-head no_in restriction — see parse_class_element /
+		// parse_object_pattern for the parallel resets.
+		prev_no_in_prop := p.no_in
+		p.no_in = false
 		key = parse_assignment_expression(p)
+		p.no_in = prev_no_in_prop
 		if key == nil {
 			return nil
 		}
@@ -7596,8 +7825,15 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// (ECMA-262 §15.4.3 / §15.4.4). A setter with two params named
 		// the same is a SyntaxError regardless of strict mode. Retro-check
 		// covers this without tracking "method-kind" through param parse.
-		_ = body_strict
 		report_duplicate_param_names(p, params[:], true)
+
+		// §15.5.1 / §15.6.1 / §15.8.1 — "It is a Syntax Error if
+		// ContainsUseStrict of FunctionBody is true and IsSimpleParameterList
+		// of FormalParameters is false." Same rule as for class methods and
+		// top-level functions; also fires for object-literal accessors.
+		if body_strict && !params_are_simple(params[:]) {
+			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
 
 		// §15.4.3 / §15.4.4 PropertySetParameterList / PropertyGetParameter
 		// enforce exact arity:
@@ -7679,8 +7915,14 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// (ECMA-262 §15.4.1 / §15.4.5) — duplicates are always a
 		// SyntaxError. The retro-check also covers the enclosing strict
 		// mode / body directive cases.
-		_ = body_strict
 		report_duplicate_param_names(p, params[:], true)
+
+		// §15.5.1 / §15.6.1 / §15.8.1 — "use strict" directive in a
+		// method body whose params aren't all simple is a SyntaxError.
+		// Same rule as for class methods and top-level functions.
+		if body_strict && !params_are_simple(params[:]) {
+			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
 
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start
@@ -7805,7 +8047,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	eat(p) // consume class
 
 	id: Maybe(BindingIdentifier)
-	if is_token(p, .Identifier) {
+	if can_be_binding_identifier(p.cur_type) {
 		current := get_current(p)
 		id = BindingIdentifier{
 			loc  = loc_from_token(current),
@@ -8940,12 +9182,47 @@ is_destructure_target_candidate :: proc(expr: ^Expression) -> bool {
 	return false
 }
 
+// Returns true when `expr` is a CallExpression (possibly wrapped in
+// ParenthesizedExpression / TS escape-hatches) — used by the strict-mode
+// gate in parse_assignment_expr because Annex B.3.4 only allows
+// `f() = x` in sloppy script.
+is_call_expression_target :: proc(expr: ^Expression) -> bool {
+	if expr == nil { return false }
+	#partial switch e in expr^ {
+	case ^CallExpression:
+		return true
+	case ^ParenthesizedExpression:
+		return e != nil && is_call_expression_target(e.expression)
+	case ^TSNonNullExpression, ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
+		// TS escape hatches re-export AssignmentTargetType of their
+		// expression — unwrap and recurse.
+		#partial switch v in expr^ {
+		case ^TSNonNullExpression:
+			return v != nil && is_call_expression_target(v.expression)
+		case ^TSAsExpression:
+			return v != nil && is_call_expression_target(v.expression)
+		case ^TSSatisfiesExpression:
+			return v != nil && is_call_expression_target(v.expression)
+		case ^TSTypeAssertion:
+			return v != nil && is_call_expression_target(v.expression)
+		}
+	}
+	return false
+}
+
 is_valid_assignment_target :: proc(expr: ^Expression, is_destructure: bool) -> bool {
 	if expr == nil { return false }
 	#partial switch e in expr^ {
-	case ^Identifier, ^MemberExpression, ^CallExpression,
+	case ^Identifier, ^MemberExpression,
 	     ^TSNonNullExpression, ^TSAsExpression, ^TSSatisfiesExpression,
 	     ^TSTypeAssertion:
+		return true
+	case ^CallExpression:
+		// §13.15 — CallExpression's AssignmentTargetType is INVALID by
+		// default. Annex B.3.4 extends it to SIMPLE only in sloppy mode.
+		// Caller (parse_assignment_expr) reports the strict-mode error
+		// separately so this helper just returns true and lets sloppy
+		// pass; strict-mode callers gate on p.strict_mode at the call site.
 		return true
 	case ^ParenthesizedExpression:
 		return is_valid_assignment_target(e.expression, is_destructure)
@@ -9009,6 +9286,12 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// recovery keeps the full assignment tree structurally intact for
 	// downstream consumers (emit, walker).
 	if !is_valid_assignment_target(left, op == .Assign) {
+		report_error(p, "Invalid left-hand side in assignment")
+	}
+	// CallExpression as an assignment target is a strict-mode error
+	// (Annex B.3.4 only relaxes it in sloppy script). is_valid_assignment_target
+	// accepts CallExpression unconditionally so the strict gate fires here.
+	if p.strict_mode && is_call_expression_target(left) {
 		report_error(p, "Invalid left-hand side in assignment")
 	}
 
