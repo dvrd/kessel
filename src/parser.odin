@@ -239,6 +239,11 @@ Parser :: struct {
 	// arguments / SuperCall` early error).
 	in_static_block: bool,
 
+	// True when parsing a Statement directly inside a CaseClause /
+	// DefaultClause StatementList. §Explicit Resource Management
+	// forbids `using` / `await using` declarations in this position.
+	in_case_clause: bool,
+
 	// Most-recent call to `parse_function_body` set this to true iff the
 	// body's directive prologue contained a literal `"use strict"`. Used
 	// by the immediately-surrounding caller (function-decl / expr / class-
@@ -1308,6 +1313,12 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	block_cap := 8 + (p.source_len >> 16)  // +1 per 64KB
 	block.body = make([dynamic]^Statement, 0, block_cap, p.allocator)
 
+	// A nested block introduces its own StatementList, so the
+	// case-clause direct-child constraint no longer applies inside.
+	prev_in_case_block := p.in_case_clause
+	p.in_case_clause = false
+	defer p.in_case_clause = prev_in_case_block
+
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
 		stmt := parse_statement_or_declaration(p)
@@ -2200,6 +2211,12 @@ parse_switch_case :: proc(p: ^Parser) -> ^SwitchCase {
 	case_.loc = start
 	case_.test = test
 	case_.consequent = make([dynamic]^Statement, 0, 4, p.allocator)
+
+	// Mark statements directly inside this CaseClause / DefaultClause
+	// for the using / await-using placement check. Cleared on exit.
+	prev_in_case_clause := p.in_case_clause
+	p.in_case_clause = true
+	defer p.in_case_clause = prev_in_case_clause
 
 	for !is_token(p, .Case) && !is_token(p, .Default) && !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
@@ -3433,6 +3450,17 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			}
 		}
 
+		// §15.7.1 ClassElement — a non-computed FieldDefinition (with or
+		// without an initializer) cannot be named "constructor". The
+		// non-computed restriction matches the spec: `class { ['constructor'
+		// ] = 1 }` is allowed because the key is computed.
+		if !computed {
+			name := class_element_prop_name(key)
+			if name == "constructor" {
+				report_error(p, "Class field cannot be named 'constructor'")
+			}
+		}
+
 		// Consume optional semicolon
 		match_semicolon_or_asi(p)
 
@@ -3777,6 +3805,17 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 				msg := fmt.tprintf("'%s' declaration requires a binding identifier", kn)
 				report_error(p, msg)
 			}
+		}
+		// §Explicit Resource Management placement: `using` / `await using`
+		// are forbidden as a direct child of a CaseClause / DefaultClause
+		// StatementList ("AwaitUsingDeclaration is contained directly
+		// within the StatementList of either a CaseClause or DefaultClause").
+		// They're allowed inside a sub-block within the case clause.
+		if p.in_case_clause {
+			kn := "using"
+			if kind == .AwaitUsing { kn = "await using" }
+			msg := fmt.tprintf("'%s' declaration is not allowed directly inside a switch case clause", kn)
+			report_error(p, msg)
 		}
 	}
 
