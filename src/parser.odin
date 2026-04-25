@@ -2322,14 +2322,23 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// AsyncGeneratorExpression is parsed under [+Await] / [+Yield],
 			// so `await` / `yield` cannot be used as the function name in
 			// expression position. The Declaration form's binding is in the
-			// enclosing context, where `await` may be a regular identifier
-			// (Script, non-async outer) — only the expression form is
-			// unconditionally restricted.
+			// enclosing context.
 			if is_expr && async && current.value == "await" {
 				report_error(p, "'await' cannot be used as the name of an async function expression")
 			}
 			if is_expr && generator && current.value == "yield" {
 				report_error(p, "'yield' cannot be used as the name of a generator function expression")
+			}
+			// §12.6.1.1 contextual reservation — `await` / `yield` as a
+			// BindingIdentifier in the enclosing context. Fires for both
+			// declaration and expression forms when the enclosing scope is
+			// [+Await] / [+Yield] (covers `async function f() { function
+			// await() {} }`, module-top-level `class await {}` etc).
+			if current.value == "await" && await_is_reserved_here(p) {
+				report_error(p, "'await' cannot be used as a function name in module / async context")
+			}
+			if current.value == "yield" && yield_is_reserved_here(p) {
+				report_error(p, "'yield' cannot be used as a function name in generator / strict context")
 			}
 			eat(p)
 		} else if !is_expr {
@@ -2806,6 +2815,8 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		} else if is_eval_or_arguments(current.value) {
 			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
 			report_error(p, msg)
+		} else if current.value == "await" && await_is_reserved_here(p) {
+			report_error(p, "'await' cannot be used as a class name in module / async context")
 		}
 		// Escaped-ReservedWord in the BindingIdentifier position. Class
 		// names are strict-mode-only, so `class l\u0065t` reaches the
@@ -3889,6 +3900,31 @@ is_strict_reserved_name :: #force_inline proc(name: string) -> bool {
 // as plain .Identifier tokens, so the check happens on the string value.
 is_eval_or_arguments :: #force_inline proc(name: string) -> bool {
 	return name == "eval" || name == "arguments"
+}
+
+// `await` is a context-dependent reserved word per §12.6.1.1: only
+// reserved when the enclosing context is [+Await] (AsyncFunctionBody,
+// AsyncGeneratorBody, ModuleBody). Returns true when the parser is
+// currently inside such a context, so `await` cannot be used as a
+// BindingIdentifier / IdentifierReference / LabelIdentifier.
+await_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
+	if p.in_async || p.in_async_params { return true }
+	// ModuleBody. Use the same source-type heuristic as parse_unary_expr's
+	// .Await case: explicit --source-type=module or auto-detect when
+	// module syntax has been seen.
+	if st, have := p.force_source_type.(SourceType); have && st == .Module {
+		return true
+	}
+	if p.has_module_syntax {
+		return true
+	}
+	return false
+}
+
+// `yield` is reserved in strict mode and inside any GeneratorBody /
+// AsyncGeneratorBody (§12.6.1.1).
+yield_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
+	return p.in_generator || p.in_generator_params || p.strict_mode
 }
 
 // ECMA-262 §12.7.2 — "A code point in a ReservedWord cannot be expressed
@@ -6543,7 +6579,19 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// keep the long-standing diagnostic for `await expr` typos.
 	if !p.in_async && !p.in_async_params {
 		at_module_top := !p.in_function
-		if !at_module_top {
+		// In a Module file, `await` at top level (or any nested
+		// non-function scope) is the AwaitExpression keyword — TLA.
+		// Identifier fall-through only applies to Script source code.
+		in_module_file := false
+		if st, have := p.force_source_type.(SourceType); have && st == .Module {
+			in_module_file = true
+		}
+		if p.has_module_syntax {
+			in_module_file = true
+		}
+		if at_module_top && in_module_file {
+			// TLA — fall through to AwaitExpression parse below.
+		} else if !at_module_top {
 			// Inside a non-async function in script: `await` is an
 			// identifier. Fall through unless the next token clearly
 			// continues as an expression argument (typo case).
@@ -6552,13 +6600,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 			report_error(p, "await outside of async function")
 		} else {
-			// At top level. In Module source-type or auto-detect,
-			// top-level `await` is TLA. In pinned Script (or auto with
-			// no module syntax), `await` may still be an identifier
-			// reference — e.g. `await: 1;` (label), `await;` (bare ref)
-			// in a script. Use the same lookahead heuristic as the
-			// in-function case to fall through to identifier when the
-			// next token doesn't start an expression argument.
+			// At top level in Script (or auto-detect with no module
+			// syntax yet seen). `await: 1;` (label), `await;` (bare
+			// ref), `let await = 1;` etc. all want the identifier
+			// path. Same lookahead heuristic as the in-function case.
 			if !yield_next_is_expression_argument(p) {
 				break
 			}
@@ -7713,13 +7758,21 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			eat(p)
 		}
 	} else if is_token(p, .Async) {
-		// Only treat as async if followed by a property name or *.
+		// Only treat as async if followed by a property name or `*`.
+		// `{ async() {} }` is a method NAMED "async" (no async modifier),
+		// not an async method with an empty name — LParen here exits the
+		// async-modifier branch and falls through to the regular key path.
 		next := peek_token(p)
 		if next.type == .Identifier || next.type == .String || next.type == .Number ||
-		   next.type == .LBracket || next.type == .Mul || next.type == .LParen ||
+		   next.type == .LBracket || next.type == .Mul ||
 		   is_keyword_usable_as_property_name(next.type) {
-			eat(p)
-			is_async = true
+			// §15.8.1 Restricted Production — no LineTerminator between
+			// `async` and the method name. With a newline, `async` is the
+			// shorthand property name and what follows is the next member.
+			if !next.had_line_terminator {
+				eat(p)
+				is_async = true
+			}
 		}
 	}
 
@@ -7803,19 +7856,21 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		prev_ap_obj_acc := p.in_async_params
 		p.in_generator_params = is_generator
 		p.in_async_params = is_async
+		// `super.x` is legal inside an object-literal accessor parameter
+		// default (e.g. `{ get foo(x = super.bar()) {...} }`) because the
+		// param scope inherits the method's [[HomeObject]]. Set in_method
+		// BEFORE parse_function_params so the default-expression parse
+		// sees it. Save / restore mirrors the body-side scoping.
+		prev_in_method := p.in_method
+		p.in_method = true
+		prev_in_derived_ctor := p.in_derived_constructor
+		p.in_derived_constructor = false
 		params := parse_function_params(p)
 		p.in_generator_params = prev_gp_obj_acc
 		p.in_async_params = prev_ap_obj_acc
 		if !expect_token(p, .RParen) {
 			return nil
 		}
-		prev_in_method := p.in_method
-		p.in_method = true
-		// Object-literal getter / setter — not a constructor, so
-		// `super(...)` is not legal even inside a method body that inherits
-		// a surrounding derived-constructor context.
-		prev_in_derived_ctor := p.in_derived_constructor
-		p.in_derived_constructor = false
 		body := parse_function_body(p)
 		body_strict := p.last_body_strict
 		p.in_method = prev_in_method
@@ -7879,20 +7934,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		prev_ap_obj_meth := p.in_async_params
 		p.in_generator_params = is_generator
 		p.in_async_params = is_async
-		params := parse_function_params(p)
-		p.in_generator_params = prev_gp_obj_meth
-		p.in_async_params = prev_ap_obj_meth
-		if !expect_token(p, .RParen) {
-			return nil
-		}
-		// Set generator + async context before parsing body. Previously only
-		// `in_generator` was propagated — `is_async` was stored on the
-		// FunctionExpression but the surrounding parse context was left
-		// untouched, so a nested `await` inside an object method like
-		// `{ async transform(s, a) { await f(); } }` was flagged as
-		// "await outside of async function". Observed on 4 real-world
-		// files (cesium.js, swagger-ui.js, pixi.js, valibot.js) the moment
-		// the await-outside-async check was enabled in non-strict mode.
+		// `super.x` in a default param of an object-literal method shorthand
+		// is legal (param scope inherits [[HomeObject]]). Same async / gen
+		// context the body runs under has to apply to the params too —
+		// `await` and `yield` in default-param positions are gated by
+		// in_async_params / in_generator_params (already set above).
 		prev_in_generator := p.in_generator
 		prev_in_async := p.in_async
 		prev_in_method := p.in_method
@@ -7904,6 +7950,12 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// constructors, so `super(...)` is not legal.
 		p.in_method = true
 		p.in_derived_constructor = false
+		params := parse_function_params(p)
+		p.in_generator_params = prev_gp_obj_meth
+		p.in_async_params = prev_ap_obj_meth
+		if !expect_token(p, .RParen) {
+			return nil
+		}
 		body := parse_function_body(p)
 		body_strict := p.last_body_strict
 		p.in_generator = prev_in_generator
@@ -8049,9 +8101,20 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	id: Maybe(BindingIdentifier)
 	if can_be_binding_identifier(p.cur_type) {
 		current := get_current(p)
+		name_tok_type := p.cur_type
 		id = BindingIdentifier{
 			loc  = loc_from_token(current),
 			name = current.value,
+		}
+		// Same §15.7.1 binding-identifier checks as parse_class_declaration.
+		if is_strict_reserved_word(name_tok_type) || is_strict_reserved_name(current.value) {
+			msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value)
+			report_error(p, msg)
+		} else if is_eval_or_arguments(current.value) {
+			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
+			report_error(p, msg)
+		} else if current.value == "await" && await_is_reserved_here(p) {
+			report_error(p, "'await' cannot be used as a class name in module / async context")
 		}
 		eat(p)
 	}
@@ -8261,13 +8324,14 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	if p.in_generator_params {
 		report_error(p, "'yield' expression is not allowed in formal parameters of a generator")
 	}
-	// §14.13.1 LabelIdentifier — in generator context, “yield” is a
-	// reserved word, so `yield:` as a LabelledStatement head is a
-	// SyntaxError. Detect by peeking at the next token before we
-	// commit to the YieldExpression form.
-	if p.lexer != nil && p.lexer.nxt.kind == .Colon {
-		report_error(p, "'yield' cannot be used as a label identifier in a generator")
-	}
+	// Note: `yield :` as a LabelledStatement head can't reach this
+	// function in a generator. parse_expression_statement only forms
+	// a label when the parsed expression is a plain ^Identifier; in a
+	// generator the lexer emits .Yield and we always commit to a
+	// YieldExpression here, so the labeled-statement detector skips
+	// it. The previous "yield as label" check fired spuriously on
+	// `(yield) ? yield : yield` and similar ternary expressions where
+	// the colon is part of the surrounding ConditionalExpression.
 	eat(p) // consume yield
 
 	// ECMA-262 §15.5 Restricted Production: no LineTerminator between
@@ -8927,6 +8991,28 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	if left != nil {
 		#partial switch e in left {
 		case ^Identifier:
+			// §15.3.1 — ArrowParameters BindingIdentifier checks. Strict
+			// mode rejects `eval` / `arguments`, FutureReservedWords, `let`,
+			// `static`, `yield`, and contextual `await` / `yield` checks
+			// follow the same rule as parse_function_declaration.
+			if p.strict_mode {
+				if is_eval_or_arguments(e.name) {
+					msg := fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name)
+					report_error(p, msg)
+				} else if is_strict_reserved_name(e.name) || e.name == "let" || e.name == "static" || e.name == "yield" {
+					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name)
+					report_error(p, msg)
+				}
+			}
+			if e.name == "enum" {
+				report_error(p, "'enum' is a reserved identifier")
+			}
+			if e.name == "await" && await_is_reserved_here(p) {
+				report_error(p, "'await' cannot be used as an arrow parameter in module / async context")
+			}
+			if e.name == "yield" && yield_is_reserved_here(p) {
+				report_error(p, "'yield' cannot be used as an arrow parameter in generator / strict context")
+			}
 			ident := new_node(p, Identifier)
 			ident^ = e^
 			param := FunctionParameter{

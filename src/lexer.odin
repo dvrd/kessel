@@ -1536,12 +1536,51 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
 	off := l.offset + 1 // skip the dot
-	for off < src_len && src[off] >= '0' && src[off] <= '9' { off += 1 }
-	// Exponent
+	// §12.9.3 — separator placement in the fraction part. Leading
+	// separator after `.` (`._1`) is illegal; trailing (`0.1_`) and
+	// doubled (`0.1__2`) are illegal too.
+	prev_sep := true // the dot itself is the prior "non-digit"
+	frac_digits := 0
+	for off < src_len {
+		ch := src[off]
+		if ch >= '0' && ch <= '9' {
+			prev_sep = false
+			frac_digits += 1
+			off += 1
+		} else if ch == '_' {
+			if prev_sep {
+				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+			}
+			prev_sep = true
+			off += 1
+		} else { break }
+	}
+	if prev_sep && frac_digits > 0 {
+		append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+	}
+	// Exponent (with separator validation in the digit run).
 	if off < src_len && (src[off] == 'e' || src[off] == 'E') {
 		off += 1
 		if off < src_len && (src[off] == '+' || src[off] == '-') { off += 1 }
-		for off < src_len && src[off] >= '0' && src[off] <= '9' { off += 1 }
+		prev_sep_e := true
+		exp_digits := 0
+		for off < src_len {
+			ch := src[off]
+			if ch >= '0' && ch <= '9' {
+				prev_sep_e = false
+				exp_digits += 1
+				off += 1
+			} else if ch == '_' {
+				if prev_sep_e {
+					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+				}
+				prev_sep_e = true
+				off += 1
+			} else { break }
+		}
+		if prev_sep_e && exp_digits > 0 {
+			append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+		}
 	}
 	l.offset = off
 	return FastToken{start = start, end = u32(off), kind = .Number, flags = flags}
