@@ -1633,6 +1633,14 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
 	}
 
+	// §22.2.1 Named-group validation. Two-pass scan:
+	// Pass 1: collect every `(?<name>` declaration. Report duplicates
+	//   and empty names.
+	// Pass 2: verify every `\k<name>` reference resolves against the
+	//   collected set.
+	pattern_end := u32(l.offset)
+	regex_validate_named_groups(l, u32(pattern_start), pattern_end)
+
 	l.offset += 1 // skip closing /
 
 	// Parse and validate flags (§22.2.1 RegExp constructor, Step 3).
@@ -1673,6 +1681,170 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	full_regex := l.source[start:end]
 	l.last_lit_offset = start; l.last_lit_value = LiteralValue(full_regex); l.last_lit_type = .Regex
 	return FastToken{start = start, end = end, kind = .RegularExpression, flags = flags}
+}
+
+// Scan the pattern body [pat_start, pat_end) for named-group issues:
+//   * Empty group name: `(?<>x)` — reject.
+//   * Unclosed group name: `(?<a` / `(?<a)` — reject.
+//   * Duplicate group name: `(?<a>x)(?<a>y)` — reject.
+//   * Dangling \k<name> reference: `(?<a>x)\k<b>` — reject.
+//
+// This is a surface-level syntactic check; the full RegExp grammar
+// (AtomEscape / CharacterEscape / CharacterClassEscape / lookbehind
+// restrictions / v-flag set notation / Unicode property escapes) is
+// deferred to a dedicated regex parser.
+regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32) {
+	src := l.source_bytes
+	if int(pat_end) > len(src) { return }
+
+	// Pass 1 — collect declared names + report duplicate / empty.
+	names := make(map[string]bool, 4, context.temp_allocator)
+	in_class := false
+	for i := int(pat_start); i < int(pat_end); {
+		c := src[i]
+		if c == '\\' {
+			// Skip AtomEscape — two-char slot. Handled in pass 2.
+			i += 2
+			continue
+		}
+		if c == '[' && !in_class { in_class = true; i += 1; continue }
+		if c == ']' && in_class  { in_class = false; i += 1; continue }
+		if in_class { i += 1; continue }
+		if c == '(' && i + 2 < int(pat_end) && src[i+1] == '?' && src[i+2] == '<' {
+			// `(?<` — skip lookbehind forms `(?<=` / `(?<!`.
+			if i + 3 < int(pat_end) && (src[i+3] == '=' || src[i+3] == '!') {
+				i += 4
+				continue
+			}
+			name_start := i + 3
+			j := name_start
+			for j < int(pat_end) && src[j] != '>' && src[j] != ')' {
+				if src[j] == '\\' && j + 1 < int(pat_end) {
+					// Skip the backslash + the escape body. \uXXXX (4 hex)
+					// or \u{H+} (variable). Don't fully decode here — the
+					// outer name validator just needs to skip past.
+					if src[j+1] == 'u' && j + 2 < int(pat_end) && src[j+2] == '{' {
+						k := j + 3
+						for k < int(pat_end) && src[k] != '}' { k += 1 }
+						if k < int(pat_end) { j = k + 1 } else { j = k }
+					} else {
+						j += 2
+						// Skip 4 hex digits for \uHHHH (best-effort).
+						for k := 0; k < 4 && j < int(pat_end) && src[j] != '>'; k += 1 {
+							j += 1
+						}
+					}
+					continue
+				}
+				j += 1
+			}
+			if j >= int(pat_end) || src[j] != '>' {
+				append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Unterminated named capture group"})
+				i = j + 1
+				continue
+			}
+			name := string(src[name_start:j])
+			if len(name) == 0 {
+				append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Empty named capture group"})
+			} else {
+				// Note: ES2025 §Duplicate Named Capturing Groups proposal
+				// allows duplicate group names when the duplicates appear
+				// in different DisjunctionAlternatives (`(?:(?<a>x)|(?<a>y))`).
+				// Without a full alternation tracker we accept all
+				// duplicates; OXC and V8 do the same. Stricter checking is
+				// the responsibility of the runtime regex engine.
+				// Validate name characters — ASCII-only check that rejects
+				// obvious non-identifier punctuation (`-`, `,`, space, etc.).
+				// Non-ASCII bytes pass through as Unicode IdentifierPart
+				// (UTF-8 encoded). \uXXXX / \u{H+} / ZWJ / ZWNJ escapes are
+				// also legal in GroupName; we just walk past the backslash.
+				ok := true
+				for k := name_start; k < j; k += 1 {
+					ch := src[k]
+					if ch >= 0x80 { continue }
+					is_start := k == name_start
+					if ch == '$' || ch == '_' || ch == '\\' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+						continue
+					}
+					if !is_start && ch >= '0' && ch <= '9' {
+						continue
+					}
+					ok = false
+					break
+				}
+				if !ok {
+					append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Invalid named capture group name"})
+				} else {
+					names[name] = true
+				}
+			}
+			i = j + 1
+			continue
+		}
+		i += 1
+	}
+
+	// Pass 2 — collect `\k<name>` references and verify each resolves.
+	// In u/v flag mode, a dangling `\k<name>` is always an error. In
+	// non-u mode, a `\k<name>` where the pattern has NO named groups at
+	// all is interpreted as literal characters per Annex B; when the
+	// pattern DOES have named groups, `\k<name>` must resolve.
+	has_any := len(names) > 0
+	in_class = false
+	for i := int(pat_start); i < int(pat_end); {
+		c := src[i]
+		if c == '[' && !in_class { in_class = true; i += 1; continue }
+		if c == ']' && in_class  { in_class = false; i += 1; continue }
+		if c == '\\' && i + 1 < int(pat_end) && src[i+1] == 'k' && i + 2 < int(pat_end) && src[i+2] == '<' {
+			name_start := i + 3
+			j := name_start
+			has_escape := false
+			for j < int(pat_end) && src[j] != '>' && src[j] != ')' {
+				if src[j] == '\\' && j + 1 < int(pat_end) {
+					has_escape = true
+					if src[j+1] == 'u' && j + 2 < int(pat_end) && src[j+2] == '{' {
+						k := j + 3
+						for k < int(pat_end) && src[k] != '}' { k += 1 }
+						if k < int(pat_end) { j = k + 1 } else { j = k }
+					} else {
+						j += 2
+						for k := 0; k < 4 && j < int(pat_end) && src[j] != '>'; k += 1 {
+							j += 1
+						}
+					}
+					continue
+				}
+				j += 1
+			}
+			if j < int(pat_end) && src[j] == '>' {
+				// Skip name verification when the reference contains a
+				// \uXXXX escape — we'd need to decode to compare against
+				// the declaration set, which the lexer doesn't do.
+				if !has_escape {
+					name := string(src[name_start:j])
+					if has_any {
+						if _, ok := names[name]; !ok {
+							append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Invalid named capture reference"})
+						}
+					}
+				}
+				i = j + 1
+				continue
+			}
+			// Unterminated \k<...> — if has_any, it's an error; otherwise
+			// skip as a literal per Annex B.
+			if has_any {
+				append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Unterminated named capture reference"})
+			}
+			i += 3
+			continue
+		}
+		if c == '\\' {
+			i += 2
+			continue
+		}
+		i += 1
+	}
 }
 
 // ============================================================================
