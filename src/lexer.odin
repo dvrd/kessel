@@ -650,6 +650,10 @@ is_id_start_codepoint :: #force_inline proc(cp: u32) -> bool {
 	if cp < 128 {
 		return CHAR_CLASS_TABLE[cp] == u8(CharClass.IdStart)
 	}
+	// Unicode IDStart excludes ZWJ (U+200D) and ZWNJ (U+200C), which
+	// are IdentifierContinue per Other_ID_Continue but not IDStart.
+	// Also exclude codepoints outside the legal Unicode range.
+	if cp == 0x200C || cp == 0x200D { return false }
 	return cp <= 0x10FFFF
 }
 

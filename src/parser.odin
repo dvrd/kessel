@@ -2519,11 +2519,21 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// declaration and expression forms when the enclosing scope is
 			// [+Await] / [+Yield] (covers `async function f() { function
 			// await() {} }`, module-top-level `class await {}` etc).
-			if current.value == "await" && await_is_reserved_here(p) {
-				report_error(p, "'await' cannot be used as a function name in module / async context")
-			}
-			if current.value == "yield" && yield_is_reserved_here(p) {
-				report_error(p, "'yield' cannot be used as a function name in generator / strict context")
+			// FunctionExpression names live in the inner function's own
+			// scope (§15.7.1: BindingIdentifier of FunctionExpression is
+			// parsed under [~Yield, ~Await] when the function is a regular
+			// non-async non-generator). So `function yield() {}` inside a
+			// generator IS legal as long as the inner function is itself
+			// not a generator. Skip the contextual check for plain
+			// FunctionExpression names; the function-itself flags (async /
+			// generator) drive the FunctionExpression-name check above.
+			if !is_expr {
+				if current.value == "await" && await_is_reserved_here(p) {
+					report_error(p, "'await' cannot be used as a function name in module / async context")
+				}
+				if current.value == "yield" && yield_is_reserved_here(p) {
+					report_error(p, "'yield' cannot be used as a function name in generator / strict context")
+				}
 			}
 			eat(p)
 		} else if !is_expr {
@@ -3148,6 +3158,8 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		has_get: bool,
 		has_set: bool,
 		has_other: bool,  // field or method
+		get_static: bool,
+		set_static: bool,
 	}
 	seen: map[string]PrivateSeen
 	seen.allocator = p.allocator
@@ -3192,13 +3204,18 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		}
 		prev, _ := seen[name]
 		dup := false
-	switch elem.kind {
+		static_mismatch := false
+		switch elem.kind {
 		case .Get:
 			if prev.has_get || prev.has_other { dup = true }
+			if prev.has_set && prev.set_static != elem.static { static_mismatch = true }
 			prev.has_get = true
+			prev.get_static = elem.static
 		case .Set:
 			if prev.has_set || prev.has_other { dup = true }
+			if prev.has_get && prev.get_static != elem.static { static_mismatch = true }
 			prev.has_set = true
+			prev.set_static = elem.static
 		case .Method, .Constructor, .StaticBlock:
 			if prev.has_get || prev.has_set || prev.has_other { dup = true }
 			prev.has_other = true
@@ -3206,6 +3223,14 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		seen[name] = prev
 		if dup {
 			msg := fmt.tprintf("Duplicate private class member '#%s'", name)
+			report_error(p, msg)
+		}
+		if static_mismatch {
+			// §15.7.1: a private getter / setter pair must have matching
+			// static-ness. `static get #f() {}` paired with `set #f(v) {}`
+			// is a SyntaxError because the private slot is shared and
+			// can't straddle static/instance.
+			msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
 			report_error(p, msg)
 		}
 	}
@@ -4671,6 +4696,24 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 			num_lit.loc.span.end = cur_offset(p) + u32(len(current.value))
 			key = num_lit
+			eat(p)
+		} else if is_token(p, .BigInt) {
+			// BigInt key: `{ 1n: v }` — same as numeric. Must be followed
+			// by `:`. Stored as ^Expression (the computed-key variant of
+			// the union) since ObjectPatternPropertyKey doesn't include
+			// BigIntLiteral directly. ESTree emit treats BigIntLiteral
+			// like other Literal kinds.
+			current := get_current(p)
+			big := new_node(p, BigIntLiteral)
+			big.loc = loc_from_token(current)
+			big.raw = current.value
+			if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
+				big.value = current.value[:len(current.value)-1]
+			} else {
+				big.value = current.value
+			}
+			big.loc.span.end = cur_offset(p) + u32(len(current.value))
+			key = (^Expression)(expression_from(p, big))
 			eat(p)
 		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 			// Identifier or keyword used as key. When the property becomes
