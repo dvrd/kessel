@@ -862,6 +862,27 @@ match_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 // ============================================================================
 
 parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset: int) {
+	// §Explicit Resource Management — `using` / `await using` are
+	// forbidden at the top level of a Script (only Module top-level
+	// allows them). Detect by token + the source-type pin (or the
+	// auto-detect script default — has_module_syntax set if any
+	// module syntax was seen so far).
+	if is_token(p, .Using) || (is_token(p, .Await) && peek_dispatch(p).type == .Using) {
+		in_module := false
+		if st, have := p.force_source_type.(SourceType); have && st == .Module {
+			in_module = true
+		}
+		if p.has_module_syntax {
+			in_module = true
+		}
+		if !in_module {
+			kn := "using"
+			if is_token(p, .Await) { kn = "await using" }
+			msg := fmt.tprintf("'%s' declaration is not allowed at the top level of a script", kn)
+			report_error(p, msg)
+		}
+	}
+
 	// Catch stray tokens that aren't valid statement starts (dangling
 	// `else`, orphan `}`, etc.) with a dedicated diagnostic rather than
 	// letting error recovery silently eat them. `.Else` only arrives here
@@ -1394,10 +1415,29 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// Statement. Statement excludes LexicalDeclaration,
 			// ClassDeclaration, AsyncFunctionDeclaration,
 			// GeneratorDeclaration, AsyncGeneratorDeclaration. Annex B.3.2
-			// relaxes plain FunctionDeclaration in sloppy script (narrow
-			// shape: no async / generator, not inside an IfStatement); we
-			// accept any FunctionDeclaration in sloppy and reject in strict.
-			report_statement_only_position(p, labeled.body, !p.strict_mode)
+			// relaxes plain FunctionDeclaration in sloppy script.
+			// Inline-check the immediate body kinds; we don't recurse
+			// through nested labels here because the iteration-body /
+			// if-body / etc. cases handle their own recursion via
+			// report_statement_only_position with the right flag.
+			if labeled.body != nil {
+				#partial switch v in labeled.body^ {
+				case ^VariableDeclaration:
+					if v != nil && (v.kind == .Let || v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing) {
+						report_error(p, "Lexical declaration cannot be a labeled item")
+					}
+				case ^ClassDeclaration:
+					report_error(p, "Class declaration cannot be a labeled item")
+				case ^FunctionDeclaration:
+					if v != nil {
+						if v.async || v.generator {
+							report_error(p, "Async / generator function declaration cannot be a labeled item")
+						} else if p.strict_mode {
+							report_error(p, "Function declaration cannot be a labeled item in strict mode")
+						}
+					}
+				}
+			}
 
 			return statement_from(p, labeled)
 		}
@@ -1453,12 +1493,14 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		// Recurse through labels: `label1: label2: function f() {}` in
 		// a single-statement position (iteration body, with body, ...)
 		// must propagate the check to the innermost LabelledItem. Per
-		// §13.5 / §B.3.2, a plain FunctionDeclaration is allowed inside
-		// LabelledStatement only when the LabelledStatement itself is at
-		// StatementListItem position; inside an iteration body or
-		// `with`-body it is always forbidden, even in sloppy script.
+		// §13.5 / §B.3.2 / §B.3.3, a plain FunctionDeclaration is allowed
+		// inside LabelledStatement only when the LabelledStatement itself
+		// is at StatementListItem position; inside an iteration body, an
+		// `if`-body, or a `with`-body the Annex B carve-out does NOT
+		// apply — force allow_plain_function = false so the recursive
+		// check rejects the inner FunctionDeclaration.
 		if v == nil { return }
-		report_statement_only_position(p, v.body, allow_plain_function)
+		report_statement_only_position(p, v.body, false)
 	}
 }
 

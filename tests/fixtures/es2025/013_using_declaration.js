@@ -1,1 +1,3 @@
-using x = getResource();
+{
+  using x = getResource();
+}
