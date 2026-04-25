@@ -1,0 +1,58 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 277,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ThrowStatement",
+      "start": 267,
+      "end": 276,
+      "argument": {
+        "type": "Identifier",
+        "start": 274,
+        "end": 275,
+        "name": "x"      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 66,
+      "value": " ECMA-262 §14.14 Restricted Production — no LineTerminator is"
+    },
+    {
+      "type": "Line",
+      "start": 67,
+      "end": 136,
+      "value": " permitted between the `throw` keyword and its Expression argument."
+    },
+    {
+      "type": "Line",
+      "start": 137,
+      "end": 205,
+      "value": " ASI does NOT rescue this; ASI cannot insert a semicolon where the"
+    },
+    {
+      "type": "Line",
+      "start": 206,
+      "end": 269,
+      "value": " grammar explicitly forbids it. `throw\\nx;` is a SyntaxError."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Illegal newline after 'throw'",
+      "line": 6,
+      "column": 2,
+      "offset": 277
+    }
+  ]
+}
+Parse errors (1):
+  Line 6, Column 2: Illegal newline after 'throw'
+
+--- Statistics ---
+Arena: used=9536B reserved=16777216B ratio=0%
+Parse errors: 1

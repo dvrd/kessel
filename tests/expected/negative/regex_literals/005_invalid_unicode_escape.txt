@@ -1,0 +1,57 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 63,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 46,
+      "end": 62,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 52,
+          "end": 62,
+          "id": {
+            "type": "Identifier",
+            "start": 52,
+            "end": 53,
+            "name": "r"          },
+          "init": {
+            "type": "Literal",
+            "start": 56,
+            "end": 62,
+            "value": null,
+            "raw": "/[a-z/",
+            "regex": {
+              "pattern": "[a-z",
+              "flags": ""
+            }          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 45,
+      "value": " Expected error: malformed character class."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Unterminated regular expression",
+      "line": 2,
+      "column": 11,
+      "offset": 56
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 11: Unterminated regular expression
+
+--- Statistics ---
+Arena: used=11024B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -1,0 +1,56 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 33,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 13,
+      "expression": {
+        "type": "Literal",
+        "start": 0,
+        "end": 12,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "VariableDeclaration",
+      "start": 14,
+      "end": 32,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 18,
+          "end": 31,
+          "id": {
+            "type": "Identifier",
+            "start": 18,
+            "end": 27,
+            "name": "interface"          },
+          "init": {
+            "type": "Literal",
+            "start": 30,
+            "end": 31,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "errors": [
+    {
+      "message": "'interface' is a reserved identifier in strict mode",
+      "line": 2,
+      "column": 15,
+      "offset": 28
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 15: 'interface' is a reserved identifier in strict mode
+
+--- Statistics ---
+Arena: used=8112B reserved=16777216B ratio=0%
+Parse errors: 1

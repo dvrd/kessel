@@ -1,0 +1,54 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 87,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 67,
+      "end": 86,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 73,
+          "end": 85,
+          "id": {
+            "type": "Identifier",
+            "start": 73,
+            "end": 78,
+            "name": "value"          },
+          "init": {
+            "type": "Literal",
+            "start": 81,
+            "end": 85,
+            "value": null,
+            "raw": "1.0n",
+            "bigint": "1.0"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 66,
+      "value": " Expected error: bigint literals cannot contain a decimal point."
+    }
+  ],
+  "errors": [
+    {
+      "message": "BigInt literal cannot contain a decimal point",
+      "line": 2,
+      "column": 18,
+      "offset": 84
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 18: BigInt literal cannot contain a decimal point
+
+--- Statistics ---
+Arena: used=8304B reserved=16777216B ratio=0%
+Parse errors: 1

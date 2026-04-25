@@ -1,0 +1,111 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 483,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 450,
+      "end": 482,
+      "id": {
+        "type": "Identifier",
+        "start": 465,
+        "end": 466,
+        "name": "f"
+      },
+      "expression": false,
+      "generator": false,
+      "async": true,
+      "params": [
+        {
+          "type": "AssignmentPattern",
+          "start": 467,
+          "end": 478,
+          "left": {
+            "type": "Identifier",
+            "start": 467,
+            "end": 468,
+            "name": "x"
+          },
+          "right": {
+            "type": "AwaitExpression",
+            "start": 471,
+            "end": 478,
+            "argument": {
+              "type": "Literal",
+              "start": 477,
+              "end": 478,
+              "value": 1,
+              "raw": "1"            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 480,
+        "end": 482,
+        "body": [
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 66,
+      "value": " ECMA-262 §15.8.1 — \"It is a Syntax Error if FormalParameters"
+    },
+    {
+      "type": "Line",
+      "start": 67,
+      "end": 134,
+      "value": " Contains AwaitExpression is true.\" Async function parameters run"
+    },
+    {
+      "type": "Line",
+      "start": 135,
+      "end": 204,
+      "value": " outside the async function environment, so the default initializer"
+    },
+    {
+      "type": "Line",
+      "start": 205,
+      "end": 273,
+      "value": " `x = await 1` has no valid await target. The same rule (§15.6.1)"
+    },
+    {
+      "type": "Line",
+      "start": 274,
+      "end": 343,
+      "value": " extends to AsyncGeneratorDeclaration / AsyncGeneratorMethod and to"
+    },
+    {
+      "type": "Line",
+      "start": 344,
+      "end": 405,
+      "value": " async class / object-literal methods; all routes share the"
+    },
+    {
+      "type": "Line",
+      "start": 406,
+      "end": 453,
+      "value": " `in_async_params` guard in parse_unary_expr."
+    }
+  ],
+  "errors": [
+    {
+      "message": "'await' expression is not allowed in formal parameters of an async function",
+      "line": 8,
+      "column": 22,
+      "offset": 475
+    }
+  ]
+}
+Parse errors (1):
+  Line 8, Column 22: 'await' expression is not allowed in formal parameters of an async function
+
+--- Statistics ---
+Arena: used=14984B reserved=16777216B ratio=0%
+Parse errors: 1

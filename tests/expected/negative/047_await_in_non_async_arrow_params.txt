@@ -1,0 +1,129 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 511,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 455,
+      "end": 510,
+      "id": {
+        "type": "Identifier",
+        "start": 470,
+        "end": 475,
+        "name": "outer"
+      },
+      "expression": false,
+      "generator": false,
+      "async": true,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 478,
+        "end": 510,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 482,
+            "end": 508,
+            "argument": {
+              "type": "ArrowFunctionExpression",
+              "start": 489,
+              "end": 507,
+              "id": null,
+              "expression": true,
+              "generator": false,
+              "async": false,
+              "params": [
+                {
+                  "type": "AssignmentPattern",
+                  "start": 490,
+                  "end": 501,
+                  "left": {
+                    "type": "Identifier",
+                    "start": 490,
+                    "end": 491,
+                    "name": "x"
+                  },
+                  "right": {
+                    "type": "AwaitExpression",
+                    "start": 494,
+                    "end": 501,
+                    "argument": {
+                      "type": "Literal",
+                      "start": 500,
+                      "end": 501,
+                      "value": 1,
+                      "raw": "1"                    }
+                  }
+                }
+              ],
+              "body": {
+                "type": "Identifier",
+                "start": 506,
+                "end": 507,
+                "name": "x"              }            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 74,
+      "value": " ECMA-262 §15.3.1 — \"It is a Syntax Error if ArrowParameters Contains"
+    },
+    {
+      "type": "Line",
+      "start": 75,
+      "end": 138,
+      "value": " AwaitExpression is true.\" The rule applies to BOTH async and"
+    },
+    {
+      "type": "Line",
+      "start": 139,
+      "end": 210,
+      "value": " non-async arrows. The cover `(x = await 1)` parses legally inside an"
+    },
+    {
+      "type": "Line",
+      "start": 211,
+      "end": 284,
+      "value": " enclosing async function (where `await 1` is a valid AwaitExpression),"
+    },
+    {
+      "type": "Line",
+      "start": 285,
+      "end": 355,
+      "value": " so we can only detect the violation once the `=>` commits the cover"
+    },
+    {
+      "type": "Line",
+      "start": 356,
+      "end": 427,
+      "value": " to arrow parameters. parse_arrow_function walks the cover expression"
+    },
+    {
+      "type": "Line",
+      "start": 428,
+      "end": 457,
+      "value": " and reports retroactively."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Await expression is not allowed in arrow function parameters",
+      "line": 9,
+      "column": 27,
+      "offset": 509
+    }
+  ]
+}
+Parse errors (1):
+  Line 9, Column 27: Await expression is not allowed in arrow function parameters
+
+--- Statistics ---
+Arena: used=14696B reserved=16777216B ratio=0%
+Parse errors: 1

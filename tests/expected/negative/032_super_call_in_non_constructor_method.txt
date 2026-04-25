@@ -1,0 +1,145 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 454,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 395,
+      "end": 405,
+      "id": {
+        "type": "Identifier",
+        "start": 401,
+        "end": 402,
+        "name": "B"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 403,
+        "end": 405,
+        "body": []
+      }    },
+    {
+      "type": "ClassDeclaration",
+      "start": 406,
+      "end": 453,
+      "id": {
+        "type": "Identifier",
+        "start": 412,
+        "end": 413,
+        "name": "D"
+      },
+      "superClass": {
+        "type": "Identifier",
+        "start": 422,
+        "end": 423,
+        "name": "B"      },
+      "body": {
+        "type": "ClassBody",
+        "start": 424,
+        "end": 453,
+        "body": [
+          {
+            "type": "MethodDefinition",
+                        "start": 427,
+            "end": 451,
+                        "key": {
+              "type": "Identifier",
+              "start": 427,
+              "end": 433,
+              "name": "method"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 433,
+              "end": 451,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 436,
+                "end": 451,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 440,
+                    "end": 448,
+                    "expression": {
+                      "type": "CallExpression",
+                      "start": 440,
+                      "end": 447,
+                      "callee": {
+                        "type": "Super",
+                        "start": 440,
+                        "end": 445                      },
+                      "arguments": [
+                      ]                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 77,
+      "value": " ECMA-262 §15.7.3 / §13.3.7 — `super(...)` (SuperCall) is a SyntaxError"
+    },
+    {
+      "type": "Line",
+      "start": 78,
+      "end": 147,
+      "value": " in any class method body that is not the instance constructor of a"
+    },
+    {
+      "type": "Line",
+      "start": 148,
+      "end": 218,
+      "value": " derived class. SuperProperty (`super.x` / `super[x]`) remains legal"
+    },
+    {
+      "type": "Line",
+      "start": 219,
+      "end": 282,
+      "value": " in all class methods, but the CALL form is restricted to the"
+    },
+    {
+      "type": "Line",
+      "start": 283,
+      "end": 352,
+      "value": " derived-class constructor body (plus arrow functions nested inside"
+    },
+    {
+      "type": "Line",
+      "start": 353,
+      "end": 398,
+      "value": " it, which is not what this fixture tests)."
+    }
+  ],
+  "errors": [
+    {
+      "message": "'super' call is only allowed in the constructor of a derived class",
+      "line": 10,
+      "column": 8,
+      "offset": 449
+    }
+  ]
+}
+Parse errors (1):
+  Line 10, Column 8: 'super' call is only allowed in the constructor of a derived class
+
+--- Statistics ---
+Arena: used=15304B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -1,0 +1,53 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 212,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ReturnStatement",
+      "start": 201,
+      "end": 211,
+      "argument": {
+        "type": "Literal",
+        "start": 208,
+        "end": 210,
+        "value": 42,
+        "raw": "42"      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 66,
+      "value": " ECMA-262 §14.10.1 — ReturnStatement is only allowed inside a"
+    },
+    {
+      "type": "Line",
+      "start": 67,
+      "end": 139,
+      "value": " FunctionBody. Top-level `return` in a script source is a SyntaxError."
+    },
+    {
+      "type": "Line",
+      "start": 140,
+      "end": 203,
+      "value": " (Some hosts relax this; spec-correct behavior is to reject.)"
+    }
+  ],
+  "errors": [
+    {
+      "message": "'return' outside of function",
+      "line": 4,
+      "column": 8,
+      "offset": 211
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 8: 'return' outside of function
+
+--- Statistics ---
+Arena: used=8240B reserved=16777216B ratio=0%
+Parse errors: 1

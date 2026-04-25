@@ -1,0 +1,77 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 62,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 41,
+      "end": 61,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 47,
+          "end": 61,
+          "id": {
+            "type": "Identifier",
+            "start": 47,
+            "end": 52,
+            "name": "value"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 55,
+            "end": 61,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 55,
+              "end": 58,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 56,
+                "end": 57,
+                "name": "A"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 58,
+              "end": 61,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 60,
+                "end": 61,
+                "name": "A"
+              }
+            }
+          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 40,
+      "value": " Expected error: unterminated JSX tag."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected >, got EOF",
+      "line": 3,
+      "column": 1,
+      "offset": 62
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 1: Expected >, got EOF
+
+--- Statistics ---
+Arena: used=8656B reserved=16777216B ratio=0%
+Parse errors: 1

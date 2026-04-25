@@ -1,0 +1,53 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 65,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 50,
+      "end": 64,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 54,
+          "end": 63,
+          "id": {
+            "type": "Identifier",
+            "start": 54,
+            "end": 59,
+            "name": "class"          },
+          "init": {
+            "type": "Literal",
+            "start": 62,
+            "end": 63,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 49,
+      "value": " Expected error: reserved word as variable name"
+    }
+  ],
+  "errors": [
+    {
+      "message": "Reserved word cannot be used as a binding name",
+      "line": 2,
+      "column": 5,
+      "offset": 54
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 5: Reserved word cannot be used as a binding name
+
+--- Statistics ---
+Arena: used=8112B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -1,0 +1,124 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 614,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ForInStatement",
+      "start": 594,
+      "end": 613,
+      "left": {
+        "type": "AssignmentPattern",
+        "start": 599,
+        "end": 604,
+        "left": {
+          "type": "Identifier",
+          "start": 599,
+          "end": 600,
+          "name": "a"
+        },
+        "right": {
+          "type": "Literal",
+          "start": 603,
+          "end": 604,
+          "value": 1,
+          "raw": "1"
+        }
+      },
+      "right": {
+        "type": "Identifier",
+        "start": 608,
+        "end": 609,
+        "name": "b"      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 611,
+        "end": 613,
+        "body": [
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 75,
+      "value": " ECMA-262 §14.7.5.1 — for-in/for-of LeftHandSideExpression must have a"
+    },
+    {
+      "type": "Line",
+      "start": 76,
+      "end": 147,
+      "value": " simple AssignmentTargetType. `a = 1` is an AssignmentExpression, not"
+    },
+    {
+      "type": "Line",
+      "start": 148,
+      "end": 214,
+      "value": " a LeftHandSideExpression, so `for (a = 1 in b)` fails. The same"
+    },
+    {
+      "type": "Line",
+      "start": 215,
+      "end": 255,
+      "value": " rule applies to for-of (fixture 039)."
+    },
+    {
+      "type": "Line",
+      "start": 256,
+      "end": 258,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 259,
+      "end": 326,
+      "value": " Annex B.3.5 carves out a narrow exception: `for (var X = init in"
+    },
+    {
+      "type": "Line",
+      "start": 327,
+      "end": 396,
+      "value": " Expr) ...` is allowed in sloppy script for `var` declarations with"
+    },
+    {
+      "type": "Line",
+      "start": 397,
+      "end": 456,
+      "value": " an initializer — but that path reaches the parser as a"
+    },
+    {
+      "type": "Line",
+      "start": 457,
+      "end": 523,
+      "value": " VariableDeclaration (with the init on VariableDeclarator.init),"
+    },
+    {
+      "type": "Line",
+      "start": 524,
+      "end": 591,
+      "value": " NOT as an AssignmentExpression, so this check naturally bypasses"
+    },
+    {
+      "type": "Line",
+      "start": 592,
+      "end": 598,
+      "value": " it."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Invalid left-hand side in for-in loop",
+      "line": 12,
+      "column": 15,
+      "offset": 613
+    }
+  ]
+}
+Parse errors (1):
+  Line 12, Column 15: Invalid left-hand side in for-in loop
+
+--- Statistics ---
+Arena: used=16384B reserved=16777216B ratio=0%
+Parse errors: 1

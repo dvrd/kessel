@@ -1,0 +1,66 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 83,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 37,
+      "end": 82,
+      "id": {
+        "type": "Identifier",
+        "start": 46,
+        "end": 56,
+        "name": "read_value"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 59,
+        "end": 82,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 65,
+            "end": 80,
+            "argument": {
+              "type": "AwaitExpression",
+              "start": 72,
+              "end": 79,
+              "argument": {
+                "type": "Literal",
+                "start": 78,
+                "end": 79,
+                "value": 1,
+                "raw": "1"              }            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 36,
+      "value": " Intended for module-mode parsing."
+    }
+  ],
+  "errors": [
+    {
+      "message": "await outside of async function",
+      "line": 3,
+      "column": 12,
+      "offset": 72
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 12: await outside of async function
+
+--- Statistics ---
+Arena: used=8320B reserved=16777216B ratio=0%
+Parse errors: 1

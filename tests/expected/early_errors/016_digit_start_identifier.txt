@@ -1,0 +1,101 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 210,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 196,
+      "end": 201,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 202,
+          "end": 202,
+          "id": {
+            null          },
+          "init": null        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 202,
+      "end": 203,
+      "expression": {
+        "type": "Literal",
+        "start": 202,
+        "end": 203,
+        "value": 1,
+        "raw": "1"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 203,
+      "end": 209,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 203,
+        "end": 208,
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "start": 203,
+          "end": 204,
+          "name": "a"        },
+        "right": {
+          "type": "Literal",
+          "start": 207,
+          "end": 208,
+          "value": 1,
+          "raw": "1"        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " Digits are IdentifierPart but NOT IdentifierStart. `1a` is tokenised"
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 141,
+      "value": " as a numeric literal `1` followed by identifier `a` — which is a"
+    },
+    {
+      "type": "Line",
+      "start": 142,
+      "end": 197,
+      "value": " SyntaxError because `1 a` is not a valid expression."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected binding pattern",
+      "line": 4,
+      "column": 7,
+      "offset": 204
+    },
+    {
+      "message": "Missing initializer in 'const' declaration",
+      "line": 4,
+      "column": 7,
+      "offset": 204
+    },
+    {
+      "message": "Identifier directly after number",
+      "line": 4,
+      "column": 8,
+      "offset": 205
+    }
+  ]
+}
+Parse errors (3):
+  Line 4, Column 7: Expected binding pattern
+  Line 4, Column 7: Missing initializer in 'const' declaration
+  Line 4, Column 8: Identifier directly after number
+
+--- Statistics ---
+Arena: used=8448B reserved=16777216B ratio=0%
+Parse errors: 3

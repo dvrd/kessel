@@ -1,0 +1,59 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 165,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 143,
+      "end": 164,
+      "expression": {
+        "type": "NewExpression",
+        "start": 143,
+        "end": 163,
+        "callee": {
+          "type": "ImportExpression",
+          "start": 147,
+          "end": 163,
+          "source": {
+            "type": "Literal",
+            "start": 154,
+            "end": 162,
+            "value": "./m.js",
+            "raw": "\"./m.js\""          },
+          "options": null,
+          "phase": null        },
+        "arguments": [
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " ECMA-262 §13.3.10 / §13.3.12 — ImportCall (`import(specifier)`) is"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 146,
+      "value": " not a valid NewExpression callee. `new import(\"x\")` is a SyntaxError."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Dynamic 'import()' cannot be invoked with 'new'",
+      "line": 3,
+      "column": 5,
+      "offset": 151
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 5: Dynamic 'import()' cannot be invoked with 'new'
+
+--- Statistics ---
+Arena: used=8032B reserved=16777216B ratio=0%
+Parse errors: 1

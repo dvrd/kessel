@@ -1,0 +1,61 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 123,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 110,
+      "end": 122,
+      "expression": {
+        "type": "CallExpression",
+        "start": 110,
+        "end": 121,
+        "callee": {
+          "type": "MemberExpression",
+          "start": 110,
+          "end": 119,
+          "computed": false,
+          "object": {
+            "type": "Super",
+            "start": 110,
+            "end": 115          },
+          "property": {
+            "type": "Identifier",
+            "start": 116,
+            "end": 119,
+            "name": "foo"          }        },
+        "arguments": [
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " ECMA-262 §13.3.7.1 — SuperCall and SuperProperty outside a class"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 112,
+      "value": " method / constructor are SyntaxErrors."
+    }
+  ],
+  "errors": [
+    {
+      "message": "'super' is only allowed in class methods or object-literal methods",
+      "line": 3,
+      "column": 1,
+      "offset": 113
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 1: 'super' is only allowed in class methods or object-literal methods
+
+--- Statistics ---
+Arena: used=8064B reserved=16777216B ratio=0%
+Parse errors: 1

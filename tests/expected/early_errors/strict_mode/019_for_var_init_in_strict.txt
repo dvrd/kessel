@@ -1,0 +1,104 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 390,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 352,
+      "end": 365,
+      "expression": {
+        "type": "Literal",
+        "start": 352,
+        "end": 364,
+        "value": "use strict",
+        "raw": "\"use strict\""      },
+      "directive": "use strict"    },
+    {
+      "type": "ForInStatement",
+      "start": 366,
+      "end": 389,
+      "left": {
+        "type": "VariableDeclaration",
+        "start": 371,
+        "end": 380,
+        "kind": "var",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 375,
+            "end": 380,
+            "id": {
+              "type": "Identifier",
+              "start": 375,
+              "end": 376,
+              "name": "x"            },
+            "init": {
+              "type": "Literal",
+              "start": 379,
+              "end": 380,
+              "value": 1,
+              "raw": "1"            }          }
+        ]
+      },
+      "right": {
+        "type": "Identifier",
+        "start": 384,
+        "end": 385,
+        "name": "y"      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 387,
+        "end": 389,
+        "body": [
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " ECMA-262 Annex B.3.5 — the `for (var X = init in Expr)` carve-out"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 140,
+      "value": " is explicitly sloppy-mode only. In strict mode the core §14.7.5.1"
+    },
+    {
+      "type": "Line",
+      "start": 141,
+      "end": 211,
+      "value": " rule \"It is a Syntax Error if DeclarationPart of ForDeclaration has"
+    },
+    {
+      "type": "Line",
+      "start": 212,
+      "end": 282,
+      "value": " an Initializer\" fires. Placed under early_errors/strict_mode so the"
+    },
+    {
+      "type": "Line",
+      "start": 283,
+      "end": 354,
+      "value": " verifier pins `--source-type=script` + `\"use strict\"` automatically."
+    }
+  ],
+  "errors": [
+    {
+      "message": "for-in loop variable declaration may not have an initializer",
+      "line": 7,
+      "column": 19,
+      "offset": 387
+    }
+  ]
+}
+Parse errors (1):
+  Line 7, Column 19: for-in loop variable declaration may not have an initializer
+
+--- Statistics ---
+Arena: used=11944B reserved=16777216B ratio=0%
+Parse errors: 1

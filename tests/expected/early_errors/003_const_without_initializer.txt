@@ -1,0 +1,54 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 160,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 151,
+      "end": 159,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 157,
+          "end": 158,
+          "id": {
+            "type": "Identifier",
+            "start": 157,
+            "end": 158,
+            "name": "x"          },
+          "init": null        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 76,
+      "value": " ECMA-262 §13.3.1 — every BindingIdentifier/BindingPattern in a `const`"
+    },
+    {
+      "type": "Line",
+      "start": 77,
+      "end": 153,
+      "value": " LexicalDeclaration MUST have an Initializer. `const x;` is a SyntaxError."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Missing initializer in 'const' declaration",
+      "line": 4,
+      "column": 1,
+      "offset": 163
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 1: Missing initializer in 'const' declaration
+
+--- Statistics ---
+Arena: used=8304B reserved=16777216B ratio=0%
+Parse errors: 1

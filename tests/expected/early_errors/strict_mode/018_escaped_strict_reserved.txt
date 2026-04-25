@@ -1,0 +1,106 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 452,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 420,
+      "end": 433,
+      "expression": {
+        "type": "Literal",
+        "start": 420,
+        "end": 432,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "VariableDeclaration",
+      "start": 434,
+      "end": 451,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 438,
+          "end": 450,
+          "id": {
+            "type": "Identifier",
+            "start": 438,
+            "end": 446,
+            "name": "let"          },
+          "init": {
+            "type": "Literal",
+            "start": 449,
+            "end": 450,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " ECMA-262 §12.7.2 + §13.2 — `let` is a FutureReservedWord reserved"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 140,
+      "value": " only in strict mode. In strict mode the escape-plus-ReservedWord"
+    },
+    {
+      "type": "Line",
+      "start": 141,
+      "end": 205,
+      "value": " rule applies: an IdentifierName with `\\UnicodeEscapeSequence`"
+    },
+    {
+      "type": "Line",
+      "start": 206,
+      "end": 273,
+      "value": " whose StringValue equals \"let\" (or \"static\" / \"yield\" / etc.) is"
+    },
+    {
+      "type": "Line",
+      "start": 274,
+      "end": 303,
+      "value": " rejected as an Identifier."
+    },
+    {
+      "type": "Line",
+      "start": 304,
+      "end": 306,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 307,
+      "end": 373,
+      "value": " Sloppy-mode counterpart `var \\u006Cet = 1;` parses fine because"
+    },
+    {
+      "type": "Line",
+      "start": 374,
+      "end": 423,
+      "value": " \"let\" isn't a reserved word in sloppy scripts."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Keyword 'let' must not contain escaped characters",
+      "line": 10,
+      "column": 5,
+      "offset": 442
+    }
+  ]
+}
+Parse errors (1):
+  Line 10, Column 5: Keyword 'let' must not contain escaped characters
+
+--- Statistics ---
+Arena: used=13168B reserved=16777216B ratio=0%
+Parse errors: 1

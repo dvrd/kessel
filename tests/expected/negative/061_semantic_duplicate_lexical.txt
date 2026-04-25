@@ -1,0 +1,105 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 356,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 334,
+      "end": 344,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 338,
+          "end": 343,
+          "id": {
+            "type": "Identifier",
+            "start": 338,
+            "end": 339,
+            "name": "x"          },
+          "init": {
+            "type": "Literal",
+            "start": 342,
+            "end": 343,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 345,
+      "end": 355,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 349,
+          "end": 354,
+          "id": {
+            "type": "Identifier",
+            "start": 349,
+            "end": 350,
+            "name": "x"          },
+          "init": {
+            "type": "Literal",
+            "start": 353,
+            "end": 354,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 78,
+      "value": " ECMA-262 §14.3.1.1 — \"It is a Syntax Error if the LexicallyDeclaredNames"
+    },
+    {
+      "type": "Line",
+      "start": 79,
+      "end": 151,
+      "value": " of ... contains any duplicate entries.\" Covered by OPT-6's scope pass"
+    },
+    {
+      "type": "Line",
+      "start": 152,
+      "end": 227,
+      "value": " (--show-semantic-errors). Cross-statement duplicates are the common case"
+    },
+    {
+      "type": "Line",
+      "start": 228,
+      "end": 291,
+      "value": " that the per-declaration dup check in Session 6 doesn't see."
+    },
+    {
+      "type": "Line",
+      "start": 292,
+      "end": 294,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 295,
+      "end": 336,
+      "value": " verifier-flags: --show-semantic-errors"
+    }
+  ],
+  "errors": [
+    {
+      "message": "'x' has already been declared",
+      "line": 8,
+      "column": 1,
+      "offset": 348
+    }
+  ]
+}
+Parse errors (1):
+  Line 0, Column 0: 'x' has already been declared
+
+--- Statistics ---
+Arena: used=11664B reserved=16777216B ratio=0%
+Parse errors: 1

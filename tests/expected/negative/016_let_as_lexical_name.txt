@@ -1,0 +1,113 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 317,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 289,
+      "end": 301,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 293,
+          "end": 300,
+          "id": {
+            "type": "Identifier",
+            "start": 293,
+            "end": 296,
+            "name": "let"          },
+          "init": {
+            "type": "Literal",
+            "start": 299,
+            "end": 300,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 302,
+      "end": 316,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 308,
+          "end": 315,
+          "id": {
+            "type": "Identifier",
+            "start": 308,
+            "end": 311,
+            "name": "let"          },
+          "init": {
+            "type": "Literal",
+            "start": 314,
+            "end": 315,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " ECMA-262 §14.3.1.1 — it is a Syntax Error if the BoundNames of a"
+    },
+    {
+      "type": "Line",
+      "start": 71,
+      "end": 139,
+      "value": " LexicalDeclaration contains `\"let\"`. Applies to `let` AND `const`"
+    },
+    {
+      "type": "Line",
+      "start": 140,
+      "end": 210,
+      "value": " (and `using` / `await using`), regardless of strict or sloppy mode."
+    },
+    {
+      "type": "Line",
+      "start": 211,
+      "end": 277,
+      "value": " Sloppy `var let = 1;` is still fine; only the lexical forms are"
+    },
+    {
+      "type": "Line",
+      "start": 278,
+      "end": 291,
+      "value": " forbidden."
+    }
+  ],
+  "errors": [
+    {
+      "message": "'let' is disallowed as a lexically bound name",
+      "line": 7,
+      "column": 1,
+      "offset": 305
+    },
+    {
+      "message": "'let' is disallowed as a lexically bound name",
+      "line": 8,
+      "column": 1,
+      "offset": 320
+    },
+    {
+      "message": "'let' has already been declared",
+      "line": 7,
+      "column": 1,
+      "offset": 305
+    }
+  ]
+}
+Parse errors (3):
+  Line 7, Column 1: 'let' is disallowed as a lexically bound name
+  Line 8, Column 1: 'let' is disallowed as a lexically bound name
+  Line 0, Column 0: 'let' has already been declared
+
+--- Statistics ---
+Arena: used=10880B reserved=16777216B ratio=0%
+Parse errors: 3

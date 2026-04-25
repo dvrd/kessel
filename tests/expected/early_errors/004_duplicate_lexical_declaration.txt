@@ -1,0 +1,81 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 166,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 148,
+      "end": 165,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 152,
+          "end": 157,
+          "id": {
+            "type": "Identifier",
+            "start": 152,
+            "end": 153,
+            "name": "x"          },
+          "init": {
+            "type": "Literal",
+            "start": 156,
+            "end": 157,
+            "value": 1,
+            "raw": "1"          }        },
+        {
+          "type": "VariableDeclarator",
+          "start": 159,
+          "end": 164,
+          "id": {
+            "type": "Identifier",
+            "start": 159,
+            "end": 160,
+            "name": "x"          },
+          "init": {
+            "type": "Literal",
+            "start": 163,
+            "end": 164,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 75,
+      "value": " ECMA-262 §13.3.1.1 — the LexicalDeclaration BoundNames list must have"
+    },
+    {
+      "type": "Line",
+      "start": 76,
+      "end": 150,
+      "value": " no duplicates. `let x = 1, x = 2;` is a SyntaxError regardless of mode."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Identifier 'x' has already been declared",
+      "line": 4,
+      "column": 1,
+      "offset": 169
+    },
+    {
+      "message": "'x' has already been declared",
+      "line": 3,
+      "column": 1,
+      "offset": 151
+    }
+  ]
+}
+Parse errors (2):
+  Line 4, Column 1: Identifier 'x' has already been declared
+  Line 0, Column 0: 'x' has already been declared
+
+--- Statistics ---
+Arena: used=8304B reserved=16777216B ratio=0%
+Parse errors: 2

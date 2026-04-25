@@ -1,0 +1,136 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 443,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 385,
+      "end": 442,
+      "id": {
+        "type": "Identifier",
+        "start": 394,
+        "end": 395,
+        "name": "f"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 398,
+        "end": 442,
+        "body": [
+          {
+            "type": "ForOfStatement",
+            "start": 401,
+            "end": 440,
+            "left": {
+              "type": "VariableDeclaration",
+              "start": 412,
+              "end": 419,
+              "kind": "const",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 418,
+                  "end": 419,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 418,
+                    "end": 419,
+                    "name": "x"                  },
+                  "init": null                }
+              ]
+            },
+            "right": {
+              "type": "Identifier",
+              "start": 423,
+              "end": 424,
+              "name": "y"            },
+            "await": true,
+            "body": {
+              "type": "BlockStatement",
+              "start": 426,
+              "end": 440,
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "start": 430,
+                  "end": 437,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 430,
+                    "end": 436,
+                    "callee": {
+                      "type": "Identifier",
+                      "start": 430,
+                      "end": 433,
+                      "name": "use"                    },
+                    "arguments": [
+                      {
+                        "type": "Identifier",
+                        "start": 434,
+                        "end": 435,
+                        "name": "x"                      }
+                    ]                  }                }
+              ]            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " ECMA-262 §14.7.5 — `for await (LeftHandSide of Expression) Body` is"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 142,
+      "value": " only valid inside an AsyncFunctionBody, AsyncGeneratorBody, or at"
+    },
+    {
+      "type": "Line",
+      "start": 143,
+      "end": 205,
+      "value": " Module top-level (top-level async). Using it inside a plain"
+    },
+    {
+      "type": "Line",
+      "start": 206,
+      "end": 269,
+      "value": " (non-async) function is a SyntaxError. This fixture uses the"
+    },
+    {
+      "type": "Line",
+      "start": 270,
+      "end": 337,
+      "value": " non-async-function form; the top-level-in-script form is covered"
+    },
+    {
+      "type": "Line",
+      "start": 338,
+      "end": 387,
+      "value": " separately under early_errors/module_context/."
+    }
+  ],
+  "errors": [
+    {
+      "message": "'for await' outside of async function",
+      "line": 8,
+      "column": 12,
+      "offset": 414
+    }
+  ]
+}
+Parse errors (1):
+  Line 8, Column 12: 'for await' outside of async function
+
+--- Statistics ---
+Arena: used=13512B reserved=16777216B ratio=0%
+Parse errors: 1

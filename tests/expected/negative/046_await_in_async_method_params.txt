@@ -1,0 +1,127 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 340,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 302,
+      "end": 339,
+      "id": {
+        "type": "Identifier",
+        "start": 308,
+        "end": 309,
+        "name": "C"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 310,
+        "end": 339,
+        "body": [
+          {
+            "type": "MethodDefinition",
+                        "start": 314,
+            "end": 337,
+                        "key": {
+              "type": "Identifier",
+              "start": 320,
+              "end": 321,
+              "name": "m"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 321,
+              "end": 337,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": true,
+              "params": [
+                {
+                  "type": "AssignmentPattern",
+                  "start": 322,
+                  "end": 333,
+                  "left": {
+                    "type": "Identifier",
+                    "start": 322,
+                    "end": 323,
+                    "name": "x"
+                  },
+                  "right": {
+                    "type": "AwaitExpression",
+                    "start": 326,
+                    "end": 333,
+                    "argument": {
+                      "type": "Literal",
+                      "start": 332,
+                      "end": 333,
+                      "value": 1,
+                      "raw": "1"                    }
+                  }
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 335,
+                "end": 337,
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 68,
+      "value": " ECMA-262 §15.8.1 / §15.6.1 — the same await-in-params rule as"
+    },
+    {
+      "type": "Line",
+      "start": 69,
+      "end": 138,
+      "value": " AsyncFunctionDeclaration applies to class and object-literal async"
+    },
+    {
+      "type": "Line",
+      "start": 139,
+      "end": 202,
+      "value": " method shorthand. `class C { async m(x = await 1) {} }` is a"
+    },
+    {
+      "type": "Line",
+      "start": 203,
+      "end": 274,
+      "value": " SyntaxError because the parameter default initializer is outside the"
+    },
+    {
+      "type": "Line",
+      "start": 275,
+      "end": 305,
+      "value": " async method's environment."
+    }
+  ],
+  "errors": [
+    {
+      "message": "'await' expression is not allowed in formal parameters of an async function",
+      "line": 7,
+      "column": 15,
+      "offset": 330
+    }
+  ]
+}
+Parse errors (1):
+  Line 7, Column 15: 'await' expression is not allowed in formal parameters of an async function
+
+--- Statistics ---
+Arena: used=13064B reserved=16777216B ratio=0%
+Parse errors: 1

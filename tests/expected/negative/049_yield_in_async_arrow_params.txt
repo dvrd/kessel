@@ -1,0 +1,130 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 542,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 485,
+      "end": 541,
+      "id": {
+        "type": "Identifier",
+        "start": 495,
+        "end": 500,
+        "name": "outer"
+      },
+      "expression": false,
+      "generator": true,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 503,
+        "end": 541,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 507,
+            "end": 539,
+            "argument": {
+              "type": "ArrowFunctionExpression",
+              "start": 514,
+              "end": 538,
+              "id": null,
+              "expression": true,
+              "generator": false,
+              "async": true,
+              "params": [
+                {
+                  "type": "AssignmentPattern",
+                  "start": 521,
+                  "end": 532,
+                  "left": {
+                    "type": "Identifier",
+                    "start": 521,
+                    "end": 522,
+                    "name": "x"
+                  },
+                  "right": {
+                    "type": "YieldExpression",
+                    "start": 525,
+                    "end": 532,
+                    "argument": {
+                      "type": "Literal",
+                      "start": 531,
+                      "end": 532,
+                      "value": 1,
+                      "raw": "1"                    },
+                    "delegate": false
+                  }
+                }
+              ],
+              "body": {
+                "type": "Identifier",
+                "start": 537,
+                "end": 538,
+                "name": "x"              }            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 61,
+      "value": " ECMA-262 §15.9.1 final clause: \"All early error rules for"
+    },
+    {
+      "type": "Line",
+      "start": 62,
+      "end": 130,
+      "value": " ArrowFormalParameters and their derived productions also apply to"
+    },
+    {
+      "type": "Line",
+      "start": 131,
+      "end": 201,
+      "value": " CoverCallExpressionAndAsyncArrowHead when that production covers an"
+    },
+    {
+      "type": "Line",
+      "start": 202,
+      "end": 273,
+      "value": " AsyncArrowHead.\" §15.3.1's YieldExpression ban therefore applies to"
+    },
+    {
+      "type": "Line",
+      "start": 274,
+      "end": 345,
+      "value": " async arrow params too. The outer generator legally parses `yield 1`"
+    },
+    {
+      "type": "Line",
+      "start": 346,
+      "end": 414,
+      "value": " as a YieldExpression, but the moment `=>` commits the cover to an"
+    },
+    {
+      "type": "Line",
+      "start": 415,
+      "end": 486,
+      "value": " async-arrow-head the param-yield ban fires. Walker runs post-params."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Yield expression is not allowed in arrow function parameters",
+      "line": 9,
+      "column": 30,
+      "offset": 536
+    }
+  ]
+}
+Parse errors (1):
+  Line 9, Column 30: Yield expression is not allowed in arrow function parameters
+
+--- Statistics ---
+Arena: used=15248B reserved=16777216B ratio=0%
+Parse errors: 1

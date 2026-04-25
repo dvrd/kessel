@@ -1,0 +1,62 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 48,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 35,
+      "end": 44,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 41,
+          "end": 44,
+          "id": {
+            "type": "Identifier",
+            "start": 41,
+            "end": 42,
+            "name": "x"          },
+          "init": null        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 34,
+      "value": " Expected error: invalid token @"
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected initializer expression after '='",
+      "line": 2,
+      "column": 11,
+      "offset": 45
+    },
+    {
+      "message": "Missing initializer in 'const' declaration",
+      "line": 2,
+      "column": 11,
+      "offset": 45
+    },
+    {
+      "message": "Expected class after decorator",
+      "line": 2,
+      "column": 12,
+      "offset": 46
+    }
+  ]
+}
+Parse errors (3):
+  Line 2, Column 11: Expected initializer expression after '='
+  Line 2, Column 11: Missing initializer in 'const' declaration
+  Line 2, Column 12: Expected class after decorator
+
+--- Statistics ---
+Arena: used=8400B reserved=16777216B ratio=0%
+Parse errors: 3

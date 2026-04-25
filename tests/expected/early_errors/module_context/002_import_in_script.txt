@@ -1,0 +1,53 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 83,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ImportDeclaration",
+      "start": 37,
+      "end": 82,
+      "specifiers": [
+        {
+          "type": "ImportSpecifier",
+          "start": 46,
+          "end": 60,
+          "imported": {
+            "type": "Identifier",
+            "start": 46,
+            "end": 60,
+            "name": "imported_value"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 46,
+            "end": 60,
+            "name": "imported_value"
+          }
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 68,
+        "end": 81,
+        "value": "./module.js",
+        "raw": "'./module.js'"
+      },
+      "attributes": [],
+      "phase": null    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 36,
+      "value": " Intended for script-mode parsing."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=8264B reserved=16777216B ratio=0%
+Parse errors: 0

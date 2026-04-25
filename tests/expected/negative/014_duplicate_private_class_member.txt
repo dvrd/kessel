@@ -1,0 +1,163 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 309,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 247,
+      "end": 276,
+      "id": {
+        "type": "Identifier",
+        "start": 253,
+        "end": 254,
+        "name": "A"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 255,
+        "end": 276,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+                        "start": 258,
+            "end": 265,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 258,
+              "end": 260,
+              "name": "x"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 263,
+              "end": 264,
+              "value": 1,
+              "raw": "1"
+            },
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "PropertyDefinition",
+                        "start": 267,
+            "end": 274,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 267,
+              "end": 269,
+              "name": "x"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 272,
+              "end": 273,
+              "value": 2,
+              "raw": "2"
+            },
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    },
+    {
+      "type": "ClassDeclaration",
+      "start": 278,
+      "end": 308,
+      "id": {
+        "type": "Identifier",
+        "start": 284,
+        "end": 285,
+        "name": "B"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 286,
+        "end": 308,
+        "body": [
+          {
+            "type": "MethodDefinition",
+                        "start": 289,
+            "end": 306,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 289,
+              "end": 301,
+              "name": "constructor"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 301,
+              "end": 306,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 304,
+                "end": 306,
+                "body": [
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " ECMA-262 §15.7.1 — a class body may not declare two PrivateElements"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 141,
+      "value": " with the same PrivateIdentifier `#name`, nor a PrivateIdentifier"
+    },
+    {
+      "type": "Line",
+      "start": 142,
+      "end": 212,
+      "value": " whose description is `constructor`. Covers both: the duplicate `#x`"
+    },
+    {
+      "type": "Line",
+      "start": 213,
+      "end": 249,
+      "value": " and the forbidden `#constructor`."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Duplicate private class member '#x'",
+      "line": 10,
+      "column": 1,
+      "offset": 281
+    },
+    {
+      "message": "Class private member name cannot be '#constructor'",
+      "line": 13,
+      "column": 1,
+      "offset": 312
+    }
+  ]
+}
+Parse errors (2):
+  Line 10, Column 1: Duplicate private class member '#x'
+  Line 13, Column 1: Class private member name cannot be '#constructor'
+
+--- Statistics ---
+Arena: used=12936B reserved=16777216B ratio=0%
+Parse errors: 2

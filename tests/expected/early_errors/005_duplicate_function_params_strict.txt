@@ -1,0 +1,91 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 182,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 137,
+      "end": 150,
+      "expression": {
+        "type": "Literal",
+        "start": 137,
+        "end": 149,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 151,
+      "end": 181,
+      "id": {
+        "type": "Identifier",
+        "start": 160,
+        "end": 161,
+        "name": "f"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 162,
+          "end": 163,
+          "name": "a"
+        },
+        {
+          "type": "Identifier",
+          "start": 165,
+          "end": 166,
+          "name": "a"
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 168,
+        "end": 181,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 170,
+            "end": 179,
+            "argument": {
+              "type": "Identifier",
+              "start": 177,
+              "end": 178,
+              "name": "a"            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " ECMA-262 §15.2.1 — in strict mode, FunctionDeclaration with two"
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 139,
+      "value": " parameters of the same name is a SyntaxError. (Allowed in sloppy.)"
+    }
+  ],
+  "errors": [
+    {
+      "message": "Duplicate parameter name 'a' in strict mode",
+      "line": 5,
+      "column": 1,
+      "offset": 185
+    }
+  ]
+}
+Parse errors (1):
+  Line 5, Column 1: Duplicate parameter name 'a' in strict mode
+
+--- Statistics ---
+Arena: used=8384B reserved=16777216B ratio=0%
+Parse errors: 1

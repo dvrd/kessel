@@ -1,0 +1,77 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 180,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 153,
+      "end": 166,
+      "expression": {
+        "type": "Literal",
+        "start": 153,
+        "end": 165,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "VariableDeclaration",
+      "start": 167,
+      "end": 179,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 171,
+          "end": 178,
+          "id": {
+            "type": "Identifier",
+            "start": 171,
+            "end": 174,
+            "name": "let"          },
+          "init": {
+            "type": "Literal",
+            "start": 177,
+            "end": 178,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 77,
+      "value": " ECMA-262 §13.3.1.1 — `let` is a reserved word in strict mode, including"
+    },
+    {
+      "type": "Line",
+      "start": 78,
+      "end": 155,
+      "value": " as a BindingIdentifier in a `let` declaration. `let let` is a SyntaxError."
+    }
+  ],
+  "errors": [
+    {
+      "message": "'let' is a reserved identifier in strict mode",
+      "line": 4,
+      "column": 5,
+      "offset": 174
+    },
+    {
+      "message": "'let' is disallowed as a lexically bound name",
+      "line": 5,
+      "column": 1,
+      "offset": 183
+    }
+  ]
+}
+Parse errors (2):
+  Line 4, Column 5: 'let' is a reserved identifier in strict mode
+  Line 5, Column 1: 'let' is disallowed as a lexically bound name
+
+--- Statistics ---
+Arena: used=8304B reserved=16777216B ratio=0%
+Parse errors: 2

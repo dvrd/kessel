@@ -1,0 +1,72 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 179,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 146,
+      "end": 159,
+      "expression": {
+        "type": "Literal",
+        "start": 146,
+        "end": 158,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "WithStatement",
+      "start": 160,
+      "end": 178,
+      "object": {
+        "type": "Identifier",
+        "start": 166,
+        "end": 169,
+        "name": "obj"      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 171,
+        "end": 178,
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "start": 174,
+            "end": 176,
+            "expression": {
+              "type": "Identifier",
+              "start": 174,
+              "end": 175,
+              "name": "x"            }          }
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " ECMA-262 §13.11.1 — WithStatement is a SyntaxError in strict mode."
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 148,
+      "value": " Allowed in sloppy script (TypeScript's bundled sources use it that way)."
+    }
+  ],
+  "errors": [
+    {
+      "message": "'with' statements are not allowed in strict mode",
+      "line": 4,
+      "column": 6,
+      "offset": 168
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 6: 'with' statements are not allowed in strict mode
+
+--- Statistics ---
+Arena: used=8096B reserved=16777216B ratio=0%
+Parse errors: 1

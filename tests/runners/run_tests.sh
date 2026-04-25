@@ -51,16 +51,11 @@ normalize_output() {
 is_skipped_fixture() {
     local rel_path="$1"
 
-    # Only fixtures owned by a different gate get skipped here:
-    # negative/* and early_errors/* are enforced by verify_negative.js.
-    # Every positive fixture is enforced here, on every run, so that
-    # "skipped" cannot be a dumping ground for parser gaps.
-    case "$rel_path" in
-        negative/*|early_errors/*)
-            return 0
-            ;;
-    esac
-
+    # Session 11+: every fixture is enforced here, on every run.
+    # Negative / early_errors fixtures are also separately gated by
+    # verify_negative.js (which only checks the error count); the unit
+    # runner additionally locks the byte-for-byte AST + error JSON
+    # output. "Skipped" is no longer a dumping ground for parser gaps.
     return 1
 }
 
@@ -131,11 +126,14 @@ while IFS= read -r fixture; do
     # Parse-errors-expected fixtures: recovery/* exercise error recovery;
     # spec/ambiguity/001,002,004 exercise the TSX grammar restriction that
     # forbids `<Type>expr` / generic-arrow-without-trailing-comma (OXC
-    # rejects these with parse errors too). The gate on these fixtures is
-    # the STABILITY of emitted AST + error list against a golden, not
-    # error-free parsing. Everything else must parse clean.
+    # rejects these with parse errors too); negative/* and early_errors/*
+    # are intentionally malformed and pin the rejected output. The gate on
+    # these fixtures is the STABILITY of emitted AST + error list against
+    # a golden, not error-free parsing. Everything else must parse clean.
     case "$rel_path" in
         recovery/*) ;;
+        negative/*) ;;
+        early_errors/*) ;;
         spec/ambiguity/001_ts_assertion_vs_jsx_simple.js) ;;
         spec/ambiguity/002_ts_assertion_vs_jsx_paren.js) ;;
         spec/ambiguity/004_generic_arrow_vs_relational.js) ;;

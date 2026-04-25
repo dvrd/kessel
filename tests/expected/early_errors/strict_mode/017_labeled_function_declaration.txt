@@ -1,0 +1,97 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 363,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 326,
+      "end": 339,
+      "expression": {
+        "type": "Literal",
+        "start": 326,
+        "end": 338,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "LabeledStatement",
+      "start": 340,
+      "end": 362,
+      "label": {
+        "type": "Identifier",
+        "start": 340,
+        "end": 343,
+        "name": "foo"
+      },
+      "body": {
+        "type": "FunctionDeclaration",
+        "start": 345,
+        "end": 362,
+        "id": {
+          "type": "Identifier",
+          "start": 354,
+          "end": 357,
+          "name": "bar"
+        },
+        "expression": false,
+        "generator": false,
+        "async": false,
+        "params": [],
+        "body": {
+          "type": "BlockStatement",
+          "start": 360,
+          "end": 362,
+          "body": [
+          ]
+        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " ECMA-262 §14.13.1 — a LabelledStatement whose LabelledItem is a"
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 136,
+      "value": " FunctionDeclaration is a SyntaxError in strict mode. Allowed in"
+    },
+    {
+      "type": "Line",
+      "start": 137,
+      "end": 203,
+      "value": " sloppy script (Annex B.3.2 web-compat). The sloppy allowance is"
+    },
+    {
+      "type": "Line",
+      "start": 204,
+      "end": 272,
+      "value": " narrow: no async/generator, and not as a LabelledStatement inside"
+    },
+    {
+      "type": "Line",
+      "start": 273,
+      "end": 328,
+      "value": " an IfStatement; but the strict-mode ban is absolute."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Labeled function declarations are not allowed in strict mode",
+      "line": 8,
+      "column": 1,
+      "offset": 366
+    }
+  ]
+}
+Parse errors (1):
+  Line 8, Column 1: Labeled function declarations are not allowed in strict mode
+
+--- Statistics ---
+Arena: used=11544B reserved=16777216B ratio=0%
+Parse errors: 1

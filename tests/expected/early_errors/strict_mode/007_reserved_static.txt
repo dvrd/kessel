@@ -1,0 +1,56 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 30,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 13,
+      "expression": {
+        "type": "Literal",
+        "start": 0,
+        "end": 12,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "VariableDeclaration",
+      "start": 14,
+      "end": 29,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 18,
+          "end": 28,
+          "id": {
+            "type": "Identifier",
+            "start": 18,
+            "end": 24,
+            "name": "static"          },
+          "init": {
+            "type": "Literal",
+            "start": 27,
+            "end": 28,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "errors": [
+    {
+      "message": "'static' is a reserved identifier in strict mode",
+      "line": 2,
+      "column": 5,
+      "offset": 18
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 5: 'static' is a reserved identifier in strict mode
+
+--- Statistics ---
+Arena: used=8112B reserved=16777216B ratio=0%
+Parse errors: 1

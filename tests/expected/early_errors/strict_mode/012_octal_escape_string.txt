@@ -1,0 +1,140 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 318,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 245,
+      "end": 258,
+      "expression": {
+        "type": "Literal",
+        "start": 245,
+        "end": 257,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "VariableDeclaration",
+      "start": 259,
+      "end": 279,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 263,
+          "end": 278,
+          "id": {
+            "type": "Identifier",
+            "start": 263,
+            "end": 269,
+            "name": "legacy"          },
+          "init": {
+            "type": "Literal",
+            "start": 272,
+            "end": 278,
+            "value": "012",
+            "raw": "\"\\012\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 280,
+      "end": 298,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 284,
+          "end": 297,
+          "id": {
+            "type": "Identifier",
+            "start": 284,
+            "end": 289,
+            "name": "eight"          },
+          "init": {
+            "type": "Literal",
+            "start": 293,
+            "end": 297,
+            "value": "8",
+            "raw": "\"\\8\""          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 299,
+      "end": 317,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 303,
+          "end": 316,
+          "id": {
+            "type": "Identifier",
+            "start": 303,
+            "end": 307,
+            "name": "nine"          },
+          "init": {
+            "type": "Literal",
+            "start": 312,
+            "end": 316,
+            "value": "9",
+            "raw": "\"\\9\""          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 67,
+      "value": " ECMA-262 §12.9.4 — LegacyOctalEscapeSequence (`\\012`) and the"
+    },
+    {
+      "type": "Line",
+      "start": 68,
+      "end": 137,
+      "value": " NonOctalDecimalEscapeSequence escapes `\\8` / `\\9` are SyntaxErrors"
+    },
+    {
+      "type": "Line",
+      "start": 138,
+      "end": 207,
+      "value": " inside StringLiteral and TemplateLiteral when the surrounding code"
+    },
+    {
+      "type": "Line",
+      "start": 208,
+      "end": 247,
+      "value": " is strict. Allowed in sloppy script."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
+      "line": 6,
+      "column": 20,
+      "offset": 281
+    },
+    {
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
+      "line": 7,
+      "column": 18,
+      "offset": 300
+    },
+    {
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
+      "line": 8,
+      "column": 18,
+      "offset": 319
+    }
+  ]
+}
+Parse errors (3):
+  Line 6, Column 20: Octal or \8 / \9 escape sequences are not allowed in strict mode
+  Line 7, Column 18: Octal or \8 / \9 escape sequences are not allowed in strict mode
+  Line 8, Column 18: Octal or \8 / \9 escape sequences are not allowed in strict mode
+
+--- Statistics ---
+Arena: used=10624B reserved=16777216B ratio=0%
+Parse errors: 3

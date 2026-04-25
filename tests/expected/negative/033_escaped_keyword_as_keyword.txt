@@ -1,0 +1,114 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 608,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 593,
+      "end": 604,
+      "expression": {
+        "type": "CallExpression",
+        "start": 593,
+        "end": 604,
+        "callee": {
+          "type": "Identifier",
+          "start": 593,
+          "end": 600,
+          "name": "if"        },
+        "arguments": [
+          {
+            "type": "Identifier",
+            "start": 602,
+            "end": 603,
+            "name": "x"          }
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 605,
+      "end": 607,
+      "expression": {
+        "type": "Identifier",
+        "start": 605,
+        "end": 606,
+        "name": "y"      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 76,
+      "value": " ECMA-262 §12.7.2 — \"A code point in a ReservedWord cannot be expressed"
+    },
+    {
+      "type": "Line",
+      "start": 77,
+      "end": 147,
+      "value": " by a \\UnicodeEscapeSequence.\" When an IdentifierName written with a"
+    },
+    {
+      "type": "Line",
+      "start": 148,
+      "end": 216,
+      "value": " Unicode escape has a StringValue that matches a ReservedWord, the"
+    },
+    {
+      "type": "Line",
+      "start": 217,
+      "end": 290,
+      "value": " narrower `Identifier : IdentifierName but not ReservedWord` production"
+    },
+    {
+      "type": "Line",
+      "start": 291,
+      "end": 317,
+      "value": " fails → Syntax Error."
+    },
+    {
+      "type": "Line",
+      "start": 318,
+      "end": 320,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 321,
+      "end": 392,
+      "value": " Here `\\u0069f` cooks to \"if\"; using it as an IdentifierReference (at"
+    },
+    {
+      "type": "Line",
+      "start": 393,
+      "end": 463,
+      "value": " expression-start) is rejected. Other Identifier positions (binding,"
+    },
+    {
+      "type": "Line",
+      "start": 464,
+      "end": 533,
+      "value": " label) behave the same; IdentifierName positions (property access,"
+    },
+    {
+      "type": "Line",
+      "start": 534,
+      "end": 597,
+      "value": " property key, method name, import specifier) are unaffected."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Keyword 'if' must not contain escaped characters",
+      "line": 11,
+      "column": 1,
+      "offset": 598
+    }
+  ]
+}
+Parse errors (1):
+  Line 11, Column 1: Keyword 'if' must not contain escaped characters
+
+--- Statistics ---
+Arena: used=16264B reserved=16777216B ratio=0%
+Parse errors: 1

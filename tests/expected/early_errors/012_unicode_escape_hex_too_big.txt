@@ -1,0 +1,59 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 158,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 132,
+      "end": 157,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 138,
+          "end": 156,
+          "id": {
+            "type": "Identifier",
+            "start": 138,
+            "end": 141,
+            "name": "bad"          },
+          "init": {
+            "type": "Literal",
+            "start": 144,
+            "end": 156,
+            "value": "",
+            "raw": "\"\\u{110000}\""          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 67,
+      "value": " ECMA-262 §12.9.4 — `\\u{H...H}` must represent a code point in"
+    },
+    {
+      "type": "Line",
+      "start": 68,
+      "end": 136,
+      "value": " [0, 0x10FFFF]. 0x110000 is out of range → SyntaxError at parse."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Invalid \\u{} escape: code point out of range [0..0x10FFFF]",
+      "line": 3,
+      "column": 14,
+      "offset": 150
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 14: Invalid \u{} escape: code point out of range [0..0x10FFFF]
+
+--- Statistics ---
+Arena: used=8304B reserved=16777216B ratio=0%
+Parse errors: 1

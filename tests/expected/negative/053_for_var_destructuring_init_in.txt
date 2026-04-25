@@ -1,0 +1,120 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 315,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ForInStatement",
+      "start": 285,
+      "end": 314,
+      "left": {
+        "type": "VariableDeclaration",
+        "start": 290,
+        "end": 305,
+        "kind": "var",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 294,
+            "end": 305,
+            "id": {
+              "type": "ObjectPattern",
+              "start": 294,
+              "end": 301,
+              "properties": [
+                {
+                  "type": "Property",
+                  "start": 295,
+                  "end": 300,
+                  "shorthand": true,
+                  "computed": false,
+                  "kind": "init",
+                  "method": false,
+                  "key": {
+                    "type": "Identifier",
+                    "start": 295,
+                    "end": 296,
+                    "name": "a"
+                  },
+                  "value": {
+                    "type": "AssignmentPattern",
+                    "start": 295,
+                    "end": 300,
+                    "left": {
+                      "type": "Identifier",
+                      "start": 295,
+                      "end": 296,
+                      "name": "a"
+                    },
+                    "right": {
+                      "type": "Literal",
+                      "start": 299,
+                      "end": 300,
+                      "value": 1,
+                      "raw": "1"
+                    }
+                  }
+                }
+              ]            },
+            "init": {
+              "type": "Identifier",
+              "start": 304,
+              "end": 305,
+              "name": "z"            }          }
+        ]
+      },
+      "right": {
+        "type": "Identifier",
+        "start": 309,
+        "end": 310,
+        "name": "y"      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 312,
+        "end": 314,
+        "body": [
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " ECMA-262 Annex B.3.5 — the sloppy-mode `for (var X = init in Expr)`"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 142,
+      "value": " carve-out requires `X` to be a BindingIdentifier. A BindingPattern"
+    },
+    {
+      "type": "Line",
+      "start": 143,
+      "end": 214,
+      "value": " (destructuring) with an initializer is NOT covered; the core grammar"
+    },
+    {
+      "type": "Line",
+      "start": 215,
+      "end": 286,
+      "value": " rule \"DeclarationPart of ForDeclaration has an Initializer\" applies."
+    }
+  ],
+  "errors": [
+    {
+      "message": "for-in loop variable declaration may not have an initializer",
+      "line": 5,
+      "column": 25,
+      "offset": 311
+    }
+  ]
+}
+Parse errors (1):
+  Line 5, Column 25: for-in loop variable declaration may not have an initializer
+
+--- Statistics ---
+Arena: used=10776B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -1,0 +1,91 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 241,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 206,
+      "end": 219,
+      "expression": {
+        "type": "Literal",
+        "start": 206,
+        "end": 218,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "VariableDeclaration",
+      "start": 220,
+      "end": 230,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 224,
+          "end": 229,
+          "id": {
+            "type": "Identifier",
+            "start": 224,
+            "end": 225,
+            "name": "x"          },
+          "init": {
+            "type": "Literal",
+            "start": 228,
+            "end": 229,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 231,
+      "end": 240,
+      "expression": {
+        "type": "UnaryExpression",
+        "start": 231,
+        "end": 239,
+        "operator": "delete",
+        "prefix": true,
+        "argument": {
+          "type": "Identifier",
+          "start": 238,
+          "end": 239,
+          "name": "x"        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 73,
+      "value": " ECMA-262 §12.5.1.1 — `delete` of an unqualified IdentifierReference"
+    },
+    {
+      "type": "Line",
+      "start": 74,
+      "end": 144,
+      "value": " is a SyntaxError in strict mode. `delete x.y` and `delete x[y]` are"
+    },
+    {
+      "type": "Line",
+      "start": 145,
+      "end": 208,
+      "value": " still legal; the rule only forbids the bare identifier form."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Deleting local variable 'x' is not allowed in strict mode",
+      "line": 6,
+      "column": 9,
+      "offset": 242
+    }
+  ]
+}
+Parse errors (1):
+  Line 6, Column 9: Deleting local variable 'x' is not allowed in strict mode
+
+--- Statistics ---
+Arena: used=8896B reserved=16777216B ratio=0%
+Parse errors: 1

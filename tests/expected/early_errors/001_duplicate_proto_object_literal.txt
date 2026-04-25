@@ -1,0 +1,105 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 252,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 208,
+      "end": 251,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 214,
+          "end": 250,
+          "id": {
+            "type": "Identifier",
+            "start": 214,
+            "end": 217,
+            "name": "bad"          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 220,
+            "end": 250,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 222,
+                "end": 234,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 222,
+                  "end": 231,
+                  "name": "__proto__"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 233,
+                  "end": 234,
+                  "value": 1,
+                  "raw": "1"                }
+              },
+              {
+                "type": "Property",
+                "start": 236,
+                "end": 248,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 236,
+                  "end": 245,
+                  "name": "__proto__"                },
+                "value": {
+                  "type": "Literal",
+                  "start": 247,
+                  "end": 248,
+                  "value": 2,
+                  "raw": "2"                }
+              }
+            ]          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 80,
+      "value": " ECMA-262 §12.2.6.1 — __proto__ property used twice as an actual identifier"
+    },
+    {
+      "type": "Line",
+      "start": 81,
+      "end": 152,
+      "value": " key in the same object literal is a SyntaxError. (Computed/shorthand"
+    },
+    {
+      "type": "Line",
+      "start": 153,
+      "end": 210,
+      "value": " forms are allowed; these are literal identifier keys.)"
+    }
+  ],
+  "errors": [
+    {
+      "message": "Redefinition of __proto__ property",
+      "line": 4,
+      "column": 42,
+      "offset": 252
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 42: Redefinition of __proto__ property
+
+--- Statistics ---
+Arena: used=9504B reserved=16777216B ratio=0%
+Parse errors: 1

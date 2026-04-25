@@ -1,0 +1,197 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 462,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 389,
+      "end": 402,
+      "expression": {
+        "type": "Literal",
+        "start": 389,
+        "end": 401,
+        "value": "use strict",
+        "raw": "'use strict'"      },
+      "directive": "use strict"    },
+    {
+      "type": "VariableDeclaration",
+      "start": 403,
+      "end": 423,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 407,
+          "end": 422,
+          "id": {
+            "type": "Identifier",
+            "start": 407,
+            "end": 413,
+            "name": "legacy"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 416,
+            "end": 422,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 417,
+                "end": 421,
+                "tail": true,
+                "value": { "raw": "\\012", "cooked": "\\012" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 424,
+      "end": 442,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 428,
+          "end": 441,
+          "id": {
+            "type": "Identifier",
+            "start": 428,
+            "end": 433,
+            "name": "eight"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 437,
+            "end": 441,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 438,
+                "end": 440,
+                "tail": true,
+                "value": { "raw": "\\8", "cooked": "8" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 443,
+      "end": 461,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 447,
+          "end": 460,
+          "id": {
+            "type": "Identifier",
+            "start": 447,
+            "end": 451,
+            "name": "nine"          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 456,
+            "end": 460,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 457,
+                "end": 459,
+                "tail": true,
+                "value": { "raw": "\\9", "cooked": "9" }
+              }
+            ],
+            "expressions": []          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 65,
+      "value": " ECMA-262 §12.9.4 / §12.9.6 — LegacyOctalEscapeSequence and"
+    },
+    {
+      "type": "Line",
+      "start": 66,
+      "end": 129,
+      "value": " NonOctalDecimalEscapeSequence (\\\\8 / \\\\9) inside an untagged"
+    },
+    {
+      "type": "Line",
+      "start": 130,
+      "end": 197,
+      "value": " TemplateLiteral are SyntaxErrors in strict mode, just like plain"
+    },
+    {
+      "type": "Line",
+      "start": 198,
+      "end": 262,
+      "value": " StringLiterals. Tagged template literals (`tag\\`...\\``) get a"
+    },
+    {
+      "type": "Line",
+      "start": 263,
+      "end": 333,
+      "value": " cooked/raw pair where invalid escapes render `cooked: null` instead"
+    },
+    {
+      "type": "Line",
+      "start": 334,
+      "end": 392,
+      "value": " of failing; that case is out of scope for this fixture."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
+      "line": 8,
+      "column": 20,
+      "offset": 426
+    },
+    {
+      "message": "Invalid escape sequence in template literal",
+      "line": 8,
+      "column": 20,
+      "offset": 426
+    },
+    {
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
+      "line": 9,
+      "column": 18,
+      "offset": 445
+    },
+    {
+      "message": "Invalid escape sequence in template literal",
+      "line": 9,
+      "column": 18,
+      "offset": 445
+    },
+    {
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
+      "line": 10,
+      "column": 18,
+      "offset": 464
+    },
+    {
+      "message": "Invalid escape sequence in template literal",
+      "line": 10,
+      "column": 18,
+      "offset": 464
+    }
+  ]
+}
+Parse errors (6):
+  Line 8, Column 20: Octal or \8 / \9 escape sequences are not allowed in strict mode
+  Line 8, Column 20: Invalid escape sequence in template literal
+  Line 9, Column 18: Octal or \8 / \9 escape sequences are not allowed in strict mode
+  Line 9, Column 18: Invalid escape sequence in template literal
+  Line 10, Column 18: Octal or \8 / \9 escape sequences are not allowed in strict mode
+  Line 10, Column 18: Invalid escape sequence in template literal
+
+--- Statistics ---
+Arena: used=14392B reserved=16777216B ratio=0%
+Parse errors: 6

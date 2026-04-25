@@ -1,0 +1,62 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 71,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 47,
+      "end": 70,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 53,
+          "end": 69,
+          "id": {
+            "type": "Identifier",
+            "start": 53,
+            "end": 58,
+            "name": "value"          },
+          "init": null        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 46,
+      "value": " Expected error: unterminated array literal."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected ], got ;",
+      "line": 2,
+      "column": 23,
+      "offset": 69
+    },
+    {
+      "message": "Expected initializer expression after '='",
+      "line": 2,
+      "column": 23,
+      "offset": 69
+    },
+    {
+      "message": "Missing initializer in 'const' declaration",
+      "line": 3,
+      "column": 1,
+      "offset": 71
+    }
+  ]
+}
+Parse errors (3):
+  Line 2, Column 23: Expected ], got ;
+  Line 2, Column 23: Expected initializer expression after '='
+  Line 3, Column 1: Missing initializer in 'const' declaration
+
+--- Statistics ---
+Arena: used=8368B reserved=16777216B ratio=0%
+Parse errors: 3

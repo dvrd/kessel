@@ -1,0 +1,135 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 586,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ImportDeclaration",
+      "start": 552,
+      "end": 585,
+      "specifiers": [
+        {
+          "type": "ImportSpecifier",
+          "start": 560,
+          "end": 566,
+          "imported": {
+            "type": "Identifier",
+            "start": 560,
+            "end": 561,
+            "name": "b"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 565,
+            "end": 566,
+            "name": "a"
+          }
+        },
+        {
+          "type": "ImportSpecifier",
+          "start": 568,
+          "end": 574,
+          "imported": {
+            "type": "Identifier",
+            "start": 568,
+            "end": 569,
+            "name": "c"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 573,
+            "end": 574,
+            "name": "a"
+          }
+        }
+      ],
+      "source": {
+        "type": "Literal",
+        "start": 581,
+        "end": 584,
+        "value": "m",
+        "raw": "\"m\""
+      },
+      "attributes": [],
+      "phase": null    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " ECMA-262 §16.2.2 — BoundNames of an ImportClause must not contain"
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 131,
+      "value": " duplicate entries. All specifier kinds (ImportSpecifier,"
+    },
+    {
+      "type": "Line",
+      "start": 132,
+      "end": 201,
+      "value": " ImportDefaultSpecifier, ImportNamespaceSpecifier) contribute their"
+    },
+    {
+      "type": "Line",
+      "start": 202,
+      "end": 270,
+      "value": " LOCAL name (the identifier after `as`, or the identifier itself)."
+    },
+    {
+      "type": "Line",
+      "start": 271,
+      "end": 335,
+      "value": " Here `a` is the imported-name for the first specifier AND the"
+    },
+    {
+      "type": "Line",
+      "start": 336,
+      "end": 405,
+      "value": " local-name for the second (aliased via `as a`), so both add `a` to"
+    },
+    {
+      "type": "Line",
+      "start": 406,
+      "end": 475,
+      "value": " BoundNames — that duplicate triggers the early error. Covers the"
+    },
+    {
+      "type": "Line",
+      "start": 476,
+      "end": 543,
+      "value": " mixed default+named form too (`import a, {a} from \"m\";` — same"
+    },
+    {
+      "type": "Line",
+      "start": 544,
+      "end": 558,
+      "value": " rejection)."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Duplicate import binding 'a'",
+      "line": 11,
+      "column": 1,
+      "offset": 593
+    },
+    {
+      "message": "'a' has already been declared",
+      "line": 10,
+      "column": 22,
+      "offset": 580
+    }
+  ]
+}
+Parse errors (2):
+  Line 11, Column 1: Duplicate import binding 'a'
+  Line 0, Column 0: 'a' has already been declared
+
+--- Statistics ---
+Arena: used=17480B reserved=16777216B ratio=0%
+Parse errors: 2

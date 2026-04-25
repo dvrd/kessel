@@ -1,0 +1,78 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 337,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 322,
+      "end": 336,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 326,
+          "end": 335,
+          "id": {
+            "type": "Identifier",
+            "start": 326,
+            "end": 327,
+            "name": "n"          },
+          "init": {
+            "type": "Literal",
+            "start": 330,
+            "end": 335,
+            "value": null,
+            "raw": "0123n",
+            "bigint": "0123"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " ECMA-262 §12.9.3 — a LegacyOctalIntegerLiteral cannot be a BigInt"
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 141,
+      "value": " literal. `0123n` is neither a valid DecimalBigInt (starts with `0`"
+    },
+    {
+      "type": "Line",
+      "start": 142,
+      "end": 209,
+      "value": " + digits, so lexer routes it through the legacy-octal arm) nor a"
+    },
+    {
+      "type": "Line",
+      "start": 210,
+      "end": 281,
+      "value": " valid OctalBigInt (which requires the modern `0o` prefix: `0o123n`)."
+    },
+    {
+      "type": "Line",
+      "start": 282,
+      "end": 324,
+      "value": " Always a SyntaxError, not strict-gated."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Legacy octal literals cannot be BigInt",
+      "line": 6,
+      "column": 14,
+      "offset": 338
+    }
+  ]
+}
+Parse errors (1):
+  Line 6, Column 14: Legacy octal literals cannot be BigInt
+
+--- Statistics ---
+Arena: used=10816B reserved=16777216B ratio=0%
+Parse errors: 1

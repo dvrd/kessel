@@ -1,0 +1,78 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 238,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 205,
+      "end": 237,
+      "id": {
+        "type": "Identifier",
+        "start": 214,
+        "end": 215,
+        "name": "f"
+      },
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 218,
+        "end": 237,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 220,
+            "end": 235,
+            "argument": {
+              "type": "AwaitExpression",
+              "start": 227,
+              "end": 234,
+              "argument": {
+                "type": "Literal",
+                "start": 233,
+                "end": 234,
+                "value": 1,
+                "raw": "1"              }            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " ECMA-262 §15.8.1 — `await` is reserved inside an async function /"
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 142,
+      "value": " module; outside both it's an identifier in script mode. Here we use"
+    },
+    {
+      "type": "Line",
+      "start": 143,
+      "end": 209,
+      "value": " it in a non-async function body as an operator — SyntaxError."
+    }
+  ],
+  "errors": [
+    {
+      "message": "await outside of async function",
+      "line": 4,
+      "column": 23,
+      "offset": 232
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 23: await outside of async function
+
+--- Statistics ---
+Arena: used=9088B reserved=16777216B ratio=0%
+Parse errors: 1

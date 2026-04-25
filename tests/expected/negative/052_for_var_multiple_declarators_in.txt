@@ -1,0 +1,92 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 276,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ForInStatement",
+      "start": 253,
+      "end": 275,
+      "left": {
+        "type": "VariableDeclaration",
+        "start": 258,
+        "end": 266,
+        "kind": "var",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 262,
+            "end": 263,
+            "id": {
+              "type": "Identifier",
+              "start": 262,
+              "end": 263,
+              "name": "x"            },
+            "init": null          },
+          {
+            "type": "VariableDeclarator",
+            "start": 265,
+            "end": 266,
+            "id": {
+              "type": "Identifier",
+              "start": 265,
+              "end": 266,
+              "name": "y"            },
+            "init": null          }
+        ]
+      },
+      "right": {
+        "type": "Identifier",
+        "start": 270,
+        "end": 271,
+        "name": "z"      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 273,
+        "end": 275,
+        "body": [
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " ECMA-262 §14.7.5 — the for-in/of head allows a SINGLE ForBinding /"
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 141,
+      "value": " ForDeclaration only; a comma-list of declarators is a SyntaxError"
+    },
+    {
+      "type": "Line",
+      "start": 142,
+      "end": 213,
+      "value": " (parse error on the comma in the core grammar). Even the Annex B.3.5"
+    },
+    {
+      "type": "Line",
+      "start": 214,
+      "end": 255,
+      "value": " carve-out only accepts ONE declarator."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Only a single declaration is allowed in a for-in loop",
+      "line": 5,
+      "column": 18,
+      "offset": 273
+    }
+  ]
+}
+Parse errors (1):
+  Line 5, Column 18: Only a single declaration is allowed in a for-in loop
+
+--- Statistics ---
+Arena: used=9664B reserved=16777216B ratio=0%
+Parse errors: 1

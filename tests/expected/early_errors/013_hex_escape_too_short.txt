@@ -1,0 +1,59 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 130,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 111,
+      "end": 129,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 117,
+          "end": 128,
+          "id": {
+            "type": "Identifier",
+            "start": 117,
+            "end": 120,
+            "name": "bad"          },
+          "init": {
+            "type": "Literal",
+            "start": 123,
+            "end": 128,
+            "value": "\\x4",
+            "raw": "\"\\x4\""          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 68,
+      "value": " ECMA-262 §12.9.4 — \\x requires exactly 2 hex digits. Fewer (or"
+    },
+    {
+      "type": "Line",
+      "start": 69,
+      "end": 113,
+      "value": " non-hex next character) is a SyntaxError."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Invalid \\x escape: expected 2 hex digits",
+      "line": 3,
+      "column": 14,
+      "offset": 127
+    }
+  ]
+}
+Parse errors (1):
+  Line 3, Column 14: Invalid \x escape: expected 2 hex digits
+
+--- Statistics ---
+Arena: used=8312B reserved=16777216B ratio=0%
+Parse errors: 1

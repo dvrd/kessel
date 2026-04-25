@@ -1,0 +1,69 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 221,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 200,
+      "end": 220,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 206,
+          "end": 219,
+          "id": {
+            "type": "Identifier",
+            "start": 206,
+            "end": 207,
+            "name": "r"          },
+          "init": {
+            "type": "Literal",
+            "start": 210,
+            "end": 219,
+            "value": null,
+            "raw": "/abc)def/",
+            "regex": {
+              "pattern": "abc)def",
+              "flags": ""
+            }          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 71,
+      "value": " Unbalanced closing `)` in a regex pattern — the lexer tracks group"
+    },
+    {
+      "type": "Line",
+      "start": 72,
+      "end": 142,
+      "value": " depth so an unmatched `)` is flagged at the offending offset rather"
+    },
+    {
+      "type": "Line",
+      "start": 143,
+      "end": 201,
+      "value": " than rolling into the rest of the pattern as a literal."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Unmatched ')' in regular expression",
+      "line": 4,
+      "column": 15,
+      "offset": 216
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 15: Unmatched ')' in regular expression
+
+--- Statistics ---
+Arena: used=11408B reserved=16777216B ratio=0%
+Parse errors: 1

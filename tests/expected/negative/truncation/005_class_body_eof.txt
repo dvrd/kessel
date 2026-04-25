@@ -1,0 +1,90 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 98,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 44,
+      "end": 97,
+      "id": {
+        "type": "Identifier",
+        "start": 50,
+        "end": 56,
+        "name": "Parser"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 57,
+        "end": 97,
+        "body": [
+          {
+            "type": "MethodDefinition",
+                        "start": 63,
+            "end": 97,
+                        "key": {
+              "type": "Identifier",
+              "start": 63,
+              "end": 69,
+              "name": "method"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 69,
+              "end": 97,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 72,
+                "end": 97,
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 82,
+                    "end": 91,
+                    "argument": {
+                      "type": "Literal",
+                      "start": 89,
+                      "end": 90,
+                      "value": 1,
+                      "raw": "1"                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 43,
+      "value": " Expected error: unterminated class body."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Expected '}' at end of class body",
+      "line": 6,
+      "column": 1,
+      "offset": 98
+    }
+  ]
+}
+Parse errors (1):
+  Line 6, Column 1: Expected '}' at end of class body
+
+--- Statistics ---
+Arena: used=9312B reserved=16777216B ratio=0%
+Parse errors: 1
