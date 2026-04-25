@@ -584,16 +584,14 @@ lex_identifier :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastTo
 	src := l.source_bytes
 	src_len := len(src)
 	off := l.offset + 1
-	for off < src_len {
-		c := src[off]
-		if c == '\\' && off + 1 < src_len && src[off + 1] == 'u' {
-			// Escape seen mid-identifier — fall back to the escape-aware slow
-			// path, which re-scans from `start` and produces a cooked name.
-			return lex_identifier_escaped(l, start, flags)
-		}
-		class := CHAR_CLASS_TABLE[c]
-		if class != u8(CharClass.IdStart) && class != u8(CharClass.Digit) { break }
-		off += 1
+	// SIMD body scan — 16 bytes/iter on ARM64 NEON, scalar fallback elsewhere.
+	// Returns the offset of the first non-id-continue byte (or `\\`); the
+	// scalar block below then either takes the escape slow path or falls
+	// out of the loop normally. See simd_scan_id_cont for the contract.
+	next_off, hit_bs := simd_scan_id_cont(src, off)
+	off = next_off
+	if hit_bs && off + 1 < src_len && src[off + 1] == 'u' {
+		return lex_identifier_escaped(l, start, flags)
 	}
 	l.offset = off
 	end := u32(off)

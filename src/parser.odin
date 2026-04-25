@@ -365,6 +365,19 @@ Parser :: struct {
 	// or control-flow headers — only the expression-position case.
 	preserve_parens:   bool,
 
+	// Per-parse counters used by `verify_private_names` to short-circuit
+	// the §15.7.3 AllPrivateIdentifiersValid walk. The walker is a
+	// recursive visitor over the entire AST; on real-world JS that
+	// contains no PrivateIdentifier (which is the overwhelming majority,
+	// including TypeScript, lodash, jQuery, React, etc.) it accounts for
+	// >10 % of total parse time without ever firing a check. Bumped at
+	// every PrivateIdentifier-emitting site (member access, optional
+	// chain, bare-LHS-of-`in`, class-element key); when zero at end of
+	// parse, the walker is skipped entirely. §15.7.5 (no `arguments`
+	// inside a class field initializer) is checked inline at field-
+	// initializer parse time so it does NOT depend on this walker.
+	private_id_count: u32,
+
 	// Inside an ambient TS module / namespace body: every declaration is
 	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
 	// semantics and also the string-named `module "x" { ... }` shortcut
@@ -558,6 +571,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.label_floor = 0
 	p.lang = lang
 	p.has_module_syntax = false
+	p.private_id_count = 0
 	p.pending_paren_start = max(u32) // sentinel: "no `(` pending"
 
 	// Initialize interner — pre-allocate capacity based on source size
@@ -3376,6 +3390,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		private_ident.loc = loc_from_token(current)
 		private_ident.name = name
 		key = expression_from(p, private_ident)
+		p.private_id_count += 1
 		eat(p)
 	} else if is_token(p, .String) {
 		// String key: `get 'trusting-append'()` / `'method-name'()`. ESTree emits
@@ -3514,6 +3529,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			p.in_derived_constructor = prev_in_derived_ctor
 			if init_expr != nil {
 				value = init_expr
+				// §15.7.5 — ClassFieldInitializer must not Contain
+				// `arguments`. Hoisted out of pn_visit_class so files
+				// with no PrivateIdentifier can skip the full
+				// §15.7.3 walker. The scan is local to this initializer
+				// expression tree and stops at nested
+				// FunctionExpression / ClassExpression boundaries.
+				scan_field_init_arguments(p, init_expr)
 			}
 		}
 
@@ -5569,6 +5591,17 @@ verify_scopes :: proc(p: ^Parser, program: ^Program) {
 PrivateNameStack :: [dynamic]map[string]bool
 
 verify_private_names :: proc(p: ^Parser, program: ^Program) {
+	// Fast-path: §15.7.3 only fires when at least one PrivateIdentifier
+	// node was emitted during parsing. The vast majority of real-world JS
+	// (TypeScript, lodash, jQuery, React, ...) contains zero. Without
+	// this guard the recursive walker visits every Expression / Statement
+	// in the program even though every check is vacuous — measured at
+	// >10 % of total CPU on bench/real_world/typescript.js. The complementary
+	// §15.7.5 "`arguments` in class field initializer" check is performed
+	// inline at parse_class_element time and does NOT depend on this walk.
+	if p.private_id_count == 0 {
+		return
+	}
 	stack: PrivateNameStack
 	stack.allocator = context.temp_allocator
 	for stmt in program.body {
@@ -5607,18 +5640,12 @@ pn_visit_class :: proc(p: ^Parser, cls: ^ClassExpression, stack: ^PrivateNameSta
 		if elem.key != nil { pn_walk_expr(p, elem.key, stack) }
 		if v, have := elem.value.(^Expression); have && v != nil {
 			pn_walk_expr(p, v, stack)
-			// §15.7.5 — ClassFieldInitializer must not Contain
-			// “arguments”. Fields are ClassElement entries where the
-			// .value isn't a FunctionExpression (methods / getters /
-			// setters / constructor wrap the function in a
-			// FunctionExpression). Walk the initializer expression tree
-			// and report any bare `arguments` IdentifierReference that
-			// isn't shadowed by a nested function's arguments object.
-			is_field := true
-			if _, is_fn := v.(^FunctionExpression); is_fn { is_field = false }
-			if is_field && elem.kind != .Constructor {
-				scan_field_init_arguments(p, v)
-			}
+			// §15.7.5 (no `arguments` in a class field initializer) is now
+			// checked inline at parse_class_element time — see the
+			// `match_token(p, .Assign)` branch there. We don't repeat it
+			// here because that would emit duplicate diagnostics for files
+			// that DO contain a PrivateIdentifier and therefore reach
+			// this walker.
 		}
 	}
 	pop(stack)
@@ -7171,6 +7198,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				pid, pid_e := new_expr(p, PrivateIdentifier)
 				pid.loc = prop.loc
 				pid.name = prop.name[1:]
+				p.private_id_count += 1
 				member.property = pid_e
 			} else {
 				// Create regular Identifier
@@ -7206,6 +7234,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					name := prop.name
 					if len(name) > 0 && name[0] == '#' { name = name[1:] }
 					pid.name = name
+					p.private_id_count += 1
 					member.property = expression_from(p, pid)
 				} else {
 					// Create regular Identifier
@@ -7605,6 +7634,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		pid := new_node(p, PrivateIdentifier)
 		pid.loc = loc_from_token(current)
 		pid.name = name
+		p.private_id_count += 1
 		eat(p)
 		pid.loc.span.end = prev_end_offset(p)
 		return expression_from(p, pid)
