@@ -2729,12 +2729,16 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 }
 
 parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
-	params := make([dynamic]FunctionParameter, 0, 3, p.allocator)
+	// Lazy alloc — zero-parameter functions are very common (callbacks,
+	// arrows like `() => x`, getters / setters, etc.). Defer the bump
+	// reservation until we know there's at least one parameter.
+	params: [dynamic]FunctionParameter
 
 	if is_token(p, .RParen) {
 		return params
 	}
 
+	params = make([dynamic]FunctionParameter, 0, 3, p.allocator)
 	for {
 		// Trailing comma: if we see ')' after comma, stop
 		if is_token(p, .RParen) {
@@ -8735,9 +8739,15 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 		return nil
 	}
 
-	args := make([dynamic]^Expression, 0, 4, p.allocator)
+	// Lazy allocation — zero-argument calls (`fn()`) are extremely common
+	// (every method-chain step like `.map().filter().toArray()` has them)
+	// and would otherwise burn a 32-byte bump-pool reservation per call
+	// for an unused 4-pointer dynamic array. Defer the make until we know
+	// the call has at least one argument.
+	args: [dynamic]^Expression
 
 	if !is_token(p, .RParen) {
+		args = make([dynamic]^Expression, 0, 4, p.allocator)
 		for {
 			if is_token(p, .Dot3) {
 				spread_start := cur_loc(p) // Capture location of ... before eating
@@ -10260,7 +10270,16 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 }
 
 parse_decorators :: proc(p: ^Parser) -> [dynamic]Decorator {
-	decorators := make([dynamic]Decorator, 0, 4, p.allocator)
+	// Lazy alloc — the parser calls parse_decorators on entry to every
+	// class declaration, class element, and function declaration. The
+	// overwhelming majority of real-world JS contains no decorators at
+	// all, so the unconditional 32-byte make() per call burned through
+	// the bump pool with nothing to show for it. Defer to the first `@`.
+	decorators: [dynamic]Decorator
+	if !is_token(p, .At) {
+		return decorators
+	}
+	decorators = make([dynamic]Decorator, 0, 4, p.allocator)
 	for is_token(p, .At) {
 		start := cur_loc(p)
 		eat(p)
