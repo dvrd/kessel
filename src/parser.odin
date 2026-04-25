@@ -233,6 +233,12 @@ Parser :: struct {
 	in_switch:       bool,
 	strict_mode:     bool,
 
+	// True when parsing a ClassStaticBlockBody (§15.7.5). Disables
+	// `return`, `await`, `yield`, and `arguments` (the spec parameters
+	// `[~Yield, +Await, ~Return]` plus an explicit `Contains await /
+	// arguments / SuperCall` early error).
+	in_static_block: bool,
+
 	// Most-recent call to `parse_function_body` set this to true iff the
 	// body's directive prologue contained a literal `"use strict"`. Used
 	// by the immediately-surrounding caller (function-decl / expr / class-
@@ -1930,6 +1936,12 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	if !p.in_function {
 		report_error(p, "'return' outside of function")
 	}
+	// §15.7.5 ClassStaticBlockBody is parsed under [~Return]; the
+	// outer in_function is set to true so new.target works, but a
+	// literal `return` is forbidden by the grammar parameter.
+	if p.in_static_block {
+		report_error(p, "'return' is not allowed in a class static block")
+	}
 
 	argument: Maybe(^Expression)
 	// ECMA-262 §12.10 Restricted Production: `return` followed by a
@@ -3621,9 +3633,27 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	// §15.7.5 — a static block is its own ClassStaticBlockBody function;
 	// `new.target` and `return` are legal inside (§13.3.12 / §14.10).
 	// Promote in_function so the new.target gate doesn't false-positive.
+	// However, the static block is NOT a generator and NOT async — `yield`
+	// and `await` from the enclosing function/generator do NOT propagate
+	// (§15.7.5: ClassStaticBlockBody : ClassStaticBlockStatementList runs
+	// under [~Yield, ~Await]). Reset both flags so a `function *g() {
+	// class C { static { yield; } } }` correctly rejects the inner yield.
 	prev_in_function_sb := p.in_function
 	p.in_function = true
 	defer p.in_function = prev_in_function_sb
+	prev_in_generator_sb := p.in_generator
+	p.in_generator = false
+	defer p.in_generator = prev_in_generator_sb
+	prev_in_async_sb := p.in_async
+	p.in_async = false
+	defer p.in_async = prev_in_async_sb
+	prev_in_static_block_sb := p.in_static_block
+	p.in_static_block = true
+	defer p.in_static_block = prev_in_static_block_sb
+	// Class bodies (and therefore static blocks) are implicitly strict.
+	prev_strict_sb := p.strict_mode
+	p.strict_mode = true
+	defer p.strict_mode = prev_strict_sb
 
 	// Parse block statement. parse_block_statement returns a ^Statement
 	// union wrapping a ^BlockStatement; extract the ^BlockStatement variant
@@ -6815,7 +6845,11 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.has_module_syntax {
 			in_module_file = true
 		}
-		if at_module_top && in_module_file {
+		if p.in_static_block {
+			// §15.7.5 — ClassStaticBlockBody Contains await is a
+			// SyntaxError. Treat as keyword and report.
+			report_error(p, "'await' is not allowed in a class static block")
+		} else if at_module_top && in_module_file {
 			// TLA — fall through to AwaitExpression parse below.
 		} else if !at_module_top {
 			// Inside a non-async function in script: `await` is an
