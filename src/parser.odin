@@ -5292,7 +5292,13 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 		pn_walk_expr(p, e.object, stack)
 		if e.property != nil {
 			if pid, ok := e.property^.(^PrivateIdentifier); ok && pid != nil {
-				if !pn_stack_has(stack, pid.name) {
+				// Skip empty-name PrivateIdentifier — the lexer/parser
+				// already reports a structural error at the parse site
+				// (e.g. lone `#` from a malformed hashbang). An empty
+				// name can never resolve to a declared private (declared
+				// privates have non-empty names by construction), so the
+				// resolution check would only emit a duplicate error.
+				if len(pid.name) > 0 && !pn_stack_has(stack, pid.name) {
 					msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
 					append(&p.errors, ParseError{
 						loc = LexerLoc{offset = int(pid.loc.span.start)},
@@ -5307,7 +5313,8 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 		// Bare private-identifier not via member access — only legal as
 		// the LHS of `#x in obj`. The BinaryExpression case below handles
 		// the legitimate position; anything that reaches here is a stray.
-		if !pn_stack_has(stack, e.name) {
+		// Empty-name skip: see MemberExpression case above.
+		if len(e.name) > 0 && !pn_stack_has(stack, e.name) {
 			msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", e.name)
 			append(&p.errors, ParseError{
 				loc = LexerLoc{offset = int(e.loc.span.start)},
@@ -5324,7 +5331,8 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 			pid_left, _ = e.left^.(^PrivateIdentifier)
 		}
 		if pid_left != nil && e.operator == .In {
-			if !pn_stack_has(stack, pid_left.name) {
+			// Empty-name skip: see MemberExpression case above.
+			if len(pid_left.name) > 0 && !pn_stack_has(stack, pid_left.name) {
 				msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid_left.name)
 				append(&p.errors, ParseError{
 					loc = LexerLoc{offset = int(pid_left.loc.span.start)},
