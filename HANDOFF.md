@@ -1,8 +1,8 @@
 # Kessel — Handoff
 
-**Last updated:** 2026-04-24 — Session 10 complete.
-**Status headline:** 144/144 spec-fixtures; 100/100 fuzz-diff; 0 divergences vs OXC on 12 real files; **125/125 negative-gate rejections across 54 static-error classes (ratchet engaged)**; **Test262 full corpus baselined at 47 889 / 49 729 (96.30%)** — up from 44 620 (89.73%) at Session-9 end; **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; **32/32 recovery**; 467/467 invariants; 57/57 node-type coverage; 11/11 regression.
-**Repo state:** `main` at `f871fa4` (latest Session-10 commit), ~21 700 LOC of Odin across 7 files + npm/kessel-parser shim with async server-mode bridge.
+**Last updated:** 2026-04-24 — Session 11 complete.
+**Status headline:** 144/144 spec-fixtures; **97/100 fuzz-diff** (3 baselined Kessel-correct/OXC-permissive divergences); 0 divergences vs OXC on 12 real files; **125/125 negative-gate rejections across 54 static-error classes (ratchet engaged)**; **Test262 full corpus baselined at 48 697 / 49 729 (97.92%)** — up from 47 889 (96.30%) at Session-10 end (+808 tests across 17 parser/lexer patches); **`test:estree:strict` passes zero-tolerance on every real-world file**; 467/467 real-world; 66/66 curated test262; **32/32 recovery**; 467/467 invariants; 57/57 node-type coverage; 11/11 regression; **284/284 unit fixtures**.
+**Repo state:** `main` at session-11 head (4 cleanup commits on top of 17 parser/lexer commits), ~23 530 LOC of Odin across 7 files + npm/kessel-parser shim with async server-mode bridge.
 
 Single authoritative handoff. Supersedes the old `OXC_PARITY.md` and
 `SESSION_REPORT.md` (merged in, then deleted).
@@ -37,7 +37,7 @@ is fine.
 
 | Suite | Command | Result | Notes |
 |---|---|---|---|
-| Unit | `task test:unit` | **284 / 409** (100% pass rate) | 125 skipped = negative-gate-owned early-error fixtures. Zero failures. |
+| Unit | `task test:unit` | **284 / 409** (100% pass rate) | 125 skipped = negative-gate-owned early-error fixtures. Zero failures. Session-11 refreshed 10 expected files for phase-imports + recovery const-no-init. |
 | Regression | `task test:regression` | **11 / 11** ✅ | Structural diff vs OXC for session-fixed bugs. |
 | Real-world | `task test:real` | **467 / 467** ✅ | Zero failures across the full real-world corpus. |
 | Node coverage | `task test:nodes` | **57 / 57** ✅ | Every emitted ESTree type has a live fixture. |
@@ -48,14 +48,14 @@ is fine.
 | ESTree drift (strict) | `task test:estree:strict` | ✅ 0 mismatches | Zero-tolerance variant of the above for release gating. |
 | Multi-parser | `task test:multi-parser` | ✅ matches baseline | snabbdom passes vs acorn + babel. |
 | Spec-compliance | `task test:spec-compliance` | **0 divergences** ✅ (baselined) | All 12 curated real files (snabbdom, preact, jquery, react.dev, lodash, acorn, react-dom.dev, antd, d3, chalk, petite-vue, zod) match OXC byte-for-byte. 11 561 → 0 across two sweeps. |
-| Fuzz (diff vs OXC) | `task test:fuzz` | **100 / 100** ✅ (baselined) | All 25 prior baselined failures closed. |
+| Fuzz (diff vs OXC) | `task test:fuzz` | **97 / 100** ✅ (baselined) | 3 baselined Session-11 known-failures: Kessel correctly rejects per-spec where OXC accepts (duplicate arrow params ×2, let / function-decl clash). |
 | Fuzz (invalid input) | `task test:fuzz:invalid` | **8 / 8** ✅ (baselined) | 8 SIGTERMs on 350 KB–4 MB mutated files (deadline-crosses, not parser bugs). |
 | Crashes-known | `task test:crashes-known` | ✅ 0 pinned, 0 new | |
 | Recovery | `task test:recovery` | **20 / 20** ✅ | All anchors survive; spans stay sane. |
 | **Negative gate** | `task test:negative` | **125 / 125 rejected** ✅ (ratchet engaged) | **54 static-error classes** enforced across `tests/fixtures/negative/` + `tests/fixtures/early_errors/`: 9 from Session 5 (`43c57dc`) + 20 from Session 6 + 12 from Session 7 + 7 from Session 8 + 6 from Session 9 (`795f442`, `e64ee36`, `62a7b61`). Baseline is 100% “rejected” so the verifier auto-strictifies: any new fixture the parser accepts fails the default gate. See ERR-5 below for the full catalog. |
 | Negative gate (strict) | `task test:negative:strict` | **125 / 125 rejected** ✅ | Zero-tolerance variant, no baseline. Run before a release. |
 | Recovery | `task test:recovery` | **32 / 32** ✅ | Expanded from 20 in Session 9; 12 new fixtures across expressions / statements / declarations / jsx_ts. |
-| **Test262 full** | `task test:test262:full:regression` | **47 889 / 49 729 (96.30%)** baselined | **+3 269 tests closed in Session 10** via 19 parser + lexer patches (destructuring defaults, private-ident escapes, ImportCall + Phase Imports, CoverInitializedName, §13.5 statement-only positions, §14.2.1 lex-dedup always-on, §13.4.1 simple update target, strict-mode IdentifierReference, class field ASI, no_in scope fix, regex after await, numeric smooth-following). Requires a local checkout (`git clone https://github.com/tc39/test262.git vendor/test262`). Off the default chain — runs in ~2m30s. `task test:test262:full:update` after an intentional improvement. |
+| **Test262 full** | `task test:test262:full:regression` | **48 697 / 49 729 (97.92%)** baselined | **+808 tests closed in Session 11** via 17 parser + lexer patches (numeric-key ObjectPattern + cover-init clear, escaped-ReservedWord shorthand keys, §15.7.3 AllPrivateIdentifiersValid walker, static `import defer` / `import source`, class-body strict coverage, strict-mode shorthand reference, unconditional UniqueFormalParameters, `"use strict"` with non-simple params, destructuring assignment targets, `\u` after numeric, missing-init on const / using, yield/await as binding in params, Annex B.3.2/B.3.3 function-in-block, §15.7.5 class-field init `arguments`, yield/await as label + bare-await, retro legacy-octal in strict prologue, §12.9.6 untagged template invalid escapes). +3 269 in Session 10 (89.73% → 96.30%). Requires a local checkout (`git clone https://github.com/tc39/test262.git vendor/test262`). Off the default chain — runs in ~2m50s. `task test:test262:full:update` after an intentional improvement. |
 | Bench regression | `task test:bench:regression` | Not run | Use before release. |
 
 ### Performance (Apple M-series, `-o:speed -no-bounds-check`)
@@ -971,21 +971,87 @@ caught by the fixture `function f(a,b,a,b) { 'use strict'; }`.
 
 ## 9. What to work on next
 
-Session 10 drove the full Test262 corpus from 89.73% → **96.30%**
-(+3 269 tests) by closing systematic parser + lexer early-error
-gaps surfaced by running the full corpus with per-subdir
-triage. The surviving failures are distributed across:
+Session 11 took the full Test262 corpus from 96.30% → **97.92%**
+(+808 tests, 17 parser/lexer patches) by closing the systematic
+clusters Session 10 surfaced. Surviving failures are now:
 
-- **1 504 accepted-should-reject** — parse-time early errors
-  still missing. Biggest clusters: regex grammar (≥336, needs a
-  real regex parser), class elements (327, mostly private-name
-  resolution + decorator-proposal coverage), for-of/in dstr
-  yield/arguments in obscure targets (70+).
-- **335 rejected-should-accept** — real parser bugs where we
-  refuse valid code. Biggest clusters: class elements (99 +
-  30), `language/import/import-defer` (87, static import-defer
-  declaration form), for-await-of (48, mostly object-pattern
-  numeric key), module-code/top-level-await (25).
+- **922 accepted-should-reject** (down from 1 504, −582). Biggest
+  remaining clusters: regex grammar (≥336, needs a real regex
+  parser — Session 11 added named-group declaration + back-
+  reference validation but full AtomEscape / CharacterEscape /
+  CharacterClassEscape / GroupName / v-flag set notation is still
+  deferred), class elements (~140, residual private-name resolution
+  + decorator surface), built-ins early errors (≥100 across
+  RegExp.prototype / property-escapes that overlap the regex
+  cluster).
+- **109 rejected-should-accept** (down from 335, −226). Biggest
+  clusters: class elements (≈60), object-rest/spread edge cases
+  (≈20), TLA in exotic positions (≈20), residual restricted-
+  production gaps. The 87-fixture static `import defer` decl-form
+  cluster and the 48-fixture for-await-of numeric-key cluster were
+  closed in Session 11.
+
+### Session 11 accomplishments (2026-04-24)
+
+- **Test262 full 96.30% → 97.92%** (47 889 → 48 697, +808). Baseline
+  relocked at this higher pass count —
+  `tests/baselines/test262_full_baseline.json` updated. Per-dir:
+  language 22 014 → 22 824 (+810), staging 1 469 → 1 470 (+1),
+  annexB 1 083 → 1 084 (+1), built-ins 23 323 → 23 319 (−4 net,
+  accept-should-reject narrowed). One residual crash, zero
+  timeouts.
+- **17 parser / lexer patches** for systematic early-error,
+  cover-grammar, and strict-mode gaps. Per-commit Test262 deltas:
+  - `e53b11f` numeric-key ObjectPattern + for-in/of cover-init clear (+161)
+  - `a2bdc4d` escaped-ReservedWord in object shorthand key (+70)
+  - `a44710a` §15.7.3 AllPrivateIdentifiersValid walker (+111)
+  - `c83b888` static `import defer` / `import source` decl form (+87)
+  - `b4eaa1b` class body strict-mode coverage (+14)
+  - `518bd07` strict-mode shorthand reference check (+24)
+  - `25ecee1` unconditional UniqueFormalParameters (+3)
+  - `478ed50` `"use strict"` with non-simple param list (+45)
+  - `74143d4` validate destructuring assignment targets (+23)
+  - `05ee9da` `\u` escape after numeric literal (+10, lexer)
+  - `256ee94` missing initializer on const / using / await using (+7)
+  - `942ffa3` yield/await as binding in param list (+10)
+  - `3b6c9e3` Annex B.3.2/B.3.3 function-in-block scoping (+6)
+  - `96c0fba` §15.7.5 class field init `arguments` (+58)
+  - `e53d947` yield/await as label + await-with-no-operand (+128)
+  - `ac2dc58` retro legacy-octal escape in strict prologue (+10)
+  - `7af4651` §12.9.6 untagged template invalid escapes (+14)
+- **§22.2.1 regex named-group validation** (`f2e59a1`, lexer +172).
+  Two-pass scan: pass 1 collects every `(?<name>` declaration and
+  reports empty / unterminated / invalid-character forms; pass 2
+  resolves every `\k<name>` reference. Skips lookbehind forms and
+  character-class interiors. Per ES2025 §Duplicate Named Capturing
+  Groups, repeats in different DisjunctionAlternatives are accepted
+  (matches OXC + V8). Full RegExp grammar still deferred.
+- **§15.7.3 walker empty-name guard** (`1b97e8b`). The Session-10
+  AllPrivateIdentifiersValid walker fired "Private field '#' must
+  be declared in an enclosing class" on every empty-name
+  PrivateIdentifier. Empty names are a parser recovery artifact
+  (lone `#` from malformed hashbang); the lexer / parser already
+  reports the structural error at the parse site, and an empty
+  name can never resolve to a declared private. Guarded the three
+  walker sites with `len(name) > 0` before lookup.
+- **Fixture refresh** (`1705da2`, 10 files). Two clusters of
+  spec-correct emission churn the expected fixtures hadn't caught
+  up with: `options: null` + `phase: null` on every
+  ImportExpression / ImportDeclaration (from `c83b888` Phase
+  Imports, OXC-shape compatible), and the new
+  `Missing initializer in 'const' declaration` error on declarators
+  left with `init: null` after recovery (from `256ee94`).
+- **Baselines relocked** (`9cf1520`). Test262 full baseline
+  refreshed at 48 697 / 49 729. Fuzz baseline picks up 3 known
+  failures where Kessel correctly rejects per-spec but OXC
+  accepts: `(b, b) =>`, `(foo, foo) =>`, and a top-level `let c` /
+  `function c` clash. Documented as known fuzz-baseline deltas;
+  not parser regressions.
+- **All other gates stayed green.** `test:real` 467/467,
+  `test:spec-fixtures` 144/144, `test:spec-compliance` 0
+  divergences, `test:estree:strict` zero-tolerance clean,
+  `test:negative:strict` 125/125, `test:recovery` 32/32,
+  `test:nodes` 57/57, `test:invariants` zero-tolerance clean.
 
 ### Session 10 accomplishments (2026-04-24)
 
@@ -1161,37 +1227,37 @@ plus shipped new infrastructure:
      `@decorator class {}` surface; more complex decorator
      expressions (member / call / parenthesized) still pending.
 
-2. **Test262 rejected-should-accept (parser bugs): 335 left.**
-   Triage bucket in order of volume:
-   * `language/expressions/class` (99) and `language/
-     statements/class` (30) — class-element parser
-     shortcomings. ASI-at-body was just fixed in `f35422b`; a
-     handful of residual cases remain around escaped keywords
-     in class names and static-block edge cases.
-   * `language/import/import-defer` (87) — the static
-     `import defer * as ns from "x"` declaration form. Dynamic
-     `import.defer(…)` ships in `92a875b`; the declaration form
-     needs an extension to `parse_import_declaration`.
-   * `language/statements/for-await-of` (48) — mostly object
-     patterns with numeric keys (`{0: v, 1: w}`) that
-     `parse_object_pattern` doesn't accept. Separate from the
-     no_in fix already shipped.
-   * `language/module-code/top-level-await` (25) — await
-     expressions in more exotic positions (await in class
-     extends, computed member keys, etc.).
+2. **Test262 rejected-should-accept (parser bugs): 109 left.**
+   Down from 335 at Session-10 end (−226). Big remaining buckets:
+   * `language/expressions/class` + `language/statements/class`
+     (~60 combined) — residual class-element parser
+     shortcomings around escaped keywords in class names,
+     static-block ASI edges, and decorator surface.
+   * `language/expressions/object` (≈20) — object-rest /
+     spread cover-grammar edges.
+   * `language/module-code/top-level-await` (≈20) — await
+     expressions in exotic positions (await in class extends,
+     computed member keys, etc.).
+   * Residual restricted-production gaps in async / arrow LT
+   handling.
+   The 87-fixture static `import defer` decl-form cluster
+   (`c83b888`) and the 48-fixture for-await-of numeric-key
+   cluster (`e53b11f`) were closed in Session 11.
    Use `jq -r '.all_failures[] | select(.verdict ==
    "rejected-should-accept") | .file' tmp/test262_full_run.json |
    awk -F/ '{print $1"/"$2"/"$3}' | sort | uniq -c | sort -rn` to
    re-triage after each fix.
 
 3. **Full Regex pattern validation** (ERR-5 continuation).
-   Structural + flag checks ship in Session 9; full AtomEscape /
-   CharacterEscape / CharacterClassEscape / GroupName surface of
-   RegExp/v flag grammar is still deferred to a dedicated regex
-   parser (OXC uses oxc_regular_expression). ~336 fixtures
-   blocked on this (`language/literals/regexp` 173 +
-   `built-ins/RegExp/{property-escapes,prototype}` 163+28). High
-   effort, high reward.
+   Structural + flag checks shipped in Session 9; named-group
+   declaration + back-reference resolution shipped in Session 11
+   (`f2e59a1`). Full AtomEscape / CharacterEscape /
+   CharacterClassEscape / Unicode property escapes / v-flag set
+   notation are still deferred to a dedicated regex parser (OXC
+   uses oxc_regular_expression). ~336 fixtures blocked on this
+   (`language/literals/regexp` 173 + `built-ins/RegExp/
+   {property-escapes,prototype}` 163+28). High effort, high
+   reward.
 
 4. **Scope / symbol analysis deepening** (OPT-6 continuation).
    Session 10 promoted the §14.2.1 duplicate-LexicallyDeclaredNames
@@ -1251,12 +1317,29 @@ ASI, no_in leak fix, can_start_regex after Await/Yield, §12.9.3
 numeric smooth-following. See §7 Phase 10 for the commit table
 and §6 ERR-5 for the spec citations.
 
+Session 11 closed: numeric-key ObjectPattern + for-in/of cover-init
+clear, escaped-ReservedWord in object shorthand keys, §15.7.3
+AllPrivateIdentifiersValid walker (with empty-name guard), static
+`import defer` / `import source` decl form, class-body strict-mode
+coverage, strict-mode shorthand reference, unconditional
+UniqueFormalParameters, `"use strict"` with non-simple param list,
+destructuring assignment target validation, `\u` escape after
+numeric literal, missing-init on const / using / await using,
+yield/await as binding in param list, Annex B.3.2/B.3.3
+function-in-block scoping, §15.7.5 class field init `arguments`,
+yield/await as label + bare-await, retro legacy-octal escape in
+strict prologue, §12.9.6 untagged template invalid escapes, §22.2.1
+regex named-group declaration + back-reference validation. See
+§7 Phase 11 for the commit table and §6 ERR-5 for the spec
+citations.
+
 Remaining:
 
 - **Full Regex pattern body grammar** — AtomEscape /
-  CharacterEscape / CharacterClassEscape / GroupName / back-
-  reference resolution / v-flag set notation. OXC defers most of
-  this to oxc_regular_expression.
+  CharacterEscape / CharacterClassEscape / Unicode property
+  escapes / v-flag set notation. Named-group declaration + back-
+  reference resolution shipped in Session 11. OXC defers most of
+  the rest to oxc_regular_expression.
 - **TDZ / used-before-declaration** under OPT-6. The MVP only
   catches redeclaration / clash. Requires reachability + temporal
   ordering.
