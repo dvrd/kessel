@@ -3741,6 +3741,20 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		}
 		key = expression_from(p, num_lit)
 		eat(p)
+	} else if is_token(p, .BigInt) {
+		// BigInt key: `1n()`. Emit as BigIntLiteral per §13.2.3.
+		current := get_current(p)
+		big := new_node(p, BigIntLiteral)
+		big.loc = loc_from_token(current)
+		big.raw = current.value
+		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
+			big.value = current.value[:len(current.value)-1]
+		} else {
+			big.value = current.value
+		}
+		big.loc.span.end = prev_end_offset(p)
+		key = expression_from(p, big)
+		eat(p)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 		current := get_current(p)
 		key = expression_from(p, new_identifier(p, current))
@@ -9189,6 +9203,19 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		}
 		str.loc.span.end = prev_end_offset(p)
 		return expression_from(p, str)
+
+	case .BigInt:
+		eat(p)
+		big := new_node(p, BigIntLiteral)
+		big.loc = loc_from_token(current)
+		big.raw = current.value
+		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
+			big.value = current.value[:len(current.value)-1]
+		} else {
+			big.value = current.value
+		}
+		big.loc.span.end = prev_end_offset(p)
+		return expression_from(p, big)
 
 	case .Number:
 		eat(p)

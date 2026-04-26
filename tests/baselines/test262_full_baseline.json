@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49539,
+    "pass": 49541,
     "accepted-should-reject": 157,
-    "rejected-should-accept": 32,
+    "rejected-should-accept": 30,
     "crash": 1,
     "timeout": 0
   },
@@ -21,14 +21,14 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23473,
-      "fail": 172,
+      "pass": 23474,
+      "fail": 171,
       "crash": 0,
       "timeout": 0
     },
     "staging": {
-      "pass": 1470,
-      "fail": 13,
+      "pass": 1471,
+      "fail": 12,
       "crash": 1,
       "timeout": 0
     }
@@ -44,11 +44,11 @@
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 42,
+      "fail": 41,
       "crash": 0,
       "timeout": 0,
       "accepted-should-reject": 35,
-      "rejected-should-accept": 7
+      "rejected-should-accept": 6
     },
     "language/statements": {
       "pass": 0,
@@ -60,11 +60,11 @@
     },
     "staging/sm": {
       "pass": 0,
-      "fail": 13,
+      "fail": 12,
       "crash": 1,
       "timeout": 0,
       "accepted-should-reject": 2,
-      "rejected-should-accept": 10
+      "rejected-should-accept": 9
     },
     "language/line-terminators": {
       "pass": 0,
@@ -337,10 +337,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/object/literal-property-name-bigint.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/expressions/object/method-definition/generator-param-redecl-const.js",
       "verdict": "accepted-should-reject"
     },
@@ -370,6 +366,10 @@
     },
     {
       "file": "language/expressions/postfix-increment/line-terminator-carriage-return.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-increment/line-terminator-line-feed.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -537,10 +537,6 @@
     {
       "file": "language/expressions/new.target/escaped-target.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/literal-property-name-bigint.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/expressions/object/method-definition/generator-param-redecl-const.js",
@@ -1107,10 +1103,6 @@
       "verdict": "rejected-should-accept"
     },
     {
-      "file": "staging/sm/fields/numeric-fields.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "staging/sm/generators/syntax.js",
       "verdict": "rejected-should-accept"
     },
@@ -1136,5 +1128,5 @@
     }
   ],
   "rate": 99.62,
-  "generated_at": "2026-04-26T18:27:00.825Z"
+  "generated_at": "2026-04-26T18:35:18.382Z"
 }
