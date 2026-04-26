@@ -2930,10 +2930,22 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		return {}
 	}
 
+	// Lazy alloc — zero-statement function bodies (`function f() {}`) are
+	// extremely common (interface stubs, no-op handlers, default callbacks).
+	// Use a zero-cap make() so the dynamic-array header carries the correct
+	// allocator field but we don't burn an actual reservation until the
+	// first append. directives is rarely populated even on non-empty
+	// bodies (only `"use strict"` and similar prologues touch it), so it
+	// stays zero-cap unconditionally.
 	body := FunctionBody{
 		loc        = start,
-		body       = make([dynamic]^Statement, 0, 8, p.allocator),
-		directives = make([dynamic]Directive, 0, 1, p.allocator),
+		body       = make([dynamic]^Statement, 0, 0, p.allocator),
+		directives = make([dynamic]Directive, 0, 0, p.allocator),
+	}
+	// If the body is non-empty, pre-grow the statement vector to its
+	// typical capacity to avoid log-N realloc churn.
+	if !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		reserve(&body.body, 8)
 	}
 
 	prev_in_function := p.in_function
@@ -3150,7 +3162,14 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 
 	body := ClassBody{
 		loc  = start,
-		body = make([dynamic]ClassElement, 0, 8, p.allocator),
+		// Lazy alloc — zero-element class bodies (`class C {}`) appear in
+		// declaration-style stubs / abstract definitions / TS-only shells.
+		// Use a zero-cap make() so the allocator is set; reserve 8 only
+		// when we know there's at least one element (or stray semicolon).
+		body = make([dynamic]ClassElement, 0, 0, p.allocator),
+	}
+	if !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		reserve(&body.body, 8)
 	}
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
@@ -4677,7 +4696,12 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 
 	obj := new_node(p, ObjectPattern)
 	obj.loc = start
-	obj.properties = make([dynamic]ObjectPatternProperty, 0, 4, p.allocator)
+	// Lazy alloc — zero-element object patterns (`function f({}){}`) are
+	// rare but cheap to skip for, and the surrounding parse_function_param
+	// path is hot enough that a few avoided 32-byte reservations show up.
+	if !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		obj.properties = make([dynamic]ObjectPatternProperty, 0, 4, p.allocator)
+	}
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prop_start := cur_loc(p)
