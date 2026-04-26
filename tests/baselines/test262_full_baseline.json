@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49625,
-    "accepted-should-reject": 81,
+    "pass": 49630,
+    "accepted-should-reject": 76,
     "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23558,
-      "fail": 87,
+      "pass": 23563,
+      "fail": 82,
       "crash": 0,
       "timeout": 0
     },
@@ -34,14 +34,6 @@
     }
   },
   "perSubdir": {
-    "language/module-code": {
-      "pass": 0,
-      "fail": 26,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 26,
-      "rejected-should-accept": 0
-    },
     "language/expressions": {
       "pass": 0,
       "fail": 23,
@@ -49,6 +41,14 @@
       "timeout": 0,
       "accepted-should-reject": 18,
       "rejected-should-accept": 5
+    },
+    "language/module-code": {
+      "pass": 0,
+      "fail": 21,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 21,
+      "rejected-should-accept": 0
     },
     "language/statements": {
       "pass": 0,
@@ -345,15 +345,15 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/early-dup-export-as-star-as.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-dup-export-star-as-dflt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/module-code/export-default-asyncfunction-declaration-binding-exists.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-default-asyncgenerator-declaration-binding-exists.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-default-function-declaration-binding-exists.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -547,14 +547,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/early-dup-export-as-star-as.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-dup-export-star-as-dflt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/module-code/export-default-asyncfunction-declaration-binding-exists.js",
       "verdict": "accepted-should-reject"
     },
@@ -591,23 +583,11 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/parse-err-export-dflt-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-export-dflt-var.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/module-code/parse-err-invoke-anon-fun-decl.js",
       "verdict": "accepted-should-reject"
     },
     {
       "file": "language/module-code/parse-err-invoke-anon-gen-decl.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-semi-dflt-expr.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -775,6 +755,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.79,
-  "generated_at": "2026-04-26T21:45:46.414Z"
+  "rate": 99.8,
+  "generated_at": "2026-04-26T21:54:51.894Z"
 }

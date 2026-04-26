@@ -5795,6 +5795,16 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				_ = prev
 				append(&p.errors, ParseError{loc = LexerLoc{offset = int(v.loc.span.start)}, message = "Duplicate exported name 'default'"})
 			} else { exported["default"] = v.loc.span.start }
+		case ^ExportAllDeclaration:
+			if v == nil { continue }
+			// `export * as name from "m"` adds `name` to ExportedNames.
+			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
+				if prev, exists := exported[ns_name.name]; exists {
+					_ = prev
+					msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
+					append(&p.errors, ParseError{loc = LexerLoc{offset = int(ns_name.loc.span.start)}, message = msg})
+				} else { exported[ns_name.name] = ns_name.loc.span.start }
+			}
 		}
 	}
 	names := make(map[string]bool, 32, p.allocator)
@@ -6092,6 +6102,31 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 			     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
 				// Types / nested decls - don't bind into the value scope
 				// for dup-check purposes.
+			}
+		}
+	case ^ExportDefaultDeclaration:
+		// `export default function F() {}` / `export default class F {}`
+		// - the name `F` is bound in the module scope as a lexical.
+		if v == nil { return }
+		if d := v.declaration; d != nil {
+			#partial switch inner in d^ {
+			case ^Declaration:
+				if inner != nil {
+					#partial switch decl in inner^ {
+					case ^FunctionDeclaration:
+						if decl != nil {
+							if id, ok := decl.id.(BindingIdentifier); ok {
+								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+							}
+						}
+					case ^ClassDeclaration:
+						if decl != nil {
+							if id, ok := decl.id.(BindingIdentifier); ok {
+								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -7086,11 +7121,25 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			}
 		}
 	} else {
+		// §16.2.3 ExportDeclaration: `export default` accepts only
+		// AssignmentExpression, FunctionDeclaration, or ClassDeclaration.
+		// LexicalDeclaration (`const`, `let`) and VariableStatement (`var`)
+		// are NOT allowed after `export default`.
+		if p.cur_type == .Const || p.cur_type == .Var ||
+		   (p.cur_type == .Let && !p.cur_tok.had_line_terminator) {
+			report_error(p, "'export default' cannot be followed by a variable declaration")
+		}
 		expr := parse_assignment_expression(p)
 		if expr != nil {
 			def^ = expr
 		}
-		match_semicolon_or_asi(p)
+		if !match_semicolon_or_asi(p) && !p.cur_tok.had_line_terminator {
+			// `export default null null;` - second literal follows without separator.
+			#partial switch p.cur_type {
+			case .Null, .True, .False, .Number, .String, .BigInt:
+				report_error(p, "Unexpected token following export default expression")
+			}
+		}
 	}
 
 	decl := new_node(p, ExportDefaultDeclaration)
