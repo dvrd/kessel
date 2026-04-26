@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49494,
-    "accepted-should-reject": 180,
-    "rejected-should-accept": 54,
+    "pass": 49508,
+    "accepted-should-reject": 174,
+    "rejected-should-accept": 46,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23428,
-      "fail": 217,
+      "pass": 23442,
+      "fail": 203,
       "crash": 0,
       "timeout": 0
     },
@@ -34,14 +34,6 @@
     }
   },
   "perSubdir": {
-    "language/statements": {
-      "pass": 0,
-      "fail": 68,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 46,
-      "rejected-should-accept": 22
-    },
     "language/module-code": {
       "pass": 0,
       "fail": 63,
@@ -49,6 +41,14 @@
       "timeout": 0,
       "accepted-should-reject": 63,
       "rejected-should-accept": 0
+    },
+    "language/statements": {
+      "pass": 0,
+      "fail": 54,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 40,
+      "rejected-should-accept": 14
     },
     "language/expressions": {
       "pass": 0,
@@ -1059,15 +1059,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/for/let-block-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/statements/for/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/statements/for-await-of/let-block-with-newline.js",
       "verdict": "rejected-should-accept"
     },
     {
@@ -1077,18 +1069,6 @@
     {
       "file": "language/statements/for-in/dstr/obj-id-identifier-yield-expr.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-in/head-const-bound-names-in-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-in/head-let-bound-names-in-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-in/let-block-with-newline.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/for-in/let-identifier-with-newline.js",
@@ -1103,28 +1083,8 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/for-of/head-await-using-bound-names-in-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-of/head-const-bound-names-in-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-of/head-let-bound-names-in-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/for-of/head-lhs-async-invalid.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-of/head-using-bound-names-in-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-of/let-block-with-newline.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/for-of/let-identifier-with-newline.js",
@@ -1143,20 +1103,12 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/if/let-block-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/statements/if/let-identifier-with-newline.js",
       "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/if/S12.5_A8.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/labeled/let-block-with-newline.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/labeled/let-identifier-with-newline.js",
@@ -1223,15 +1175,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/while/let-block-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/statements/while/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/statements/with/let-block-with-newline.js",
       "verdict": "rejected-should-accept"
     },
     {
@@ -1315,6 +1259,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.53,
-  "generated_at": "2026-04-26T16:52:32.272Z"
+  "rate": 99.56,
+  "generated_at": "2026-04-26T17:11:41.802Z"
 }

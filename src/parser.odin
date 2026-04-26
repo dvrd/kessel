@@ -1293,7 +1293,16 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		     .Get, .Set, .Async, .Static, .Of, .From, .As,
 		     .Type, .Interface, .Enum,
 		     .Implements, .Package, .Private, .Protected, .Public:
-			let_is_decl = true
+			// §ASI restricted production: `let [LT] {` triggers ASI so `let`
+			// is an IdentifierReference, not a declaration. `for (x of [])
+			// let\n{}` — the `let` is the body and `{}` is the next statement.
+			// IMPORTANT: `let [` (with or without LT before `[`) is always
+			// a potential LexicalDeclaration — the ExpressionStatement lookahead
+			// restriction prohibits `let [` at statement start (§ExprStmt).
+			is_let_brace_asi := nxt_let.had_line_terminator && nxt_let.type == .LBrace
+			if !is_let_brace_asi {
+				let_is_decl = true
+			}
 		}
 		// In strict mode `let` is itself a reserved word — always a
 		// declaration there. The strict-mode binding-name check fires
@@ -2058,6 +2067,27 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		p.block_depth -= 1
 		p.in_loop = prev_in_loop
 		report_statement_only_position(p, body, false)
+
+		// §14.7.5.1 — It is a Syntax Error if any element of the BoundNames
+		// of ForDeclaration (let/const/using) also occurs in the
+		// VarDeclaredNames of Statement. This does NOT apply to `for (var x
+		// in/of ...)` — var-var is legal and just merges into one binding.
+		if left_decl != nil && body != nil && left_decl.kind != .Var {
+			head_names := make([dynamic]string, 0, 4, context.temp_allocator)
+			for decl in left_decl.declarations {
+				scope_collect_pattern(decl.id, &head_names)
+			}
+			body_vars := make(map[string]u32, 4, context.temp_allocator)
+			scope_hoist_vars(p, body, &body_vars)
+			for n in head_names {
+				if _, have := body_vars[n]; have {
+					kind_str := "of"
+					if is_in { kind_str = "in" }
+					msg := fmt.tprintf("'%s' is already declared in for-%s head", n, kind_str)
+					append(&p.errors, ParseError{loc = LexerLoc{offset = int(body_vars[n])}, message = msg})
+				}
+			}
+		}
 
 		if is_in {
 			// for-in - use separate fields for declaration vs expression
