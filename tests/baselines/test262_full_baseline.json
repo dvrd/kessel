@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49331,
-    "accepted-should-reject": 343,
+    "pass": 49341,
+    "accepted-should-reject": 333,
     "rejected-should-accept": 54,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23265,
-      "fail": 380,
+      "pass": 23275,
+      "fail": 370,
       "crash": 0,
       "timeout": 0
     },
@@ -66,14 +66,6 @@
       "accepted-should-reject": 15,
       "rejected-should-accept": 0
     },
-    "language/literals": {
-      "pass": 0,
-      "fail": 15,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 13,
-      "rejected-should-accept": 2
-    },
     "staging/sm": {
       "pass": 0,
       "fail": 13,
@@ -82,15 +74,23 @@
       "accepted-should-reject": 2,
       "rejected-should-accept": 10
     },
-    "language/line-terminators": {
+    "language/literals": {
       "pass": 0,
-      "fail": 11,
+      "fail": 9,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 11,
-      "rejected-should-accept": 0
+      "accepted-should-reject": 7,
+      "rejected-should-accept": 2
     },
     "language/asi": {
+      "pass": 0,
+      "fail": 7,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 7,
+      "rejected-should-accept": 0
+    },
+    "language/line-terminators": {
       "pass": 0,
       "fail": 7,
       "crash": 0,
@@ -381,6 +381,6 @@
       "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 99.2,
-  "generated_at": "2026-04-26T12:21:35.608Z"
+  "rate": 99.22,
+  "generated_at": "2026-04-26T12:32:32.439Z"
 }

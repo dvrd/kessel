@@ -1116,11 +1116,21 @@ lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 	pos, found_quote := simd_find_string_end(remaining, quote)
 
 	if found_quote {
-		// No escape — direct string, literal derived in parser from source[start+1:end-1].
-		// Additional check: simd_find_string_end treats `\n` as a terminator
-		// (which is correct for early-exit) — but if it HAS found a quote
-		// we're fine. We still need to catch the case where EOF hit before
-		// a closing quote, surfaced as !found_quote below.
+		// No escape — direct string. Check for unescaped line
+		// terminators (§12.9.4.1): bare LF / CR inside a string
+		// literal is a SyntaxError.
+		span := remaining[:pos]
+		for bi := 0; bi < len(span); bi += 1 {
+			b := span[bi]
+			if b == '\n' || b == '\r' {
+				append(&l.lexer_errors, LexerError{
+					offset = u32(int(start) + 1 + bi),
+					message = "Unterminated string literal",
+				})
+				l.had_line_terminator = true
+				break
+			}
+		}
 		l.offset += pos + 1 // skip content + closing quote
 		end := u32(l.offset)
 		return FastToken{start = start, end = end, kind = .String, flags = flags}
@@ -1212,9 +1222,15 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 		pos, found_quote := simd_find_string_end(remaining, quote)
 		if pos > 0 {
 			span := src[l.offset : l.offset + pos]
-			for b in span {
-				if b == '\n' {
+			for bi := 0; bi < len(span); bi += 1 {
+				b := span[bi]
+				if b == '\n' || b == '\r' {
+					// §12.9.4.1 — unescaped LineTerminator in string.
 					l.had_line_terminator = true
+					append(&l.lexer_errors, LexerError{
+						offset = u32(l.offset + bi),
+						message = "Unterminated string literal",
+					})
 					break
 				}
 			}
@@ -1371,11 +1387,31 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 				append(&cook_buf, next)
 				l.offset += 2
 			}
-		} else if c == '\n' {
-			// Unescaped newline in string
+		} else if c == '\n' || c == '\r' {
+			// §12.9.4.1 — unescaped LineTerminator in a string literal
+			// is a SyntaxError. The string is unterminated.
 			l.had_line_terminator = true
+			append(&l.lexer_errors, LexerError{
+				offset = u32(l.offset),
+				message = "Unterminated string literal",
+			})
 			append(&cook_buf, c)
 			l.offset += 1
+			if c == '\r' && l.offset < src_len && src[l.offset] == '\n' {
+				l.offset += 1 // skip CR+LF pair
+			}
+		} else if c == 0xE2 && l.offset + 2 < src_len &&
+		          src[l.offset + 1] == 0x80 &&
+		          (src[l.offset + 2] == 0xA8 || src[l.offset + 2] == 0xA9) {
+			// U+2028 LINE SEPARATOR (E2 80 A8) / U+2029 PARAGRAPH
+			// SEPARATOR (E2 80 A9) — also line terminators per §12.3.
+			// ES2019+ allows them in strings, so NO error here. Just
+			// set had_line_terminator and copy through.
+			l.had_line_terminator = true
+			append(&cook_buf, src[l.offset])
+			append(&cook_buf, src[l.offset + 1])
+			append(&cook_buf, src[l.offset + 2])
+			l.offset += 3
 		} else {
 			// Regular character
 			append(&cook_buf, c)
