@@ -3914,8 +3914,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			}
 		}
 
-		// Consume optional semicolon
-		match_semicolon_or_asi(p)
+		// §15.7.1 ClassElement - FieldDefinition must be followed by `;` or
+		// a line terminator. `field = 1 /* comment */ method(){}` (no newline
+		// between initializer and next element) is a SyntaxError.
+		// Use a stricter check than can_insert_semicolon: in a class body,
+		// a newline before any token (including `[`) terminates the field.
+		if is_token(p, .Semi) {
+			eat(p)
+		} else if !is_token(p, .RBrace) && !is_token(p, .EOF) && !p.cur_tok.had_line_terminator {
+			report_error(p, "Expected semicolon or line terminator after class field")
+		}
 
 		elem := new_node(p, ClassElement)
 		elem.loc = start
