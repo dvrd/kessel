@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49133,
-    "accepted-should-reject": 539,
+    "pass": 49216,
+    "accepted-should-reject": 456,
     "rejected-should-accept": 56,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23116,
-      "fail": 529,
+      "pass": 23199,
+      "fail": 446,
       "crash": 0,
       "timeout": 0
     },
@@ -34,14 +34,6 @@
     }
   },
   "perSubdir": {
-    "language/literals": {
-      "pass": 0,
-      "fail": 152,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 150,
-      "rejected-should-accept": 2
-    },
     "language/module-code": {
       "pass": 0,
       "fail": 131,
@@ -65,6 +57,14 @@
       "timeout": 0,
       "accepted-should-reject": 75,
       "rejected-should-accept": 13
+    },
+    "language/literals": {
+      "pass": 0,
+      "fail": 69,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 67,
+      "rejected-should-accept": 2
     },
     "built-ins/RegExp": {
       "pass": 0,
@@ -397,6 +397,6 @@
       "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 98.8,
-  "generated_at": "2026-04-26T09:14:47.543Z"
+  "rate": 98.97,
+  "generated_at": "2026-04-26T09:23:12.221Z"
 }

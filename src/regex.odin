@@ -37,8 +37,211 @@ regex_validate_pattern :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v:
 		regex_validate_property_escapes(l, pat_start, pat_end, has_v)
 	}
 
+	// Arithmetic modifiers `(?ims-ims:body)` (ES2025 RegExp Modifier
+	// Sequence proposal). Always-on — the syntax is well-formed in
+	// non-u mode too.
+	regex_validate_modifiers(l, pat_start, pat_end)
+
 	// Named-group declarations + `\k<name>` references.
 	regex_validate_named_groups(l, pat_start, pat_end)
+}
+
+// ============================================================================
+// Phase E — Arithmetic modifier sequences.
+//
+// ECMA-262 §22.2.1 (post the RegExp Modifier Sequence proposal):
+//
+//   Atom :: ( ? RegularExpressionFlags : Disjunction )
+//   Atom :: ( ? RegularExpressionFlags - RegularExpressionFlags : Disjunction )
+//   Atom :: ( ? - RegularExpressionFlags : Disjunction )
+//
+// Where RegularExpressionFlags inside this production is restricted
+// to {i, m, s} — the only "scoped" flags. The d / g / u / v / y flags
+// are global-only and cannot appear here.
+//
+// Early errors (§22.2.1.5):
+//   * It is a Syntax Error if any code point repeats inside one side.
+//   * It is a Syntax Error if any code point appears in BOTH sides.
+//   * It is a Syntax Error if a code point is outside {i, m, s}.
+//   * It is a Syntax Error if either side contains a non-letter (so
+//     escapes like `\u{0073}` and ZWJ / non-ASCII chars are rejected).
+//   * It is a Syntax Error if no `:` follows the flags (i.e. `(?ms-i)`).
+//   * It is a Syntax Error if both sides are empty (`(?-:a)`).
+//
+// We dispatch by looking for the `(?` opening that is NOT followed by
+// `:`, `=`, `!`, or `<` — those are non-capturing groups, lookahead
+// / lookbehind / named-group productions and are validated elsewhere.
+//
+// Test262 buckets covered (~130 fixtures total):
+//   built-ins/RegExp/early-err-arithmetic-modifiers-*.js
+//   built-ins/RegExp/syntax-err-arithmetic-modifiers-*.js
+//   built-ins/RegExp/early-err-modifiers-*.js
+//   language/literals/regexp/early-err-arithmetic-modifiers-*.js
+//   language/literals/regexp/syntax-err-arithmetic-modifiers-*.js
+//   language/literals/regexp/early-err-modifiers-*.js
+// ============================================================================
+
+regex_validate_modifiers :: proc(l: ^Lexer, pat_start, pat_end: u32) {
+	src := l.source_bytes
+	pe := int(pat_end)
+	in_class := false
+	i := int(pat_start)
+	for i < pe {
+		c := src[i]
+		// AtomEscape — skip both bytes.
+		if c == '\\' && i + 1 < pe { i += 2; continue }
+		if c == '[' && !in_class { in_class = true; i += 1; continue }
+		if c == ']' && in_class  { in_class = false; i += 1; continue }
+		if in_class || c != '(' { i += 1; continue }
+		// `(` only — need `(?` next, otherwise plain group.
+		if i + 2 >= pe || src[i + 1] != '?' { i += 1; continue }
+		n := src[i + 2]
+		// Other `(?`-prefixed productions: non-capturing, lookahead /
+		// negative-lookahead, named-group / lookbehind / negative-
+		// lookbehind. Validated elsewhere; not modifiers.
+		if n == ':' || n == '=' || n == '!' || n == '<' { i += 1; continue }
+		// Modifier production starts at i. Consume + emit one diagnostic
+		// at most per malformed modifier; skip past the closing `:` or
+		// `)` so we don't double-report.
+		end := regex_check_modifier_sequence(l, src, i, pe)
+		if end > i + 2 {
+			i = end
+		} else {
+			i += 2
+		}
+	}
+}
+
+// Validate a single arithmetic modifier sequence anchored at `start`
+// (which points at the opening `(`). Emits one LexerError on failure
+// and returns the position just past the closing `:` (or wherever
+// the scan terminated) so the outer loop can resume.
+regex_check_modifier_sequence :: proc(l: ^Lexer, src: []u8, start, pe: int) -> int {
+	// Two side-tracker bitmaps (ASCII letters only — indexed by
+	// `c & 0x7F`). The arithmetic modifier flags are spec-restricted
+	// to {i, m, s} so a 128-slot table is plenty.
+	add_seen: [128]u8
+	rem_seen: [128]u8
+
+	j := start + 2 // past `(?`
+	in_remove := false
+	saw_hyphen := false
+	add_count := 0
+	rem_count := 0
+	bad := false
+
+	loop: for j < pe {
+		c := src[j]
+		if c == ':' || c == ')' { break loop }
+
+		if c == '-' {
+			if in_remove {
+				// Two `-` in one sequence — ungrammatical.
+				bad = true
+				j += 1
+				continue
+			}
+			in_remove = true
+			saw_hyphen = true
+			j += 1
+			continue
+		}
+
+		// Reject any escape inside the flag list — spec disallows
+		// IdentityEscape / UnicodeEscape forms here. Test262 fixture:
+		//   /(?\u{0073}-s:a)/  → SyntaxError.
+		if c == '\\' {
+			bad = true
+			// Skip the escape body so the loop doesn't re-trip on its
+			// internals (e.g. `\u{0073}`).
+			j += 1
+			if j < pe && src[j] == 'u' && j + 1 < pe && src[j + 1] == '{' {
+				j += 2
+				for j < pe && src[j] != '}' { j += 1 }
+				if j < pe { j += 1 }
+			} else if j < pe {
+				j += 1
+			}
+			continue
+		}
+
+		// Non-ASCII bytes: invalid in flag list. Tests cover ZWJ
+		// (U+200D), ZWNJ (U+200C), ZWNBSP (U+FEFF), arbitrary code
+		// points like combining diacritics, etc.
+		if c >= 0x80 {
+			bad = true
+			// Skip the multi-byte sequence: lead byte E0–F4 are 3–4
+			// bytes; lead byte C2–DF are 2 bytes; everything else is
+			// already malformed UTF-8 we just step past.
+			if      c >= 0xF0 && j + 4 <= pe { j += 4 }
+			else if c >= 0xE0 && j + 3 <= pe { j += 3 }
+			else if c >= 0xC0 && j + 2 <= pe { j += 2 }
+			else                              { j += 1 }
+			continue
+		}
+
+		// Uppercase ASCII letters: spec says modifier flags are NOT
+		// case-folded, only lowercase i/m/s are valid. Test262:
+		//   /(?I:a)/ → SyntaxError.
+		if c >= 'A' && c <= 'Z' {
+			bad = true
+			j += 1
+			continue
+		}
+
+		// Lowercase ASCII letter: must be one of the modifier-allowed
+		// {i, m, s}. Other letters (`d`, `g`, `u`, `v`, `y`, anything
+		// random) are SyntaxErrors. Tests:
+		//   /(?-d:a)/ /(?-g:a)/ /(?-u:a)/ /(?-y:a)/ …
+		if !(c >= 'a' && c <= 'z') {
+			// Digits, punctuation — not a flag at all.
+			bad = true
+			j += 1
+			continue
+		}
+		if !(c == 'i' || c == 'm' || c == 's') {
+			bad = true
+			// Fall through to count it for duplicate / overlap.
+		}
+		if !in_remove {
+			if add_seen[c] != 0 { bad = true } // duplicate within add
+			add_seen[c] = 1
+			add_count += 1
+		} else {
+			if rem_seen[c] != 0 { bad = true } // duplicate within remove
+			if add_seen[c] != 0 { bad = true } // overlap with add
+			rem_seen[c] = 1
+			rem_count += 1
+		}
+		j += 1
+	}
+
+	// Sequence MUST close with `:` followed by Disjunction. `)` here
+	// (or end-of-pattern) means no body — ungrammatical. Test262:
+	//   /(?ms-i)/  → SyntaxError.
+	if j >= pe || src[j] != ':' {
+		bad = true
+	}
+
+	// Both sides empty after a hyphen — there's nothing to add and
+	// nothing to remove, the production carries no information.
+	// Test262: /(?-:a)/ → SyntaxError. (Plain `(?:a)` is non-capturing
+	// and dispatched away before reaching this validator.)
+	if saw_hyphen && add_count == 0 && rem_count == 0 {
+		bad = true
+	}
+
+	if bad {
+		append(&l.lexer_errors, LexerError{
+			offset = u32(start),
+			message = "Invalid regular expression modifier sequence",
+		})
+	}
+
+	// Skip past the `:` (or stop where the scan died) so the outer
+	// pass doesn't re-enter this same modifier on the next iteration.
+	if j < pe && src[j] == ':' { return j + 1 }
+	return j
 }
 
 // ============================================================================
