@@ -1770,13 +1770,11 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
 	}
 
-	// §22.2.1 Named-group validation. Two-pass scan:
-	// Pass 1: collect every `(?<name>` declaration. Report duplicates
-	//   and empty names.
-	// Pass 2: verify every `\k<name>` reference resolves against the
-	//   collected set.
+	// Pattern body validation is delegated to regex_validate_pattern
+	// (src/regex.odin) — runs once after flag parsing so it can branch
+	// on `has_u` / `has_v`. The named-group validator that used to live
+	// inline here is now invoked from there.
 	pattern_end := u32(l.offset)
-	regex_validate_named_groups(l, u32(pattern_start), pattern_end)
 
 	l.offset += 1 // skip closing /
 
@@ -1810,9 +1808,17 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		l.offset += 1
 	}
 	// u and v are mutually exclusive (§22.2.1 Step 3 check).
-	if seen_flags[int('u' - 'a')] != 0 && seen_flags[int('v' - 'a')] != 0 {
+	has_u := seen_flags[int('u' - 'a')] != 0
+	has_v := seen_flags[int('v' - 'a')] != 0
+	if has_u && has_v {
 		append(&l.lexer_errors, LexerError{offset = u32(flags_start), message = "Regular expression flags 'u' and 'v' are mutually exclusive"})
 	}
+
+	// Now that flags are parsed, run the full pattern validator. It owns
+	// every diagnostic that depends on flag context (property escapes,
+	// strict IdentityEscape, char-class range early errors in u/v mode,
+	// v-flag set notation, …) plus the flag-agnostic named-group checks.
+	regex_validate_pattern(l, u32(pattern_start), pattern_end, has_u, has_v)
 
 	end := u32(l.offset)
 	full_regex := l.source[start:end]
