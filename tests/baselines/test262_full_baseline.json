@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49433,
-    "accepted-should-reject": 241,
+    "pass": 49444,
+    "accepted-should-reject": 230,
     "rejected-should-accept": 54,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23367,
-      "fail": 278,
+      "pass": 23378,
+      "fail": 267,
       "crash": 0,
       "timeout": 0
     },
@@ -44,18 +44,18 @@
     },
     "language/statements": {
       "pass": 0,
-      "fail": 75,
+      "fail": 70,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 53,
+      "accepted-should-reject": 48,
       "rejected-should-accept": 22
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 60,
+      "fail": 54,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 47,
+      "accepted-should-reject": 41,
       "rejected-should-accept": 13
     },
     "language/block-scope": {
@@ -321,11 +321,205 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/assignmenttargettype/direct-callexpression-in-logical-assignment.js",
+      "file": "language/expressions/assignmenttargettype/parenthesized-primaryexpression-objectliteral.js",
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/assignmenttargettype/parenthesized-callexpression-in-logical-assignment.js",
+      "file": "language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-arrow-function/escaped-async.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-function/early-errors-expression-formals-body-duplicate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-function/escaped-async.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-generator/escaped-async.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/call/S11.2.4_A1.3_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/fields-asi-same-line-2.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-call-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-member-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js",
+      "verdict": "accepted-should-reject"
+    }
+  ],
+  "all_failures": [
+    {
+      "file": "annexB/language/comments/multi-line-html-close.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "annexB/language/comments/single-line-html-close.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "annexB/language/comments/single-line-html-open.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "annexB/language/expressions/assignmenttargettype/cover-callexpression-and-asyncarrowhead.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/asi/S7.9_A10_T8.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A11_T4.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A5.1_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A5.3_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9.2_A1_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/function-declaration-attempt-to-redeclare-with-var-declaration-nested-in-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-generator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-class.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-generator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-async-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-async-generator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-class.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-generator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/comments/hashbang/line-terminator-line-separator.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/comments/hashbang/line-terminator-paragraph-separator.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/comments/S7.4_A2_T2.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/comments/single-line-html-close-without-lt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/export/escaped-from.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/arrow-function/rest-params-trailing-comma-early-error.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/arrow-function/scope-param-rest-elem-var-open.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/assignment/destructuring/obj-prop-__proto__dup.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/direct-arrowfunction-1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/direct-asyncarrowfunction-1.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -373,14 +567,962 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/class/elements/syntax/early-errors/class-heritage-array-literal-async-arrow-heritage.js",
+      "file": "language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js",
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js",
+      "file": "language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-call-expr.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-member-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/static-init-await-binding.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/static-init-await-reference.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/coalesce/cannot-chain-head-with-logical-or.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/conditional/in-branch-1.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/division/no-magic-asi.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/dynamic-import/import-attributes/2nd-param-in.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/function/param-dflt-yield-strict.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/function/static-init-await-reference.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/generators/static-init-await-reference.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/import.meta/import-meta-is-an-ordinary-object.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/import.meta/syntax/escape-sequence-meta.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/in/private-field-in-nested.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/in/private-field-invalid-rhs.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/new.target/escaped-target.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/identifier-shorthand-static-init-await-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/literal-property-name-bigint.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/object/method-definition/generator-param-redecl-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/method-definition/generator-param-redecl-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/method-definition/name-param-redecl.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/method-definition/static-init-await-reference-accessor.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/object/method-definition/static-init-await-reference-generator.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/object/method-definition/static-init-await-reference-normal.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/postfix-decrement/line-terminator-carriage-return.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-decrement/line-terminator-line-feed.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-decrement/line-terminator-line-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-decrement/line-terminator-paragraph-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-increment/line-terminator-carriage-return.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-increment/line-terminator-line-feed.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-increment/line-terminator-line-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-increment/line-terminator-paragraph-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/property-accessors/non-identifier-name.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/template-literal/invalid-unicode-escape-sequence-7.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/template-literal/invalid-unicode-escape-sequence-8.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/future-reserved-words/enum.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/global-code/new.target-arrow.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/val-enum.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/vertical-tilde-continue-escaped.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/vertical-tilde-continue.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/vertical-tilde-start-escaped.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/vertical-tilde-start.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/invalid-comment-single-cr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/invalid-comment-single-lf.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/invalid-comment-single-ls.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/invalid-comment-single-ps.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/S7.3_A6_T3.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/S7.3_A6_T4.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/literals/bigint/mv-is-not-integer-dot-dds.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/literals/regexp/early-err-flags-unicode-escape.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/literals/regexp/S7.8.5_A1.2_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/literals/string/S7.8.4_A4.2_T1.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/literals/string/S7.8.4_A4.2_T2.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/module-code/comment-multi-line-html-close.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/comment-single-line-html-close.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-as-star-as.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-dflt-id.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-dflt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-id-as.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-id.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-star-as-dflt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-top-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-export-ill-formed-string.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-import-arguments.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-import-as-arguments.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-import-as-eval.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-import-eval.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-strict-mode.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-default-asyncfunction-declaration-binding-exists.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-default-asyncgenerator-declaration-binding-exists.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-default-function-declaration-binding-exists.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-default-generator-declaration-binding-exists.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-expname-from-as-unpaired-surrogate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-expname-from-star-unpaired-surrogate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-expname-from-unpaired-surrogate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-expname-import-unpaired-surrogate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/export-expname-unpaired-surrogate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/import-attributes/early-dup-attribute-key-export.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/import-attributes/early-dup-attribute-key-import-nobinding.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/import-attributes/early-dup-attribute-key-import-withbinding.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-block-stmt-list.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-block-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-do-while.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-in-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-in-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-in-lhs.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-in-var.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-lhs.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-of-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-of-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-of-lhs.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-of-var.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-for-var.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-if-else.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-if-if.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-labeled.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-switch-case-dflt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-switch-case.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-switch-dftl.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-try-catch-finally.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-try-catch.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-try-finally.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-try-try.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-export-while.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-block-stmt-list.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-block-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-do-while.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-in-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-in-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-in-lhs.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-in-var.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-lhs.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-of-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-of-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-of-lhs.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-of-var.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-for-var.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-if-else.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-if-if.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-labeled.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-switch-case-dflt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-switch-case.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-switch-dftl.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-try-catch-finally.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-try-catch.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-try-finally.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-try-try.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-decl-pos-import-while.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-export-dflt-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-export-dflt-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-export-dflt-var.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-hoist-lex-fun.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-invoke-anon-fun-decl.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-invoke-anon-gen-decl.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-semi-dflt-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-semi-export-star.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-semi-name-space-export.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-semi-named-export-from.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-semi-named-export.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/parse-err-yield.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/top-level-await/new-await.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-params.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-expr-params.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/top-level-await/syntax/early-no-escaped-await.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/reserved-words/await-module.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/async-function/early-errors-declaration-formals-body-duplicate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/async-function/escaped-async.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/async-generator/escaped-async.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/await-using/redeclaration-error-from-within-strict-mode-function-await-using.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/await-using/syntax/await-using-declaring-let-split-across-two-lines.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/await-using/syntax/await-using-invalid-arraybindingpattern-does-not-break-element-access.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/block/S12.1_A4_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/block/S12.1_A4_T2.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/break/static-init-without-label.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/class/elements/fields-asi-same-line-2.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-call-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-member-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/class/elements/syntax/early-errors/super-private-access-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/class/static-init-await-binding-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/class/static-init-invalid-arguments.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/const/redeclaration-error-from-within-strict-mode-function-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/const/static-init-await-binding-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/continue/static-init-with-label.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/continue/static-init-without-label.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/debugger/expression.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for/head-const-bound-names-in-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for/head-let-bound-names-in-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for/let-block-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/for/let-identifier-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/for-await-of/let-block-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/for-await-of/let-identifier-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/for-in/dstr/obj-id-identifier-yield-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-in/head-const-bound-names-in-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-in/head-let-bound-names-in-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-in/let-block-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/for-in/let-identifier-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/for-in/S12.6.4_A15.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-of/dstr/obj-id-identifier-yield-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-of/head-await-using-bound-names-in-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-of/head-const-bound-names-in-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-of/head-let-bound-names-in-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-of/head-lhs-async-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-of/head-using-bound-names-in-stmt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-of/let-block-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/for-of/let-identifier-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/function/invalid-function-body-2.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/function/param-dflt-yield-strict.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/function/S13_A7_T3.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/function/static-init-await-binding-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/if/let-block-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/if/let-identifier-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/if/S12.5_A8.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/labeled/let-block-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/labeled/let-identifier-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/labeled/value-await-module-escaped.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/let/redeclaration-error-from-within-strict-mode-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/let/static-init-await-binding-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/switch/S12.11_A3_T4.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/try/early-catch-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/try/early-catch-lex.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/try/static-init-await-binding-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/using/redeclaration-error-from-within-strict-mode-function-using.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/using/static-init-await-binding-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/using/syntax/using-declaring-let-split-across-two-lines.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/using/syntax/using-for-using-of-of.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/using/syntax/using-invalid-arraybindingpattern-does-not-break-element-access.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/variable/dstr/ary-ptrn-elem-id-static-init-await-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/variable/dstr/obj-ptrn-elem-id-static-init-await-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/variable/static-init-await-binding-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/while/let-block-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/while/let-identifier-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/with/let-block-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/with/let-identifier-with-newline.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/with/scope-var-open.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/types/string/S8.4_A13_T3.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/types/string/S8.4_A14_T3.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/white-space/mongolian-vowel-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/white-space/S7.2_A5_T5.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "staging/decorators/accessor-as-identifier.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/async-functions/async-contains-unicode-escape.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/BigInt/property-name.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/class/newTargetDefaults.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/expressions/optional-chain-first-expression-module.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/fields/await-identifier-module-3.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "staging/sm/fields/await-identifier-script.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/fields/numeric-fields.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/generators/syntax.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/generators/yield-non-regexp.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/module/await-restricted-nested.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "staging/sm/module/bug1488117.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/module/module-export-name-star.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "staging/sm/String/string-upper-lower-mapping.js",
+      "verdict": "crash"
     }
   ],
-  "rate": 99.4,
-  "generated_at": "2026-04-26T15:32:25.416Z"
+  "rate": 99.43,
+  "generated_at": "2026-04-26T16:25:20.375Z"
 }

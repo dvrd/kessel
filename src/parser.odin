@@ -2670,6 +2670,11 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			if is_expr && generator && current.value == "yield" {
 				report_error(p, "'yield' cannot be used as the name of a generator function expression")
 			}
+			// In strict mode, `yield` is a reserved word and cannot be used
+			// as a FunctionExpression BindingIdentifier (§15.7.1).
+			if is_expr && p.strict_mode && current.value == "yield" && !generator {
+				report_error(p, "'yield' cannot be used as a function name in strict mode")
+			}
 			// §12.6.1.1 contextual reservation — `await` / `yield` as a
 			// BindingIdentifier in the enclosing context. Fires for both
 			// declaration and expression forms when the enclosing scope is
@@ -3206,8 +3211,38 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
 
 	super_class: Maybe(^Expression)
+	// §15.7 — ClassDeclaration / ClassExpression are always strict mode code.
+	// Set strict mode before parsing the heritage expression so that
+	// `class C extends (function() { with({}); })()` correctly rejects
+	// the `with` statement inside the heritage function expression.
+	prev_strict_class := p.strict_mode
+	p.strict_mode = true
+	defer p.strict_mode = prev_strict_class
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
+		// §15.7.1 — ClassHeritage uses LeftHandSideExpression. Unparenthesised
+		// arrow functions are AssignmentExpressions, not LeftHandSideExpressions.
+		// `class C extends (() => {}){}` IS legal (paren promotes to primary);
+		// `class C extends async () => {}{}` is a SyntaxError (no parens).
+		if sc, have := super_class.(^Expression); have && sc != nil {
+			if arrow, is_arrow := sc^.(^ArrowFunctionExpression); is_arrow && arrow != nil {
+				// Check for parentheses via backward source scan.
+				arrow_start := int(arrow.loc.span.start)
+				paren_wrapped := false
+				if p.lexer != nil && arrow_start > 0 {
+					pi := arrow_start - 1
+					for pi >= 0 {
+						pch := p.lexer.source_bytes[pi]
+						if pch == '(' { paren_wrapped = true; break }
+						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
+						break
+					}
+				}
+				if !paren_wrapped {
+					report_error(p, "Arrow function is not a valid class heritage expression")
+				}
+			}
+		}
 	}
 
 	// Thread "this class has an extends clause" through parse_class_body so
@@ -5759,6 +5794,30 @@ scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
 			}
 			scope_verify_body(p, flat[:], true)
 		}
+	case ^ClassDeclaration:
+		if v != nil {
+			scope_recurse_class_elements(p, v.body.body[:])
+		}
+	case ^ExpressionStatement:
+		if v != nil {
+			#partial switch e in v.expression^ {
+			case ^ClassExpression:
+				scope_recurse_class_elements(p, e.body.body[:])
+			}
+		}
+	}
+}
+
+// Walk class elements to verify static block scopes.
+scope_recurse_class_elements :: proc(p: ^Parser, elements: []ClassElement) {
+	for &elem in elements {
+		if elem.kind == .StaticBlock {
+			if fe, have := elem.value.(^Expression); have && fe != nil {
+				if fn, ok := fe^.(^FunctionExpression); ok && fn != nil {
+					scope_verify_body(p, fn.body.body[:], false)
+				}
+			}
+		}
 	}
 }
 
@@ -7028,8 +7087,6 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				if p.cur_tok.had_line_terminator {
 					report_error(p, "Unexpected line terminator before '=>' (restricted production)")
 				}
-				// Continue the loop so that the comma operator can form a
-				// SequenceExpression: `() => 1, 42` is valid syntax.
 				left = parse_arrow_function(p, left)
 				continue
 			}
@@ -8967,8 +9024,32 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	}
 
 	super_class: Maybe(^Expression)
+	// §15.7 — ClassExpression is always strict mode code.
+	prev_strict_cls_expr := p.strict_mode
+	p.strict_mode = true
+	defer p.strict_mode = prev_strict_cls_expr
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
+		// Unparenthesised arrow functions are AssignmentExpressions, not
+		// LeftHandSideExpressions. Parenthesised arrows are fine.
+		if sc, have := super_class.(^Expression); have && sc != nil {
+			if arrow, is_arrow := sc^.(^ArrowFunctionExpression); is_arrow && arrow != nil {
+				arrow_start := int(arrow.loc.span.start)
+				paren_wrapped := false
+				if p.lexer != nil && arrow_start > 0 {
+					pi := arrow_start - 1
+					for pi >= 0 {
+						pch := p.lexer.source_bytes[pi]
+						if pch == '(' { paren_wrapped = true; break }
+						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
+						break
+					}
+				}
+				if !paren_wrapped {
+					report_error(p, "Arrow function is not a valid class heritage expression")
+				}
+			}
+		}
 	}
 
 	// See parse_class_declaration for the rationale — same save/restore.
@@ -10256,6 +10337,14 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// accepts CallExpression unconditionally so the strict gate fires here.
 	if p.strict_mode && is_call_expression_target(left) {
 		report_error(p, "Invalid left-hand side in assignment")
+	}
+	// §13.15.1 — logical assignment operators (&&=, ||=, ??=) require a
+	// SIMPLE assignment target. CallExpressions are NOT simple targets even
+	// in sloppy mode for these operators (unlike plain `=` which has Annex
+	// B.3.4 legacy relaxation for `f() = x`).
+	is_logical_assign := op == .AssignLogicalAnd || op == .AssignLogicalOr || op == .AssignNullish
+	if is_logical_assign && is_call_expression_target(left) {
+		report_error(p, "Invalid left-hand side in assignment expression")
 	}
 
 	// ECMA-262 §13.15.1 — in strict mode it's a SyntaxError for the LHS
