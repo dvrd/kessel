@@ -51,6 +51,16 @@ regex_validate_pattern :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v:
 	// non-u mode too.
 	regex_validate_modifiers(l, pat_start, pat_end)
 
+	// Leading-quantifier early errors. Always-on. `/?/`, `/*/`, `/+/`,
+	// `/{2}/`, `/{2,}/`, `/{2,5}/` are all SyntaxErrors because the
+	// quantifier has no preceding Atom; same after `(` or `|`.
+	regex_validate_leading_quantifier(l, pat_start, pat_end)
+
+	// Lookbehind cannot be quantified in any mode (§22.2.1). Lookahead
+	// _can_ be quantified in non-u via Annex B, so the broader
+	// quantified-assertion rule lives in regex_validate_u_mode_atoms.
+	regex_validate_quantified_lookbehind(l, pat_start, pat_end)
+
 	// Named-group declarations + `\k<name>` references. Strictness
 	// depends on flag context: in u / v mode `\k` is always a
 	// NamedBackreference and must resolve; in non-u mode Annex B
@@ -643,6 +653,183 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 //   * any other char or escape                       — single character
 // Reject when either side of `-` is a character-class atom.
 // ============================================================================
+
+// ============================================================================
+// Phase B-e — leading quantifier rejection (§22.2.1).
+//
+// `Quantifier :: { DecimalDigits } | { DecimalDigits , } | { N , M }` is
+// a postfix on Atom. With no Atom before it (start of pattern, after
+// `(`, after `|`) it's ungrammatical:
+//
+//   /?/   /*/   /+/   /{2}/   /{2,}/   /{2,5}/  (a)|(?b)
+//
+// Bare `{x}/u` (non-quantifier braces) is handled by the u-mode
+// extended-pattern-char rejection in regex_validate_u_mode_atoms; this
+// pass only flags the cases where the braces DO form a quantifier
+// shape, since those are the only ones that look like a quantifier and
+// thus can be "leading".
+// ============================================================================
+
+regex_validate_leading_quantifier :: proc(l: ^Lexer, pat_start, pat_end: u32) {
+	src := l.source_bytes
+	pe := int(pat_end)
+	if int(pat_start) >= pe { return }
+
+	// `expecting_atom` is true whenever the next non-class character
+	// would start a fresh Atom: at the very start, after a `(`, or
+	// after a `|` (alternation branch start). In any other position the
+	// previous symbol can serve as the Atom for the quantifier.
+	in_class := false
+	expecting_atom := true
+	for i := int(pat_start); i < pe; {
+		c := src[i]
+		if c == '\\' && i + 1 < pe { i += 2; expecting_atom = false; continue }
+		if c == '[' && !in_class { in_class = true; i += 1; expecting_atom = false; continue }
+		if c == ']' && in_class  { in_class = false; i += 1; expecting_atom = false; continue }
+		if in_class { i += 1; continue }
+
+		if expecting_atom {
+			if c == '?' || c == '*' || c == '+' {
+				append(&l.lexer_errors, LexerError{
+					offset = u32(i),
+					message = "Quantifier without preceding atom",
+				})
+				expecting_atom = false
+				i += 1
+				continue
+			}
+			if c == '{' && regex_is_braced_quantifier(src, i, pe) {
+				append(&l.lexer_errors, LexerError{
+					offset = u32(i),
+					message = "Quantifier without preceding atom",
+				})
+				expecting_atom = false
+				i += 1
+				continue
+			}
+		}
+
+		switch c {
+		case '(':
+			// Skip past `(?…)` prefixes so the discriminator chars don't
+			// confuse the leading-quantifier check. Forms covered:
+			//   (?:   non-capturing group
+			//   (?=   (?!   lookahead / negative-lookahead
+			//   (?<=  (?<!  lookbehind / negative-lookbehind
+			//   (?<NAME>  named capture
+			//   (?ims-ims:  arithmetic modifier
+			// Each prefix terminates at the first `:`, `=`, `!`, or `>`
+			// (the latter only for named-group). After the prefix ends,
+			// the next character is the start of the group's content —
+			// expecting_atom = true.
+			if i + 1 < pe && src[i + 1] == '?' {
+				j := i + 2
+				for j < pe {
+					ch := src[j]
+					if ch == ':' || ch == '=' || ch == '!' || ch == '>' {
+						j += 1
+						break
+					}
+					if ch == ')' { break }
+					j += 1
+				}
+				i = j
+				expecting_atom = true
+				continue
+			}
+			expecting_atom = true
+		case '|':
+			expecting_atom = true
+		case:
+			expecting_atom = false
+		}
+		i += 1
+	}
+}
+
+// ============================================================================
+// Phase B-f — quantified lookbehind rejection.
+//
+// `Lookbehind :: ( ? <= Disjunction ) | ( ? <! Disjunction )`
+// is non-quantifiable in EVERY mode (no Annex B carve-out, unlike
+// lookahead). Test262: invalid-{optional,range}-{lookbehind,negative-
+// lookbehind}.js. Track open-paren stack with a flag for `(?<=` /
+// `(?<!`; on `)` of such a group, look at the very next character
+// and reject if it's a quantifier.
+// ============================================================================
+
+regex_validate_quantified_lookbehind :: proc(l: ^Lexer, pat_start, pat_end: u32) {
+	src := l.source_bytes
+	pe := int(pat_end)
+
+	StackEntry :: struct { is_lookbehind: bool }
+	stack: [64]StackEntry
+	depth := 0
+	last_closed_was_lookbehind := false
+	in_class := false
+
+	for i := int(pat_start); i < pe; {
+		c := src[i]
+		if c == '\\' && i + 1 < pe { i += 2; last_closed_was_lookbehind = false; continue }
+		if c == '[' && !in_class { in_class = true; i += 1; last_closed_was_lookbehind = false; continue }
+		if c == ']' && in_class  { in_class = false; i += 1; last_closed_was_lookbehind = false; continue }
+		if in_class { i += 1; continue }
+
+		if last_closed_was_lookbehind && (c == '?' || c == '*' || c == '+' || c == '{') {
+			append(&l.lexer_errors, LexerError{
+				offset = u32(i),
+				message = "Invalid quantifier on lookbehind assertion",
+			})
+			last_closed_was_lookbehind = false
+			i += 1
+			continue
+		}
+
+		if c == '(' {
+			is_lb := false
+			if i + 3 < pe && src[i + 1] == '?' && src[i + 2] == '<' &&
+			   (src[i + 3] == '=' || src[i + 3] == '!') {
+				is_lb = true
+			}
+			if depth < len(stack) {
+				stack[depth] = StackEntry{is_lookbehind = is_lb}
+				depth += 1
+			}
+			last_closed_was_lookbehind = false
+			i += 1
+			continue
+		}
+		if c == ')' {
+			if depth > 0 {
+				depth -= 1
+				last_closed_was_lookbehind = stack[depth].is_lookbehind
+			} else {
+				last_closed_was_lookbehind = false
+			}
+			i += 1
+			continue
+		}
+
+		last_closed_was_lookbehind = false
+		i += 1
+	}
+}
+
+// True iff src[off:pe] starts with a structurally-complete
+// `{N}` / `{N,}` / `{N,M}` quantifier. Used only to disambiguate
+// `{x}/u` (extended-pattern-char) from `{2}/u` (leading quantifier).
+regex_is_braced_quantifier :: proc(src: []u8, off, pe: int) -> bool {
+	j := off + 1
+	if j >= pe || !(src[j] >= '0' && src[j] <= '9') { return false }
+	for j < pe && src[j] >= '0' && src[j] <= '9' { j += 1 }
+	if j >= pe { return false }
+	if src[j] == '}' { return true }
+	if src[j] != ',' { return false }
+	j += 1
+	if j < pe && src[j] == '}' { return true }
+	for j < pe && src[j] >= '0' && src[j] <= '9' { j += 1 }
+	return j < pe && src[j] == '}'
+}
 
 regex_validate_class_ranges :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 	src := l.source_bytes

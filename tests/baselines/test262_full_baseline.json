@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49260,
-    "accepted-should-reject": 416,
+    "pass": 49270,
+    "accepted-should-reject": 406,
     "rejected-should-accept": 52,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23229,
-      "fail": 416,
+      "pass": 23239,
+      "fail": 406,
       "crash": 0,
       "timeout": 0
     },
@@ -58,14 +58,6 @@
       "accepted-should-reject": 75,
       "rejected-should-accept": 13
     },
-    "language/literals": {
-      "pass": 0,
-      "fail": 41,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 39,
-      "rejected-should-accept": 2
-    },
     "built-ins/RegExp": {
       "pass": 0,
       "fail": 37,
@@ -73,6 +65,14 @@
       "timeout": 0,
       "accepted-should-reject": 37,
       "rejected-should-accept": 0
+    },
+    "language/literals": {
+      "pass": 0,
+      "fail": 31,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 29,
+      "rejected-should-accept": 2
     },
     "language/block-scope": {
       "pass": 0,
@@ -397,6 +397,6 @@
       "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 99.06,
-  "generated_at": "2026-04-26T10:13:41.940Z"
+  "rate": 99.08,
+  "generated_at": "2026-04-26T10:28:20.546Z"
 }

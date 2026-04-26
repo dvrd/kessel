@@ -1979,10 +1979,14 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 		if c == '[' && !in_class { in_class = true; i += 1; continue }
 		if c == ']' && in_class  { in_class = false; i += 1; continue }
 		if c == '\\' && i + 1 < int(pat_end) && src[i+1] == 'k' {
-			// `\k` is a NamedBackreference — only legal as `\k<name>`.
-			// In u / v mode, `\k` not followed by `<` is a SyntaxError.
+			// `\k` is a NamedBackreference. Only legal as `\k<name>`
+			// when EITHER:
+			//   (a) the pattern is u/v mode (always strict), OR
+			//   (b) the pattern has at least one named group declared
+			//       — then Annex B's literal-fallback no longer applies.
+			// `/(?<a>.)\k/` and `/\k(?<a>.)/` both reject under (b).
 			if i + 2 >= int(pat_end) || src[i+2] != '<' {
-				if strict {
+				if strict || has_any {
 					append(&l.lexer_errors, LexerError{offset = u32(i), message = "Invalid named back-reference: '\\k' must be followed by '<name>'"})
 				}
 				i += 2
