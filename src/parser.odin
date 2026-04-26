@@ -1522,6 +1522,9 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	prev_in_case_block := p.in_case_clause
 	p.in_case_clause = false
 	defer p.in_case_clause = prev_in_case_block
+	// Track nesting depth for import/export position check.
+	p.block_depth += 1
+	defer p.block_depth -= 1
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
 		stmt := parse_statement_or_declaration(p)
@@ -1640,7 +1643,9 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// `continue foo;` inside the body can then check the flag
 			// without any retroactive fix-up.
 			append(&p.label_is_iteration, label_chain_leads_to_iteration(p))
+			p.block_depth += 1
 			labeled.body = parse_statement_or_declaration(p)
+			p.block_depth -= 1
 			pop(&p.label_stack)
 			pop(&p.label_is_iteration)
 			labeled.loc.span.end = prev_end_offset(p)
@@ -2552,6 +2557,9 @@ parse_switch_case :: proc(p: ^Parser) -> ^SwitchCase {
 	prev_in_case_clause := p.in_case_clause
 	p.in_case_clause = true
 	defer p.in_case_clause = prev_in_case_clause
+	// Track nesting for import/export position check.
+	p.block_depth += 1
+	defer p.block_depth -= 1
 
 	for !is_token(p, .Case) && !is_token(p, .Default) && !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))

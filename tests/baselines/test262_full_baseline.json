@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49605,
-    "accepted-should-reject": 101,
+    "pass": 49625,
+    "accepted-should-reject": 81,
     "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23538,
-      "fail": 107,
+      "pass": 23558,
+      "fail": 87,
       "crash": 0,
       "timeout": 0
     },
@@ -36,10 +36,10 @@
   "perSubdir": {
     "language/module-code": {
       "pass": 0,
-      "fail": 46,
+      "fail": 26,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 46,
+      "accepted-should-reject": 26,
       "rejected-should-accept": 0
     },
     "language/expressions": {
@@ -591,86 +591,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/parse-err-decl-pos-export-block-stmt-list.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-block-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-labeled.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-switch-case-dflt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-switch-case.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-switch-dftl.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-try-catch-finally.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-try-catch.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-try-finally.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-export-try-try.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-block-stmt-list.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-block-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-labeled.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-switch-case-dflt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-switch-case.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-switch-dftl.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-try-catch-finally.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-try-catch.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-try-finally.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-decl-pos-import-try-try.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/module-code/parse-err-export-dflt-const.js",
       "verdict": "accepted-should-reject"
     },
@@ -855,6 +775,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.75,
-  "generated_at": "2026-04-26T21:37:35.463Z"
+  "rate": 99.79,
+  "generated_at": "2026-04-26T21:45:46.414Z"
 }
