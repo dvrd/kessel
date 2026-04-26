@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49527,
+    "pass": 49535,
     "accepted-should-reject": 161,
-    "rejected-should-accept": 40,
+    "rejected-should-accept": 32,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23461,
-      "fail": 184,
+      "pass": 23469,
+      "fail": 176,
       "crash": 0,
       "timeout": 0
     },
@@ -42,14 +42,6 @@
       "accepted-should-reject": 63,
       "rejected-should-accept": 0
     },
-    "language/statements": {
-      "pass": 0,
-      "fail": 46,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 32,
-      "rejected-should-accept": 14
-    },
     "language/expressions": {
       "pass": 0,
       "fail": 42,
@@ -57,6 +49,14 @@
       "timeout": 0,
       "accepted-should-reject": 35,
       "rejected-should-accept": 7
+    },
+    "language/statements": {
+      "pass": 0,
+      "fail": 38,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 32,
+      "rejected-should-accept": 6
     },
     "staging/sm": {
       "pass": 0,
@@ -1011,20 +1011,8 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/for/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/statements/for-await-of/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/statements/for-in/dstr/obj-id-identifier-yield-expr.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-in/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/for-in/S12.6.4_A15.js",
@@ -1039,10 +1027,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/for-of/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/statements/function/invalid-function-body-2.js",
       "verdict": "accepted-should-reject"
     },
@@ -1051,16 +1035,8 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/if/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/statements/if/S12.5_A8.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/labeled/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/labeled/value-await-module-escaped.js",
@@ -1097,14 +1073,6 @@
     {
       "file": "language/statements/variable/dstr/obj-ptrn-elem-id-static-init-await-invalid.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/while/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/statements/with/let-identifier-with-newline.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/with/scope-var-open.js",
@@ -1183,6 +1151,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.59,
-  "generated_at": "2026-04-26T17:53:23.394Z"
+  "rate": 99.61,
+  "generated_at": "2026-04-26T18:02:02.557Z"
 }

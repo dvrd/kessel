@@ -1293,14 +1293,17 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		     .Get, .Set, .Async, .Static, .Of, .From, .As,
 		     .Type, .Interface, .Enum,
 		     .Implements, .Package, .Private, .Protected, .Public:
-			// §ASI restricted production: `let [LT] {` triggers ASI so `let`
-			// is an IdentifierReference, not a declaration. `for (x of [])
-			// let\n{}` - the `let` is the body and `{}` is the next statement.
-			// IMPORTANT: `let [` (with or without LT before `[`) is always
-			// a potential LexicalDeclaration - the ExpressionStatement lookahead
+			// §ASI restricted production: in sloppy mode, `let [LT] {` or
+			// `let [LT] <identifier>` triggers ASI so `let` is treated as an
+			// IdentifierReference (not a declaration). e.g. `for (x of []) let
+			// {}` and `for (;;) let\nx = 1` are valid in sloppy mode.
+			// IMPORTANT: `let [` (with or without LT before `[`) is ALWAYS a
+			// potential LexicalDeclaration — ExpressionStatement lookahead
 			// restriction prohibits `let [` at statement start (§ExprStmt).
-			is_let_brace_asi := nxt_let.had_line_terminator && nxt_let.type == .LBrace
-			if !is_let_brace_asi {
+			// In strict mode, `let` is a keyword, so always a declaration.
+			is_let_asi := nxt_let.had_line_terminator && !p.strict_mode &&
+			              (nxt_let.type == .LBrace || nxt_let.type == .Identifier)
+			if !is_let_asi {
 				let_is_decl = true
 			}
 		}
@@ -2788,7 +2791,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.in_generator_params = generator
 	p.in_async_params = async
 	// The outer generator/async context should NOT leak into a nested
-	// non-generator non-async function's params. `function f(x = yield){}` 
+	// non-generator non-async function's params. `function f(x = yield){}`
 	// inside a generator has `yield` as IdentifierRef, not YieldExpression.
 	prev_in_generator_param_outer := p.in_generator
 	prev_in_async_param_outer := p.in_async
