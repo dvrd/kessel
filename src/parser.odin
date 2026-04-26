@@ -7840,6 +7840,18 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				pid.name = prop.name[1:]
 				p.private_id_count += 1
 				member.property = pid_e
+				// Grammar: `PrivateName :: # IdentifierName` — there must be no
+				// whitespace between `#` and the identifier. If `pid.name == ""`
+				// the lexer saw only `#` with no following IdentifierName.
+				if pid.name == "" {
+					report_error(p, "Private identifier must not have whitespace after '#'")
+				}
+				// §15.7.3 — `super.#name` is a SyntaxError: private names can
+				// only be accessed via `this`, local variables, or computed
+				// member expressions, not through `super`.
+				if _, is_super := expr.(^Super); is_super {
+					report_error(p, "Private fields cannot be accessed through 'super'")
+				}
 			} else {
 				// Create regular Identifier
 				id, id_e := new_expr(p, Identifier)

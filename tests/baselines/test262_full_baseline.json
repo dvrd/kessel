@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49552,
-    "accepted-should-reject": 151,
+    "pass": 49560,
+    "accepted-should-reject": 143,
     "rejected-should-accept": 25,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23485,
-      "fail": 160,
+      "pass": 23493,
+      "fail": 152,
       "crash": 0,
       "timeout": 0
     },
@@ -44,18 +44,18 @@
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 38,
+      "fail": 34,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 32,
+      "accepted-should-reject": 28,
       "rejected-should-accept": 6
     },
     "language/statements": {
       "pass": 0,
-      "fail": 30,
+      "fail": 26,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 27,
+      "accepted-should-reject": 23,
       "rejected-should-accept": 3
     },
     "staging/sm": {
@@ -269,22 +269,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-call-expr.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-member-expr.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/coalesce/cannot-chain-head-with-logical-or.js",
       "verdict": "accepted-should-reject"
     },
@@ -370,6 +354,22 @@
     },
     {
       "file": "language/future-reserved-words/enum.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/global-code/new.target-arrow.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/val-enum.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/vertical-tilde-continue-escaped.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/vertical-tilde-continue.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -468,22 +468,6 @@
     },
     {
       "file": "language/expressions/call/S11.2.4_A1.3_T1.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-call-expr.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-member-expr.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -923,22 +907,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-call-expr.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-member-expr.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/class/elements/syntax/early-errors/super-private-access-invalid.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/class/static-init-invalid-arguments.js",
       "verdict": "accepted-should-reject"
     },
@@ -1083,6 +1051,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.64,
-  "generated_at": "2026-04-26T19:23:18.077Z"
+  "rate": 99.66,
+  "generated_at": "2026-04-26T19:29:47.128Z"
 }
