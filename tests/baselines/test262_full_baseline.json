@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49216,
-    "accepted-should-reject": 456,
+    "pass": 49227,
+    "accepted-should-reject": 445,
     "rejected-should-accept": 56,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23199,
-      "fail": 446,
+      "pass": 23210,
+      "fail": 435,
       "crash": 0,
       "timeout": 0
     },
@@ -60,10 +60,10 @@
     },
     "language/literals": {
       "pass": 0,
-      "fail": 69,
+      "fail": 60,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 67,
+      "accepted-should-reject": 58,
       "rejected-should-accept": 2
     },
     "built-ins/RegExp": {
@@ -82,14 +82,6 @@
       "accepted-should-reject": 15,
       "rejected-should-accept": 0
     },
-    "language/line-terminators": {
-      "pass": 0,
-      "fail": 13,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 13,
-      "rejected-should-accept": 0
-    },
     "staging/sm": {
       "pass": 0,
       "fail": 13,
@@ -97,6 +89,14 @@
       "timeout": 0,
       "accepted-should-reject": 2,
       "rejected-should-accept": 10
+    },
+    "language/line-terminators": {
+      "pass": 0,
+      "fail": 11,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 11,
+      "rejected-should-accept": 0
     },
     "language/asi": {
       "pass": 0,
@@ -397,6 +397,6 @@
       "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 98.97,
-  "generated_at": "2026-04-26T09:23:12.221Z"
+  "rate": 98.99,
+  "generated_at": "2026-04-26T09:36:09.836Z"
 }

@@ -1743,6 +1743,16 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		if c == '\n' || c == '\r' {
 			break
 		}
+		// U+2028 LINE SEPARATOR (LS, `E2 80 A8`) and U+2029 PARAGRAPH
+		// SEPARATOR (PS, `E2 80 A9`) are LineTerminators per §12.3 and
+		// the RegularExpressionNonTerminator production excludes them.
+		// Treat the same as `\n` / `\r` — break the body scan, let the
+		// `unterminated` path below emit the diagnostic. Test262:
+		//   regexp-{first,source}-char-no-{line,paragraph}-separator.js.
+		if c == 0xE2 && l.offset + 2 < src_len && src[l.offset + 1] == 0x80 &&
+		   (src[l.offset + 2] == 0xA8 || src[l.offset + 2] == 0xA9) {
+			break
+		}
 		l.offset += 1
 	}
 
@@ -1836,7 +1846,7 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 // (AtomEscape / CharacterEscape / CharacterClassEscape / lookbehind
 // restrictions / v-flag set notation / Unicode property escapes) is
 // deferred to a dedicated regex parser.
-regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32) {
+regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v: bool) {
 	src := l.source_bytes
 	if int(pat_end) > len(src) { return }
 
@@ -1928,17 +1938,30 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 	}
 
 	// Pass 2 — collect `\k<name>` references and verify each resolves.
-	// In u/v flag mode, a dangling `\k<name>` is always an error. In
-	// non-u mode, a `\k<name>` where the pattern has NO named groups at
-	// all is interpreted as literal characters per Annex B; when the
-	// pattern DOES have named groups, `\k<name>` must resolve.
+	// Resolution rules (§22.2.1.5):
+	//   * In u / v mode, a `\k` is ALWAYS a NamedBackreference. The
+	//     name MUST resolve to a declared group; otherwise SyntaxError.
+	//     `\k` not followed by `<` is also a SyntaxError.
+	//   * In non-u mode, Annex B keeps the legacy escape: when the
+	//     pattern has no named groups, `\k...` is literal characters.
+	//     When at least one named group exists, `\k<name>` must resolve.
 	has_any := len(names) > 0
+	strict := has_u || has_v
 	in_class = false
 	for i := int(pat_start); i < int(pat_end); {
 		c := src[i]
 		if c == '[' && !in_class { in_class = true; i += 1; continue }
 		if c == ']' && in_class  { in_class = false; i += 1; continue }
-		if c == '\\' && i + 1 < int(pat_end) && src[i+1] == 'k' && i + 2 < int(pat_end) && src[i+2] == '<' {
+		if c == '\\' && i + 1 < int(pat_end) && src[i+1] == 'k' {
+			// `\k` is a NamedBackreference — only legal as `\k<name>`.
+			// In u / v mode, `\k` not followed by `<` is a SyntaxError.
+			if i + 2 >= int(pat_end) || src[i+2] != '<' {
+				if strict {
+					append(&l.lexer_errors, LexerError{offset = u32(i), message = "Invalid named back-reference: '\\k' must be followed by '<name>'"})
+				}
+				i += 2
+				continue
+			}
 			name_start := i + 3
 			j := name_start
 			has_escape := false
@@ -1965,7 +1988,7 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 				// the declaration set, which the lexer doesn't do.
 				if !has_escape {
 					name := string(src[name_start:j])
-					if has_any {
+					if has_any || strict {
 						if _, ok := names[name]; !ok {
 							append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Invalid named capture reference"})
 						}
@@ -1974,9 +1997,10 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 				i = j + 1
 				continue
 			}
-			// Unterminated \k<...> — if has_any, it's an error; otherwise
-			// skip as a literal per Annex B.
-			if has_any {
+			// Unterminated \k<…> — in non-u mode and with no declared
+			// names, Annex B keeps the legacy escape behaviour. In u / v
+			// mode and when names exist, this is a SyntaxError.
+			if has_any || strict {
 				append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Unterminated named capture reference"})
 			}
 			i += 3

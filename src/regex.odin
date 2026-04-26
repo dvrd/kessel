@@ -42,8 +42,12 @@ regex_validate_pattern :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v:
 	// non-u mode too.
 	regex_validate_modifiers(l, pat_start, pat_end)
 
-	// Named-group declarations + `\k<name>` references.
-	regex_validate_named_groups(l, pat_start, pat_end)
+	// Named-group declarations + `\k<name>` references. Strictness
+	// depends on flag context: in u / v mode `\k` is always a
+	// NamedBackreference and must resolve; in non-u mode Annex B
+	// keeps the legacy literal-characters fallback when no names
+	// are declared.
+	regex_validate_named_groups(l, pat_start, pat_end, has_u, has_v)
 }
 
 // ============================================================================
