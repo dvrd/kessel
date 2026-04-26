@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49572,
-    "accepted-should-reject": 133,
-    "rejected-should-accept": 23,
+    "pass": 49576,
+    "accepted-should-reject": 130,
+    "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23505,
-      "fail": 140,
+      "pass": 23509,
+      "fail": 136,
       "crash": 0,
       "timeout": 0
     },
@@ -36,19 +36,19 @@
   "perSubdir": {
     "language/module-code": {
       "pass": 0,
-      "fail": 63,
+      "fail": 60,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 63,
+      "accepted-should-reject": 60,
       "rejected-should-accept": 0
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 31,
+      "fail": 30,
       "crash": 0,
       "timeout": 0,
       "accepted-should-reject": 25,
-      "rejected-should-accept": 6
+      "rejected-should-accept": 5
     },
     "language/statements": {
       "pass": 0,
@@ -221,10 +221,6 @@
       "verdict": "rejected-should-accept"
     },
     {
-      "file": "language/expressions/assignment/destructuring/obj-prop-__proto__dup.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js",
       "verdict": "accepted-should-reject"
     },
@@ -371,6 +367,10 @@
     {
       "file": "language/line-terminators/invalid-comment-single-cr.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/invalid-comment-single-lf.js",
+      "verdict": "accepted-should-reject"
     }
   ],
   "all_failures": [
@@ -420,10 +420,6 @@
     },
     {
       "file": "language/expressions/arrow-function/scope-param-rest-elem-var-open.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/assignment/destructuring/obj-prop-__proto__dup.js",
       "verdict": "rejected-should-accept"
     },
     {
@@ -696,18 +692,6 @@
     },
     {
       "file": "language/module-code/export-expname-unpaired-surrogate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/import-attributes/early-dup-attribute-key-export.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/import-attributes/early-dup-attribute-key-import-nobinding.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/import-attributes/early-dup-attribute-key-import-withbinding.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -1003,6 +987,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.68,
-  "generated_at": "2026-04-26T20:01:09.671Z"
+  "rate": 99.69,
+  "generated_at": "2026-04-26T20:17:01.766Z"
 }

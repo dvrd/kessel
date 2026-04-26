@@ -92,14 +92,14 @@
     {
       "message": "Redefinition of __proto__ property",
       "line": 4,
-      "column": 42,
-      "offset": 252
+      "column": 29,
+      "offset": 239
     }
   ]
 }
 Parse errors (1):
-  Line 4, Column 42: Redefinition of __proto__ property
+  Line 0, Column 0: Redefinition of __proto__ property
 
 --- Statistics ---
-Arena: used=9504B reserved=16777216B ratio=0%
+Arena: used=37184B reserved=16777216B ratio=0%
 Parse errors: 1

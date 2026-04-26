@@ -371,6 +371,14 @@ Parser :: struct {
 	// form is only legal INSIDE a destructuring cover.
 	pending_cover_inits: [dynamic]u32,
 
+	// Pending __proto__ duplicate errors (Annex B.3.1). `{ __proto__: a,
+	// __proto__: b }` is a SyntaxError ONLY as an object literal, NOT as
+	// a destructuring pattern. Store as (object_span_start, error_offset)
+	// pairs; expr_to_pattern clears the entry for the promoted object so
+	// the error never fires for destructuring. Remaining entries fire at
+	// end of parse_program.
+	pending_proto_dups: [dynamic][2]u32,
+
 	// CLI `--preserve-parens`. When true, every genuine `(expr)` paren-
 	// grouping wraps its inner expression in a ParenthesizedExpression
 	// node. Off by default for byte-identical legacy output. Does NOT
@@ -567,6 +575,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.source_len = len(lexer.source)
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
+	p.pending_proto_dups = make([dynamic][2]u32, 0, 2, alloc)
 
 	// Bump pool: scale with source size.
 	//
@@ -1209,6 +1218,14 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		append(&p.errors, ParseError{
 			loc     = LexerLoc{offset = int(off)},
 			message = "Invalid shorthand property initializer",
+		})
+	}
+	// Annex B.3.1: pending __proto__ duplicate errors that were NOT cleared
+	// by expr_to_pattern (i.e., NOT used as a destructuring target).
+	for pair in p.pending_proto_dups {
+		append(&p.errors, ParseError{
+			loc     = LexerLoc{offset = int(pair[1])},
+			message = "Redefinition of __proto__ property",
 		})
 	}
 
@@ -8839,7 +8856,13 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 		if prop != nil {
 			if property_is_literal_proto_init(prop) {
 				if proto_seen {
-					report_error(p, "Redefinition of __proto__ property")
+					// Annex B.3.1 - duplicate __proto__ is only an error in
+					// object literals, NOT in destructuring patterns. Store as
+					// pending; expr_to_pattern will clear it if this becomes
+					// a pattern.
+					obj_start := obj.loc.span.start
+					err_off := loc_from_expr(prop.key).span.start // point at the duplicate key
+					append(&p.pending_proto_dups, [2]u32{obj_start, u32(int(err_off))})
 				} else {
 					proto_seen = true
 				}
@@ -9810,6 +9833,17 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// Clear any pending CoverInitializedName offsets that fall inside
 		// this object's span - once promoted to an ObjectPattern, the
 		// `{foo = init}` shorthand is legal (§13.2.5.1 / §13.15.5.2).
+		// Clear any pending __proto__ duplicate errors for this object.
+		// These are only errors in object literals, not patterns.
+		if len(p.pending_proto_dups) > 0 {
+			wpd := 0
+			for pair in p.pending_proto_dups {
+				if pair[0] == e.loc.span.start { continue } // this object
+				p.pending_proto_dups[wpd] = pair
+				wpd += 1
+			}
+			resize(&p.pending_proto_dups, wpd)
+		}
 		if len(p.pending_cover_inits) > 0 {
 			write := 0
 			for off, read in p.pending_cover_inits {
@@ -11062,6 +11096,15 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 		// end=39 (key) instead of end=47 (value).
 		attr_loc := attr_start
 		attr_loc.span.end = value.loc.span.end
+		// £16.2.2 ImportDeclaration with Attributes: duplicate attribute keys
+		// are a SyntaxError. Check before appending.
+		for prev in attributes {
+			if prev.key.name == key.name {
+				msg := fmt.tprintf("Duplicate import attribute key '%s'", key.name)
+				append(&p.errors, ParseError{loc = LexerLoc{offset = int(attr_loc.span.start)}, message = msg})
+				break
+			}
+		}
 		append(&attributes, ImportAttribute{loc = attr_loc, key = key, value = value})
 		if !match_token(p, .Comma) { break }
 	}
