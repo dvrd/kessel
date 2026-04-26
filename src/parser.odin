@@ -5382,6 +5382,13 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
 						report_error(p, msg)
 					}
+					// `yield` is reserved in generator bodies; `await` in async.
+					if v.name == "yield" && yield_is_reserved_here(p) {
+						report_error(p, "'yield' is reserved as a binding name inside a generator")
+					}
+					if v.name == "await" && await_is_reserved_here(p) {
+						report_error(p, "'await' is reserved as a binding name inside an async function")
+					}
 					left_ident := new_node(p, Identifier)
 					left_ident.loc = v.loc
 					left_ident.name = v.name
@@ -9272,9 +9279,12 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 					msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", k.name)
 					report_error(p, msg)
 				}
-				// In a class static block, `await` is reserved (§15.7.5).
-				if k != nil && k.name == "await" && p.in_static_block {
-					report_error(p, "'await' is not allowed as a shorthand property identifier in a class static block")
+				// Contextually reserved: `yield` in generators, `await` in async/static blocks.
+				if k != nil && k.name == "yield" && yield_is_reserved_here(p) {
+					report_error(p, "'yield' is reserved as a binding name inside a generator")
+				}
+				if k != nil && k.name == "await" && await_is_reserved_here(p) {
+					report_error(p, "'await' is not allowed as a shorthand property identifier")
 				}
 			}
 		}
