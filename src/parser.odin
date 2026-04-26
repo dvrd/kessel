@@ -926,18 +926,35 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 	// auto-detect script default - has_module_syntax set if any
 	// module syntax was seen so far).
 	if is_token(p, .Using) || (is_token(p, .Await) && peek_dispatch(p).type == .Using) {
-		in_module := false
-		if st, have := p.force_source_type.(SourceType); have && st == .Module {
-			in_module = true
+		// Only fire when this is actually a `using` DECLARATION (next token
+		// is a binding identifier, no preceding newline). `using[x] = null`
+		// where `using` is an identifier must not trigger this error.
+		nxt_chk := peek_dispatch(p)
+		is_using_decl := (nxt_chk.type == .Identifier || can_be_binding_identifier(nxt_chk.type)) &&
+		                 !nxt_chk.had_line_terminator
+		// For `await using`, the `using` follows `await`.
+		if is_token(p, .Await) {
+			await_nxt := peek_dispatch(p)
+			if await_nxt.type == .Using {
+				// Need to peek 2 tokens ahead for `await using <id>`.
+				// Use a snapshot approach: peek at `nxt.nxt` if available.
+				is_using_decl = true // conservative: fire for `await using`
+			}
 		}
-		if p.has_module_syntax {
-			in_module = true
-		}
-		if !in_module {
-			kn := "using"
-			if is_token(p, .Await) { kn = "await using" }
-			msg := fmt.tprintf("'%s' declaration is not allowed at the top level of a script", kn)
-			report_error(p, msg)
+		if is_using_decl {
+			in_module := false
+			if st, have := p.force_source_type.(SourceType); have && st == .Module {
+				in_module = true
+			}
+			if p.has_module_syntax {
+				in_module = true
+			}
+			if !in_module {
+				kn := "using"
+				if is_token(p, .Await) { kn = "await using" }
+				msg := fmt.tprintf("'%s' declaration is not allowed at the top level of a script", kn)
+				report_error(p, msg)
+			}
 		}
 	}
 
@@ -1324,11 +1341,19 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		return parse_expression_or_labeled_statement(p)
 	case .Using:
-		// `using x = ...` is a declaration; `using(...)` or `using.foo` is an expression.
-		// A using declaration requires an identifier or destructuring as the next token.
-		if is_next_token(p, .Identifier) || is_keyword_usable_as_property_name(peek_token(p).type) ||
-		   is_next_token(p, .LBracket) || is_next_token(p, .LBrace) {
-			return parse_variable_declaration(p, nil, true)
+		// `using x = ...` is a declaration; `using(...)` or `using.foo` or
+		// `using[x]` is an expression. The spec uses BindingIdentifier (no
+		// destructuring), so `[` and `{` do NOT trigger a declaration.
+		// Also apply ASI-like treatment for newline before the identifier
+		// (mirroring `let\n<id>` logic in sloppy mode).
+		{
+			nxt_using := peek_token(p)
+			nxt_is_id := nxt_using.type == .Identifier ||
+			             can_be_binding_identifier(nxt_using.type)
+			// With a preceding newline, `using` is an identifier (not a decl).
+			if nxt_is_id && !nxt_using.had_line_terminator {
+				return parse_variable_declaration(p, nil, true)
+			}
 		}
 		return parse_expression_or_labeled_statement(p)
 	case .Const:
@@ -7721,7 +7746,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	expr: ^Expression
 	if p.cur_type == .Identifier || p.cur_type == .Get || p.cur_type == .Set ||
 	   p.cur_type == .From || p.cur_type == .Of || p.cur_type == .As ||
-	   p.cur_type == .Let || p.cur_type == .Static || p.cur_type == .Constructor {
+	   p.cur_type == .Let || p.cur_type == .Static || p.cur_type == .Constructor ||
+	   p.cur_type == .Using {
 		// ECMA-262 §12.7.2 - escaped-ReservedWord in IdentifierReference
 		// position. This fast-path bypasses parse_primary_expr, so the
 		// same check that lives on the slow path has to run here too.

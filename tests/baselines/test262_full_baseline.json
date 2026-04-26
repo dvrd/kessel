@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49545,
+    "pass": 49548,
     "accepted-should-reject": 155,
-    "rejected-should-accept": 28,
+    "rejected-should-accept": 25,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23478,
-      "fail": 167,
+      "pass": 23481,
+      "fail": 164,
       "crash": 0,
       "timeout": 0
     },
@@ -52,11 +52,11 @@
     },
     "language/statements": {
       "pass": 0,
-      "fail": 34,
+      "fail": 31,
       "crash": 0,
       "timeout": 0,
       "accepted-should-reject": 28,
-      "rejected-should-accept": 6
+      "rejected-should-accept": 3
     },
     "staging/sm": {
       "pass": 0,
@@ -1019,18 +1019,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/using/syntax/using-declaring-let-split-across-two-lines.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/statements/using/syntax/using-for-using-of-of.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/statements/using/syntax/using-invalid-arraybindingpattern-does-not-break-element-access.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/statements/variable/dstr/ary-ptrn-elem-id-static-init-await-invalid.js",
       "verdict": "accepted-should-reject"
     },
@@ -1111,6 +1099,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.63,
-  "generated_at": "2026-04-26T18:45:42.483Z"
+  "rate": 99.64,
+  "generated_at": "2026-04-26T18:59:18.541Z"
 }
