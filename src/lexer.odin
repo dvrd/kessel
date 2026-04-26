@@ -1345,9 +1345,10 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 					append(&cook_buf, next)
 					l.offset += 2
 				}
-			case 'u', 'U':
+			case 'u':
 				// \u escape: \uHHHH (exactly 4 hex digits) or \u{H...H}
-				// (variable-length, code point <= 0x10FFFF).
+				// (variable-length, code point <= 0x10FFFF). Note: only
+				// lowercase \u starts a Unicode escape; \U is identity.
 				uesc_off := u32(l.offset)
 				if l.offset + 2 < src_len && src[l.offset + 2] == '{' {
 					// \u{H...H} — variable-length hex inside braces.

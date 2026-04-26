@@ -2408,7 +2408,11 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 		eat(p)
 	}
 
-	if label == nil {
+	// §15.7.5 — ClassStaticBlockBody does not allow `continue` (or `break`
+	// targeting an outer loop). The block acts as a function boundary.
+	if p.in_static_block {
+		report_error(p, "'continue' is not allowed inside a class static block")
+	} else if label == nil {
 		if !p.in_loop {
 			report_error(p, "'continue' outside of loop")
 		}
@@ -4861,12 +4865,16 @@ untagged_template_raw_has_invalid_escape :: proc(raw: string) -> bool {
 				// \u{H+} - at least one hex digit, terminated by `}`.
 				j := i + 3
 				digits := 0
+				cp: u32 = 0
 				for j < n && raw[j] != '}' {
 					if !is_hex_digit(raw[j]) { return true }
+					cp = cp * 16 + u32(hex_val_byte(raw[j]))
 					digits += 1
 					j += 1
 				}
 				if j >= n || digits == 0 { return true }
+				// Codepoint must not exceed U+10FFFF.
+				if cp > 0x10FFFF { return true }
 				i = j + 1
 				continue
 			} else {
@@ -4886,6 +4894,13 @@ untagged_template_raw_has_invalid_escape :: proc(raw: string) -> bool {
 
 is_hex_digit :: #force_inline proc(c: u8) -> bool {
 	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+}
+
+hex_val_byte :: #force_inline proc(c: u8) -> u8 {
+	if c >= '0' && c <= '9' { return c - '0' }
+	if c >= 'a' && c <= 'f' { return c - 'a' + 10 }
+	if c >= 'A' && c <= 'F' { return c - 'A' + 10 }
+	return 0
 }
 
 string_raw_has_forbidden_escape :: proc(raw: string) -> bool {

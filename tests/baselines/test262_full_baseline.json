@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49563,
-    "accepted-should-reject": 140,
-    "rejected-should-accept": 25,
+    "pass": 49569,
+    "accepted-should-reject": 136,
+    "rejected-should-accept": 23,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23496,
-      "fail": 149,
+      "pass": 23502,
+      "fail": 143,
       "crash": 0,
       "timeout": 0
     },
@@ -44,18 +44,18 @@
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 34,
+      "fail": 32,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 28,
+      "accepted-should-reject": 26,
       "rejected-should-accept": 6
     },
     "language/statements": {
       "pass": 0,
-      "fail": 23,
+      "fail": 21,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 20,
+      "accepted-should-reject": 18,
       "rejected-should-accept": 3
     },
     "staging/sm": {
@@ -100,11 +100,11 @@
     },
     "language/literals": {
       "pass": 0,
-      "fail": 4,
+      "fail": 2,
       "crash": 0,
       "timeout": 0,
       "accepted-should-reject": 2,
-      "rejected-should-accept": 2
+      "rejected-should-accept": 0
     },
     "language/types": {
       "pass": 0,
@@ -345,14 +345,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/template-literal/invalid-unicode-escape-sequence-7.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/template-literal/invalid-unicode-escape-sequence-8.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/future-reserved-words/enum.js",
       "verdict": "accepted-should-reject"
     },
@@ -370,6 +362,14 @@
     },
     {
       "file": "language/identifiers/vertical-tilde-continue.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/vertical-tilde-start-escaped.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/identifiers/vertical-tilde-start.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -547,14 +547,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/template-literal/invalid-unicode-escape-sequence-7.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/template-literal/invalid-unicode-escape-sequence-8.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/future-reserved-words/enum.js",
       "verdict": "accepted-should-reject"
     },
@@ -613,14 +605,6 @@
     {
       "file": "language/literals/regexp/early-err-flags-unicode-escape.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/literals/string/S7.8.4_A4.2_T1.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/literals/string/S7.8.4_A4.2_T2.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/module-code/comment-multi-line-html-close.js",
@@ -907,14 +891,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/continue/static-init-with-label.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/continue/static-init-without-label.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/debugger/expression.js",
       "verdict": "accepted-should-reject"
     },
@@ -1039,6 +1015,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.67,
-  "generated_at": "2026-04-26T19:37:29.274Z"
+  "rate": 99.68,
+  "generated_at": "2026-04-26T19:49:06.029Z"
 }
