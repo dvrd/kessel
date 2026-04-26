@@ -2787,10 +2787,19 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.in_static_block = false
 	p.in_generator_params = generator
 	p.in_async_params = async
+	// The outer generator/async context should NOT leak into a nested
+	// non-generator non-async function's params. `function f(x = yield){}` 
+	// inside a generator has `yield` as IdentifierRef, not YieldExpression.
+	prev_in_generator_param_outer := p.in_generator
+	prev_in_async_param_outer := p.in_async
+	if !generator { p.in_generator = false }
+	if !async    { p.in_async = false }
 	params := parse_function_params(p)
 	p.in_generator_params = prev_in_gen_params
 	p.in_async_params = prev_in_async_params
 	p.in_static_block = prev_static_block_params
+	p.in_generator = prev_in_generator_param_outer
+	p.in_async = prev_in_async_param_outer
 
 	if !expect_token(p, .RParen) {
 		// Error recovery: skip forward to the next `{` (start of the body)
@@ -10316,6 +10325,18 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					}
 				}
 			}
+		}
+	}
+	// Post-switch: handle unrecognized param expressions (e.g. CallExpression).
+	// These arise when e.g. a LT between `async` and `(params)` prevented
+	// async-arrow detection so `async(foo)` became a CallExpression.
+	if left != nil {
+		#partial switch _ in left {
+		case ^Identifier, ^AssignmentExpression, ^ObjectExpression,
+		     ^ArrayExpression, ^SpreadElement, ^SequenceExpression:
+			// These are valid arrow param forms, handled by the switch above.
+		case:
+			report_error(p, "Invalid expression for arrow function parameters")
 		}
 	}
 	// if left is nil, params stays empty (empty parentheses case)

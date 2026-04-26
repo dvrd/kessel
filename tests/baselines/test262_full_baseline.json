@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49522,
-    "accepted-should-reject": 166,
+    "pass": 49527,
+    "accepted-should-reject": 161,
     "rejected-should-accept": 40,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23456,
-      "fail": 189,
+      "pass": 23461,
+      "fail": 184,
       "crash": 0,
       "timeout": 0
     },
@@ -44,18 +44,18 @@
     },
     "language/statements": {
       "pass": 0,
-      "fail": 47,
+      "fail": 46,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 33,
+      "accepted-should-reject": 32,
       "rejected-should-accept": 14
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 46,
+      "fail": 42,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 39,
+      "accepted-should-reject": 35,
       "rejected-should-accept": 7
     },
     "staging/sm": {
@@ -261,14 +261,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/async-arrow-function/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/async-function/early-errors-expression-formals-body-duplicate.js",
       "verdict": "accepted-should-reject"
     },
@@ -329,10 +321,6 @@
       "verdict": "rejected-should-accept"
     },
     {
-      "file": "language/expressions/function/param-dflt-yield-strict.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/import.meta/import-meta-is-an-ordinary-object.js",
       "verdict": "rejected-should-accept"
     },
@@ -342,10 +330,6 @@
     },
     {
       "file": "language/expressions/in/private-field-in-nested.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/in/private-field-invalid-rhs.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -370,6 +354,22 @@
     },
     {
       "file": "language/expressions/postfix-decrement/line-terminator-carriage-return.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-decrement/line-terminator-line-feed.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-decrement/line-terminator-line-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-decrement/line-terminator-paragraph-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-increment/line-terminator-carriage-return.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -463,14 +463,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/async-arrow-function/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/async-function/early-errors-expression-formals-body-duplicate.js",
       "verdict": "accepted-should-reject"
     },
@@ -531,10 +523,6 @@
       "verdict": "rejected-should-accept"
     },
     {
-      "file": "language/expressions/function/param-dflt-yield-strict.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/import.meta/import-meta-is-an-ordinary-object.js",
       "verdict": "rejected-should-accept"
     },
@@ -544,10 +532,6 @@
     },
     {
       "file": "language/expressions/in/private-field-in-nested.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/in/private-field-invalid-rhs.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -1063,10 +1047,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/function/param-dflt-yield-strict.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/function/S13_A7_T3.js",
       "verdict": "accepted-should-reject"
     },
@@ -1203,6 +1183,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.58,
-  "generated_at": "2026-04-26T17:35:48.275Z"
+  "rate": 99.59,
+  "generated_at": "2026-04-26T17:53:23.394Z"
 }
