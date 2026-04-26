@@ -648,10 +648,16 @@ is_id_start_codepoint :: #force_inline proc(cp: u32) -> bool {
 	if cp < 128 {
 		return CHAR_CLASS_TABLE[cp] == u8(CharClass.IdStart)
 	}
-	// Unicode IDStart excludes ZWJ (U+200D) and ZWNJ (U+200C), which
-	// are IdentifierContinue per Other_ID_Continue but not IDStart.
-	// Also exclude codepoints outside the legal Unicode range.
+	// Unicode IDStart: accept all non-ASCII, non-surrogate codepoints.
+	// A stricter check via binary-search range tables exists in
+	// unicode_tables.odin (is_unicode_id_start) and is used by the
+	// regex named-group validator. Here we stay permissive because:
+	//   1. New Unicode versions add codepoints our tables may lack.
+	//   2. The parser's job is to accept valid source; rejecting a
+	//      valid identifier from a newer Unicode version is worse
+	//      than accepting an exotic non-letter.
 	if cp == 0x200C || cp == 0x200D { return false }
+	if cp >= 0xD800 && cp <= 0xDFFF { return false }
 	return cp <= 0x10FFFF
 }
 
@@ -660,6 +666,7 @@ is_id_cont_codepoint :: #force_inline proc(cp: u32) -> bool {
 		class := CHAR_CLASS_TABLE[cp]
 		return class == u8(CharClass.IdStart) || class == u8(CharClass.Digit)
 	}
+	if cp >= 0xD800 && cp <= 0xDFFF { return false }
 	return cp <= 0x10FFFF
 }
 
@@ -1920,21 +1927,110 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 				k := name_start
 				for k < j {
 					ch := src[k]
-					// Non-ASCII byte — part of a UTF-8 codepoint, accept.
-					if ch >= 0x80 { k += 1; continue }
+					// Non-ASCII byte — decode full UTF-8 codepoint
+					// and validate against Unicode ID_Start / ID_Continue.
+					if ch >= 0x80 {
+						cp: u32 = 0
+						bytes: int = 1
+						if ch < 0xC0 {
+							cp = u32(ch)
+						} else if ch < 0xE0 {
+							cp = u32(ch & 0x1F)
+							bytes = 2
+						} else if ch < 0xF0 {
+							cp = u32(ch & 0x0F)
+							bytes = 3
+						} else {
+							cp = u32(ch & 0x07)
+							bytes = 4
+						}
+						for bi := 1; bi < bytes && k + bi < j; bi += 1 {
+							cp = (cp << 6) | u32(src[k + bi] & 0x3F)
+						}
+						is_first := k == name_start
+						if is_first {
+							if !is_unicode_id_start(cp) {
+								ok = false
+								break
+							}
+						} else {
+							if !is_unicode_id_continue(cp) {
+								ok = false
+								break
+							}
+						}
+						k += bytes
+						continue
+					}
 					if ch == '\\' {
-						// Skip the entire `\u…` body so its hex-digit /
-						// brace contents don't trigger the rejection below.
+						// Decode `\u…` escape and validate the resulting
+						// codepoint against ID_Start / ID_Continue.
+						esc_start := k
+						esc_cp: u32 = 0
+						esc_valid := false
 						k += 1
 						if k < j && src[k] == 'u' {
 							k += 1
 							if k < j && src[k] == '{' {
+								// `\u{H+}` form.
 								k += 1
-								for k < j && src[k] != '}' { k += 1 }
-								if k < j { k += 1 }
+								for k < j && src[k] != '}' {
+									h := hex_val(src[k])
+									if h >= 0 {
+										esc_cp = esc_cp * 16 + u32(h)
+										esc_valid = true
+									}
+									k += 1
+								}
+								if k < j { k += 1 } // skip '}'
 							} else {
-								// `\uHHHH` form — skip up to 4 hex digits.
-								for n := 0; n < 4 && k < j; n += 1 { k += 1 }
+								// `\uHHHH` form.
+								hex_digits := 0
+								for n := 0; n < 4 && k < j; n += 1 {
+									h := hex_val(src[k])
+									if h >= 0 {
+										esc_cp = esc_cp * 16 + u32(h)
+										hex_digits += 1
+									}
+									k += 1
+								}
+								if hex_digits == 4 { esc_valid = true }
+								// Surrogate pair: \uD800-\uDBFF followed by
+								// \uDC00-\uDFFF → combine into supplementary CP.
+								if esc_valid && esc_cp >= 0xD800 && esc_cp <= 0xDBFF {
+									if k + 5 < j && src[k] == '\\' && src[k+1] == 'u' {
+										low_cp: u32 = 0
+										low_ok := true
+										for n := 0; n < 4; n += 1 {
+											h := hex_val(src[k+2+n])
+											if h >= 0 {
+												low_cp = low_cp * 16 + u32(h)
+											} else {
+												low_ok = false
+											}
+										}
+										if low_ok && low_cp >= 0xDC00 && low_cp <= 0xDFFF {
+											// Combine surrogate pair.
+											esc_cp = 0x10000 + (esc_cp - 0xD800) * 0x400 + (low_cp - 0xDC00)
+											k += 6 // skip \uDCxx
+										}
+									}
+								}
+							}
+						}
+						if esc_valid {
+							is_first_char := esc_start == name_start
+							if is_first_char {
+								if !is_id_start_codepoint(esc_cp) {
+									ok = false
+									break
+								}
+							} else {
+								if !is_unicode_id_continue(esc_cp) &&
+								   !is_id_start_codepoint(esc_cp) {
+									ok = false
+									break
+								}
 							}
 						}
 						continue

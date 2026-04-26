@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49270,
-    "accepted-should-reject": 406,
+    "pass": 49316,
+    "accepted-should-reject": 360,
     "rejected-should-accept": 52,
     "crash": 1,
     "timeout": 0
@@ -15,14 +15,14 @@
       "timeout": 0
     },
     "built-ins": {
-      "pass": 23477,
-      "fail": 37,
+      "pass": 23514,
+      "fail": 0,
       "crash": 0,
       "timeout": 0
     },
     "language": {
-      "pass": 23239,
-      "fail": 406,
+      "pass": 23248,
+      "fail": 397,
       "crash": 0,
       "timeout": 0
     },
@@ -58,20 +58,12 @@
       "accepted-should-reject": 75,
       "rejected-should-accept": 13
     },
-    "built-ins/RegExp": {
-      "pass": 0,
-      "fail": 37,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 37,
-      "rejected-should-accept": 0
-    },
     "language/literals": {
       "pass": 0,
-      "fail": 31,
+      "fail": 22,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 29,
+      "accepted-should-reject": 20,
       "rejected-should-accept": 2
     },
     "language/block-scope": {
@@ -205,154 +197,6 @@
       "verdict": "rejected-should-accept"
     },
     {
-      "file": "built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-CharacterClass.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-CharacterClass.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-CharacterClass.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-CharacterClass.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-CharacterClass.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-CharacterClass.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-CharacterClass.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/loose-matching-12-negated.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/loose-matching-12.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-01.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-02.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-03.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-04.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-05.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-06.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-07.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-08.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-09.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-10.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-11.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-12.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-13.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-14.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-15.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-16.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-17.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-18.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-19.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-20.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-21.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-22.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-23.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-24.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-25.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-26.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-27.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-28.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/asi/S7.9_A10_T2.js",
       "verdict": "accepted-should-reject"
     },
@@ -395,8 +239,156 @@
     {
       "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-generator.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-class.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-generator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-async-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-async-generator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-class.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-generator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/comments/hashbang/escaped-hash-043.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/comments/hashbang/escaped-hash-x23.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/comments/hashbang/line-terminator-line-separator.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/comments/hashbang/line-terminator-paragraph-separator.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/comments/S7.4_A2_T2.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/comments/single-line-html-close-without-lt.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/export/escaped-from.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/arrow-function/rest-params-trailing-comma-early-error.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/arrow-function/scope-param-rest-elem-var-open.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/assignment/destructuring/obj-prop-__proto__dup.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/direct-arrowfunction-0.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/direct-arrowfunction-1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/direct-asyncarrowfunction-1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/direct-callexpression-in-logical-assignment.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/direct-primaryexpression-classexpression.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/direct-primaryexpression-objectliteral.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/parenthesized-callexpression-in-logical-assignment.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/assignmenttargettype/parenthesized-primaryexpression-objectliteral.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-arrow-function/escaped-async.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-function/early-errors-expression-formals-body-duplicate.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-function/escaped-async.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js",
+      "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 99.08,
-  "generated_at": "2026-04-26T10:28:20.546Z"
+  "rate": 99.17,
+  "generated_at": "2026-04-26T11:34:25.356Z"
 }
