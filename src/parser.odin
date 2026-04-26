@@ -401,6 +401,17 @@ Parser :: struct {
 	// Track if module syntax was detected (import/export or import.meta)
 	has_module_syntax: bool,
 
+	// True only when parsing at the top level of a Module body — the position
+	// where ImportDeclaration and ExportDeclaration are legal (§16.2.1).
+	// Set from the explicit --source-type=module pin. Cleared on entry to
+	// any function body (via in_function) or via statement_depth > 0.
+	in_module_top_level: bool,
+
+	// Incremented when entering any Block statement (not function body).
+	// Used together with in_module_top_level to reject import/export in
+	// block positions without saving/restoring in parse_block_statement.
+	block_depth: int,
+
 	// ESM module record arrays (populated when module-record flag is enabled)
 	staticImports:  [dynamic]ESMStaticImport,
 	staticExports:  [dynamic]ESMStaticExport,
@@ -968,10 +979,28 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 			return
 		}
 
-		// Error recovery: we are stuck - consume tokens aggressively
-		// Skip until we find a statement boundary or EOF
+		// Error recovery: we are stuck - consume tokens aggressively.
+		// Report the unexpected-token error on the first stuck iteration
+		// so test262 negative fixtures that expect a parse-phase SyntaxError
+		// get one (e.g. `{} * 1`, `x\n++`, bare `*`, etc.).
+		// Suppress the extra diagnostic when a prior error was already
+		// emitted at the same token offset (e.g. "Expected expression after
+		// operator" from inside a broken initializer).
 		stuck_count := 0
 		for !is_token(p, .EOF) && int(cur_offset(p)) == start_offset {
+			if stuck_count == 0 {
+				already_reported := len(p.errors) > 0 &&
+					p.errors[len(p.errors)-1].loc.offset == int(cur_offset(p))
+				// Closing tokens (`)`, `]`) can appear as orphans during error
+				// recovery without being syntax errors in themselves. Only
+				// report for tokens that genuinely cannot appear at statement
+				// position and are not matching-closer artifacts.
+				is_closer_orphan := p.cur_type == .RParen || p.cur_type == .RBracket
+				if !already_reported && !is_closer_orphan {
+					msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
+					report_error(p, msg)
+				}
+			}
 			stuck_count += 1
 			if stuck_count > 100 {
 				// Emergency: force consume and break
@@ -1010,6 +1039,14 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// fixtures.
 	if p.force_strict {
 		p.strict_mode = true
+	}
+
+	// §16.2.1 — ImportDeclaration and ExportDeclaration are ModuleItems,
+	// only legal at the top level of a Module body. Set the flag when we
+	// know upfront (--source-type=module pin) that this is a Module, so
+	// the nested-position check fires correctly during the parse.
+	if fs, have := p.force_source_type.(SourceType); have && fs == .Module {
+		p.in_module_top_level = true
 	}
 
 	// BOM-followed-by-hashbang: the lexer already skipped the BOM (it's a
@@ -1360,8 +1397,24 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		if is_next_token(p, .LParen) || is_next_token(p, .Dot) {
 			return parse_expression_or_labeled_statement(p)
 		}
+		// §16.2.1 — ImportDeclaration is a ModuleItem, not a Statement.
+		// Reject when inside a function body (in_function=true) or block
+		// (block_depth>0), but only when source type is forced to Module.
+		{
+			in_nested_pos := p.in_function || p.block_depth > 0
+			if in_nested_pos && p.in_module_top_level {
+				report_error(p, "'import' declarations are only allowed at the top level of a module")
+			}
+		}
 		return parse_import_declaration(p)
 	case .Export:
+		// §16.2.1 — ExportDeclaration is a ModuleItem, not a Statement.
+		{
+			in_nested_pos := p.in_function || p.block_depth > 0
+			if in_nested_pos && p.in_module_top_level {
+				report_error(p, "'export' declarations are only allowed at the top level of a module")
+			}
+		}
 		return parse_export_declaration(p)
 	case:
 		return parse_expression_or_labeled_statement(p)
@@ -1388,10 +1441,10 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 
 	// A nested block introduces its own StatementList, so the
 	// case-clause direct-child constraint no longer applies inside.
+	// Also clear module-top-level: import/export are not allowed in blocks.
 	prev_in_case_block := p.in_case_clause
 	p.in_case_clause = false
 	defer p.in_case_clause = prev_in_case_block
-
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
 		stmt := parse_statement_or_declaration(p)
@@ -1474,6 +1527,15 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			report_error(p, "Unexpected token ':'")
 		case ^TemplateLiteral:
 			report_error(p, "Unexpected token ':'")
+		case ^YieldExpression:
+			// §14.13.1 — `yield` cannot be used as a LabelIdentifier inside
+			// a GeneratorBody. This fires only at statement position so the
+			// check is not confused by `? yield : yield` (ternary colon).
+			if p.in_generator {
+				report_error(p, "'yield' cannot be used as a label identifier inside a generator function")
+			} else {
+				report_error(p, "Unexpected token ':'")
+			}
 		case ^Identifier:
 			eat(p) // consume :
 
@@ -6874,6 +6936,48 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		return nil
 	}
 
+	// §14.4 / §15.5 — YieldExpression is an AssignmentExpression, not a
+	// ShortCircuitExpression. It cannot be the subject of binary,
+	// logical, coalescing, or conditional operators (unless parenthesised).
+	// Assignment operators are allowed (they call parse_assignment_expr which
+	// separately validates the target). The comma operator is always allowed
+	// (e.g. `yield u, r.push(u)` is a SequenceExpression).
+	if _, is_yield := left.(^YieldExpression); is_yield {
+		// Detect whether the YieldExpression was parenthesised. With
+		// --preserve-parens off, `(yield n)` is stripped to a bare
+		// YieldExpression node; we recover the paren context by scanning
+		// backwards from the span start, identical to the `**` and `??`
+		// checks above.
+		yield_start := int(loc_from_expr(left).span.start)
+		paren_wrapped := false
+		if p.lexer != nil && yield_start > 0 {
+			yi := yield_start - 1
+			for yi >= 0 {
+				ych := p.lexer.source_bytes[yi]
+				if ych == '(' { paren_wrapped = true; break }
+				if ych == ' ' || ych == '\t' || ych == '\n' || ych == '\r' { yi -= 1; continue }
+				break
+			}
+		}
+		if !paren_wrapped {
+			next_prec := precedence_for_token(p.cur_type)
+			// .Conditional (5) and above covers ?, ||, &&, ??, |, ^, &,
+			// ==, <, <<, +, *, **, etc. All forbidden as yield LHS without
+			// parens. Assignment operators (.Assignment=4) are below the
+			// threshold — let them through so parse_assignment_expr can
+			// validate the target (e.g. `(yield) = 1` should be caught there).
+			if int(next_prec) >= int(Precedence.Conditional) {
+				report_error(p, "'yield' expression cannot be used as an operand of a conditional or binary operator")
+			}
+			// Return early for all operators EXCEPT comma (sequence) and
+			// assignment (target validation needed in parse_assignment_expr).
+			is_assign_like := int(next_prec) == int(Precedence.Assignment)
+			if p.cur_type != .Comma && !is_assign_like {
+				return left
+			}
+		}
+	}
+
 	// TypeScript: `expr as Type` and `expr satisfies Type`
 	for is_token(p, .As) || is_token(p, .Satisfies) {
 		if is_token(p, .As) {
@@ -6924,7 +7028,10 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				if p.cur_tok.had_line_terminator {
 					report_error(p, "Unexpected line terminator before '=>' (restricted production)")
 				}
-				return parse_arrow_function(p, left)
+				// Continue the loop so that the comma operator can form a
+				// SequenceExpression: `() => 1, 42` is valid syntax.
+				left = parse_arrow_function(p, left)
+				continue
 			}
 			if is_assignment_operator(cur_type) {
 				left = parse_assignment_expr(p, left)
@@ -6999,6 +7106,89 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		if right == nil {
 			report_error(p, "Expected expression after operator")
 			return left
+		}
+
+		// §14.4 — YieldExpression cannot be the right-hand operand of any
+		// binary or logical operator (it has assignment-expression precedence).
+		// Exception: a parenthesised `(yield n)` promotes the expression to
+		// primary-expression level; with --preserve-parens off the wrapper
+		// is stripped, so we detect the paren by scanning backwards from the
+		// yield’s span start, mirroring the `**` unary check above.
+		if _, is_yield := right.(^YieldExpression); is_yield && cur_type != .Comma {
+			yield_start := int(loc_from_expr(right).span.start)
+			paren_wrapped := false
+			if p.lexer != nil && yield_start > 0 {
+				i := yield_start - 1
+				for i >= 0 {
+					ch := p.lexer.source_bytes[i]
+					if ch == '(' { paren_wrapped = true; break }
+					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+					break
+				}
+			}
+			if !paren_wrapped {
+				report_error(p, "'yield' expression cannot be the right-hand side of a binary operator")
+			}
+		}
+
+		// §13.4 — Nullish coalescing (??) cannot be mixed with && or ||
+		// without parentheses, and vice versa. Parenthesised sub-expressions
+		// are exempt: `(a && b) ?? c` and `a ?? (b || c)` are legal.
+		// Detect parens by scanning backwards from the operand span start,
+		// mirroring the yield and `**` checks above.
+		if cur_type == .Nullish {
+			if le, ok := left.(^LogicalExpression); ok &&
+			   (le.operator == .And || le.operator == .Or) {
+				le_start := int(le.loc.span.start)
+				paren_ok := false
+				if p.lexer != nil && le_start > 0 {
+					pi := le_start - 1
+					for pi >= 0 {
+						pch := p.lexer.source_bytes[pi]
+						if pch == '(' { paren_ok = true; break }
+						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
+						break
+					}
+				}
+				if !paren_ok {
+					report_error(p, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
+				}
+			}
+			if le, ok := right.(^LogicalExpression); ok &&
+			   (le.operator == .And || le.operator == .Or) {
+				le_start := int(le.loc.span.start)
+				paren_ok := false
+				if p.lexer != nil && le_start > 0 {
+					pi := le_start - 1
+					for pi >= 0 {
+						pch := p.lexer.source_bytes[pi]
+						if pch == '(' { paren_ok = true; break }
+						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
+						break
+					}
+				}
+				if !paren_ok {
+					report_error(p, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
+				}
+			}
+		} else if cur_type == .LogicalOr || cur_type == .LogicalAnd {
+			if le, ok := left.(^LogicalExpression); ok &&
+			   le.operator == .NullishCoalescing {
+				le_start := int(le.loc.span.start)
+				paren_ok := false
+				if p.lexer != nil && le_start > 0 {
+					pi := le_start - 1
+					for pi >= 0 {
+						pch := p.lexer.source_bytes[pi]
+						if pch == '(' { paren_ok = true; break }
+						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
+						break
+					}
+				}
+				if !paren_ok {
+					report_error(p, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
+				}
+			}
 		}
 
 		// Logical operators
@@ -9613,7 +9803,6 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	if is_async {
 		p.in_async = true
 	}
-
 	// Parse body. Capture block-vs-expression BEFORE consuming either,
 	// because after parse_block_statement / parse_assignment_expression
 	// the current token is no longer the '{' and the ESTree `expression`

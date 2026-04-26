@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49344,
-    "accepted-should-reject": 330,
+    "pass": 49433,
+    "accepted-should-reject": 241,
     "rejected-should-accept": 54,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23278,
-      "fail": 367,
+      "pass": 23367,
+      "fail": 278,
       "crash": 0,
       "timeout": 0
     },
@@ -36,26 +36,26 @@
   "perSubdir": {
     "language/module-code": {
       "pass": 0,
-      "fail": 131,
+      "fail": 95,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 131,
+      "accepted-should-reject": 95,
       "rejected-should-accept": 0
     },
     "language/statements": {
       "pass": 0,
-      "fail": 91,
+      "fail": 75,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 69,
+      "accepted-should-reject": 53,
       "rejected-should-accept": 22
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 88,
+      "fail": 60,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 75,
+      "accepted-should-reject": 47,
       "rejected-should-accept": 13
     },
     "language/block-scope": {
@@ -74,37 +74,21 @@
       "accepted-should-reject": 2,
       "rejected-should-accept": 10
     },
-    "language/literals": {
-      "pass": 0,
-      "fail": 9,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 7,
-      "rejected-should-accept": 2
-    },
-    "language/asi": {
-      "pass": 0,
-      "fail": 7,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 7,
-      "rejected-should-accept": 0
-    },
     "language/line-terminators": {
-      "pass": 0,
-      "fail": 7,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 7,
-      "rejected-should-accept": 0
-    },
-    "language/comments": {
       "pass": 0,
       "fail": 6,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 4,
-      "rejected-should-accept": 2
+      "accepted-should-reject": 6,
+      "rejected-should-accept": 0
+    },
+    "language/asi": {
+      "pass": 0,
+      "fail": 5,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 5,
+      "rejected-should-accept": 0
     },
     "language/identifiers": {
       "pass": 0,
@@ -114,6 +98,14 @@
       "accepted-should-reject": 5,
       "rejected-should-accept": 0
     },
+    "language/literals": {
+      "pass": 0,
+      "fail": 5,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 3,
+      "rejected-should-accept": 2
+    },
     "annexB/language": {
       "pass": 0,
       "fail": 4,
@@ -121,6 +113,14 @@
       "timeout": 0,
       "accepted-should-reject": 0,
       "rejected-should-accept": 4
+    },
+    "language/comments": {
+      "pass": 0,
+      "fail": 4,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 2,
+      "rejected-should-accept": 2
     },
     "language/types": {
       "pass": 0,
@@ -195,14 +195,6 @@
     {
       "file": "annexB/language/expressions/assignmenttargettype/cover-callexpression-and-asyncarrowhead.js",
       "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/asi/S7.9_A10_T2.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/asi/S7.9_A10_T6.js",
-      "verdict": "accepted-should-reject"
     },
     {
       "file": "language/asi/S7.9_A10_T8.js",
@@ -285,14 +277,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/comments/hashbang/escaped-hash-043.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/comments/hashbang/escaped-hash-x23.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/comments/hashbang/line-terminator-line-separator.js",
       "verdict": "rejected-should-accept"
     },
@@ -329,10 +313,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/assignmenttargettype/direct-arrowfunction-0.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/assignmenttargettype/direct-arrowfunction-1.js",
       "verdict": "accepted-should-reject"
     },
@@ -342,14 +322,6 @@
     },
     {
       "file": "language/expressions/assignmenttargettype/direct-callexpression-in-logical-assignment.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/assignmenttargettype/direct-primaryexpression-classexpression.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/assignmenttargettype/direct-primaryexpression-objectliteral.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -379,8 +351,36 @@
     {
       "file": "language/expressions/async-function/escaped-async.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/async-generator/escaped-async.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/call/S11.2.4_A1.3_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/fields-asi-same-line-2.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/syntax/early-errors/class-heritage-array-literal-async-arrow-heritage.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js",
+      "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 99.23,
-  "generated_at": "2026-04-26T12:41:23.651Z"
+  "rate": 99.4,
+  "generated_at": "2026-04-26T15:32:25.416Z"
 }
