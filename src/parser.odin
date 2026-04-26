@@ -1677,7 +1677,9 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
+	p.block_depth += 1
 	consequent := parse_statement_or_declaration(p)
+	p.block_depth -= 1
 	report_statement_only_position(p, consequent, !p.strict_mode)
 
 	if_ := new_node(p, IfStatement)
@@ -1686,7 +1688,9 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	if_.consequent = consequent
 
 	if match_token(p, .Else) {
+		p.block_depth += 1
 		alt := parse_statement_or_declaration(p)
+		p.block_depth -= 1
 		report_statement_only_position(p, alt, !p.strict_mode)
 		if_.alternate = alt
 	}
@@ -1721,7 +1725,9 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 
 	prev_in_loop := p.in_loop
 	p.in_loop = true
+	p.block_depth += 1
 	body := parse_statement_or_declaration(p)
+	p.block_depth -= 1
 	p.in_loop = prev_in_loop
 	report_statement_only_position(p, body, false)
 
@@ -1740,7 +1746,9 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 
 	prev_in_loop := p.in_loop
 	p.in_loop = true
+	p.block_depth += 1
 	body := parse_statement_or_declaration(p)
+	p.block_depth -= 1
 	p.in_loop = prev_in_loop
 	report_statement_only_position(p, body, false)
 
@@ -2043,7 +2051,11 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 
 		prev_in_loop := p.in_loop
 		p.in_loop = true
+		// Increment block_depth so import/export inside a for-in/of single-
+		// statement body are rejected as nested positions (§16.2.1).
+		p.block_depth += 1
 		body := parse_statement_or_declaration(p)
+		p.block_depth -= 1
 		p.in_loop = prev_in_loop
 		report_statement_only_position(p, body, false)
 
@@ -2113,7 +2125,9 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 
 	prev_in_loop := p.in_loop
 	p.in_loop = true
+	p.block_depth += 1
 	body := parse_statement_or_declaration(p)
+	p.block_depth -= 1
 	p.in_loop = prev_in_loop
 	report_statement_only_position(p, body, false)
 
@@ -3075,6 +3089,10 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// declarator would reject the inner `in`.
 	prev_no_in := p.no_in
 	p.no_in = false
+	// Static block context (§15.7.5) does NOT propagate into nested function
+	// bodies: `class C { static { (() => { class await {} }); } }` is valid.
+	prev_static_block_in_fb := p.in_static_block
+	p.in_static_block = false
 
 	p.in_function = true
 
@@ -3141,6 +3159,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	p.in_async = prev_in_async
 	p.strict_mode = prev_strict
 	p.no_in = prev_no_in
+	p.in_static_block = prev_static_block_in_fb
 	// Restore the enclosing label floor. Labels pushed inside this body
 	// should have been popped on their LabelledStatement exit; if not
 	// (parse bail-out, etc.) truncate down so leftovers don't pollute
@@ -4430,6 +4449,9 @@ is_eval_or_arguments :: #force_inline proc(name: string) -> bool {
 // BindingIdentifier / IdentifierReference / LabelIdentifier.
 await_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
 	if p.in_async || p.in_async_params { return true }
+	// §15.7.5 — class static blocks run under [~Await]; `await` is
+	// a reserved word within ClassStaticBlockBody.
+	if p.in_static_block { return true }
 	// ModuleBody. Use the same source-type heuristic as parse_unary_expr's
 	// .Await case: explicit --source-type=module or auto-detect when
 	// module syntax has been seen.
@@ -9884,6 +9906,10 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	if is_async {
 		p.in_async = true
 	}
+	// Static block context does NOT propagate into arrow function bodies.
+	prev_static_block_arrow := p.in_static_block
+	p.in_static_block = false
+	defer p.in_static_block = prev_static_block_arrow
 	// Parse body. Capture block-vs-expression BEFORE consuming either,
 	// because after parse_block_statement / parse_assignment_expression
 	// the current token is no longer the '{' and the ESTree `expression`
