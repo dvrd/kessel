@@ -1454,6 +1454,26 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	// Check for labeled statement: identifier:
 	if is_token(p, .Colon) {
 		#partial switch e in expr {
+		case ^BooleanLiteral:
+			// `false:`, `true:` — reserved words used as labels.
+			// Only Identifiers can be LabelIdentifiers (§14.13.1).
+			report_error(p, "Unexpected token ':'")
+		case ^NullLiteral:
+			// `null:` — same rule.
+			report_error(p, "Unexpected token ':'")
+		case ^NumericLiteral:
+			// `0:` — numeric literal cannot be a label.
+			report_error(p, "Unexpected token ':'")
+		case ^StringLiteral:
+			// `"x":` — string literal cannot be a label.
+			report_error(p, "Unexpected token ':'")
+		case ^ThisExpression:
+			// `this:` — keyword cannot be a label.
+			report_error(p, "Unexpected token ':'")
+		case ^RegExpLiteral:
+			report_error(p, "Unexpected token ':'")
+		case ^TemplateLiteral:
+			report_error(p, "Unexpected token ':'")
 		case ^Identifier:
 			eat(p) // consume :
 
