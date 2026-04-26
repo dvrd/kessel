@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49541,
-    "accepted-should-reject": 157,
-    "rejected-should-accept": 30,
+    "pass": 49545,
+    "accepted-should-reject": 155,
+    "rejected-should-accept": 28,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23474,
-      "fail": 171,
+      "pass": 23478,
+      "fail": 167,
       "crash": 0,
       "timeout": 0
     },
@@ -90,14 +90,6 @@
       "accepted-should-reject": 5,
       "rejected-should-accept": 0
     },
-    "language/literals": {
-      "pass": 0,
-      "fail": 5,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 3,
-      "rejected-should-accept": 2
-    },
     "annexB/language": {
       "pass": 0,
       "fail": 4,
@@ -106,7 +98,7 @@
       "accepted-should-reject": 0,
       "rejected-should-accept": 4
     },
-    "language/comments": {
+    "language/literals": {
       "pass": 0,
       "fail": 4,
       "crash": 0,
@@ -128,6 +120,14 @@
       "crash": 0,
       "timeout": 0,
       "accepted-should-reject": 2,
+      "rejected-should-accept": 0
+    },
+    "language/comments": {
+      "pass": 0,
+      "fail": 1,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 1,
       "rejected-should-accept": 0
     },
     "language/export": {
@@ -206,18 +206,6 @@
     },
     {
       "file": "language/asi/S7.9.2_A1_T1.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/comments/hashbang/line-terminator-line-separator.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/comments/hashbang/line-terminator-paragraph-separator.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/comments/S7.4_A2_T2.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -371,6 +359,18 @@
     {
       "file": "language/expressions/postfix-increment/line-terminator-line-feed.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-increment/line-terminator-line-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-increment/line-terminator-paragraph-separator.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/property-accessors/non-identifier-name.js",
+      "verdict": "accepted-should-reject"
     }
   ],
   "all_failures": [
@@ -408,18 +408,6 @@
     },
     {
       "file": "language/asi/S7.9.2_A1_T1.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/comments/hashbang/line-terminator-line-separator.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/comments/hashbang/line-terminator-paragraph-separator.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/comments/S7.4_A2_T2.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -652,10 +640,6 @@
     },
     {
       "file": "language/literals/regexp/early-err-flags-unicode-escape.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/literals/regexp/S7.8.5_A1.2_T1.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -1127,6 +1111,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.62,
-  "generated_at": "2026-04-26T18:35:18.382Z"
+  "rate": 99.63,
+  "generated_at": "2026-04-26T18:45:42.483Z"
 }

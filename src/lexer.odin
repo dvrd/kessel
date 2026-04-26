@@ -209,6 +209,13 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator) {
 		for l.offset < len(source) {
 			c := l.source_bytes[l.offset]
 			if c == '\n' || c == '\r' { break }
+			// U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH SEPARATOR) are
+			// spec line terminators and terminate the hashbang comment.
+			if c == 0xE2 && l.offset + 2 < len(source) &&
+			   l.source_bytes[l.offset+1] == 0x80 &&
+			   (l.source_bytes[l.offset+2] == 0xA8 || l.source_bytes[l.offset+2] == 0xA9) {
+				break
+			}
 			l.offset += 1
 			content_end = l.offset
 		}
@@ -227,6 +234,10 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator) {
 				}
 			} else if c == '\n' {
 				l.offset += 1
+			} else if c == 0xE2 && l.offset + 2 < len(source) &&
+			          l.source_bytes[l.offset+1] == 0x80 &&
+			          (l.source_bytes[l.offset+2] == 0xA8 || l.source_bytes[l.offset+2] == 0xA9) {
+				l.offset += 3 // consume U+2028/U+2029
 			}
 		}
 	}
@@ -355,6 +366,14 @@ skip_block_comment :: proc(l: ^Lexer) {
 	content_start := l.offset
 	end, had_nl := simd_skip_block_comment(l.source_bytes, l.offset)
 	if had_nl { l.had_line_terminator = true }
+	// §12.4 — A block comment that reaches EOF without a closing `*/` is a
+	// SyntaxError. Report it so the test runner sees `Parse errors: 1`.
+	if end >= len(l.source_bytes) {
+		append(&l.lexer_errors, LexerError{
+			offset  = comment_start,
+			message = "Unterminated block comment",
+		})
+	}
 	if l.collect_comments {
 		// Content ends before the */ (end points past */)
 		content_end := end - 2 if end >= 2 else end
@@ -468,6 +487,13 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 					content_start := off
 					end, had_nl := simd_skip_block_comment(src, off)
 					if had_nl { l.had_line_terminator = true }
+					// Unterminated block comment — report as lexer error.
+					if end >= src_len {
+						append(&l.lexer_errors, LexerError{
+							offset  = u32(comment_start),
+							message = "Unterminated block comment",
+						})
+					}
 					if l.collect_comments {
 						content_end := end - 2 if end >= 2 else end
 						append(&l.comments, Comment{
