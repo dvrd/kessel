@@ -1867,6 +1867,12 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	seen_flags: [26]u8 // a-z bit set
 	for l.offset < src_len {
 		c := src[l.offset]
+		// §B.1.4 / §11.8.5 — Regex flags may not contain Unicode escape sequences.
+		// If `\uXXXX` immediately follows the closing `/`, report as lexer error.
+		if c == '\\' && l.offset + 1 < src_len && src[l.offset+1] == 'u' {
+			append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Regular expression flags must not contain Unicode escape sequences"})
+			break
+		}
 		if !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9') && c != '$' && c != '_' {
 			break
 		}

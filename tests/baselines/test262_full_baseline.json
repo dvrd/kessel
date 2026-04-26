@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49589,
-    "accepted-should-reject": 117,
+    "pass": 49591,
+    "accepted-should-reject": 115,
     "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23522,
-      "fail": 123,
+      "pass": 23524,
+      "fail": 121,
       "crash": 0,
       "timeout": 0
     },
@@ -98,14 +98,6 @@
       "accepted-should-reject": 4,
       "rejected-should-accept": 0
     },
-    "language/literals": {
-      "pass": 0,
-      "fail": 2,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 2,
-      "rejected-should-accept": 0
-    },
     "language/types": {
       "pass": 0,
       "fail": 2,
@@ -130,7 +122,7 @@
       "accepted-should-reject": 1,
       "rejected-should-accept": 0
     },
-    "language/export": {
+    "language/global-code": {
       "pass": 0,
       "fail": 1,
       "crash": 0,
@@ -138,7 +130,7 @@
       "accepted-should-reject": 1,
       "rejected-should-accept": 0
     },
-    "language/global-code": {
+    "language/literals": {
       "pass": 0,
       "fail": 1,
       "crash": 0,
@@ -205,10 +197,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/export/escaped-from.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/arrow-function/scope-param-rest-elem-var-open.js",
       "verdict": "rejected-should-accept"
     },
@@ -349,10 +337,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/literals/regexp/early-err-flags-unicode-escape.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/module-code/comment-multi-line-html-close.js",
       "verdict": "accepted-should-reject"
     },
@@ -362,6 +346,14 @@
     },
     {
       "file": "language/module-code/early-dup-export-as-star-as.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-dflt-id.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-dflt.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -407,10 +399,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/export/escaped-from.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/arrow-function/scope-param-rest-elem-var-open.js",
       "verdict": "rejected-should-accept"
     },
@@ -548,10 +536,6 @@
     },
     {
       "file": "language/literals/bigint/mv-is-not-integer-dot-dds.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/literals/regexp/early-err-flags-unicode-escape.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -928,5 +912,5 @@
     }
   ],
   "rate": 99.72,
-  "generated_at": "2026-04-26T20:59:04.494Z"
+  "generated_at": "2026-04-26T21:08:52.395Z"
 }

@@ -7182,6 +7182,16 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		return nil
 	}
 
+	// §Grammar Notation: the `from` contextual keyword must appear literally.
+	// Escaped form `\u0066rom` is lexed as .Identifier with has_escape=true.
+	if is_token(p, .Identifier) && p.cur_tok.value == "from" {
+		if p.cur_tok.has_escape {
+			report_error(p, "'from' keyword must not contain Unicode escape sequences")
+		}
+		// Treat the identifier 'from' as the From keyword for recovery.
+		p.cur_type = .From
+		p.cur_tok.type = .From
+	}
 	if match_token(p, .From) {
 		decl.source = parse_string_literal(p)
 		decl.attributes = parse_import_attributes(p)
