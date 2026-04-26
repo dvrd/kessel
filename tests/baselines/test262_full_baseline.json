@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49508,
-    "accepted-should-reject": 174,
-    "rejected-should-accept": 46,
+    "pass": 49521,
+    "accepted-should-reject": 167,
+    "rejected-should-accept": 40,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23442,
-      "fail": 203,
+      "pass": 23455,
+      "fail": 190,
       "crash": 0,
       "timeout": 0
     },
@@ -42,21 +42,21 @@
       "accepted-should-reject": 63,
       "rejected-should-accept": 0
     },
-    "language/statements": {
-      "pass": 0,
-      "fail": 54,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 40,
-      "rejected-should-accept": 14
-    },
     "language/expressions": {
       "pass": 0,
-      "fail": 53,
+      "fail": 47,
       "crash": 0,
       "timeout": 0,
       "accepted-should-reject": 40,
-      "rejected-should-accept": 13
+      "rejected-should-accept": 7
+    },
+    "language/statements": {
+      "pass": 0,
+      "fail": 47,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 33,
+      "rejected-should-accept": 14
     },
     "staging/sm": {
       "pass": 0,
@@ -313,10 +313,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/class/static-init-await-reference.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/expressions/coalesce/cannot-chain-head-with-logical-or.js",
       "verdict": "accepted-should-reject"
     },
@@ -335,14 +331,6 @@
     {
       "file": "language/expressions/function/param-dflt-yield-strict.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/function/static-init-await-reference.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/generators/static-init-await-reference.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/expressions/import.meta/import-meta-is-an-ordinary-object.js",
@@ -371,6 +359,18 @@
     {
       "file": "language/expressions/object/literal-property-name-bigint.js",
       "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/object/method-definition/generator-param-redecl-const.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/method-definition/generator-param-redecl-let.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/method-definition/name-param-redecl.js",
+      "verdict": "accepted-should-reject"
     }
   ],
   "all_failures": [
@@ -515,10 +515,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/class/static-init-await-reference.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/expressions/coalesce/cannot-chain-head-with-logical-or.js",
       "verdict": "accepted-should-reject"
     },
@@ -537,14 +533,6 @@
     {
       "file": "language/expressions/function/param-dflt-yield-strict.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/function/static-init-await-reference.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/generators/static-init-await-reference.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/expressions/import.meta/import-meta-is-an-ordinary-object.js",
@@ -585,18 +573,6 @@
     {
       "file": "language/expressions/object/method-definition/name-param-redecl.js",
       "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/method-definition/static-init-await-reference-accessor.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/object/method-definition/static-init-await-reference-generator.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/object/method-definition/static-init-await-reference-normal.js",
-      "verdict": "rejected-should-accept"
     },
     {
       "file": "language/expressions/postfix-decrement/line-terminator-carriage-return.js",
@@ -1035,10 +1011,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/const/static-init-await-binding-invalid.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/continue/static-init-with-label.js",
       "verdict": "accepted-should-reject"
     },
@@ -1123,31 +1095,11 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/let/static-init-await-binding-invalid.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/switch/S12.11_A3_T4.js",
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/try/early-catch-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/try/early-catch-lex.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/try/static-init-await-binding-invalid.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/using/redeclaration-error-from-within-strict-mode-function-using.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/using/static-init-await-binding-invalid.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -1168,10 +1120,6 @@
     },
     {
       "file": "language/statements/variable/dstr/obj-ptrn-elem-id-static-init-await-invalid.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/variable/static-init-await-binding-invalid.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -1259,6 +1207,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.56,
-  "generated_at": "2026-04-26T17:11:41.802Z"
+  "rate": 99.58,
+  "generated_at": "2026-04-26T17:26:12.000Z"
 }
