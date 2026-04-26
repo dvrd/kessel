@@ -1253,6 +1253,12 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// breaks the AsyncFunctionDeclaration rule - `async` is then a bare
 		// IdentifierReference and the following `function` starts its own
 		// FunctionDeclaration statement via ASI.
+		// Grammar notation: terminal symbol `async` must NOT have Unicode
+		// escapes. `\u0061sync function...` is a SyntaxError.
+		if p.cur_tok.has_escape {
+			report_error(p, "'async' keyword must not contain Unicode escape sequences")
+			return parse_expression_or_labeled_statement(p)
+		}
 		next_after_async := peek_dispatch(p)
 		if next_after_async.type == .Function && !next_after_async.had_line_terminator {
 			return parse_function_declaration(p)
@@ -1338,6 +1344,18 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		return parse_expression_or_labeled_statement(p)
 	case .Identifier:
+		// §Grammar Notation: terminal symbols must not have Unicode escapes.
+		// `\u0061sync function*` tries to write `async function*` with an
+		// escaped keyword — this is a SyntaxError.
+		if p.cur_tok.has_escape && p.cur_tok.value == "async" {
+			// Peek ahead: if this looks like an async function / arrow, error.
+			nxt := peek_dispatch(p)
+			if (nxt.type == .Function && !nxt.had_line_terminator) ||
+			   (nxt.type == .Identifier && !nxt.had_line_terminator) ||
+			   (nxt.type == .LParen && !nxt.had_line_terminator) {
+				report_error(p, "'async' keyword must not contain Unicode escape sequences")
+			}
+		}
 		// TS contextual keywords: `type`, `interface`, `enum`, `declare` lex as Identifier
 		// so that `var type = 1` and similar JS code parses correctly.
 		// We check string value here at the statement level.
@@ -8280,6 +8298,22 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `(`. If there is one, the grammar rule fails and ASI treats `async`
 		// as a bare IdentifierReference; the lookahead token starts a new
 		// statement/expression.
+		//
+		// §Grammar Notation: terminal symbols must not contain Unicode escape
+		// sequences. `\u0061sync` is NOT the `async` keyword. Detect by
+		// checking the token's has_escape flag.
+		if current.has_escape {
+			// Escaped async: `\u0061sync function f(){}` is a SyntaxError
+			// because the `async` keyword must appear literally. Report and
+			// fall through to treat it as an identifier.
+			report_error(p, "'async' keyword must not contain Unicode escape sequences")
+			eat(p)
+			ident := new_node(p, Identifier)
+			ident.loc = loc_from_token(current)
+			ident.name = "async"
+			ident.loc.span.end = prev_end_offset(p)
+			return expression_from(p, ident)
+		}
 		async_lt_break := next.had_line_terminator
 		if !async_lt_break && next.type == .Function {
 			// async function() {} - function expression

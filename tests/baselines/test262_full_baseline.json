@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49535,
-    "accepted-should-reject": 161,
+    "pass": 49537,
+    "accepted-should-reject": 159,
     "rejected-should-accept": 32,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23469,
-      "fail": 176,
+      "pass": 23471,
+      "fail": 174,
       "crash": 0,
       "timeout": 0
     },
@@ -52,10 +52,10 @@
     },
     "language/statements": {
       "pass": 0,
-      "fail": 38,
+      "fail": 36,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 32,
+      "accepted-should-reject": 30,
       "rejected-should-accept": 6
     },
     "staging/sm": {
@@ -931,14 +931,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/async-function/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/async-generator/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/await-using/redeclaration-error-from-within-strict-mode-function-await-using.js",
       "verdict": "accepted-should-reject"
     },
@@ -1152,5 +1144,5 @@
     }
   ],
   "rate": 99.61,
-  "generated_at": "2026-04-26T18:02:02.557Z"
+  "generated_at": "2026-04-26T18:16:37.582Z"
 }
