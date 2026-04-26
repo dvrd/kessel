@@ -2995,6 +2995,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		report_duplicate_param_names(p, params[:], true)
 	}
 
+	// §15.2.1.1 / §15.5.1 — It is a Syntax Error if any element of the
+	// BoundNames of FormalParameters also occurs in the LexicallyDeclaredNames
+	// of FunctionBody. e.g. `function f(a) { const a = 1; }` is SyntaxError.
+	// Collect param names and check against body's lex declarations.
+	check_params_vs_body_lex(p, params[:], body.body[:])
+
 	if is_expr {
 		expr := new_node(p, FunctionExpression)
 		expr.loc = start
@@ -4108,6 +4114,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			}
 		}
 	}
+
+	// §15.2.1.1 — BoundNames of FormalParameters vs LexicallyDeclaredNames.
+	check_params_vs_body_lex(p, params[:], body.body[:])
 
 	// Create the method as a FunctionExpression
 	fn_expr := new_node(p, FunctionExpression)
@@ -6103,6 +6112,28 @@ scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
 			case ^ClassExpression:
 				scope_recurse_class_elements(p, e.body.body[:])
 			}
+		}
+	}
+}
+
+// Check that function formal parameters don't clash with lexically
+// declared names in the body (§15.2.1.1 / §15.5.1 etc.).
+check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: []^Statement) {
+	if len(params) == 0 || len(body) == 0 { return }
+	param_names := make([dynamic]string, 0, len(params)*2, context.temp_allocator)
+	for param in params {
+		scope_collect_pattern(param.pattern, &param_names)
+	}
+	if len(param_names) == 0 { return }
+	body_lex := make(map[string]u32, 4, context.temp_allocator)
+	body_vars := make(map[string]u32, 4, context.temp_allocator)
+	for stmt in body {
+		scope_process_statement(p, stmt, &body_lex, &body_vars, false)
+	}
+	for n in param_names {
+		if off, have := body_lex[n]; have {
+			msg := fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n)
+			append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 		}
 	}
 }
@@ -9220,6 +9251,9 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if body_strict {
 			report_strict_param_names(p, params[:])
 		}
+
+		// §15.2.1.1 — BoundNames of FormalParameters vs LexicallyDeclaredNames.
+		check_params_vs_body_lex(p, params[:], body.body[:])
 
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start

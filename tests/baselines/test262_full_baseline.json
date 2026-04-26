@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49580,
-    "accepted-should-reject": 126,
+    "pass": 49587,
+    "accepted-should-reject": 119,
     "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23513,
-      "fail": 132,
+      "pass": 23520,
+      "fail": 125,
       "crash": 0,
       "timeout": 0
     },
@@ -44,18 +44,18 @@
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 29,
+      "fail": 23,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 24,
+      "accepted-should-reject": 18,
       "rejected-should-accept": 5
     },
     "language/statements": {
       "pass": 0,
-      "fail": 16,
+      "fail": 15,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 13,
+      "accepted-should-reject": 12,
       "rejected-should-accept": 3
     },
     "staging/sm": {
@@ -237,19 +237,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/async-function/early-errors-expression-formals-body-duplicate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/async-function/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-let.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -282,18 +270,6 @@
     },
     {
       "file": "language/expressions/in/private-field-in-nested.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/method-definition/generator-param-redecl-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/method-definition/generator-param-redecl-let.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/method-definition/name-param-redecl.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -371,6 +347,30 @@
     {
       "file": "language/line-terminators/invalid-comment-single-ls.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/invalid-comment-single-ps.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/S7.3_A6_T3.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/S7.3_A6_T4.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/literals/bigint/mv-is-not-integer-dot-dds.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/literals/regexp/early-err-flags-unicode-escape.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/comment-multi-line-html-close.js",
+      "verdict": "accepted-should-reject"
     }
   ],
   "all_failures": [
@@ -439,19 +439,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/async-function/early-errors-expression-formals-body-duplicate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/async-function/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/async-generator/early-errors-expression-formals-body-duplicate-let.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -484,18 +472,6 @@
     },
     {
       "file": "language/expressions/in/private-field-in-nested.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/method-definition/generator-param-redecl-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/method-definition/generator-param-redecl-let.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/method-definition/name-param-redecl.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -839,10 +815,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/async-function/early-errors-declaration-formals-body-duplicate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/await-using/redeclaration-error-from-within-strict-mode-function-await-using.js",
       "verdict": "accepted-should-reject"
     },
@@ -971,6 +943,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.7,
-  "generated_at": "2026-04-26T20:28:40.081Z"
+  "rate": 99.71,
+  "generated_at": "2026-04-26T20:39:45.969Z"
 }
