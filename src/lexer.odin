@@ -1858,7 +1858,37 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 	if int(pat_end) > len(src) { return }
 
 	// Pass 1 — collect declared names + report duplicate / empty.
+	//
+	// Alternation tracking (ES2025 Duplicate Named Capturing Groups):
+	// Duplicate group names are allowed only when the duplicates
+	// appear in different alternatives of the same group. We track a
+	// stack of alternation indices: each `(` pushes 0, each `|`
+	// increments the top, each `)` pops. A name's "branch path" is
+	// the current stack snapshot; two names conflict if their paths
+	// are identical (meaning they're in the same alternative at every
+	// nesting level).
 	names := make(map[string]bool, 4, context.temp_allocator)
+
+	NameEntry :: struct {
+		path: [16]u16,
+		depth: int,
+	}
+
+	max_names :: 32
+	name_entries: [max_names]struct {
+		name: string,
+		entry: NameEntry,
+	}
+	name_count := 0
+
+	// Alternation stack: alt_stack[d] is the current alternative index at depth d.
+	// Start at depth 1 to represent the implicit top-level Disjunction —
+	// the entire pattern body is itself a Disjunction, so `|` at the top
+	// level creates alternatives that can hold duplicate names.
+	alt_stack: [64]u16
+	alt_depth := 1
+	alt_stack[0] = 0
+
 	in_class := false
 	for i := int(pat_start); i < int(pat_end); {
 		c := src[i]
@@ -1870,7 +1900,31 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 		if c == '[' && !in_class { in_class = true; i += 1; continue }
 		if c == ']' && in_class  { in_class = false; i += 1; continue }
 		if in_class { i += 1; continue }
-		if c == '(' && i + 2 < int(pat_end) && src[i+1] == '?' && src[i+2] == '<' {
+		// Track alternation: `|` increments alt at current depth.
+		if c == '|' {
+			if alt_depth > 0 && alt_depth <= len(alt_stack) {
+				alt_stack[alt_depth - 1] += 1
+			}
+			i += 1
+			continue
+		}
+		// Track group open/close for alternation depth.
+		if c == ')' {
+			if alt_depth > 0 { alt_depth -= 1 }
+			i += 1
+			continue
+		}
+		if c == '(' {
+			// Push new alternation frame for any group.
+			if alt_depth < len(alt_stack) {
+				alt_stack[alt_depth] = 0
+				alt_depth += 1
+			}
+			// Only process named groups `(?<name>…)` below.
+			if !(i + 2 < int(pat_end) && src[i+1] == '?' && src[i+2] == '<') {
+				i += 1
+				continue
+			}
 			// `(?<` — skip lookbehind forms `(?<=` / `(?<!`.
 			if i + 3 < int(pat_end) && (src[i+3] == '=' || src[i+3] == '!') {
 				i += 4
@@ -1907,12 +1961,49 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 			if len(name) == 0 {
 				append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Empty named capture group"})
 			} else {
-				// Note: ES2025 §Duplicate Named Capturing Groups proposal
-				// allows duplicate group names when the duplicates appear
-				// in different DisjunctionAlternatives (`(?:(?<a>x)|(?<a>y))`).
-				// Without a full alternation tracker we accept all
-				// duplicates; OXC and V8 do the same. Stricter checking is
-				// the responsibility of the runtime regex engine.
+				// ES2025 §Duplicate Named Capturing Groups: duplicate
+				// group names are allowed only when the duplicates appear
+				// in different alternatives (`(?:(?<a>x)|(?<a>y))`).
+				// Check if this name conflicts with any existing entry
+				// by comparing alternation branch paths.
+				cur_path: NameEntry
+				cur_path.depth = alt_depth
+				for d := 0; d < alt_depth && d < len(cur_path.path); d += 1 {
+					cur_path.path[d] = alt_stack[d]
+				}
+				// Check for conflict: same name with same branch path.
+				has_conflict := false
+				for ni := 0; ni < name_count; ni += 1 {
+					if name_entries[ni].name == name {
+						// Same name found. Check if branch paths differ.
+						prev := name_entries[ni].entry
+						// Find common ancestor depth.
+						min_depth := prev.depth
+						if cur_path.depth < min_depth { min_depth = cur_path.depth }
+						same_path := true
+						for d := 0; d < min_depth; d += 1 {
+							if prev.path[d] != cur_path.path[d] {
+								same_path = false
+								break
+							}
+						}
+						if same_path {
+							has_conflict = true
+							break
+						}
+					}
+				}
+				if has_conflict {
+					append(&l.lexer_errors, LexerError{
+						offset = u32(name_start),
+						message = "Duplicate named capture group",
+					})
+				}
+				if name_count < max_names {
+					name_entries[name_count].name = name
+					name_entries[name_count].entry = cur_path
+					name_count += 1
+				}
 				// Validate name characters — ASCII-only check that rejects
 				// obvious non-identifier punctuation (`-`, `,`, space, etc.).
 				// Non-ASCII bytes pass through as Unicode IdentifierPart
@@ -2019,18 +2110,34 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 							}
 						}
 						if esc_valid {
+							// Validate the decoded codepoint against
+							// ID_Start (first char) or ID_Continue.
+							// For ASCII codepoints, use the ASCII checks;
+							// for non-ASCII, use strict Unicode tables.
 							is_first_char := esc_start == name_start
-							if is_first_char {
-								if !is_id_start_codepoint(esc_cp) {
-									ok = false
-									break
+							valid_id := false
+							if esc_cp < 0x80 {
+								// ASCII: $, _, a-z, A-Z are ID_Start;
+								// additionally 0-9 are ID_Continue.
+								ec := u8(esc_cp)
+								if ec == '$' || ec == '_' ||
+								   (ec >= 'a' && ec <= 'z') ||
+								   (ec >= 'A' && ec <= 'Z') {
+									valid_id = true
+								} else if !is_first_char && ec >= '0' && ec <= '9' {
+									valid_id = true
 								}
 							} else {
-								if !is_unicode_id_continue(esc_cp) &&
-								   !is_id_start_codepoint(esc_cp) {
-									ok = false
-									break
+								if is_first_char {
+									valid_id = is_unicode_id_start(esc_cp)
+								} else {
+									valid_id = is_unicode_id_start(esc_cp) ||
+									          is_unicode_id_continue(esc_cp)
 								}
+							}
+							if !valid_id {
+								ok = false
+								break
 							}
 						}
 						continue

@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49316,
-    "accepted-should-reject": 360,
+    "pass": 49323,
+    "accepted-should-reject": 353,
     "rejected-should-accept": 52,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23248,
-      "fail": 397,
+      "pass": 23255,
+      "fail": 390,
       "crash": 0,
       "timeout": 0
     },
@@ -58,14 +58,6 @@
       "accepted-should-reject": 75,
       "rejected-should-accept": 13
     },
-    "language/literals": {
-      "pass": 0,
-      "fail": 22,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 20,
-      "rejected-should-accept": 2
-    },
     "language/block-scope": {
       "pass": 0,
       "fail": 15,
@@ -73,6 +65,14 @@
       "timeout": 0,
       "accepted-should-reject": 15,
       "rejected-should-accept": 0
+    },
+    "language/literals": {
+      "pass": 0,
+      "fail": 15,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 13,
+      "rejected-should-accept": 2
     },
     "staging/sm": {
       "pass": 0,
@@ -389,6 +389,6 @@
       "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 99.17,
-  "generated_at": "2026-04-26T11:34:25.356Z"
+  "rate": 99.18,
+  "generated_at": "2026-04-26T11:51:51.249Z"
 }
