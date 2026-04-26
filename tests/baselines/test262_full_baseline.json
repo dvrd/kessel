@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49479,
-    "accepted-should-reject": 195,
+    "pass": 49494,
+    "accepted-should-reject": 180,
     "rejected-should-accept": 54,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23413,
-      "fail": 232,
+      "pass": 23428,
+      "fail": 217,
       "crash": 0,
       "timeout": 0
     },
@@ -57,14 +57,6 @@
       "timeout": 0,
       "accepted-should-reject": 40,
       "rejected-should-accept": 13
-    },
-    "language/block-scope": {
-      "pass": 0,
-      "fail": 15,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 15,
-      "rejected-should-accept": 0
     },
     "staging/sm": {
       "pass": 0,
@@ -217,66 +209,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/block-scope/syntax/redeclaration/function-declaration-attempt-to-redeclare-with-var-declaration-nested-in-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-generator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-class.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-generator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-let.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-async-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-async-generator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-class.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-generator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-let.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/comments/hashbang/line-terminator-line-separator.js",
       "verdict": "rejected-should-accept"
     },
@@ -379,6 +311,66 @@
     {
       "file": "language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/class/static-init-await-reference.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/coalesce/cannot-chain-head-with-logical-or.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/conditional/in-branch-1.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/division/no-magic-asi.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/dynamic-import/import-attributes/2nd-param-in.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/function/param-dflt-yield-strict.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/function/static-init-await-reference.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/generators/static-init-await-reference.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/import.meta/import-meta-is-an-ordinary-object.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/expressions/import.meta/syntax/escape-sequence-meta.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/in/private-field-in-nested.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/in/private-field-invalid-rhs.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/new.target/escaped-target.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/identifier-shorthand-static-init-await-invalid.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/object/literal-property-name-bigint.js",
+      "verdict": "rejected-should-accept"
     }
   ],
   "all_failures": [
@@ -416,66 +408,6 @@
     },
     {
       "file": "language/asi/S7.9.2_A1_T1.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/function-declaration-attempt-to-redeclare-with-var-declaration-nested-in-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-generator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-class.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-generator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-let.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-async-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-async-generator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-class.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-generator.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/block-scope/syntax/redeclaration/inner-block-var-redeclaration-attempt-after-let.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -1383,6 +1315,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.5,
-  "generated_at": "2026-04-26T16:43:15.591Z"
+  "rate": 99.53,
+  "generated_at": "2026-04-26T16:52:32.272Z"
 }

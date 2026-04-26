@@ -5662,6 +5662,69 @@ scope_collect_pattern :: proc(pat: Pattern, out: ^[dynamic]string) {
 	}
 }
 
+// Recursively hoist `var` VarDeclaredNames from nested Blocks/loops/if
+// bodies into the parent scope. Used by scope_process_statement to
+// implement the §14.2.1 early error: "It is a Syntax Error if any element
+// of the LexicallyDeclaredNames of StatementList also occurs in the
+// VarDeclaredNames of StatementList." `var` declarations hoist across block
+// boundaries; `let`/`const`/`class` do NOT hoist and are excluded.
+scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^map[string]u32) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^VariableDeclaration:
+		if v == nil || v.kind != .Var { return }
+		names := make([dynamic]string, 0, 4, context.temp_allocator)
+		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
+		for n in names {
+			if _, have := vars[n]; !have { vars[n] = v.loc.span.start }
+		}
+	case ^BlockStatement:
+		if v == nil { return }
+		for inner in v.body { scope_hoist_vars(p, inner, vars) }
+	case ^IfStatement:
+		if v == nil { return }
+		scope_hoist_vars(p, v.consequent, vars)
+		if alt, have := v.alternate.(^Statement); have { scope_hoist_vars(p, alt, vars) }
+	case ^WhileStatement:
+		if v != nil { scope_hoist_vars(p, v.body, vars) }
+	case ^DoWhileStatement:
+		if v != nil { scope_hoist_vars(p, v.body, vars) }
+	case ^ForStatement:
+		if v != nil {
+			// for-loop init var is already collected as a sibling statement;
+			// hoist vars from the body only.
+			scope_hoist_vars(p, v.body, vars)
+		}
+	case ^ForInStatement:
+		if v != nil { scope_hoist_vars(p, v.body, vars) }
+	case ^ForOfStatement:
+		if v != nil { scope_hoist_vars(p, v.body, vars) }
+	case ^LabeledStatement:
+		if v != nil { scope_hoist_vars(p, v.body, vars) }
+	case ^WithStatement:
+		if v != nil { scope_hoist_vars(p, v.body, vars) }
+	case ^TryStatement:
+		if v != nil {
+			for inner in v.block.body { scope_hoist_vars(p, inner, vars) }
+			if h, have := v.handler.(CatchClause); have {
+				for inner in h.body.body { scope_hoist_vars(p, inner, vars) }
+			}
+			if f, have := v.finalizer.(BlockStatement); have {
+				for inner in f.body { scope_hoist_vars(p, inner, vars) }
+			}
+		}
+	case ^SwitchStatement:
+		if v != nil {
+			for c in v.cases {
+				for inner in c.consequent { scope_hoist_vars(p, inner, vars) }
+			}
+		}
+	// Function declarations do NOT hoist vars from inner bodies
+	// (they have their own VarScope). FunctionDeclaration, ClassDeclaration,
+	// FunctionExpression bodies, etc. are all scoping boundaries.
+	}
+}
+
 // Process one Statement and add its contributing lexical/var BoundNames
 // to the scope maps. Nested scopes are NOT recursed here — the caller's
 // walker handles that separately.
@@ -5675,6 +5738,15 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 		names := make([dynamic]string, 0, 4, context.temp_allocator)
 		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
 		for n in names { scope_add(p, lex, vars, n, v.loc.span.start, kind) }
+	case ^BlockStatement:
+		// §14.2.1 — Hoist `var` VarDeclaredNames from nested blocks into this
+		// scope so lex/var clashes like `{ { var f; } let f; }` are detected.
+		if v == nil { return }
+		// Use a temporary vars map to collect only the hoisted var names,
+		// then call scope_add for each so clash detection runs.
+		hoisted := make(map[string]u32, 4, context.temp_allocator)
+		for inner in v.body { scope_hoist_vars(p, inner, &hoisted) }
+		for n, at in hoisted { scope_add(p, lex, vars, n, at, .Var) }
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
