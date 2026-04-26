@@ -1909,17 +1909,43 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 				// Validate name characters — ASCII-only check that rejects
 				// obvious non-identifier punctuation (`-`, `,`, space, etc.).
 				// Non-ASCII bytes pass through as Unicode IdentifierPart
-				// (UTF-8 encoded). \uXXXX / \u{H+} / ZWJ / ZWNJ escapes are
-				// also legal in GroupName; we just walk past the backslash.
+				// (UTF-8 encoded). The validator must skip over `\u{H…H}` /
+				// `\uHHHH` escape bodies wholesale: those bodies legally
+				// contain `{`, `}`, hex digits in the leading position, etc.
+				// which would otherwise fail the character check. Without
+				// this skip, every `(?<\u{1d4d1}…>...)/u` named group with
+				// astral codepoints in its name is rejected (the
+				// unicode-property-names-valid Test262 corpus).
 				ok := true
-				for k := name_start; k < j; k += 1 {
+				k := name_start
+				for k < j {
 					ch := src[k]
-					if ch >= 0x80 { continue }
+					// Non-ASCII byte — part of a UTF-8 codepoint, accept.
+					if ch >= 0x80 { k += 1; continue }
+					if ch == '\\' {
+						// Skip the entire `\u…` body so its hex-digit /
+						// brace contents don't trigger the rejection below.
+						k += 1
+						if k < j && src[k] == 'u' {
+							k += 1
+							if k < j && src[k] == '{' {
+								k += 1
+								for k < j && src[k] != '}' { k += 1 }
+								if k < j { k += 1 }
+							} else {
+								// `\uHHHH` form — skip up to 4 hex digits.
+								for n := 0; n < 4 && k < j; n += 1 { k += 1 }
+							}
+						}
+						continue
+					}
 					is_start := k == name_start
-					if ch == '$' || ch == '_' || ch == '\\' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+					if ch == '$' || ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+						k += 1
 						continue
 					}
 					if !is_start && ch >= '0' && ch <= '9' {
+						k += 1
 						continue
 					}
 					ok = false

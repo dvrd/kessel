@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49227,
-    "accepted-should-reject": 445,
-    "rejected-should-accept": 56,
+    "pass": 49260,
+    "accepted-should-reject": 416,
+    "rejected-should-accept": 52,
     "crash": 1,
     "timeout": 0
   },
@@ -15,14 +15,14 @@
       "timeout": 0
     },
     "built-ins": {
-      "pass": 23463,
-      "fail": 51,
+      "pass": 23477,
+      "fail": 37,
       "crash": 0,
       "timeout": 0
     },
     "language": {
-      "pass": 23210,
-      "fail": 435,
+      "pass": 23229,
+      "fail": 416,
       "crash": 0,
       "timeout": 0
     },
@@ -60,19 +60,19 @@
     },
     "language/literals": {
       "pass": 0,
-      "fail": 60,
+      "fail": 41,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 58,
+      "accepted-should-reject": 39,
       "rejected-should-accept": 2
     },
     "built-ins/RegExp": {
       "pass": 0,
-      "fail": 51,
+      "fail": 37,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 47,
-      "rejected-should-accept": 4
+      "accepted-should-reject": 37,
+      "rejected-should-accept": 0
     },
     "language/block-scope": {
       "pass": 0,
@@ -205,38 +205,6 @@
       "verdict": "rejected-should-accept"
     },
     {
-      "file": "built-ins/RegExp/match-indices/indices-array-unicode-property-names.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "built-ins/RegExp/named-groups/non-unicode-property-names-valid.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "built-ins/RegExp/named-groups/unicode-property-names-valid.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "built-ins/RegExp/named-groups/unicode-property-names.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/character-class-range-end.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/character-class-range-no-dash-end.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/character-class-range-no-dash-start.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/character-class-range-start.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-CharacterClass.js",
       "verdict": "accepted-should-reject"
     },
@@ -270,30 +238,6 @@
     },
     {
       "file": "built-ins/RegExp/property-escapes/loose-matching-12.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/non-existent-property-value-General_Category-negated.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/non-existent-property-value-general-category.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/non-existent-property-value-Script_Extensions-negated.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/non-existent-property-value-Script_Extensions.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/non-existent-property-value-Script-negated.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "built-ins/RegExp/property-escapes/non-existent-property-value-Script.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -395,8 +339,64 @@
     {
       "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-25.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-26.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-27.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-28.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A10_T2.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A10_T6.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A10_T8.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A11_T4.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A5.1_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9_A5.3_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9.2_A1_T1.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/asi/S7.9.2_A1_T6.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/function-declaration-attempt-to-redeclare-with-var-declaration-nested-in-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-function.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/block-scope/syntax/redeclaration/inner-block-var-name-redeclaration-attempt-with-async-generator.js",
+      "verdict": "accepted-should-reject"
     }
   ],
-  "rate": 98.99,
-  "generated_at": "2026-04-26T09:36:09.836Z"
+  "rate": 99.06,
+  "generated_at": "2026-04-26T10:13:41.940Z"
 }

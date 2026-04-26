@@ -35,6 +35,15 @@ regex_validate_pattern :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v:
 	// the spec deliberately preserves backward compatibility.
 	if has_u || has_v {
 		regex_validate_property_escapes(l, pat_start, pat_end, has_v)
+		regex_validate_u_mode_atoms(l, pat_start, pat_end, has_v)
+	}
+	// Class-range early errors run u-mode-only. In v-mode `[A--B]` is
+	// set difference (a ClassSetExpression operator), not a range with
+	// CharacterClass endpoints. The flat A-B range walker would mis-
+	// flag every set-difference fixture (`[\d--_]/v`, `[[0-9]--\d]/v`,
+	// …), so the validator only fires when u is set without v.
+	if has_u && !has_v {
+		regex_validate_class_ranges(l, pat_start, pat_end)
 	}
 
 	// Arithmetic modifiers `(?ims-ims:body)` (ES2025 RegExp Modifier
@@ -246,6 +255,480 @@ regex_check_modifier_sequence :: proc(l: ^Lexer, src: []u8, start, pe: int) -> i
 	// pass doesn't re-enter this same modifier on the next iteration.
 	if j < pe && src[j] == ':' { return j + 1 }
 	return j
+}
+
+// ============================================================================
+// Phase B — strict u/v-mode pattern grammar.
+//
+// In u/v mode §22.2.1 tightens the regex grammar substantially — every
+// `\X` must be a recognised AtomEscape / CharacterClassEscape /
+// CharacterEscape / NamedBackreference / DecimalEscape, naked extended
+// pattern characters (`{`, `}`, `]`) are SyntaxErrors, and an Assertion
+// (lookahead / lookbehind) cannot be quantified. None of these were
+// validated previously — the pattern body just walked past escape
+// pairs as opaque two-byte slots, so `/\M/u` and friends parsed clean.
+//
+// The walker runs only when has_u or has_v is true (in non-u mode
+// Annex B preserves the legacy lenient grammar). It pre-counts
+// capturing groups for DecimalEscape backref validation, then makes a
+// single pass through the body validating each escape and tracking
+// the assertion-most-recently-closed flag for the quantifier check.
+//
+// Test262 buckets covered:
+//   u-invalid-identity-escape       /\M/u                   IdentityEscape
+//   u-invalid-class-escape          /\c0/u                  ControlEscape
+//   u-invalid-legacy-octal-escape   /\1/u                   DecimalEscape oob
+//   u-invalid-oob-decimal-escape    /\8/u                   DecimalEscape oob
+//   u-invalid-extended-pattern-char /{/u                    extended pattern char
+//   u-unicode-esc-bounds            /\u{110000}/u           cp range
+//   u-unicode-esc-non-hex           /\u{1,}/u               non-hex in body
+//   u-invalid-optional-lookahead    /.(?=.)?/u              quantified assertion
+//   u-invalid-optional-lookbehind   /.(?<=.)?/u
+//   u-invalid-optional-negative-*   /.(?!.)?/u  /.(?<!.)?/u
+//   u-invalid-range-*               /.(?=.){2,3}/u          quantified assertion (range)
+// ============================================================================
+
+regex_validate_u_mode_atoms :: proc(l: ^Lexer, pat_start, pat_end: u32, has_v: bool) {
+	src := l.source_bytes
+	pe := int(pat_end)
+
+	// Pass 1 — count capturing groups so we can validate `\N` decimal
+	// escapes (\1 .. \9 .. multi-digit). Capturing-group productions:
+	//   `(…)`         capturing
+	//   `(?<name>…)`   capturing (named)
+	//   `(?:…)`        non-capturing
+	//   `(?=…)` `(?!…)` `(?<=…)` `(?<!…)`  assertions — not capturing
+	//   `(?ims-ims:…)`  modifier — not capturing
+	group_count := 0
+	{
+		in_class := false
+		for i := int(pat_start); i < pe; {
+			c := src[i]
+			if c == '\\' && i + 1 < pe { i += 2; continue }
+			if c == '[' && !in_class { in_class = true; i += 1; continue }
+			if c == ']' && in_class  { in_class = false; i += 1; continue }
+			if !in_class && c == '(' {
+				if i + 1 < pe && src[i + 1] == '?' {
+					if i + 2 < pe && src[i + 2] == '<' &&
+					   i + 3 < pe && src[i + 3] != '=' && src[i + 3] != '!' {
+						group_count += 1   // (?<name>
+					}
+					// (?:, (?=, (?!, (?<=, (?<!, (?ims…: — not capturing
+				} else {
+					group_count += 1       // plain (
+				}
+			}
+			i += 1
+		}
+	}
+
+	// Pass 2 — escape validation + quantified-assertion check.
+	//
+	// The assertion check uses a small group-kind stack: each `(` push a
+	// frame describing whether the group is an Assertion. On `)` we pop
+	// and remember whether the just-closed group was an Assertion;
+	// the next character is examined — if it's a quantifier (`?`, `*`,
+	// `+`, `{`) we emit a SyntaxError. The flag is cleared after one
+	// step so it doesn't smear past an intervening atom.
+	StackFrame :: struct { is_assertion: bool }
+	stack: [64]StackFrame
+	depth := 0
+	last_closed_was_assertion := false
+
+	in_class := false
+	i := int(pat_start)
+	for i < pe {
+		c := src[i]
+
+		// Reset the assertion flag once we've stepped past the `)` —
+		// the very next iteration is when a quantifier could attach.
+		// We check the flag at the top of the loop (below) and clear it
+		// at the bottom unless we just popped a group.
+
+		if c == '[' && !in_class { in_class = true; i += 1; last_closed_was_assertion = false; continue }
+		if c == ']' && in_class  { in_class = false; i += 1; last_closed_was_assertion = false; continue }
+
+		if in_class {
+			// Inside a class, validate escapes (same rules) but skip the
+			// group / quantifier tracking.
+			if c == '\\' {
+				i = regex_check_u_escape(l, src, i, pe, group_count, true, has_v)
+			} else {
+				i += 1
+			}
+			last_closed_was_assertion = false
+			continue
+		}
+
+		// Quantifier following an assertion — reject in u/v mode.
+		if last_closed_was_assertion && (c == '?' || c == '*' || c == '+' || c == '{') {
+			append(&l.lexer_errors, LexerError{
+				offset = u32(i),
+				message = "Invalid quantifier on assertion in u-mode regular expression",
+			})
+			last_closed_was_assertion = false
+			i += 1
+			continue
+		}
+
+		switch c {
+		case '\\':
+			i = regex_check_u_escape(l, src, i, pe, group_count, false, has_v)
+			last_closed_was_assertion = false
+		case '(':
+			// Classify group kind. (?= (?! (?<= (?<! → assertion.
+			is_assert := false
+			if i + 2 < pe && src[i + 1] == '?' {
+				n := src[i + 2]
+				if n == '=' || n == '!' { is_assert = true }
+				else if n == '<' && i + 3 < pe && (src[i + 3] == '=' || src[i + 3] == '!') {
+					is_assert = true
+				}
+			}
+			if depth < len(stack) {
+				stack[depth] = StackFrame{is_assertion = is_assert}
+				depth += 1
+			}
+			last_closed_was_assertion = false
+			i += 1
+		case ')':
+			if depth > 0 {
+				depth -= 1
+				last_closed_was_assertion = stack[depth].is_assertion
+			} else {
+				last_closed_was_assertion = false
+			}
+			i += 1
+		case '{':
+			// Naked `{` outside a quantifier position is a SyntaxError
+			// in u-mode. Heuristic: if the bytes from `{` form a valid
+			// quantifier `{N}` / `{N,}` / `{N,M}` AND there's an atom
+			// preceding (which we don't track precisely) we let it pass.
+			// Otherwise reject. The leading-quantifier case `/{/u` and
+			// `/{2}/u` is detected separately in regex_validate_leading_
+			// quantifier; here we only flag `{` that is NOT immediately
+			// followed by a digit (so `{x}/u` rejects but `{2}/u` is
+			// left to the leading-quantifier pass).
+			if i + 1 >= pe || !(src[i + 1] >= '0' && src[i + 1] <= '9') {
+				append(&l.lexer_errors, LexerError{
+					offset = u32(i),
+					message = "Invalid extended pattern character '{' in u-mode",
+				})
+			}
+			last_closed_was_assertion = false
+			i += 1
+		case ']':
+			// `]` outside a character class — deliberately NOT flagged.
+			// In v-mode, character classes nest: `[[0-9]--\d]/v` (set
+			// difference) closes the inner class at the first `]` and
+			// our flat in_class tracker mistakes the outer `]` for a
+			// stray. Until we track v-mode set notation properly
+			// (Phase F) we accept stray `]`. The Test262 fixture set
+			// for u-mode strict pattern grammar doesn't lean on this
+			// rule — the lookahead-after-`)` checks and IdentityEscape
+			// strictness do all the heavy lifting. `}` is also left
+			// alone (legitimate close of `{N,M}` quantifier).
+			last_closed_was_assertion = false
+			i += 1
+		case:
+			last_closed_was_assertion = false
+			i += 1
+		}
+	}
+}
+
+// Validate a single `\X` escape at `start` (which points at `\`) in
+// u/v mode and return the offset just past it. The `in_class` flag
+// loosens a couple of rules: `\b` is the backspace character inside
+// a class but a word-boundary assertion outside; both forms are valid.
+regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: int, in_class: bool, has_v: bool) -> int {
+	esc_off := u32(start)
+	if start + 1 >= pe {
+		append(&l.lexer_errors, LexerError{offset = esc_off, message = "Trailing backslash in regular expression"})
+		return pe
+	}
+	n := src[start + 1]
+	switch n {
+	case 'f', 'n', 'r', 't', 'v',
+	     'd', 'D', 's', 'S', 'w', 'W',
+	     'b', 'B':
+		// CharacterClassEscape / CharacterEscape — single-letter
+		// forms, no body to skip.
+		return start + 2
+	case 'p', 'P':
+		// `\p{…}` / `\P{…}` — the body is validated by
+		// regex_validate_property_escapes, but we MUST skip past the
+		// closing `}` here so the main u-mode walker doesn't see the
+		// braces and flag them as stray extended pattern characters.
+		j := start + 2
+		if j < pe && src[j] == '{' {
+			j += 1
+			for j < pe && src[j] != '}' { j += 1 }
+			if j < pe { j += 1 }
+		}
+		return j
+	case 'k':
+		// `\k<name>` — named back-reference, validated separately.
+		// Skip past the `<…>` body so braces / angle-brackets don't
+		// re-trigger the main walker.
+		j := start + 2
+		if j < pe && src[j] == '<' {
+			j += 1
+			for j < pe && src[j] != '>' { j += 1 }
+			if j < pe { j += 1 }
+		}
+		return j
+	case 'q':
+		// `\q{strings}` is the v-mode "string set" CharacterClassEscape
+		// (ES2024). Only legal under the v flag and only inside a
+		// character class. Outside v, `\q` is an invalid IdentityEscape.
+		if !has_v {
+			append(&l.lexer_errors, LexerError{
+				offset = esc_off,
+				message = "Invalid identity escape '\\q' (v-flag only)",
+			})
+			return start + 2
+		}
+		// Skip past `{…}` body so the outer walker doesn't re-trip.
+		j := start + 2
+		if j < pe && src[j] == '{' {
+			j += 1
+			for j < pe && src[j] != '}' { j += 1 }
+			if j < pe { j += 1 }
+		}
+		return j
+	case '0':
+		// `\0` is the NUL character only when NOT followed by a
+		// decimal digit — in u-mode `\01` (legacy octal) is rejected.
+		if start + 2 < pe && src[start + 2] >= '0' && src[start + 2] <= '9' {
+			append(&l.lexer_errors, LexerError{
+				offset = esc_off,
+				message = "Invalid escape: '\\0' followed by decimal digit",
+			})
+		}
+		return start + 2
+	case '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		// Decimal escape — a backreference to the Nth capturing group.
+		// In u-mode N must be ≤ group_count and the leading digit must
+		// be non-zero (the `0` case above covers \0 + extras).
+		j := start + 1
+		n_val := 0
+		for j < pe && src[j] >= '0' && src[j] <= '9' {
+			n_val = n_val * 10 + int(src[j] - '0')
+			j += 1
+		}
+		if n_val > group_count {
+			append(&l.lexer_errors, LexerError{
+				offset = esc_off,
+				message = "Invalid decimal escape: out-of-range back-reference",
+			})
+		}
+		return j
+	case 'c':
+		// ControlEscape: `\cX` where X is [A-Za-z]. `\c0`, `\c\`, `\c`
+		// at end-of-pattern are all SyntaxErrors in u-mode.
+		if start + 2 >= pe {
+			append(&l.lexer_errors, LexerError{offset = esc_off, message = "Invalid '\\c' escape: missing control letter"})
+			return start + 2
+		}
+		cl := src[start + 2]
+		if !((cl >= 'A' && cl <= 'Z') || (cl >= 'a' && cl <= 'z')) {
+			append(&l.lexer_errors, LexerError{
+				offset = esc_off,
+				message = "Invalid '\\c' escape: control letter must be ASCII letter",
+			})
+		}
+		return start + 3
+	case 'x':
+		// HexEscape: exactly 2 hex digits.
+		if start + 3 >= pe || hex_val(src[start + 2]) < 0 || hex_val(src[start + 3]) < 0 {
+			append(&l.lexer_errors, LexerError{
+				offset = esc_off,
+				message = "Invalid '\\x' escape: expected 2 hex digits",
+			})
+			end := start + 4
+			if end > pe { end = pe }
+			return end
+		}
+		return start + 4
+	case 'u':
+		// UnicodeEscape: `\uHHHH` (exactly 4 hex) or `\u{H+}` (1+ hex,
+		// CP ≤ 0x10FFFF). Existing string-literal scanner has the same
+		// rules; we replicate here because regex bodies don't go through
+		// lex_string_scalar.
+		if start + 2 < pe && src[start + 2] == '{' {
+			j := start + 3
+			cp: u32 = 0
+			digits := 0
+			overflow := false
+			for j < pe && src[j] != '}' {
+				h := hex_val(src[j])
+				if h < 0 { break }
+				cp = cp * 16 + u32(h)
+				if cp > 0x10FFFF { overflow = true }
+				digits += 1
+				j += 1
+			}
+			if j >= pe || src[j] != '}' || digits == 0 {
+				append(&l.lexer_errors, LexerError{
+					offset = esc_off,
+					message = "Invalid '\\u{…}' escape",
+				})
+			} else if overflow {
+				append(&l.lexer_errors, LexerError{
+					offset = esc_off,
+					message = "Invalid '\\u{…}' escape: code point out of range [0..0x10FFFF]",
+				})
+			}
+			if j < pe && src[j] == '}' { return j + 1 }
+			return j
+		}
+		// `\uHHHH` form.
+		if start + 5 >= pe ||
+		   hex_val(src[start + 2]) < 0 || hex_val(src[start + 3]) < 0 ||
+		   hex_val(src[start + 4]) < 0 || hex_val(src[start + 5]) < 0 {
+			append(&l.lexer_errors, LexerError{
+				offset = esc_off,
+				message = "Invalid '\\u' escape: expected 4 hex digits",
+			})
+			end := start + 6
+			if end > pe { end = pe }
+			return end
+		}
+		return start + 6
+	case '^', '$', '\\', '.', '*', '+', '?',
+	     '(', ')', '[', ']', '{', '}', '|', '/':
+		// SyntaxCharacter (the only valid IdentityEscape targets in
+		// u-mode) plus `/` (forward-slash, listed separately by spec).
+		return start + 2
+	case '-':
+		// `\-` is a valid IdentityEscape only INSIDE a character class
+		// (where `-` is itself a range operator). Outside a class it's
+		// not in the SyntaxCharacter set and is rejected. Test262 leans
+		// strict here — `\-` outside class in u-mode is a SyntaxError.
+		if !in_class {
+			append(&l.lexer_errors, LexerError{
+				offset = esc_off,
+				message = "Invalid identity escape in u-mode regular expression",
+			})
+		}
+		return start + 2
+	case:
+		// Anything else (`\M`, `\Q`, `\@`, `\!`, `\;`, …) is an
+		// invalid IdentityEscape in u-mode.
+		append(&l.lexer_errors, LexerError{
+			offset = esc_off,
+			message = "Invalid identity escape in u-mode regular expression",
+		})
+		return start + 2
+	}
+}
+
+// ============================================================================
+// Phase C — character class range early errors (§22.2.1.5).
+//
+//   NonemptyClassRanges :: ClassAtom - ClassAtom ClassRanges
+//
+// In u/v mode each ClassAtom in a `A-B` range MUST be a single
+// character; if either side is a CharacterClassEscape (`\d`, `\s`,
+// `\p{…}`, etc.) it's a SyntaxError. Test262 fixtures:
+//   /[--\d]/u                u-invalid-non-empty-class-ranges
+//   /[\d-a]/u                u-invalid-non-empty-class-ranges-no-dash-a
+//   /[%-\d]/u                u-invalid-non-empty-class-ranges-no-dash-b
+//   /[\s-\d]/u               u-invalid-non-empty-class-ranges-no-dash-ab
+//
+// Walk each `[…]` and look for `A-B` patterns. A and B are each:
+//   * `\d`, `\D`, `\s`, `\S`, `\w`, `\W`           — character class
+//   * `\p{…}`, `\P{…}`                              — character class
+//   * any other char or escape                       — single character
+// Reject when either side of `-` is a character-class atom.
+// ============================================================================
+
+regex_validate_class_ranges :: proc(l: ^Lexer, pat_start, pat_end: u32) {
+	src := l.source_bytes
+	pe := int(pat_end)
+	i := int(pat_start)
+	for i < pe {
+		c := src[i]
+		if c == '\\' && i + 1 < pe { i += 2; continue }
+		if c != '[' { i += 1; continue }
+		// Walk this class to its closing `]`, recording each ClassAtom
+		// span and whether it is a CharacterClass.
+		j := i + 1
+		// Skip leading `^` (negation) — doesn't change the rules here.
+		if j < pe && src[j] == '^' { j += 1 }
+		prev_is_class_escape := false
+		prev_atom_off := -1
+		just_after_dash := false
+		for j < pe && src[j] != ']' {
+			atom_off := j
+			atom_is_class := false
+			if src[j] == '\\' && j + 1 < pe {
+				e := src[j + 1]
+				switch e {
+				case 'd', 'D', 's', 'S', 'w', 'W':
+					atom_is_class = true
+					j += 2
+				case 'p', 'P':
+					atom_is_class = true
+					// Skip past `\p{…}` body if present.
+					j += 2
+					if j < pe && src[j] == '{' {
+						j += 1
+						for j < pe && src[j] != '}' { j += 1 }
+						if j < pe { j += 1 }
+					}
+				case 'u':
+					// `\u{H+}` or `\uHHHH` — a single character, valid
+					// on either side of a range.
+					j += 2
+					if j < pe && src[j] == '{' {
+						j += 1
+						for j < pe && src[j] != '}' { j += 1 }
+						if j < pe { j += 1 }
+					} else {
+						k := 0
+						for k < 4 && j < pe { j += 1; k += 1 }
+						// (Validity of the hex digits is the u-mode
+						// escape walker's job; this loop just spans it.)
+					}
+				case:
+					j += 2
+				}
+			} else {
+				j += 1
+			}
+			// Look at what follows: if `-` and then another atom,
+			// we have a range with this atom on the LEFT.
+			if just_after_dash {
+				// This atom is the RIGHT side of a range. The previous
+				// atom is the LEFT. Either being a class is an error.
+				if prev_is_class_escape || atom_is_class {
+					append(&l.lexer_errors, LexerError{
+						offset = u32(prev_atom_off if prev_atom_off >= 0 else atom_off),
+						message = "Invalid character class range: range endpoints must be single characters",
+					})
+				}
+				just_after_dash = false
+				prev_is_class_escape = atom_is_class
+				prev_atom_off = atom_off
+				continue
+			}
+			// Is the next byte a `-` opening a range? `]-` or `--`
+			// don't form a range terminator (the `-` is just literal
+			// when it's the last char of the class).
+			if j < pe && src[j] == '-' && j + 1 < pe && src[j + 1] != ']' {
+				prev_is_class_escape = atom_is_class
+				prev_atom_off = atom_off
+				just_after_dash = true
+				j += 1
+			} else {
+				prev_is_class_escape = atom_is_class
+				prev_atom_off = atom_off
+			}
+		}
+		if j < pe && src[j] == ']' { i = j + 1 } else { i = j }
+	}
 }
 
 // ============================================================================
