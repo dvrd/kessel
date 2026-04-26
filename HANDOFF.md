@@ -12,24 +12,28 @@ no bundler, no linter, no formatter — with zero dependencies outside the Odin
 toolchain. All memory is statically allocated at startup; zero heap allocations
 post-init via a virtual arena + bump pool.
 
-**Status headline (Session 14, 2026-04-26 — regex grammar continued):**
-ECMA-262 Test262 conformance **49 323 / 49 729 (99.18 %)**, up from
-49 270 / 49 729 (99.08 %) at the start of this session — **+53 tests**
-across **3 commits**, all on `origin/main`. `built-ins/RegExp` now at
+**Status headline (Session 14, 2026-04-26 — regex complete + parser hardening):**
+ECMA-262 Test262 conformance **49 344 / 49 729 (99.23 %)**, up from
+49 270 / 49 729 (99.08 %) at the start of this session — **+74 tests**
+across **6 commits**, all on `origin/main`. `built-ins/RegExp` now at
 **100 % (23 514 / 23 514)**. Every unit / negative / recovery / spec-fixture /
 spec-compliance / ESTree-strict / multi-parser / fuzz / invariants /
 nodes / crashes-known / lexical / ambiguity / deep-families / bench gate
 is green.
 
-This session continued the regex-grammar surface (`src/regex.odin`, now
-~1 770 LOC) and added `src/unicode_tables.odin` (325 LOC, Unicode 16.0
-ID_Start / ID_Continue range tables). Three commits landed:
+This session completed the regex-grammar surface (`src/regex.odin`, now
+~1 770 LOC), added `src/unicode_tables.odin` (325 LOC, Unicode 16.0
+ID_Start / ID_Continue range tables), then moved to parser/lexer
+hardening. Six commits landed:
 
 | Commit | Phase | What | Δ tests |
 |---|---|---|---:|
 | `0d4bf76` | **F/G** — v-mode class + GC values | ClassSetSyntaxCharacter / ClassSetReservedDoublePunctuator rejection in `[…]/v`; `--`/`&&` operators; `\q{…}` body skip; negated class + property-of-strings; GC value validation | **+37** |
-| `8fbfa32` | **H** — Unicode ID tables + named-group ID | `src/unicode_tables.odin` with 676 + 452 binary-search ranges; UTF-8 decode + `\u` escape decode in named-group validator; surrogate pair combination | **+6** |
+| `106f84e` | **H** — Unicode ID tables + named-group ID | `src/unicode_tables.odin` with 676 + 452 binary-search ranges; UTF-8 decode + `\u` escape decode in named-group validator; surrogate pair combination | **+6** |
 | `7e21b92` | **D** — duplicate named-groups + strict escape | Alternation-aware duplicate detection (branch-path stack); ASCII escape ID validation fix (`\u0041` = A) | **+10** |
+| `adcfa16` | reserved-keyword ident-refs | Reject `case=1`, `delete=1`, etc. at expression-statement start | **+8** |
+| `8c66999` | string line-terminators | Reject bare LF/CR in string literals (SIMD + scalar paths) | **+10** |
+| `0439d86` | reserved-word labels | Reject `false:`, `null:`, `true:` as labels | **+3** |
 
 Prior session (Session 13) — 5 commits, +281 tests (98.51 % → 99.08 %):
 
