@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49569,
-    "accepted-should-reject": 136,
+    "pass": 49572,
+    "accepted-should-reject": 133,
     "rejected-should-accept": 23,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23502,
-      "fail": 143,
+      "pass": 23505,
+      "fail": 140,
       "crash": 0,
       "timeout": 0
     },
@@ -44,18 +44,18 @@
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 32,
+      "fail": 31,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 26,
+      "accepted-should-reject": 25,
       "rejected-should-accept": 6
     },
     "language/statements": {
       "pass": 0,
-      "fail": 21,
+      "fail": 19,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 18,
+      "accepted-should-reject": 16,
       "rejected-should-accept": 3
     },
     "staging/sm": {
@@ -293,10 +293,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/new.target/escaped-target.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/object/method-definition/generator-param-redecl-const.js",
       "verdict": "accepted-should-reject"
     },
@@ -370,6 +366,10 @@
     },
     {
       "file": "language/identifiers/vertical-tilde-start.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/line-terminators/invalid-comment-single-cr.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -492,10 +492,6 @@
     },
     {
       "file": "language/expressions/in/private-field-in-nested.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/new.target/escaped-target.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -907,14 +903,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/function/invalid-function-body-2.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/function/S13_A7_T3.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/if/S12.5_A8.js",
       "verdict": "accepted-should-reject"
     },
@@ -1016,5 +1004,5 @@
     }
   ],
   "rate": 99.68,
-  "generated_at": "2026-04-26T19:49:06.029Z"
+  "generated_at": "2026-04-26T20:01:09.671Z"
 }

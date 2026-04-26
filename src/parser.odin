@@ -3264,6 +3264,15 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 				}
 			}
 		} else if int(cur_offset(p)) == prev_offset {
+			// Report unexpected token if not already covered by a prior error
+			// at this position (same logic as parse_program_item recovery).
+			already := len(p.errors) > 0 &&
+			           p.errors[len(p.errors)-1].loc.offset == int(cur_offset(p))
+			is_closer := p.cur_type == .RParen || p.cur_type == .RBracket
+			if !already && !is_closer {
+				msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
+				report_error(p, msg)
+			}
 			eat(p)
 		}
 	}
