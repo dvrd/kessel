@@ -1424,6 +1424,28 @@ parse_empty_statement :: proc(p: ^Parser) -> ^Statement {
 parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 
+	// §12.6 — reserved words used as IdentifierReferences. When a
+	// reserved keyword appears at statement position followed by `=`
+	// (assignment operator), the intent is `keyword = value;` which
+	// is always a SyntaxError because reserved words are not valid
+	// IdentifierReferences. Test262:
+	//   language/keywords/ident-ref-{case,default,delete,in,
+	//     instanceof,new,typeof,void}.js
+	//
+	// We also flag keywords that cannot start any expression at all
+	// (`case`, `default`, `extends`, `in`, `instanceof`, etc.)
+	// regardless of what follows.
+	if is_keyword_not_expression_start(p.cur_type) {
+		msg := fmt.tprintf("Unexpected reserved word '%s'", cur_value(p))
+		report_error(p, msg)
+	} else if is_keyword_with_operand(p.cur_type) && is_next_token(p, .Assign) {
+		// `delete = 1`, `new = 1`, `typeof = 1`, `void = 1` — the
+		// keyword is being used as an assignment target, not as the
+		// prefix operator it normally is.
+		msg := fmt.tprintf("Unexpected reserved word '%s'", cur_value(p))
+		report_error(p, msg)
+	}
+
 	expr := parse_expression(p)
 	if expr == nil {
 		return nil
@@ -4194,6 +4216,34 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	decl.loc.span.end = prev_end_offset(p)
 
 	return decl
+}
+
+// Keywords that cannot validly start an ExpressionStatement. When one of
+// these appears at the start of a statement, it's always an error (the
+// dedicated statement parsers for these keywords are dispatched earlier in
+// parse_statement). This catches `case = 1;`, `default = 1;`, etc.
+// Keywords that CAN start expressions are excluded: `new X()`, `delete x`,
+// `typeof x`, `void x`, `this`, `class {}`, `function() {}`, `super`,
+// `import(...)`, `true`, `false`, `null`.
+is_keyword_not_expression_start :: #force_inline proc(t: TokenType) -> bool {
+	#partial switch t {
+	case .Case, .Default, .Extends, .In, .Instanceof,
+	     .Catch, .Finally, .Else, .With:
+		return true
+	}
+	return false
+}
+
+// Keywords that normally start a prefix expression (`delete x`, `new X`,
+// `typeof x`, `void x`) but cannot be used as IdentifierReferences.
+// When followed by `=` at statement position, they're being used as
+// assignment targets which is always invalid.
+is_keyword_with_operand :: #force_inline proc(t: TokenType) -> bool {
+	#partial switch t {
+	case .Delete, .New, .Typeof, .Void:
+		return true
+	}
+	return false
 }
 
 // is_reserved_word_for_binding classifies the ES-2024 ReservedWords that
