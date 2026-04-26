@@ -7346,6 +7346,11 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 
 		// Trailing comma in parenthesized expression: don't consume comma before )
 		if cur_type == .Comma && is_next_token(p, .RParen) {
+			// §15.3.1 — A trailing comma after a rest element `...x` in
+			// `(...x, ) => body` is a SyntaxError. Check before eating.
+			if _, is_spread := left.(^SpreadElement); is_spread {
+				report_error(p, "Rest element may not have a trailing comma")
+			}
 			eat(p)
 			break
 		}
@@ -8206,6 +8211,19 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				return parse_dynamic_import_tail(p, loc_from_token(current), meta_name.name)
 			}
 
+			// §Grammar Notation: the `meta` in `import.meta` must not
+			// contain Unicode escape sequences.
+			if meta_name.name == "meta" {
+				// Check the raw source for escape sequences: parse_identifier
+				// uses the cooked name but raw source may have \uXXXX.
+				span_bytes := p.lexer.source_bytes[meta_name.loc.span.start:meta_name.loc.span.end]
+				for b in span_bytes {
+					if b == '\\' {
+						report_error(p, "'import.meta' property name must not contain Unicode escape sequences")
+						break
+					}
+				}
+			}
 			meta_prop := new_node(p, MetaProperty)
 			meta_prop.loc = loc_from_token(current)
 			meta_prop.meta = Identifier{

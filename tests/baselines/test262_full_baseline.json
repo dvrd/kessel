@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49548,
-    "accepted-should-reject": 155,
+    "pass": 49550,
+    "accepted-should-reject": 153,
     "rejected-should-accept": 25,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23481,
-      "fail": 164,
+      "pass": 23483,
+      "fail": 162,
       "crash": 0,
       "timeout": 0
     },
@@ -44,10 +44,10 @@
     },
     "language/expressions": {
       "pass": 0,
-      "fail": 41,
+      "fail": 39,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 35,
+      "accepted-should-reject": 33,
       "rejected-should-accept": 6
     },
     "language/statements": {
@@ -217,10 +217,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/arrow-function/rest-params-trailing-comma-early-error.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/arrow-function/scope-param-rest-elem-var-open.js",
       "verdict": "rejected-should-accept"
     },
@@ -311,10 +307,6 @@
     {
       "file": "language/expressions/import.meta/import-meta-is-an-ordinary-object.js",
       "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/import.meta/syntax/escape-sequence-meta.js",
-      "verdict": "accepted-should-reject"
     },
     {
       "file": "language/expressions/in/private-field-in-nested.js",
@@ -371,6 +363,14 @@
     {
       "file": "language/expressions/property-accessors/non-identifier-name.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/template-literal/invalid-unicode-escape-sequence-7.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/template-literal/invalid-unicode-escape-sequence-8.js",
+      "verdict": "accepted-should-reject"
     }
   ],
   "all_failures": [
@@ -416,10 +416,6 @@
     },
     {
       "file": "language/export/escaped-from.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/arrow-function/rest-params-trailing-comma-early-error.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -513,10 +509,6 @@
     {
       "file": "language/expressions/import.meta/import-meta-is-an-ordinary-object.js",
       "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/import.meta/syntax/escape-sequence-meta.js",
-      "verdict": "accepted-should-reject"
     },
     {
       "file": "language/expressions/in/private-field-in-nested.js",
@@ -1100,5 +1092,5 @@
     }
   ],
   "rate": 99.64,
-  "generated_at": "2026-04-26T18:59:18.541Z"
+  "generated_at": "2026-04-26T19:08:16.071Z"
 }

@@ -104,15 +104,22 @@
   "errors": [
     {
       "message": "Rest element may not have a trailing comma",
+      "line": 4,
+      "column": 16,
+      "offset": 199
+    },
+    {
+      "message": "Rest element may not have a trailing comma",
       "line": 5,
       "column": 19,
       "offset": 226
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
+  Line 4, Column 16: Rest element may not have a trailing comma
   Line 5, Column 19: Rest element may not have a trailing comma
 
 --- Statistics ---
-Arena: used=9328B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=37440B reserved=16777216B ratio=0%
+Parse errors: 2
