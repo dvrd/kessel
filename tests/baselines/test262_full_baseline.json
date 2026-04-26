@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49521,
-    "accepted-should-reject": 167,
+    "pass": 49522,
+    "accepted-should-reject": 166,
     "rejected-should-accept": 40,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23455,
-      "fail": 190,
+      "pass": 23456,
+      "fail": 189,
       "crash": 0,
       "timeout": 0
     },
@@ -42,14 +42,6 @@
       "accepted-should-reject": 63,
       "rejected-should-accept": 0
     },
-    "language/expressions": {
-      "pass": 0,
-      "fail": 47,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 40,
-      "rejected-should-accept": 7
-    },
     "language/statements": {
       "pass": 0,
       "fail": 47,
@@ -57,6 +49,14 @@
       "timeout": 0,
       "accepted-should-reject": 33,
       "rejected-should-accept": 14
+    },
+    "language/expressions": {
+      "pass": 0,
+      "fail": 46,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 39,
+      "rejected-should-accept": 7
     },
     "staging/sm": {
       "pass": 0,
@@ -353,10 +353,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/object/identifier-shorthand-static-init-await-invalid.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/object/literal-property-name-bigint.js",
       "verdict": "rejected-should-accept"
     },
@@ -370,6 +366,10 @@
     },
     {
       "file": "language/expressions/object/method-definition/name-param-redecl.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/expressions/postfix-decrement/line-terminator-carriage-return.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -552,10 +552,6 @@
     },
     {
       "file": "language/expressions/new.target/escaped-target.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/object/identifier-shorthand-static-init-await-invalid.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -1208,5 +1204,5 @@
     }
   ],
   "rate": 99.58,
-  "generated_at": "2026-04-26T17:26:12.000Z"
+  "generated_at": "2026-04-26T17:35:48.275Z"
 }

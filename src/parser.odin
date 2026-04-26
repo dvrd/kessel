@@ -8794,6 +8794,21 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if !expect_token(p, .RBracket) {
 			return nil
 		}
+	} else if is_token(p, .BigInt) {
+		// BigInt literal key: `{ 1n: value }`. The numeric value is
+		// the string representation of the BigInt, per §13.2.3.1.
+		current := get_current(p)
+		big := new_node(p, BigIntLiteral)
+		big.loc = loc_from_token(current)
+		big.raw = current.value
+		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
+			big.value = current.value[:len(current.value)-1]
+		} else {
+			big.value = current.value
+		}
+		big.loc.span.end = prev_end_offset(p)
+		key = expression_from(p, big)
+		eat(p)
 	} else if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
 	          is_keyword_usable_as_property_name(p.cur_type) {
 		// Capture has_escape + name BEFORE parse_property_name consumes
@@ -9062,6 +9077,10 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				if k != nil && is_always_reserved_word_name(k.name) {
 					msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", k.name)
 					report_error(p, msg)
+				}
+				// In a class static block, `await` is reserved (§15.7.5).
+				if k != nil && k.name == "await" && p.in_static_block {
+					report_error(p, "'await' is not allowed as a shorthand property identifier in a class static block")
 				}
 			}
 		}
