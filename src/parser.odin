@@ -162,10 +162,23 @@ BumpPool :: struct {
 }
 
 bump_init :: proc(pool: ^BumpPool, backing: mem.Allocator, capacity: int) {
-	raw, _ := mem.alloc_bytes(capacity, 16, backing)
+	// Defensive: if the backing allocator can't satisfy the requested
+	// capacity (e.g. caller's arena is sized smaller than the pool's
+	// chosen floor), retry at progressively smaller sizes so we always
+	// produce a usable bump pool. Without this fallback bump_alloc
+	// would dereference a nil base on the first AST allocation — a
+	// segfault that surfaced on bench/real_world/batch3/snabbdom.js when
+	// the microbench arena floor (256 KB) was smaller than the pool's
+	// 1 MB floor for tiny files.
+	cap := capacity
+	raw, err := mem.alloc_bytes(cap, 16, backing)
+	for (err != nil || raw_data(raw) == nil) && cap > 4096 {
+		cap /= 2
+		raw, err = mem.alloc_bytes(cap, 16, backing)
+	}
 	pool.base = raw_data(raw)
 	pool.offset = 0
-	pool.capacity = capacity
+	pool.capacity = cap if pool.base != nil else 0
 }
 
 bump_alloc :: #force_inline proc(pool: ^BumpPool, size: int, align: int) -> rawptr {
@@ -544,12 +557,32 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
 
-	// Bump pool: scale with source size
-	// Small files (<64KB): tight pool to avoid wasting init time on mmap
-	// Large files: 15× source for dense code (antd patterns)
-	pool_size := p.source_len * 15
-	if pool_size < 256 * 1024 {
-		pool_size = max(p.source_len * 20, 4096)  // Tiny files: minimal pool
+	// Bump pool: scale with source size.
+	//
+	// Non-minified production JS emits ~25-30 bytes of AST per byte of
+	// source once dynamic-array headers, Expression / Statement wrappers,
+	// and per-Property / FunctionParameter records are counted. The
+	// previous formula (20× source with a 256 KB threshold) sized tiny-
+	// to-medium files exactly at 20×, which overflowed bench/real_world/
+	// batch2/preact.js (11 KB source needed 225 K pool, formula gave 225 K
+	// → 1924 fallbacks to the backing allocator). Three bands:
+	//
+	//   <1 KB   : 32 KB flat floor. AST barely uses 3 KB but reserving 32 KB
+	//             gives headroom for arrays and avoids the cliff where the
+	//             pool cap exactly equals usage.
+	//   <64 KB  : 30× source + 32 KB padding. Worst-case dense file is
+	//             about 24× (e.g. dayjs.js: 7 KB source, 170 K pool used);
+	//             30× + headroom keeps every file in this band overflow-free.
+	//   ≥64 KB  : 15× source. antd / typescript stay around 6-7× used so
+	//             this is a comfortable upper bound; mmap of an unused
+	//             reservation is cheap on macOS / Linux.
+	pool_size: int
+	if p.source_len < 1024 {
+		pool_size = 32 * 1024
+	} else if p.source_len < 64 * 1024 {
+		pool_size = p.source_len * 30 + 32 * 1024
+	} else {
+		pool_size = p.source_len * 15
 	}
 	bump_init(&p.node_pool, alloc, pool_size)
 
