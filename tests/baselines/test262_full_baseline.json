@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49560,
-    "accepted-should-reject": 143,
+    "pass": 49563,
+    "accepted-should-reject": 140,
     "rejected-should-accept": 25,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23493,
-      "fail": 152,
+      "pass": 23496,
+      "fail": 149,
       "crash": 0,
       "timeout": 0
     },
@@ -52,10 +52,10 @@
     },
     "language/statements": {
       "pass": 0,
-      "fail": 26,
+      "fail": 23,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 23,
+      "accepted-should-reject": 20,
       "rejected-should-accept": 3
     },
     "staging/sm": {
@@ -895,14 +895,6 @@
       "verdict": "rejected-should-accept"
     },
     {
-      "file": "language/statements/block/S12.1_A4_T1.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/block/S12.1_A4_T2.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/break/static-init-without-label.js",
       "verdict": "accepted-should-reject"
     },
@@ -928,10 +920,6 @@
     },
     {
       "file": "language/statements/for-in/dstr/obj-id-identifier-yield-expr.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for-in/S12.6.4_A15.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -1051,6 +1039,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.66,
-  "generated_at": "2026-04-26T19:29:47.128Z"
+  "rate": 99.67,
+  "generated_at": "2026-04-26T19:37:29.274Z"
 }

@@ -8824,8 +8824,10 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 
 		if !match_token(p, .Comma) {
-			// Treat semicolons as property separators too (error recovery)
+			// Semicolons are not valid in object literals (spec §13.2.5).
+			// Report the error and eat them for error recovery.
 			if is_token(p, .Semi) {
+				report_error(p, "Unexpected ';' in object literal")
 				for is_token(p, .Semi) {
 					eat(p)
 				}

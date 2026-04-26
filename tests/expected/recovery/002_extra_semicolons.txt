@@ -230,9 +230,19 @@
       "end": 35,
       "value": " Extra semicolons (ASI tolerance)"
     }
+  ],
+  "errors": [
+    {
+      "message": "Unexpected ';' in object literal",
+      "line": 16,
+      "column": 7,
+      "offset": 162
+    }
   ]
 }
+Parse errors (1):
+  Line 16, Column 7: Unexpected ';' in object literal
 
 --- Statistics ---
-Arena: used=7296B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37872B reserved=16777216B ratio=0%
+Parse errors: 1
