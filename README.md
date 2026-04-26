@@ -4,7 +4,7 @@ Fast, spec-focused, ESTree-compatible JavaScript parser written in [Odin](https:
 
 ## What is Kessel?
 
-Kessel parses JavaScript source code into an ESTree-compatible AST. It uses arena allocation, SIMD-accelerated lexing (ARM64 NEON), a Pratt expression parser, and a tightly-sized bump pool for AST nodes. Conformance: **98.99 %** on Test262 (parser-relevant fixtures).
+Kessel parses JavaScript source code into an ESTree-compatible AST. It uses arena allocation, SIMD-accelerated lexing (ARM64 NEON), a Pratt expression parser, and a tightly-sized bump pool for AST nodes. Conformance: **99.08 %** on Test262 (parser-relevant fixtures).
 
 ## Performance
 

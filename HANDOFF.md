@@ -13,22 +13,25 @@ toolchain. All memory is statically allocated at startup; zero heap allocations
 post-init via a virtual arena + bump pool.
 
 **Status headline (Session 13, 2026-04-26 — regex grammar push):**
-ECMA-262 Test262 conformance **49 227 / 49 729 (98.99 %)**, up from
-48 989 / 49 729 (98.51 %) at the start of this session — **+238 tests**
-across **3 commits**, all on `origin/main`. Every unit / negative / recovery /
+ECMA-262 Test262 conformance **49 270 / 49 729 (99.08 %)**, up from
+48 989 / 49 729 (98.51 %) at the start of this session — **+281 tests**
+across **5 commits**, all on `origin/main`. Every unit / negative / recovery /
 spec-fixture / spec-compliance / ESTree-strict / multi-parser / fuzz /
 invariants / nodes / crashes-known / lexical / ambiguity / deep-families /
 bench gate is green.
 
 This session opened a dedicated regex-grammar surface (`src/regex.odin`,
-~600 LOC) called from `lex_regex` after flag parsing so every check can
-branch on `has_u` / `has_v`. Three phases landed:
+~1 200 LOC) called from `lex_regex` after flag parsing so every check
+can branch on `has_u` / `has_v`. Five waves landed, each its own clean
+commit with the test262 baseline relocked:
 
 | Commit | Phase | What | Δ tests |
 |---|---|---|---:|
-| `89101ae` | A — property escapes | Validate `\p{…}` / `\P{…}` shape + binary / non-binary / GC / of-strings name tables; gate of-strings on `v`; reject `\P{prop-of-strings}` | **+144** |
-| `0ac3fb6` | E — arithmetic modifiers | Validate `(?ims-ims:body)` flag list (i/m/s only, no dupes per side, no overlap, no escapes, no non-ASCII, mandatory `:`, both-sides-empty rejected) | **+83** |
-| `3d3f8be` | A′/B′ hardening | u-mode strict `\k<name>` (no Annex B fallback, no bare `\k`); reject U+2028 / U+2029 in pattern body | **+11** |
+| `89101ae` | **A** — property escapes | Validate `\p{…}` / `\P{…}` shape + binary / non-binary / GC / of-strings name tables; gate of-strings on `v`; reject `\P{prop-of-strings}` | **+144** |
+| `0ac3fb6` | **E** — arithmetic modifiers | Validate `(?ims-ims:body)` flag list (i/m/s only, no dupes per side, no overlap, no escapes, no non-ASCII, mandatory `:`, both-sides-empty rejected) | **+83** |
+| `3d3f8be` | **A′/B′** hardening | u-mode strict `\k<name>` resolution (no Annex B fallback, no bare `\k`); reject U+2028 / U+2029 in pattern body | **+11** |
+| `c8b1ee7` | **B** — strict u-mode pattern grammar + v-mode awareness | IdentityEscape strict (`\M/u` reject), ControlEscape body (`\c0/u`), DecimalEscape oob (`\1/u`, `\8/u`), extended-pattern-char (`{/u`), `\u{H+}` bounds, quantified assertion (`.(?=.)?/u`), char-class range with class-atom (`[\d-a]/u`); v-mode `\q{…}` accepted, set-difference walker carve-out, named-group decl validator made escape-aware (unblocks astral name-escapes like `\u{1d4d1}`) | **+33** |
+| `b72a3d4` | **B-e/B-f** — leading quantifier + lookbehind quantifier | Reject `/?/`, `/+/`, `/{2}/` etc. with no preceding atom (`(?…)` prefixes skipped to avoid false positives); reject quantified `(?<=…)` / `(?<!…)` in any mode (no Annex B carve-out for lookbehind); `\k` strict in non-u when any names declared | **+10** |
 
 Prior status (Session 12 close): 48 989 / 49 729 (98.51 %), 13 commits
 ahead of `origin/main`, all pushed at the start of this session before
@@ -268,7 +271,7 @@ keeps `cur` and `nxt` as cached `FastToken` values; `advance_token` swaps
 
 | # | Issue | Severity | Where | Workaround |
 |---|---|---|---|---|
-| K-REGEX | **Partial RegExp pattern grammar.** Session 13 split out `src/regex.odin` and landed **property-escapes** (§22.2.1 CharacterClassEscape `\p{…}` / `\P{…}`) and **arithmetic modifiers** (`(?ims-ims:body)`), plus u-mode `\k<name>` strictness and LS/PS-in-pattern rejection — a total of +238 Test262 fixtures. Still deferred: full AtomEscape / CharacterEscape strictness in u-mode (`u-invalid-*` cluster, ~25 fixtures), char-class range early errors `[--\p{Hex}]/u` (~4), v-flag set notation, duplicate named-groups same-alternative (Phase D, ~4), per-property-value tables (Script names, GC value loose-matching, ~10), and quantifier-no-atom (`/{2}/`, ~7). Roughly ~50 regex-related fixtures left blocked. | Low–Medium (impact: ~0.1 pp Test262 cap) | `src/regex.odin`, `src/lexer.odin` | Continue phase-by-phase; existing scaffolding has the dispatch site ready. |
+| K-REGEX | **Partial RegExp pattern grammar.** Session 13 split out `src/regex.odin` (~1 200 LOC) and landed five waves: property escapes, arithmetic modifiers, u-mode `\k` strictness, full strict u/v-mode pattern grammar (IdentityEscape / ControlEscape / DecimalEscape / extended pattern char / `\u{…}` bounds / quantified assertion / char-class range), v-mode `\q{…}` and set-difference awareness, leading-quantifier rejection, lookbehind-quantifier rejection — a total of +281 Test262 fixtures. Still deferred: per-property-value tables (Script names, GC value loose-matching, ~10), v-mode set notation `[\p{A}--\p{B}]/v` proper validation (currently accepts permissively, ~ unknown), duplicate named-groups same-alternative (~4), strict Unicode IDStart / IDPart for named-group names (`(?<❤>a)/u`, ~12 — needs ID tables), and a handful of legacy Sputnik (`/*/`, `///`) corner cases. Roughly ~30 regex-related fixtures left blocked. | Low (impact: <0.1 pp Test262 cap) | `src/regex.odin`, `src/lexer.odin` | Continue phase-by-phase; the dispatch site in `regex_validate_pattern` is ready for additive validators. |
 | K-SCOPE | **No scope / symbol analysis.** Cross-statement bindings (`let x; var x;` in nested blocks → §13.2.5 collision), TDZ, used-before-declaration, closure capture analysis, parameter-vs-body name shadowing all require a scope tree we haven't built. **15 fixtures blocked** in `language/block-scope/syntax/redeclaration/*`, plus several `language/statements/{class, function, generators}/static-init-invalid-lex-{var,dup}` and similar. | Low (impact: ~0.06 pp Test262) | parser-wide | `--show-semantic-errors` flag enables a partial post-parse walker (only redeclaration / `let` clash). |
 | K-PERF | **Kessel is now 13–32 % slower than OXC on real-world files.** The README claims `0.78x median (22 % faster than Rust)` — that was true pre-Session-9. Two seasons of spec-conformance work (PrivateIdentifier walker, contextual await/yield checks, expr-to-pattern conversion, escape-flag tracking on every token, etc.) erased the lead. README is stale. | Medium (DX / marketing) | README.md | Update README perf table; profile + reclaim with hot-path inlining. The bench-regression baseline (`tests/baselines/bench_baseline.json`) now guards against further drift. |
 | K-FUZZ | `task test:fuzz:invalid` — 8 baselined SIGTERMs on 350 KB – 4 MB mutated files (deadline-crosses on >1 MB inputs). Fixed in `07858c4` (emitter nil-pointer + inverted-span guards) and `491d083` (`parse_lhs_tail` .Not + `parse_jsx_children` progress). 8 remaining are not parser bugs, just slow on huge mutated input. | Low | parser perf on very large mutated input | Baselined; not worth chasing. |
@@ -323,27 +326,32 @@ Numbered, prioritized, with files / why / difficulty / dependencies:
    careful microbench-driven changes; the bench-regression gate now
    catches drift). Dependencies: 1 first.
 
-4. **Continue regex grammar phases.** Session 13 landed Phase A
-   (property escapes), Phase E (arithmetic modifiers), and a hardening
-   pass (u-mode `\k`, LS/PS), totaling +238 fixtures. Remaining
-   regex-blocked fixtures (~50 total) cluster as:
-     a. **Strict u-mode IdentityEscape / quantifier rules** — the
-        `u-invalid-*` cluster (~25): `/\M/u`, `/\1/u`, `/\8/u`, `/\c0/u`,
-        `/{/u`, `/.(?=.)?/u` (non-quantifiable assertion), etc.
-        Self-contained — a single u-mode pattern walker.
-     b. **Char-class range early errors** `[--\p{Hex}]/u` (~4) —
-        Phase C from the original plan.
+4. **Continue regex grammar phases.** Session 13 landed five waves
+   totalling +281 fixtures. Remaining (~30 total) cluster as:
+     a. **Strict Unicode IDStart / IDPart for named-group names**
+        (~12) — `(?<❤>a)/u`, `(?<𐐔>a)/u`, `(?<a\uD801>a)/u`. Needs an
+        embedded ID_Start / ID_Continue table (the same tables that
+        would tighten `lex_identifier` non-ASCII handling). Most
+        impactful blocked bucket left in language/literals/regexp/.
+     b. **Per-property-value tables** (~10) — `\p{Script=Foo}/u`
+        (unknown value), `\p{gc=uppercaseletter}/u` (loose-matching
+        rejected). Needs embedded value lists for at least Script,
+        Script_Extensions, General_Category. Largest table: ~200
+        entries.
      c. **Duplicate named-group same alternative** `(?<x>a)(?<x>b)` (~4) —
-        Phase D; needs a small alternation-branch tracker.
-     d. **Per-property-value tables** (~10) — reject `\p{Script=Foo}/u`
-        (unknown), `\p{gc=uppercaseletter}/u` (loose-matching). Needs
-        embedded value lists.
-     e. **Leading-quantifier early errors** `/?/`, `/{2}/` (~7).
-     f. **v-flag set notation** `[\p{A}--\p{B}]/v` etc. (~5+).
+        Phase D; needs a small alternation-branch tracker (push
+        on `|` and `(`, pop on `)`).
+     d. **v-flag set notation deep validation** — currently we
+        accept `[A--B]/v`, `[A&&B]/v` and `[[A][B]]/v` permissively.
+        Strict validation (only properties-of-strings legal in
+        operands of `--`, etc.) is the last big spec surface. ~5+
+        fixtures.
+     e. **Legacy Sputnik corners** — `/*/`, `///` test bodies are
+        eaten as block comments by lex_token before lex_regex sees
+        them. ~3 fixtures, low value.
    Files: `src/regex.odin` (extend), `src/lexer.odin`. The dispatch
-   site already exists — each sub-bucket is now an additive function
-   call from `regex_validate_pattern`. Difficulty: medium per bucket;
-   each is a separate, testable commit.
+   site at `regex_validate_pattern` is ready for additive validators.
+   Difficulty: medium per bucket; each is a separate, testable commit.
 
 5. **Scope / symbol analysis for the remaining `language/block-scope/
    syntax/redeclaration/*` cluster.** Build a per-Function / per-Block
