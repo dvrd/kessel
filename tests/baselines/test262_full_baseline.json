@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49630,
-    "accepted-should-reject": 76,
+    "pass": 49634,
+    "accepted-should-reject": 72,
     "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23563,
-      "fail": 82,
+      "pass": 23567,
+      "fail": 78,
       "crash": 0,
       "timeout": 0
     },
@@ -44,10 +44,10 @@
     },
     "language/module-code": {
       "pass": 0,
-      "fail": 21,
+      "fail": 17,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 21,
+      "accepted-should-reject": 17,
       "rejected-should-accept": 0
     },
     "language/statements": {
@@ -345,15 +345,15 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/export-default-asyncfunction-declaration-binding-exists.js",
+      "file": "language/module-code/export-expname-from-as-unpaired-surrogate.js",
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/export-default-asyncgenerator-declaration-binding-exists.js",
+      "file": "language/module-code/export-expname-from-star-unpaired-surrogate.js",
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/export-default-function-declaration-binding-exists.js",
+      "file": "language/module-code/export-expname-from-unpaired-surrogate.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -544,22 +544,6 @@
     },
     {
       "file": "language/module-code/comment-single-line-html-close.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/export-default-asyncfunction-declaration-binding-exists.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/export-default-asyncgenerator-declaration-binding-exists.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/export-default-function-declaration-binding-exists.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/export-default-generator-declaration-binding-exists.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -755,6 +739,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.8,
-  "generated_at": "2026-04-26T21:54:51.894Z"
+  "rate": 99.81,
+  "generated_at": "2026-04-26T22:02:05.833Z"
 }

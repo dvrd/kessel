@@ -6127,6 +6127,24 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 						}
 					}
 				}
+			case ^Expression:
+				// `export default function F(){}` stores a FunctionExpression.
+				if inner != nil {
+					#partial switch fn in inner^ {
+					case ^FunctionExpression:
+						if fn != nil {
+							if id, ok := fn.id.(BindingIdentifier); ok {
+								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+							}
+						}
+					case ^ClassExpression:
+						if fn != nil {
+							if id, ok := fn.id.(BindingIdentifier); ok {
+								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
