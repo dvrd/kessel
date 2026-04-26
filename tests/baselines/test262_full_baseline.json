@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49537,
-    "accepted-should-reject": 159,
+    "pass": 49539,
+    "accepted-should-reject": 157,
     "rejected-should-accept": 32,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23471,
-      "fail": 174,
+      "pass": 23473,
+      "fail": 172,
       "crash": 0,
       "timeout": 0
     },
@@ -52,10 +52,10 @@
     },
     "language/statements": {
       "pass": 0,
-      "fail": 36,
+      "fail": 34,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 30,
+      "accepted-should-reject": 28,
       "rejected-should-accept": 6
     },
     "staging/sm": {
@@ -995,14 +995,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/for/head-const-bound-names-in-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/for/head-let-bound-names-in-stmt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/for-in/dstr/obj-id-identifier-yield-expr.js",
       "verdict": "accepted-should-reject"
     },
@@ -1143,6 +1135,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.61,
-  "generated_at": "2026-04-26T18:16:37.582Z"
+  "rate": 99.62,
+  "generated_at": "2026-04-26T18:27:00.825Z"
 }

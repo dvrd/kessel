@@ -2182,6 +2182,27 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	p.in_loop = prev_in_loop
 	report_statement_only_position(p, body, false)
 
+	// §14.7.4.1 — It is a Syntax Error if any element of the BoundNames of
+	// the for-loop LexicalDeclaration also occurs in the VarDeclaredNames of
+	// Statement (e.g. `for (const x = 0; ...) { var x; }`).
+	if init_decl != nil && body != nil {
+		id, have_init := init_decl.(^VariableDeclaration)
+		if have_init && id != nil && id.kind != .Var {
+			head_names := make([dynamic]string, 0, 4, context.temp_allocator)
+			for decl in id.declarations {
+				scope_collect_pattern(decl.id, &head_names)
+			}
+			body_vars := make(map[string]u32, 4, context.temp_allocator)
+			scope_hoist_vars(p, body, &body_vars)
+			for n in head_names {
+				if off, have := body_vars[n]; have {
+					msg := fmt.tprintf("'%s' is already declared in for-loop head", n)
+					append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+				}
+			}
+		}
+	}
+
 	for_ := new_node(p, ForStatement)
 	for_.loc = start
 	for_.init_decl = init_decl
