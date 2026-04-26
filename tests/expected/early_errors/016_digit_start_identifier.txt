@@ -104,5 +104,5 @@ Parse errors (4):
   Line 4, Column 8: Identifier directly after number
 
 --- Statistics ---
-Arena: used=8448B reserved=16777216B ratio=0%
+Arena: used=36992B reserved=16777216B ratio=0%
 Parse errors: 4

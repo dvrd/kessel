@@ -1675,7 +1675,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	expr_stmt.loc = start
 	expr_stmt.expression = expr
 
-	// Consume optional semicolon
+	// Consume optional semicolon.
 	match_semicolon_or_asi(p)
 
 	expr_stmt.loc.span.end = prev_end_offset(p)

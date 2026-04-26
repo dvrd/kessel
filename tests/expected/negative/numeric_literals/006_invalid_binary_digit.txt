@@ -66,5 +66,5 @@ Parse errors (2):
   Line 2, Column 17: Binary literal requires at least one digit
 
 --- Statistics ---
-Arena: used=8304B reserved=16777216B ratio=0%
+Arena: used=36992B reserved=16777216B ratio=0%
 Parse errors: 2
