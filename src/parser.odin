@@ -1067,6 +1067,11 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		p.strict_mode = true
 	}
 
+	// §16.2.1 - Module code is always strict mode (§16.2.2).
+	if fs, have := p.force_source_type.(SourceType); have && fs == .Module {
+		p.strict_mode = true
+	}
+
 	// §16.2.1 - ImportDeclaration and ExportDeclaration are ModuleItems,
 	// only legal at the top level of a Module body. Set the flag when we
 	// know upfront (--source-type=module pin) that this is a Module, so
@@ -5742,6 +5747,48 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 	// Only applies in Module context. Script mode is already forbidden
 	// from containing `export` via the module-syntax-in-script check.
 	if program.type != .Module { return }
+
+	// §16.2.1 — ExportedNames of ModuleItemList must not contain duplicates.
+	// Walk all export declarations and collect exported names, reporting
+	// duplicates.
+	exported := make(map[string]u32, 16, context.temp_allocator)
+	for stmt in program.body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^ExportNamedDeclaration:
+			if v == nil { continue }
+			for spec in v.specifiers {
+				var_name := ""
+				var_off : u32 = 0
+				switch exported_name in spec.exported {
+				case IdentifierName:
+					var_name = exported_name.name
+					var_off = exported_name.loc.span.start
+				case ^StringLiteral:
+					if exported_name != nil {
+						var_name = exported_name.value
+						var_off = exported_name.loc.span.start
+					}
+				}
+				if var_name != "" {
+					if prev, exists := exported[var_name]; exists {
+						_ = prev
+						msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
+						append(&p.errors, ParseError{loc = LexerLoc{offset = int(var_off)}, message = msg})
+					} else {
+						exported[var_name] = var_off
+					}
+				}
+			}
+		// ExportNamedDeclaration has no "default" name (that's ExportDefaultDeclaration)
+		case ^ExportDefaultDeclaration:
+			if v == nil { continue }
+			if prev, exists := exported["default"]; exists {
+				_ = prev
+				append(&p.errors, ParseError{loc = LexerLoc{offset = int(v.loc.span.start)}, message = "Duplicate exported name 'default'"})
+			} else { exported["default"] = v.loc.span.start }
+		}
+	}
 	names := make(map[string]bool, 32, p.allocator)
 	collect_module_top_level_names(program.body[:], &names)
 	for stmt in program.body {
@@ -6933,6 +6980,13 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		name = local.name,
 	}
 	spec.loc.span.end = prev_end_offset(p)
+
+	// §16.2.2 — ImportedBinding is a BindingIdentifier in strict mode
+	// (module code). `eval` and `arguments` are forbidden.
+	if is_eval_or_arguments(local.name) {
+		msg := fmt.tprintf("'%s' cannot be used as an import binding name", local.name)
+		append(&p.errors, ParseError{loc = LexerLoc{offset = int(local.loc.span.start)}, message = msg})
+	}
 
 	return spec
 }

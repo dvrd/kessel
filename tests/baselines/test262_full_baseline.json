@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49591,
-    "accepted-should-reject": 115,
+    "pass": 49605,
+    "accepted-should-reject": 101,
     "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23524,
-      "fail": 121,
+      "pass": 23538,
+      "fail": 107,
       "crash": 0,
       "timeout": 0
     },
@@ -36,10 +36,10 @@
   "perSubdir": {
     "language/module-code": {
       "pass": 0,
-      "fail": 60,
+      "fail": 46,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 60,
+      "accepted-should-reject": 46,
       "rejected-should-accept": 0
     },
     "language/expressions": {
@@ -349,11 +349,11 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/early-dup-export-dflt-id.js",
+      "file": "language/module-code/early-dup-export-star-as-dflt.js",
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/early-dup-export-dflt.js",
+      "file": "language/module-code/export-default-asyncfunction-declaration-binding-exists.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -551,51 +551,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/early-dup-export-dflt-id.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-dup-export-dflt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-dup-export-id-as.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-dup-export-id.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/module-code/early-dup-export-star-as-dflt.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-dup-top-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-export-ill-formed-string.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-import-arguments.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-import-as-arguments.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-import-as-eval.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-import-eval.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/early-strict-mode.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -719,15 +675,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/parse-err-export-dflt-let.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/module-code/parse-err-export-dflt-var.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-hoist-lex-fun.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -756,10 +704,6 @@
     },
     {
       "file": "language/module-code/parse-err-semi-named-export.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-yield.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -911,6 +855,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.72,
-  "generated_at": "2026-04-26T21:29:36.213Z"
+  "rate": 99.75,
+  "generated_at": "2026-04-26T21:37:35.463Z"
 }
