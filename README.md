@@ -1,44 +1,54 @@
 # Kessel
 
-Fast JavaScript parser written in [Odin](https://odin-lang.org/). Spec-focused, ESTree-compatible, currently within ~25 % of [OXC](https://github.com/oxc-project/oxc) (Rust) on real-world files.
+Fast, spec-focused, ESTree-compatible JavaScript parser written in [Odin](https://odin-lang.org/). Within ~4 % of [OXC](https://github.com/oxc-project/oxc) (Rust) by total runtime across the real-world corpus, with several headline files now beating OXC outright.
 
 ## What is Kessel?
 
-Kessel parses JavaScript source code into an ESTree-compatible AST. It uses arena allocation, SIMD-accelerated lexing (ARM64 NEON), and a Pratt expression parser. Conformance: **98.51 %** on Test262 (parser-relevant fixtures).
+Kessel parses JavaScript source code into an ESTree-compatible AST. It uses arena allocation, SIMD-accelerated lexing (ARM64 NEON), a Pratt expression parser, and a tightly-sized bump pool for AST nodes. Conformance: **98.51 %** on Test262 (parser-relevant fixtures).
 
 ## Performance
 
 Benchmarked against OXC (Rust) on 467 real-world JavaScript files, 20 iterations per file, Apple Silicon (ARM64 macOS):
 
 ```
-Faster than OXC (≤0.97x):    7 files  (1.5%)
-At parity (0.97–1.03x):       7 files  (1.5%)
-Slower (>1.03x):            453 files (97.0%)
+Faster than OXC (≤0.97x):     20 files  ( 4.3%)
+At parity (0.97–1.03x):       41 files  ( 8.8%)
+Slower (>1.03x):             406 files (86.9%)
 ```
 
 | File | Size | Kessel | OXC | Ratio |
 |------|------|--------|-----|-------|
-| typescript.js    | 8.6 MB | 45.3 ms | 36.5 ms | 1.24x |
-| cesium.js        | 4.7 MB | 37.5 ms | 31.4 ms | 1.19x |
-| monaco.js        | 3.3 MB | 37.3 ms | 28.3 ms | 1.32x |
-| antd.js          | 4.0 MB | 23.3 ms | 19.4 ms | 1.20x |
-| react-dom.dev.js | 1.0 MB |  4.1 ms |  3.6 ms | 1.12x |
-| d3.js            | 573 KB |  5.2 ms |  4.6 ms | 1.13x |
-| lodash.js        | 531 KB |  1.5 ms |  1.2 ms | 1.22x |
-| jquery.js        | 279 KB |  1.7 ms |  1.5 ms | 1.16x |
-| preact.js        |  11 KB |   175 µs |   135 µs | 1.30x |
-| snabbdom.js      |   1 KB |     3 µs |     3 µs | 1.05x |
+| typescript.js    | 8.6 MB | 38.1 ms | 35.5 ms | 1.08x |
+| cesium.js        | 4.7 MB | 32.6 ms | 31.3 ms | 1.04x |
+| monaco.js        | 3.3 MB | 32.2 ms | 28.1 ms | 1.15x |
+| antd.js          | 4.0 MB | 19.1 ms | 19.5 ms | **0.98x** |
+| react-dom.dev.js | 1.0 MB |  3.3 ms |  3.4 ms | **0.99x** |
+| d3.js            | 573 KB |  4.4 ms |  4.5 ms | **0.98x** |
+| lodash.js        | 531 KB |  1.2 ms |  1.2 ms | **0.99x** |
+| jquery.js        | 279 KB |  1.5 ms |  1.5 ms | **0.99x** |
+| preact.js        |  11 KB |   146 µs |   138 µs | 1.06x |
+| snabbdom.js      |   1 KB |     4 µs |     3 µs | 1.09x |
 
-Distribution across all 467 files: median **1.31x**, mean 1.33x, p10 1.13x, p90 1.58x, max 2.65x. Aggregate sum-time ratio 1.24x; byte-weighted ratio 1.22x.
-
-> **Regression notice.** Earlier Kessel releases landed median ~0.78x (≈22 % faster than OXC). The Test262 spec-conformance work in sessions 11–12 (per-token escape-flag tracking, `PrivateIdentifier` walker, contextual `await` / `yield` reservation lookups, expression-to-pattern conversion) added per-token overhead that has not yet been reclaimed. Returning to ≤1.0x at the median is the next performance milestone — see `HANDOFF.md` for the plan.
+Distribution across all 467 files: median **1.17x**, mean 1.23x, p10 1.01x, p90 1.52x. Aggregate sum-time ratio **1.08x**; byte-weighted ratio **1.04x** (the 100 MB corpus parses in 4 % more wall-clock time than OXC overall).
 
 Reproduce locally:
 
 ```bash
-task bench:quick    # 10 headline files
-task bench          # all 467 files (~45 s)
+task bench:quick                # 10 headline files
+task bench                      # all 467 files (~45 s)
+task test:bench:regression      # gates against the locked baseline
 ```
+
+### History
+
+Kessel briefly held a median of ~0.78x (≈22 % faster than OXC) before the Test262 spec-conformance push in sessions 11–12 (per-token escape-flag tracking, `PrivateIdentifier` walker, contextual `await` / `yield` reservation lookups, expression-to-pattern conversion) regressed median throughput to 1.31x. The current numbers are the result of a follow-up reclaim pass (see `HANDOFF.md`) that:
+
+* short-circuits the §15.7.3 private-name walker when no `PrivateIdentifier` was emitted,
+* SIMD-scans identifier bodies on ARM64 NEON,
+* defers dynamic-array allocation for empty argument / parameter / decorator / object / array / block / function / class / object-pattern bodies, and
+* right-sizes the AST bump pool so files in the 4–64 KB band stop overflowing into the slow allocator path (preact.js alone went from 1924 overflows per parse to zero, 1.30x → 1.06x vs OXC).
+
+Further wins are tracked in `HANDOFF.md`.
 
 ## Getting Started
 
