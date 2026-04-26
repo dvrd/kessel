@@ -5057,6 +5057,13 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		report_escaped_reserved_word(p)
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
+		// FutureReservedWords (like `enum`) are never valid BindingIdentifiers.
+		// Skip when has_escape - that case is already caught by
+		// report_escaped_reserved_word above.
+		if !p.cur_tok.has_escape && is_always_reserved_word_name(id_name) {
+			msg := fmt.tprintf("'%s' is a reserved word and cannot be used as a binding identifier", id_name)
+			report_error(p, msg)
+		}
 		eat(p)
 		if p.strict_mode {
 			// `eval` / `arguments` are forbidden as a BindingIdentifier in

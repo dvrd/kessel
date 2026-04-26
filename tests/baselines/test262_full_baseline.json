@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49587,
-    "accepted-should-reject": 119,
+    "pass": 49589,
+    "accepted-should-reject": 117,
     "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23520,
-      "fail": 125,
+      "pass": 23522,
+      "fail": 123,
       "crash": 0,
       "timeout": 0
     },
@@ -82,14 +82,6 @@
       "accepted-should-reject": 5,
       "rejected-should-accept": 0
     },
-    "language/identifiers": {
-      "pass": 0,
-      "fail": 5,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 5,
-      "rejected-should-accept": 0
-    },
     "annexB/language": {
       "pass": 0,
       "fail": 4,
@@ -97,6 +89,14 @@
       "timeout": 0,
       "accepted-should-reject": 0,
       "rejected-should-accept": 4
+    },
+    "language/identifiers": {
+      "pass": 0,
+      "fail": 4,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 4,
+      "rejected-should-accept": 0
     },
     "language/literals": {
       "pass": 0,
@@ -131,14 +131,6 @@
       "rejected-should-accept": 0
     },
     "language/export": {
-      "pass": 0,
-      "fail": 1,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 1,
-      "rejected-should-accept": 0
-    },
-    "language/future-reserved-words": {
       "pass": 0,
       "fail": 1,
       "crash": 0,
@@ -309,15 +301,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/future-reserved-words/enum.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/global-code/new.target-arrow.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/identifiers/val-enum.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -370,6 +354,14 @@
     },
     {
       "file": "language/module-code/comment-multi-line-html-close.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/comment-single-line-html-close.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/module-code/early-dup-export-as-star-as.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -511,15 +503,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/future-reserved-words/enum.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/global-code/new.target-arrow.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/identifiers/val-enum.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -943,6 +927,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.71,
-  "generated_at": "2026-04-26T20:48:43.401Z"
+  "rate": 99.72,
+  "generated_at": "2026-04-26T20:59:04.494Z"
 }
