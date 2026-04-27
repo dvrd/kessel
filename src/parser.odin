@@ -4202,6 +4202,14 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	prev_in_static_block_sb := p.in_static_block
 	p.in_static_block = true
 	defer p.in_static_block = prev_in_static_block_sb
+	// §15.7.5 — `break`/`continue` from the enclosing loop/switch do not
+	// propagate into a static block. Reset the flags.
+	prev_in_loop_sb := p.in_loop
+	p.in_loop = false
+	defer p.in_loop = prev_in_loop_sb
+	prev_in_switch_sb := p.in_switch
+	p.in_switch = false
+	defer p.in_switch = prev_in_switch_sb
 	// Class bodies (and therefore static blocks) are implicitly strict.
 	prev_strict_sb := p.strict_mode
 	p.strict_mode = true
@@ -5056,8 +5064,8 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		ident.name = id_name
 		return ident
 	}
-	if (p.in_async || p.in_async_params || p.in_static_block) && p.cur_type == .Await {
-		report_error(p, "'await' is reserved as a binding name inside an async function")
+	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.value == "await")) && await_is_reserved_here(p) {
+		report_error(p, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -8134,6 +8142,17 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error(p, msg)
 			}
 		}
+		// Escaped `async` before `function` is SyntaxError (fast path).
+		if p.cur_tok.has_escape && p.cur_tok.value == "async" {
+			nxt := peek_token(p)
+			if nxt.type == .Function && !nxt.had_line_terminator {
+				report_error(p, "'async' keyword must not contain Unicode escape sequences")
+			}
+		}
+		// `await` as IdentifierReference in module/async/static context.
+		if p.cur_tok.value == "await" && await_is_reserved_here(p) {
+			report_error(p, "'await' is not allowed as an identifier in this context")
+		}
 		// Inline identifier parse + LHS tail
 		id_tok := p.cur_tok
 		eat(p)
@@ -8833,6 +8852,15 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// not a valid IdentifierReference.
 		if (current.type == .Await || current.value == "await") && await_is_reserved_here(p) {
 			report_error(p, "'await' is not allowed as an identifier in this context")
+		}
+		// Escaped `async` before `function` is SyntaxError. The lexer
+		// emits `.Identifier` (not `.Async`) for `\u0061sync`, so the
+		// `.Async` case's escape check doesn't fire.
+		if current.has_escape && current.value == "async" {
+			nxt := peek_token(p)
+			if nxt.type == .Function && !nxt.had_line_terminator {
+				report_error(p, "'async' keyword must not contain Unicode escape sequences")
+			}
 		}
 		eat(p)
 		id, id_expr := new_expr(p, Identifier)

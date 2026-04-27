@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49655,
-    "accepted-should-reject": 54,
+    "pass": 49659,
+    "accepted-should-reject": 50,
     "rejected-should-accept": 19,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23587,
-      "fail": 58,
+      "pass": 23591,
+      "fail": 54,
       "crash": 0,
       "timeout": 0
     },
@@ -36,10 +36,10 @@
   "perSubdir": {
     "language/expressions": {
       "pass": 0,
-      "fail": 21,
+      "fail": 19,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 18,
+      "accepted-should-reject": 16,
       "rejected-should-accept": 3
     },
     "staging/sm": {
@@ -52,10 +52,10 @@
     },
     "language/statements": {
       "pass": 0,
-      "fail": 10,
+      "fail": 9,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 7,
+      "accepted-should-reject": 6,
       "rejected-should-accept": 3
     },
     "language/line-terminators": {
@@ -138,14 +138,6 @@
       "accepted-should-reject": 1,
       "rejected-should-accept": 0
     },
-    "language/reserved-words": {
-      "pass": 0,
-      "fail": 1,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 1,
-      "rejected-should-accept": 0
-    },
     "staging/decorators": {
       "pass": 0,
       "fail": 1,
@@ -217,14 +209,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/async-function/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/async-generator/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/call/S11.2.4_A1.3_T1.js",
       "verdict": "accepted-should-reject"
     },
@@ -345,16 +329,24 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/reserved-words/await-module.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/await-using/syntax/await-using-declaring-let-split-across-two-lines.js",
       "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/await-using/syntax/await-using-invalid-arraybindingpattern-does-not-break-element-access.js",
       "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/class/static-init-invalid-arguments.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/debugger/expression.js",
+      "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/for-of/head-lhs-async-invalid.js",
+      "verdict": "accepted-should-reject"
     }
   ],
   "all_failures": [
@@ -419,14 +411,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/async-function/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/expressions/async-generator/escaped-async.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/expressions/call/S11.2.4_A1.3_T1.js",
       "verdict": "accepted-should-reject"
     },
@@ -547,20 +531,12 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/reserved-words/await-module.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/await-using/syntax/await-using-declaring-let-split-across-two-lines.js",
       "verdict": "rejected-should-accept"
     },
     {
       "file": "language/statements/await-using/syntax/await-using-invalid-arraybindingpattern-does-not-break-element-access.js",
       "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/statements/break/static-init-without-label.js",
-      "verdict": "accepted-should-reject"
     },
     {
       "file": "language/statements/class/static-init-invalid-arguments.js",
@@ -655,6 +631,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.85,
-  "generated_at": "2026-04-27T06:47:40.348Z"
+  "rate": 99.86,
+  "generated_at": "2026-04-27T07:03:40.415Z"
 }
