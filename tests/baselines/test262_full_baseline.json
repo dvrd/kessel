@@ -1,8 +1,8 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49634,
-    "accepted-should-reject": 72,
+    "pass": 49643,
+    "accepted-should-reject": 63,
     "rejected-should-accept": 22,
     "crash": 1,
     "timeout": 0
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23567,
-      "fail": 78,
+      "pass": 23576,
+      "fail": 69,
       "crash": 0,
       "timeout": 0
     },
@@ -42,14 +42,6 @@
       "accepted-should-reject": 18,
       "rejected-should-accept": 5
     },
-    "language/module-code": {
-      "pass": 0,
-      "fail": 17,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 17,
-      "rejected-should-accept": 0
-    },
     "language/statements": {
       "pass": 0,
       "fail": 15,
@@ -65,6 +57,14 @@
       "timeout": 0,
       "accepted-should-reject": 2,
       "rejected-should-accept": 9
+    },
+    "language/module-code": {
+      "pass": 0,
+      "fail": 8,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 8,
+      "rejected-should-accept": 0
     },
     "language/line-terminators": {
       "pass": 0,
@@ -345,15 +345,15 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/export-expname-from-as-unpaired-surrogate.js",
+      "file": "language/module-code/parse-err-invoke-anon-fun-decl.js",
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/export-expname-from-star-unpaired-surrogate.js",
+      "file": "language/module-code/parse-err-invoke-anon-gen-decl.js",
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/export-expname-from-unpaired-surrogate.js",
+      "file": "language/module-code/top-level-await/new-await.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -547,47 +547,11 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/export-expname-from-as-unpaired-surrogate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/export-expname-from-star-unpaired-surrogate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/export-expname-from-unpaired-surrogate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/export-expname-import-unpaired-surrogate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/export-expname-unpaired-surrogate.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/module-code/parse-err-invoke-anon-fun-decl.js",
       "verdict": "accepted-should-reject"
     },
     {
       "file": "language/module-code/parse-err-invoke-anon-gen-decl.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-semi-export-star.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-semi-name-space-export.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-semi-named-export-from.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/parse-err-semi-named-export.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -739,6 +703,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.81,
-  "generated_at": "2026-04-26T22:02:05.833Z"
+  "rate": 99.83,
+  "generated_at": "2026-04-27T06:01:13.955Z"
 }

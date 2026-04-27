@@ -5751,6 +5751,36 @@ collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string]bo
 //   • It is a Syntax Error if ReferencedBindings of NamedExports contains
 //     any StringLiterals (i.e. `export { "foo" }` with no `from` clause).
 // Called once from parse_program after the full body is known.
+// §16.2.3 — IsStringWellFormedUnicode: a ModuleExportName string must
+// not contain unpaired surrogates (U+D800..U+DFFF not in a valid pair).
+// The decoded value is stored as UTF-8; surrogates are encoded as 3-byte
+// sequences ed_a0_80..ed_bf_bf.
+string_has_unpaired_surrogate :: proc(s: string) -> bool {
+	i := 0
+	for i < len(s) {
+		b := s[i]
+		if b < 0x80 {
+			i += 1
+		} else if b < 0xC0 {
+			i += 1 // stray continuation byte
+		} else if b < 0xE0 {
+			i += 2
+		} else if b < 0xF0 {
+			// 3-byte sequence: check for surrogate range.
+			if i + 2 < len(s) {
+				cp := (u32(b & 0x0F) << 12) | (u32(s[i+1] & 0x3F) << 6) | u32(s[i+2] & 0x3F)
+				if cp >= 0xD800 && cp <= 0xDFFF {
+					return true
+				}
+			}
+			i += 3
+		} else {
+			i += 4
+		}
+	}
+	return false
+}
+
 verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 	// Only applies in Module context. Script mode is already forbidden
 	// from containing `export` via the module-syntax-in-script check.
@@ -7023,11 +7053,28 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	start := cur_loc(p)
 
-	imported := parse_identifier_name(p)
+	imported: Identifier
+	is_string_import := false
+	if is_token(p, .String) {
+		// `import { "str" as local } from "m"` — ModuleExportName string form.
+		current := get_current(p)
+		val := current.literal.(string) or_else ""
+		if string_has_unpaired_surrogate(val) {
+			report_error(p, "Import name string must not contain unpaired surrogates")
+		}
+		imported = Identifier{loc = loc_from_token(current), name = val}
+		is_string_import = true
+		eat(p)
+	} else {
+		imported = parse_identifier_name(p)
+	}
 
 	local := imported
 	if match_token(p, .As) {
 		local = parse_identifier(p)
+	} else if is_string_import {
+		// String import names MUST have `as local`.
+		report_error(p, "String import names require 'as' binding")
 	}
 
 	spec := new_node(p, ImportSpecifier)
@@ -7070,6 +7117,12 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 
 	if is_token(p, .LBrace) {
 		return parse_export_named(p, start)
+	}
+
+	// After `export`, only `*`, `default`, `{`, or a declaration keyword
+	// is valid. A bare string literal is always a SyntaxError.
+	if is_token(p, .String) {
+		report_error(p, "Unexpected string literal after 'export'")
 	}
 
 	// Export declaration. parse_statement_or_declaration returns a ^Statement
@@ -7197,10 +7250,22 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	exported: Maybe(IdentifierName)
 
 	if match_token(p, .As) {
-		name := parse_identifier_name(p)
-		exported = IdentifierName{
-			loc  = name.loc,
-			name = name.name,
+		if is_token(p, .String) {
+			// `export * as "str" from "m"` — ModuleExportName string form.
+			current := get_current(p)
+			val := current.literal.(string) or_else ""
+			if string_has_unpaired_surrogate(val) {
+				report_error(p, "Export name string must not contain unpaired surrogates")
+			}
+			name_loc := loc_from_token(current)
+			exported = IdentifierName{loc = name_loc, name = val}
+			eat(p)
+		} else {
+			name := parse_identifier_name(p)
+			exported = IdentifierName{
+				loc  = name.loc,
+				name = name.name,
+			}
 		}
 	}
 
@@ -7219,7 +7284,9 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	// Consume the trailing semicolon BEFORE stamping the span end so the
 	// ExportAllDeclaration includes its own `;` - matches ESTree/OXC/Acorn
 	// semantics. Previously the span stopped at the last token of `source`.
-	match_semicolon_or_asi(p)
+	if !match_semicolon_or_asi(p) {
+		report_error(p, "Expected semicolon after export declaration")
+	}
 	decl.loc.span.end = prev_end_offset(p)
 
 	// Collect ESM static export record for export * from
@@ -7281,6 +7348,10 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 				str_lit.loc = loc_from_token(current)
 				str_lit.value = current.literal.(string) or_else ""
 				str_lit.raw = current.value
+				// §16.2.3 — ModuleExportName : StringLiteral must be well-formed Unicode.
+				if string_has_unpaired_surrogate(str_lit.value) {
+					report_error(p, "Export name string must not contain unpaired surrogates")
+				}
 				eat(p)
 				return str_lit
 			}
@@ -7326,7 +7397,10 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		decl.attributes = parse_import_attributes(p)
 	}
 
-	match_semicolon_or_asi(p)
+	if !match_semicolon_or_asi(p) {
+		// `export {} null;` — unexpected token follows export clause on same line.
+		report_error(p, "Expected semicolon after export declaration")
+	}
 
 	decl.loc.span.end = prev_end_offset(p)
 
