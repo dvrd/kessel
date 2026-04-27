@@ -2895,7 +2895,14 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	prev_in_async_param_outer := p.in_async
 	if !generator { p.in_generator = false }
 	if !async    { p.in_async = false }
+	// §15.2.1 / §15.7 — set `in_function` before params so the
+	// AwaitExpression / YieldExpression checks in parse_unary_expr see
+	// that we are inside a function scope, preventing `await 1` in
+	// non-async function params from being misinterpreted as TLA.
+	prev_in_function_params := p.in_function
+	p.in_function = true
 	params := parse_function_params(p)
+	p.in_function = prev_in_function_params
 	p.in_generator_params = prev_in_gen_params
 	p.in_async_params = prev_in_async_params
 	p.in_static_block = prev_static_block_params
@@ -4731,7 +4738,7 @@ report_escaped_reserved_word :: proc(p: ^Parser) {
 	if !reserved && p.in_generator && name == "yield" {
 		reserved = true
 	}
-	if !reserved && p.in_async && name == "await" {
+	if !reserved && name == "await" && await_is_reserved_here(p) {
 		reserved = true
 	}
 	if reserved {
@@ -8770,6 +8777,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
 				report_error(p, msg)
 			}
+		}
+		// §16.2 — `await` in module/async/static-block context is a keyword,
+		// not a valid IdentifierReference.
+		if (current.type == .Await || current.value == "await") && await_is_reserved_here(p) {
+			report_error(p, "'await' is not allowed as an identifier in this context")
 		}
 		eat(p)
 		id, id_expr := new_expr(p, Identifier)

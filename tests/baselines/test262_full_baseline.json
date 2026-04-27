@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49643,
-    "accepted-should-reject": 63,
-    "rejected-should-accept": 22,
+    "pass": 49649,
+    "accepted-should-reject": 58,
+    "rejected-should-accept": 21,
     "crash": 1,
     "timeout": 0
   },
@@ -21,14 +21,14 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23576,
-      "fail": 69,
+      "pass": 23581,
+      "fail": 64,
       "crash": 0,
       "timeout": 0
     },
     "staging": {
-      "pass": 1471,
-      "fail": 12,
+      "pass": 1472,
+      "fail": 11,
       "crash": 1,
       "timeout": 0
     }
@@ -44,27 +44,19 @@
     },
     "language/statements": {
       "pass": 0,
-      "fail": 15,
+      "fail": 14,
       "crash": 0,
       "timeout": 0,
-      "accepted-should-reject": 12,
+      "accepted-should-reject": 11,
       "rejected-should-accept": 3
     },
     "staging/sm": {
       "pass": 0,
-      "fail": 12,
+      "fail": 11,
       "crash": 1,
       "timeout": 0,
       "accepted-should-reject": 2,
-      "rejected-should-accept": 9
-    },
-    "language/module-code": {
-      "pass": 0,
-      "fail": 8,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 8,
-      "rejected-should-accept": 0
+      "rejected-should-accept": 8
     },
     "language/line-terminators": {
       "pass": 0,
@@ -91,6 +83,14 @@
       "rejected-should-accept": 4
     },
     "language/identifiers": {
+      "pass": 0,
+      "fail": 4,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 4,
+      "rejected-should-accept": 0
+    },
+    "language/module-code": {
       "pass": 0,
       "fail": 4,
       "crash": 0,
@@ -353,7 +353,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/top-level-await/new-await.js",
+      "file": "language/reserved-words/await-module.js",
       "verdict": "accepted-should-reject"
     }
   ],
@@ -555,22 +555,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/module-code/top-level-await/new-await.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-params.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-expr-params.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/module-code/top-level-await/syntax/early-no-escaped-await.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/reserved-words/await-module.js",
       "verdict": "accepted-should-reject"
     },
@@ -608,10 +592,6 @@
     },
     {
       "file": "language/statements/if/S12.5_A8.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/labeled/value-await-module-escaped.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -663,10 +643,6 @@
       "verdict": "rejected-should-accept"
     },
     {
-      "file": "staging/sm/class/newTargetDefaults.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "staging/sm/expressions/optional-chain-first-expression-module.js",
       "verdict": "rejected-should-accept"
     },
@@ -703,6 +679,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.83,
-  "generated_at": "2026-04-27T06:01:13.955Z"
+  "rate": 99.84,
+  "generated_at": "2026-04-27T06:17:14.829Z"
 }

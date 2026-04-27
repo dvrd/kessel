@@ -2,7 +2,7 @@
   "type": "Program",
   "start": 0,
   "end": 483,
-  "sourceType": "module",
+  "sourceType": "script",
   "hashbang": null,
   "body": [
     {
@@ -107,5 +107,5 @@ Parse errors (1):
   Line 8, Column 22: 'await' expression is not allowed in formal parameters of an async function
 
 --- Statistics ---
-Arena: used=14984B reserved=16777216B ratio=0%
+Arena: used=36928B reserved=16777216B ratio=0%
 Parse errors: 1
