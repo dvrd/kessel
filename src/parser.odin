@@ -6259,12 +6259,63 @@ scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
 			scope_recurse_class_elements(p, v.body.body[:])
 		}
 	case ^ExpressionStatement:
+		if v != nil && v.expression != nil {
+			scope_recurse_expr(p, v.expression)
+		}
+	case ^VariableDeclaration:
 		if v != nil {
-			#partial switch e in v.expression^ {
-			case ^ClassExpression:
-				scope_recurse_class_elements(p, e.body.body[:])
+			for decl in v.declarations {
+				if init, have := decl.init.(^Expression); have {
+					scope_recurse_expr(p, init)
+				}
 			}
 		}
+	case ^ReturnStatement:
+		if v != nil {
+			if arg, have := v.argument.(^Expression); have {
+				scope_recurse_expr(p, arg)
+			}
+		}
+	}
+}
+
+// Walk expression trees to find nested function/class bodies that
+// need their own scope verification pass.
+scope_recurse_expr :: proc(p: ^Parser, expr: ^Expression) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^FunctionExpression:
+		if e != nil && e.body.body != nil {
+			scope_verify_body(p, e.body.body[:], false)
+		}
+	case ^ArrowFunctionExpression:
+		if e != nil {
+			if block, ok := e.body.(^BlockStatement); ok && block != nil {
+				scope_verify_body(p, block.body[:], false)
+			}
+		}
+	case ^ClassExpression:
+		if e != nil {
+			scope_recurse_class_elements(p, e.body.body[:])
+		}
+	case ^SequenceExpression:
+		if e != nil {
+			for sub in e.expressions { scope_recurse_expr(p, sub) }
+		}
+	case ^AssignmentExpression:
+		if e != nil { scope_recurse_expr(p, e.right) }
+	case ^CallExpression:
+		if e != nil {
+			scope_recurse_expr(p, e.callee)
+			for arg in e.arguments { scope_recurse_expr(p, arg) }
+		}
+	case ^ConditionalExpression:
+		if e != nil {
+			scope_recurse_expr(p, e.consequent)
+			scope_recurse_expr(p, e.alternate)
+		}
+	case ^ParenthesizedExpression:
+		if e != nil { scope_recurse_expr(p, e.expression) }
 	}
 }
 
@@ -10864,7 +10915,14 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	start := loc_from_expr(test)
 	eat(p) // consume ?
 
+	// §13.14 ConditionalExpression: the consequent branch (`? expr`) gets
+	// [+In] regardless of the enclosing [?In] context. This allows
+	// `for (true ? '' in obj : alt; ...)` where `in` inside the true
+	// branch is a relational operator, not a for-in separator.
+	prev_no_in := p.no_in
+	p.no_in = false
 	consequent := parse_assignment_expression(p)
+	p.no_in = prev_no_in
 	if consequent == nil {
 		return nil
 	}
@@ -11284,8 +11342,12 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 		eat(p) // consume ... and keep parsing so recovery stays reasonable
 	}
 
+	// §13.3.10: ImportCall arguments are AssignmentExpression[+In].
+	prev_no_in := p.no_in
+	p.no_in = false
 	specifier := parse_assignment_expression(p)
 	if specifier == nil {
+		p.no_in = prev_no_in
 		return nil
 	}
 
@@ -11305,6 +11367,8 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 			match_token(p, .Comma)
 		}
 	}
+
+	p.no_in = prev_no_in
 
 	// consume )
 	if !is_token(p, .RParen) {
@@ -11350,6 +11414,10 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 	attributes := make([dynamic]ImportAttribute, 0, 4, p.allocator)
 	if !is_token(p, .With) && !is_token(p, .Assert) { return attributes }
+	// §16.2.2 — `assert` has a [no LineTerminator here] restriction.
+	// A newline before `assert` triggers ASI and the token belongs to the
+	// next statement. `with` does NOT have this restriction.
+	if is_token(p, .Assert) && p.cur_tok.had_line_terminator { return attributes }
 	eat(p)
 	if !expect_token(p, .LBrace) { return attributes }
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {

@@ -1,9 +1,9 @@
 {
   "total": 49729,
   "counts": {
-    "pass": 49649,
-    "accepted-should-reject": 58,
-    "rejected-should-accept": 21,
+    "pass": 49655,
+    "accepted-should-reject": 54,
+    "rejected-should-accept": 19,
     "crash": 1,
     "timeout": 0
   },
@@ -21,8 +21,8 @@
       "timeout": 0
     },
     "language": {
-      "pass": 23581,
-      "fail": 64,
+      "pass": 23587,
+      "fail": 58,
       "crash": 0,
       "timeout": 0
     },
@@ -36,18 +36,10 @@
   "perSubdir": {
     "language/expressions": {
       "pass": 0,
-      "fail": 23,
+      "fail": 21,
       "crash": 0,
       "timeout": 0,
       "accepted-should-reject": 18,
-      "rejected-should-accept": 5
-    },
-    "language/statements": {
-      "pass": 0,
-      "fail": 14,
-      "crash": 0,
-      "timeout": 0,
-      "accepted-should-reject": 11,
       "rejected-should-accept": 3
     },
     "staging/sm": {
@@ -57,6 +49,14 @@
       "timeout": 0,
       "accepted-should-reject": 2,
       "rejected-should-accept": 8
+    },
+    "language/statements": {
+      "pass": 0,
+      "fail": 10,
+      "crash": 0,
+      "timeout": 0,
+      "accepted-should-reject": 7,
+      "rejected-should-accept": 3
     },
     "language/line-terminators": {
       "pass": 0,
@@ -233,15 +233,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/conditional/in-branch-1.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/expressions/division/no-magic-asi.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/dynamic-import/import-attributes/2nd-param-in.js",
       "verdict": "rejected-should-accept"
     },
     {
@@ -355,6 +347,14 @@
     {
       "file": "language/reserved-words/await-module.js",
       "verdict": "accepted-should-reject"
+    },
+    {
+      "file": "language/statements/await-using/syntax/await-using-declaring-let-split-across-two-lines.js",
+      "verdict": "rejected-should-accept"
+    },
+    {
+      "file": "language/statements/await-using/syntax/await-using-invalid-arraybindingpattern-does-not-break-element-access.js",
+      "verdict": "rejected-should-accept"
     }
   ],
   "all_failures": [
@@ -435,15 +435,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/expressions/conditional/in-branch-1.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
       "file": "language/expressions/division/no-magic-asi.js",
-      "verdict": "rejected-should-accept"
-    },
-    {
-      "file": "language/expressions/dynamic-import/import-attributes/2nd-param-in.js",
       "verdict": "rejected-should-accept"
     },
     {
@@ -559,10 +551,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/await-using/redeclaration-error-from-within-strict-mode-function-await-using.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/await-using/syntax/await-using-declaring-let-split-across-two-lines.js",
       "verdict": "rejected-should-accept"
     },
@@ -579,10 +567,6 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/const/redeclaration-error-from-within-strict-mode-function-const.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/debugger/expression.js",
       "verdict": "accepted-should-reject"
     },
@@ -595,15 +579,7 @@
       "verdict": "accepted-should-reject"
     },
     {
-      "file": "language/statements/let/redeclaration-error-from-within-strict-mode-function.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
       "file": "language/statements/switch/S12.11_A3_T4.js",
-      "verdict": "accepted-should-reject"
-    },
-    {
-      "file": "language/statements/using/redeclaration-error-from-within-strict-mode-function-using.js",
       "verdict": "accepted-should-reject"
     },
     {
@@ -679,6 +655,6 @@
       "verdict": "crash"
     }
   ],
-  "rate": 99.84,
-  "generated_at": "2026-04-27T06:17:14.829Z"
+  "rate": 99.85,
+  "generated_at": "2026-04-27T06:47:40.348Z"
 }
