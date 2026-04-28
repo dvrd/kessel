@@ -55,11 +55,11 @@ Lexer :: struct {
 	in_template: bool,                // 1B  (use template_brace_depth instead)
 	last_token_type: TokenType,       // 1B  — write every token
 	template_depth: u8,               // 1B  — number of active template interpolations
-	// `source_has_multibyte` is set once at init via SIMD scan over the
-	// whole source. Pure-ASCII files (the 99% case) skip per-identifier
-	// non-ASCII validation entirely — the SIMD identifier scan stays in
-	// the fast path and the post-pass is suppressed at the call site.
-	source_has_multibyte: bool,       // 1B  — set once at init
+	// (Reserved.) Was previously populated by an unused full-source SIMD
+	// scan in init_lexer; the identifier-scan tracks `has_non_ascii` per-
+	// token directly inside SIMD so the field is never read on the hot
+	// path. Removed to eliminate a 9 MB per-parse scan that didn't help.
+	_unused_lexer_pad: bool,          // 1B  — layout placeholder
 	// `is_module_mode` gates Annex B HTML-like comments (`<!--` and `-->`).
 	// These are valid only in script source per ECMA-262 §B.1.3; in module
 	// code the same byte sequences are SyntaxErrors. Set by the parser
@@ -189,11 +189,13 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 	l.last_token_type = .EOF
 	l.at_start_of_file = true
 	l.is_module_mode = source_type == .Module
-	// `source_has_multibyte` is currently informational — the identifier
-	// scan tracks per-token has_non_ascii directly inside SIMD so the field
-	// isn't on the hot path. Kept here for reuse by future callers (e.g. a
-	// fast-path JSON emitter) without re-scanning the source.
-	l.source_has_multibyte = simd_has_multibyte(l.source_bytes)
+	// Note: the previous `source_has_multibyte = simd_has_multibyte(...)`
+	// here scanned the full source on every parse and was never read on
+	// the hot path — the identifier-scan tracks per-token has_non_ascii
+	// directly inside SIMD. The byte-to-UTF16 offset table built in
+	// build_utf16_table during AST emission performs its own SIMD scan
+	// (when emission is actually requested). Removed: was ~9 MB per
+	// parse on bench/real_world/typescript.js for no benefit.
 
 	l.template_stack = make([dynamic]bool, 0, 0, alloc)
 	l.comments = make([dynamic]Comment, 0, 64, alloc)
