@@ -8636,13 +8636,22 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.cur_tok.has_escape && p.cur_tok.value == "await" && await_is_reserved_here(p) {
 			report_error(p, "'await' is not allowed as an identifier in this context")
 		}
-		// Inline identifier parse + LHS tail
-		id_tok := p.cur_tok
+		// Inline identifier parse + LHS tail. Pull only the fields we need
+		// out of p.cur_tok before eat() advances — a full Token copy is ~64
+		// bytes and was showing up in the parse_unary_expr profile when this
+		// fast path runs once per identifier in the program.
+		id_offset := u32(p.cur_tok.loc.offset)
+		id_line   := u32(p.cur_tok.loc.line)
+		id_col    := u32(p.cur_tok.loc.column)
+		id_value  := p.cur_tok.value
 		eat(p)
 		id, id_e := new_expr(p, Identifier)
-		id.loc = loc_from_token(id_tok)
-		id.name = id_tok.value
-		id.loc.span.end = prev_end_offset(p)
+		id.loc = Loc{
+			span   = Span{start = id_offset, end = prev_end_offset(p)},
+			line   = id_line,
+			column = id_col,
+		}
+		id.name = id_value
 		expr = id_e
 		// Inline LHS tail loop (member access, calls)
 		expr = parse_lhs_tail(p, expr, true)
