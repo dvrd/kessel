@@ -120,9 +120,14 @@ function run(fixture, meta) {
   if (meta.flags.includes('onlyStrict')) {
     argsList.push('--force-strict');
   }
+  // Some Test262 fixtures (e.g. staging/sm/String/string-upper-lower-mapping.js,
+  // which is a 3.2 MB Unicode-data table generator) emit > 16 MB of JSON AST
+  // when parsed. Use a 128 MB buffer so the verifier doesn't misclassify a
+  // successful parse as a crash via ENOBUFS / SIGTERM. The fixture itself
+  // never exceeds 5 MB; the AST grows by ~5x with full-fidelity location info.
   const r = spawnSync(args.binary, argsList, {
     encoding: 'utf8',
-    maxBuffer: 16 * 1024 * 1024,
+    maxBuffer: 128 * 1024 * 1024,
     timeout: args.timeout * 1000,
   });
   const combined = `${r.stdout || ''}${r.stderr || ''}`;

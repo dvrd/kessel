@@ -5950,6 +5950,55 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 		#partial switch v in stmt^ {
 		case ^ExportNamedDeclaration:
 			if v == nil { continue }
+			// `export <Decl>` (no specifiers, no `from`) — ExportedNames
+			// of the declaration are derived from its BoundNames. We need
+			// this branch separately so `export var a, a;` and
+			// `export var [a, a] = [];` and `export function a() {}` /
+			// `export class a {}` get caught alongside specifier-form
+			// duplicates. Test262 staging/sm/module/duplicate-exported-
+			// names-in-single-export-var-declaration.js.
+			if decl_ptr, has_decl := v.declaration.?; has_decl && decl_ptr != nil {
+				decl_names := make([dynamic]string, 0, 8, context.temp_allocator)
+				decl_offs  := make([dynamic]u32, 0, 8, context.temp_allocator)
+				#partial switch d in decl_ptr^ {
+				case ^VariableDeclaration:
+					if d != nil {
+						for decl in d.declarations {
+							prev_len := len(decl_names)
+							collect_pattern_bound_names_list(decl.id, &decl_names)
+							// Pad offsets so the list aligns with names.
+							for _ in prev_len ..< len(decl_names) {
+								append(&decl_offs, decl.loc.span.start)
+							}
+						}
+					}
+				case ^FunctionDeclaration:
+					if d != nil {
+						if id, ok := d.id.(BindingIdentifier); ok {
+							append(&decl_names, id.name)
+							append(&decl_offs, id.loc.span.start)
+						}
+					}
+				case ^ClassDeclaration:
+					if d != nil {
+						if id, ok := d.id.(BindingIdentifier); ok {
+							append(&decl_names, id.name)
+							append(&decl_offs, id.loc.span.start)
+						}
+					}
+				}
+				for i in 0 ..< len(decl_names) {
+					name := decl_names[i]
+					if name == "" { continue }
+					off := decl_offs[i]
+					if _, exists := exported[name]; exists {
+						msg := fmt.tprintf("Duplicate exported name '%s'", name)
+						append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+					} else {
+						exported[name] = off
+					}
+				}
+			}
 			for spec in v.specifiers {
 				var_name := ""
 				var_off : u32 = 0
@@ -11322,6 +11371,14 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				}
 			}
 		}
+		// §15.3.1 / §15.9.1 — BoundNames(FormalParameters) ∩
+		// LexicallyDeclaredNames(ArrowConciseBody) must be empty.
+		// `(bar) => { let bar; }` and `async(bar) => { let bar; }`
+		// are SyntaxErrors. Test262 language/expressions/{,async-}
+		// arrow-function/early-errors-arrow-formals-body-duplicate.js.
+		if bs, ok := body.(^BlockStatement); ok && bs != nil {
+			check_params_vs_body_lex(p, params[:], bs.body[:])
+		}
 	}
 
 	return expression_from(p, arrow)
@@ -11615,6 +11672,14 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	// UniqueFormalParameters.
 	report_duplicate_param_names(p, params[:], true, true)
 
+	// §15.9.1 — BoundNames(params) ∩ LexicallyDeclaredNames(body)
+	// must be empty. `async bar => { let bar; }` is a SyntaxError.
+	if is_block_body {
+		if bs, ok := body.(^BlockStatement); ok && bs != nil {
+			check_params_vs_body_lex(p, params[:], bs.body[:])
+		}
+	}
+
 	return expression_from(p, arrow)
 }
 
@@ -11697,6 +11762,16 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// Async arrow with paren'd params: UniqueFormalParameters always.
 	// Pass strict_override=true per §15.9.1.
 	report_duplicate_param_names(p, params[:], true, true)
+
+	// §15.9.1 — BoundNames(params) ∩ LexicallyDeclaredNames(body)
+	// must be empty. `async(bar) => { let bar; }` is the canonical
+	// case. Test262 language/expressions/async-arrow-function/
+	// early-errors-arrow-formals-body-duplicate.js.
+	if is_block_body {
+		if bs, ok := body.(^BlockStatement); ok && bs != nil {
+			check_params_vs_body_lex(p, params[:], bs.body[:])
+		}
+	}
 
 	// §15.9.1 - async arrow with block body + "use strict" + non-simple
 	// params rejects. Same shape as the plain-arrow check.
