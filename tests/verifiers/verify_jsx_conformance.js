@@ -58,20 +58,36 @@ function walkDir(dir, exts) {
   return out;
 }
 
+// Mirror of verify_ambiguity.js's per-fixture language map. Each fixture is
+// designed to be parsed in a SPECIFIC mode — forcing tsx everywhere makes
+// `<string>input` parse as JSX (opening tag of <string>) instead of as a
+// TS type assertion.
+const AMBIGUITY_LANG = {
+  '001_ts_assertion_vs_jsx_simple.js':       'ts',
+  '002_ts_assertion_vs_jsx_paren.js':        'ts',
+  '003_generic_call_vs_relational.js':       'ts',
+  '004_generic_arrow_vs_relational.js':      'ts',
+  '005_jsx_attribute_nested_element.js':     'jsx',
+  '006_jsx_expression_nested_generic_like.js':'jsx',
+  '007_type_arguments_call_chain.js':        'ts',
+  '008_less_than_binary_not_generic.js':     'js',
+  '009_jsx_fragment_vs_type_context.js':     'jsx',
+  '010_import_type_vs_import_call.js':       'ts',
+};
+
 function discoverCorpus() {
   const fixtures = [];
   const jsxDir = path.join(ROOT, 'tests/fixtures/spec/jsx');
   for (const abs of walkDir(jsxDir, ['.js'])) {
     fixtures.push({ abs, rel: path.relative(ROOT, abs), lang: 'jsx' });
   }
-  // Ambiguity fixtures stress JSX vs TS-generic disambiguation; include them
-  // so the JSX-mode parse path is covered in this gate too.
+  // Ambiguity fixtures: each has its own intended mode; covered here for
+  // wide regression detection across JSX / TS / JS-relational boundary cases.
   const ambDir = path.join(ROOT, 'tests/fixtures/spec/ambiguity');
   for (const abs of walkDir(ambDir, ['.js'])) {
-    // Per-fixture --lang is encoded in the file's golden-test-runner config.
-    // For the conformance gate we just want to verify JSX-mode parsing
-    // doesn't crash on these adversarial cases.
-    fixtures.push({ abs, rel: path.relative(ROOT, abs), lang: 'tsx' });
+    const base = path.basename(abs);
+    const lang = AMBIGUITY_LANG[base] || 'js';
+    fixtures.push({ abs, rel: path.relative(ROOT, abs), lang });
   }
   const corpusManifest = path.join(ROOT, 'tests/fixtures/jsx_conformance_corpus.json');
   if (fs.existsSync(corpusManifest)) {
