@@ -220,6 +220,25 @@ Parser :: struct {
 	// position 0 (file start) is a valid stamped value.
 	pending_paren_start: u32,
 
+	// Pointer to the most recent expression that came directly out of a
+	// `(...)` group (i.e. ParenthesizedExpression with the parens stripped
+	// in the default --no-preserve-parens shape). Used by
+	// parse_assignment_expr to enforce §12.10 / §13.15:
+	// AssignmentTargetType(ParenthesizedExpression) = AssignmentTargetType
+	// of the inner expression — which means a paren-wrapped ObjectLiteral /
+	// ArrayLiteral / ArrowFunction / etc. is INVALID as the LHS of `=`,
+	// even when the bare inner form would be valid as an
+	// ObjectAssignmentPattern / ArrayAssignmentPattern. Test262
+	// language/expressions/assignmenttargettype/{direct-arrowfunction-1,
+	// direct-asyncarrowfunction-1, parenthesized-primaryexpression-
+	// objectliteral}.js. Set by parse_primary_expr's LParen branch on
+	// successful `(...)` parse; the LHS-tail loop in parse_lhs_tail
+	// implicitly invalidates the marker by producing a NEW wrapping
+	// expression (MemberExpression / CallExpression / …), so a check via
+	// pointer equality `left == p.last_paren_expr` distinguishes the bare
+	// paren-wrapped form from `({}.x)` etc.
+	last_paren_expr: ^Expression,
+
 	// Token length (always set, even for punctuation where .value is skipped)
 	cur_len: u16,
 
@@ -9340,7 +9359,17 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			paren_node.loc.span.start = paren_start
 			paren_node.loc.span.end = prev_end_offset(p)
 			paren_node.expression = expr
-			return expression_from(p, paren_node)
+			wrapped := expression_from(p, paren_node)
+			p.last_paren_expr = wrapped
+			return wrapped
+		}
+		// Stamp the bare inner expression as paren-wrapped so a subsequent
+		// `=` triggers the AssignmentTargetType check in parse_assignment_expr.
+		// Skip the stamp when `=>` follows: that path is the arrow-param
+		// cover production, where the parens belong to the arrow's parameter
+		// list, not to a value-grouping parenthesisation.
+		if !is_token(p, .Arrow) {
+			p.last_paren_expr = expr
 		}
 		return expr
 
@@ -11528,6 +11557,32 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 
 	current := get_current(p)
 	op := token_to_assignment_op(current.type)
+
+	// §12.10 / §13.15 ParenthesizedExpression AssignmentTargetType:
+	// AssignmentTargetType of `(Expr)` = AssignmentTargetType of `Expr`.
+	// ObjectLiteral / ArrayLiteral / ArrowFunction / AsyncArrowFunction
+	// have AssignmentTargetType=invalid, so they're invalid as LHS even
+	// though the same shape WITHOUT the parens converts to a valid
+	// ObjectAssignmentPattern / ArrayAssignmentPattern. The pointer
+	// equality check distinguishes `({}) = 1` (paren-wrapped, error)
+	// from `{} = 1` (Pattern conversion, OK at expression position
+	// like `({} = {a:1})`) and from `({}.x) = 1` (LHS-tail extended
+	// to MemberExpression, OK).
+	if left == p.last_paren_expr && left != nil {
+		paren_invalid := false
+		#partial switch _ in left^ {
+		case ^ObjectExpression, ^ArrayExpression, ^ArrowFunctionExpression,
+		     ^AssignmentExpression, ^SequenceExpression:
+			paren_invalid = true
+		}
+		if paren_invalid {
+			report_error(p, "Invalid left-hand side in assignment")
+		}
+	}
+	// Clear the marker so it doesn't bleed into the RHS or the next
+	// AssignmentExpression (e.g. `(a) = (b) = c` — the second `(b)`
+	// re-stamps it before the second `=` runs).
+	p.last_paren_expr = nil
 
 	eat(p)
 
