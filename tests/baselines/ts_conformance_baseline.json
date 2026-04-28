@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-04-28T08:15:07.607Z",
+  "generated_at": "2026-04-28T09:03:14.430Z",
   "summary": {
     "total": 21,
-    "pass": 14,
-    "fail": 6,
+    "pass": 20,
+    "fail": 0,
     "skip": 1
   },
   "files": {
@@ -78,40 +78,34 @@
       "timeout_ms": null
     },
     "bench/node_modules/oxc-parser/src-js/index.d.ts": {
-      "status": "fail",
-      "errors": 15,
-      "timeout_ms": null,
-      "reason": "parse-errors"
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
     },
     "bench/node_modules/oxc-parser/src-js/generated/visit/visitor.d.ts": {
-      "status": "fail",
-      "errors": 20,
-      "timeout_ms": null,
-      "reason": "parse-errors"
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
     },
     "bench/node_modules/@oxc-project/types/types.d.ts": {
-      "status": "fail",
-      "errors": 16,
-      "timeout_ms": null,
-      "reason": "parse-errors"
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
     },
     "bench/node_modules/@babel/parser/typings/babel-parser.d.ts": {
-      "status": "fail",
-      "errors": 35,
-      "timeout_ms": null,
-      "reason": "parse-errors"
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
     },
     "bench/node_modules/@babel/types/lib/index-legacy.d.ts": {
-      "status": "fail",
-      "errors": 189,
-      "timeout_ms": null,
-      "reason": "parse-errors"
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
     },
     "bench/node_modules/acorn/dist/acorn.d.ts": {
-      "status": "fail",
-      "errors": 18,
-      "timeout_ms": null,
-      "reason": "parse-errors"
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
     },
     "bench/node_modules/@babel/types/lib/index.d.ts": {
       "status": "skip",

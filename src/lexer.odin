@@ -322,6 +322,48 @@ relex_as_regex :: proc(l: ^Lexer) {
 	}
 }
 
+// Split the leading `>` off a multi-`>` operator token so a TS type-
+// argument-list parser can consume it as a closing angle bracket. Used
+// when expecting `>` (RAngle) to close a TSTypeParameterInstantiation /
+// TSTypeParameterDeclaration / TSGenericArrow:
+//
+//   Foo<Bar<Baz>>      — lexer emits `>>`; we consume one as RAngle,
+//                       leaving `>` for the outer type's closer.
+//   Foo<Bar<Baz>>=...  — unlikely, but `>>=` would split `>` + `>=`.
+//   Foo<Bar<Baz<Q>>>>  — nested 4 deep — each level peels one `>`.
+//   Foo<{x: T}>=v      — `>=` splits to `>` + `=`.
+//
+// Mechanism: rewind l.offset to (cur.start + 1) and re-lex from there.
+// The new cur becomes RAngle (the consumed `>`), and the new nxt picks
+// up where the old multi-char operator continues. Caller still needs to
+// consume the resulting RAngle via skip_token / advance_token; this
+// helper just normalises the token stream.
+//
+// Returns true iff a split happened. False for tokens that are already
+// a single `>` or that aren't `>`-starting at all.
+try_split_close_angle :: proc(l: ^Lexer) -> bool {
+	#partial switch l.cur.kind {
+	case .RAngle:
+		return false  // already a single `>`; caller consumes normally
+	case .RShift, .URShift, .GEq, .AssignRShift, .AssignURShift:
+		// All of these start with `>` at l.cur.start. Rewind one byte
+		// past it and re-lex. The first `>` is now an RAngle; the rest
+		// of the original operator becomes the next token.
+		start := l.cur.start
+		l.offset = int(start) + 1
+		l.cur = FastToken{
+			kind  = .RAngle,
+			start = start,
+			end   = start + 1,
+			flags = 0,
+		}
+		l.nxt = lex_token(l)
+		return true
+	case:
+		return false
+	}
+}
+
 // Get source text for a fast token
 token_source :: #force_inline proc(l: ^Lexer, ft: FastToken) -> string {
 	if ft.start >= ft.end { return "" }

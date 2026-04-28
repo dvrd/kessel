@@ -3075,8 +3075,27 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	body: FunctionBody
 	body_strict := false
 	allow_no_body_here := allow_no_body || p.in_ambient || allow_ts_mode(p)
-	if allow_no_body_here && is_token(p, .Semi) {
-		eat(p) // consume semicolon
+	// Ambient function: `declare function f(): T;` (with or without
+	// semicolon — ASI applies in .d.ts files where `export declare
+	// function parse(...): Promise<R>` is followed by a newline and the
+	// next top-level `export`). Three triggers for an empty body:
+	//   1. explicit Semi
+	//   2. Right brace (last decl in `declare module { ... }`)
+	//   3. ASI: line-terminator before next token AND we're not at `{`
+	is_no_body := false
+	if allow_no_body_here {
+		if is_token(p, .Semi) {
+			is_no_body = true
+			eat(p)
+		} else if !is_token(p, .LBrace) &&
+		          (is_token(p, .RBrace) || is_token(p, .EOF) ||
+		           p.cur_tok.had_line_terminator) {
+			is_no_body = true
+			// Don't consume — the outer parse_statement_or_declaration
+			// loop expects to see the next-statement token unchanged.
+		}
+	}
+	if is_no_body {
 		body = FunctionBody{
 			loc = cur_loc(p),
 			body = make([dynamic]^Statement, 0, 0, p.allocator),
@@ -3086,6 +3105,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		body = parse_function_body(p)
 		body_strict = p.last_body_strict
 	}
+	// Stash the no-body bit so downstream scope / dup-export checks can
+	// recognise this as a TS overload signature / ambient declaration
+	// and exempt it from the duplicate-binding rule. Threaded through
+	// the local `is_ts_no_body` variable; consumed below where the
+	// FunctionExpression / FunctionDeclaration is constructed.
+	is_ts_no_body := is_no_body
 
 	p.in_async = prev_async
 	p.in_generator = prev_gen
@@ -3147,6 +3172,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		expr.async = async
 		expr.type_parameters = type_parameters
 		expr.return_type = return_type
+		expr.no_body = is_ts_no_body
 		expr.loc.span.end = prev_end_offset(p)
 
 		// For function expressions, wrap in ExpressionStatement. The
@@ -3174,6 +3200,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		async = async,
 		type_parameters = type_parameters,
 		return_type = return_type,
+		no_body = is_ts_no_body,
 	}
 	decl.expr.loc.span.end = prev_end_offset(p)
 
@@ -4220,10 +4247,25 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// The parser tolerates the syntax; semantics (overload set shape,
 	// implementation agreement) are the type checker's job.
 	body: FunctionBody
+	// TS-mode ambient method: no `{` body. Three ways to identify it:
+	//   1. explicit `;` terminator        (overload signature, declare class)
+	//   2. ASI: line-terminator before next class element start (.d.ts files)
+	//   3. immediately followed by `}` — last method in declare class.
+	// Each branch leaves `body` empty. Test ts-conformance:
+	//   bench/node_modules/oxc-parser/src-js/index.d.ts
+	//     class ParseResult { get program(): T  /* no semi */
+	//                         get module(): U
+	//                       }
 	is_overload_sig := allow_ts_mode(p) && is_token(p, .Semi)
+	is_ambient_method := allow_ts_mode(p) && !is_token(p, .LBrace) &&
+	                     (p.cur_tok.had_line_terminator || is_token(p, .RBrace))
 	if (is_abstract || is_overload_sig) && is_token(p, .Semi) {
 		match_semicolon_or_asi(p)
 		// Leave body empty
+	} else if is_ambient_method {
+		// ASI / before-RBrace ambient method — don't consume any token,
+		// the outer parse_class_element loop picks up where we left off.
+		// Body stays empty.
 	} else {
 		// Parse body - set context flags
 		prev_in_function := p.in_function
@@ -4525,7 +4567,15 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// of y)` (where the binding is initialised by the loop iteration)
 	// keeps working. `is_declare` for ambient TS (`declare const x;`)
 	// also skips per TS rules. `let` allows no initializer.
-	if !is_declare && !in_for && (kind == .Const || kind == .Using || kind == .AwaitUsing) {
+	//
+	// In TS/TSX mode, ALSO skip the missing-initializer error: a .d.ts
+	// file is implicitly all-ambient, and `.ts` files often contain
+	// type-system-driven uninitialised consts that the TS type checker
+	// validates separately. OXC, babel-parser, and tsserver all permit
+	// this at the parser level. Test ts-conformance: the bench-vendored
+	// .d.ts files (oxc-parser, acorn) all rely on this relaxation.
+	in_ts_mode := p.lang == .TS || p.lang == .TSX
+	if !is_declare && !in_for && !in_ts_mode && (kind == .Const || kind == .Using || kind == .AwaitUsing) {
 		kind_name: string
 		switch kind {
 		case .Const:       kind_name = "const"
@@ -6038,7 +6088,13 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					}
 				case ^FunctionDeclaration:
 					if d != nil {
-						if id, ok := d.id.(BindingIdentifier); ok {
+						// TS overload signature (no body): same name across
+						// multiple declarations is the canonical TS overload
+						// pattern. Only the implementation (the one with a
+						// body) contributes a real binding for ExportedNames.
+						if d.no_body && allow_ts_mode(p) {
+							// skip
+						} else if id, ok := d.id.(BindingIdentifier); ok {
 							append(&decl_names, id.name)
 							append(&decl_offs, id.loc.span.start)
 						}
@@ -6333,6 +6389,13 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 		for n, at in hoisted { scope_add(p, lex, vars, n, at, .Var) }
 	case ^FunctionDeclaration:
 		if v == nil { return }
+		// TS overload signature (no `{ ... }` body): emits NO binding for
+		// scope-clash purposes. Multiple overloads + one impl all share a
+		// single name without colliding. Same relaxation applies to
+		// `declare function` regardless of body shape.
+		if allow_ts_mode(p) && (v.no_body || v.declare) {
+			return
+		}
 		if id, ok := v.id.(BindingIdentifier); ok {
 			// Annex B.3.2 / §14.1.3:
 			//   - strict mode: FunctionDeclaration BoundName is always
@@ -6386,6 +6449,12 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 				for n in names { scope_add(p, lex, vars, n, inner.loc.span.start, kind) }
 			case ^FunctionDeclaration:
 				if inner == nil { break }
+				// TS overload signature / `declare function` — see
+				// scope_process_statement's plain-FunctionDeclaration arm
+				// for the rationale.
+				if allow_ts_mode(p) && (inner.no_body || inner.declare) {
+					break
+				}
 				if id, ok := inner.id.(BindingIdentifier); ok {
 					scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
 				}
@@ -12472,8 +12541,57 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 // the leading `:` or `=>` has already been consumed. The outer TSFunctionType
 // needs a return type wrapped in TSTypeAnnotation, but the return type starts
 // directly at the current token (no `:` delimiter between `=>` and the type).
+// Also supports the TS TypePredicate forms when in return-type position:
+//     x is T          - TSTypePredicate { parameter_name, type_annotation, asserts:false }
+//     asserts x is T  - TSTypePredicate { parameter_name, type_annotation, asserts:true  }
+//     asserts x       - TSTypePredicate { parameter_name, type_annotation:nil, asserts:true }
+// `(node: T) => node is U` is the canonical use — the inner function-type's
+// return slot can be a type predicate.
 parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	start := cur_loc(p)
+	// Type-predicate fast path mirrors parse_ts_return_type_annotation but
+	// without the leading `:` consumption.
+	asserts := false
+	is_predicate := false
+	if is_token(p, .Asserts) && (p.lexer.nxt.kind == .Identifier || p.lexer.nxt.kind == .This) {
+		asserts = true
+		eat(p)
+		is_predicate = true
+	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is {
+		is_predicate = true
+	}
+	if is_predicate {
+		name_cur := get_current(p)
+		name_ident := new_node(p, Identifier)
+		name_ident.loc = loc_from_token(name_cur)
+		name_ident.name = name_cur.value
+		eat(p)
+		name_expr := expression_from(p, name_ident)
+		inner_ann_opt: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Is) {
+			eat(p)
+			inner_start := cur_loc(p)
+			inner_ty := parse_ts_type(p)
+			inner_ann := new_node(p, TSTypeAnnotation)
+			inner_ann.loc = inner_start
+			inner_ann.type_annotation = inner_ty
+			inner_ann.loc.span.end = prev_end_offset(p)
+			inner_ann_opt = inner_ann
+		}
+		pred := new_node(p, TSTypePredicate)
+		pred.loc = start
+		pred.parameter_name = name_expr
+		pred.type_annotation = inner_ann_opt
+		pred.asserts = asserts
+		pred.loc.span.end = prev_end_offset(p)
+		pred_ts := new_node(p, TSType)
+		pred_ts^ = pred
+		ann := new_node(p, TSTypeAnnotation)
+		ann.loc = start
+		ann.type_annotation = pred_ts
+		ann.loc.span.end = prev_end_offset(p)
+		return ann
+	}
 	ts_type := parse_ts_type(p)
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
@@ -12489,6 +12607,20 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 	nxt := p.lexer.nxt.kind
 	if nxt == .RParen { return true }
 	if nxt == .Dot3  { return true }
+	// `this:` parameter — TS function types can declare an explicit
+	// `this` parameter to type-check the callee's receiver:
+	//   type Handler = (this: Element, ev: Event) => void;
+	// `this` lexes as the .This keyword, not .Identifier, so the
+	// existing Identifier branch missed it. Test ts-conformance:
+	// @babel/types/lib/index-legacy.d.ts (TraversalHandler).
+	if nxt == .This {
+		snap := lexer_snapshot(p)
+		eat(p) // consume `(`
+		eat(p) // consume `this`
+		after := p.cur_type
+		lexer_restore(p, snap)
+		return after == .Colon
+	}
 	if nxt != .Identifier { return false }
 
 	snap := lexer_snapshot(p)
@@ -12521,27 +12653,80 @@ parse_ts_type :: proc(p: ^Parser) -> ^TSType {
 }
 
 parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
+	// TS allows an OPTIONAL leading `|` before the first union member, which
+	// is idiomatic when each member starts on its own line:
+	//   type X =
+	//     | A
+	//     | B
+	//     | C;
+	// The leading pipe is purely cosmetic — the union semantics are
+	// unchanged. Same allowance applies to `&` for intersections (handled
+	// in parse_ts_intersection_type below).
+	leading_pipe_start := cur_loc(p).span.start
+	has_leading_pipe := is_token(p, .BitOr)
+	if has_leading_pipe {
+		eat(p)
+	}
 	first := parse_ts_intersection_type(p)
 	if first == nil { return nil }
-	if !is_token(p, .BitOr) { return first }
+	if !is_token(p, .BitOr) {
+		// Single-element union with leading pipe: emit a TSUnionType so the
+		// AST faithfully reflects the source. Otherwise, the lone leading
+		// pipe would silently disappear and the round-tripper / position
+		// invariant gates would lose track of it.
+		if has_leading_pipe {
+			types := make([dynamic]^TSType, 0, 1, p.allocator)
+			append(&types, first)
+			u := new_node(p, TSUnionType); u.types = types
+			u.loc.span.start = leading_pipe_start
+			u.loc.span.end = prev_end_offset(p)
+			r := new_node(p, TSType); r^ = u; return r
+		}
+		return first
+	}
 	types := make([dynamic]^TSType, 0, 4, p.allocator)
 	append(&types, first)
 	for is_token(p, .BitOr) { eat(p); t := parse_ts_intersection_type(p); if t != nil { append(&types, t) } }
 	u := new_node(p, TSUnionType); u.types = types
-	if loc := get_ts_type_loc(first); loc != nil { u.loc = loc^ }
+	if has_leading_pipe {
+		u.loc.span.start = leading_pipe_start
+	} else if loc := get_ts_type_loc(first); loc != nil {
+		u.loc = loc^
+	}
 	u.loc.span.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = u; return r
 }
 
 parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
+	// Optional leading `&` mirrors the leading-pipe allowance for unions.
+	// `type X = & A & B` is equivalent to `type X = A & B`.
+	leading_amp_start := cur_loc(p).span.start
+	has_leading_amp := is_token(p, .BitAnd)
+	if has_leading_amp {
+		eat(p)
+	}
 	first := parse_ts_primary_type(p)
 	if first == nil { return nil }
-	if !is_token(p, .BitAnd) { return first }
+	if !is_token(p, .BitAnd) {
+		if has_leading_amp {
+			types := make([dynamic]^TSType, 0, 1, p.allocator)
+			append(&types, first)
+			i := new_node(p, TSIntersectionType); i.types = types
+			i.loc.span.start = leading_amp_start
+			i.loc.span.end = prev_end_offset(p)
+			r := new_node(p, TSType); r^ = i; return r
+		}
+		return first
+	}
 	types := make([dynamic]^TSType, 0, 4, p.allocator)
 	append(&types, first)
 	for is_token(p, .BitAnd) { eat(p); t := parse_ts_primary_type(p); if t != nil { append(&types, t) } }
 	i := new_node(p, TSIntersectionType); i.types = types
-	if loc := get_ts_type_loc(first); loc != nil { i.loc = loc^ }
+	if has_leading_amp {
+		i.loc.span.start = leading_amp_start
+	} else if loc := get_ts_type_loc(first); loc != nil {
+		i.loc = loc^
+	}
 	i.loc.span.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = i; return r
 }
@@ -12644,6 +12829,72 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		bl := new_node(p, BooleanLiteral); bl.loc = start; bl.value = val
 		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, bl); node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
+	case .Import:
+		// TS import type: `import("module").Member<TArgs>`
+		// Grammar (TS 4.6+):
+		//   ImportType: typeof? import ( StringLiteral ImportTypeAttributes? )
+		//                 ( . QualifiedName )? TypeArguments?
+		// Used to reference types from other modules without a top-level
+		// `import` statement — the canonical form in `.d.ts` libraries
+		// (oxc-parser/src-js/index.d.ts: `get program(): import("@oxc-
+		// project/types").Program`).
+		eat(p) // consume `import`
+		if !expect_token(p, .LParen) { return nil }
+		arg_type := parse_ts_type(p)
+		// `with { ... }` import-type attributes — stage-3 since TS 5.3.
+		// Eat permissively without strict shape validation; the type
+		// checker handles semantics.
+		if is_token(p, .Comma) {
+			eat(p)
+			// Skip a brace-delimited attribute object if present.
+			if is_token(p, .LBrace) {
+				depth := 1; eat(p)
+				for depth > 0 && !is_token(p, .EOF) {
+					if is_token(p, .LBrace) { depth += 1 }
+					else if is_token(p, .RBrace) { depth -= 1 }
+					if depth > 0 { eat(p) }
+				}
+				if is_token(p, .RBrace) { eat(p) }
+			}
+		}
+		if !expect_token(p, .RParen) { return nil }
+		it := new_node(p, TSImportType)
+		it.loc = start
+		it.argument = arg_type
+		it.is_typeof = false
+		// Optional `.QualifiedName` (one or more `.`-separated identifiers).
+		if is_token(p, .Dot) {
+			eat(p)
+			qual_id := parse_identifier(p)
+			id_node := new_node(p, Identifier)
+			id_node^ = qual_id
+			cur_qual := expression_from(p, id_node)
+			for is_token(p, .Dot) {
+				eat(p)
+				prop_id := parse_identifier(p)
+				prop_node := new_node(p, Identifier)
+				prop_node^ = prop_id
+				mem := new_node(p, MemberExpression)
+				mem.loc = it.loc
+				mem.object = cur_qual
+				mem.property = expression_from(p, prop_node)
+				mem.computed = false
+				mem.optional = false
+				mem.loc.span.end = prev_end_offset(p)
+				cur_qual = expression_from(p, mem)
+			}
+			it.qualifier = cur_qual
+		}
+		// Optional `<TArgs>` type arguments.
+		if is_token(p, .LAngle) {
+			targs := parse_ts_type_arguments(p)
+			if targs != nil {
+				it.type_parameters = targs
+			}
+		}
+		it.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = it
+		return parse_ts_postfix(p, r, start)
 	case .Identifier: return parse_ts_identifier_type(p)
 	}
 	return nil
@@ -12712,12 +12963,58 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 	start := cur_loc(p); eat(p)
 	params := make([dynamic]^TSType, 0, 4, p.allocator)
-	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
+	for !is_close_angle_token(p) && !is_token(p, .EOF) {
 		t := parse_ts_type(p); if t != nil { append(&params, t) }; if !match_token(p, .Comma) { break }
 	}
-	expect_token(p, .RAngle)
+	expect_close_angle(p)
 	inst := new_node(p, TSTypeParameterInstantiation); inst.loc = start; inst.params = params; inst.loc.span.end = prev_end_offset(p)
 	return inst
+}
+
+// Returns true iff the current token is RAngle OR a multi-`>` operator
+// (RShift / URShift / GEq / AssignRShift / AssignURShift) whose leading
+// `>` would close a TS type-argument list. Use as a loop-terminator
+// predicate paired with expect_close_angle below.
+is_close_angle_token :: #force_inline proc(p: ^Parser) -> bool {
+	#partial switch p.cur_type {
+	case .RAngle, .RShift, .URShift, .GEq, .AssignRShift, .AssignURShift:
+		return true
+	case:
+		return false
+	}
+}
+
+// Consume one closing `>` from the current token. If the current token
+// is a multi-`>` operator (RShift, URShift, GEq, AssignRShift,
+// AssignURShift), split it via try_split_close_angle so the leading `>`
+// is consumed and the rest stays in the token stream for the next
+// expression-level parser. Falls back to expect_token(.RAngle) when
+// none of the above matches — this preserves the diagnostic for
+// genuinely malformed code.
+expect_close_angle :: proc(p: ^Parser) -> bool {
+	#partial switch p.cur_type {
+	case .RAngle:
+		eat(p)
+		return true
+	case .RShift, .URShift, .GEq, .AssignRShift, .AssignURShift:
+		if try_split_close_angle(p.lexer) {
+			// After split, p.cur_type is RAngle. Sync the parser's mirror
+			// of cur_type by consuming via eat (which calls advance_token
+			// — reads the new fast cur into the parser's slow token).
+			// First we need the parser to re-read the lexer's cur; eat(p)
+			// advances PAST the current token, so we need to manually
+			// resync. The cleanest path: drop into advance_token directly,
+			// which copies l.cur into the parser's mirror and consumes one.
+			// But l.cur is now RAngle, so we want to CONSUME it (advance to
+			// the residual operator). One eat(p) does the job.
+			p.cur_type = .RAngle
+			eat(p)
+			return true
+		}
+		return expect_token(p, .RAngle)
+	case:
+		return expect_token(p, .RAngle)
+	}
 }
 
 // parse_ts_lt_expression handles `<` at expression start in TS / TSX mode.
@@ -13242,7 +13539,22 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 	params := make([dynamic]TSFunctionParam, 0, 4, p.allocator)
 	for !is_token(p, .RParen) && !is_token(p, .EOF) {
 		param_start := cur_loc(p)
-		pattern := parse_binding_pattern(p)
+		// Allow `this:` as the first parameter (TS-only — binds the
+		// callee receiver type). Treat `this` here as an Identifier-
+		// shaped param pattern so the rest of the signature parses
+		// uniformly. Position-checking (must be FIRST param) is the
+		// type checker's job.
+		pattern: Pattern
+		if is_token(p, .This) {
+			this_tok := get_current(p)
+			eat(p)
+			this_id := new_node(p, Identifier)
+			this_id.loc = loc_from_token(this_tok)
+			this_id.name = "this"
+			pattern = this_id
+		} else {
+			pattern = parse_binding_pattern(p)
+		}
 		param_optional := false
 		if is_token(p, .Question) {
 			nxt := peek_token(p)

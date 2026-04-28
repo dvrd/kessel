@@ -1044,6 +1044,15 @@ FunctionExpression :: struct {
 	type_parameters:   Maybe(^TSTypeParameterDeclaration),
 	return_type:       Maybe(^TSTypeAnnotation),
 	declare:           bool,
+	// True iff this is a TS overload signature / ambient declaration
+	// (no `{ ... }` body — just `;` or ASI). Two TS-specific relaxations
+	// key off this flag:
+	//   1. Same-name FunctionDeclarations are NOT a duplicate-binding
+	//      error when at least one of them is an overload sig.
+	//   2. Same-name `export function`s aren't a duplicate-export error
+	//      under the same condition (canonical TS overload pattern in
+	//      `.d.ts` libraries: see @babel/types/lib/index-legacy.d.ts).
+	no_body:           bool,
 }
 
 // ArrowFunctionBody discriminates the ESTree shape of an arrow's body.
