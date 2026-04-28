@@ -12808,6 +12808,23 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		node := new_node(p, TSTypeOperator); node.loc = start; node.operator = "keyof"; node.type_annotation = operand
 		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
+	case .Unique:
+		// `unique symbol`. The lexer emits `.Unique` for the keyword
+		// (unlike `readonly` which lexes as .Identifier and is handled
+		// in parse_ts_identifier_type below). Only treat as a type
+		// operator when followed by `symbol`; otherwise fall through to
+		// a plain TypeReference for the rare case of `unique` used as
+		// an identifier.
+		if is_next_identifier_value(p, "symbol") {
+			eat(p) // consume `unique`
+			operand := parse_ts_primary_type(p)
+			node := new_node(p, TSTypeOperator); node.loc = start
+			node.operator = "unique"; node.type_annotation = operand
+			node.loc.span.end = prev_end_offset(p)
+			r := new_node(p, TSType); r^ = node
+			return parse_ts_postfix(p, r, start)
+		}
+
 	case .Infer:
 		eat(p); pn := parse_identifier(p)
 		node := new_node(p, TSInferType); node.loc = start
@@ -12914,6 +12931,34 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 	case "unknown":   return parse_ts_kw(p, TSUnknownKeyword, start)
 	case "undefined": return parse_ts_kw(p, TSUndefinedKeyword, start)
 	case "never":     return parse_ts_kw(p, TSNeverKeyword, start)
+	case "readonly":
+		// TS type operator on tuple / array: `readonly T[]`,
+		// `readonly [A, B, C]`, `readonly unknown[]`, `readonly Foo[]`,
+		// `readonly (string | number)[]`. The lexer emits .Identifier
+		// for "readonly" (contextual keyword, not reserved), so the
+		// dispatch happens here, not via a dedicated `.Readonly` case in
+		// parse_ts_primary_type.
+		//
+		// Treat as a type operator when the NEXT token can start a type.
+		// That set covers: LBracket (tuple), LParen (paren type / fn type),
+		// Identifier (TypeReference / built-in keyword like `unknown`), and
+		// the keyword tokens that begin a type (.This, .Void, .Null,
+		// .Never, .Typeof, .Keyof, .Unique, .Infer, .Import, .True,
+		// .False, .String, .Number). Bare `readonly` standing alone (very
+		// rare — `Foo.readonly` IdentifierName) falls through to
+		// TypeReference.
+		#partial switch p.lexer.nxt.kind {
+		case .LBracket, .LParen, .Identifier, .This, .Void, .Null,
+		     .Never, .Typeof, .Keyof, .Unique, .Infer, .Import,
+		     .True, .False, .String, .Number, .LBrace:
+			eat(p)
+			operand := parse_ts_primary_type(p)
+			node := new_node(p, TSTypeOperator); node.loc = start
+			node.operator = "readonly"; node.type_annotation = operand
+			node.loc.span.end = prev_end_offset(p)
+			r := new_node(p, TSType); r^ = node
+			return parse_ts_postfix(p, r, start)
+		}
 	}
 	return parse_ts_type_reference(p)
 }
@@ -13524,8 +13569,20 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	// Regular object type literal.
 	members := make([dynamic]^TSSignature, 0, 4, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		prev_off := u32(cur_offset(p))
 		sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
 		match_token(p, .Semi); match_token(p, .Comma)
+		// Defensive: parse_ts_object_member can return nil without consuming
+		// (e.g. when cur is `.RBracket` left over from a malformed inner
+		// type). Without this guard the loop spins forever — reproduced by
+		// `let X: { o: readonly ["a", "b"] };` where the `readonly` token
+		// isn't recognised as a type-operator-on-tuple, so parse_ts_type
+		// returns nil leaving readonly + `["a", "b"]` unconsumed in the
+		// outer object loop. Always advance at least one token per iteration.
+		if u32(cur_offset(p)) == prev_off {
+			report_error(p, "Unexpected token in TS object type")
+			eat(p)
+		}
 	}
 	expect_token(p, .RBrace)
 	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.span.end = prev_end_offset(p)
@@ -13599,26 +13656,42 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	readonly := false
 	idx_readonly := false  // Special handling for readonly index signature
 
-	// --- NEW: detect call signature `(...): T` ------------------------------------
-	if is_token(p, .LParen) {
+	// --- NEW: detect call signature `(...): T` or generic `<T>(...): T` ----------
+	//   The generic call signature form is used in TS overload sets like
+	//   `_default<T extends Statement>(node: T): T;` (canonical example:
+	//   @babel/types/lib/index.d.ts). Both forms produce a
+	//   TSCallSignatureDeclaration with type_parameters set from the leading
+	//   `<...>` (or nil for the bare `(...)` form).
+	if is_token(p, .LParen) || is_token(p, .LAngle) {
+		type_params: Maybe(^TSTypeParameterDeclaration)
+		if is_token(p, .LAngle) {
+			type_params = parse_ts_type_parameters(p)
+			if !is_token(p, .LParen) {
+				return nil
+			}
+		}
 		params := parse_ts_sig_params(p)
 		ret: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Colon) { ret = parse_ts_type_annotation(p) }
 		call_sig := TSCallSignatureDeclaration{
-			loc = start, params = params, return_type = ret,
+			loc = start, type_parameters = type_params, params = params, return_type = ret,
 		}
 		call_sig.loc.span.end = prev_end_offset(p)
 		sig := new_node(p, TSSignature); sig^ = call_sig; return sig
 	}
 
-	// --- NEW: detect construct signature `new (...): T` ---------------------------
-	if is_token(p, .New) && p.lexer.nxt.kind == .LParen {
+	// --- NEW: detect construct signature `new (...): T` or `new <T>(...): T` -----
+	if is_token(p, .New) && (p.lexer.nxt.kind == .LParen || p.lexer.nxt.kind == .LAngle) {
 		eat(p) // consume `new`
+		ctor_type_params: Maybe(^TSTypeParameterDeclaration)
+		if is_token(p, .LAngle) {
+			ctor_type_params = parse_ts_type_parameters(p)
+		}
 		params := parse_ts_sig_params(p)
 		ret: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Colon) { ret = parse_ts_type_annotation(p) }
 		ctor_sig := TSConstructSignatureDeclaration{
-			loc = start, params = params, return_type = ret,
+			loc = start, type_parameters = ctor_type_params, params = params, return_type = ret,
 		}
 		ctor_sig.loc.span.end = prev_end_offset(p)
 		sig := new_node(p, TSSignature); sig^ = ctor_sig; return sig

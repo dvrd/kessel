@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-28T09:03:14.430Z",
+  "generated_at": "2026-04-28T09:29:56.258Z",
   "summary": {
     "total": 21,
-    "pass": 20,
+    "pass": 21,
     "fail": 0,
-    "skip": 1
+    "skip": 0
   },
   "files": {
     "tests/fixtures/spec/typescript/001_generic_function.js": {
@@ -108,10 +108,9 @@
       "timeout_ms": null
     },
     "bench/node_modules/@babel/types/lib/index.d.ts": {
-      "status": "skip",
+      "status": "pass",
       "errors": 0,
-      "timeout_ms": null,
-      "skip_reason": "666 KB; parser hangs (>60s) on this file. Tracked for performance investigation; not yet a correctness blocker."
+      "timeout_ms": null
     }
   }
 }

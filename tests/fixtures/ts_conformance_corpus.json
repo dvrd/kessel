@@ -21,11 +21,6 @@
     { "path": "bench/node_modules/@babel/parser/typings/babel-parser.d.ts",        "lang": "ts" },
     { "path": "bench/node_modules/@babel/types/lib/index-legacy.d.ts",             "lang": "ts" },
     { "path": "bench/node_modules/acorn/dist/acorn.d.ts",                          "lang": "ts" },
-    {
-      "path": "bench/node_modules/@babel/types/lib/index.d.ts",
-      "lang": "ts",
-      "skip": true,
-      "skip_reason": "666 KB; parser hangs (>60s) on this file. Tracked for performance investigation; not yet a correctness blocker."
-    }
+    { "path": "bench/node_modules/@babel/types/lib/index.d.ts", "lang": "ts" }
   ]
 }
