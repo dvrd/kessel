@@ -1,0 +1,14 @@
+{
+  "_comment": [
+    "Real-world JSX/TSX corpus for the jsx_conformance gate.",
+    "Each entry: { path: <repo-rel>, lang: jsx|tsx, skip?: bool,",
+    "              skip_reason?: string }.",
+    "",
+    "The auto-discovery already pulls in tests/fixtures/spec/jsx/*.js",
+    "(parsed with --lang=jsx) and tests/fixtures/spec/ambiguity/*.js",
+    "(parsed with --lang=tsx — ambiguity stress between JSX and TS",
+    "generics). This manifest is for vendored real-world .jsx / .tsx",
+    "files added later. Empty-set is the current state."
+  ],
+  "files": []
+}

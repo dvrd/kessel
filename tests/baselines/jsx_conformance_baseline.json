@@ -1,0 +1,104 @@
+{
+  "generated_at": "2026-04-28T08:15:10.890Z",
+  "summary": {
+    "total": 18,
+    "pass": 15,
+    "fail": 3,
+    "skip": 0
+  },
+  "files": {
+    "tests/fixtures/spec/jsx/001_namespaced_tag.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/002_member_tag.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/003_spread_attribute.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/004_boolean_attribute.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/005_nested_element.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/006_text_children.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/007_fragment_with_children.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/008_comment_child.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/ambiguity/001_ts_assertion_vs_jsx_simple.js": {
+      "status": "fail",
+      "errors": 3,
+      "timeout_ms": null,
+      "reason": "parse-errors"
+    },
+    "tests/fixtures/spec/ambiguity/002_ts_assertion_vs_jsx_paren.js": {
+      "status": "fail",
+      "errors": 3,
+      "timeout_ms": null,
+      "reason": "parse-errors"
+    },
+    "tests/fixtures/spec/ambiguity/003_generic_call_vs_relational.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/ambiguity/004_generic_arrow_vs_relational.js": {
+      "status": "fail",
+      "errors": 3,
+      "timeout_ms": null,
+      "reason": "parse-errors"
+    },
+    "tests/fixtures/spec/ambiguity/005_jsx_attribute_nested_element.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/ambiguity/006_jsx_expression_nested_generic_like.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/ambiguity/007_type_arguments_call_chain.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/ambiguity/008_less_than_binary_not_generic.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/ambiguity/009_jsx_fragment_vs_type_context.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/ambiguity/010_import_type_vs_import_call.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    }
+  }
+}

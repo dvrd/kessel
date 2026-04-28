@@ -535,6 +535,58 @@ tasks:
       - node tests/verifiers/verify_bench_regression.js --iterations 30 --update
 
   # ============================================================
+  # TypeScript / JSX conformance gates
+  #
+  # Separate from `task test` because they validate parser surface
+  # area that's still stabilising. Each gate compares against a
+  # locked baseline at tests/baselines/{ts,jsx}_conformance_baseline.json
+  # and fails on regressions (pass→fail or new failures). Use the
+  # :update variants after deliberate parser changes.
+  # ============================================================
+
+  test:ts:conformance:
+    desc: "TypeScript conformance gate. Parses the curated TS / .d.ts corpus and checks against tests/baselines/ts_conformance_baseline.json. Fails on regressions; baseline-locked failures are tolerated. Run :update after a deliberate parser fix."
+    deps: [build]
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_ts_conformance.js
+
+  test:ts:conformance:update:
+    desc: "Re-capture tests/baselines/ts_conformance_baseline.json. Use after a deliberate TS parser fix; commit message should explain the gain."
+    deps: [build]
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_ts_conformance.js --update
+
+  test:ts:conformance:strict:
+    desc: "Zero-tolerance TS conformance: any failure (regression OR baseline-known) fails the gate. Useful as a release gate."
+    deps: [build]
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_ts_conformance.js --strict
+
+  test:jsx:conformance:
+    desc: "JSX conformance gate. Parses the curated JSX/TSX corpus and checks against tests/baselines/jsx_conformance_baseline.json. Same regression model as test:ts:conformance."
+    deps: [build]
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_jsx_conformance.js
+
+  test:jsx:conformance:update:
+    desc: "Re-capture tests/baselines/jsx_conformance_baseline.json."
+    deps: [build]
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_jsx_conformance.js --update
+
+  test:jsx:conformance:strict:
+    desc: "Zero-tolerance JSX conformance gate."
+    deps: [build]
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_jsx_conformance.js --strict
+
+  # ============================================================
   # Install
   # ============================================================
 

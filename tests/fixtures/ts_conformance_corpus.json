@@ -1,0 +1,31 @@
+{
+  "_comment": [
+    "Real-world TypeScript corpus for the ts_conformance gate.",
+    "Each entry: { path: <repo-rel>, lang: ts|tsx, skip?: bool,",
+    "              skip_reason?: string }. Lang defaults to extension-",
+    "based detection if omitted. The verifier records pass/fail in",
+    "tests/baselines/ts_conformance_baseline.json.",
+    "",
+    "To grow this corpus: vendor real-world .ts/.tsx/.d.ts files into",
+    "bench/real_world_ts/ and add an entry here. Pick representative",
+    "fixtures across the TS surface area: type aliases, generics,",
+    "conditional / mapped types, decorators, satisfies, etc.",
+    "",
+    "Files we currently include come from bench/node_modules (already",
+    "vendored as part of the OXC bench harness setup):"
+  ],
+  "files": [
+    { "path": "bench/node_modules/oxc-parser/src-js/index.d.ts",                   "lang": "ts" },
+    { "path": "bench/node_modules/oxc-parser/src-js/generated/visit/visitor.d.ts", "lang": "ts" },
+    { "path": "bench/node_modules/@oxc-project/types/types.d.ts",                  "lang": "ts" },
+    { "path": "bench/node_modules/@babel/parser/typings/babel-parser.d.ts",        "lang": "ts" },
+    { "path": "bench/node_modules/@babel/types/lib/index-legacy.d.ts",             "lang": "ts" },
+    { "path": "bench/node_modules/acorn/dist/acorn.d.ts",                          "lang": "ts" },
+    {
+      "path": "bench/node_modules/@babel/types/lib/index.d.ts",
+      "lang": "ts",
+      "skip": true,
+      "skip_reason": "666 KB; parser hangs (>60s) on this file. Tracked for performance investigation; not yet a correctness blocker."
+    }
+  ]
+}
