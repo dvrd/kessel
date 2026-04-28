@@ -450,6 +450,41 @@ out_bool :: #force_inline proc(b: bool) {
 	}
 }
 
+// emit_number_value writes an f64 to stdout using JSON-compatible number
+// formatting that round-trips through JSON.parse to the exact same f64.
+//
+// Background: Odin's `fmt.printf("%v", f64)` and
+// `strconv.write_float(...,'g',-1,64)` ("shortest" mode) are
+// almost-but-not-always round-trippable. For most f64 values they
+// produce a compact representation that JSON.parse re-reads to the
+// same bit pattern; for boundary values (notably 2^64) the shortest
+// formatter rounds to 16 significant digits, which then re-parses to
+// the *next* f64 above the original — 1 ULP of silent corruption.
+//
+// 17 significant decimal digits is the IEEE-754 binary64 round-trip
+// threshold: every f64 has a 17-digit decimal representation that
+// JSON.parse returns to the exact same bit pattern.
+//
+// Strategy: try Odin's shortest first (compact, matches OXC / babel
+// for the typical case), parse it back, and if the round-trip differs
+// from the source f64 in bits, fall back to 17-digit precision. This
+// keeps emitted JSON small for ordinary literals (1.5, 0.1, 100) and
+// only pays the verbosity cost on the rare boundary values where the
+// shortest formatter is wrong.
+emit_number_value :: proc(v: f64) {
+	buf: [40]byte
+	s := strconv.write_float(buf[:], v, 'g', -1, 64)
+	if len(s) > 0 && s[0] == '+' { s = s[1:] }
+	rt, ok := strconv.parse_f64(s)
+	if !ok || transmute(u64)rt != transmute(u64)v {
+		// Round-trip failed — fall back to 17-digit form which is
+		// guaranteed to round-trip for every finite f64.
+		s = strconv.write_float(buf[:], v, 'g', 17, 64)
+		if len(s) > 0 && s[0] == '+' { s = s[1:] }
+	}
+	out_s(s)
+}
+
 out_print :: proc(args: ..any) -> int {
 	if use_direct_buf {
 		// For AST emitter: all out_print calls use string args only
@@ -5532,7 +5567,8 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		} else if math.classify_f64(e.value) == .NaN {
 			out_s("null,\n")
 		} else {
-			out_printf("%v,\n", e.value)
+			emit_number_value(e.value)
+			out_s(",\n")
 		}
 		print_indent(indent)
 		out_s("\"raw\": ")

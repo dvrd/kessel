@@ -1357,20 +1357,43 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	// Compute f64 value from hex digits [start+2, end). Underscores are
 	// separators and skipped. Parser reads last_lit_value for .Number tokens.
-	acc: u64 = 0
-	for i in int(start) + 2 ..< int(end) {
-		c := src[i]
-		if c == '_' { continue }
-		d: u64
-		switch {
-		case c >= '0' && c <= '9': d = u64(c - '0')
-		case c >= 'a' && c <= 'f': d = u64(c - 'a' + 10)
-		case c >= 'A' && c <= 'F': d = u64(c - 'A' + 10)
+	// digits_seen counts non-underscore digits already; >16 hex digits
+	// can exceed u64 (max u64 = 0xFFFF_FFFF_FFFF_FFFF, 16 hex digits) so
+	// fall back to f64 accumulation to match `Number("0x...")` semantics
+	// (JS represents hex literals as f64; precision loss is expected
+	// above 2^53).
+	value: f64
+	if digits_seen > 16 {
+		val: f64 = 0
+		for i in int(start) + 2 ..< int(end) {
+			c := src[i]
+			if c == '_' { continue }
+			d: u64
+			switch {
+			case c >= '0' && c <= '9': d = u64(c - '0')
+			case c >= 'a' && c <= 'f': d = u64(c - 'a' + 10)
+			case c >= 'A' && c <= 'F': d = u64(c - 'A' + 10)
+			}
+			val = val * 16 + f64(d)
 		}
-		acc = acc * 16 + d
+		value = val
+	} else {
+		acc: u64 = 0
+		for i in int(start) + 2 ..< int(end) {
+			c := src[i]
+			if c == '_' { continue }
+			d: u64
+			switch {
+			case c >= '0' && c <= '9': d = u64(c - '0')
+			case c >= 'a' && c <= 'f': d = u64(c - 'a' + 10)
+			case c >= 'A' && c <= 'F': d = u64(c - 'A' + 10)
+			}
+			acc = acc * 16 + d
+		}
+		value = f64(acc)
 	}
 	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(f64(acc))
+	l.last_lit_value = LiteralValue(value)
 	l.last_lit_type = .Number
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
@@ -1422,14 +1445,27 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		return FastToken{start = start, end = end, kind = .BigInt, flags = flags}
 	}
 
-	acc: u64 = 0
-	for i in int(start) + 2 ..< int(end) {
-		c := src[i]
-		if c == '_' { continue }
-		acc = acc * 2 + u64(c - '0')
+	// >64 binary digits overflows u64 — fall back to f64.
+	value: f64
+	if digits_seen > 64 {
+		val: f64 = 0
+		for i in int(start) + 2 ..< int(end) {
+			c := src[i]
+			if c == '_' { continue }
+			val = val * 2 + f64(c - '0')
+		}
+		value = val
+	} else {
+		acc: u64 = 0
+		for i in int(start) + 2 ..< int(end) {
+			c := src[i]
+			if c == '_' { continue }
+			acc = acc * 2 + u64(c - '0')
+		}
+		value = f64(acc)
 	}
 	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(f64(acc))
+	l.last_lit_value = LiteralValue(value)
 	l.last_lit_type = .Number
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
@@ -1477,14 +1513,28 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		return FastToken{start = start, end = end, kind = .BigInt, flags = flags}
 	}
 
-	acc: u64 = 0
-	for i in int(start) + 2 ..< int(end) {
-		c := src[i]
-		if c == '_' { continue }
-		acc = acc * 8 + u64(c - '0')
+	// >21 octal digits can overflow u64 (8^22 ≈ 7.4e19 > 2^64). Fall
+	// back to f64 above the threshold.
+	value: f64
+	if digits_seen > 21 {
+		val: f64 = 0
+		for i in int(start) + 2 ..< int(end) {
+			c := src[i]
+			if c == '_' { continue }
+			val = val * 8 + f64(c - '0')
+		}
+		value = val
+	} else {
+		acc: u64 = 0
+		for i in int(start) + 2 ..< int(end) {
+			c := src[i]
+			if c == '_' { continue }
+			acc = acc * 8 + u64(c - '0')
+		}
+		value = f64(acc)
 	}
 	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(f64(acc))
+	l.last_lit_value = LiteralValue(value)
 	l.last_lit_type = .Number
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
@@ -1990,6 +2040,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	// doubled (`0.1__2`) are illegal too.
 	prev_sep := true // the dot itself is the prior "non-digit"
 	frac_digits := 0
+	had_sep := false
 	for off < src_len {
 		ch := src[off]
 		if ch >= '0' && ch <= '9' {
@@ -2000,6 +2051,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			if prev_sep {
 				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
 			}
+			had_sep = true
 			prev_sep = true
 			off += 1
 		} else { break }
@@ -2007,8 +2059,10 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if prev_sep && frac_digits > 0 {
 		append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
 	}
+	had_exp := false
 	// Exponent (with separator validation in the digit run).
 	if off < src_len && (src[off] == 'e' || src[off] == 'E') {
+		had_exp = true
 		off += 1
 		if off < src_len && (src[off] == '+' || src[off] == '-') { off += 1 }
 		prev_sep_e := true
@@ -2023,6 +2077,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 				if prev_sep_e {
 					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
 				}
+				had_sep = true
 				prev_sep_e = true
 				off += 1
 			} else { break }
@@ -2032,7 +2087,61 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		}
 	}
 	l.offset = off
-	return FastToken{start = start, end = u32(off), kind = .Number, flags = flags}
+	end := u32(off)
+
+	// Compute and publish the f64 value so the parser's NumericLiteral
+	// emit picks up an accurate `.value`. Without this `last_lit_*`
+	// stays stale from a previous token and the AST's `value` field
+	// either reads as 0 (no offset match) or as garbage (coincidental
+	// offset match) — see ESTree Literal.value contract: `Number(raw)
+	// must equal value` for finite numeric literals.
+	value: f64
+	if !had_sep && !had_exp {
+		// Fast integer-arithmetic path for `.<digits>` with no exponent
+		// and no separators. Compute as <frac> / 10^<frac_digits> using
+		// f64 directly to avoid a strconv allocation; produces an
+		// exactly-rounded f64 for fractions <= 15 digits (the IEEE-754
+		// double-precision exact-decimal limit).
+		if frac_digits > 0 && frac_digits <= 15 {
+			numer: u64 = 0
+			for i in int(start) + 1 ..< int(end) {
+				numer = numer * 10 + u64(src[i] - '0')
+			}
+			denom: f64 = 1
+			for _ in 0 ..< frac_digits { denom *= 10 }
+			value = f64(numer) / denom
+		} else if frac_digits == 0 {
+			value = 0
+		} else {
+			text := l.source[start:end]
+			value, _ = strconv.parse_f64(text)
+		}
+	} else {
+		text := l.source[start:end]
+		if had_sep {
+			buf := make([dynamic]u8, 0, len(text), context.temp_allocator)
+			for i := 0; i < len(text); i += 1 {
+				if text[i] != '_' { append(&buf, text[i]) }
+			}
+			value, _ = strconv.parse_f64(string(buf[:]))
+		} else {
+			value, _ = strconv.parse_f64(text)
+		}
+	}
+	l.last_lit_offset = start
+	l.last_lit_value = LiteralValue(value)
+	l.last_lit_type = .Number
+
+	// §12.9.3 — reject identifier-continue immediately after the
+	// numeric literal (`.5a`, `.5e1x`, `.5\u0062`). Without this the
+	// lexer stops at the bad char and ASI papers over the error.
+	if end < u32(src_len) {
+		c := src[end]
+		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '_' || c == '\\' {
+			append(&l.lexer_errors, LexerError{offset = end, message = "Identifier directly after number"})
+		}
+	}
+	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
 
 lex_question :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
