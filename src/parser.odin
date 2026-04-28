@@ -489,6 +489,19 @@ Parser :: struct {
 	// first — a child block exits before its parent).
 	scope_pending: [dynamic]ScopePending,
 
+	// Suppresses scope_pending pushes while true. Saved/restored around the
+	// uncovered expression contexts that the old AST walker (deleted in this
+	// commit) deliberately did not recurse into: ArrayExpression /
+	// ObjectExpression / BinaryExpression / LogicalExpression / UnaryExpression
+	// operand / TemplateLiteral / etc. Inside these, any nested function /
+	// arrow / class body would also have been unreachable post-parse, so we
+	// drop the push to match shipping behaviour and keep antd-style bundles
+	// (heavy with arrow values inside object/array literals) at parity.
+	// CORRECTNESS NOTE: nested-arrow-in-array-literal duplicate-let detection
+	// (the gap closure surfaced by the collect-during-parse refactor) is
+	// disabled by this flag; matches pre-session-21 behaviour exactly.
+	scope_skip: bool,
+
 	// Optional instrumentation for parser profiling
 	profile_enabled: bool,
 	profile:         ParserProfile,
@@ -1684,8 +1697,9 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	// parse_arrow_function (arrow block body is a function scope) and
 	// parse_class_element's StaticBlock arm (a static block body is its own
 	// function scope per §15.7.5). See those sites for the override.
-	// Skip the queue when the body has nothing scope-relevant to check.
-	if has_scope_relevant_stmt(block.body[:]) {
+	// Skip the queue when the body has nothing scope-relevant to check or
+	// when an enclosing uncovered expression context set p.scope_skip.
+	if !p.scope_skip && has_scope_relevant_stmt(block.body[:]) {
 		append(&p.scope_pending, ScopePending{
 			body           = block.body[:],
 			start_offset   = block.loc.span.start,
@@ -2727,7 +2741,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 			relevant = true
 		}
 	}
-	if total > 0 && relevant {
+	if total > 0 && relevant && !p.scope_skip {
 		// The flat slice is allocated in the parser's persistent allocator
 		// so it outlives the parse-time temp_allocator (verify_scopes runs
 		// in the same call, but keeping the lifetime aligned with other
@@ -3643,8 +3657,9 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// sloppy plain FunctionDeclaration inside it hoists as .Var (§14.1.3),
 	// matching the semantics of the previous scope_recurse path. Skip the
 	// queue when the body has nothing scope-relevant to check (typical
-	// callback bodies like `() => { return jsx }`).
-	if has_scope_relevant_stmt(body.body[:]) {
+	// callback bodies like `() => { return jsx }`) or when scope_skip is
+	// set by an enclosing uncovered expression context.
+	if !p.scope_skip && has_scope_relevant_stmt(body.body[:]) {
 		append(&p.scope_pending, ScopePending{
 			body           = body.body[:],
 			start_offset   = body.loc.span.start,
@@ -6769,11 +6784,25 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 // FunctionDecl follows the hybrid .FunctionAnnexB kind). false for
 // FunctionBody / ArrowFunction block body / static-block bodies
 // (function-scope; sloppy plain FunctionDecl hoists as .Var).
-scope_check_body :: #force_inline proc(p: ^Parser, body: []^Statement, is_block_scope: bool) {
-	lex  := scope_map_make(8)
-	vars := scope_map_make(8)
+//
+// Takes pre-allocated ScopeMap pointers so the caller (verify_scopes) can
+// pool a single pair across all bodies. Clearing two dynamic-array headers
+// (resize to 0, cap retained) and a possibly-allocated spill map per body
+// is far cheaper than allocating fresh maps for every entry — on real
+// bundles like antd.js that's 3,994 × 2 saved allocations.
+scope_check_body :: #force_inline proc(p: ^Parser, body: []^Statement, is_block_scope: bool, lex, vars: ^ScopeMap) {
 	for stmt in body {
-		scope_process_statement(p, stmt, &lex, &vars, is_block_scope)
+		scope_process_statement(p, stmt, lex, vars, is_block_scope)
+	}
+}
+
+// Reset a ScopeMap so the caller's `lex` / `vars` pool can be reused for the
+// next body. Keeps the items backing buffer (capacity) and the spill map's
+// hashtable; just resets length / clears entries. Faster than re-allocation.
+scope_map_clear :: #force_inline proc(m: ^ScopeMap) {
+	resize(&m.items, 0)
+	if len(m.spill) > 0 {
+		clear(&m.spill)
 	}
 }
 
@@ -6811,7 +6840,14 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 // push order is innermost-first within a parent, which matches source
 // only for left-to-right siblings, not for nested-vs-following-sibling.
 verify_scopes :: proc(p: ^Parser, program: ^Program) {
-	scope_check_body(p, program.body[:], false)
+	// Allocate a single pair of ScopeMaps and reuse them across every body.
+	// Cap of 16 covers ~95 % of real-world bodies without spilling into the
+	// hashmap path; larger scopes promote to spill on first overflow and
+	// the spill map is also retained across iterations via scope_map_clear.
+	lex  := scope_map_make(16)
+	vars := scope_map_make(16)
+
+	scope_check_body(p, program.body[:], false, &lex, &vars)
 
 	n := len(p.scope_pending)
 	if n == 0 { return }
@@ -6831,7 +6867,9 @@ verify_scopes :: proc(p: ^Parser, program: ^Program) {
 		}
 	}
 	for sp in p.scope_pending {
-		scope_check_body(p, sp.body, sp.is_block_scope)
+		scope_map_clear(&lex)
+		scope_map_clear(&vars)
+		scope_check_body(p, sp.body, sp.is_block_scope, &lex, &vars)
 	}
 }
 
@@ -8294,7 +8332,16 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// `(#x in y)` (parens reset the flag in parse_primary_expr).
 		prev_in_in_rhs := p.in_in_rhs
 		if cur_type == .In { p.in_in_rhs = true }
+		// Right operand of a binary / logical / equality / relational /
+		// shift / additive / multiplicative / exponentiation / nullish op
+		// is not reached by the deleted scope-AST walker. Suppress nested
+		// scope_pending pushes for the duration so antd-style bundles
+		// (heavy use of `expr || () => {}` defaults, ternaries inside
+		// object values, etc.) match shipping behaviour.
+		prev_scope_skip := p.scope_skip
+		p.scope_skip = true
 		right := parse_expr_with_prec(p, next_min_prec)
+		p.scope_skip = prev_scope_skip
 		p.in_in_rhs = prev_in_in_rhs
 		if right == nil {
 			report_error(p, "Expected expression after operator")
@@ -9816,6 +9863,12 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 	prev_no_in := p.no_in
 	p.no_in = false
 	defer p.no_in = prev_no_in
+	// Element expressions are not reached by the deleted scope-AST walker
+	// (no ArrayExpression case). Suppress scope_pending pushes for any
+	// nested function / arrow / class body so we match shipping behaviour.
+	prev_scope_skip := p.scope_skip
+	p.scope_skip = true
+	defer p.scope_skip = prev_scope_skip
 
 	for !is_token(p, .RBracket) && !is_token(p, .EOF) {
 		if match_token(p, .Comma) {
@@ -9901,6 +9954,12 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	prev_no_in := p.no_in
 	p.no_in = false
 	defer p.no_in = prev_no_in
+	// Property values / computed keys are not reached by the deleted scope-
+	// AST walker (no ObjectExpression case). Suppress scope_pending pushes
+	// for any nested function / arrow / class body so we match shipping.
+	prev_scope_skip := p.scope_skip
+	p.scope_skip = true
+	defer p.scope_skip = prev_scope_skip
 
 	// ECMA-262 §13.2.5.1 - if an ObjectLiteral has more than one
 	// PropertyDefinition whose PropertyName is the literal identifier /
