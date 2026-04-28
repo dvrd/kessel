@@ -831,9 +831,16 @@ parse_file :: proc(file_path: string) {
 	defer mvirtual.arena_destroy(&arena)
 	arena_alloc := mvirtual.arena_allocator(&arena)
 
+	// Resolve source type up-front so the lexer can gate Annex B HTML-like
+	// comments correctly even on the very first prefetched token.
+	lex_source_type: SourceType = .Script
+	if st, ok := source_type_override.?; ok {
+		lex_source_type = st
+	}
+
 	// Initialize optimized lexer with compact tokens + SIMD
 	lex: Lexer
-	init_lexer(&lex, string(source), arena_alloc)
+	init_lexer(&lex, string(source), arena_alloc, lex_source_type)
 
 	// Initialize parser with optimized lexer. Language mode is CLI override
 	// when set, else detected from the file extension.

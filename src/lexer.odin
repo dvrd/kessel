@@ -55,7 +55,18 @@ Lexer :: struct {
 	in_template: bool,                // 1B  (use template_brace_depth instead)
 	last_token_type: TokenType,       // 1B  — write every token
 	template_depth: u8,               // 1B  — number of active template interpolations
-	_hot_pad: [4]u8,                  // 4B  — align to 32B boundary
+	// `source_has_multibyte` is set once at init via SIMD scan over the
+	// whole source. Pure-ASCII files (the 99% case) skip per-identifier
+	// non-ASCII validation entirely — the SIMD identifier scan stays in
+	// the fast path and the post-pass is suppressed at the call site.
+	source_has_multibyte: bool,       // 1B  — set once at init
+	// `is_module_mode` gates Annex B HTML-like comments (`<!--` and `-->`).
+	// These are valid only in script source per ECMA-262 §B.1.3; in module
+	// code the same byte sequences are SyntaxErrors. Set by the parser
+	// (or by an explicit `init_lexer_with_source_type`) before the first
+	// token is fetched.
+	is_module_mode: bool,             // 1B  — set once at init
+	_hot_pad: [2]u8,                  // 2B  — align to 32B boundary
 	template_brace_stack: [8]u8,      // 8B  — brace depth per template nesting level (max 8 deep)
 	cur:   FastToken,            // 16B — read/write every token (parser reads)
 	nxt:   FastToken,            // 16B — read/write every token
@@ -162,8 +173,12 @@ offset_to_line_col :: proc(line_offsets: []u32, offset: u32) -> (line: u32, col:
 	return line_idx + 1, offset - line_offsets[line_idx] + 1
 }
 
-// Initialize lexer
-init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator) {
+// Initialize lexer. `source_type` gates Annex B HTML-like comments
+// (`<!--` and `-->`): they are valid only in script source per
+// ECMA-262 §B.1.3, so module-mode lexing skips the recogniser. Pass
+// `.Script` if you don't care — the recogniser is harmless for source
+// that doesn't actually contain those byte sequences.
+init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type: SourceType = .Script) {
 	l.source = source
 	l.source_bytes = transmute([]u8)source
 	l.offset = 0
@@ -173,6 +188,12 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator) {
 	l.strict_mode = false
 	l.last_token_type = .EOF
 	l.at_start_of_file = true
+	l.is_module_mode = source_type == .Module
+	// `source_has_multibyte` is currently informational — the identifier
+	// scan tracks per-token has_non_ascii directly inside SIMD so the field
+	// isn't on the hot path. Kept here for reuse by future callers (e.g. a
+	// fast-path JSON emitter) without re-scanning the source.
+	l.source_has_multibyte = simd_has_multibyte(l.source_bytes)
 
 	l.template_stack = make([dynamic]bool, 0, 0, alloc)
 	l.comments = make([dynamic]Comment, 0, 64, alloc)
@@ -318,8 +339,21 @@ can_start_regex :: proc(l: ^Lexer) -> bool {
 	     .Plus, .Minus, .Mul, .Div, .Mod, .Pow, .BitNot, .BitAnd, .BitOr, .BitXor,
 	     .LShift, .RShift, .URShift, .Not, .LogicalAnd, .LogicalOr, .Nullish,
 	     .Eq, .NotEq, .EqStrict, .NotEqStrict, .LEq, .GEq,
-	     .In, .Instanceof, .Of,
-	     .Await, .Yield,
+	     // `.In` / `.Instanceof` are reserved words — always operators here.
+	     // `.Of` is intentionally NOT in this set: it's a contextual keyword
+	     // that may also be used as an IdentifierReference (`var of = 6;
+	     // of/g/h;`), and its presence here mis-lexed the next `/` as a
+	     // regex-start. The genuine for-of head case (`for (x of /re/)`)
+	     // is handled by the parser via relex_as_regex when it commits to
+	     // parsing the iterator expression. Test262: language/expressions/
+	     // division/no-magic-asi.js.
+	     .In, .Instanceof,
+	     // `.Yield` is intentionally NOT here (same reason as `.Of` above):
+	     // bare `yield` may be an IdentifierReference in non-generator code
+	     // (`var yield = 12; yield/a/g;` — staging/sm/generators/yield-non-
+	     // regexp.js). The genuine `yield <regex>` case in a generator is
+	     // re-lexed at parse time via parse_yield_expr.
+	     .Await,
 	     .Arrow, .Question, .Dot3,
 	     .TemplateHead, .TemplateMiddle:
 		return true
@@ -410,58 +444,154 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 	src_len := len(src)
 	off := l.offset  // local copy for register residency
 
+	// Annex B §B.1.3 SingleLineHTMLCloseComment kicks the slow path
+	// when `-->` appears at file-start or right after a LineTerminator.
+	// The fast-path predicate would otherwise fall through to the
+	// `-` token dispatch and the parser would see `--` + `>`.
+	annexb_close := !l.is_module_mode &&
+	                (off == 0 || l.had_line_terminator) &&
+	                off + 2 < src_len &&
+	                src[off] == '-' && src[off+1] == '-' && src[off+2] == '>'
+	// Annex B §B.1.3 SingleLineHTMLOpenComment: `<!--` is a line
+	// comment in script source anywhere it appears as a token start.
+	annexb_open := !l.is_module_mode &&
+	               off + 3 < src_len &&
+	               src[off] == '<' && src[off+1] == '!' &&
+	               src[off+2] == '-' && src[off+3] == '-'
+
 	// OXC-style branchless double-read: skip one space with arithmetic,
 	// then check if we're at a token. Avoids branch for common single-space case.
 	//
 	// `ws_done` means "no further whitespace/comment skip is needed". We rule
 	// out ASCII whitespace (< ' '), `/` (possible comment), and the UTF-8
-	// lead bytes for spec whitespace/line-terminators: 0xC2 (U+00A0 NBSP),
-	// 0xE2 (U+2028/U+2029 LS/PS), 0xEF (U+FEFF ZWNBSP). Missing any of those
-	// leads lets a multi-byte whitespace char slide straight into the next
-	// token — which silently corrupted `var a = 1\u2028var b = 2` into a
-	// single identifier until the slow path was wired to handle them.
+	// lead bytes for every spec whitespace / line-terminator we recognise:
+	//   * 0xC2 — U+00A0 NBSP
+	//   * 0xE1 — U+1680 OGHAM SPACE MARK
+	//   * 0xE2 — U+2000…U+200A Zs / U+2028–2029 LT / U+202F NNBSP / U+205F MMSP
+	//   * 0xE3 — U+3000 IDEOGRAPHIC SPACE
+	//   * 0xEF — U+FEFF ZWNBSP / BOM
+	// Missing any of those leads lets a multi-byte whitespace char slide
+	// straight into the next token — e.g. `var a = 1\u2028var b = 2` would
+	// fuse into one mangled identifier without the slow-path dispatch.
 	ws_done := false
 	if off + 1 < src_len {
 		is_space := int(src[off] == ' ')
 		off += is_space  // branchless advance 0 or 1
 		c0 := src[off]
-		ws_done = c0 > ' ' && c0 != '/' && c0 != 0xC2 && c0 != 0xE2 && c0 != 0xEF
+		ws_done = c0 > ' ' && c0 != '/' && c0 != 0xC2 && c0 != 0xE1 && c0 != 0xE2 && c0 != 0xE3 && c0 != 0xEF
 	}
+	// Annex B HTML-like comments must reach the slow path so the comment
+	// scanner consumes them; otherwise the fast path falls through to
+	// the `-` / `<` token dispatch and the parser sees the raw bytes.
+	if annexb_close || annexb_open { ws_done = false }
 	if !ws_done {
-		// Slow path: multi-space, newline, comment, or EOF
+		// Slow path: multi-space, newline, comment, or EOF.
+		//
+		// `at_logical_line_start` is true at file-start (BEFORE any leading
+		// whitespace, hence `l.offset == 0` not `off == 0`) and after every
+		// LineTerminator or multi-line block comment consumed inside the
+		// loop. It gates Annex B `-->` SingleLineHTMLCloseComment.
+		at_logical_line_start := l.offset == 0 || l.had_line_terminator
 		for off < src_len {
 			c := src[off]
-			if c == ' ' || c == '\t' || c == '\r' {
+			if c == ' ' || c == '\t' {
 				off += 1
 			} else if c == '\n' {
 				l.had_line_terminator = true
+				at_logical_line_start = true
 				off += 1
+			} else if c == '\r' {
+				// ECMA-262 §12.3 - <CR> (U+000D) is a LineTerminator,
+				// not whitespace. CR + LF is a single LineTerminator-
+				// Sequence; consume the LF together so we don't fire two
+				// ASI / new-line events for one logical line break.
+				l.had_line_terminator = true
+				at_logical_line_start = true
+				off += 1
+				if off < src_len && src[off] == '\n' { off += 1 }
 			} else if c == 0x0B || c == 0x0C {
 				// <VT> (U+000B) and <FF> (U+000C) are ES `WhiteSpace` per §5.1.1.
 				// They're not line terminators so no ASI is triggered.
 				off += 1
-			} else if c == 0xE2 && off + 2 < src_len && src[off+1] == 0x80 &&
-			          (src[off+2] == 0xA8 || src[off+2] == 0xA9) {
-				// U+2028 (LINE SEPARATOR, `LS`) and U+2029 (PARAGRAPH
-				// SEPARATOR, `PS`) encoded as 3-byte UTF-8 `E2 80 A8/A9`.
-				// Both are spec line terminators (§12.3) and MUST trigger
-				// ASI just like `\n`. Previously the lexer fell through to
-				// the `else { break }` below, letting these bytes slide into
-				// the next token — on `var a = 1\u2028var b = 2\u2029var c`
-				// the three declarations fused into one garbled
-				// ExpressionStatement whose identifier started with `\u2028`.
-				l.had_line_terminator = true
+			} else if c == 0xE2 && off + 2 < src_len && src[off+1] == 0x80 {
+				b2 := src[off + 2]
+				if b2 == 0xA8 || b2 == 0xA9 {
+					// U+2028 LINE SEPARATOR / U+2029 PARAGRAPH SEPARATOR.
+					// Both are LineTerminators (§12.3); fire ASI like `\n`.
+					l.had_line_terminator = true
+					at_logical_line_start = true
+					off += 3
+				} else if b2 >= 0x80 && b2 <= 0x8A {
+					// U+2000…U+200A — Zs Space_Separator (EN/EM quads,
+					// figure / punctuation / hair / thin space, …). Test262
+					// language/white-space/after-regular-expression-literal-*.
+					off += 3
+				} else if b2 == 0xAF {
+					// U+202F NARROW NO-BREAK SPACE — Zs.
+					off += 3
+				} else {
+					break  // not whitespace; let lexer dispatch handle it.
+				}
+			} else if c == 0xE2 && off + 2 < src_len && src[off+1] == 0x81 && src[off+2] == 0x9F {
+				// U+205F MEDIUM MATHEMATICAL SPACE — Zs.
+				off += 3
+			} else if c == 0xE1 && off + 2 < src_len && src[off+1] == 0x9A && src[off+2] == 0x80 {
+				// U+1680 OGHAM SPACE MARK — Zs.
+				off += 3
+			} else if c == 0xE3 && off + 2 < src_len && src[off+1] == 0x80 && src[off+2] == 0x80 {
+				// U+3000 IDEOGRAPHIC SPACE — Zs.
 				off += 3
 			} else if c == 0xC2 && off + 1 < src_len && src[off+1] == 0xA0 {
 				// U+00A0 NO-BREAK SPACE (`NBSP`). 2-byte UTF-8 `C2 A0`.
 				// WhiteSpace per §5.1.1 — not a line terminator.
 				off += 2
 			} else if c == 0xEF && off + 2 < src_len && src[off+1] == 0xBB && src[off+2] == 0xBF {
-				// U+FEFF ZERO WIDTH NO-BREAK SPACE (ZWNBSP). 3-byte UTF-8
-				// `EF BB BF` — spec WhiteSpace (also doubles as UTF-8 BOM
-				// when at byte 0, handled separately in init). Not a line
-				// terminator.
+				// U+FEFF ZWNBSP. WhiteSpace per §5.1.1.
 				off += 3
+			} else if c == '<' && !l.is_module_mode &&
+			          off + 3 < src_len &&
+			          src[off+1] == '!' && src[off+2] == '-' && src[off+3] == '-' {
+				// ECMA-262 §B.1.3 SingleLineHTMLOpenComment: `<!--` opens
+				// a single-line comment in script source. Module mode
+				// rejects this (no Annex B). Test262: annexB/language/
+				// comments/single-line-html-open.js.
+				comment_start := off
+				off += 4 // skip `<!--`
+				content_start := off
+				end, had_nl := simd_skip_line_comment(src, off)
+				if had_nl { l.had_line_terminator = true }
+				if l.collect_comments {
+					append(&l.comments, Comment{
+						type  = .Line,
+						start = u32(comment_start),
+						end   = u32(end),
+						value = l.source[content_start:end],
+					})
+				}
+				off = end
+			} else if c == '-' && !l.is_module_mode && at_logical_line_start &&
+			          off + 2 < src_len &&
+			          src[off+1] == '-' && src[off+2] == '>' {
+				// ECMA-262 §B.1.3 SingleLineHTMLCloseComment: `-->` opens
+				// a single-line comment when the preceding input contains
+				// a LineTerminator (or a multi-line block comment, or is
+				// at file start). The `at_logical_line_start` predicate
+				// covers all three. Test262: annexB/language/comments/
+				// single-line-html-close*.js & multi-line-html-close.js.
+				comment_start := off
+				off += 3 // skip `-->`
+				content_start := off
+				end, had_nl := simd_skip_line_comment(src, off)
+				if had_nl { l.had_line_terminator = true }
+				if l.collect_comments {
+					append(&l.comments, Comment{
+						type  = .Line,
+						start = u32(comment_start),
+						end   = u32(end),
+						value = l.source[content_start:end],
+					})
+				}
+				off = end
 			} else if c == '/' && off + 1 < src_len {
 				n := src[off + 1]
 				if n == '/' {
@@ -486,7 +616,13 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 					off += 2
 					content_start := off
 					end, had_nl := simd_skip_block_comment(src, off)
-					if had_nl { l.had_line_terminator = true }
+					if had_nl {
+						l.had_line_terminator = true
+						// Annex B: a `*/` followed by `-->` (with optional WS)
+						// counts as a SingleLineHTMLCloseComment when the body
+						// of the block comment contained a LineTerminator.
+						at_logical_line_start = true
+					}
 					// Unterminated block comment — report as lexer error.
 					if end >= src_len {
 						append(&l.lexer_errors, LexerError{
@@ -609,20 +745,147 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 lex_identifier :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
+	// Step past the first character. ASCII starts are 1-byte; multi-byte
+	// UTF-8 starts (CJK, Latin-1 letters, …) need the full sequence
+	// consumed up-front so simd_scan_id_cont's per-lane validator doesn't
+	// see continuation bytes (0x80–0xBF) as a stand-alone code point and
+	// reject them. See `is_id_cont_codepoint` for the spec predicate.
+	first := src[l.offset]
 	off := l.offset + 1
+	if first >= 0x80 {
+		if first < 0xC0 {
+			// Stray continuation byte at identifier-start position; the
+			// lexer's outer dispatch shouldn't reach us in that state
+			// but be defensive.
+			off = l.offset + 1
+		} else if first < 0xE0 {
+			off = l.offset + 2
+		} else if first < 0xF0 {
+			off = l.offset + 3
+		} else {
+			off = l.offset + 4
+		}
+		if off > src_len { off = src_len }
+	}
 	// SIMD body scan — 16 bytes/iter on ARM64 NEON, scalar fallback elsewhere.
-	// Returns the offset of the first non-id-continue byte (or `\\`); the
-	// scalar block below then either takes the escape slow path or falls
-	// out of the loop normally. See simd_scan_id_cont for the contract.
-	next_off, hit_bs := simd_scan_id_cont(src, off)
+	// `simd_scan_id_cont` is permissive with high bytes; `body_has_non_ascii`
+	// is set whenever any byte >= 0x80 was consumed by the scan. The post-pass
+	// below catches spec-invalid non-ASCII (U+2028/9, U+2E2F, surrogate
+	// halves, …) without running on pure-ASCII identifiers.
+	next_off, hit_bs, body_has_non_ascii := simd_scan_id_cont(src, off)
 	off = next_off
 	if hit_bs && off + 1 < src_len && src[off + 1] == 'u' {
 		return lex_identifier_escaped(l, start, flags)
 	}
-	l.offset = off
+	// Spec validation runs only when there's something to validate:
+	//   * the first code point was multi-byte (might fail IdStart), OR
+	//   * the body contained any non-ASCII byte (might fail IdContinue).
+	// The validator may TRUNCATE the identifier when it encounters a
+	// non-id-cont code point that the permissive SIMD scan greedily
+	// consumed (e.g. NBSP / LS / PS / U+2E2F appearing as whitespace
+	// between tokens). The truncated end is then propagated to both
+	// `l.offset` and the FastToken.end so the next token starts where
+	// the spec expects it to.
 	end := u32(off)
+	if first >= 0x80 || body_has_non_ascii {
+		body_start := int(start) + 1
+		if first >= 0x80 {
+			switch {
+			case first < 0xC0: body_start = int(start) + 1
+			case first < 0xE0: body_start = int(start) + 2
+			case first < 0xF0: body_start = int(start) + 3
+			case:              body_start = int(start) + 4
+			}
+			if body_start > off { body_start = off }
+		}
+		truncated := lex_validate_unicode_identifier(l, int(start), body_start, off)
+		if truncated >= 0 {
+			off = truncated
+			end = u32(off)
+		}
+	}
+	l.offset = off
 	tok_type := lookup_keyword_by_letter(src, start, end)
 	return FastToken{start = start, end = end, kind = tok_type, flags = flags}
+}
+
+// lex_validate_unicode_identifier walks an identifier slice and either
+// (a) emits a lexer error when the IdStart code point is invalid, or
+// (b) returns a TRUNCATION offset when the body contains a code point
+// that the permissive SIMD scan greedily consumed but is not actually
+// a valid IdentifierPart (NBSP, LS / PS, ZWNBSP, U+2E2F, …). The
+// truncation makes the IDENT_BODY scan spec-correct while keeping the
+// SIMD hot loop fast (single mask, no per-byte decode).
+//
+// Returns -1 when the identifier is fully valid and should keep its
+// permissive end. Returns a positive byte offset (within [body_start,
+// end]) when the identifier must be cut at that offset — the caller
+// then re-points l.offset and the FastToken.end at the truncation.
+//
+// Layout: the FIRST code point starts at `start`; subsequent code points
+// (the "body") start at `body_start` and end at `end` (exclusive).
+lex_validate_unicode_identifier :: proc(l: ^Lexer, start: int, body_start: int, end: int) -> int {
+	src := l.source_bytes
+	// IdStart for the first code point. An invalid IdStart is a hard
+	// error — we don't truncate to zero, we just diagnose.
+	if start < end && src[start] >= 0x80 {
+		cp := decode_utf8_codepoint(src, start)
+		if !is_id_start_codepoint(cp) {
+			append(&l.lexer_errors, LexerError{
+				offset  = u32(start),
+				message = "Invalid character in identifier",
+			})
+		}
+	}
+	// IdContinue scan over the body. ASCII bytes are already validated
+	// via CHAR_CLASS_TABLE during the SIMD scan; only non-ASCII code
+	// points need re-checking. The first failure becomes the truncation
+	// offset — the lexer treats everything from there onward as belonging
+	// to the next token (which is what spec-strict scanners do natively).
+	i := body_start
+	for i < end {
+		c := src[i]
+		if c < 0x80 {
+			i += 1
+			continue
+		}
+		cp := decode_utf8_codepoint(src, i)
+		if !is_id_cont_codepoint(cp) {
+			return i
+		}
+		switch {
+		case c < 0xC0: i += 1
+		case c < 0xE0: i += 2
+		case c < 0xF0: i += 3
+		case:          i += 4
+		}
+	}
+	return -1
+}
+
+// Decode one UTF-8 code point at `pos`. Caller guarantees `pos` is the
+// start of a valid sequence; returns the leading-byte value when the
+// sequence is malformed (caller still surfaces the diagnostic).
+decode_utf8_codepoint :: proc(src: []u8, pos: int) -> u32 {
+	src_len := len(src)
+	if pos >= src_len { return 0 }
+	ch := src[pos]
+	if ch < 0x80 { return u32(ch) }
+	cp:    u32 = 0
+	bytes: int = 1
+	if ch < 0xC0 {
+		return u32(ch)
+	} else if ch < 0xE0 {
+		cp = u32(ch & 0x1F); bytes = 2
+	} else if ch < 0xF0 {
+		cp = u32(ch & 0x0F); bytes = 3
+	} else {
+		cp = u32(ch & 0x07); bytes = 4
+	}
+	for bi := 1; bi < bytes && pos + bi < src_len; bi += 1 {
+		cp = (cp << 6) | u32(src[pos + bi] & 0x3F)
+	}
+	return cp
 }
 
 // ============================================================================
@@ -665,26 +928,50 @@ decode_u_escape :: proc(src: []u8, off: int) -> (cp: u32, ok: bool, consumed: in
 	return u32(h1)*4096 + u32(h2)*256 + u32(h3)*16 + u32(h4), true, 6
 }
 
-// Codepoint-level IdentifierStart check. Simplified: ASCII delegated to
-// CHAR_CLASS_TABLE; any non-ASCII codepoint ≥ 0x80 accepted — mirrors the
-// raw-byte heuristic already used by is_id_start_fast, so behaviour is
-// consistent between the escaped and unescaped paths. Spec-strict Unicode
-// ID_Start classification is a follow-up.
+// Codepoint-level IdentifierStart check. ASCII delegated to
+// CHAR_CLASS_TABLE; non-ASCII codepoints first short-circuit on the few
+// characters that are SPEC-MANDATED non-IdentifierStart regardless of the
+// table's Unicode version (line terminators, ZWJ/ZWNJ here, surrogates),
+// then fall through to the full ID_Start range table. Test262
+// `language/identifiers/vertical-tilde-*-escaped.js` and
+// `language/line-terminators/S7.3_A6_T*.js` rely on these rejections.
 is_id_start_codepoint :: #force_inline proc(cp: u32) -> bool {
 	if cp < 128 {
 		return CHAR_CLASS_TABLE[cp] == u8(CharClass.IdStart)
 	}
-	// Unicode IDStart: accept all non-ASCII, non-surrogate codepoints.
-	// A stricter check via binary-search range tables exists in
-	// unicode_tables.odin (is_unicode_id_start) and is used by the
-	// regex named-group validator. Here we stay permissive because:
-	//   1. New Unicode versions add codepoints our tables may lack.
-	//   2. The parser's job is to accept valid source; rejecting a
-	//      valid identifier from a newer Unicode version is worse
-	//      than accepting an exotic non-letter.
+	// Hard rejections (independent of Unicode version):
+	//   * U+2028 / U+2029  — LineTerminator (§12.3); never identifier.
+	//   * ZWNJ / ZWJ      — IdentifierPart only, not IdentifierStart.
+	//   * Surrogates      — invalid as standalone code points.
+	//   * U+2E2F          — VERTICAL TILDE has Pattern_Syntax=Yes,
+	//                       so it's neither ID_Start nor ID_Continue.
+	//                       The bundled UNICODE_ID_START_RANGES table
+	//                       was generated without subtracting
+	//                       Pattern_Syntax, so a hard reject here
+	//                       compensates until that table is
+	//                       regenerated. Test262
+	//                       language/identifiers/vertical-tilde-*.
+	if cp == 0x2028 || cp == 0x2029 { return false }
 	if cp == 0x200C || cp == 0x200D { return false }
+	if cp == 0x2E2F                 { return false }
 	if cp >= 0xD800 && cp <= 0xDFFF { return false }
-	return cp <= 0x10FFFF
+	if is_unicode_id_start(cp) { return true }
+	// `Other_ID_Start` (Unicode 16.0 PropList.txt). These are
+	// grandfathered IdentifierStart code points whose general category
+	// alone wouldn't qualify, so they're not in UNICODE_ID_START_RANGES.
+	// Test262: language/identifiers/{other_id_continue,part-unicode-*,
+	// start-unicode-17.0.0*}.js.
+	switch cp {
+	case 0x1885, 0x1886:           // MONGOLIAN LETTER ALI GALI BALUDA / THREE BALUDA
+		return true
+	case 0x2118:                   // SCRIPT CAPITAL P
+		return true
+	case 0x212E:                   // ESTIMATED SYMBOL
+		return true
+	case 0x309B, 0x309C:           // KATAKANA-HIRAGANA (SEMI-)VOICED SOUND MARK
+		return true
+	}
+	return false
 }
 
 is_id_cont_codepoint :: #force_inline proc(cp: u32) -> bool {
@@ -692,8 +979,34 @@ is_id_cont_codepoint :: #force_inline proc(cp: u32) -> bool {
 		class := CHAR_CLASS_TABLE[cp]
 		return class == u8(CharClass.IdStart) || class == u8(CharClass.Digit)
 	}
+	if cp == 0x2028 || cp == 0x2029 { return false }
+	if cp == 0x2E2F                 { return false }  // Pattern_Syntax
+	// `Other_ID_Continue` (Unicode 16.0 PropList.txt). MIDDLE DOT,
+	// GREEK ANO TELEIA, ETHIOPIC DIGIT ONE..NINE, NEW TAI LUE THAM
+	// DIGIT ONE, KATAKANA MIDDLE DOT, HALFWIDTH KATAKANA MIDDLE DOT
+	// — grandfathered IdentifierPart code points that don't qualify
+	// on category alone. Test262: language/identifiers/{other_id_
+	// continue,part-unicode-*}.js.
+	switch cp {
+	case 0x00B7:                   // MIDDLE DOT
+		return true
+	case 0x0387:                   // GREEK ANO TELEIA
+		return true
+	case 0x1369..=0x1371:          // ETHIOPIC DIGIT ONE..NINE
+		return true
+	case 0x19DA:                   // NEW TAI LUE THAM DIGIT ONE
+		return true
+	case 0x30FB:                   // KATAKANA MIDDLE DOT
+		return true
+	case 0xFF65:                   // HALFWIDTH KATAKANA MIDDLE DOT
+		return true
+	}
+	// Other_ID_Start is a strict subset of ID_Continue (ID_Continue
+	// includes ID_Start), so include those grandfathered code points
+	// here too — covers `var a℘` etc. when ℘ isn't the IdStart.
+	if is_id_start_codepoint(cp) { return true }
 	if cp >= 0xD800 && cp <= 0xDFFF { return false }
-	return cp <= 0x10FFFF
+	return is_unicode_id_continue(cp)
 }
 
 lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {

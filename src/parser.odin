@@ -240,6 +240,14 @@ Parser :: struct {
 
 	// Context flags
 	in_function:     bool,
+	// True when the lexical enclosing scope contains a non-arrow function
+	// (FunctionDeclaration / FunctionExpression / Method / Generator /
+	// AsyncFunction / class constructor). Arrow functions inherit
+	// `[[NewTarget]]` from their enclosing scope rather than introducing
+	// their own, so `new.target` inside `() => { new.target }` at script
+	// top-level must still be a SyntaxError. Regular function entry
+	// points save+set this flag; arrow entry points leave it untouched.
+	in_non_arrow_function: bool,
 	in_generator:    bool,
 	in_async:        bool,
 	in_loop:         bool,
@@ -341,6 +349,12 @@ Parser :: struct {
 
 	// Disallow 'in' as binary operator (for for-loop init parsing)
 	no_in:           bool,
+	// True while parsing the RHS of an `in` operator. Used to reject
+	// `#x in #y` (Test262: language/expressions/in/private-field-in-
+	// nested.js): a PrivateIdentifier appearing in the RHS of `in`
+	// is not a valid ShiftExpression. Reset on parens so `a in (#x in y)`
+	// stays legal.
+	in_in_rhs:       bool,
 
 	// CLI `--source-type` override. When set, disables the auto-upgrade
 	// from Script to Module that parse_program normally performs when it
@@ -1332,12 +1346,8 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// rule as in for-head; mirror the conservative whitelist.
 		nxt_let := peek_dispatch(p)
 		let_is_decl := false
-		#partial switch nxt_let.type {
-		case .Identifier, .LBracket, .LBrace,
-		     .Yield, .Await, .Let,
-		     .Get, .Set, .Async, .Static, .Of, .From, .As,
-		     .Type, .Interface, .Enum,
-		     .Implements, .Package, .Private, .Protected, .Public:
+		if nxt_let.type == .LBracket || nxt_let.type == .LBrace ||
+		   is_identifier_like_token(nxt_let.type) {
 			// §ASI restricted production: in sloppy mode, `let [LT] {` or
 			// `let [LT] <identifier>` triggers ASI so `let` is treated as an
 			// IdentifierReference (not a declaration). e.g. `for (x of []) let
@@ -1387,7 +1397,35 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_variable_declaration(p, nil, true)
 	case .Await:
 		if is_next_token(p, .Using) {
-			return parse_variable_declaration(p, nil, true)
+			// `await using` is the AwaitUsingDeclaration head, but the
+			// production explicitly forbids ArrayBindingPattern; only a
+			// BindingIdentifier is allowed. So `await using[x]` is the
+			// AwaitExpression `await (using[x])`, not a declaration.
+			// Source-byte scan past `using` to the next non-whitespace
+			// byte; if it's `[`, fall through to the expression path.
+			// Test262: language/statements/await-using/syntax/await-using-
+			// invalid-arraybindingpattern-does-not-break-element-access.js.
+			is_decl := true
+			if p.lexer != nil {
+				src := p.lexer.source_bytes
+				i := int(p.lexer.nxt.end)
+				src_len := len(src)
+				had_lt := false
+				for i < src_len {
+					ch := src[i]
+					if ch == '\n' || ch == '\r' { had_lt = true; i += 1; continue }
+					if ch == ' ' || ch == '\t' { i += 1; continue }
+					break
+				}
+				if i < src_len && src[i] == '[' { is_decl = false }
+				// Restricted production: a LineTerminator between `using`
+				// and the binding fails the AwaitUsingDeclaration rule.
+				// Test262: await-using-declaring-let-split-across-two-lines.
+				if had_lt { is_decl = false }
+			}
+			if is_decl {
+				return parse_variable_declaration(p, nil, true)
+			}
 		}
 		return parse_expression_or_labeled_statement(p)
 	case .Identifier:
@@ -1685,8 +1723,14 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	expr_stmt.loc = start
 	expr_stmt.expression = expr
 
-	// Consume optional semicolon.
-	match_semicolon_or_asi(p)
+	// ECMA-262 §12.10 — ExpressionStatement requires a `;` (or ASI). When
+	// the next token isn't `;`, isn't preceded by a line terminator, and
+	// isn't `}` or EOF, the parser must report a SyntaxError. Test262
+	// negative fixtures rely on this:
+	//   {1 2} 3                        // S7.9_A10_T8 — missing ; in block
+	//   if (false) x = 1 else x = -1   // S7.9_A11_T4 — missing ; before else
+	//   //comment\n line comment      // line-terminators — missing ;
+	expect_semicolon_or_asi(p)
 
 	expr_stmt.loc.span.end = prev_end_offset(p)
 	return stmt
@@ -1750,6 +1794,15 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
+	// `if () ;` is a SyntaxError per §14.6 — the IfStatement grammar
+	// requires a non-empty Expression in the head. parse_expression
+	// returns nil for `)` without diagnosing, so we surface the error
+	// here. Test262: language/statements/if/S12.5_A8.js.
+	if is_token(p, .RParen) {
+		report_error(p, "Expected expression in `if` condition")
+		eat(p) // consume `)` to keep the parser moving
+		return nil
+	}
 	test := parse_expression(p)
 	if test == nil {
 		return nil
@@ -1908,13 +1961,11 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		nxt := peek_dispatch(p)
 		// Conservative whitelist of tokens that legally start a
 		// LexicalBinding after `let`. Anything else falls through to
-		// the expression-head path.
-		#partial switch nxt.type {
-		case .Identifier, .LBracket, .LBrace,
-		     .Yield, .Await,  // identifier-like in non-strict
-		     .Get, .Set, .Async, .Static, .Of, .From, .As,
-		     .Type, .Interface, .Enum,
-		     .Implements, .Package, .Private, .Protected, .Public:
+		// the expression-head path. is_identifier_like_token covers
+		// every contextual keyword that's also a valid binding name
+		// (`assert`, `abstract`, `declare`, … plus the JS contextuals).
+		if nxt.type == .LBracket || nxt.type == .LBrace ||
+		   is_identifier_like_token(nxt.type) {
 			let_starts_decl = true
 		}
 	}
@@ -1962,6 +2013,23 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// for-in or for-of
 		is_in := is_token(p, .In)
 		eat(p) // consume in/of
+		// `for (x of /re/) {}` — after consuming the `of` keyword the next
+		// token is the iterator expression. A leading `/` is the start of
+		// a RegularExpressionLiteral here, but the lexer already classified
+		// it as `.Div` because `.Of` is no longer in can_start_regex (would
+		// otherwise mis-lex `var of=6; of/g/h;`). Relex on demand.
+		if p.cur_type == .Div || p.cur_type == .AssignDiv {
+			if p.lexer != nil {
+				relex_as_regex(p.lexer)
+				ft := p.lexer.cur
+				p.cur_type = ft.kind
+				p.cur_tok.type = ft.kind
+				p.cur_tok.loc.offset = int(ft.start)
+				if ft.kind < .LBrace && ft.start < ft.end {
+					p.cur_tok.value = p.lexer.source[ft.start:ft.end]
+				}
+			}
+		}
 
 		// ECMA-262 §14.7.5.1 - for-in/of LeftHandSideExpression must have a
 		// simple AssignmentTargetType. `a = 1` is an AssignmentExpression,
@@ -1991,9 +2059,13 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			if !is_in && !await {
 				if id, ok := left_expr.(^Identifier); ok && id != nil && id.name == "async" {
 					// Source-text lookahead: only the bare unescaped `async`
-					// identifier triggers. Detect escapes by checking the
-					// raw source slice; detect parens by seeing if the byte
-					// before the identifier's start is `(`.
+					// identifier triggers. Detect escapes by scanning the raw
+					// slice. Detect parens by looking FORWARD from the
+					// identifier's end to the next non-whitespace byte: a `)`
+					// there means the identifier was the body of a
+					// CoverParenthesizedExpression (`(async)`), so the
+					// lookahead doesn't fire. A backward-walk to `(` would
+					// false-positive on the for-head's own opening paren.
 					span_start := id.loc.span.start
 					span_end := id.loc.span.end
 					has_escape := false
@@ -2001,11 +2073,12 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					if p.lexer != nil && int(span_end) <= len(p.lexer.source_bytes) {
 						slice := p.lexer.source_bytes[span_start:span_end]
 						for b in slice { if b == '\\' { has_escape = true; break } }
-						i := int(span_start) - 1
-						for i >= 0 {
+						i := int(span_end)
+						src_len := len(p.lexer.source_bytes)
+						for i < src_len {
 							ch := p.lexer.source_bytes[i]
-							if ch == '(' { paren_wrapped = true; break }
-							if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+							if ch == ')' { paren_wrapped = true; break }
+							if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i += 1; continue }
 							break
 						}
 					}
@@ -2402,7 +2475,8 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
-	match_semicolon_or_asi(p)
+	// §14.9 — BreakStatement requires a `;` (or ASI).
+	expect_semicolon_or_asi(p)
 
 	break_ := new_node(p, BreakStatement)
 	break_.loc = start
@@ -2458,7 +2532,8 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
-	match_semicolon_or_asi(p)
+	// §14.8 — ContinueStatement requires a `;` (or ASI).
+	expect_semicolon_or_asi(p)
 
 	cont := new_node(p, ContinueStatement)
 	cont.loc = start
@@ -2537,6 +2612,16 @@ parse_switch_case :: proc(p: ^Parser) -> ^SwitchCase {
 	if match_token(p, .Default) {
 		test = nil
 	} else if match_token(p, .Case) {
+		// `case :` is a SyntaxError per §14.12: CaseClause :: `case`
+		// Expression `:` StatementList. Without this guard
+		// parse_expression returns nil for `:` and the `:` is silently
+		// consumed by the next `expect_token(.Colon)` call. Test262:
+		// language/statements/switch/S12.11_A3_T4.js.
+		if is_token(p, .Colon) {
+			report_error(p, "Expected expression after 'case'")
+			eat(p) // consume `:`
+			return nil
+		}
 		test = parse_expression(p)
 	} else {
 		report_error(p, "Expected 'case' or 'default' in switch")
@@ -2901,8 +2986,14 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// non-async function params from being misinterpreted as TLA.
 	prev_in_function_params := p.in_function
 	p.in_function = true
+	// `new.target` is legal in a parameter default of a regular
+	// function (e.g. `function f(x = new.target) {}`); arrow params
+	// are handled separately and inherit the outer flag.
+	prev_in_non_arrow_params := p.in_non_arrow_function
+	p.in_non_arrow_function = true
 	params := parse_function_params(p)
 	p.in_function = prev_in_function_params
+	p.in_non_arrow_function = prev_in_non_arrow_params
 	p.in_generator_params = prev_in_gen_params
 	p.in_async_params = prev_in_async_params
 	p.in_static_block = prev_static_block_params
@@ -3250,6 +3341,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	}
 
 	prev_in_function := p.in_function
+	prev_in_non_arrow := p.in_non_arrow_function
 	prev_in_generator := p.in_generator
 	prev_in_async := p.in_async
 	prev_strict := p.strict_mode
@@ -3273,6 +3365,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	p.in_static_block = false
 
 	p.in_function = true
+	p.in_non_arrow_function = true
 
 	// Directive prologue tracking. Per ECMA-262 §14.1.1 the prologue is the
 	// leading sequence of ExpressionStatement whose expression is an
@@ -3342,6 +3435,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	}
 
 	p.in_function = prev_in_function
+	p.in_non_arrow_function = prev_in_non_arrow
 	p.in_generator = prev_in_generator
 	p.in_async = prev_in_async
 	p.strict_mode = prev_strict
@@ -3751,7 +3845,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// Only treat as async if followed by something that starts a method name
 		next := peek_dispatch(p)
 		if next.type == .Identifier || next.type == .PrivateIdentifier || next.type == .LBracket ||
-		   next.type == .String || next.type == .Number || next.type == .LParen ||
+		   next.type == .String || next.type == .Number || next.type == .BigInt || next.type == .LParen ||
 		   next.type == .Mul || is_keyword_usable_as_property_name(next.type) {
 			is_async = true
 			eat(p) // consume async
@@ -4193,6 +4287,10 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	prev_in_function_sb := p.in_function
 	p.in_function = true
 	defer p.in_function = prev_in_function_sb
+	// Static block is a non-arrow function for new.target purposes.
+	prev_in_non_arrow_sb := p.in_non_arrow_function
+	p.in_non_arrow_function = true
+	defer p.in_non_arrow_function = prev_in_non_arrow_sb
 	prev_in_generator_sb := p.in_generator
 	p.in_generator = false
 	defer p.in_generator = prev_in_generator_sb
@@ -4308,7 +4406,12 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	}
 
 	if consume_semi {
-		match_semicolon_or_asi(p)
+		// §14.3 — a VariableStatement / LexicalDeclaration ends with a
+		// `;` (or ASI). `var x = ''''` (Test262 string/S8.4_A13_T3.js) and
+		// `var\nlet x = 1` previously slid through with the lenient
+		// match_*, leaving the parser to emit two valid statements when
+		// the spec mandates a SyntaxError between them.
+		expect_semicolon_or_asi(p)
 	}
 
 	// ECMA-262 §14.3.1.1 - a LexicalDeclaration's BoundNames list must not
@@ -4588,7 +4691,30 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 is_keyword_not_expression_start :: #force_inline proc(t: TokenType) -> bool {
 	#partial switch t {
 	case .Case, .Default, .Extends, .In, .Instanceof,
-	     .Catch, .Finally, .Else, .With:
+	     .Catch, .Finally, .Else, .With,
+	     // Statement-only keywords that surface here when the parser
+	     // walks an expression context but the source has e.g.
+	     // `(debugger)`. Test262: language/statements/debugger/expression.
+	     .Debugger:
+		return true
+	}
+	return false
+}
+
+// is_identifier_like_token returns true for token types that may appear
+// where an IdentifierReference / BindingIdentifier is expected. This is
+// the union of `.Identifier` itself and every contextual keyword (TS or
+// JS) that the lexer hands out as its own token type but which the
+// grammar still accepts as an identifier reference. Mirrors the
+// `case .Identifier, .Get, .Set, ...:` arm in `parse_unary_expr`.
+is_identifier_like_token :: #force_inline proc(t: TokenType) -> bool {
+	#partial switch t {
+	case .Identifier, .Get, .Set, .From, .Of, .As, .Let, .Static,
+	     .Async,
+	     .Constructor, .Assert, .Asserts, .Abstract, .Declare, .Readonly,
+	     .Override, .Keyof, .Infer, .Is, .Satisfies, .Never, .Unique,
+	     .Namespace, .Module, .Implements, .Require, .Package, .Private,
+	     .Protected, .Public, .Accessor, .Target, .Await, .Yield:
 		return true
 	}
 	return false
@@ -5536,7 +5662,21 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 
 		// Parse regular element
 		if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-			// Simple identifier binding, possibly with default value
+			// Simple identifier binding, possibly with default value.
+			// Apply the reserved-binding check that parse_binding_pattern
+			// runs for top-level bindings: `await` is reserved as a binding
+			// name inside async / module / class-static-block contexts, and
+			// `yield` is reserved inside generator bodies. Test262: language/
+			// statements/variable/dstr/ary-ptrn-elem-id-static-init-await-
+			// invalid.js (`class C { static { var [await] = []; } }`).
+			if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.value == "await")) &&
+			   await_is_reserved_here(p) {
+				report_error(p, "'await' is reserved as a binding name in this context")
+			}
+			if (p.cur_type == .Yield || (p.cur_type == .Identifier && p.cur_tok.value == "yield")) &&
+			   yield_is_reserved_here(p) {
+				report_error(p, "'yield' is reserved as a binding name in this context")
+			}
 			eil := cur_loc(p); ein := cur_value(p)
 			eat(p)
 			ident := new_node(p, Identifier)
@@ -7247,6 +7387,21 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 				def^ = expr_stmt.expression
 			}
 		}
+		// §16.2.3 — `export default function() {}` is the
+		// HoistableDeclaration form, NOT an AssignmentExpression. So the
+		// FunctionDeclaration ends at `}`; LHS-tail tokens that would
+		// extend it as an expression (`()` call, `[x]` index, `.x`
+		// member, `` `tag` ``, `=>` arrow, postfix `++`/`--`) make the
+		// production fail. Whitespace / `;` / new statement starts (e.g.
+		// `if`) are fine — the function-decl `}` already terminates the
+		// declaration. Test262: language/module-code/parse-err-invoke-
+		// anon-{fun,gen}-decl.js (`function() {}()`).
+		#partial switch p.cur_type {
+		case .LParen, .LBracket, .Dot, .OptionalChain,
+		     .Template, .TemplateHead, .Arrow,
+		     .PlusPlus, .MinusMinus:
+			report_error(p, "Unexpected token after 'export default function' declaration")
+		}
 	} else if is_token(p, .Class) {
 		cls_stmt := parse_statement_or_declaration(p)
 		if cls_stmt != nil {
@@ -7780,7 +7935,13 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		eat(p)
 		next_min_prec := Precedence(int(op_prec) + 1)
 
+		// Track `in`-RHS context so PrivateIdentifier in primary-expr
+		// position is rejected for `#x in #y` while staying legal for
+		// `(#x in y)` (parens reset the flag in parse_primary_expr).
+		prev_in_in_rhs := p.in_in_rhs
+		if cur_type == .In { p.in_in_rhs = true }
 		right := parse_expr_with_prec(p, next_min_prec)
+		p.in_in_rhs = prev_in_in_rhs
 		if right == nil {
 			report_error(p, "Expected expression after operator")
 			return left
@@ -7851,6 +8012,28 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			}
 		} else if cur_type == .LogicalOr || cur_type == .LogicalAnd {
 			if le, ok := left.(^LogicalExpression); ok &&
+			   le.operator == .NullishCoalescing {
+				le_start := int(le.loc.span.start)
+				paren_ok := false
+				if p.lexer != nil && le_start > 0 {
+					pi := le_start - 1
+					for pi >= 0 {
+						pch := p.lexer.source_bytes[pi]
+						if pch == '(' { paren_ok = true; break }
+						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
+						break
+					}
+				}
+				if !paren_ok {
+					report_error(p, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
+				}
+			}
+			// Mirror check for the RIGHT operand: `0 || 0 ?? true` parses
+			// the right-hand side at NullishCoalescing precedence (higher
+			// than LogicalOr), producing `0 || (?? 0 true)`. Without this
+			// the inner ?? slips past the spec rule. Test262: language/
+			// expressions/coalesce/cannot-chain-head-with-logical-or.js.
+			if le, ok := right.(^LogicalExpression); ok &&
 			   le.operator == .NullishCoalescing {
 				le_start := int(le.loc.span.start)
 				paren_ok := false
@@ -7964,7 +8147,20 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		current := p.cur_tok
 		eat(p)
 		argument := parse_unary_expr(p)
-		if argument == nil { return nil }
+		if argument == nil {
+			// ECMA-262 §12.4.1 — prefix UpdateExpression requires a
+			// UnaryExpression operand. `++;` / `--;` (no operand) and
+			// `x\n++;` / `x\n--;` (line terminator splits postfix into
+			// `x;` + bare `++;`) must be rejected. Test262 fixtures:
+			//   language/asi/S7.9_A5.1_T1.js               // x \n ++;
+			//   language/asi/S7.9_A5.3_T1.js               // x \n --;
+			//   language/expressions/postfix-increment/    // (4 tests)
+			//   language/expressions/postfix-decrement/    // (4 tests)
+			op := "++" if current.type == .PlusPlus else "--"
+			msg := fmt.tprintf("Unexpected token after prefix '%s'", op)
+			report_error(p, msg)
+			return nil
+		}
 		update := new_node(p, UpdateExpression)
 		update.loc = loc_from_token(current)
 		update.operator = .Increment if current.type == .PlusPlus else .Decrement
@@ -8149,6 +8345,14 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error(p, "'async' keyword must not contain Unicode escape sequences")
 			}
 		}
+		// `arguments` as IdentifierReference in a class static block is
+		// a SyntaxError per §15.7.5 (ContainsArguments). Includes the
+		// escaped form `argument\u0073` since `cur_tok.value` is the
+		// cooked name. Test262: language/statements/class/static-init-
+		// invalid-arguments.js.
+		if p.in_static_block && p.cur_tok.value == "arguments" {
+			report_error(p, "'arguments' is not allowed in a class static block")
+		}
 		// `await` as IdentifierReference in module/async/static context.
 		if p.cur_tok.value == "await" && await_is_reserved_here(p) {
 			report_error(p, "'await' is not allowed as an identifier in this context")
@@ -8199,6 +8403,14 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 		#partial switch p.cur_type {
 		case .Dot:
 			eat(p)
+			// §13.3.1 — MemberExpression `.` IdentifierName | PrivateIdentifier.
+			// String / Number / template literals after `.` are SyntaxErrors.
+			// Test262: language/expressions/property-accessors/non-identifier-name.js.
+			if !is_identifier_like_token(p.cur_type) && p.cur_type != .PrivateIdentifier &&
+			   !is_keyword_usable_as_property_name(p.cur_type) {
+				report_error(p, "Expected identifier after '.'")
+				return expr
+			}
 			prop := parse_identifier_name(p)
 			member, member_e := new_expr(p, MemberExpression)
 			member.loc = loc_from_expr(expr)
@@ -8576,6 +8788,18 @@ parse_left_hand_side_expr :: proc(p: ^Parser) -> ^Expression {
 parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	current := get_current(p)
 
+	// Statement-only keywords that should never start a primary
+	// expression (`(debugger)`, `(else)`, `(extends)`, …). Without
+	// this gate the LParen handler silently swallows the `(` and the
+	// remainder is parsed as a lone DebuggerStatement, dropping the
+	// inner expression on the floor and emitting no diagnostic.
+	if is_keyword_not_expression_start(current.type) {
+		msg := fmt.tprintf("Unexpected reserved word '%s'", cur_value(p))
+		report_error(p, msg)
+		eat(p)
+		return nil
+	}
+
 	#partial switch current.type {
 	case .Import:
 		// Check for dynamic import: import(specifier)
@@ -8664,7 +8888,14 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// and use as an assignment target. `obj.#foo` / `this.#foo` are
 		// member accesses - those don't come through here because
 		// `parse_lhs_tail` consumes the `#foo` after `.` directly.
-		if p.lexer != nil && p.lexer.nxt.kind != .In {
+		//
+		// `#x in #y` (Test262 expressions/in/private-field-in-nested.js)
+		// must reject the second `#y`: even though nxt.kind == .In here
+		// (the OUTER `in` of `#x in #y in z`), this slot is the RHS of
+		// the inner `in`, not its LHS. `in_in_rhs` distinguishes them.
+		invalid_position := p.in_in_rhs ||
+		                    (p.lexer != nil && p.lexer.nxt.kind != .In)
+		if invalid_position {
 			report_error(p, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
 		}
 		// Private field reference: #x (used in expressions like #x in this)
@@ -8790,12 +9021,38 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			return expression_from(p, ident)
 		}
 		async_lt_break := next.had_line_terminator
+		async_arrow_ctx_kw := false  // async <contextual-kw> => x
 		if !async_lt_break && next.type == .Function {
 			// async function() {} - function expression
 			return parse_function_expression(p)
-		} else if !async_lt_break && (next.type == .Identifier || next.type == .LParen) {
+		} else if !async_lt_break && next.type != .Identifier && next.type != .LParen &&
+		          is_identifier_like_token(next.type) {
+			// `async <contextual-kw>`: ambiguous between async-arrow
+			//   `async of => x`   (async arrow with `of` as binding)
+			// and bare-async + for-of head
+			//   `for await (async of x)`   (`async` is the LHS Identifier)
+			// Disambiguate via SOURCE-BYTE lookahead: scan past the next
+			// token to see whether the following non-whitespace bytes are
+			// `=>`. If yes, commit to the arrow path; otherwise let the
+			// `.Async`-as-Identifier fall-through below run, which keeps
+			// the for-await-of test (head-lhs-async.js) parsing.
+			if p.lexer != nil {
+				src := p.lexer.source_bytes
+				i := int(next.raw_end)
+				src_len := len(src)
+				for i < src_len {
+					ch := src[i]
+					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i += 1; continue }
+					break
+				}
+				if i + 1 < src_len && src[i] == '=' && src[i+1] == '>' {
+					async_arrow_ctx_kw = true
+				}
+			}
+		}
+		if !async_lt_break && (next.type == .Identifier || next.type == .LParen || async_arrow_ctx_kw) {
 			// This might be an async arrow function: async x => x or async () => {}
-			if next.type == .Identifier {
+			if next.type == .Identifier || async_arrow_ctx_kw {
 				// async x => ...
 				eat(p) // consume async
 				param_ident := parse_identifier(p)
@@ -8809,9 +9066,89 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				ident.loc.span.end = prev_end_offset(p)
 				return expression_from(p, ident)
 			} else if next.type == .LParen {
-				// async () => ...
-				eat(p) // consume async
-				return parse_async_arrow_with_parens(p, current)
+				// `async (...)` is ambiguous: an async arrow head, OR a
+				// regular call to `async`. Source-byte lookahead at the
+				// matching `)` decides: if `=>` follows, it's an arrow;
+				// otherwise treat `async` as a plain IdentifierReference
+				// and let the LHS-tail parser build the CallExpression.
+				// Test262: annexB/language/expressions/assignmenttargettype/
+				// cover-callexpression-and-asyncarrowhead.js.
+				is_arrow_head := false
+				if p.lexer != nil {
+					src := p.lexer.source_bytes
+					lparen_off := int(next.raw_end) - 1
+					// `next.raw_end` is just past `(`, so `lparen_off` is
+					// the `(` byte. Walk forward tracking nesting depth
+					// over parens/brackets/braces; stop at the matching `)`.
+					// Skip string / template content so embedded brackets
+					// don't break the depth count.
+					depth := 0
+					i := lparen_off
+					src_len := len(src)
+					end_off := -1
+					scan: for i < src_len {
+						ch := src[i]
+						switch ch {
+						case '(', '[', '{':
+							depth += 1
+						case ')', ']', '}':
+							depth -= 1
+							if depth == 0 && ch == ')' {
+								end_off = i
+								break scan
+							}
+						case '"', '\'':
+							quote := ch
+							i += 1
+							for i < src_len && src[i] != quote {
+								if src[i] == '\\' && i + 1 < src_len { i += 1 }
+								i += 1
+							}
+						case '/':
+							// Bare `/` could be division or comment;
+							// skip a single-line `//` so we don't read
+							// `=>` from inside a comment.
+							if i + 1 < src_len && src[i+1] == '/' {
+								for i < src_len && src[i] != '\n' { i += 1 }
+							} else if i + 1 < src_len && src[i+1] == '*' {
+								i += 2
+								for i + 1 < src_len && !(src[i] == '*' && src[i+1] == '/') { i += 1 }
+								if i + 1 < src_len { i += 1 }
+							}
+						}
+						i += 1
+					}
+					if end_off >= 0 {
+						j := end_off + 1
+						// Skip whitespace AND comments (Test262 has
+						// `... ) /* f */ => /* g */ { ... }`).
+						for j < src_len {
+							ch := src[j]
+							if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
+							if ch == '/' && j + 1 < src_len && src[j+1] == '/' {
+								for j < src_len && src[j] != '\n' { j += 1 }
+								continue
+							}
+							if ch == '/' && j + 1 < src_len && src[j+1] == '*' {
+								j += 2
+								for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
+								if j + 1 < src_len { j += 2 }
+								continue
+							}
+							break
+						}
+						if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' {
+							is_arrow_head = true
+						}
+					}
+				}
+				if is_arrow_head {
+					eat(p) // consume async
+					return parse_async_arrow_with_parens(p, current)
+				}
+				// Fall through: `async` will be re-parsed as a bare
+				// IdentifierReference below; the LHS-tail loop then
+				// consumes `(...)` as a CallExpression.
 			}
 		}
 		// async as identifier
@@ -8915,7 +9252,12 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		p.pending_paren_start = max(u32)
 		prev_no_in := p.no_in
 		p.no_in = false  // 'in' is always valid inside parentheses
+		// Parens reset the in-RHS context so `(#x in y)` parses cleanly
+		// even when the surrounding expression is the RHS of another `in`.
+		prev_in_in_rhs := p.in_in_rhs
+		p.in_in_rhs = false
 		expr := parse_expr_with_prec(p, .Comma)
+		p.in_in_rhs = prev_in_in_rhs
 		p.no_in = prev_no_in
 		if expr == nil {
 			return nil
@@ -9288,7 +9630,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Any keyword can be a property name (ES spec: PropertyName → IdentifierName).
 		next := peek_token(p)
 		if next.type == .Identifier || next.type == .String || next.type == .Number ||
-		   next.type == .LBracket || next.type == .Mul ||
+		   next.type == .BigInt || next.type == .LBracket || next.type == .Mul ||
 		   is_keyword_usable_as_property_name(next.type) {
 			if is_token(p, .Get) {
 				is_getter = true
@@ -9304,7 +9646,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// async-modifier branch and falls through to the regular key path.
 		next := peek_token(p)
 		if next.type == .Identifier || next.type == .String || next.type == .Number ||
-		   next.type == .LBracket || next.type == .Mul ||
+		   next.type == .BigInt || next.type == .LBracket || next.type == .Mul ||
 		   is_keyword_usable_as_property_name(next.type) {
 			// §15.8.1 Restricted Production - no LineTerminator between
 			// `async` and the method name. With a newline, `async` is the
@@ -9822,9 +10164,11 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			target_tok := get_current(p)
 			eat(p) // consume target
 			// ECMA-262 §13.3.12 / §15.2 - `new.target` is only valid inside
-			// a function / method / constructor body. At script / module
-			// top-level (outside any enclosing function) it's a SyntaxError.
-			if !p.in_function {
+			// a non-arrow function body. Arrow functions inherit
+			// [[NewTarget]] from their enclosing scope, so an arrow at
+			// script top-level has no new.target either. Test262:
+			// language/global-code/new.target-arrow.js.
+			if !p.in_non_arrow_function {
 				report_error(p, "'new.target' is only allowed inside functions")
 			}
 			meta := new_node(p, MetaProperty)
@@ -9842,11 +10186,30 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	// so the diagnostic points at `import`, not somewhere downstream.
 	// Same rule applies to phase-import call forms (§Phase Imports):
 	//   `new import.defer(x)` / `new import.source(x)` are SyntaxErrors.
+	// BUT `new import.meta()` is VALID syntax — it calls the MetaProperty
+	// as a constructor (throws at runtime). Test262: language/expressions/
+	// import.meta/import-meta-is-an-ordinary-object.js.
 	if is_token(p, .Import) && p.lexer != nil {
 		if p.lexer.nxt.kind == .LParen {
 			report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
 		} else if p.lexer.nxt.kind == .Dot {
-			report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
+			// Source-byte lookahead past the `.` to see whether the
+			// property name is the legal `meta` MetaProperty or one of
+			// the phase-import call forms (`defer` / `source`).
+			dot_off := int(p.lexer.nxt.end)
+			src := p.lexer.source_bytes
+			// Skip whitespace after the `.`.
+			for dot_off < len(src) {
+				ch := src[dot_off]
+				if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { dot_off += 1; continue }
+				break
+			}
+			is_meta := dot_off + 4 <= len(src) &&
+			           src[dot_off]   == 'm' && src[dot_off+1] == 'e' &&
+			           src[dot_off+2] == 't' && src[dot_off+3] == 'a'
+			if !is_meta {
+				report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
+			}
 		}
 	}
 
@@ -9904,6 +10267,15 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 	if !is_token(p, .RParen) {
 		args = make([dynamic]^Expression, 0, 4, p.allocator)
 		for {
+			// `(,)` and `(a,,b)` — elision is not allowed in Arguments
+			// per §13.3.5. The grammar is `Arguments :: ( ArgumentList )`
+			// with no holes. Test262: language/expressions/call/
+			// S11.2.4_A1.3_T1.js (`f_arg(1,,2)`).
+			if is_token(p, .Comma) {
+				report_error(p, "Argument expression expected")
+				eat(p) // consume the stray comma so we don't loop
+				continue
+			}
 			if is_token(p, .Dot3) {
 				spread_start := cur_loc(p) // Capture location of ... before eating
 				eat(p)
@@ -10017,6 +10389,22 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	delegate := false
 	if !has_newline {
 		delegate = match_token(p, .Mul)
+	}
+	// `yield /re/` inside a generator: the lexer no longer treats `.Yield`
+	// as a regex-start (see can_start_regex), so a leading `/` was
+	// classified as Div. Re-lex on demand here so the AssignmentExpression
+	// argument sees the regex literal.
+	if !has_newline && (p.cur_type == .Div || p.cur_type == .AssignDiv) {
+		if p.lexer != nil {
+			relex_as_regex(p.lexer)
+			ft := p.lexer.cur
+			p.cur_type = ft.kind
+			p.cur_tok.type = ft.kind
+			p.cur_tok.loc.offset = int(ft.start)
+			if ft.kind < .LBrace && ft.start < ft.end {
+				p.cur_tok.value = p.lexer.source[ft.start:ft.end]
+			}
+		}
 	}
 
 	argument: Maybe(^Expression)

@@ -48,6 +48,12 @@
   ],
   "errors": [
     {
+      "message": "Expected semicolon",
+      "line": 2,
+      "column": 17,
+      "offset": 84
+    },
+    {
       "message": "Invalid binary digit",
       "line": 2,
       "column": 17,
@@ -61,10 +67,11 @@
     }
   ]
 }
-Parse errors (2):
+Parse errors (3):
+  Line 2, Column 17: Expected semicolon
   Line 2, Column 17: Invalid binary digit
   Line 2, Column 17: Binary literal requires at least one digit
 
 --- Statistics ---
 Arena: used=36992B reserved=16777216B ratio=0%
-Parse errors: 2
+Parse errors: 3

@@ -81,12 +81,19 @@
       "line": 2,
       "column": 27,
       "offset": 78
+    },
+    {
+      "message": "Expected semicolon",
+      "line": 2,
+      "column": 27,
+      "offset": 78
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
   Line 2, Column 27: Expected expression after operator
+  Line 2, Column 27: Expected semicolon
 
 --- Statistics ---
-Arena: used=8008B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=38280B reserved=16777216B ratio=0%
+Parse errors: 2

@@ -46,42 +46,42 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 68,
-      "value": " Lexical: CRLF line endings combined with the `return` restricted\r"
+      "end": 67,
+      "value": " Lexical: CRLF line endings combined with the `return` restricted"
     },
     {
       "type": "Line",
       "start": 69,
-      "end": 137,
-      "value": " production (ECMA-262 §12.10). A LineTerminator between `return`\r"
+      "end": 136,
+      "value": " production (ECMA-262 §12.10). A LineTerminator between `return`"
     },
     {
       "type": "Line",
       "start": 138,
-      "end": 212,
-      "value": " and an ArgumentExpression triggers ASI, so `return\\r\\n1` must parse as\r"
+      "end": 211,
+      "value": " and an ArgumentExpression triggers ASI, so `return\\r\\n1` must parse as"
     },
     {
       "type": "Line",
       "start": 213,
-      "end": 286,
-      "value": " `return; 1;` (two statements) and NOT as `return 1;` (one statement).\r"
+      "end": 285,
+      "value": " `return; 1;` (two statements) and NOT as `return 1;` (one statement)."
     },
     {
       "type": "Line",
       "start": 287,
-      "end": 359,
-      "value": " CRLF is counted as a single LineTerminator pair — it must not trip\r"
+      "end": 358,
+      "value": " CRLF is counted as a single LineTerminator pair — it must not trip"
     },
     {
       "type": "Line",
       "start": 360,
-      "end": 424,
-      "value": " the parser into double-ASI or leave a stray empty statement.\r"
+      "end": 423,
+      "value": " the parser into double-ASI or leave a stray empty statement."
     }
   ]
 }
 
 --- Statistics ---
-Arena: used=11856B reserved=16777216B ratio=0%
+Arena: used=35440B reserved=16777216B ratio=0%
 Parse errors: 0

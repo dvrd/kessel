@@ -67,13 +67,20 @@
       "line": 2,
       "column": 14,
       "offset": 66
+    },
+    {
+      "message": "Expected semicolon",
+      "line": 2,
+      "column": 21,
+      "offset": 73
     }
   ]
 }
-Parse errors (2):
+Parse errors (3):
   Line 2, Column 12: Expected }, got identifier
   Line 2, Column 14: Unexpected '}' — unmatched closing brace
+  Line 2, Column 21: Expected semicolon
 
 --- Statistics ---
-Arena: used=8144B reserved=16777216B ratio=0%
-Parse errors: 2
+Arena: used=37112B reserved=16777216B ratio=0%
+Parse errors: 3

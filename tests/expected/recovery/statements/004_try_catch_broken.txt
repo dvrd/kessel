@@ -120,6 +120,12 @@
       "offset": 100
     },
     {
+      "message": "Expected semicolon",
+      "line": 5,
+      "column": 22,
+      "offset": 100
+    },
+    {
       "message": "Invalid statement in block",
       "line": 5,
       "column": 22,
@@ -127,10 +133,11 @@
     }
   ]
 }
-Parse errors (2):
+Parse errors (3):
   Line 5, Column 22: Expected expression after operator
+  Line 5, Column 22: Expected semicolon
   Line 5, Column 22: Invalid statement in block
 
 --- Statistics ---
-Arena: used=8168B reserved=16777216B ratio=0%
-Parse errors: 2
+Arena: used=37392B reserved=16777216B ratio=0%
+Parse errors: 3

@@ -122,6 +122,18 @@
       "offset": 3
     },
     {
+      "message": "Expected semicolon",
+      "line": 1,
+      "column": 5,
+      "offset": 4
+    },
+    {
+      "message": "Expected semicolon",
+      "line": 1,
+      "column": 19,
+      "offset": 18
+    },
+    {
       "message": "Invalid regular expression flag",
       "line": 1,
       "column": 11,
@@ -135,12 +147,14 @@
     }
   ]
 }
-Parse errors (4):
+Parse errors (6):
   Line 1, Column 4: Invalid character `!`
   Line 1, Column 4: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+  Line 1, Column 5: Expected semicolon
+  Line 1, Column 19: Expected semicolon
   Line 1, Column 11: Invalid regular expression flag
   Line 1, Column 13: Invalid regular expression flag
 
 --- Statistics ---
-Arena: used=14384B reserved=16777216B ratio=0%
-Parse errors: 4
+Arena: used=39728B reserved=16777216B ratio=0%
+Parse errors: 6

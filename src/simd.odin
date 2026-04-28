@@ -73,7 +73,19 @@ simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: b
 // (~half of all identifiers in real-world JS) this halves the inner-loop
 // time. We measured ≈50 % of total parse-CPU was lex_token before this
 // optimization.
-simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit_backslash: bool) {
+//
+// ECMA-262 §12.6: most ASCII whitespace, all line terminators, and many
+// Pattern_Syntax characters fall outside IdentifierPart. The SIMD path
+// is *deliberately permissive* with high bytes — it accepts every byte
+// >= 0x80 as id-cont so that the inner loop never falls out for valid
+// non-ASCII identifiers (CJK, Latin-1 letters, ZWJ/ZWNJ, math letters,
+// …). Scanning past the (rare) spec-rejected high bytes (U+2028, U+2029,
+// U+2E2F, ZWNBSP, …) is corrected by `lex_identifier`, which runs a
+// post-pass over the scanned slice ONLY when it actually contains a
+// non-ASCII byte. The result: pure-ASCII identifiers (the 99 % case)
+// pay zero extra cost, and identifiers with non-ASCII pay one cheap
+// scalar walk instead of per-byte UTF-8 decoding inside the hot loop.
+simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit_backslash: bool, has_non_ascii: bool) {
 	off := start
 	src_len := len(src)
 	when ODIN_ARCH == .arm64 {
@@ -87,6 +99,7 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 		dollr: Vec16 = '$'
 		high:  Vec16 = 0x80
 		back:  Vec16 = '\\'
+		ones:  simd.u8x16 = 0xFF
 		for off + 16 <= src_len {
 			chunk := (transmute(^Vec16)&src[off])^
 			is_lo := transmute(simd.u8x16)simd.lanes_ge(chunk, lo_a) & transmute(simd.u8x16)simd.lanes_le(chunk, lo_z)
@@ -95,106 +108,220 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 			is_un := transmute(simd.u8x16)simd.lanes_eq(chunk, under) | transmute(simd.u8x16)simd.lanes_eq(chunk, dollr)
 			is_hi := transmute(simd.u8x16)simd.lanes_ge(chunk, high)
 			is_bk := transmute(simd.u8x16)simd.lanes_eq(chunk, back)
-			// is_id_cont = is_lo | is_up | is_di | is_un | is_hi
+			// One reduce_or per chunk records whether ANY byte was >= 0x80,
+			// so the caller can skip the spec validator entirely for chunks
+			// that consumed only ASCII. Cheap (single SIMD op per 16 bytes)
+			// and avoids a per-identifier scalar scan in the hot path.
+			if intrinsics.simd_reduce_or(transmute(Vec16)is_hi) != 0 {
+				has_non_ascii = true
+			}
+			// is_id includes is_hi: high bytes flow through SIMD as id-cont.
+			// The (rare) spec-invalid ones are caught by the post-pass.
 			is_id := is_lo | is_up | is_di | is_un | is_hi
-			// break_lane = ~is_id | is_bk  — every byte that's neither
-			// id-cont nor a backslash gets msb cleared; backslash flips it back on
-			// so the caller can take the escape slow path.
-			ones: simd.u8x16 = 0xFF
+			// break_lane = ~is_id | is_bk — every byte that's neither id-cont
+			// nor backslash gets msb cleared; backslash flips it back on so
+			// the caller can take the escape slow path.
 			break_v := transmute(Vec16)((is_id ~ ones) | is_bk)
 			mask := simd.extract_msbs(break_v)
 			if card(mask) > 0 {
 				for lane in mask {
 					p := off + int(lane)
-					return p, src[p] == '\\'
+					return p, src[p] == '\\', has_non_ascii
 				}
 			}
 			off += 16
 		}
 	}
-	// Scalar tail (and full-loop fallback on non-arm64).
+	// Scalar tail (and full-loop fallback on non-arm64). Mirrors the SIMD
+	// permissiveness: high bytes are accepted unconditionally and validated
+	// post-hoc by `lex_identifier`. The CHAR_CLASS_TABLE entry for every
+	// byte >= 0x80 is `IdStart`, so the scan terminates only on `\\`,
+	// ASCII whitespace/operators, or end-of-source.
 	for off < src_len {
 		c := src[off]
-		if c == '\\' { return off, true }
+		if c == '\\' { return off, true, has_non_ascii }
 		class := CHAR_CLASS_TABLE[c]
-		if class != u8(CharClass.IdStart) && class != u8(CharClass.Digit) { return off, false }
+		if class != u8(CharClass.IdStart) && class != u8(CharClass.Digit) { return off, false, has_non_ascii }
+		if c >= 0x80 { has_non_ascii = true }
 		off += 1
 	}
-	return src_len, false
+	return src_len, false, has_non_ascii
 }
 
 // ============================================================================
 // SIMD Comment Scanning
 // ============================================================================
 
-// Skip line comment: find \n using SIMD. Returns offset past the newline (or src_len).
-// Caller has already consumed the leading //.
+// Skip line comment: find any LineTerminator. Returns offset AT the
+// terminator (or src_len at EOF). Caller has already consumed `//`.
+//
+// ECMA-262 §12.3 LineTerminator :: <LF> | <CR> | <LS> | <PS>
+//
+// PERF: the SIMD body uses ONE `lanes_lt(chunk, 0x20)` per 16 bytes —
+// the same op count as the old LF-only loop — to detect ANY ASCII
+// control character (which includes both LF=0x0A and CR=0x0D, plus
+// TAB=0x09 / VT=0x0B / FF=0x0C). When the chunk has only printable
+// ASCII or non-ASCII bytes the loop just advances 16 bytes. When it
+// hits a control char, the scalar walk inside the chunk pinpoints LF
+// or CR (or U+2028 / U+2029 via the 0xE2 lead byte), since spec line
+// terminators are LF / CR / LS / PS. TAB and other inert controls
+// fall through and the SIMD continues.
 simd_skip_line_comment :: #force_inline proc(src: []u8, start: int) -> (end: int, had_nl: bool) {
 	off := start
 	src_len := len(src)
-	nl_vec: Vec16 = '\n'
+	ctrl_thresh: Vec16 = 0x20
 
 	for off + 16 <= src_len {
 		chunk := (transmute(^Vec16)&src[off])^
-		cmp := simd.lanes_eq(chunk, nl_vec)
-		any_nl := intrinsics.simd_reduce_or(transmute(Vec16)cmp)
-		if any_nl != 0 {
-			// Found newline — find which lane
-			bits := simd.extract_msbs(transmute(Vec16)cmp)
-			for lane in bits {
-				return off + int(lane), true
+		cmp := simd.lanes_lt(chunk, ctrl_thresh)
+		any_ctrl := intrinsics.simd_reduce_or(transmute(Vec16)cmp)
+		if any_ctrl != 0 {
+			// One control byte was found; walk this chunk scalar for the
+			// real terminators. Almost always a one-iteration exit — the
+			// first control byte in a comment IS the line terminator.
+			end_chunk := off + 16
+			for i := off; i < end_chunk; i += 1 {
+				b := src[i]
+				if b == '\n' || b == '\r' { return i, true }
+			}
+			// All low-byte hits were inert (TAB / VT / FF / NUL). Fall
+			// through to advance 16 and keep the SIMD scan going.
+		}
+		// Independent 0xE2 (U+2028 / U+2029) check within the chunk.
+		// LS / PS in line comments are vanishingly rare — a single
+		// SIMD compare per chunk is the cost of spec correctness.
+		e2_vec: Vec16 = 0xE2
+		e2_cmp := simd.lanes_eq(chunk, e2_vec)
+		if intrinsics.simd_reduce_or(transmute(Vec16)e2_cmp) != 0 {
+			end_chunk := off + 16
+			for i := off; i < end_chunk; i += 1 {
+				if src[i] == 0xE2 && i + 2 < src_len &&
+				   src[i+1] == 0x80 &&
+				   (src[i+2] == 0xA8 || src[i+2] == 0xA9) {
+					return i, true
+				}
 			}
 		}
 		off += 16
 	}
-	// Scalar tail
+	// Scalar tail (and full-loop fallback on non-arm64).
 	for off < src_len {
-		if src[off] == '\n' { return off, true }
+		b := src[off]
+		if b == '\n' || b == '\r' { return off, true }
+		if b == 0xE2 && off + 2 < src_len &&
+		   src[off+1] == 0x80 &&
+		   (src[off+2] == 0xA8 || src[off+2] == 0xA9) {
+			return off, true
+		}
 		off += 1
 	}
 	return src_len, false
 }
 
 // Skip block comment: find */ using SIMD. Returns offset past the */.
-// Also tracks whether any newline was encountered (for had_line_terminator).
-// Caller has already consumed the leading /*.
+// Also tracks whether any LineTerminator was encountered (for the
+// caller's had_line_terminator). Caller has already consumed `/*`.
+//
+// ECMA-262 §12.4 — a MultiLineComment containing ANY LineTerminator
+// (LF / CR / LS / PS) is itself treated as a LineTerminator for ASI.
+// Detect each via:
+//   * LF / CR — single SIMD `lanes_lt(chunk, 0x20)` rolls all ASCII
+//     control chars into one comparison.
+//   * LS / PS (U+2028 / U+2029, UTF-8 `E2 80 A8/A9`) — detect via the
+//     0xE2 lead byte with a scalar 3-byte recheck on hit (the 0xE2 may
+//     start an ordinary 3-byte char like ☃, so the cont bytes matter).
+//
+// CORRECTNESS: when both an LT and `*/` appear in the same 16-byte
+// chunk we must only count the LT(s) that fall STRICTLY BEFORE the
+// first `*/`. Otherwise `/*c*/++;\n}` (where `*/` is lane 7 and `\n`
+// is lane 12) would wrongly flip had_line_terminator on, triggering
+// ASI for the postfix `++` after the comment.
 simd_skip_block_comment :: #force_inline proc(src: []u8, start: int) -> (end: int, had_nl: bool) {
 	off := start
 	src_len := len(src)
 	had_newline := false
-	star_vec: Vec16 = '*'
-	nl_vec: Vec16 = '\n'
+	star_vec:  Vec16 = '*'
 	slash_vec: Vec16 = '/'
+	ctrl_vec:  Vec16 = 0x20
+	e2_vec:    Vec16 = 0xE2
 
 	// Process 15 bytes at a time (need 1 byte lookahead for */)
 	for off + 16 < src_len {
 		chunk := (transmute(^Vec16)&src[off])^
 		next_chunk := (transmute(^Vec16)&src[off + 1])^
 
-		// Check for \n
-		nl_cmp := simd.lanes_eq(chunk, nl_vec)
-		any_nl := intrinsics.simd_reduce_or(transmute(Vec16)nl_cmp)
-		if any_nl != 0 { had_newline = true }
-
-		// Check for */ pair: chunk[i]=='*' AND chunk[i+1]=='/'
-		star_cmp := simd.lanes_eq(chunk, star_vec)
+		star_cmp  := simd.lanes_eq(chunk, star_vec)
 		slash_cmp := simd.lanes_eq(next_chunk, slash_vec)
 		pair_match := transmute(Vec16)(transmute(simd.u8x16)star_cmp & transmute(simd.u8x16)slash_cmp)
 		any_pair := intrinsics.simd_reduce_or(pair_match)
 
+		// Detect comment-body line terminators. `lanes_lt(chunk, 0x20)`
+		// catches LF (0x0A), CR (0x0D), and a few inert controls (TAB,
+		// VT, FF, NUL). The `lanes_eq(chunk, 0xE2)` lead-byte check
+		// handles U+2028 / U+2029 with a scalar continuation re-check on
+		// hit so plain 3-byte UTF-8 chars (☃, …) don't false-positive.
+		ctrl_cmp := simd.lanes_lt(chunk, ctrl_vec)
+		e2_cmp   := simd.lanes_eq(chunk, e2_vec)
+
 		if any_pair != 0 {
-			// Found */ — find first position
-			bits := simd.extract_msbs(pair_match)
-			for lane in bits {
-				return off + int(lane) + 2, had_newline
+			pair_bits := simd.extract_msbs(pair_match)
+			ctrl_bits := simd.extract_msbs(transmute(Vec16)ctrl_cmp)
+			e2_bits   := simd.extract_msbs(transmute(Vec16)e2_cmp)
+			for lane in pair_bits {
+				end_pos := off + int(lane) + 2
+				// LF / CR before the `*/`.
+				if !had_newline {
+					for c_lane in ctrl_bits {
+						if int(c_lane) >= int(lane) { continue }
+						b := src[off + int(c_lane)]
+						if b == '\n' || b == '\r' { had_newline = true; break }
+					}
+				}
+				// LS / PS before the `*/` (full E2 80 A8/A9 sequence).
+				if !had_newline {
+					for e_lane in e2_bits {
+						p := off + int(e_lane)
+						if p >= off + int(lane) { continue }
+						if p + 2 < src_len &&
+						   src[p+1] == 0x80 &&
+						   (src[p+2] == 0xA8 || src[p+2] == 0xA9) {
+							had_newline = true; break
+						}
+					}
+				}
+				return end_pos, had_newline
+			}
+		}
+		// No `*/` in this chunk — any LT is inside the comment body.
+		if !had_newline {
+			if intrinsics.simd_reduce_or(transmute(Vec16)ctrl_cmp) != 0 {
+				end_chunk := off + 16
+				for i := off; i < end_chunk; i += 1 {
+					b := src[i]
+					if b == '\n' || b == '\r' { had_newline = true; break }
+				}
+			}
+			if !had_newline && intrinsics.simd_reduce_or(transmute(Vec16)e2_cmp) != 0 {
+				end_chunk := off + 16
+				for i := off; i < end_chunk; i += 1 {
+					if src[i] == 0xE2 && i + 2 < src_len &&
+					   src[i+1] == 0x80 &&
+					   (src[i+2] == 0xA8 || src[i+2] == 0xA9) {
+						had_newline = true; break
+					}
+				}
 			}
 		}
 		off += 16
 	}
-	// Scalar tail
+	// Scalar tail.
 	for off + 1 < src_len {
-		if src[off] == '\n' { had_newline = true }
-		if src[off] == '*' && src[off + 1] == '/' { return off + 2, had_newline }
+		b := src[off]
+		if b == '\n' || b == '\r' { had_newline = true }
+		if b == 0xE2 && off + 2 < src_len &&
+		   src[off+1] == 0x80 &&
+		   (src[off+2] == 0xA8 || src[off+2] == 0xA9) { had_newline = true }
+		if b == '*' && src[off + 1] == '/' { return off + 2, had_newline }
 		off += 1
 	}
 	return src_len, had_newline

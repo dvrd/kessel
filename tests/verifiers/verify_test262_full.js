@@ -76,9 +76,20 @@ function parseFrontmatter(source) {
   if (end < 0) return {};
   const block = source.slice(start + 5, end);
   const meta = { flags: [], features: [], negative: null };
+  // YAML supports two list forms: inline `flags: [a, b]` and block-list
+  // `flags:\n  - a\n  - b`. Some Test262 fixtures (notably staging/sm/*)
+  // use the block form. Try the inline match first; on miss, fall back
+  // to scanning sequential `  - <flag>` lines under a `flags:` header.
   const flagsMatch = block.match(/flags:\s*\[([^\]]*)\]/);
   if (flagsMatch) {
     meta.flags = flagsMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+  } else {
+    const blockMatch = block.match(/flags:\s*\n((?:\s+-\s*\S+\s*\n?)+)/);
+    if (blockMatch) {
+      meta.flags = blockMatch[1].split('\n')
+        .map(line => line.replace(/^\s*-\s*/, '').trim())
+        .filter(Boolean);
+    }
   }
   const featuresMatch = block.match(/features:\s*\[([^\]]*)\]/);
   if (featuresMatch) {

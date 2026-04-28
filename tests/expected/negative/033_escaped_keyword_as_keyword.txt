@@ -103,12 +103,19 @@
       "line": 11,
       "column": 1,
       "offset": 598
+    },
+    {
+      "message": "Expected semicolon",
+      "line": 11,
+      "column": 13,
+      "offset": 610
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
   Line 11, Column 1: Keyword 'if' must not contain escaped characters
+  Line 11, Column 13: Expected semicolon
 
 --- Statistics ---
-Arena: used=16264B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36784B reserved=16777216B ratio=0%
+Parse errors: 2
