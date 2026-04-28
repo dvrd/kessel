@@ -2868,7 +2868,13 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	object := parse_assignment_expression(p)
+	// §13.11 WithStatement : with ( Expression ) Statement — Expression
+	// is the comma-operator production, so `with (a, b, c) ...` is
+	// legal. Use parse_expression (which calls parse_expr_with_prec at
+	// .Comma) rather than parse_assignment_expression. Test262
+	// language/statements/with/scope-var-open.js exercises this with
+	// `with (eval('var x = 1;'), probe = function(){...}, objectRecord)`.
+	object := parse_expression(p)
 	if object == nil {
 		return nil
 	}
@@ -3850,10 +3856,28 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	is_private := false
 	is_accessor := false
 
-	// Check for `accessor` keyword
+	// Check for `accessor` keyword (Stage-3 decorators auto-accessor):
+	//   accessor PropertyName Initializer_opt
+	// `accessor` is contextual — it's the auto-accessor keyword only when
+	// the NEXT token can start a class element name AND there's no
+	// LineTerminator between them. Otherwise it's a plain identifier name
+	// (field, method, or get/set accessor name). The exclusion list
+	// matches the Stage-3 grammar production:
+	//   - LParen / Semi / RBrace → method/field named `accessor` itself
+	//   - Assign / Comma           → field initializer or list `accessor = 42;`
+	//   - LineTerminator           → ASI-style bare field `accessor\n a;`
+	// Test262 staging/decorators/accessor-as-identifier.js.
 	if is_token(p, .Accessor) {
 		next := peek_dispatch(p)
-		if next.type != .LParen && next.type != .Semi && next.type != .RBrace {
+		next_starts_name := next.type != .LParen && next.type != .Semi &&
+		                    next.type != .RBrace && next.type != .Assign &&
+		                    next.type != .Comma
+		// peek_dispatch returns the next non-whitespace token; check its
+		// had_line_terminator flag to detect ASI between `accessor` and
+		// the next token. The peek result's flag reflects whether a LT
+		// crossed BEFORE that token, which is exactly the ASI condition.
+		next_on_same_line := !next.had_line_terminator
+		if next_starts_name && next_on_same_line {
 			is_accessor = true
 			eat(p)
 		}
@@ -4057,7 +4081,28 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			p.in_method = true
 			prev_in_derived_ctor := p.in_derived_constructor
 			p.in_derived_constructor = false
+			// §15.7.10 ClassFieldDefinitionEvaluation: ClassFieldInitializer
+			// is the body of a SYNTHETIC non-async, non-generator function.
+			// `await` and `yield` MUST NOT be parsed as AwaitExpression /
+			// YieldExpression here, even when the enclosing function is
+			// async / generator. They become plain IdentifierReferences,
+			// which are then accepted-or-rejected by the standard
+			// reserved-word rules (`await` reserved in modules / static
+			// blocks; `yield` reserved in strict). Test262 staging/sm/
+			// fields/await-identifier-{script,module-3}.js.
+			prev_in_async := p.in_async
+			prev_in_generator := p.in_generator
+			prev_in_async_params := p.in_async_params
+			prev_in_generator_params := p.in_generator_params
+			p.in_async = false
+			p.in_generator = false
+			p.in_async_params = false
+			p.in_generator_params = false
 			init_expr := parse_assignment_expression(p)
+			p.in_async = prev_in_async
+			p.in_generator = prev_in_generator
+			p.in_async_params = prev_in_async_params
+			p.in_generator_params = prev_in_generator_params
 			p.in_method = prev_in_method
 			p.in_derived_constructor = prev_in_derived_ctor
 			if init_expr != nil {
@@ -11287,13 +11332,19 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						rest.loc = arg.loc
 						ident_expr := arg.argument
 						if ident_expr != nil {
-							#partial switch id in ident_expr^ {
-							case ^Identifier:
-								ident_ptr := new_node(p, Identifier)
-								ident_ptr^ = id^
-								rest.argument = ident_ptr
-							case:
-								report_error(p, "Expected identifier in rest parameter")
+							// Rest element argument can be a BindingIdentifier OR a
+							// nested BindingPattern (ObjectPattern / ArrayPattern) per
+							// §15.2.1 / §15.3.1 — BindingRestElement[Yield, Await]:
+							//   ... BindingIdentifier
+							//   ... BindingPattern
+							// Route through expr_to_pattern so destructuring rest
+							// targets like `(...rest)`, `(...[a, b])`, `(...{x, y})`
+							// are all carried through. Test262 language/expressions/
+							// arrow-function/scope-param-rest-elem-var-open.js.
+							if pat, ok := expr_to_pattern(p, ident_expr); ok {
+								rest.argument = pat
+							} else {
+								report_error(p, "Expected identifier or pattern in rest parameter")
 							}
 						}
 						// arg.loc already spans `...<ident>` - keep it as-is.
