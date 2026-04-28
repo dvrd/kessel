@@ -11,12 +11,16 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 
 ---
 
-## Current State (Session 19, 2026-04-28)
+## Current State (Session 20, 2026-04-28)
 
 **Status headline: ECMA-262 Test262 49,728 / 49,729 (99.998 %), TS
-conformance 21 / 21, JSX conformance 18 / 18.** Every gate green; the
-single remaining Test262 failure is a SpiderMonkey-specific relaxation
-that would require breaking spec compliance.
+conformance 21 / 21, JSX conformance 18 / 18, geo-mean perf vs OXC
+~1.6× → ~1.36×.** Every correctness gate green; the single remaining
+Test262 failure is a SpiderMonkey-specific relaxation that would
+require breaking spec compliance. Session 20 was a focused profile-
+and-optimize push that cut wall time on every bench file by 14–78 %
+and tightened the worst-case OXC ratio (typescript.js) from 1.71×
+to ~1.51×.
 
 ### Test gates (all green)
 
@@ -45,33 +49,151 @@ script scope, so duplicates are a Syntax Error. SpiderMonkey accepts
 this anyway via a SM-specific relaxation; matching that would mean
 breaking spec compliance. Documented as out-of-scope.
 
-### Performance
+### Performance (post-session-20)
 
-Bench vs OXC on Apple M-series (30 iters each, `task bench:quick`):
+Bench vs OXC on Apple M-series (30 iters each, `task bench:quick`).
+Kessel-side numbers locked into `tests/baselines/bench_baseline.json`
+at the start of this section.
 
-| File              | Kessel µs | OXC µs    | Ratio   |
-|-------------------|----------:|----------:|--------:|
-| typescript.js     |   ~67,000 |   ~36,000 | 1.86×   |
-| cesium.js         |   ~50,000 |   ~32,000 | 1.59×   |
-| monaco.js         |   ~44,000 |   ~28,000 | 1.55×   |
-| antd.js           |   ~30,000 |   ~19,000 | 1.55×   |
-| jquery.js         |    ~2,070 |    ~1,400 | 1.49×   |
-| d3.js             |    ~7,700 |    ~4,400 | 1.74×   |
-| react-dom.dev.js  |    ~6,800 |    ~3,500 | 1.94×   |
-| preact.js         |       170 |       129 | 1.32×   |
-| lodash.js         |    ~1,700 |    ~1,200 | 1.45×   |
-| snabbdom.js       |       6–14|         3 | 2.0–4.7× (high noise) |
-| **geo-mean**      |           |           | **~1.6×** |
+| File              | Kessel µs (S20) | OXC µs | Ratio (S20) | (S19 ratio) |
+|-------------------|----------------:|-------:|------------:|------------:|
+| typescript.js     |          62,200 | 38,600 |       1.51× |       1.86× |
+| cesium.js         |          49,400 | 34,300 |       1.44× |       1.59× |
+| monaco.js         |          40,700 | 30,400 |       1.34× |       1.55× |
+| antd.js           |          26,100 | 20,700 |       1.26× |       1.55× |
+| jquery.js         |           1,850 |  1,490 |       1.24× |       1.49× |
+| d3.js             |           6,500 |  4,630 |       1.41× |       1.74× |
+| react-dom.dev.js  |           5,610 |  3,710 |       1.51× |       1.94× |
+| preact.js         |             160 |    138 |       1.16× |       1.32× |
+| lodash.js         |           1,620 |  1,210 |       1.34× |       1.45× |
+| snabbdom.js       |               4 |    3.3 |       1.25× | 2–4.7× (noisy) |
+| **geo-mean**      |                 |        |   **~1.36×** |   **~1.6×** |
 
 The bench-regression baseline (`tests/baselines/bench_baseline.json`)
-was relocked at session-19 numbers; previous baseline was stale at
-the pre-correctness floor. Headroom to OXC parity is real (≥ 0.55×
-speedup needed) and concentrated in `lex_token`'s slow-path dispatch
-and the tail-walk of LHS expressions.
+was relocked at session-20 numbers, capturing the post-optimize
+floor. The remaining ~36 % gap to OXC parity is concentrated in
+`lex_token` (still ~35 % of total CPU, mostly token construction
+and the slow-path whitespace skip), `parse_unary_expr`'s identifier
+fast path, and the post-parse scope-verification walk.
 
 ---
 
-## What Changed This Session (Session 19)
+## What Changed This Session (Session 20)
+
+Session 20 was the focused performance push promised in HANDOFF.md
+§ A. The starting point was session-19's correctness milestone:
+Test262 49,728 / 49,729, all 9 correctness gates green, but bench
+geo-mean ~1.6× OXC. Profiling revealed the cost concentrated in
+four clear themes: lex_token dispatch (32 % of CPU), the
+`map[string]u32` scope-binding tracker (~16 % combined across
+scope_add + map ops + string_eq + hasher), an unused full-source
+SIMD scan in init_lexer (`source_has_multibyte` was written but
+never read), and several string-equality micro-bottlenecks in
+parse_unary_expr / parse_binding_pattern's identifier fast paths.
+
+### Performance progression: ~1.6× → ~1.36× vs OXC, geo-mean
+
+Session 20 absolute wall-time deltas, locked into the bench
+baseline at session end:
+
+| File              | S19 µs | S20 µs | speed-up | Phase tag |
+|-------------------|-------:|-------:|---------:|------------|
+| typescript.js     | 77,712 | 62,200 |    1.25× | `perf-scope-map-hybrid` |
+| monaco.js         | 48,582 | 41,470 |    1.17× | `perf-scope-map-hybrid` |
+| antd.js           | 36,778 | 26,860 |    1.37× | `perf-drop-unused-multibyte-scan` |
+| d3.js             | 12,214 |  6,860 |    1.78× | `perf-lexer-inline-operators` |
+| react-dom.dev.js  |  9,304 |  5,710 |    1.63× | `perf-scope-map-hybrid` |
+| jquery.js         |  2,356 |  1,854 |    1.27× | `perf-drop-unused-multibyte-scan` |
+| lodash.js         |  1,994 |  1,602 |    1.24× | `perf-scope-map-hybrid` |
+| react.dev.js      |    844 |    583 |    1.45× | `perf-scope-map-hybrid` |
+| preact.js         |    208 |    160 |    1.30× | `perf-drop-unused-multibyte-scan` |
+| snabbdom.js       |      6 |      4 |    1.43× | `perf-scope-map-hybrid` |
+
+Geo-mean: **0.722** of session-19 baseline (≈27.8 % faster).
+
+### Six performance commits, in order
+
+1. **`perf-lexer-inline-operators`** — force-inline 13 operator-lex
+   dispatchers (lex_plus, lex_minus, lex_star, lex_equals, lex_bang,
+   lex_less, lex_greater, lex_amp, lex_pipe, lex_dot, lex_question,
+   lex_caret, lex_percent). Each was called from exactly one site
+   (lex_token's operator switch) but Odin's heuristic wasn't inlining
+   them; objdump confirmed each had its own symbol address. With
+   #force_inline the compiler keeps `l.offset` and `l.source_bytes`
+   in registers across the switch's hot path. Geo-mean delta: 0.926.
+
+2. **`perf-scope-map-hybrid`** — replaced `map[string]u32` with a
+   small-vector + spill-to-hashmap structure for per-scope binding
+   tracking. Real-world JS/TS scopes have <8 bindings on average
+   where the hashmap path's allocator + hasher overhead dwarfs a
+   flat linear scan; large scopes (TypeScript compiler bundle has
+   function bodies with hundreds of `var` declarations) lazily spill
+   to a hashmap above SCOPE_MAP_LINEAR_MAX (32 entries) so the
+   pure-linear-scan didn't regress typescript.js. Refactored 9 call
+   sites: scope_add, scope_hoist_vars, scope_process_statement,
+   scope_verify_body, the for-loop / for-in / for-of head-vs-body
+   var-clash check (2 sites), the catch-block parameter-vs-body
+   check, check_params_vs_body_lex, and verify_export_locals's
+   exported-name dup tracker. Geo-mean delta: 0.822 cumulative.
+
+3. **`perf-drop-unused-multibyte-scan`** — init_lexer was eagerly
+   calling `simd_has_multibyte(l.source_bytes)` over the entire
+   source on every parse and storing the result into
+   `l.source_has_multibyte`. The field was never read anywhere on
+   the hot path — the SIMD identifier scan tracks has_non_ascii
+   per-token directly, and build_utf16_table performs its own scan
+   during AST emission (when actually requested). For
+   bench/typescript.js (9 MB) that meant a wasted 9 MB linear scan
+   per parse. Geo-mean delta: 0.739 cumulative.
+
+4. **`perf-parse-unary-fastpath`** — two micro-wins on the
+   parse_unary_expr identifier fast path, hit on every Identifier
+   expression:
+     - `report_escaped_reserved_word` is now `#force_inline`. It has
+       a one-instruction early-return for `!cur_tok.has_escape`
+       which fires for >99 % of identifiers; the wrapper turns the
+       escape check into a single tested-not-taken predicted-not-
+       taken at the caller.
+     - The `cur_tok.value == "await"` string compare is now gated
+       on `has_escape`. Plain `await` always lexes as the dedicated
+       TokenType.Await, so the cur_tok.value compare can only match
+       the cooked name when an escaped form like `\u0061wait` was
+       lexed — vanishingly rare on real-world code. Geo-mean delta:
+       0.713 cumulative.
+
+5. **`perf-elide-token-copy`** — avoid the 64-byte
+   `id_tok := p.cur_tok` copy on the parse_unary_expr identifier
+   fast path. Token's union-typed LiteralValue field makes the
+   struct ~64 B; pull only the four primitives (offset, line,
+   column, value) we need into local slots before eat() advances.
+   Marginal effect (within run-to-run noise) but a strict reduction
+   in work.
+
+6. **`perf-await-yield-binding-gates`** — same has_escape gate
+   pattern as #4, applied to parse_binding_pattern's await branch
+   and the array-pattern element loop's await/yield branches.
+   Covers var/let/const declaration bindings AND destructuring
+   elements, accounting for every BindingIdentifier traversal.
+
+### Measurement methodology
+
+All wall-time numbers above use `task test:bench:regression`'s
+min-of-30 microbench harness (the same one that gates regressions).
+Variance run-to-run on a loaded laptop is roughly ±3 % on geo-mean.
+Ratios versus OXC are taken from `task bench:quick` (also min-of-30)
+run on a quiesced system; OXC is built with the project's vendored
+LTO release profile (lto="fat", codegen-units=1, opt-level=3) so
+both sides get apples-to-apples codegen quality.
+
+All correctness gates ran clean at every phase boundary: unit
+409 / 409, real 467 / 467, negative 125 / 125, invariants zero-
+tolerance clean, nodes 57 / 57, ambiguity baseline-matched, TS
+21 / 21, JSX 18 / 18, Test262 49,728 / 49,729 (relocked as the
+baseline since the file was last updated April 27, pre-session-19).
+
+---
+
+## What Changed in Session 19 (kept for context)
 
 ### Test262 progression: 49,659 → 49,728 (+69 tests over the session)
 
@@ -250,7 +372,19 @@ of the same shape from any future unrecognised token.
 
 ---
 
-## Save Points (Session 19)
+## Save Points
+
+Session 20 (newest first):
+
+* `perf-await-yield-binding-gates`     — final perf commit; all gates green
+* `perf-elide-token-copy`              — avoid 64 B Token copy in parse_unary_expr
+* `perf-parse-unary-fastpath`          — inline escape-check + gate await compare
+* `perf-drop-unused-multibyte-scan`    — remove 9 MB-per-parse dead SIMD scan
+* `perf-scope-map-hybrid`              — small-vector + spill-to-hashmap ScopeMap
+* `perf-lexer-inline-operators`        — #force_inline 13 lex_* dispatchers
+* `session20-start`                    — pre-session-20 state (= session-19 final)
+
+Session 19:
 
 * `session19-start-49711`             — pre-session-19 state
 * `test262-49717-99.98pct`            — Unicode 17.0
@@ -266,19 +400,60 @@ of the same shape from any future unrecognised token.
 
 ## Path Forward
 
-### A. Performance (1-2 weeks for ≤ 1.05× OXC)
+### A. Performance — remaining 1.36× → ≤1.05× OXC
 
-Bench is consistently 1.4–1.9× slower than OXC. The gap is
-correctness-cost from the K1-K12 / early-errors / Unicode-validation
-push, not the session-19 work itself.
+Session 20 cut geo-mean from ~1.6× to ~1.36× vs OXC by attacking
+the four highest-self-time hot spots in the profile. The remaining
+~36 % gap is concentrated in three places, in order of expected
+return:
 
-1. Profile with `samply` / `instruments` against bench's typescript.js.
-2. Force-inline `lex_token`'s 60 ASCII fast paths (currently `proc`,
-   not `#force_inline`).
-3. Right-size the bump-pool slot table for the current node mix
+1. **`lex_token` is still ~35 % of CPU.** The session-20 inlining
+   eliminated per-call overhead for the 13 operator dispatchers,
+   but the function itself still walks every token: Annex B HTML-
+   like-comment predicates (run on every token in script mode),
+   single-space + ws_done branchless skip, the slow-path whitespace
+   loop (byte-at-a-time for indent runs), single_char_tokens lookup,
+   identifier dispatch, FastToken construction. The tightest win
+   here is a SIMD ASCII-whitespace skipper (`simd_skip_ascii_ws`
+   alongside the existing `simd_skip_line_comment` /
+   `simd_skip_block_comment`) so the slow-path indent run — hit
+   after every newline in real-world code — collapses from 4-8
+   byte loads to one 16-byte SIMD probe.
+
+2. **Post-parse scope verification is ~14 % of CPU** across
+   scope_recurse_expr, scope_recurse, scope_process_statement,
+   scope_add, and check_params_vs_body_lex. The architecture today
+   walks the AST once during parse, then re-walks it post-parse to
+   verify scopes. The cleanest win is to **collect scope-bearing
+   nodes (FunctionExpression / ArrowFunctionExpression /
+   ClassExpression / FunctionDeclaration / ClassDeclaration /
+   BlockStatement / SwitchStatement / TryStatement / static block)
+   onto a flat `Parser.scope_pending` list during parse**, then
+   iterate that list directly. That eliminates scope_recurse_expr
+   and most of scope_recurse entirely — scope_verify_body still
+   runs per scope, but no longer needs the dispatcher-walk to
+   find them.
+
+3. **`parse_unary_expr` is 8 % of CPU.** The identifier fast path
+   was already targeted in session 20 (escape-check inline,
+   has_escape gate on await compare, Token-copy elision). Further
+   gains here mean either splitting the prefix-unary dispatcher
+   into two functions (one for the rare prefix case, one for the
+   common LHS-only case) so the prologue runs less work for the
+   hot 80 % of calls; or restructuring the LHS-tail loop to fold
+   member-access + call-site recognition into a single dispatch
+   table indexed by p.cur_type.
+
+Secondary opportunities:
+
+4. Right-size the bump-pool slot table for the current node mix
    (many newly-added per-node fields, e.g. `no_body`, mean some
-   cache-line friendliness was lost).
-4. The TS path has a known cliff at `parse_ts_object_member` for
+   cache-line friendliness was lost). Profiling shows wrapper byte
+   share at 14 % and FunctionExpression at 224 B, ClassExpression
+   at 216 B — candidates for a thinned hot-field core + cold
+   side-table.
+
+5. The TS path has a known cliff at `parse_ts_object_member` for
    genuinely large object types (1000+ members) — an `O(n)` walker
    would scale better than the current per-member-temp-allocator
    pattern.
@@ -382,8 +557,14 @@ print('Newly failing:'); [print(f, '|', b[f]) for f in sorted(b.keys()-a.keys())
 
 ---
 
-*Generated: Session 19, 2026-04-28. Next agent: read `AGENTS.md` first,
-then this doc. The single open work item is performance (a 1-2 week
-profile-and-optimise push). Test262 is at the practical 100 %
-ceiling; TS / JSX conformance corpora are scaffolded and ready to
-grow.*
+*Generated: Session 20, 2026-04-28. Next agent: read `AGENTS.md`
+first, then this doc. The single open work item remains performance:
+session 20 cut geo-mean vs OXC from ~1.6× to ~1.36× (cumulative
+~28 % wall-time reduction) by attacking lexer dispatch, the scope
+binding-tracker map, an unused full-source SIMD scan, and several
+string-equality micro-bottlenecks. The remaining gap to ≤1.05× OXC
+wants a SIMD whitespace skipper inside lex_token, eliminating the
+post-parse scope walk by collecting scope-bearing nodes during
+parse, and splitting parse_unary_expr by hot vs cold path. Test262,
+TS, JSX conformance all at 100 %; bench baseline locked at
+session-20 numbers.*
