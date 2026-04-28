@@ -195,6 +195,26 @@ bump_alloc :: #force_inline proc(pool: ^BumpPool, size: int, align: int) -> rawp
 	return ptr
 }
 
+// ScopePending is a body queued during parse for verify_scopes to inspect
+// post-parse. Replaces the recursive AST walker (scope_recurse / scope_recurse_expr
+// / scope_recurse_class_elements) that previously cost ~14 % of CPU on real-world
+// bench by re-walking every Expression / Statement just to find FunctionExpression /
+// ArrowFunctionExpression / ClassExpression / FunctionDeclaration / ClassDeclaration /
+// BlockStatement / SwitchStatement / TryStatement / static-block bodies that the parser
+// already visits exactly once. Each such body pushes itself at parse-EXIT (when its
+// dynamic-array body is fully populated); verify_scopes drains the queue, running
+// scope_process_statement once per body with a fresh ScopeMap pair.
+//
+// `is_block_scope` controls Annex B.3.2 sloppy-mode FunctionDeclaration semantics:
+// .true for genuine block scopes (catch / finally / for-body / nested blocks /
+// switch-case-list); .false for function bodies / arrow block bodies / static
+// blocks, which are function-scope (sloppy plain FunctionDecl hoists as .Var).
+ScopePending :: struct {
+	body:           []^Statement,
+	start_offset:   u32,
+	is_block_scope: bool,
+}
+
 // Parser represents the recursive descent parser
 Parser :: struct {
 	// Lexer reference (per-parser, thread-safe for parallel parsing)
@@ -462,6 +482,13 @@ Parser :: struct {
 	// Position tracking
 	last_pos:        LexerLoc,
 
+	// Pending scope-bearing bodies queued during parse for verify_scopes to
+	// iterate post-parse. See ScopePending doc-comment above for the
+	// motivation. Sorted by start_offset before iteration so error messages
+	// surface in source order regardless of parse-exit push order (innermost-
+	// first — a child block exits before its parent).
+	scope_pending: [dynamic]ScopePending,
+
 	// Optional instrumentation for parser profiling
 	profile_enabled: bool,
 	profile:         ParserProfile,
@@ -609,6 +636,14 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
 	p.pending_proto_dups = make([dynamic][2]u32, 0, 2, alloc)
+	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
+	// real-world JS (functions / arrows / blocks). Pre-size so the typical
+	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1–2 times.
+	scope_cap := 16
+	if p.source_len > 4096 {
+		scope_cap = p.source_len / 512
+	}
+	p.scope_pending = make([dynamic]ScopePending, 0, scope_cap, alloc)
 
 	// Bump pool: scale with source size.
 	//
@@ -674,6 +709,50 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 
 	// Prime token cache
 	prime_token_cache(p)
+}
+
+// Re-stamp the most-recently-pushed scope_pending entry with is_block_scope=false.
+// Called by arrow-function block-body parse sites and the static-block parse site:
+// both produce a body that is a function-scope (§15.3.1 / §15.7.5), not a block-
+// scope, but parse_block_statement always pushes its (block-scope) default. A no-op
+// if the prior parse_block_statement bailed before pushing (e.g. missing `{`).
+mark_last_scope_function_scope :: #force_inline proc(p: ^Parser) {
+	if len(p.scope_pending) > 0 {
+		p.scope_pending[len(p.scope_pending)-1].is_block_scope = false
+	}
+}
+
+// Returns true if the body contains at least one statement whose presence
+// at the top level of a scope contributes work to scope_check_body's lex /
+// var / Annex-B clash detection. ExpressionStatement / ReturnStatement /
+// EmptyStatement / IfStatement / WhileStatement / ForStatement / etc. are
+// all NO-OPs from scope_process_statement's perspective — their union arms
+// fall through. Skipping the push for trivial bodies avoids ~5–10 % per-
+// callback overhead on real-world bundles like antd.js where most arrow
+// bodies are `() => jsx` or `() => { return jsx }` and have nothing to
+// verify. The walk is O(N) over the body once at parse-exit, vs the
+// scope_check_body call's O(N) + ScopeMap allocations and per-stmt
+// switch dispatch — net positive for any body that's more than ~3 stmts.
+//
+// CORRECTNESS: BlockStatement is included because scope_process_statement's
+// BlockStatement arm calls scope_hoist_vars to extract `var` from nested
+// blocks / loops / if-bodies into the outer scope (§14.2.1 hoist), so a
+// body whose only statement is `{ var f; }` still needs verification.
+has_scope_relevant_stmt :: proc(body: []^Statement) -> bool {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch _ in stmt^ {
+		case ^VariableDeclaration,
+		     ^FunctionDeclaration,
+		     ^ClassDeclaration,
+		     ^ImportDeclaration,
+		     ^ExportNamedDeclaration,
+		     ^ExportDefaultDeclaration,
+		     ^BlockStatement:
+			return true
+		}
+	}
+	return false
 }
 
 // Create a new node allocated from bump pool (zero-dispatch)
@@ -1598,6 +1677,21 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	block.loc.span.end = prev_end_offset(p)
+	// Queue this block for post-parse scope verification. is_block_scope=true
+	// is the genuine BlockStatement default (§14.2.1: an inner Block is its
+	// own lexical scope, sloppy plain FunctionDecls follow Annex B.3.2). Two
+	// callers re-stamp the just-pushed entry to is_block_scope=false:
+	// parse_arrow_function (arrow block body is a function scope) and
+	// parse_class_element's StaticBlock arm (a static block body is its own
+	// function scope per §15.7.5). See those sites for the override.
+	// Skip the queue when the body has nothing scope-relevant to check.
+	if has_scope_relevant_stmt(block.body[:]) {
+		append(&p.scope_pending, ScopePending{
+			body           = block.body[:],
+			start_offset   = block.loc.span.start,
+			is_block_scope = true,
+		})
+	}
 	return block_stmt
 }
 
@@ -2620,6 +2714,38 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	switch_.loc.span.end = prev_end_offset(p)
+	// §14.12.1 — all SwitchCase consequents share a single block-scope
+	// (the switch's StatementList). Flatten the per-case lists into one
+	// slice and queue it for post-parse verification. Probe relevance
+	// across all cases first; allocating the flat slice when nothing in
+	// the switch declares anything would be pure overhead.
+	relevant := false
+	total := 0
+	for c in switch_.cases {
+		total += len(c.consequent)
+		if !relevant && has_scope_relevant_stmt(c.consequent[:]) {
+			relevant = true
+		}
+	}
+	if total > 0 && relevant {
+		// The flat slice is allocated in the parser's persistent allocator
+		// so it outlives the parse-time temp_allocator (verify_scopes runs
+		// in the same call, but keeping the lifetime aligned with other
+		// ScopePending entries simplifies reasoning).
+		flat := make([]^Statement, total, p.allocator)
+		i := 0
+		for c in switch_.cases {
+			for s in c.consequent {
+				flat[i] = s
+				i += 1
+			}
+		}
+		append(&p.scope_pending, ScopePending{
+			body           = flat,
+			start_offset   = switch_.loc.span.start,
+			is_block_scope = true,
+		})
+	}
 	return statement_from(p, switch_)
 }
 
@@ -3512,6 +3638,19 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	}
 
 	body.loc.span.end = prev_end_offset(p)
+	// Queue this function body for post-parse scope verification.
+	// is_block_scope=false: a FunctionBody is its own function-scope, so a
+	// sloppy plain FunctionDeclaration inside it hoists as .Var (§14.1.3),
+	// matching the semantics of the previous scope_recurse path. Skip the
+	// queue when the body has nothing scope-relevant to check (typical
+	// callback bodies like `() => { return jsx }`).
+	if has_scope_relevant_stmt(body.body[:]) {
+		append(&p.scope_pending, ScopePending{
+			body           = body.body[:],
+			start_offset   = body.loc.span.start,
+			is_block_scope = false,
+		})
+	}
 	return body
 }
 
@@ -4432,6 +4571,8 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	if !ok {
 		return nil
 	}
+	// §15.7.5: ClassStaticBlockBody is its own function-scope, not a block-scope.
+	mark_last_scope_function_scope(p)
 
 	// Create a StaticBlock value (stored as a FunctionExpression with no params)
 	static_block := new_node(p, FunctionExpression)
@@ -6617,135 +6758,22 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 	}
 }
 
-// Verify a body-scope's lexical / var bindings, then recurse into
-// every nested body (FunctionBody / BlockStatement / CatchClause /
-// SwitchCase bodies / ArrowFunction block body / class static blocks).
+// Process a single body's lex / var bindings against fresh ScopeMap pairs.
+// Replaces scope_verify_body's first half. The recursive second half
+// (scope_recurse / scope_recurse_expr / scope_recurse_class_elements) is
+// gone: every scope-bearing body now self-registers into p.scope_pending
+// at parse time, and verify_scopes drains that queue directly.
 //
-// is_block_scope=true when this body is an inner Block / CatchClause /
-// SwitchCase / for-body - contexts where Annex B.3.2 sloppy
-// FunctionDeclaration binds with the hybrid kind. false for the top-
-// level Program body and FunctionBody, where sloppy plain FunctionDecl
-// hoists as a regular var.
-scope_verify_body :: proc(p: ^Parser, body: []^Statement, is_block_scope: bool = false) {
+// is_block_scope=true is the default for genuine BlockStatement / catch /
+// finally / switch case-list scopes (Annex B.3.2 sloppy plain
+// FunctionDecl follows the hybrid .FunctionAnnexB kind). false for
+// FunctionBody / ArrowFunction block body / static-block bodies
+// (function-scope; sloppy plain FunctionDecl hoists as .Var).
+scope_check_body :: #force_inline proc(p: ^Parser, body: []^Statement, is_block_scope: bool) {
 	lex  := scope_map_make(8)
 	vars := scope_map_make(8)
 	for stmt in body {
 		scope_process_statement(p, stmt, &lex, &vars, is_block_scope)
-	}
-	for stmt in body {
-		scope_recurse(p, stmt)
-	}
-}
-
-scope_recurse :: proc(p: ^Parser, stmt: ^Statement) {
-	if stmt == nil { return }
-	#partial switch v in stmt^ {
-	case ^BlockStatement:
-		if v != nil { scope_verify_body(p, v.body[:], true) }
-	case ^FunctionDeclaration:
-		if v != nil {
-			scope_verify_body(p, v.body.body[:], false)
-		}
-	case ^IfStatement:
-		if v != nil {
-			scope_recurse(p, v.consequent)
-			if alt, have := v.alternate.(^Statement); have { scope_recurse(p, alt) }
-		}
-	case ^WhileStatement:
-		if v != nil { scope_recurse(p, v.body) }
-	case ^DoWhileStatement:
-		if v != nil { scope_recurse(p, v.body) }
-	case ^ForStatement:
-		if v != nil { scope_recurse(p, v.body) }
-	case ^ForInStatement:
-		if v != nil { scope_recurse(p, v.body) }
-	case ^ForOfStatement:
-		if v != nil { scope_recurse(p, v.body) }
-	case ^WithStatement:
-		if v != nil { scope_recurse(p, v.body) }
-	case ^LabeledStatement:
-		if v != nil { scope_recurse(p, v.body) }
-	case ^TryStatement:
-		if v != nil {
-			scope_verify_body(p, v.block.body[:], true)
-			if h, have := v.handler.(CatchClause); have {
-				scope_verify_body(p, h.body.body[:], true)
-			}
-			if f, have := v.finalizer.(BlockStatement); have {
-				scope_verify_body(p, f.body[:], true)
-			}
-		}
-	case ^SwitchStatement:
-		if v != nil {
-			// All SwitchCase consequents share a single lexical scope.
-			flat := make([dynamic]^Statement, 0, 16, context.temp_allocator)
-			for c in v.cases {
-				for s in c.consequent { append(&flat, s) }
-			}
-			scope_verify_body(p, flat[:], true)
-		}
-	case ^ClassDeclaration:
-		if v != nil {
-			scope_recurse_class_elements(p, v.body.body[:])
-		}
-	case ^ExpressionStatement:
-		if v != nil && v.expression != nil {
-			scope_recurse_expr(p, v.expression)
-		}
-	case ^VariableDeclaration:
-		if v != nil {
-			for decl in v.declarations {
-				if init, have := decl.init.(^Expression); have {
-					scope_recurse_expr(p, init)
-				}
-			}
-		}
-	case ^ReturnStatement:
-		if v != nil {
-			if arg, have := v.argument.(^Expression); have {
-				scope_recurse_expr(p, arg)
-			}
-		}
-	}
-}
-
-// Walk expression trees to find nested function/class bodies that
-// need their own scope verification pass.
-scope_recurse_expr :: proc(p: ^Parser, expr: ^Expression) {
-	if expr == nil { return }
-	#partial switch e in expr^ {
-	case ^FunctionExpression:
-		if e != nil && e.body.body != nil {
-			scope_verify_body(p, e.body.body[:], false)
-		}
-	case ^ArrowFunctionExpression:
-		if e != nil {
-			if block, ok := e.body.(^BlockStatement); ok && block != nil {
-				scope_verify_body(p, block.body[:], false)
-			}
-		}
-	case ^ClassExpression:
-		if e != nil {
-			scope_recurse_class_elements(p, e.body.body[:])
-		}
-	case ^SequenceExpression:
-		if e != nil {
-			for sub in e.expressions { scope_recurse_expr(p, sub) }
-		}
-	case ^AssignmentExpression:
-		if e != nil { scope_recurse_expr(p, e.right) }
-	case ^CallExpression:
-		if e != nil {
-			scope_recurse_expr(p, e.callee)
-			for arg in e.arguments { scope_recurse_expr(p, arg) }
-		}
-	case ^ConditionalExpression:
-		if e != nil {
-			scope_recurse_expr(p, e.consequent)
-			scope_recurse_expr(p, e.alternate)
-		}
-	case ^ParenthesizedExpression:
-		if e != nil { scope_recurse_expr(p, e.expression) }
 	}
 }
 
@@ -6771,22 +6799,40 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 	}
 }
 
-// Walk class elements to verify static block scopes.
-scope_recurse_class_elements :: proc(p: ^Parser, elements: []ClassElement) {
-	for &elem in elements {
-		if elem.kind == .StaticBlock {
-			if fe, have := elem.value.(^Expression); have && fe != nil {
-				if fn, ok := fe^.(^FunctionExpression); ok && fn != nil {
-					scope_verify_body(p, fn.body.body[:], false)
-				}
+// verify_scopes runs the lex/var clash check across every scope-bearing
+// body in the program. The Program-level body is processed first, then
+// every entry in p.scope_pending (queued at parse-EXIT by parse_function_body /
+// parse_block_statement / parse_switch_statement; static-block and
+// arrow-block bodies are re-stamped via mark_last_scope_function_scope).
+//
+// Each scope is verified independently with a fresh ScopeMap pair, so the
+// iteration order doesn't affect correctness. We sort by start_offset
+// before iterating so error messages surface in source order — parse-exit
+// push order is innermost-first within a parent, which matches source
+// only for left-to-right siblings, not for nested-vs-following-sibling.
+verify_scopes :: proc(p: ^Parser, program: ^Program) {
+	scope_check_body(p, program.body[:], false)
+
+	n := len(p.scope_pending)
+	if n == 0 { return }
+	if n > 1 {
+		// In-place insertion sort by start_offset. The list is naturally
+		// nearly-sorted (parse is left-to-right; only nested-vs-sibling
+		// inversions exist) so insertion sort is O(n) on the typical case
+		// and avoids pulling in core:slice for one call site.
+		for i := 1; i < n; i += 1 {
+			cur := p.scope_pending[i]
+			j := i
+			for j > 0 && p.scope_pending[j-1].start_offset > cur.start_offset {
+				p.scope_pending[j] = p.scope_pending[j-1]
+				j -= 1
 			}
+			p.scope_pending[j] = cur
 		}
 	}
-}
-
-verify_scopes :: proc(p: ^Parser, program: ^Program) {
-	// Program-level body is its own scope.
-	scope_verify_body(p, program.body[:])
+	for sp in p.scope_pending {
+		scope_check_body(p, sp.body, sp.is_block_scope)
+	}
 }
 
 // =========================================================================
@@ -11347,6 +11393,8 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		p.in_function = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
+		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
+		mark_last_scope_function_scope(p)
 		if block_stmt != nil {
 			// parse_block_statement returns ^Statement wrapping ^BlockStatement.
 			// `cast(^BlockStatement)^Statement` here is the same UB class as Bug H:
@@ -11921,6 +11969,8 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 		p.in_function = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
+		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
+		mark_last_scope_function_scope(p)
 		if block_stmt != nil {
 			// Same Bug-H class as the multi-param arrow arm above. Extract the
 			// inner ^BlockStatement via type assertion, not a raw pointer cast.
@@ -12019,6 +12069,8 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		p.in_function = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
+		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
+		mark_last_scope_function_scope(p)
 		if block_stmt != nil {
 			// Same Bug-H class as the other two arrow-function arms above.
 			// Extract the inner ^BlockStatement via type assertion, not a raw
@@ -13478,6 +13530,8 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 		p.in_function = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
+		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
+		mark_last_scope_function_scope(p)
 		if block_stmt != nil {
 			if bs, ok := block_stmt^.(^BlockStatement); ok {
 				body = bs
