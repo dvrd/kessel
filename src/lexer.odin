@@ -1810,7 +1810,7 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 // Operator handlers — each advances l.offset and returns FastToken directly
 // ============================================================================
 
-lex_plus :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_plus :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '+' { l.offset += 2; return FastToken{start = start, end = u32(l.offset), kind = .PlusPlus, flags = flags} }
@@ -1820,7 +1820,7 @@ lex_plus :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Plus, flags = flags}
 }
 
-lex_minus :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_minus :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '-' { l.offset += 2; return FastToken{start = start, end = u32(l.offset), kind = .MinusMinus, flags = flags} }
@@ -1830,7 +1830,7 @@ lex_minus :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Minus, flags = flags}
 }
 
-lex_star :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_star :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '*' {
@@ -1847,7 +1847,7 @@ lex_star :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Mul, flags = flags}
 }
 
-lex_equals :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_equals :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '=' {
@@ -1864,7 +1864,7 @@ lex_equals :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Assign, flags = flags}
 }
 
-lex_bang :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_bang :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '=' {
@@ -1880,7 +1880,7 @@ lex_bang :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Not, flags = flags}
 }
 
-lex_less :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_less :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '=' { l.offset += 2; return FastToken{start = start, end = u32(l.offset), kind = .LEq, flags = flags} }
@@ -1897,7 +1897,7 @@ lex_less :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .LAngle, flags = flags}
 }
 
-lex_greater :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_greater :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '=' { l.offset += 2; return FastToken{start = start, end = u32(l.offset), kind = .GEq, flags = flags} }
@@ -1925,7 +1925,7 @@ lex_greater :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .RAngle, flags = flags}
 }
 
-lex_amp :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_amp :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '&' {
@@ -1942,7 +1942,7 @@ lex_amp :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .BitAnd, flags = flags}
 }
 
-lex_pipe :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_pipe :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '|' {
@@ -1959,7 +1959,7 @@ lex_pipe :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .BitOr, flags = flags}
 }
 
-lex_dot :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_dot :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		// .5, .123 etc — number starting with dot
@@ -2030,7 +2030,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(off), kind = .Number, flags = flags}
 }
 
-lex_question :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_question :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '.' {
@@ -2052,7 +2052,7 @@ lex_question :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Question, flags = flags}
 }
 
-lex_caret :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_caret :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) && l.source_bytes[l.offset + 1] == '=' {
 		l.offset += 2
 		return FastToken{start = start, end = u32(l.offset), kind = .AssignBitXor, flags = flags}
@@ -2061,7 +2061,7 @@ lex_caret :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .BitXor, flags = flags}
 }
 
-lex_percent :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_percent :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) && l.source_bytes[l.offset + 1] == '=' {
 		l.offset += 2
 		return FastToken{start = start, end = u32(l.offset), kind = .AssignMod, flags = flags}
