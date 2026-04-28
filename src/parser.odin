@@ -8073,6 +8073,32 @@ precedence_for_token :: #force_inline proc(t: TokenType) -> Precedence {
 	return precedence_table[t]
 }
 
+// Identifier-like tokens accepted by parse_unary_expr's identifier fast-path:
+// plain Identifier plus the contextual keywords whose lex tokens always
+// resolve to an IdentifierReference here (Get / Set / From / Of / As / Let /
+// Static / Constructor / Using). The previous 10-clause OR chain compiled to
+// 10 token-type compares per parse_unary_expr call — hit on every Identifier
+// expression in the program. A single table load + nz-test replaces it.
+is_id_like_for_unary_table: [len(TokenType)]bool
+
+@(init)
+init_is_id_like_for_unary_table :: proc "contextless" () {
+	is_id_like_for_unary_table[TokenType.Identifier]  = true
+	is_id_like_for_unary_table[TokenType.Get]         = true
+	is_id_like_for_unary_table[TokenType.Set]         = true
+	is_id_like_for_unary_table[TokenType.From]        = true
+	is_id_like_for_unary_table[TokenType.Of]          = true
+	is_id_like_for_unary_table[TokenType.As]          = true
+	is_id_like_for_unary_table[TokenType.Let]         = true
+	is_id_like_for_unary_table[TokenType.Static]      = true
+	is_id_like_for_unary_table[TokenType.Constructor] = true
+	is_id_like_for_unary_table[TokenType.Using]       = true
+}
+
+is_id_like_for_unary :: #force_inline proc(t: TokenType) -> bool {
+	return is_id_like_for_unary_table[t]
+}
+
 // Parse expression using precedence climbing (efficient Pratt-style parsing)
 // Parse full expression including comma operator
 // Full expression including comma operator: AssignmentExpr (, AssignmentExpr)*
@@ -8646,10 +8672,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	// Common path: primary expression + optional postfix ++ / -- (inlined parse_update_expr)
 	// Fast-path: identifier → member/call chain (covers ~60% of expressions)
 	expr: ^Expression
-	if p.cur_type == .Identifier || p.cur_type == .Get || p.cur_type == .Set ||
-	   p.cur_type == .From || p.cur_type == .Of || p.cur_type == .As ||
-	   p.cur_type == .Let || p.cur_type == .Static || p.cur_type == .Constructor ||
-	   p.cur_type == .Using {
+	if is_id_like_for_unary(p.cur_type) {
 		// ECMA-262 §12.7.2 - escaped-ReservedWord in IdentifierReference
 		// position. This fast-path bypasses parse_primary_expr, so the
 		// same check that lives on the slow path has to run here too.
