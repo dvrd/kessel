@@ -4970,9 +4970,18 @@ is_always_reserved_word_name :: #force_inline proc(name: string) -> bool {
 // binding identifier consumed earlier) can still use this by passing
 // a freshly-constructed Token and accepting the current-cursor offset
 // fallback; in practice every caller reports pre-eat.
-report_escaped_reserved_word :: proc(p: ^Parser) {
+// Hot-path inline: 99 %+ of identifier parses have no escape, so the
+// first guard returns immediately. Marking #force_inline lets the
+// compiler keep the parser in registers across the call site without
+// spilling for a function it almost never enters.
+report_escaped_reserved_word :: #force_inline proc(p: ^Parser) {
 	if !p.cur_tok.has_escape { return }
 	if p.cur_type != .Identifier { return }
+	report_escaped_reserved_word_slow(p)
+}
+
+@(private="file")
+report_escaped_reserved_word_slow :: proc(p: ^Parser) {
 	name := p.cur_tok.value
 	reserved := is_always_reserved_word_name(name)
 	if !reserved && p.strict_mode {
@@ -4995,7 +5004,7 @@ report_escaped_reserved_word :: proc(p: ^Parser) {
 	}
 }
 
-// ECMA-262 §13.4.1 - in strict mode, the operand of an UpdateExpression
+// ECMA-262 §13.4.1 — in strict mode, the operand of an UpdateExpression
 // must not be an IdentifierReference named `eval` or `arguments`.
 // Helper shared by both prefix and postfix paths. No-op in sloppy mode
 // or when the operand isn't a bare Identifier (member / call / etc.
@@ -8618,7 +8627,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, "'arguments' is not allowed in a class static block")
 		}
 		// `await` as IdentifierReference in module/async/static context.
-		if p.cur_tok.value == "await" && await_is_reserved_here(p) {
+		// Plain (non-escaped) `await` always lexes as TokenType.Await, never
+		// .Identifier, so the only way this branch is reached with the cooked
+		// name "await" is via an escaped form like `\u0061wait` — a vanishingly
+		// rare path on the bench corpus. Gating the string compare on
+		// has_escape keeps `cur_tok.value == "await"` off the hot path for
+		// every ordinary identifier.
+		if p.cur_tok.has_escape && p.cur_tok.value == "await" && await_is_reserved_here(p) {
 			report_error(p, "'await' is not allowed as an identifier in this context")
 		}
 		// Inline identifier parse + LHS tail
