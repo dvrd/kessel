@@ -2242,14 +2242,14 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for decl in left_decl.declarations {
 				scope_collect_pattern(decl.id, &head_names)
 			}
-			body_vars := make(map[string]u32, 4, context.temp_allocator)
+			body_vars := scope_map_make(4)
 			scope_hoist_vars(p, body, &body_vars)
 			for n in head_names {
-				if _, have := body_vars[n]; have {
+				if off, have := scope_map_get(&body_vars, n); have {
 					kind_str := "of"
 					if is_in { kind_str = "in" }
 					msg := fmt.tprintf("'%s' is already declared in for-%s head", n, kind_str)
-					append(&p.errors, ParseError{loc = LexerLoc{offset = int(body_vars[n])}, message = msg})
+					append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 				}
 			}
 		}
@@ -2336,10 +2336,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for decl in id.declarations {
 				scope_collect_pattern(decl.id, &head_names)
 			}
-			body_vars := make(map[string]u32, 4, context.temp_allocator)
+			body_vars := scope_map_make(4)
 			scope_hoist_vars(p, body, &body_vars)
 			for n in head_names {
-				if off, have := body_vars[n]; have {
+				if off, have := scope_map_get(&body_vars, n); have {
 					msg := fmt.tprintf("'%s' is already declared in for-loop head", n)
 					append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 				}
@@ -2785,13 +2785,13 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 		param_names := make([dynamic]string, 0, 4, context.temp_allocator)
 		collect_pattern_bound_names_list(p_pat, &param_names)
 		// Collect lexical names from the catch body
-		body_lex := make(map[string]u32, 4, context.temp_allocator)
-		body_lex_vars := make(map[string]u32, 4, context.temp_allocator)
+		body_lex := scope_map_make(4)
+		body_lex_vars := scope_map_make(4)
 		for inner in body_ptr.body {
 			scope_process_statement(p, inner, &body_lex, &body_lex_vars, true)
 		}
 		for n in param_names {
-			if off, have := body_lex[n]; have {
+			if off, have := scope_map_get(&body_lex, n); have {
 				msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
 				append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 			}
@@ -6058,7 +6058,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 	// §16.2.1 — ExportedNames of ModuleItemList must not contain duplicates.
 	// Walk all export declarations and collect exported names, reporting
 	// duplicates.
-	exported := make(map[string]u32, 16, context.temp_allocator)
+	exported := scope_map_make(16)
 	for stmt in program.body {
 		if stmt == nil { continue }
 		#partial switch v in stmt^ {
@@ -6111,11 +6111,11 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					name := decl_names[i]
 					if name == "" { continue }
 					off := decl_offs[i]
-					if _, exists := exported[name]; exists {
+					if _, exists := scope_map_get(&exported, name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", name)
 						append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 					} else {
-						exported[name] = off
+						scope_map_set(&exported, name, off)
 					}
 				}
 			}
@@ -6133,31 +6133,28 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					}
 				}
 				if var_name != "" {
-					if prev, exists := exported[var_name]; exists {
-						_ = prev
+					if _, exists := scope_map_get(&exported, var_name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
 						append(&p.errors, ParseError{loc = LexerLoc{offset = int(var_off)}, message = msg})
 					} else {
-						exported[var_name] = var_off
+						scope_map_set(&exported, var_name, var_off)
 					}
 				}
 			}
 		// ExportNamedDeclaration has no "default" name (that's ExportDefaultDeclaration)
 		case ^ExportDefaultDeclaration:
 			if v == nil { continue }
-			if prev, exists := exported["default"]; exists {
-				_ = prev
+			if _, exists := scope_map_get(&exported, "default"); exists {
 				append(&p.errors, ParseError{loc = LexerLoc{offset = int(v.loc.span.start)}, message = "Duplicate exported name 'default'"})
-			} else { exported["default"] = v.loc.span.start }
+			} else { scope_map_set(&exported, "default", v.loc.span.start) }
 		case ^ExportAllDeclaration:
 			if v == nil { continue }
 			// `export * as name from "m"` adds `name` to ExportedNames.
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
-				if prev, exists := exported[ns_name.name]; exists {
-					_ = prev
+				if _, exists := scope_map_get(&exported, ns_name.name); exists {
 					msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
 					append(&p.errors, ParseError{loc = LexerLoc{offset = int(ns_name.loc.span.start)}, message = msg})
-				} else { exported[ns_name.name] = ns_name.loc.span.start }
+				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.span.start) }
 			}
 		}
 	}
@@ -6225,58 +6222,143 @@ ScopeBindingKind :: enum {
 	FunctionAnnexB,
 }
 
-scope_add :: proc(p: ^Parser, lex, vars: ^map[string]u32, name: string, at: u32, kind: ScopeBindingKind) {
+// ScopeMap — small-vector + spill-to-hashmap structure used in place of
+// `map[string]u32` for per-scope binding tracking. Real-world JS/TS
+// bench files have tiny per-scope binding counts (median <8 per
+// function body, top-level UMD wrappers have 1-30 entries) where the
+// hashmap path's allocator + hasher + bucket-probe overhead dwarfs a
+// flat linear scan. A flat array hits L1 in one or two lines and has
+// zero allocator overhead per lookup. But large scopes do exist — the
+// TypeScript compiler bundle has function bodies with hundreds of
+// `var` declarations, where O(N²) linear scan is catastrophic. Above
+// SCOPE_MAP_LINEAR_MAX we lazily promote to a `map[string]u32` and
+// use it for all subsequent ops, keeping the items array as the
+// source-of-truth for iteration so the cheaper data-locality scan is
+// preserved for the common case.
+SCOPE_MAP_LINEAR_MAX :: 32
+
+ScopeMapEntry :: struct {
+	name: string,
+	at:   u32,
+}
+ScopeMap :: struct {
+	items: [dynamic]ScopeMapEntry,
+	spill: map[string]u32,  // populated lazily when items grows past SCOPE_MAP_LINEAR_MAX
+}
+
+scope_map_make :: #force_inline proc(cap: int, allocator := context.temp_allocator) -> ScopeMap {
+	items := make([dynamic]ScopeMapEntry, 0, cap, allocator)
+	return ScopeMap{items = items}
+}
+
+// Build the spill hashmap from the flat items list. Called once when the
+// scope crosses the linear threshold; subsequent inserts append to items
+// AND set the spill map.
+@(private="file")
+scope_map_promote :: proc(m: ^ScopeMap) {
+	m.spill = make(map[string]u32, len(m.items)*2, context.temp_allocator)
+	for it in m.items {
+		m.spill[it.name] = it.at
+	}
+}
+
+scope_map_get :: #force_inline proc(m: ^ScopeMap, name: string) -> (u32, bool) {
+	if len(m.spill) > 0 {
+		at, have := m.spill[name]
+		return at, have
+	}
+	for &it in m.items {
+		if it.name == name { return it.at, true }
+	}
+	return 0, false
+}
+
+scope_map_set :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
+	if len(m.spill) > 0 {
+		// Spill mode: source of truth is the hashmap, but keep items
+		// in sync for ordered iteration via `for it in m.items`.
+		if _, have := m.spill[name]; !have {
+			m.spill[name] = at
+			append(&m.items, ScopeMapEntry{name = name, at = at})
+		} else {
+			m.spill[name] = at
+			for &it in m.items {
+				if it.name == name { it.at = at; break }
+			}
+		}
+		return
+	}
+	for &it in m.items {
+		if it.name == name { it.at = at; return }
+	}
+	append(&m.items, ScopeMapEntry{name = name, at = at})
+	if len(m.items) > SCOPE_MAP_LINEAR_MAX { scope_map_promote(m) }
+}
+
+scope_map_set_first :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
+	// Insert if absent; otherwise leave the first-seen offset intact. Used
+	// for §13.3.2 var-list semantics where repeats are legal but only the
+	// first offset matters for diagnostics.
+	if len(m.spill) > 0 {
+		if _, have := m.spill[name]; have { return }
+		m.spill[name] = at
+		append(&m.items, ScopeMapEntry{name = name, at = at})
+		return
+	}
+	for &it in m.items {
+		if it.name == name { return }
+	}
+	append(&m.items, ScopeMapEntry{name = name, at = at})
+	if len(m.items) > SCOPE_MAP_LINEAR_MAX { scope_map_promote(m) }
+}
+
+scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind: ScopeBindingKind) {
 	switch kind {
 	case .Lexical:
-		if prev, have := lex[name]; have {
-			_ = prev
+		if _, have := scope_map_get(lex, name); have {
 			msg := fmt.tprintf("'%s' has already been declared", name)
 			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 			return
 		}
-		if _, have := vars[name]; have {
+		if _, have := scope_map_get(vars, name); have {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
 			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 		}
-		lex[name] = at
+		scope_map_set(lex, name, at)
 	case .Var:
-		if prev, have := lex[name]; have {
-			_ = prev
+		if _, have := scope_map_get(lex, name); have {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
 			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 			return
 		}
 		// Repeats of the same var are legal (§13.3.2 - VarDeclaredNames
 		// may contain repeats). Only record the first offset.
-		if _, have := vars[name]; !have {
-			vars[name] = at
-		}
+		scope_map_set_first(vars, name, at)
 	case .FunctionAnnexB:
 		// Annex B.3.2 FunctionDeclaration-in-Block. Sibling-FunctionDecls
 		// with the same name are OK (§B.3.3), but clashes with any
 		// lexical or var binding are errors.
-		if prev, have := lex[name]; have {
-			_ = prev
+		if _, have := scope_map_get(lex, name); have {
 			// Silent on same-name previous FunctionDecl; error on
 			// let/const/class. Distinguish by probing vars too: a
 			// .FunctionAnnexB entry is also written into `vars` below,
 			// while a .Lexical isn't. If the name is in `lex` but NOT
 			// in `vars`, it came from let/const/class - clash.
-			if _, vh := vars[name]; !vh {
+			if _, vh := scope_map_get(vars, name); !vh {
 				msg := fmt.tprintf("'%s' has already been declared", name)
 				append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 			}
 			return
 		}
-		if _, have := vars[name]; have {
+		if _, have := scope_map_get(vars, name); have {
 			// var-from-real-var before us. `{ var f; function f(){} }`
 			// in sloppy rejects per Acorn / V8.
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
 			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 			return
 		}
-		lex[name] = at
-		vars[name] = at
+		scope_map_set(lex, name, at)
+		scope_map_set(vars, name, at)
 	}
 }
 
@@ -6308,7 +6390,7 @@ scope_collect_pattern :: proc(pat: Pattern, out: ^[dynamic]string) {
 // of the LexicallyDeclaredNames of StatementList also occurs in the
 // VarDeclaredNames of StatementList." `var` declarations hoist across block
 // boundaries; `let`/`const`/`class` do NOT hoist and are excluded.
-scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^map[string]u32) {
+scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^ScopeMap) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
 	case ^VariableDeclaration:
@@ -6316,7 +6398,7 @@ scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^map[string]u32) {
 		names := make([dynamic]string, 0, 4, context.temp_allocator)
 		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
 		for n in names {
-			if _, have := vars[n]; !have { vars[n] = v.loc.span.start }
+			scope_map_set_first(vars, n, v.loc.span.start)
 		}
 	case ^BlockStatement:
 		if v == nil { return }
@@ -6368,7 +6450,7 @@ scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^map[string]u32) {
 // Process one Statement and add its contributing lexical/var BoundNames
 // to the scope maps. Nested scopes are NOT recursed here - the caller's
 // walker handles that separately.
-scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[string]u32, is_block_scope: bool = false) {
+scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeMap, is_block_scope: bool = false) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
 	case ^VariableDeclaration:
@@ -6384,9 +6466,9 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 		if v == nil { return }
 		// Use a temporary vars map to collect only the hoisted var names,
 		// then call scope_add for each so clash detection runs.
-		hoisted := make(map[string]u32, 4, context.temp_allocator)
+		hoisted := scope_map_make(4)
 		for inner in v.body { scope_hoist_vars(p, inner, &hoisted) }
-		for n, at in hoisted { scope_add(p, lex, vars, n, at, .Var) }
+		for it in hoisted.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		// TS overload signature (no `{ ... }` body): emits NO binding for
@@ -6527,8 +6609,8 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^map[st
 // level Program body and FunctionBody, where sloppy plain FunctionDecl
 // hoists as a regular var.
 scope_verify_body :: proc(p: ^Parser, body: []^Statement, is_block_scope: bool = false) {
-	lex  := make(map[string]u32, 8, context.temp_allocator)
-	vars := make(map[string]u32, 8, context.temp_allocator)
+	lex  := scope_map_make(8)
+	vars := scope_map_make(8)
 	for stmt in body {
 		scope_process_statement(p, stmt, &lex, &vars, is_block_scope)
 	}
@@ -6658,13 +6740,13 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 		scope_collect_pattern(param.pattern, &param_names)
 	}
 	if len(param_names) == 0 { return }
-	body_lex := make(map[string]u32, 4, context.temp_allocator)
-	body_vars := make(map[string]u32, 4, context.temp_allocator)
+	body_lex := scope_map_make(4)
+	body_vars := scope_map_make(4)
 	for stmt in body {
 		scope_process_statement(p, stmt, &body_lex, &body_vars, false)
 	}
 	for n in param_names {
-		if off, have := body_lex[n]; have {
+		if off, have := scope_map_get(&body_lex, n); have {
 			msg := fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n)
 			append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 		}
