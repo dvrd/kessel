@@ -539,7 +539,10 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 		for off < src_len {
 			c := src[off]
 			if c == ' ' || c == '\t' {
-				off += 1
+				// SIMD-skip the entire space/tab run in one shot. After a
+				// newline this collapses indent runs (typical 8–32 bytes
+				// in TS) from N scalar iterations to one 16-byte SIMD probe.
+				off = simd_skip_ascii_ws_run(src, off + 1)
 			} else if c == '\n' {
 				l.had_line_terminator = true
 				at_logical_line_start = true
