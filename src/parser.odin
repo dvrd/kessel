@@ -5313,7 +5313,11 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		ident.name = id_name
 		return ident
 	}
-	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.value == "await")) && await_is_reserved_here(p) {
+	// Plain `await` lexes as TokenType.Await; only escaped forms
+	// (`\u0061wait`) reach Identifier with cur_tok.value == "await". Gate
+	// the string compare on has_escape so it stays off the hot path for
+	// every ordinary identifier in a binding position.
+	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) && await_is_reserved_here(p) {
 		report_error(p, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
@@ -5792,11 +5796,16 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			// `yield` is reserved inside generator bodies. Test262: language/
 			// statements/variable/dstr/ary-ptrn-elem-id-static-init-await-
 			// invalid.js (`class C { static { var [await] = []; } }`).
-			if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.value == "await")) &&
+			// Plain `await` / `yield` use dedicated TokenTypes (.Await /
+			// .Yield); only escaped forms reach .Identifier with the cooked
+			// reserved-word value. Gate the string compares on has_escape
+			// so they stay off the hot path for every ordinary identifier
+			// in a destructuring binding.
+			if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) &&
 			   await_is_reserved_here(p) {
 				report_error(p, "'await' is reserved as a binding name in this context")
 			}
-			if (p.cur_type == .Yield || (p.cur_type == .Identifier && p.cur_tok.value == "yield")) &&
+			if (p.cur_type == .Yield || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "yield")) &&
 			   yield_is_reserved_here(p) {
 				report_error(p, "'yield' is reserved as a binding name in this context")
 			}
