@@ -11,9 +11,9 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 
 ---
 
-## Current state (Session 23, 2026-04-29)
+## Current state (Session 24, 2026-04-29)
 
-**Performance: kessel BEATS OXC. Geo-mean 0.990× OXC.**
+**Performance: kessel BEATS OXC. Geo-mean 0.990× OXC.** (unchanged from S23)
 
 * 3/10 files BEAT OXC (snabbdom 0.81×, preact 0.89×, react-dom 0.97×)
 * 6/10 files at ≤1.05× (d3 1.01, antd 1.02, jquery 1.03, typescript 1.03, monaco 1.05, cesium 1.05)
@@ -26,6 +26,22 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 * `d2ec90b` Cap-bump top 8 slow-path callsites (Tier 2 D-lite) — geo-mean **1.002 → 0.990** (-1.2 pp)
 
 Full S23 write-up: `docs/perf-session-23.md`.
+
+**Session 24 progression**: NO CODE COMMITS. Two refuted hypotheses.
+* Tier 2 E (per-letter handlers) — both `#force_inline` and regular-call
+  variants regressed 1–4 pp. The existing `#force_inline` chain
+  (`lex_identifier` → `lookup_keyword_by_letter`) already gets per-letter
+  dispatch implicitly via LLVM CSE on the duplicate `src[start]` load;
+  explicit handlers are pure code-bloat / call-overhead. **Refuted.**
+* ASCII-split (`lex_identifier_ascii` + `lex_identifier`) — below noise.
+  The UTF-8 first-byte branch is >99 % taken-not-taken; predictor + cold
+  layout already absorb the cost. **Refuted.**
+
+Full S24 write-up: `docs/perf-session-24.md`.
+
+**The lex side of kessel is demonstrably at architectural parity with
+OXC.** Future wall-time wins must come from parser-side restructuring
+or AST data layout (Tier 3 F SoA).
 
 **Correctness: every gate green.**
 
@@ -61,6 +77,7 @@ duplicate detection — out of scope; SM violates spec).
 | `d121a64` | Bump pool size source_len×15 → ×32 | 1.006× → 1.002× |
 | `4e9efe3` | Darwin CPU QoS pin to P-cores (Tier 1 K) | 1.002× → 1.002× (real-world hedge) |
 | `d2ec90b` | Cap-bump top 8 slow-path callsites (Tier 2 D-lite) | 1.002× → **0.990×** |
+| _(S24 refuted)_ | Tier 2 E per-letter handlers + ASCII-split | 0.990× → 0.990× (no code shipped) |
 
 The biggest single win was `bump_append` in the parser (`d0eed4e`):
 **−3pp in one commit**. Root cause was Odin's `_append_elem` being
@@ -89,6 +106,9 @@ NOT linearly map to wall-time savings when the function does real work.
 | **S23**: Tier 1 A pre-fault arena pages | ~1 ms / parse | +159 µs regression | Bench warm-up already commits pages; iteration prefault loop is dead work in tight bench loop. Could matter for real-world parse-once-and-exit. |
 | **S23**: scope_map_make cap 4 → 8 | -100–300 µs | -400–600 µs regression on big files | scope_map_make is called per-scope; thousands of small-scope allocations got doubled. The fix only helps tail cases, not common-case allocs. |
 | **S23**: source-size-conditional caps | +0.5–1 % | -400–600 µs regression | After flat cap bumps captured 89 % of slow-path events, doubling further cost more in arena traffic than it saved. Diminishing returns. |
+| **S24**: Tier 2 E per-letter handlers (#force_inline) | 1–2 ms on monaco | +6 pp regression on monaco / cesium | 20 inlined handlers × SIMD-body-scan helper → several KB of duplicated code in `lex_token`, blows L1i on identifier-heavy bundles. The architectural-analysis prediction missed that LLVM's existing inline + CSE already does per-letter dispatch implicitly. |
+| **S24**: Tier 2 E per-letter handlers (regular calls) | 1–2 ms on monaco | +9 pp regression on cesium | One call+ret + register spill per identifier. Identifiers are 30–40 % of tokens → millions of extra calls per parse. |
+| **S24**: ASCII-split `lex_identifier` | ~0.5–1 ms on monaco | within run-to-run noise | The `if first >= 0x80` branch is >99 % predictable; LLVM lays the cold UTF-8 path far away; OOO core absorbs the wasted compares. |
 
 All listed in `docs/perf-deep-dive-summary.md` and `docs/perf-session-23.md` with details.
 
@@ -245,22 +265,28 @@ entirely (trivial array writes, no pointer-rewrite logic).
 | I. Cache prefetch instructions | 1 hour | 0 | M-series HW prefetcher already aggressive; tested before, no win |
 | J. Skip arena zero-fill via `vm_deallocate` cycle | 1 hour macOS-only | 0 bench, 5–8 ms real-world reset | Saves cost between parses |
 
-### Recommended sequence
+### Recommended sequence (post-S24, with refuted levers crossed out)
 
-1. **Tier 1 A (pre-fault)** — 1 hour, ~1 ms gain
-2. **Tier 1 K (CPU QoS)** — 1 hour, 0–10 % depending on load
-3. **Tier 1 C (ParseList)** — 1–2 days, ~1–2 ms on monaco
-4. **Tier 2 D (pre-allocate maxes)** — 1 day, ~0.5–1 ms
-5. **Tier 2 E (per-letter handlers)** — 1 week, ~1–2 ms on monaco
-6. **Tier 3 F (SoA migration)** — 4–5 weeks, ~3–4 %
-7. **Tier 1 B (mmap source)** — 1 day, real-world only
-8. **Tier 4 J (vm_deallocate)** — 1 hour, real-world only
+* ~~Tier 1 A pre-fault~~ — refuted in S23 (warm-up already commits pages)
+* ~~Tier 1 K CPU QoS~~ — shipped in S23 (`4e9efe3`, real-world hedge)
+* **Tier 1 C (ParseList)** — 1–2 days, predicted 1–2 ms on monaco. Note:
+  prediction made BEFORE the S22 `bump_append` and S23 cap-bump wins
+  closed most of the same gap. Re-estimate ~0.3–0.5 ms now. Worth
+  validating with a fair AB before committing.
+* ~~Tier 2 D pre-allocate maxes~~ — partly shipped in S23 cap-bumps
+* ~~Tier 2 E per-letter handlers~~ — refuted in S24, both variants. The
+  lex hot path is at architectural parity.
+* **Investigate `parse_unary_expr` (8 % of monaco)** — NEW in S24 profile.
+  Half-day. A 25 % cut would be ~0.6 ms = 2 pp on monaco.
+* **Tier 3 F (SoA migration)** — 4–5 weeks, ~3–4 % wall. Validated. The
+  remaining big bet.
+* **Tier 1 B (mmap source)** — 1 day, real-world only
+* **Tier 4 J (vm_deallocate)** — 1 hour, real-world only (saves 4 % of
+  inter-parse cycle in LSP / build-tool workflows)
 
-Combined Tier 1+2 (steps 1–5) is ~2 weeks for predicted ~3–5 ms wall
-time savings. That should take monaco from 1.06× → ~1.00× and tip the
-geo-mean below 1.0× (kessel BEATS OXC on geo-mean).
-
-Tier 3 F brings another 3–4 %, putting kessel firmly faster than OXC.
+The most honest framing post-S24: **lex is done.** Geo-mean 0.990× is
+the ceiling for this architecture. Going further requires either
+(a) restructuring the parser, or (b) replacing the AST data layout.
 
 ---
 
@@ -268,6 +294,7 @@ Tier 3 F brings another 3–4 %, putting kessel firmly faster than OXC.
 
 | Tag | State |
 |---|---|
+| `s24-start` | **= `caps-bumped`. S24 produced no code commits.** |
 | `caps-bumped` | **S23 final — geo-mean 0.990× (kessel BEATS OXC)** |
 | `tier1k-qos` | After Darwin CPU QoS pin (1.002×) |
 | `s23-start` | Start of S23 (1.002×–1.005×) |
