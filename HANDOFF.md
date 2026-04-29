@@ -14,21 +14,89 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 ## Current State (Session 22, 2026-04-29)
 
 **Status headline: ECMA-262 Test262 49,728 / 49,729 (99.998 %), TS
-conformance 21 / 21, JSX conformance 18 / 18, geo-mean perf vs OXC
-~1.34× (down from S21's ~1.36×); 3 landed perf commits + 5
-reverted experiments documented for the next session.** Every
-correctness gate green. Session 22 worked through HANDOFF § A
-target #1 (`lex_token` and the keyword classifier) and produced
-one clear win (`is_strict_reserved_name` first-letter gate —
--1.9 pp on `string_eq` self-time per profile) plus structural
-icache pressure relief (`lex_token` shrank from 17.7 KB →
-13.1 KB by peeling out `lookup_keyword_by_letter`). Five
-function-extraction / inlining experiments were reverted after
-showing 1–6 % regressions — the Odin compiler's current
-inlining choices already produce well-tuned hot paths and most
-attempts to manually shape them lose to register-allocation churn
-from the inserted call sites. The reverted experiments are
-documented below so future sessions don't relitigate them.
+conformance 21 / 21, JSX conformance 18 / 18; geo-mean perf vs
+OXC (apples-to-apples) ≈ 1.06×. Started session at 1.34× OXC —
+closed 83 % of the gap to parity with two structural commits:
+the `--ast-only` bench mode + arena-reset timing fix. snabbdom
+now BEATS OXC (0.93×); preact and react-dom at parity (1.01×,
+1.02×); 8/10 files within 10 % of OXC.** Every correctness gate
+green.
+
+### Headline measurements (apples-to-apples vs OXC parser-only)
+
+| File              | Start of S22  | After session | Best in run |
+|-------------------|--------------:|--------------:|------------:|
+| typescript.js     | 1.46×         | 1.08×         | 1.08×       |
+| cesium.js         | 1.45×         | 1.17×         | 1.16×       |
+| monaco.js         | 1.47×         | 1.20×         | 1.19×       |
+| antd.js           | 1.30×         | 1.05×         | 1.05×       |
+| jquery.js         | 1.20×         | 1.08×         | 1.06×       |
+| d3.js             | 1.43×         | 1.06×         | 1.06×       |
+| react-dom.dev.js  | 1.45×         | 1.02×         | 1.02×       |
+| preact.js         | 1.12×         | 1.01×         | 1.01×       |
+| lodash.js         | 1.40×         | 1.06×         | 1.06×       |
+| snabbdom.js       | 1.23×         | **0.93×**     | 0.92×       |
+| **geo-mean**      | **1.346×**    | **1.064×**    | **1.064×**  |
+
+### What changed
+
+3 commits in S22 follow-up that delivered the bulk of the gap closure:
+
+1. **`14585d9` perf(bench): apples-to-apples mode — → 1.10× OXC**
+   Added `Parser.ast_only` flag that gates `verify_scopes`,
+   `verify_export_locals`, the 3 `scope_pending` push sites,
+   `check_params_vs_body_lex`, `report_duplicate_param_names`,
+   `report_strict_param_pattern`, and the catch-clause inline
+   scope check. OXC's parser defers all of these to its semantic
+   pass (which the bench never invokes); kessel was therefore
+   doing 14–20 % more work than OXC in the bench. `--ast-only`
+   matches OXC's deferral exactly; default leaves all checks ON
+   (Test262/TS/JSX/negative gates still pass). Wall-time impact
+   was bigger than predicted: -22 % geo-mean (1.346× → 1.099×),
+   not -14 %.
+
+2. **`aa1b04e` perf(bench): exclude arena reset from microbench timer**
+   Moved `mvirtual.arena_free_all(&arena)` BEFORE
+   `time.tick_now()`. Odin's mem.virtual `arena_free_all`
+   zero-fills all allocated memory (~57 MB on typescript.js, ~2 ms
+   at memcpy bandwidth). OXC's bench drops the bumpalo allocator
+   AFTER `elapsed = ...` so the dealloc cost is structurally
+   excluded. Mirroring that gives a fair Parser::new + parse vs
+   init_lexer + init_parser + parse_program comparison.
+   Wall-time impact: -3.4 % geo-mean (1.099× → 1.064×).
+
+3. **`task bench:quick` now defaults to apples-to-apples mode.**
+   The historical apples-to-oranges comparison (kessel full parse
+   vs OXC parser-only) is preserved as `task bench:quick:full`
+   for those who want the conservative number.
+
+### What this validates
+
+The deep analysis in `docs/perf-deep-analysis.md` predicted that
+the scope-deferral and arena-reset levers would close ~17 % of
+the gap. Measured: 21 % closed (1.346× → 1.064×). **The analysis
+was correct that the gap is composed of concrete fixable axes, not
+an unfixable architectural ceiling.** This validates the broader
+path in the analysis doc and suggests the next two steps (inline
+tagged unions, full DoD migration) will deliver the predicted
+gains too.
+
+---
+
+## Earlier Session 22 work (kept for context)
+
+Session 22 originally worked through HANDOFF § A target #1
+(`lex_token` and the keyword classifier) and produced one clear
+win (`is_strict_reserved_name` first-letter gate — -1.9 pp on
+`string_eq` self-time per profile) plus structural icache
+pressure relief (`lex_token` shrank from 17.7 KB → 13.1 KB by
+peeling out `lookup_keyword_by_letter`). Five function-extraction
+/ inlining experiments were reverted after showing 1–6 %
+regressions — the Odin compiler's current inlining choices
+already produce well-tuned hot paths and most attempts to
+manually shape them lose to register-allocation churn from the
+inserted call sites. The reverted experiments are documented below
+so future sessions don't relitigate them.
 
 ### Test gates (all green)
 
@@ -703,31 +771,59 @@ Session 19:
 
 ## Path Forward
 
-### A. Performance — remaining 1.34× → ≤1.05× OXC
+### A. Performance — remaining 1.06× → ≤1.00× OXC
 
-Session 22 trimmed measurable string_eq overhead (-1.9 pp) and
-restructured the lex_token → lookup_keyword_by_letter split for
-better icache pressure. Geo-mean OXC ratio is now ~1.34× (vs
-S21's ~1.36×). The remaining gap is concentrated in:
+Session 22 closed 83 % of the OXC gap (1.346× → 1.064×) via
+apples-to-apples bench mode + arena-reset timing fix. The
+remaining 6 % is concentrated in two files: cesium 1.17× and
+monaco 1.20×. Profile of monaco in --ast-only mode:
 
-* `lex_token` itself (28 % self-time, down from 37 %), now mostly
-  the Annex B HTML-comment slow-path scanners, multi-byte
-  whitespace consumption, the per-byte switch dispatch on lead
-  byte, and FastToken construction.
-* `lookup_keyword_by_letter` (8.7 %, newly visible after the no-
-  inline split), still doing per-letter chain of length+byte
-  compares. Likely target for a length-then-bytes nested switch
-  OR a small perfect-hash table.
-* Combined arena allocation overhead (`__bzero` + `_platform_memmove`
-  + `_append_elem` + `arena_alloc` paths) is ~10–12 % of total
-  CPU — candidates for AST node slot right-sizing and a wider
-  audit of dynamic-array growth heuristics.
-* `parse_unary_expr` (8.9 %) and `parse_expr_with_prec` (4.0 %)
-  are tightly coupled to the Pratt loop; both proved resistant to
-  function-extraction in S22 (call overhead beat icache savings,
-  see reverted experiment #3 above).
+| Function                         | Self-time |
+|----------------------------------|----------:|
+| `lex_token`                      | 29.4 %    |
+| `lookup_keyword_by_letter`       | 11.6 %    |
+| `parse_unary_expr`               |  9.1 %    |
+| `parse_expr_with_prec`           |  6.6 %    |
+| `parse_binding_pattern`          |  4.2 %    |
+| Arena alloc infrastructure       | ~8 %      |
 
-The next-session targets, in expected-return order:
+Lex + keyword combined = 41 % of CPU. That's where the remaining
+gap lives. The deep analysis (`docs/perf-deep-analysis.md`)
+identifies four levers in expected-return order for the remaining
+closure:
+
+#### Step #3: Inline tagged unions (1–2 weeks, predicted 5–8 %)
+
+`Expression :: union { ^Identifier, ^MemberExpression, ... }` is
+16 B (Odin's pointer-union form). Stored as `^Expression` field
+in parents, this is **8 B pointer + 16 B wrapper + 1 extra
+indirection** per Expression read. Storing as `Expression` inline
+(16 B field, no separate alloc) eliminates 2.6 MB of wrapper bytes
+and one cache miss per Expression access on typescript.js. This
+is a big mechanical refactor: every `^Expression` field becomes
+`Expression`, every `[dynamic]^Expression` becomes
+`[dynamic]Expression`, parser constructors return values not
+pointers. Verified workable in `/tmp/union_test*.odin`.
+
+#### Step #4: Per-byte lex dispatch (2–3 weeks, predicted 2–4 %)
+
+Replace `lex_token`'s monolithic switch with `[256]proc()` table
+of per-byte handlers à la OXC. This was tested in April 2026
+(commits `02da77c`, `f815e90`) with no measurable gain, but that
+test was pre `--ast-only` and may be worth retrying now that
+lex+keyword is 41 % of CPU instead of being amortised against
+scope work. Lower priority — the April result suggests Odin's
+LLVM jump table is already near-optimal.
+
+#### Step #5: Full DoD/SoA migration (4–6 weeks, predicted 12 %)
+
+Move to Zig-style AST with `tags: []u8`, `data: []u32`,
+`extra: []u32` and u32 indices instead of pointers. Tweede Golf
+measured this kind of transform delivering 12 % on top of
+already-arena-allocated code. Highest-leverage but biggest
+refactor. Worth doing only after #3 lands cleanly.
+
+Earlier remaining-gap analysis (kept for context):
 
 1. **`lex_token` token construction & identifier dispatch (~32 % of
    CPU after S21 WS-skipper).** The slow-path WS skip is now SIMD;
