@@ -792,7 +792,43 @@ gap lives. The deep analysis (`docs/perf-deep-analysis.md`)
 identifies four levers in expected-return order for the remaining
 closure:
 
-#### Step #3: Inline tagged unions (1–2 weeks, predicted 5–8 %)
+#### Step #3: Inline tagged unions — ATTEMPTED & REVERTED
+
+**Result: -5 % on monaco, ~1 % (noise) on every other file.** Reverted
+because the gain doesn't justify the test-infrastructure churn. The
+refactor itself was clean: 4 files touched (`ast.odin`, `parser.odin`,
+`main.odin`, `raw_transfer.odin`), all gates green (Test262 49,728/49,729,
+TS, JSX, Real, Negative, Invariants, Nodes, Ambiguity), AST node allocs
+dropped 36 % (451,413 → 288,010 on typescript.js).
+
+What broke: `task test:estree` walks the binary AST output produced by
+`raw_transfer.odin` via `tests/verifiers/verify_integration.js` (and
+friends). The walker hard-codes the OLD in-memory layout via
+`body.data + i * 8` (slot stride) and `u32(off + N)` (field offsets).
+The inline-union refactor changes both: array slot stride doubles
+(8 B → 16 B union value) and parent struct field offsets shift by
++8 B for every Expression / Statement field. 69 offset-arithmetic
+call sites across 1,162 lines of test infrastructure need updating —
+~3–5 hours of mechanical, error-prone work.
+
+Why the perf gain was smaller than predicted (5–8 %): `bump_alloc`
+is already ~5 ns per call. Saving 163 K wrapper allocs on typescript.js
+is only ~0.8 ms on a 45 ms parse (~2 %). The icache / cache-miss
+savings from removing one indirection per Expression read showed up
+as ~5 % on monaco (the largest, most memory-pressured file) but
+disappeared into noise on the smaller files where everything fits
+in L1/L2 anyway.
+
+**Lesson: the architectural change is right; the timing is wrong.**
+Step #5 (full DoD) does the whole job at once — SoA arrays, u32
+indices, trivial serialization — and replaces `raw_transfer.odin`
+entirely. Doing the walker update twice (once for #3, once for #5)
+is double work for partial benefit. Skip directly to #5.
+
+Save point tag `before-inline-union-refactor` records the experiment;
+details in `docs/perf-deep-analysis.md` § "Step #3 attempted & reverted".
+
+#### Step #3 (original prediction, kept for reference): Inline tagged unions (1–2 weeks, predicted 5–8 %)
 
 `Expression :: union { ^Identifier, ^MemberExpression, ... }` is
 16 B (Odin's pointer-union form). Stored as `^Expression` field

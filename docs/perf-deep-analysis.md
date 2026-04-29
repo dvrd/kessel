@@ -517,7 +517,44 @@ that disables `verify_scopes`, `check_params_vs_body_lex`,
 mode keeps them on (full conformance preserved). Bench mode turns
 them off (apples-to-apples with OXC's parser-only).
 
-### Why #3 not #4?
+### Step #3 attempted & reverted (S22.1, 2026-04-29)
+
+**Result: -5 % on monaco, ~1 % (noise) on every other file.** The
+refactor itself was clean (all gates green: Test262 49,728 / 49,729,
+TS, JSX, Real, Negative, Invariants, Nodes, Ambiguity). But the
+binary AST walkers (`tests/verifiers/verify_integration.js`, `verify_raw.js`,
+`verify_raw_deep.js`) hard-code the OLD memory layout via `body.data + i * 8`
+(slot stride) and `u32(off + N)` (field offsets). Every parent struct's
+field offsets shifted by +8 B per Expression / Statement field, and array
+slot strides doubled (8 B → 16 B). 69 offset-arithmetic call sites
+across 1,162 lines of test infrastructure would need updating — ~3–5
+hours of mechanical, error-prone work.
+
+Measurable wins on typescript.js:
+  * AST node allocs: 451,413 → 288,010 (-36 %)
+  * Wrapper byte share: 14.0 % → 0.0 %
+  * AST node bytes: 18,639,592 → 18,812,784 (+0.9 %; parent struct
+    growth from 8 B → 16 B Expression fields slightly outweighs
+    wrapper byte savings)
+
+Why the perf gain was smaller than predicted: `bump_alloc` is already
+~5 ns per call. Saving 163 K wrapper allocs on typescript.js is
+~0.8 ms on a 45 ms parse — ~2 %. The icache / cache-miss savings from
+removing one indirection per Expression read showed up as ~5 % on
+monaco (the largest, most memory-pressured file) but disappeared into
+noise on the smaller files where everything fits in L1/L2 anyway.
+
+**Lesson: The architectural change is right; the timing is wrong.** Step #5
+(full DoD/SoA migration) does the whole job at once — SoA arrays, u32
+indices, trivial serialization — and lets us delete
+`raw_transfer.odin`'s walker-coupled rewrite logic entirely. The walkers
+will have to learn the new layout once anyway; doing it twice (once for
+#3, once for #5) is double work for partial benefit.
+
+Reverted at commit `5a40370` (HEAD before attempt). Save tag
+`before-inline-union-refactor` records the experiment.
+
+### Why #3 not #4? (original reasoning, kept for context)
 
 #3 (inline tagged unions) is mechanical and isolated. We change the
 type definitions and the constructor; the rest is just compile-time
