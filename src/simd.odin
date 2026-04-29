@@ -88,7 +88,27 @@ simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: b
 simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit_backslash: bool, has_non_ascii: bool) {
 	off := start
 	src_len := len(src)
+	// Short-identifier scalar fast path. Most JS identifiers are 1–7 bytes
+	// (single-letter parameters like `i`, `x`; common names like `obj`,
+	// `length`, `value`, etc.). Per-chunk SIMD overhead (6 vector compares +
+	// reduce_or + mask extract) was dominating over the actual work for
+	// these short IDs — the SIMD loop scanned 16 bytes even when the ID
+	// terminated after 2-3. Profile of monaco.js showed lex_identifier (the
+	// caller of this function) at ~5.7 ms wall time, vs OXC's equivalent at
+	// ~2.6 ms. After this change: monaco -4.3 %, cesium -5.4 %.
 	when ODIN_ARCH == .arm64 {
+		prefix_end := min(off + 8, src_len)
+		for off < prefix_end {
+			c := src[off]
+			if c == '\\' { return off, true, has_non_ascii }
+			class := CHAR_CLASS_TABLE[c]
+			if class != u8(CharClass.IdStart) && class != u8(CharClass.Digit) {
+				return off, false, has_non_ascii
+			}
+			if c >= 0x80 { has_non_ascii = true }
+			off += 1
+		}
+
 		lo_a:  Vec16 = 'a'
 		lo_z:  Vec16 = 'z'
 		up_a:  Vec16 = 'A'
