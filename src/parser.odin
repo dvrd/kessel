@@ -502,6 +502,20 @@ Parser :: struct {
 	// disabled by this flag; matches pre-session-21 behaviour exactly.
 	scope_skip: bool,
 
+	// `ast_only` switches off all scope tracking, duplicate-binding
+	// detection, exported-name dedup, strict-reserved-name string checks,
+	// and the post-parse `verify_scopes` walk. The parser still produces
+	// a complete ESTree-compatible AST and reports syntactic errors
+	// (mismatched braces, invalid expressions, etc.) but skips the
+	// semantic / scope-level checks that OXC's parser also defers to its
+	// `oxc_semantic` pass.
+	//
+	// Used by the `microbench parse --ast-only` benchmark mode to compare
+	// against OXC's `Parser::new().parse()` (which does the same deferral)
+	// on equal terms. Test262 / TS / JSX / negative gates leave it OFF
+	// so all conformance work runs as today; this flag is bench-only.
+	ast_only: bool,
+
 	// Optional instrumentation for parser profiling
 	profile_enabled: bool,
 	profile:         ParserProfile,
@@ -1321,20 +1335,22 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// must refer to a binding actually declared in the module. This runs
 	// after source-type is finalized so we skip the check for scripts
 	// (they're already diagnosed by the module-syntax-in-script gate).
-	verify_export_locals(p, program)
-
-	// §14.2.1 early-error pass: duplicate LexicallyDeclaredNames in any
-	// Block / FunctionBody / CatchClause / SwitchCase / static-block
-	// scope, plus the lexical/var clash (§14.3.1.1). These are Static
-	// Semantics SyntaxErrors, not downstream-tool concerns, so this
-	// walker always runs. FunctionDeclaration Annex B.3.2 nuance
-	// (sloppy-mode plain FunctionDeclaration doesn't bind lexically,
-	// letting `{ function f(){} function f(){} }` stay legal outside
-	// strict mode) is handled in scope_process_statement.
 	//
-	// --show-semantic-errors will later enable additional passes (TDZ,
-	// used-before-decl, closure capture). For now it's a no-op.
-	verify_scopes(p, program)
+	// `ast_only` skips this and the duplicate-binding pass below to match
+	// what OXC's parser does (it defers all of these to oxc_semantic).
+	if !p.ast_only {
+		verify_export_locals(p, program)
+
+		// §14.2.1 early-error pass: duplicate LexicallyDeclaredNames in any
+		// Block / FunctionBody / CatchClause / SwitchCase / static-block
+		// scope, plus the lexical/var clash (§14.3.1.1). These are Static
+		// Semantics SyntaxErrors, not downstream-tool concerns, so this
+		// walker always runs in conformance mode. FunctionDeclaration
+		// Annex B.3.2 nuance (sloppy-mode plain FunctionDeclaration doesn't
+		// bind lexically, letting `{ function f(){} function f(){} }` stay
+		// legal outside strict mode) is handled in scope_process_statement.
+		verify_scopes(p, program)
+	}
 
 	// §13.2.5.1 CoverInitializedName: any ObjectExpression that parsed
 	// with a `{ ident = init }` shorthand but didn't get promoted to
@@ -1696,7 +1712,8 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	// function scope per §15.7.5). See those sites for the override.
 	// Skip the queue when the body has nothing scope-relevant to check or
 	// when an enclosing uncovered expression context set p.scope_skip.
-	if !p.scope_skip && has_scope_relevant_stmt(block.body[:]) {
+	// Also skip in --ast-only bench mode (verify_scopes is a no-op there).
+	if !p.scope_skip && !p.ast_only && has_scope_relevant_stmt(block.body[:]) {
 		append(&p.scope_pending, ScopePending{
 			body           = block.body[:],
 			start_offset   = block.loc.span.start,
@@ -2738,7 +2755,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 			relevant = true
 		}
 	}
-	if total > 0 && relevant && !p.scope_skip {
+	if total > 0 && relevant && !p.scope_skip && !p.ast_only {
 		// The flat slice is allocated in the parser's persistent allocator
 		// so it outlives the parse-time temp_allocator (verify_scopes runs
 		// in the same call, but keeping the lifetime aligned with other
@@ -2917,20 +2934,23 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 
 	// §14.15.1 - It is a Syntax Error if any element of the BoundNames of
 	// CatchParameter also occurs in the LexicallyDeclaredNames of Block.
-	if p_pat, have := param.(Pattern); have {
-		// Collect catch param names
-		param_names := make([dynamic]string, 0, 4, context.temp_allocator)
-		collect_pattern_bound_names_list(p_pat, &param_names)
-		// Collect lexical names from the catch body
-		body_lex := scope_map_make(4)
-		body_lex_vars := scope_map_make(4)
-		for inner in body_ptr.body {
-			scope_process_statement(p, inner, &body_lex, &body_lex_vars, true)
-		}
-		for n in param_names {
-			if off, have := scope_map_get(&body_lex, n); have {
-				msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
-				append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+	// `--ast-only` defers this; OXC's parser does the same.
+	if !p.ast_only {
+		if p_pat, have := param.(Pattern); have {
+			// Collect catch param names
+			param_names := make([dynamic]string, 0, 4, context.temp_allocator)
+			collect_pattern_bound_names_list(p_pat, &param_names)
+			// Collect lexical names from the catch body
+			body_lex := scope_map_make(4)
+			body_lex_vars := scope_map_make(4)
+			for inner in body_ptr.body {
+				scope_process_statement(p, inner, &body_lex, &body_lex_vars, true)
+			}
+			for n in param_names {
+				if off, have := scope_map_get(&body_lex, n); have {
+					msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
+					append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+				}
 			}
 		}
 	}
@@ -3655,8 +3675,9 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// matching the semantics of the previous scope_recurse path. Skip the
 	// queue when the body has nothing scope-relevant to check (typical
 	// callback bodies like `() => { return jsx }`) or when scope_skip is
-	// set by an enclosing uncovered expression context.
-	if !p.scope_skip && has_scope_relevant_stmt(body.body[:]) {
+	// set by an enclosing uncovered expression context. Also skip in
+	// --ast-only bench mode (verify_scopes is a no-op there).
+	if !p.scope_skip && !p.ast_only && has_scope_relevant_stmt(body.body[:]) {
 		append(&p.scope_pending, ScopePending{
 			body           = body.body[:],
 			start_offset   = body.loc.span.start,
@@ -4817,6 +4838,8 @@ params_are_simple :: proc(params: []FunctionParameter) -> bool {
 // parse_function_declaration reads body_strict after the body parse
 // but before the param check runs).
 report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, force_when_non_simple: bool = false, strict_override: bool = false) {
+	// Skip in `--ast-only` benchmark mode (deferred to semantic pass).
+	if p.ast_only { return }
 	if len(params) == 0 { return }
 	strict := p.strict_mode || strict_override
 	force_non_simple := force_when_non_simple && !params_are_simple(params)
@@ -5192,6 +5215,8 @@ report_strict_param_names :: proc(p: ^Parser, params: []FunctionParameter) {
 }
 
 report_strict_param_pattern :: proc(p: ^Parser, pat: Pattern) {
+	// Skip in `--ast-only` benchmark mode (deferred to semantic pass).
+	if p.ast_only { return }
 	if pat == nil { return }
 	switch v in pat {
 	case ^Identifier:
@@ -6818,6 +6843,9 @@ scope_map_clear :: #force_inline proc(m: ^ScopeMap) {
 // Check that function formal parameters don't clash with lexically
 // declared names in the body (§15.2.1.1 / §15.5.1 etc.).
 check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: []^Statement) {
+	// Skip in `--ast-only` benchmark mode; OXC's parser also defers this
+	// (§15.2.1.1 / §15.5.1) to its semantic pass.
+	if p.ast_only { return }
 	if len(params) == 0 || len(body) == 0 { return }
 	param_names := make([dynamic]string, 0, len(params)*2, context.temp_allocator)
 	for param in params {
@@ -6849,6 +6877,10 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 // push order is innermost-first within a parent, which matches source
 // only for left-to-right siblings, not for nested-vs-following-sibling.
 verify_scopes :: proc(p: ^Parser, program: ^Program) {
+	// `--ast-only` benchmark mode skips this entire pass to match OXC's
+	// parser-only bench harness (which defers all duplicate-binding /
+	// lexical-declared-name checks to oxc_semantic).
+	if p.ast_only { return }
 	// Allocate a single pair of ScopeMaps and reuse them across every body.
 	// Cap of 16 covers ~95 % of real-world bodies without spilling into the
 	// hashmap path; larger scopes promote to spill on first overflow and

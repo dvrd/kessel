@@ -478,10 +478,44 @@ tasks:
         echo "At parity or faster: $((faster+parity)) ($(((faster+parity)*100/total))%)"
 
   bench:quick:
-    desc: Benchmark 10 key files vs OXC
+    desc: Benchmark 10 key files vs OXC (apples-to-apples — ast-only mode)
     deps: [build, bench:oxc:build]
     cmds:
       - |
+        # OXC's parser-only bench harness defers all scope/binding/early-error
+        # checks to oxc_semantic, which the bench never invokes. To compare on
+        # equal terms, kessel runs in --ast-only mode (which disables the same
+        # set of checks). Test262 / TS / JSX / negative gates all keep the
+        # checks ON via the default parse path, so conformance is preserved.
+        printf 'apples-to-apples (kessel --ast-only vs OXC parse-only)\n\n'
+        for f in \
+          bench/real_world/typescript.js \
+          bench/real_world/batch2/cesium.js \
+          bench/real_world/batch2/monaco.js \
+          bench/real_world/antd.js \
+          bench/real_world/jquery.js \
+          bench/real_world/d3.js \
+          bench/real_world/react-dom.dev.js \
+          bench/real_world/batch2/preact.js \
+          bench/real_world/lodash.js \
+          bench/real_world/batch3/snabbdom.js; do
+          name=$(basename "$f")
+          k=$(./{{.BIN}} microbench parse "$f" --iterations 30 --ast-only 2>&1 | awk '/Min:/ {print $2}')
+          o=$({{.OXC_BENCH}} "$f" 30 2>&1 | awk '/Min:/ {print $2}')
+          r=$(python3 -c "print(f'{float(\"$k\")/float(\"$o\"):.2f}x')" 2>/dev/null)
+          printf '%-25s kessel=%-12s oxc=%-12s ratio=%s\n' "$name" "${k}us" "${o}us" "$r"
+        done
+
+  bench:quick:full:
+    desc: "Benchmark 10 key files vs OXC (apples-to-oranges \u2014 full kessel parse with all conformance checks ON)"
+    deps: [build, bench:oxc:build]
+    cmds:
+      - |
+        # Compares kessel's full parse (all spec-mandated scope / early-error
+        # checks ON — i.e. parser+semantic combined) against OXC's parser-only.
+        # This is apples-to-oranges and was the historical default; use
+        # `bench:quick` for the fair comparison.
+        printf 'apples-to-oranges (kessel full parse vs OXC parse-only)\n\n'
         for f in \
           bench/real_world/typescript.js \
           bench/real_world/batch2/cesium.js \

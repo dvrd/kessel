@@ -681,7 +681,7 @@ main :: proc() {
 
 	case "microbench":
 		if len(os.args) < 4 {
-			out_println("Usage: kessel microbench parse <file> [--iterations N]")
+			out_println("Usage: kessel microbench parse <file> [--iterations N] [--ast-only]")
 			out_println("       kessel microbench lex <file> [--iterations N]")
 			flush_stdout_writer()
 			os.exit(1)
@@ -689,13 +689,25 @@ main :: proc() {
 		mb_sub := os.args[2]
 		mb_file := os.args[3]
 		mb_iters := 100
-		if len(os.args) >= 6 && os.args[4] == "--iterations" {
-			n, ok := strconv.parse_int(os.args[5])
-			if ok { mb_iters = n }
+		mb_ast_only := false
+		// Scan optional flags after the file path. Order-independent.
+		for i := 4; i < len(os.args); i += 1 {
+			arg := os.args[i]
+			if arg == "--iterations" && i + 1 < len(os.args) {
+				if n, ok := strconv.parse_int(os.args[i+1]); ok { mb_iters = n }
+				i += 1
+			} else if arg == "--ast-only" {
+				// Apples-to-apples comparison vs OXC's parser-only bench:
+				// disables verify_scopes / verify_export_locals / duplicate-
+				// param / strict-param / catch-clause-clash / param-vs-body
+				// checks. OXC defers all of these to oxc_semantic; the
+				// bench harness for OXC never invokes the semantic pass.
+				mb_ast_only = true
+			}
 		}
 		switch mb_sub {
 		case "parse":
-			microbench_file(mb_file, mb_iters)
+			microbench_file(mb_file, mb_iters, mb_ast_only)
 		case "lex":
 			microbench_lex(mb_file, mb_iters)
 		case:
@@ -1449,7 +1461,7 @@ microbench_lex :: proc(file_path: string, iterations: int) {
 	flush_stdout_writer()
 }
 
-microbench_file :: proc(file_path: string, iterations: int) {
+microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = false) {
 	// Read file once
 	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
 	if read_err != nil {
@@ -1490,6 +1502,7 @@ microbench_file :: proc(file_path: string, iterations: int) {
 
 		p: Parser
 		init_parser(&p, &lex, arena_alloc)
+		p.ast_only = ast_only
 
 		_ = parse_program(&p, .Script)
 		mvirtual.arena_free_all(&arena)
@@ -1507,6 +1520,7 @@ microbench_file :: proc(file_path: string, iterations: int) {
 
 		p: Parser
 		init_parser(&p, &lex, arena_alloc)
+		p.ast_only = ast_only
 
 		_ = parse_program(&p, .Script)
 
