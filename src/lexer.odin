@@ -41,6 +41,32 @@ is_id_cont_fast :: #force_inline proc(c: u8) -> bool {
     return class == u8(CharClass.IdStart) || class == u8(CharClass.Digit)
 }
 
+// FAST_TOKEN_START_TABLE[c] is `true` when byte `c` is a guaranteed
+// fast-path token start — i.e. NOT one of:
+//
+//   * ASCII whitespace / control (c <= 0x20)  — needs WS-skip slow path
+//   * `/`                                       — may begin `//` or `/*` comment
+//   * 0xC2, 0xE1, 0xE2, 0xE3, 0xEF              — lead bytes of multi-byte
+//                                                 spec WhiteSpace / LineTerm
+//                                                 (NBSP, OGHAM, Zs/LT block,
+//                                                 IDEOGRAPHIC SP, ZWNBSP)
+//
+// `lex_token`'s prologue used to evaluate this predicate as a chain of seven
+// compares against c0; each token paid 5–7 dependent ALU ops. The table
+// flattens the same logic to a single byte load, which the next step
+// (single_char_tokens / is_id_start_fast) re-uses from the same cache line.
+FAST_TOKEN_START_TABLE: [256]bool
+
+@(init)
+init_fast_token_start_table :: proc "contextless" () {
+    for i in 0..<256 {
+        c := u8(i)
+        slow := c <= ' ' || c == '/' ||
+                c == 0xC2 || c == 0xE1 || c == 0xE2 || c == 0xE3 || c == 0xEF
+        FAST_TOKEN_START_TABLE[i] = !slow
+    }
+}
+
 // ============================================================================
 // Lexer — optimized lexer with FastToken output and SIMD scanning
 // ============================================================================
@@ -319,11 +345,16 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 // Single-char token lookup table
 // ============================================================================
 
-single_char_tokens: [128]TokenType
+// 256 entries (not 128) so the high half is always populated with .Invalid.
+// This lets `lex_token` index by the raw lead byte without a `c < 128` guard
+// — non-ASCII bytes simply read .Invalid and fall through to the identifier /
+// escape / number / operator dispatch chain. Saves one branch per token on
+// the hot path. The 128-byte memory cost is irrelevant.
+single_char_tokens: [256]TokenType
 
 @(init)
 init_single_char_table :: proc "contextless" () {
-	for i in 0..<128 { single_char_tokens[i] = .Invalid }
+	for i in 0..<256 { single_char_tokens[i] = .Invalid }
 	single_char_tokens['{'] = .LBrace
 	single_char_tokens['}'] = .RBrace
 	single_char_tokens['('] = .LParen
@@ -520,21 +551,6 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 	src_len := len(src)
 	off := l.offset  // local copy for register residency
 
-	// Annex B §B.1.3 SingleLineHTMLCloseComment kicks the slow path
-	// when `-->` appears at file-start or right after a LineTerminator.
-	// The fast-path predicate would otherwise fall through to the
-	// `-` token dispatch and the parser would see `--` + `>`.
-	annexb_close := !l.is_module_mode &&
-	                (off == 0 || l.had_line_terminator) &&
-	                off + 2 < src_len &&
-	                src[off] == '-' && src[off+1] == '-' && src[off+2] == '>'
-	// Annex B §B.1.3 SingleLineHTMLOpenComment: `<!--` is a line
-	// comment in script source anywhere it appears as a token start.
-	annexb_open := !l.is_module_mode &&
-	               off + 3 < src_len &&
-	               src[off] == '<' && src[off+1] == '!' &&
-	               src[off+2] == '-' && src[off+3] == '-'
-
 	// OXC-style branchless double-read: skip one space with arithmetic,
 	// then check if we're at a token. Avoids branch for common single-space case.
 	//
@@ -550,16 +566,36 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 	// straight into the next token — e.g. `var a = 1\u2028var b = 2` would
 	// fuse into one mangled identifier without the slow-path dispatch.
 	ws_done := false
+	c0: u8 = 0
 	if off + 1 < src_len {
 		is_space := int(src[off] == ' ')
 		off += is_space  // branchless advance 0 or 1
-		c0 := src[off]
-		ws_done = c0 > ' ' && c0 != '/' && c0 != 0xC2 && c0 != 0xE1 && c0 != 0xE2 && c0 != 0xE3 && c0 != 0xEF
+		c0 = src[off]
+		// One byte load + one truthy test, replacing a 7-compare chain.
+		ws_done = FAST_TOKEN_START_TABLE[c0]
 	}
-	// Annex B HTML-like comments must reach the slow path so the comment
-	// scanner consumes them; otherwise the fast path falls through to
-	// the `-` / `<` token dispatch and the parser sees the raw bytes.
-	if annexb_close || annexb_open { ws_done = false }
+	// Annex B §B.1.3 HTML-like comments must reach the slow path so the
+	// comment scanner consumes them; otherwise the fast path would fall
+	// through to the `-` / `<` token dispatch and the parser would see
+	// the raw bytes. The expensive byte-pattern check (`<!--` / `-->`)
+	// is gated three ways, in cheapest-first order:
+	//
+	//   1. !is_module_mode  — Annex B doesn't apply in module code.
+	//   2. c0 in {`<`, `-`}  — only these bytes can begin one of the two
+	//      Annex B comment forms. The space-skip above never produces
+	//      `<` or `-` from `' '`, so c0 is the correct byte to test even
+	//      when is_space==1 (in that case is_space==0 by definition).
+	//   3. Full byte-pattern check — only reached for ~0 % of script
+	//      tokens. Module-mode parses pay zero cost from this block.
+	if !l.is_module_mode && (c0 == '<' || c0 == '-') {
+		if c0 == '<' && off + 3 < src_len &&
+		   src[off+1] == '!' && src[off+2] == '-' && src[off+3] == '-' {
+			ws_done = false  // SingleLineHTMLOpenComment
+		} else if c0 == '-' && (off == 0 || l.had_line_terminator) &&
+		          off + 2 < src_len && src[off+1] == '-' && src[off+2] == '>' {
+			ws_done = false  // SingleLineHTMLCloseComment
+		}
+	}
 	if !ws_done {
 		// Slow path: multi-space, newline, comment, or EOF.
 		//
@@ -737,25 +773,26 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 	c := src[off]
 
 	// ---- Single-char token via lookup table ----
-	if c < 128 {
-		tt := single_char_tokens[c]
-		if tt != .Invalid {
-			// When inside template interpolation, track brace depth
-			if l.template_depth > 0 {
-				idx := l.template_depth - 1
-				if tt == .RBrace {
-					if l.template_brace_stack[idx] == 0 {
-						// Closes the interpolation → template resume
-						return lex_template_resume(l, start, flags)
-					}
-					l.template_brace_stack[idx] -= 1
-				} else if tt == .LBrace {
-					l.template_brace_stack[idx] += 1
+	// `single_char_tokens` is sized [256] so the high half (non-ASCII lead
+	// bytes) is populated with .Invalid and falls through naturally. This
+	// drops the `if c < 128` guard that otherwise gates every token.
+	tt := single_char_tokens[c]
+	if tt != .Invalid {
+		// When inside template interpolation, track brace depth
+		if l.template_depth > 0 {
+			idx := l.template_depth - 1
+			if tt == .RBrace {
+				if l.template_brace_stack[idx] == 0 {
+					// Closes the interpolation → template resume
+					return lex_template_resume(l, start, flags)
 				}
+				l.template_brace_stack[idx] -= 1
+			} else if tt == .LBrace {
+				l.template_brace_stack[idx] += 1
 			}
-			l.offset += 1
-			return FastToken{start = start, end = u32(l.offset), kind = tt, flags = flags}
 		}
+		l.offset += 1
+		return FastToken{start = start, end = u32(l.offset), kind = tt, flags = flags}
 	}
 
 	// ---- Identifier or keyword ----
