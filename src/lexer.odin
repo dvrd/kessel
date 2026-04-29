@@ -249,7 +249,7 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 			// `#!...` body lexes as a sequence of regular tokens (private
 			// identifier, `!`, the program body, etc.) producing a 5-6 error
 			// cascade. OXC matches this stop-after-one behaviour.
-			append(&l.lexer_errors, LexerError{offset = u32(l.offset + 1), message = "Invalid character `!`"})
+			bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset + 1), message = "Invalid character `!`"})
 			// Skip past the hashbang line.
 			for l.offset < len(source) {
 				c := l.source_bytes[l.offset]
@@ -491,7 +491,7 @@ skip_line_comment :: proc(l: ^Lexer) {
 	if had_nl { l.had_line_terminator = true }
 	if l.collect_comments {
 		// end points AT the \n (or EOF). Content is source[content_start:end].
-		append(&l.comments, Comment{
+		bump_append(&l.comments, Comment{
 			type  = .Line,
 			start = comment_start,
 			end   = u32(end),
@@ -510,7 +510,7 @@ skip_block_comment :: proc(l: ^Lexer) {
 	// §12.4 — A block comment that reaches EOF without a closing `*/` is a
 	// SyntaxError. Report it so the test runner sees `Parse errors: 1`.
 	if end >= len(l.source_bytes) {
-		append(&l.lexer_errors, LexerError{
+		bump_append(&l.lexer_errors, LexerError{
 			offset  = comment_start,
 			message = "Unterminated block comment",
 		})
@@ -518,7 +518,7 @@ skip_block_comment :: proc(l: ^Lexer) {
 	if l.collect_comments {
 		// Content ends before the */ (end points past */)
 		content_end := end - 2 if end >= 2 else end
-		append(&l.comments, Comment{
+		bump_append(&l.comments, Comment{
 			type  = .Block,
 			start = comment_start,
 			end   = u32(end),
@@ -676,7 +676,7 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 				end, had_nl := simd_skip_line_comment(src, off)
 				if had_nl { l.had_line_terminator = true }
 				if l.collect_comments {
-					append(&l.comments, Comment{
+					bump_append(&l.comments, Comment{
 						type  = .Line,
 						start = u32(comment_start),
 						end   = u32(end),
@@ -699,7 +699,7 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 				end, had_nl := simd_skip_line_comment(src, off)
 				if had_nl { l.had_line_terminator = true }
 				if l.collect_comments {
-					append(&l.comments, Comment{
+					bump_append(&l.comments, Comment{
 						type  = .Line,
 						start = u32(comment_start),
 						end   = u32(end),
@@ -718,7 +718,7 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 					if l.collect_comments {
 						// end points AT the \n (or EOF). Content is src[content_start:end].
 						content_end := end
-						append(&l.comments, Comment{
+						bump_append(&l.comments, Comment{
 							type  = .Line,
 							start = u32(comment_start),
 							end   = u32(end),
@@ -740,14 +740,14 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 					}
 					// Unterminated block comment — report as lexer error.
 					if end >= src_len {
-						append(&l.lexer_errors, LexerError{
+						bump_append(&l.lexer_errors, LexerError{
 							offset  = u32(comment_start),
 							message = "Unterminated block comment",
 						})
 					}
 					if l.collect_comments {
 						content_end := end - 2 if end >= 2 else end
-						append(&l.comments, Comment{
+						bump_append(&l.comments, Comment{
 							type  = .Block,
 							start = u32(comment_start),
 							end   = u32(end),
@@ -947,7 +947,7 @@ lex_validate_unicode_identifier :: proc(l: ^Lexer, start: int, body_start: int, 
 	if start < end && src[start] >= 0x80 {
 		cp := decode_utf8_codepoint(src, start)
 		if !is_id_start_codepoint(cp) {
-			append(&l.lexer_errors, LexerError{
+			bump_append(&l.lexer_errors, LexerError{
 				offset  = u32(start),
 				message = "Invalid character in identifier",
 			})
@@ -1141,13 +1141,13 @@ lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			cp, ok, consumed := decode_u_escape(src, off)
 			if !ok {
 				// Invalid escape — produce Invalid token, advance past backslash.
-				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid Unicode escape in identifier"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid Unicode escape in identifier"})
 				l.offset = off + 1
 				return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
 			}
 			if first {
 				if !is_id_start_codepoint(cp) {
-					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in identifier escape"})
+					bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in identifier escape"})
 					l.offset = off + consumed
 					return FastToken{start = start, end = u32(off + consumed), kind = .Invalid, flags = flags}
 				}
@@ -1161,16 +1161,16 @@ lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			if first {
 				if !is_id_start_fast(c) {
 					// No valid start at all (e.g. `\x` with no id start) — bail.
-					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in identifier"})
+					bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in identifier"})
 					l.offset = off + 1
 					return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
 				}
-				append(&cooked, c)
+				bump_append(&cooked, c)
 				off += 1
 				first = false
 			} else {
 				if !is_id_cont_fast(c) { break }
-				append(&cooked, c)
+				bump_append(&cooked, c)
 				off += 1
 			}
 		}
@@ -1245,12 +1245,12 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			off += 1
 		} else if ch == '_' {
 			if legacy_zero_prefix {
-				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator not allowed in legacy octal / non-octal-decimal literal"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator not allowed in legacy octal / non-octal-decimal literal"})
 			}
 			is_simple_int = false
 			had_any_sep = true
 			if prev_was_sep && !legacy_zero_prefix {
-				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
 			}
 			prev_was_sep = true
 			off += 1
@@ -1260,7 +1260,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 	if had_any_sep && prev_was_sep {
 		// Trailing `_` at end of integer part (`1_` or `1_.0`).
-		append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
 	}
 
 	// Check for decimal point or exponent → not a simple integer.
@@ -1286,7 +1286,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 					off += 1
 				} else if ch == '_' {
 					if prev_sep {
-						append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+						bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
 					}
 					prev_sep = true
 					off += 1
@@ -1294,7 +1294,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			}
 			if prev_sep && frac_digits > 0 {
 				// Trailing `_` in fraction (`1.0_` or `1.0_e1`).
-				append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
 			}
 			_ = frac_start
 		}
@@ -1312,7 +1312,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 					off += 1
 				} else if ch == '_' {
 					if prev_sep {
-						append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+						bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
 					}
 					prev_sep = true
 					off += 1
@@ -1320,7 +1320,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			}
 			if prev_sep && exp_digits > 0 {
 				// Trailing `_` in exponent (`1e10_`).
-				append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
 			}
 		}
 	}
@@ -1333,10 +1333,10 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	// are SyntaxErrors.
 	if off < src_len && src[off] == 'n' {
 		if had_dot {
-			append(&l.lexer_errors, LexerError{offset = u32(off), message = "BigInt literal cannot contain a decimal point"})
+			bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "BigInt literal cannot contain a decimal point"})
 		}
 		if had_exp {
-			append(&l.lexer_errors, LexerError{offset = u32(off), message = "BigInt literal cannot contain an exponent"})
+			bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "BigInt literal cannot contain an exponent"})
 		}
 		l.offset += 1
 		end = u32(l.offset)
@@ -1353,7 +1353,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		buf := make([dynamic]u8, 0, len(text), context.temp_allocator)
 		for i := 0; i < len(text); i += 1 {
 			if text[i] != '_' {
-				append(&buf, text[i])
+				bump_append(&buf, text[i])
 			}
 		}
 		text_no_underscores := string(buf[:])
@@ -1370,7 +1370,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if end < u32(src_len) {
 		c := src[end]
 		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '_' || c == '\\' {
-			append(&l.lexer_errors, LexerError{offset = end, message = "Identifier directly after number"})
+			bump_append(&l.lexer_errors, LexerError{offset = end, message = "Identifier directly after number"})
 		}
 	}
 
@@ -1391,7 +1391,7 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			prev_was_sep = false
 		} else if c == '_' {
 			if prev_was_sep {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
 			}
 			l.offset += 1
 			prev_was_sep = true
@@ -1399,11 +1399,11 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 	if prev_was_sep && digits_seen > 0 {
 		// Trailing `_` (`0xF_`).
-		append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
 	}
 	// §12.9.3 HexIntegerLiteral requires at least one HexDigit after `0x`.
 	if digits_seen == 0 {
-		append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Hex literal requires at least one digit"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Hex literal requires at least one digit"})
 	}
 	// Reject identifier-continue chars immediately following the hex body
 	// (`0xzzz`, `0xfoo`, `0xff\u006fff` — the bad char is kept separate;
@@ -1413,7 +1413,7 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		c := src[l.offset]
 		if (c >= 'g' && c <= 'z') || (c >= 'G' && c <= 'Z') || c == '$' || c == '\\' {
 			if c != 'n' {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid hex digit"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid hex digit"})
 			}
 		}
 	}
@@ -1479,7 +1479,7 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		if c == '0' || c == '1' { l.offset += 1; digits_seen += 1; prev_was_sep = false }
 		else if c == '_' {
 			if prev_was_sep {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
 			}
 			l.offset += 1
 			prev_was_sep = true
@@ -1488,7 +1488,7 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 	if prev_was_sep && digits_seen > 0 {
 		// Trailing `_` (`0b1_`).
-		append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
 	}
 	// `0b2`, `0bz`, `0b1\u006fff`, etc. — binary literal followed by a
 	// digit / letter / \uXXXX that isn't a valid binary digit but *is* a
@@ -1500,12 +1500,12 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		c := src[l.offset]
 		if (c >= '2' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '\\' {
 			if c != 'n' {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid binary digit"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid binary digit"})
 			}
 		}
 	}
 	if digits_seen == 0 {
-		append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Binary literal requires at least one digit"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Binary literal requires at least one digit"})
 	}
 	end := u32(l.offset)
 	if l.offset < src_len && src[l.offset] == 'n' {
@@ -1551,7 +1551,7 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		if c >= '0' && c <= '7' { l.offset += 1; digits_seen += 1; prev_was_sep = false }
 		else if c == '_' {
 			if prev_was_sep {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Numeric separator must be between two digits"})
 			}
 			l.offset += 1
 			prev_was_sep = true
@@ -1560,7 +1560,7 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 	if prev_was_sep && digits_seen > 0 {
 		// Trailing `_` (`0o7_`).
-		append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset - 1), message = "Numeric separator not allowed here"})
 	}
 	// Same rejection rule as lex_binary: `0o8`, `0o9`, `0oz`, `0o7\u006fff`
 	// etc. are SyntaxErrors. The `n` suffix is legal and handled below.
@@ -1568,12 +1568,12 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		c := src[l.offset]
 		if (c == '8' || c == '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '\\' {
 			if c != 'n' {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid octal digit"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid octal digit"})
 			}
 		}
 	}
 	if digits_seen == 0 {
-		append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Octal literal requires at least one digit"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Octal literal requires at least one digit"})
 	}
 	end := u32(l.offset)
 	if l.offset < src_len && src[l.offset] == 'n' {
@@ -1628,7 +1628,7 @@ lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 		for bi := 0; bi < len(span); bi += 1 {
 			b := span[bi]
 			if b == '\n' || b == '\r' {
-				append(&l.lexer_errors, LexerError{
+				bump_append(&l.lexer_errors, LexerError{
 					offset = u32(int(start) + 1 + bi),
 					message = "Unterminated string literal",
 				})
@@ -1656,7 +1656,7 @@ lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 			if b == '\\' { has_escape = true; break }
 		}
 		if !has_escape {
-			append(&l.lexer_errors, LexerError{offset = start, message = "Unterminated string literal"})
+			bump_append(&l.lexer_errors, LexerError{offset = start, message = "Unterminated string literal"})
 			l.offset = len(l.source_bytes)
 			return FastToken{start = start, end = u32(l.offset), kind = .String, flags = flags}
 		}
@@ -1732,14 +1732,14 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 				if b == '\n' || b == '\r' {
 					// §12.9.4.1 — unescaped LineTerminator in string.
 					l.had_line_terminator = true
-					append(&l.lexer_errors, LexerError{
+					bump_append(&l.lexer_errors, LexerError{
 						offset = u32(l.offset + bi),
 						message = "Unterminated string literal",
 					})
 					break
 				}
 			}
-			append(&cook_buf, ..span)
+			append(&cook_buf, ..span)  // variadic-slice append: stays on runtime path
 			l.offset += pos
 		}
 
@@ -1769,34 +1769,34 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 			switch next {
 			// Single-char escapes
 			case 'n':
-				append(&cook_buf, u8(0x0A))
+				bump_append(&cook_buf, u8(0x0A))
 				l.offset += 2
 			case 'r':
-				append(&cook_buf, u8(0x0D))
+				bump_append(&cook_buf, u8(0x0D))
 				l.offset += 2
 			case 't':
-				append(&cook_buf, u8(0x09))
+				bump_append(&cook_buf, u8(0x09))
 				l.offset += 2
 			case 'b':
-				append(&cook_buf, u8(0x08))
+				bump_append(&cook_buf, u8(0x08))
 				l.offset += 2
 			case 'f':
-				append(&cook_buf, u8(0x0C))
+				bump_append(&cook_buf, u8(0x0C))
 				l.offset += 2
 			case 'v':
-				append(&cook_buf, u8(0x0B))
+				bump_append(&cook_buf, u8(0x0B))
 				l.offset += 2
 			case '\'', '"', '\\', '/':
-				append(&cook_buf, next)
+				bump_append(&cook_buf, next)
 				l.offset += 2
 			case '0':
 				// \0 only if not followed by a digit
 				if l.offset + 2 < src_len && src[l.offset + 2] >= '0' && src[l.offset + 2] <= '9' {
 					// Followed by digit; fallback to identity
-					append(&cook_buf, next)
+					bump_append(&cook_buf, next)
 					l.offset += 2
 				} else {
-					append(&cook_buf, u8(0x00))
+					bump_append(&cook_buf, u8(0x00))
 					l.offset += 2
 				}
 			case 'x':
@@ -1813,15 +1813,15 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 						// Fewer than 2 hex digits, or non-hex next char.
 						// Report and still consume `\x` so the rest of the
 						// string lexes normally (error recovery).
-						append(&l.lexer_errors, LexerError{offset = escape_off, message = "Invalid \\x escape: expected 2 hex digits"})
-						append(&cook_buf, '\\')
-						append(&cook_buf, next)
+						bump_append(&l.lexer_errors, LexerError{offset = escape_off, message = "Invalid \\x escape: expected 2 hex digits"})
+						bump_append(&cook_buf, '\\')
+						bump_append(&cook_buf, next)
 						l.offset += 2
 					}
 				} else {
-					append(&l.lexer_errors, LexerError{offset = escape_off, message = "Invalid \\x escape: expected 2 hex digits"})
-					append(&cook_buf, '\\')
-					append(&cook_buf, next)
+					bump_append(&l.lexer_errors, LexerError{offset = escape_off, message = "Invalid \\x escape: expected 2 hex digits"})
+					bump_append(&cook_buf, '\\')
+					bump_append(&cook_buf, next)
 					l.offset += 2
 				}
 			case 'u':
@@ -1846,14 +1846,14 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 					if l.offset < src_len && src[l.offset] == '}' {
 						l.offset += 1 // skip }
 						if !got_hex {
-							append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: empty code point"})
+							bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: empty code point"})
 						} else if overflow {
-							append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: code point out of range [0..0x10FFFF]"})
+							bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: code point out of range [0..0x10FFFF]"})
 						} else {
 							append_utf8(&cook_buf, cp)
 						}
 					} else {
-						append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: missing closing '}'"})
+						bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: missing closing '}'"})
 					}
 				} else if l.offset + 5 < src_len {
 					// \uHHHH — exactly 4 hex digits.
@@ -1866,15 +1866,15 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 						append_utf8(&cook_buf, cp)
 						l.offset += 6
 					} else {
-						append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits"})
-						append(&cook_buf, '\\')
-						append(&cook_buf, next)
+						bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits"})
+						bump_append(&cook_buf, '\\')
+						bump_append(&cook_buf, next)
 						l.offset += 2
 					}
 				} else {
-					append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits"})
-					append(&cook_buf, '\\')
-					append(&cook_buf, next)
+					bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits"})
+					bump_append(&cook_buf, '\\')
+					bump_append(&cook_buf, next)
 					l.offset += 2
 				}
 			case '\n':
@@ -1890,18 +1890,18 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 				}
 			case:
 				// Any other char after backslash: identity fallback
-				append(&cook_buf, next)
+				bump_append(&cook_buf, next)
 				l.offset += 2
 			}
 		} else if c == '\n' || c == '\r' {
 			// §12.9.4.1 — unescaped LineTerminator in a string literal
 			// is a SyntaxError. The string is unterminated.
 			l.had_line_terminator = true
-			append(&l.lexer_errors, LexerError{
+			bump_append(&l.lexer_errors, LexerError{
 				offset = u32(l.offset),
 				message = "Unterminated string literal",
 			})
-			append(&cook_buf, c)
+			bump_append(&cook_buf, c)
 			l.offset += 1
 			if c == '\r' && l.offset < src_len && src[l.offset] == '\n' {
 				l.offset += 1 // skip CR+LF pair
@@ -1914,13 +1914,13 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 			// ES2019+ allows them in strings, so NO error here. Just
 			// set had_line_terminator and copy through.
 			l.had_line_terminator = true
-			append(&cook_buf, src[l.offset])
-			append(&cook_buf, src[l.offset + 1])
-			append(&cook_buf, src[l.offset + 2])
+			bump_append(&cook_buf, src[l.offset])
+			bump_append(&cook_buf, src[l.offset + 1])
+			bump_append(&cook_buf, src[l.offset + 2])
 			l.offset += 3
 		} else {
 			// Regular character
-			append(&cook_buf, c)
+			bump_append(&cook_buf, c)
 			l.offset += 1
 		}
 	}
@@ -2118,7 +2118,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			off += 1
 		} else if ch == '_' {
 			if prev_sep {
-				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
 			}
 			had_sep = true
 			prev_sep = true
@@ -2126,7 +2126,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		} else { break }
 	}
 	if prev_sep && frac_digits > 0 {
-		append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
 	}
 	had_exp := false
 	// Exponent (with separator validation in the digit run).
@@ -2144,7 +2144,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 				off += 1
 			} else if ch == '_' {
 				if prev_sep_e {
-					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
+					bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Numeric separator must be between two digits"})
 				}
 				had_sep = true
 				prev_sep_e = true
@@ -2152,7 +2152,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			} else { break }
 		}
 		if prev_sep_e && exp_digits > 0 {
-			append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
+			bump_append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
 		}
 	}
 	l.offset = off
@@ -2190,7 +2190,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		if had_sep {
 			buf := make([dynamic]u8, 0, len(text), context.temp_allocator)
 			for i := 0; i < len(text); i += 1 {
-				if text[i] != '_' { append(&buf, text[i]) }
+				if text[i] != '_' { bump_append(&buf, text[i]) }
 			}
 			value, _ = strconv.parse_f64(string(buf[:]))
 		} else {
@@ -2207,7 +2207,7 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if end < u32(src_len) {
 		c := src[end]
 		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '$' || c == '_' || c == '\\' {
-			append(&l.lexer_errors, LexerError{offset = end, message = "Identifier directly after number"})
+			bump_append(&l.lexer_errors, LexerError{offset = end, message = "Identifier directly after number"})
 		}
 	}
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
@@ -2309,13 +2309,13 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			// AtomEscape — swallow the next code unit. `\` at the very
 			// end of the pattern (before closing `/`) is a SyntaxError.
 			if l.offset + 1 >= src_len {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Trailing backslash in regular expression"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Trailing backslash in regular expression"})
 				l.offset += 1
 				break
 			}
 			nxt := src[l.offset + 1]
 			if nxt == '\n' || nxt == '\r' {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Unterminated regular expression (escape before newline)"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Unterminated regular expression (escape before newline)"})
 				break
 			}
 			l.offset += 2
@@ -2338,7 +2338,7 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		}
 		if c == ')' && !in_class {
 			if group_depth == 0 {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Unmatched ')' in regular expression"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Unmatched ')' in regular expression"})
 			} else {
 				group_depth -= 1
 			}
@@ -2372,7 +2372,7 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		// silently fell back to `.Div`, which let `/abc;` at the end of
 		// a file parse cleanly as `a/b/c;` — a spec violation observed on
 		// the negative/007_unterminated_regex fixture.
-		append(&l.lexer_errors, LexerError{offset = start, message = "Unterminated regular expression"})
+		bump_append(&l.lexer_errors, LexerError{offset = start, message = "Unterminated regular expression"})
 		end := u32(l.offset)
 		full_regex := l.source[start:end]
 		l.last_lit_offset = start
@@ -2382,10 +2382,10 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 
 	if in_class {
-		append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated character class in regular expression"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated character class in regular expression"})
 	}
 	if group_depth > 0 {
-		append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
 	}
 
 	// Pattern body validation is delegated to regex_validate_pattern
@@ -2408,14 +2408,14 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		// §B.1.4 / §11.8.5 — Regex flags may not contain Unicode escape sequences.
 		// If `\uXXXX` immediately follows the closing `/`, report as lexer error.
 		if c == '\\' && l.offset + 1 < src_len && src[l.offset+1] == 'u' {
-			append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Regular expression flags must not contain Unicode escape sequences"})
+			bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Regular expression flags must not contain Unicode escape sequences"})
 			break
 		}
 		if !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9') && c != '$' && c != '_' {
 			break
 		}
 		if !(c >= 'a' && c <= 'z') {
-			append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid regular expression flag"})
+			bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid regular expression flag"})
 			l.offset += 1
 			continue
 		}
@@ -2423,11 +2423,11 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		case 'd', 'g', 'i', 'm', 's', 'u', 'v', 'y':
 			idx := int(c - 'a')
 			if seen_flags[idx] != 0 {
-				append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Duplicate regular expression flag"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Duplicate regular expression flag"})
 			}
 			seen_flags[idx] = 1
 		case:
-			append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid regular expression flag"})
+			bump_append(&l.lexer_errors, LexerError{offset = u32(l.offset), message = "Invalid regular expression flag"})
 		}
 		l.offset += 1
 	}
@@ -2435,7 +2435,7 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	has_u := seen_flags[int('u' - 'a')] != 0
 	has_v := seen_flags[int('v' - 'a')] != 0
 	if has_u && has_v {
-		append(&l.lexer_errors, LexerError{offset = u32(flags_start), message = "Regular expression flags 'u' and 'v' are mutually exclusive"})
+		bump_append(&l.lexer_errors, LexerError{offset = u32(flags_start), message = "Regular expression flags 'u' and 'v' are mutually exclusive"})
 	}
 
 	// Now that flags are parsed, run the full pattern validator. It owns
@@ -2560,13 +2560,13 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 				j += 1
 			}
 			if j >= int(pat_end) || src[j] != '>' {
-				append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Unterminated named capture group"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Unterminated named capture group"})
 				i = j + 1
 				continue
 			}
 			name := string(src[name_start:j])
 			if len(name) == 0 {
-				append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Empty named capture group"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Empty named capture group"})
 			} else {
 				// ES2025 §Duplicate Named Capturing Groups: duplicate
 				// group names are allowed only when the duplicates appear
@@ -2601,7 +2601,7 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 					}
 				}
 				if has_conflict {
-					append(&l.lexer_errors, LexerError{
+					bump_append(&l.lexer_errors, LexerError{
 						offset = u32(name_start),
 						message = "Duplicate named capture group",
 					})
@@ -2762,7 +2762,7 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 					break
 				}
 				if !ok {
-					append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Invalid named capture group name"})
+					bump_append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Invalid named capture group name"})
 				} else {
 					names[name] = true
 				}
@@ -2797,7 +2797,7 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 			// `/(?<a>.)\k/` and `/\k(?<a>.)/` both reject under (b).
 			if i + 2 >= int(pat_end) || src[i+2] != '<' {
 				if strict || has_any {
-					append(&l.lexer_errors, LexerError{offset = u32(i), message = "Invalid named back-reference: '\\k' must be followed by '<name>'"})
+					bump_append(&l.lexer_errors, LexerError{offset = u32(i), message = "Invalid named back-reference: '\\k' must be followed by '<name>'"})
 				}
 				i += 2
 				continue
@@ -2830,7 +2830,7 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 					name := string(src[name_start:j])
 					if has_any || strict {
 						if _, ok := names[name]; !ok {
-							append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Invalid named capture reference"})
+							bump_append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Invalid named capture reference"})
 						}
 					}
 				}
@@ -2841,7 +2841,7 @@ regex_validate_named_groups :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, h
 			// names, Annex B keeps the legacy escape behaviour. In u / v
 			// mode and when names exist, this is a SyntaxError.
 			if has_any || strict {
-				append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Unterminated named capture reference"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(name_start), message = "Unterminated named capture reference"})
 			}
 			i += 3
 			continue
@@ -2896,7 +2896,7 @@ lex_private_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> Fast
 	off := int(start) + 1 // past the '#'
 
 	cooked := make([dynamic]u8, 0, 32, l.allocator)
-	append(&cooked, u8('#'))
+	bump_append(&cooked, u8('#'))
 
 	first := true
 	for off < src_len {
@@ -2904,13 +2904,13 @@ lex_private_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> Fast
 		if c == '\\' && off + 1 < src_len && src[off + 1] == 'u' {
 			cp, ok, consumed := decode_u_escape(src, off)
 			if !ok {
-				append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid Unicode escape in private identifier"})
+				bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid Unicode escape in private identifier"})
 				l.offset = off + 1
 				return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
 			}
 			if first {
 				if !is_id_start_codepoint(cp) {
-					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in private identifier"})
+					bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in private identifier"})
 					l.offset = off + consumed
 					return FastToken{start = start, end = u32(off + consumed), kind = .Invalid, flags = flags}
 				}
@@ -2923,16 +2923,16 @@ lex_private_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> Fast
 		} else {
 			if first {
 				if !is_id_start_fast(c) {
-					append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in private identifier"})
+					bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Invalid character in private identifier"})
 					l.offset = off + 1
 					return FastToken{start = start, end = u32(off + 1), kind = .Invalid, flags = flags}
 				}
-				append(&cooked, c)
+				bump_append(&cooked, c)
 				off += 1
 				first = false
 			} else {
 				if !is_id_cont_fast(c) { break }
-				append(&cooked, c)
+				bump_append(&cooked, c)
 				off += 1
 			}
 		}
@@ -2980,26 +2980,26 @@ process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> strin
 	for i := 0; i < src_len; i += 1 {
 		ch := src[i]
 		if ch != '\\' || i + 1 >= src_len {
-			append(&buf, ch)
+			bump_append(&buf, ch)
 			continue
 		}
 		next := src[i + 1]
 		switch next {
-		case 'n':  append(&buf, u8(0x0A)); i += 1
-		case 'r':  append(&buf, u8(0x0D)); i += 1
-		case 't':  append(&buf, u8(0x09)); i += 1
-		case 'b':  append(&buf, u8(0x08)); i += 1
-		case 'f':  append(&buf, u8(0x0C)); i += 1
-		case 'v':  append(&buf, u8(0x0B)); i += 1
+		case 'n':  bump_append(&buf, u8(0x0A)); i += 1
+		case 'r':  bump_append(&buf, u8(0x0D)); i += 1
+		case 't':  bump_append(&buf, u8(0x09)); i += 1
+		case 'b':  bump_append(&buf, u8(0x08)); i += 1
+		case 'f':  bump_append(&buf, u8(0x0C)); i += 1
+		case 'v':  bump_append(&buf, u8(0x0B)); i += 1
 		case '\\', '`', '$', '\'', '"':
-			append(&buf, next); i += 1
+			bump_append(&buf, next); i += 1
 		case '0':
 			// \0 is NUL only when not followed by a decimal digit (else it's
 			// a legacy octal, disallowed in templates — keep literal).
 			if i + 2 >= src_len || src[i + 2] < '0' || src[i + 2] > '9' {
-				append(&buf, u8(0x00)); i += 1
+				bump_append(&buf, u8(0x00)); i += 1
 			} else {
-				append(&buf, ch) // drop to identity path below
+				bump_append(&buf, ch) // drop to identity path below
 			}
 		case 'x':
 			// \xHH — exactly 2 hex digits.
@@ -3012,7 +3012,7 @@ process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> strin
 					continue
 				}
 			}
-			append(&buf, ch) // malformed — keep backslash literal
+			bump_append(&buf, ch) // malformed — keep backslash literal
 		case 'u':
 			// \uHHHH or \u{H...H}. Reuse the shared decoder.
 			cp, ok, consumed := decode_u_escape(src, i)
@@ -3020,7 +3020,7 @@ process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> strin
 				append_utf8(&buf, cp)
 				i += consumed - 1
 			} else {
-				append(&buf, ch)
+				bump_append(&buf, ch)
 			}
 		case '\n':
 			// Line continuation — skip the backslash and the newline, emit
@@ -3035,7 +3035,7 @@ process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> strin
 			}
 		case:
 			// Identity escape — drop the backslash, keep the char.
-			append(&buf, next); i += 1
+			bump_append(&buf, next); i += 1
 		}
 	}
 	return string(buf[:])
@@ -3048,7 +3048,7 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	// Track interpolation state
 	template_start_idx := len(l.template_stack)
-	append(&l.template_stack, false)
+	bump_append(&l.template_stack, false)
 
 	content_start := l.offset // byte after opening backtick
 
