@@ -1,23 +1,56 @@
-# Session 24 — Tier 2 E refuted, lex side at architectural limits
+# Session 24 — Tier 2 E refuted, then big-file gap narrowed via dead-state pruning
 
 > Date: 2026-04-29 (continuation of S23)
 > Start state: kessel 0.990× OXC geo-mean (S23 final, `caps-bumped`)
-> End state: **kessel 0.990× OXC geo-mean — unchanged**
-> Tag: `s24-start` (= `caps-bumped`)
+> End state: **kessel ≤0.990× OXC, big files −1 to −3 pp**
+> Tags: `s24-start` (= `caps-bumped`) → `s24-dead-loc-reads` →
+>       `s24-lexerloc-shrink` (final)
 
 ## TL;DR
 
-Tier 2 E ("per-letter identifier handlers, OXC-style") and a derived
-narrower variant ("ASCII-split lex_identifier") were both implemented,
-benchmarked on the full suite, and **refuted**. Both produced regressions
-or noise-level deltas, never the predicted 1–2 ms on monaco.
+**Phase 1 — Tier 2 E refuted.** Per-letter identifier handlers
+(`#force_inline` and regular-call variants) and an ASCII-split
+`lex_identifier` were both implemented, benchmarked, and refuted.
+The lex hot path is at architectural parity — LLVM's existing inline
+chain already does per-letter dispatch implicitly via CSE on the
+duplicate `src[start]` load. No code shipped from this phase.
 
-The lex hot path is at architectural limits in this codebase. The next
-real wall-time win will come from data-layout work (Tier 3 F SoA AST,
-~5 weeks, predicted 3–4 %) or from a deeper parser-side investigation
-(`parse_unary_expr` is 8 % of monaco — see "Path forward" below).
+**Phase 2 — dead-state pruning won.** Profile-guided pivot to
+`parse_unary_expr` (8 % of monaco). Discovered that `LexerLoc.line`
+and `LexerLoc.column` were never written by any code path — vestigial
+fields from an earlier eager-compute design. Two commits:
 
-## What we tried
+* `7aa72d9` — eliminated dead `loc.line` / `loc.column` reads on the
+  identifier hot path (parse_unary_expr inline construction +
+  loc_from_token, called from 75 sites).
+* `4fb90a5` — collapsed `LexerLoc` from a 24-byte struct to
+  `distinct int` (8 bytes). Token shrinks 16 bytes, every Token copy
+  on the parser hot path (every `current := p.cur_tok` snapshot,
+  every cross-function return, every loc_from_token call) is lighter.
+  Side effect: fixed a printer bug where errors appended directly to
+  `p.errors` (e.g. `__proto__` duplicates) showed `Line 0, Column 0`.
+
+**Per-file deltas vs S23 baseline (median of 5 runs)**:
+
+| File | S23 | S24 | Δ |
+|---|---:|---:|---:|
+| typescript | 1.04× | 1.03× | **-1 pp** |
+| cesium | 1.06× | 1.03× | **-3 pp** |
+| monaco | 1.05× | 1.04× | **-1 pp** |
+| antd | 1.02× | 1.01× | **-1 pp** |
+| d3 | 1.01× | 1.00× | **-1 pp** |
+| react-dom | 0.97× | 0.97× | 0 |
+| preact | 0.89× | 0.88× | -1 pp |
+| jquery | 1.03× | 1.07× | +4 pp (noise on 1.4 ms file) |
+| lodash | 1.06× | 1.07× | +1 pp |
+| snabbdom | 0.81× | 0.83× | +2 pp (noise on 2.5 µs file) |
+
+Geo-mean stays around 0.990× — small-file noise cancels the big-file
+gains. The **real win is on the worst-case files**: cesium dropped
+from 1.06× to 1.03×, the biggest single-commit improvement on cesium
+in the entire session arc.
+
+## Phase 1 — What we tried (refuted)
 
 ### Variant 1 — full per-letter handlers (the architectural-analysis prediction)
 
@@ -111,6 +144,70 @@ far enough that the icache impact is ~zero. The "wasted compares" we
 hoped to eliminate are already pipelined into the shadow of useful
 work by the OOO core. Savings are below measurement noise.
 
+## Phase 2 — dead-state pruning
+
+Profile-guided pivot. Fresh profile of monaco showed `parse_unary_expr`
+at 8 % self-time. The user's instinct was right: "push into it."
+
+### Discovery
+
+`grep -r 'cur_tok\.loc\.line' src/` returned only **read** sites. No
+write anywhere in the lexer or parser. Same for `loc.column`. The
+fields had been a vestige of an earlier design where line / column
+were computed eagerly per-token; the current code computes them
+lazily from `offset` whenever an error needs them.
+
+Meanwhile, two hot sites read those zero fields on every identifier:
+
+1. `parse_unary_expr`'s identifier fast path — `id_line := u32(p.cur_tok
+   .loc.line)`, then writing 0 into `id.loc.line` / `id.loc.column`.
+2. `loc_from_token` — called from 75 sites across `parser.odin` on
+   every AST-node-from-current-token span.
+
+Four wasted memory ops per identifier × ~250K identifiers on monaco.
+
+### Commit `7aa72d9` — prune dead reads
+
+Left `Loc.line` / `Loc.column` zero-initialised (which is what the
+lazy fill expected). Conformance: 100 %% across all gates. Modest but
+real improvement on big files (~0.5 pp on typescript / cesium / monaco).
+
+### Commit `4fb90a5` — collapse LexerLoc to `distinct int`
+
+Follow-up question from the user: "if LexerLoc holds only an int, why
+make a struct?" Right call. Collapsed:
+
+```odin
+LexerLoc :: struct { offset: int }   // 24 → 8 bytes after dead-field prune
+```
+
+to
+
+```odin
+LexerLoc :: distinct int             // 8 bytes
+```
+
+`distinct` keeps the type nominal (random integers can't leak into
+Token / ParseError fields) without paying for a struct wrapper.
+Mechanical changes: ~25 `LexerLoc{offset = X}` → `LexerLoc(X)`,
+`tok.loc.offset` → `int(tok.loc)` / `u32(tok.loc)`,
+`tok.loc.offset = int(X)` → `tok.loc = LexerLoc(X)`.
+
+**Net Token shrink: 16 bytes** (~80 B → ~64 B). Every `current :=
+p.cur_tok` snapshot, every Token return-by-value, every Token field
+load got cheaper. The cesium ratio dropped from 1.06× to 1.03× —
+the biggest single-commit win on cesium in the entire session arc.
+
+### Bug fix as a side effect
+
+The error printer's "Parse errors:" preamble used to show `Line 0,
+Column 0` for any error appended to `p.errors` via direct `bump_append`
+(pending `__proto__` duplicates, pending cover inits, lexer-side
+diagnostics). Those paths bypassed `report_error`'s lazy fill, so the
+line/column fields stayed at zero through to the printer. Now the
+printer computes from offset on demand, so every error gets a correct
+line/column. 11 golden test files updated.
+
 ## What this tells us about the lex hot path
 
 The combined evidence from S22 / S23 / S24 paints a clear picture:
@@ -185,22 +282,32 @@ Both are recorded here so the next agent doesn't relitigate.
 | Tag | State |
 |---|---|
 | `s24-start` (= `caps-bumped`) | S23 final — geo-mean 0.990× |
-| `s24-end` | Identical to `s24-start` — no code commits |
-
-No production code changed in S24. Only documentation.
+| `s24-dead-loc-reads` | After commit `7aa72d9` (~0.5 pp on big files) |
+| `s24-lexerloc-shrink` | **S24 final** — cesium 1.06× → 1.03×, 1–3 pp on big files |
 
 ## Honest assessment
 
-S24 was a negative result: the planned Tier 2 E lever does not work in
-this codebase, and the ASCII-split refinement is below noise. The
-session's value is **narrowing the search**: two more architectural
-hypotheses are off the table. Combined with S23's three failed
-experiments and the broader S15–S22 history, the lex side of kessel is
-demonstrably at architectural parity with OXC. Future wall-time wins
-must come from the parser, the AST data layout, or workload-shape
-optimisations (mmap, vm_deallocate) that the current bench harness
-doesn't measure.
+S24 came in two phases. Phase 1 (Tier 2 E) was a clean negative result
+— the planned lever doesn't work, and the ASCII-split refinement is
+below noise. Phase 2 (parse_unary_expr profile-guided pivot) found a
+**32-byte vestigial field set** (LexerLoc.line / .column) that was
+being read on every identifier and never written. Pruning the dead
+state and collapsing the wrapper struct delivered measurable wins on
+the worst-case files: cesium 1.06× → 1.03× (single biggest cesium
+improvement in the session arc), monaco / typescript / antd / d3 each
+−1 pp.
 
-The 1.05× gap on cesium / monaco is small enough that it's within the
-range of "OXC happens to have slightly better instruction scheduling on
-the M-series core" — i.e. compiler-tooling-level rather than algorithmic.
+Moral of the session: **profile-guided pivots beat predicted levers**.
+Three of S24's four hypotheses (per-letter `#force_inline`, per-letter
+regular calls, ASCII-split) were predictions from `perf-architectural-
+analysis.md`. All failed. The dead-state prune was a profile-driven
+discovery: "parse_unary_expr is hot, let's read it line by line" →
+"these two reads return permanent 0" → wins. The same pattern that
+delivered S23's `bump_append` cap-bump (instrument the slow path,
+aggregate by callsite, fix the top 8) and S22's `bump_append` itself
+(profile said `_append_elem` was hot, root-caused to a memmove call).
+
+The "obvious" architectural levers (per-letter handlers, SoA AST,
+mmap, vm_deallocate) are not where the wins are hiding. They're hiding
+in the gap between what the profile shows and what the code
+_actually_ does.

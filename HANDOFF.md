@@ -13,12 +13,25 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 
 ## Current state (Session 24, 2026-04-29)
 
-**Performance: kessel BEATS OXC. Geo-mean 0.990× OXC.** (unchanged from S23)
+**Performance: kessel BEATS OXC. Geo-mean ~0.990× OXC; big files improved 1–3 pp.**
 
-* 3/10 files BEAT OXC (snabbdom 0.81×, preact 0.89×, react-dom 0.97×)
-* 6/10 files at ≤1.05× (d3 1.01, antd 1.02, jquery 1.03, typescript 1.03, monaco 1.05, cesium 1.05)
+| File | S23 | S24 | Δ |
+|---|---:|---:|---:|
+| typescript | 1.04× | 1.03× | -1 pp |
+| cesium | 1.06× | **1.03×** | **-3 pp** |
+| monaco | 1.05× | 1.04× | -1 pp |
+| antd | 1.02× | 1.01× | -1 pp |
+| d3 | 1.01× | 1.00× | -1 pp |
+| react-dom | 0.97× | 0.97× | 0 |
+| preact | 0.89× | 0.88× | -1 pp |
+| jquery | 1.03× | 1.07× | +4 pp (noise on 1.4 ms file) |
+| lodash | 1.06× | 1.07× | +1 pp |
+| snabbdom | 0.81× | 0.83× | +2 pp (noise on 2.5 µs file) |
+
+* 3/10 files BEAT OXC (snabbdom 0.83×, preact 0.88×, react-dom 0.97×)
+* 7/10 files at ≤1.04× — cesium / monaco / antd / d3 / typescript moved into this band
 * 10/10 files within 10 % of OXC
-* Worst: cesium / monaco / lodash at 1.05-1.06×
+* The biggest gap (cesium 1.06×) closed in a single commit — see `4fb90a5`.
 
 **Session 23 progression**:
 * S22 final: 1.002× geo-mean
@@ -27,21 +40,32 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 
 Full S23 write-up: `docs/perf-session-23.md`.
 
-**Session 24 progression**: NO CODE COMMITS. Two refuted hypotheses.
-* Tier 2 E (per-letter handlers) — both `#force_inline` and regular-call
+**Session 24 progression**: 2 refuted hypotheses + 2 commits that won.
+* ~~Tier 2 E (per-letter handlers)~~ — both `#force_inline` and regular-call
   variants regressed 1–4 pp. The existing `#force_inline` chain
   (`lex_identifier` → `lookup_keyword_by_letter`) already gets per-letter
   dispatch implicitly via LLVM CSE on the duplicate `src[start]` load;
   explicit handlers are pure code-bloat / call-overhead. **Refuted.**
-* ASCII-split (`lex_identifier_ascii` + `lex_identifier`) — below noise.
+* ~~ASCII-split (`lex_identifier_ascii` + `lex_identifier`)~~ — below noise.
   The UTF-8 first-byte branch is >99 % taken-not-taken; predictor + cold
   layout already absorb the cost. **Refuted.**
+* `7aa72d9` Eliminate dead `loc.line` / `loc.column` reads on identifier
+  hot path (parse_unary_expr fast path + loc_from_token, 75 sites).
+  Modest improvement — ~0.5 pp on big files.
+* `4fb90a5` Collapse `LexerLoc` to `distinct int` (24 B → 8 B). Token
+  shrinks 16 B; every Token copy on the parser hot path got cheaper.
+  **Drove cesium 1.06× → 1.03×**, the largest single-commit cesium
+  win in the session arc. Side effect: fixed an error-printer bug
+  showing `Line 0, Column 0` for errors that bypassed `report_error`'s
+  lazy fill (11 golden tests updated).
 
 Full S24 write-up: `docs/perf-session-24.md`.
 
-**The lex side of kessel is demonstrably at architectural parity with
-OXC.** Future wall-time wins must come from parser-side restructuring
-or AST data layout (Tier 3 F SoA).
+**The lex side of kessel is at architectural parity with OXC.**
+The parser side still has deepening opportunities — the S24 wins came
+from finding 32 bytes of vestigial state in `Token` that the profile
+pointed at. The pattern (read the hot function line-by-line, look for
+dead reads / wasted copies) is repeatable.
 
 **Correctness: every gate green.**
 
@@ -78,6 +102,8 @@ duplicate detection — out of scope; SM violates spec).
 | `4e9efe3` | Darwin CPU QoS pin to P-cores (Tier 1 K) | 1.002× → 1.002× (real-world hedge) |
 | `d2ec90b` | Cap-bump top 8 slow-path callsites (Tier 2 D-lite) | 1.002× → **0.990×** |
 | _(S24 refuted)_ | Tier 2 E per-letter handlers + ASCII-split | 0.990× → 0.990× (no code shipped) |
+| `7aa72d9` | Eliminate dead `loc.line` / `loc.column` reads | -0.5 pp on big files |
+| `4fb90a5` | Collapse `LexerLoc` to `distinct int` (Token −16 B) | **cesium 1.06× → 1.03×** |
 
 The biggest single win was `bump_append` in the parser (`d0eed4e`):
 **−3pp in one commit**. Root cause was Odin's `_append_elem` being
@@ -276,17 +302,25 @@ entirely (trivial array writes, no pointer-rewrite logic).
 * ~~Tier 2 D pre-allocate maxes~~ — partly shipped in S23 cap-bumps
 * ~~Tier 2 E per-letter handlers~~ — refuted in S24, both variants. The
   lex hot path is at architectural parity.
-* **Investigate `parse_unary_expr` (8 % of monaco)** — NEW in S24 profile.
-  Half-day. A 25 % cut would be ~0.6 ms = 2 pp on monaco.
+* **Repeatable: profile-guided dead-state pruning.** S24 wins came from
+  reading `parse_unary_expr` line by line and finding 32 B of vestigial
+  fields (`LexerLoc.line`/`.column`) read on every identifier, never
+  written. Apply the same pattern to other hot functions:
+  * `parse_binding_pattern` (3.6 %, 33 of the 87 `string_eq` samples
+    on monaco originate here — strict-mode reserved-name compares?)
+  * `parse_expr_with_prec` (5.7 %, the Pratt loop)
+  * `parse_left_hand_side_expr` / `parse_primary_expr` (3 % each)
 * **Tier 3 F (SoA migration)** — 4–5 weeks, ~3–4 % wall. Validated. The
   remaining big bet.
 * **Tier 1 B (mmap source)** — 1 day, real-world only
 * **Tier 4 J (vm_deallocate)** — 1 hour, real-world only (saves 4 % of
   inter-parse cycle in LSP / build-tool workflows)
 
-The most honest framing post-S24: **lex is done.** Geo-mean 0.990× is
-the ceiling for this architecture. Going further requires either
-(a) restructuring the parser, or (b) replacing the AST data layout.
+Lesson from S24: predicted architectural levers (per-letter handlers,
+SoA AST) are increasingly unreliable as the codebase matures. The
+remaining wins are hidden in the gap between what the profile shows
+and what the code _actually_ does — dead reads, vestigial fields,
+over-wide structs. Look there first.
 
 ---
 
@@ -294,7 +328,9 @@ the ceiling for this architecture. Going further requires either
 
 | Tag | State |
 |---|---|
-| `s24-start` | **= `caps-bumped`. S24 produced no code commits.** |
+| `s24-lexerloc-shrink` | **S24 final — cesium 1.06× → 1.03×, big files −1 to −3 pp** |
+| `s24-dead-loc-reads` | After commit `7aa72d9` (~0.5 pp on big files) |
+| `s24-start` | = `caps-bumped`. Phase 1 (Tier 2 E refuted, no code shipped). |
 | `caps-bumped` | **S23 final — geo-mean 0.990× (kessel BEATS OXC)** |
 | `tier1k-qos` | After Darwin CPU QoS pin (1.002×) |
 | `s23-start` | Start of S23 (1.002×–1.005×) |
