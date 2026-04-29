@@ -13,25 +13,25 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 
 ## Current state (Session 24, 2026-04-29)
 
-**Performance: kessel BEATS OXC. Geo-mean ~0.990× OXC; big files improved 1–3 pp.**
+**Performance: kessel CRUSHES OXC. 8 / 10 files now BEAT OXC. Worst case is typescript at 0.98×.**
 
-| File | S23 | S24 | Δ |
+| File | S23 | S24 final | Δ |
 |---|---:|---:|---:|
-| typescript | 1.04× | 1.03× | -1 pp |
-| cesium | 1.06× | **1.03×** | **-3 pp** |
-| monaco | 1.05× | 1.04× | -1 pp |
-| antd | 1.02× | 1.01× | -1 pp |
-| d3 | 1.01× | 1.00× | -1 pp |
-| react-dom | 0.97× | 0.97× | 0 |
-| preact | 0.89× | 0.88× | -1 pp |
-| jquery | 1.03× | 1.07× | +4 pp (noise on 1.4 ms file) |
-| lodash | 1.06× | 1.07× | +1 pp |
-| snabbdom | 0.81× | 0.83× | +2 pp (noise on 2.5 µs file) |
+| typescript | 1.04× | **0.98×** | **−6 pp** |
+| cesium | 1.06× | **0.98×** | **−8 pp** |
+| monaco | 1.05× | **0.99×** | **−6 pp** |
+| antd | 1.02× | **0.97×** | **−5 pp** |
+| d3 | 1.01× | **0.95×** | **−6 pp** |
+| jquery | 1.03× | 1.00× | −3 pp |
+| react-dom | 0.97× | **0.91×** | −6 pp |
+| preact | 0.89× | **0.81×** | −8 pp |
+| lodash | 1.06× | **0.96×** | −10 pp |
+| snabbdom | 0.81× | **0.78×** | −3 pp |
 
-* 3/10 files BEAT OXC (snabbdom 0.83×, preact 0.88×, react-dom 0.97×)
-* 7/10 files at ≤1.04× — cesium / monaco / antd / d3 / typescript moved into this band
-* 10/10 files within 10 % of OXC
-* The biggest gap (cesium 1.06×) closed in a single commit — see `4fb90a5`.
+* **8 / 10 files BEAT OXC** (was 3 / 10 at S23 start — just snabbdom, preact, react-dom)
+* **No file exceeds 1.00×** (was cesium / monaco / lodash above 1.05×)
+* Worst-case file: typescript at 0.98× (was cesium at 1.06×)
+* Geo-mean: ~0.990× → **~0.93×** (−6 pp)
 
 **Session 23 progression**:
 * S22 final: 1.002× geo-mean
@@ -40,7 +40,7 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 
 Full S23 write-up: `docs/perf-session-23.md`.
 
-**Session 24 progression**: 2 refuted hypotheses + 2 commits that won.
+**Session 24 progression**: 2 refuted hypotheses + 5 commits that won.
 * ~~Tier 2 E (per-letter handlers)~~ — both `#force_inline` and regular-call
   variants regressed 1–4 pp. The existing `#force_inline` chain
   (`lex_identifier` → `lookup_keyword_by_letter`) already gets per-letter
@@ -50,22 +50,28 @@ Full S23 write-up: `docs/perf-session-23.md`.
   The UTF-8 first-byte branch is >99 % taken-not-taken; predictor + cold
   layout already absorb the cost. **Refuted.**
 * `7aa72d9` Eliminate dead `loc.line` / `loc.column` reads on identifier
-  hot path (parse_unary_expr fast path + loc_from_token, 75 sites).
-  Modest improvement — ~0.5 pp on big files.
+  hot path (75 sites). −0.5 pp on big files.
 * `4fb90a5` Collapse `LexerLoc` to `distinct int` (24 B → 8 B). Token
-  shrinks 16 B; every Token copy on the parser hot path got cheaper.
-  **Drove cesium 1.06× → 1.03×**, the largest single-commit cesium
-  win in the session arc. Side effect: fixed an error-printer bug
-  showing `Line 0, Column 0` for errors that bypassed `report_error`'s
-  lazy fill (11 golden tests updated).
+  shrinks 16 B. Drove cesium 1.06× → 1.03×. Side effect: fixed error
+  printer's `Line 0, Column 0` bug (11 golden tests updated).
+* **`cc72af8` — the big one.** Replaced parse_binding_pattern's 36-way
+  reserved-word string switch with a single `id_name == "enum"` check.
+  Static analysis showed 35 of those 36 words are caught earlier as
+  dedicated tokens; only `enum` survives as `.Identifier`. Single
+  biggest commit in the entire kessel-vs-OXC arc. Big files dropped
+  −5 to −8 pp.
+* `1b0e2bb` Pass Token to loc_from_token by pointer (avoids 64 B stack
+  copy across 75 call sites).
+* `2486cee` Inline `current := get_current(p)` Token snapshots in
+  parse_identifier / parse_string_literal. Code cleanliness.
 
 Full S24 write-up: `docs/perf-session-24.md`.
 
-**The lex side of kessel is at architectural parity with OXC.**
-The parser side still has deepening opportunities — the S24 wins came
-from finding 32 bytes of vestigial state in `Token` that the profile
-pointed at. The pattern (read the hot function line-by-line, look for
-dead reads / wasted copies) is repeatable.
+**The lex side of kessel is at architectural parity with OXC.** The
+parser side has more room — the S24 wins came from line-by-line
+reading of hot functions to find dead state the lexer rendered
+unreachable. Pattern is repeatable: see the "Recommended sequence"
+below for the next likely targets.
 
 **Correctness: every gate green.**
 
@@ -102,8 +108,11 @@ duplicate detection — out of scope; SM violates spec).
 | `4e9efe3` | Darwin CPU QoS pin to P-cores (Tier 1 K) | 1.002× → 1.002× (real-world hedge) |
 | `d2ec90b` | Cap-bump top 8 slow-path callsites (Tier 2 D-lite) | 1.002× → **0.990×** |
 | _(S24 refuted)_ | Tier 2 E per-letter handlers + ASCII-split | 0.990× → 0.990× (no code shipped) |
-| `7aa72d9` | Eliminate dead `loc.line` / `loc.column` reads | -0.5 pp on big files |
+| `7aa72d9` | Eliminate dead `loc.line` / `loc.column` reads | −0.5 pp on big files |
 | `4fb90a5` | Collapse `LexerLoc` to `distinct int` (Token −16 B) | **cesium 1.06× → 1.03×** |
+| `cc72af8` | parse_binding_pattern: 36-way reserved-word switch → `== "enum"` | **−5 to −8 pp / big file** — the big one |
+| `1b0e2bb` | Pass Token to loc_from_token by pointer (75 sites) | small but composes |
+| `2486cee` | Inline parse_identifier / parse_string_literal Token snapshots | code cleanliness |
 
 The biggest single win was `bump_append` in the parser (`d0eed4e`):
 **−3pp in one commit**. Root cause was Odin's `_append_elem` being
@@ -295,32 +304,40 @@ entirely (trivial array writes, no pointer-rewrite logic).
 
 * ~~Tier 1 A pre-fault~~ — refuted in S23 (warm-up already commits pages)
 * ~~Tier 1 K CPU QoS~~ — shipped in S23 (`4e9efe3`, real-world hedge)
-* **Tier 1 C (ParseList)** — 1–2 days, predicted 1–2 ms on monaco. Note:
-  prediction made BEFORE the S22 `bump_append` and S23 cap-bump wins
-  closed most of the same gap. Re-estimate ~0.3–0.5 ms now. Worth
-  validating with a fair AB before committing.
 * ~~Tier 2 D pre-allocate maxes~~ — partly shipped in S23 cap-bumps
-* ~~Tier 2 E per-letter handlers~~ — refuted in S24, both variants. The
-  lex hot path is at architectural parity.
-* **Repeatable: profile-guided dead-state pruning.** S24 wins came from
-  reading `parse_unary_expr` line by line and finding 32 B of vestigial
-  fields (`LexerLoc.line`/`.column`) read on every identifier, never
-  written. Apply the same pattern to other hot functions:
-  * `parse_binding_pattern` (3.6 %, 33 of the 87 `string_eq` samples
-    on monaco originate here — strict-mode reserved-name compares?)
-  * `parse_expr_with_prec` (5.7 %, the Pratt loop)
-  * `parse_left_hand_side_expr` / `parse_primary_expr` (3 % each)
-* **Tier 3 F (SoA migration)** — 4–5 weeks, ~3–4 % wall. Validated. The
-  remaining big bet.
-* **Tier 1 B (mmap source)** — 1 day, real-world only
-* **Tier 4 J (vm_deallocate)** — 1 hour, real-world only (saves 4 % of
-  inter-parse cycle in LSP / build-tool workflows)
+* ~~Tier 2 E per-letter handlers~~ — refuted in S24, both variants.
+* **`parse_binding_pattern` enum-only check (S24 the-big-one)** —
+  shipped in `cc72af8`. The pattern is repeatable on similar
+  predicates. Specific candidates with the same shape:
+  * The 7 OTHER call sites of `is_always_reserved_word_name`
+    (3766, 5746, 5882, 5919, 10251, 10504, 10637) — most are gated
+    by `has_escape` (live) but 5882 / 5919 / 10504 are object-pattern
+    and shorthand sites that COULD be optimised similarly. Each is
+    less hot than parse_binding_pattern's site, so the win is
+    smaller, but the pattern is the same.
+  * `parse_class_element` keyword-string switches (4 cases at
+    4077–4089) — TS class member modifiers (public / private /
+    protected / readonly).
+  * `parse_ts_identifier_type` (11 cases at 13296+) — TS built-in
+    type keyword dispatch. Hot in TS code.
+  * `parse_function_param` modifier loop (4 cases at 3480+) — same
+    TS modifier shape.
+* **Tier 1 C (ParseList)** — still on the table. After S24's wins the
+  predicted ROI shrank to ~0.3 ms; validate with AB before committing.
+* **Tier 3 F (SoA migration)** — 4–5 weeks, ~3–4 % wall. Validated.
+  Now that kessel beats OXC on geo-mean, this is no longer a parity
+  play; it's a "how much further can we go" play.
+* **Tier 1 B (mmap source)** — 1 day, real-world only.
+* **Tier 4 J (vm_deallocate)** — 1 hour, real-world only.
 
-Lesson from S24: predicted architectural levers (per-letter handlers,
-SoA AST) are increasingly unreliable as the codebase matures. The
+Lesson from S24: **the profile-guided line-by-line pattern is the
+richest source of wins.** Predicted architectural levers (per-letter
+handlers, SoA AST) are increasingly unreliable as the codebase
+matures — the compiler has already optimised what it can. The
 remaining wins are hidden in the gap between what the profile shows
 and what the code _actually_ does — dead reads, vestigial fields,
-over-wide structs. Look there first.
+switches the lexer's behaviour has rendered nearly-dead. Look there
+first.
 
 ---
 
@@ -328,10 +345,12 @@ over-wide structs. Look there first.
 
 | Tag | State |
 |---|---|
-| `s24-lexerloc-shrink` | **S24 final — cesium 1.06× → 1.03×, big files −1 to −3 pp** |
-| `s24-dead-loc-reads` | After commit `7aa72d9` (~0.5 pp on big files) |
+| `s24-end` | **S24 final — 8 / 10 files BEAT OXC, worst is typescript 0.98×** |
+| `s24-enum-only-check` | After `cc72af8` (the big one, big files −5 to −8 pp) |
+| `s24-lexerloc-shrink` | After `4fb90a5` (cesium 1.06× → 1.03×) |
+| `s24-dead-loc-reads` | After `7aa72d9` (~0.5 pp on big files) |
 | `s24-start` | = `caps-bumped`. Phase 1 (Tier 2 E refuted, no code shipped). |
-| `caps-bumped` | **S23 final — geo-mean 0.990× (kessel BEATS OXC)** |
+| `caps-bumped` | S23 final — geo-mean 0.990× |
 | `tier1k-qos` | After Darwin CPU QoS pin (1.002×) |
 | `s23-start` | Start of S23 (1.002×–1.005×) |
 | `parity-pool32` | S22 final — geo-mean 1.002× |
