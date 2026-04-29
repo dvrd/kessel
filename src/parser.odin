@@ -25,10 +25,30 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		// we'll lose the cooked value and fall back to raw source for cur
 		// (broke any string-with-escape followed by another cooking literal,
 		// e.g. a string inside template `${...}`).
-		a.cur_lit_offset = a.last_lit_offset
-		a.cur_lit_value  = a.last_lit_value
-		a.cur_lit_type   = a.last_lit_type
-		if a.cur.kind != .EOF {
+		//
+		// `last_lit_*` is only ever written by the lexer for tokens that
+		// carry a cooked value: numbers, strings, big ints, regex, the
+		// template family, and escape-bearing identifiers (plain plus
+		// PrivateIdentifier). For everything else — operators, punct,
+		// keywords, plain identifiers — last_lit_* still holds whatever the
+		// last literal-bearing lex run left there. Reading is safe because
+		// every consumer below validates with `cur_lit_offset == ft.start`,
+		// but the WRITES are pure waste for the ~80 %% of real-world tokens
+		// that aren't literal-bearing. Gating saves three writes
+		// (offset 4 B + value union ~24 B + type 1 B → padded to ~32 B) on
+		// every non-literal advance — hundreds of thousands of skipped
+		// stores per parse on monaco-class files.
+		cur_kind := a.cur.kind
+		cur_flags := a.cur.flags
+		needs_lit_snapshot := cur_kind <= .TemplateTail ||
+			((cur_flags & FLAG_HAS_ESCAPE) != 0 &&
+			 (cur_kind == .Identifier || cur_kind == .PrivateIdentifier))
+		if needs_lit_snapshot {
+			a.cur_lit_offset = a.last_lit_offset
+			a.cur_lit_value  = a.last_lit_value
+			a.cur_lit_type   = a.last_lit_type
+		}
+		if cur_kind != .EOF {
 			a.nxt = lex_token(a)
 		} else {
 			a.nxt = token_eof(u32(a.offset))
