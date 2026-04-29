@@ -35,28 +35,29 @@ the dead state" on `parse_unary_expr` (8 %), `parse_binding_pattern`
 * `2486cee` — inline `current := get_current(p); eat(p)` token
   snapshots in parse_identifier / parse_string_literal.
 
-**Per-file deltas vs S23 baseline (median of 5 runs)**:
+**Per-file deltas vs S23 baseline (final)**:
 
 | File | S23 | S24 | Δ |
 |---|---:|---:|---:|
-| typescript | 1.04× | **0.98×** | **−6 pp** |
-| cesium | 1.06× | **0.98×** | **−8 pp** |
-| monaco | 1.05× | **0.99×** | **−6 pp** |
-| antd | 1.02× | **0.97×** | **−5 pp** |
-| d3 | 1.01× | **0.95×** | **−6 pp** |
-| jquery | 1.03× | 1.00× | −3 pp |
-| react-dom | 0.97× | **0.91×** | −6 pp |
-| preact | 0.89× | **0.81×** | −8 pp |
-| lodash | 1.06× | **0.96×** | −10 pp |
+| typescript | 1.04× | **0.96×** | **−8 pp** |
+| cesium | 1.06× | **0.96×** | **−10 pp** |
+| monaco | 1.05× | **0.96×** | **−9 pp** |
+| antd | 1.02× | **0.95×** | **−7 pp** |
+| d3 | 1.01× | **0.93×** | **−8 pp** |
+| jquery | 1.03× | **0.98×** | −5 pp |
+| react-dom | 0.97× | **0.90×** | −7 pp |
+| preact | 0.89× | **0.79×** | −10 pp |
+| lodash | 1.06× | **0.97×** | −9 pp |
 | snabbdom | 0.81× | **0.78×** | −3 pp |
 
-Geo-mean: ~0.990× → ~0.93× (−6 pp).
+Geo-mean: ~0.990× → ~0.92× (−7 pp).
 
-* **8 / 10 files now BEAT OXC** (was 3 / 10 at S23 start)
-* **Worst case: typescript at 0.98×** (was cesium 1.06×)
-* **No file > 1.00×** — first time in session arc
-* All 10 files within 22 % of OXC (preact 0.81× is now the biggest
-  outlier in the FAVOURABLE direction)
+* **ALL 10 files BEAT OXC** (was 3 / 10 at S23 start). First session
+  in the arc where every single bench file is below 1.00×.
+* Worst case: typescript at 0.96× (was cesium 1.06×)
+* Best case: preact at 0.79× (parser is 21 % faster than OXC)
+* The big-file gap (cesium / monaco / typescript / antd / d3) collapsed
+  from 1.05–1.06× to 0.93–0.96×.
 
 ## Phase 1 — What we tried (refuted)
 
