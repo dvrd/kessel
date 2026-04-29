@@ -195,6 +195,52 @@ bump_alloc :: #force_inline proc(pool: ^BumpPool, size: int, align: int) -> rawp
 	return ptr
 }
 
+// ============================================================================
+// Fast generic append for [dynamic]T arrays
+// ============================================================================
+//
+// Odin's runtime `_append_elem` is `#force_no_inline` and takes
+// `size_of_elem: int` as a runtime parameter. That means the
+// `mem_copy_non_overlapping(data, arg_ptr, size_of_elem)` call inside it
+// can't be specialised by LLVM — it falls through to a system `memmove`
+// call even when copying a single 8-byte pointer. Profile evidence on
+// monaco.js: 86 % of `_append_elem` samples are inside `_platform_memmove`,
+// for elements that are typically 8–16 B.
+//
+// `bump_append` is a generic, `#force_inline` replacement that lets the
+// compiler specialise the element copy per type T. For T = ^Statement
+// (8 B), the inner store collapses to a single STR instruction; for T =
+// FunctionParameter (~80 B), the store becomes a small fixed memcpy that
+// LLVM can also inline when size is statically known.
+//
+// The grow path delegates to the standard `append()` so we don't have to
+// reimplement realloc/copy logic. That's the slow path; the common case
+// (cap headroom available) is the fully-inlined fast path.
+//
+// Use `bump_append(&arr, item)` exactly like `bump_append(&arr, item)`.
+bump_append :: #force_inline proc(arr: ^[dynamic]$T, item: T) {
+	raw := (^Raw_Dynamic_Array)(arr)
+	if raw.cap < raw.len + 1 {
+		// Slow path: capacity exhausted, fall back to runtime append which
+		// will reserve+grow. Rare for pre-sized arrays.
+		append(arr, item)
+		return
+	}
+	// Fast path: typed store + length increment, fully inline.
+	data := ([^]T)(raw.data)
+	data[raw.len] = item
+	raw.len += 1
+}
+
+// Internal: Odin's runtime Raw_Dynamic_Array layout, exposed for the
+// fast-path append above. Mirrors `base/runtime/dynamic_array_internal.odin`.
+Raw_Dynamic_Array :: struct {
+	data:      rawptr,
+	len:       int,
+	cap:       int,
+	allocator: mem.Allocator,
+}
+
 // ScopePending is a body queued during parse for verify_scopes to inspect
 // post-parse. Replaces the recursive AST walker (scope_recurse / scope_recurse_expr
 // / scope_recurse_class_elements) that previously cost ~14 % of CPU on real-world
@@ -928,7 +974,7 @@ report_error :: proc(p: ^Parser, message: string) {
 		loc     = loc,
 		message = message,
 	}
-	append(&p.errors, err)
+	bump_append(&p.errors, err)
 	if p.profile_enabled {
 		p.profile.errors_reported += 1
 	}
@@ -1252,7 +1298,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 					},
 					raw = current.value,
 				}
-				append(&program.directives, directive)
+				bump_append(&program.directives, directive)
 				// Also emit as ExpressionStatement in body (ESTree compat). Mark
 				// the ExpressionStatement as a directive prologue via its `directive`
 				// field so the emitter writes ESTree's `directive: "use strict"`.
@@ -1264,7 +1310,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 				expr_stmt.loc = directive.loc
 				expr_stmt.expression = expression_from(p, str_lit)
 				expr_stmt.directive = "use strict"
-				append(&program.body, expr_stmt_s)
+				bump_append(&program.body, expr_stmt_s)
 				eat(p)
 				match_semicolon_or_asi(p)
 				expr_stmt.loc.span.end = prev_end_offset(p)
@@ -1358,7 +1404,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// after all expr_to_pattern calls have had a chance to clear their
 	// entries from p.pending_cover_inits.
 	for off in p.pending_cover_inits {
-		append(&p.errors, ParseError{
+		bump_append(&p.errors, ParseError{
 			loc     = LexerLoc{offset = int(off)},
 			message = "Invalid shorthand property initializer",
 		})
@@ -1366,7 +1412,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// Annex B.3.1: pending __proto__ duplicate errors that were NOT cleared
 	// by expr_to_pattern (i.e., NOT used as a destructuring target).
 	for pair in p.pending_proto_dups {
-		append(&p.errors, ParseError{
+		bump_append(&p.errors, ParseError{
 			loc     = LexerLoc{offset = int(pair[1])},
 			message = "Redefinition of __proto__ property",
 		})
@@ -1393,7 +1439,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			loc.line = int(line)
 			loc.column = int(col)
 			err := ParseError{loc = loc, message = lex_err.message}
-			append(&p.errors, err)
+			bump_append(&p.errors, err)
 		}
 	}
 
@@ -1691,7 +1737,7 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 		prev_offset := int(cur_offset(p))
 		stmt := parse_statement_or_declaration(p)
 		if stmt != nil {
-			append(&block.body, stmt)
+			bump_append(&block.body, stmt)
 		} else if int(cur_offset(p)) == prev_offset {
 			report_error(p, "Invalid statement in block")
 			eat(p)
@@ -1714,7 +1760,7 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	// when an enclosing uncovered expression context set p.scope_skip.
 	// Also skip in --ast-only bench mode (verify_scopes is a no-op there).
 	if !p.scope_skip && !p.ast_only && has_scope_relevant_stmt(block.body[:]) {
-		append(&p.scope_pending, ScopePending{
+		bump_append(&p.scope_pending, ScopePending{
 			body           = block.body[:],
 			start_offset   = block.loc.span.start,
 			is_block_scope = true,
@@ -1814,14 +1860,14 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				msg := fmt.tprintf("Label '%s' has already been declared", e.name)
 				report_error(p, msg)
 			}
-			append(&p.label_stack, e.name)
+			bump_append(&p.label_stack, e.name)
 			// ECMA-262 §14.8.1 - `continue label` requires the target label
 			// to name an IterationStatement (directly or via a chain of
 			// LabelledStatements). Decide it eagerly here with a 1-pass
 			// lexer-snapshot scan over `Identifier :` chains; nested
 			// `continue foo;` inside the body can then check the flag
 			// without any retroactive fix-up.
-			append(&p.label_is_iteration, label_chain_leads_to_iteration(p))
+			bump_append(&p.label_is_iteration, label_chain_leads_to_iteration(p))
 			p.block_depth += 1
 			labeled.body = parse_statement_or_declaration(p)
 			p.block_depth -= 1
@@ -2371,7 +2417,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					kind_str := "of"
 					if is_in { kind_str = "in" }
 					msg := fmt.tprintf("'%s' is already declared in for-%s head", n, kind_str)
-					append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+					bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 				}
 			}
 		}
@@ -2463,7 +2509,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for n in head_names {
 				if off, have := scope_map_get(&body_vars, n); have {
 					msg := fmt.tprintf("'%s' is already declared in for-loop head", n)
-					append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+					bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 				}
 			}
 		}
@@ -2729,7 +2775,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 					default_seen = true
 				}
 			}
-			append(&switch_.cases, case_^)
+			bump_append(&switch_.cases, case_^)
 		} else if int(cur_offset(p)) == prev_offset {
 			eat(p)
 		}
@@ -2768,7 +2814,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 				i += 1
 			}
 		}
-		append(&p.scope_pending, ScopePending{
+		bump_append(&p.scope_pending, ScopePending{
 			body           = flat,
 			start_offset   = switch_.loc.span.start,
 			is_block_scope = true,
@@ -2823,7 +2869,7 @@ parse_switch_case :: proc(p: ^Parser) -> ^SwitchCase {
 		prev_offset := int(cur_offset(p))
 		stmt := parse_statement_or_declaration(p)
 		if stmt != nil {
-			append(&case_.consequent, stmt)
+			bump_append(&case_.consequent, stmt)
 		} else if int(cur_offset(p)) == prev_offset {
 			eat(p)
 		}
@@ -2949,7 +2995,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 			for n in param_names {
 				if off, have := scope_map_get(&body_lex, n); have {
 					msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
-					append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+					bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 				}
 			}
 		}
@@ -3386,7 +3432,7 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 
 		param := parse_function_param(p)
 		if param != nil {
-			append(&params, param^)
+			bump_append(&params, param^)
 		}
 
 		// ECMA-262 §15.1 / §15.3 - no trailing comma is permitted after
@@ -3589,14 +3635,14 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		prev_offset := int(cur_offset(p))
 		stmt := parse_statement_or_declaration(p)
 		if stmt != nil {
-			append(&body.body, stmt)
+			bump_append(&body.body, stmt)
 			if in_prologue {
 				es, es_ok := stmt^.(^ExpressionStatement)
 				if es_ok && es != nil {
 					str_lit, is_str := es.expression.(^StringLiteral)
 					if is_str && str_lit != nil {
 						es.directive = str_lit.value
-						append(&prologue_raws, str_lit)
+						bump_append(&prologue_raws, str_lit)
 						if str_lit.value == "use strict" {
 							body_use_strict = true
 							p.strict_mode = true
@@ -3635,7 +3681,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		for str_lit in prologue_raws {
 			if str_lit == nil { continue }
 			if string_raw_has_forbidden_escape(str_lit.raw) {
-				append(&p.errors, ParseError{
+				bump_append(&p.errors, ParseError{
 					loc     = LexerLoc{offset = int(str_lit.loc.span.start)},
 					message = "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
 				})
@@ -3678,7 +3724,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// set by an enclosing uncovered expression context. Also skip in
 	// --ast-only bench mode (verify_scopes is a no-op there).
 	if !p.scope_skip && !p.ast_only && has_scope_relevant_stmt(body.body[:]) {
-		append(&p.scope_pending, ScopePending{
+		bump_append(&p.scope_pending, ScopePending{
 			body           = body.body[:],
 			start_offset   = body.loc.span.start,
 			is_block_scope = false,
@@ -3842,7 +3888,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 		prev_offset := int(cur_offset(p))
 		elem := parse_class_element(p)
 		if elem != nil {
-			append(&body.body, elem^)
+			bump_append(&body.body, elem^)
 		} else if int(cur_offset(p)) == prev_offset {
 			// parse_class_element failed and didn't consume token - skip it to avoid infinite loop
 			report_error(p, "Invalid class element")
@@ -4677,7 +4723,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	for {
 		d := parse_variable_declarator(p, kind, in_for, is_declare)
 		if d != nil {
-			append(&decl.declarations, d^)
+			bump_append(&decl.declarations, d^)
 		}
 
 		if !match_token(p, .Comma) {
@@ -5602,7 +5648,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				value     = rest,
 				shorthand = false,
 			}
-			append(&obj.properties, rest_prop)
+			bump_append(&obj.properties, rest_prop)
 
 			// Rest element must be last
 			if !is_token(p, .RBrace) {
@@ -5745,7 +5791,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						shorthand = false,
 					}
 					prop.loc.span.end = prev_end_offset(p)
-					append(&obj.properties, prop)
+					bump_append(&obj.properties, prop)
 				} else {
 					prop := ObjectPatternProperty{
 						loc       = prop_start,
@@ -5755,7 +5801,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						shorthand = false,
 					}
 					prop.loc.span.end = value_ident.loc.span.end
-					append(&obj.properties, prop)
+					bump_append(&obj.properties, prop)
 				}
 			} else if is_token(p, .LBrace) {
 				// Nested object pattern (possibly with default)
@@ -5784,7 +5830,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						shorthand = false,
 				}
 				prop.loc.span.end = prev_end_offset(p)
-				append(&obj.properties, prop)
+				bump_append(&obj.properties, prop)
 			} else if is_token(p, .LBracket) {
 				// Nested array pattern (possibly with default)
 				nested := parse_array_pattern(p)
@@ -5810,7 +5856,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					shorthand = false,
 				}
 				prop.loc.span.end = prev_end_offset(p)
-				append(&obj.properties, prop)
+				bump_append(&obj.properties, prop)
 			} else {
 				report_error(p, "Expected pattern in object pattern value")
 				return nil
@@ -5853,7 +5899,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						shorthand = true,
 					}
 					prop.loc.span.end = prev_end_offset(p)
-					append(&obj.properties, prop)
+					bump_append(&obj.properties, prop)
 				}
 			}
 		} else {
@@ -5888,7 +5934,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						shorthand = true,
 					}
 					prop.loc.span.end = left_ident.loc.span.end
-					append(&obj.properties, prop)
+					bump_append(&obj.properties, prop)
 				}
 			}
 		}
@@ -5931,7 +5977,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 		// Check for elision (hole): just a comma
 		if is_token(p, .Comma) {
 			// This is a hole in the array - add nil
-			append(&elements, Maybe(Pattern){})
+			bump_append(&elements, Maybe(Pattern){})
 			eat(p) // consume comma
 			continue
 		}
@@ -5967,7 +6013,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 			rest.loc.span.end = prev_end_offset(p)
 
-			append(&elements, Maybe(Pattern)(rest))
+			bump_append(&elements, Maybe(Pattern)(rest))
 
 			// Rest element must be last - and cannot take an Initializer
 			// (§14.3.3: no `= default` on BindingRestElement).
@@ -6013,9 +6059,9 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				assign.left = ident
 				assign.right = default_val
 				assign.loc.span.end = prev_end_offset(p)
-				append(&elements, Maybe(Pattern)(assign))
+				bump_append(&elements, Maybe(Pattern)(assign))
 			} else {
-				append(&elements, Maybe(Pattern)(ident))
+				bump_append(&elements, Maybe(Pattern)(ident))
 			}
 		} else if is_token(p, .LBrace) {
 			// Nested object pattern, possibly with an Initializer:
@@ -6037,7 +6083,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				assign.loc.span.end = prev_end_offset(p)
 				val = assign
 			}
-			append(&elements, Maybe(Pattern)(val))
+			bump_append(&elements, Maybe(Pattern)(val))
 		} else if is_token(p, .LBracket) {
 			// Nested array pattern, possibly with an Initializer.
 			// Same spec rule as the LBrace branch above - closes the
@@ -6058,7 +6104,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				assign.loc.span.end = prev_end_offset(p)
 				val = assign
 			}
-			append(&elements, Maybe(Pattern)(val))
+			bump_append(&elements, Maybe(Pattern)(val))
 		} else {
 			report_error(p, "Expected pattern in array pattern")
 			return nil
@@ -6290,7 +6336,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 							collect_pattern_bound_names_list(decl.id, &decl_names)
 							// Pad offsets so the list aligns with names.
 							for _ in prev_len ..< len(decl_names) {
-								append(&decl_offs, decl.loc.span.start)
+								bump_append(&decl_offs, decl.loc.span.start)
 							}
 						}
 					}
@@ -6303,15 +6349,15 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 						if d.no_body && allow_ts_mode(p) {
 							// skip
 						} else if id, ok := d.id.(BindingIdentifier); ok {
-							append(&decl_names, id.name)
-							append(&decl_offs, id.loc.span.start)
+							bump_append(&decl_names, id.name)
+							bump_append(&decl_offs, id.loc.span.start)
 						}
 					}
 				case ^ClassDeclaration:
 					if d != nil {
 						if id, ok := d.id.(BindingIdentifier); ok {
-							append(&decl_names, id.name)
-							append(&decl_offs, id.loc.span.start)
+							bump_append(&decl_names, id.name)
+							bump_append(&decl_offs, id.loc.span.start)
 						}
 					}
 				}
@@ -6321,7 +6367,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					off := decl_offs[i]
 					if _, exists := scope_map_get(&exported, name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", name)
-						append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+						bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 					} else {
 						scope_map_set(&exported, name, off)
 					}
@@ -6343,7 +6389,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				if var_name != "" {
 					if _, exists := scope_map_get(&exported, var_name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
-						append(&p.errors, ParseError{loc = LexerLoc{offset = int(var_off)}, message = msg})
+						bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(var_off)}, message = msg})
 					} else {
 						scope_map_set(&exported, var_name, var_off)
 					}
@@ -6353,7 +6399,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 		case ^ExportDefaultDeclaration:
 			if v == nil { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
-				append(&p.errors, ParseError{loc = LexerLoc{offset = int(v.loc.span.start)}, message = "Duplicate exported name 'default'"})
+				bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(v.loc.span.start)}, message = "Duplicate exported name 'default'"})
 			} else { scope_map_set(&exported, "default", v.loc.span.start) }
 		case ^ExportAllDeclaration:
 			if v == nil { continue }
@@ -6361,7 +6407,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
 				if _, exists := scope_map_get(&exported, ns_name.name); exists {
 					msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
-					append(&p.errors, ParseError{loc = LexerLoc{offset = int(ns_name.loc.span.start)}, message = msg})
+					bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(ns_name.loc.span.start)}, message = msg})
 				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.span.start) }
 			}
 		}
@@ -6384,7 +6430,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 						loc = LexerLoc{offset = int(local.loc.span.start)},
 						message = msg,
 					}
-					append(&p.errors, err)
+					bump_append(&p.errors, err)
 				}
 			case ^StringLiteral:
 				if local != nil {
@@ -6392,7 +6438,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 						loc = LexerLoc{offset = int(local.loc.span.start)},
 						message = "A string literal cannot be used as an exported binding without `from`",
 					}
-					append(&p.errors, err)
+					bump_append(&p.errors, err)
 				}
 			}
 		}
@@ -6487,7 +6533,7 @@ scope_map_set :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 		// in sync for ordered iteration via `for it in m.items`.
 		if _, have := m.spill[name]; !have {
 			m.spill[name] = at
-			append(&m.items, ScopeMapEntry{name = name, at = at})
+			bump_append(&m.items, ScopeMapEntry{name = name, at = at})
 		} else {
 			m.spill[name] = at
 			for &it in m.items {
@@ -6499,7 +6545,7 @@ scope_map_set :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 	for &it in m.items {
 		if it.name == name { it.at = at; return }
 	}
-	append(&m.items, ScopeMapEntry{name = name, at = at})
+	bump_append(&m.items, ScopeMapEntry{name = name, at = at})
 	if len(m.items) > SCOPE_MAP_LINEAR_MAX { scope_map_promote(m) }
 }
 
@@ -6510,13 +6556,13 @@ scope_map_set_first :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 	if len(m.spill) > 0 {
 		if _, have := m.spill[name]; have { return }
 		m.spill[name] = at
-		append(&m.items, ScopeMapEntry{name = name, at = at})
+		bump_append(&m.items, ScopeMapEntry{name = name, at = at})
 		return
 	}
 	for &it in m.items {
 		if it.name == name { return }
 	}
-	append(&m.items, ScopeMapEntry{name = name, at = at})
+	bump_append(&m.items, ScopeMapEntry{name = name, at = at})
 	if len(m.items) > SCOPE_MAP_LINEAR_MAX { scope_map_promote(m) }
 }
 
@@ -6525,18 +6571,18 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 	case .Lexical:
 		if _, have := scope_map_get(lex, name); have {
 			msg := fmt.tprintf("'%s' has already been declared", name)
-			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 			return
 		}
 		if _, have := scope_map_get(vars, name); have {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 		}
 		scope_map_set(lex, name, at)
 	case .Var:
 		if _, have := scope_map_get(lex, name); have {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 			return
 		}
 		// Repeats of the same var are legal (§13.3.2 - VarDeclaredNames
@@ -6554,7 +6600,7 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 			// in `vars`, it came from let/const/class - clash.
 			if _, vh := scope_map_get(vars, name); !vh {
 				msg := fmt.tprintf("'%s' has already been declared", name)
-				append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+				bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 			}
 			return
 		}
@@ -6562,7 +6608,7 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 			// var-from-real-var before us. `{ var f; function f(){} }`
 			// in sloppy rejects per Acorn / V8.
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
 			return
 		}
 		scope_map_set(lex, name, at)
@@ -6860,7 +6906,7 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
 			msg := fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n)
-			append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
 		}
 	}
 }
@@ -7235,7 +7281,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 				// resolution check would only emit a duplicate error.
 				if len(pid.name) > 0 && !pn_stack_has(stack, pid.name) {
 					msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
-					append(&p.errors, ParseError{
+					bump_append(&p.errors, ParseError{
 						loc = LexerLoc{offset = int(pid.loc.span.start)},
 						message = msg,
 					})
@@ -7251,7 +7297,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 		// Empty-name skip: see MemberExpression case above.
 		if len(e.name) > 0 && !pn_stack_has(stack, e.name) {
 			msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", e.name)
-			append(&p.errors, ParseError{
+			bump_append(&p.errors, ParseError{
 				loc = LexerLoc{offset = int(e.loc.span.start)},
 				message = msg,
 			})
@@ -7269,7 +7315,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 			// Empty-name skip: see MemberExpression case above.
 			if len(pid_left.name) > 0 && !pn_stack_has(stack, pid_left.name) {
 				msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid_left.name)
-				append(&p.errors, ParseError{
+				bump_append(&p.errors, ParseError{
 					loc = LexerLoc{offset = int(pid_left.loc.span.start)},
 					message = msg,
 				})
@@ -7652,9 +7698,9 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		for spec in decl.specifiers {
 			entry := collect_esm_import_entry(spec)
-			append(&esm_import.entries, entry)
+			bump_append(&esm_import.entries, entry)
 		}
-		append(&p.staticImports, esm_import)
+		bump_append(&p.staticImports, esm_import)
 	}
 
 	// Allocate Statement union and store the pointer
@@ -7706,7 +7752,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// (module code). `eval` and `arguments` are forbidden.
 	if is_eval_or_arguments(local.name) {
 		msg := fmt.tprintf("'%s' cannot be used as an import binding name", local.name)
-		append(&p.errors, ParseError{loc = LexerLoc{offset = int(local.loc.span.start)}, message = msg})
+		bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(local.loc.span.start)}, message = msg})
 	}
 
 	return spec
@@ -7867,7 +7913,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			end = start.span.end,
 		},
 	}
-	append(&p.staticExports, esm_export)
+	bump_append(&p.staticExports, esm_export)
 
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportDefaultDeclaration)(decl)
@@ -7948,7 +7994,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			end = decl.source.loc.span.end,
 		},
 	}
-	append(&p.staticExports, esm_export)
+	bump_append(&p.staticExports, esm_export)
 
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportAllDeclaration)(decl)
@@ -7999,7 +8045,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			exported = exported,
 		}
 		spec.loc.span.end = prev_end_offset(p)
-		append(&decl.specifiers, spec)
+		bump_append(&decl.specifiers, spec)
 
 		if !match_token(p, .Comma) {
 			break
@@ -8051,9 +8097,9 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 				exportName = convert_export_spec_name(spec.exported),
 				localName = convert_export_spec_name(spec.local),
 			}
-			append(&esm_export.entries, entry)
+			bump_append(&esm_export.entries, entry)
 		}
-		append(&p.staticExports, esm_export)
+		bump_append(&p.staticExports, esm_export)
 	}
 
 	// Allocate Statement union and store the pointer
@@ -8321,11 +8367,11 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			seq, seq_e := new_expr(p, SequenceExpression)
 			seq.loc = loc_from_expr(left)
 			seq.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
-			append(&seq.expressions, left)
+			bump_append(&seq.expressions, left)
 			for match_token(p, .Comma) {
 				expr := parse_assignment_expression(p)
 				if expr == nil { break }
-				append(&seq.expressions, expr)
+				bump_append(&seq.expressions, expr)
 			}
 			seq.loc.span.end = prev_end_offset(p)
 			left = seq_e
@@ -9320,7 +9366,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				start = meta_prop.loc.span.start,
 				end = meta_prop.loc.span.end,
 			}
-			append(&p.importMetas, esm_import_meta)
+			bump_append(&p.importMetas, esm_import_meta)
 			return expression_from(p, meta_prop)
 		}
 		// Static import - not valid in expression context
@@ -9914,7 +9960,7 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 	for !is_token(p, .RBracket) && !is_token(p, .EOF) {
 		if match_token(p, .Comma) {
 			// Sparse element
-			append(&arr.elements, nil)
+			bump_append(&arr.elements, nil)
 			continue
 		}
 
@@ -9928,12 +9974,12 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 				spread.loc = spread_start // Use location of ... token
 				spread.argument = arg
 				spread.loc.span.end = prev_end_offset(p)
-				append(&arr.elements, Maybe(^Expression)(expression_from(p, spread)))
+				bump_append(&arr.elements, Maybe(^Expression)(expression_from(p, spread)))
 			}
 		} else {
 			elem := parse_assignment_expression(p)
 			if elem != nil {
-				append(&arr.elements, Maybe(^Expression)(elem))
+				bump_append(&arr.elements, Maybe(^Expression)(elem))
 			}
 		}
 
@@ -10029,12 +10075,12 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 					// a pattern.
 					obj_start := obj.loc.span.start
 					err_off := loc_from_expr(prop.key).span.start // point at the duplicate key
-					append(&p.pending_proto_dups, [2]u32{obj_start, u32(int(err_off))})
+					bump_append(&p.pending_proto_dups, [2]u32{obj_start, u32(int(err_off))})
 				} else {
 					proto_seen = true
 				}
 			}
-			append(&obj.properties, prop^)
+			bump_append(&obj.properties, prop^)
 		}
 
 		if !match_token(p, .Comma) {
@@ -10413,7 +10459,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		assign.loc.span.end = prev_end_offset(p)
 		shorthand = true
 		value = expression_from(p, assign)
-		append(&p.pending_cover_inits, start.span.start)
+		bump_append(&p.pending_cover_inits, start.span.start)
 	} else {
 		// Shorthand property: { foo } means { foo: foo }
 		// Not valid for generators/getters/setters
@@ -10761,7 +10807,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 					spread.loc = spread_start // Use location of ... token, not the argument
 					spread.argument = arg
 					spread.loc.span.end = prev_end_offset(p)
-					append(&args, expression_from(p, spread))
+					bump_append(&args, expression_from(p, spread))
 				} else {
 					// `...` in argument position must be followed by an
 					// AssignmentExpression (the spread target). `fn(..., x)`
@@ -10773,7 +10819,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 			} else {
 				arg := parse_assignment_expression(p)
 				if arg != nil {
-					append(&args, arg)
+					bump_append(&args, arg)
 				}
 			}
 
@@ -10920,7 +10966,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		if cooked, ok := current.literal.(string); ok {
 			elem.cooked = cooked
 		}
-		append(&tmpl.quasis, elem)
+		bump_append(&tmpl.quasis, elem)
 		eat(p)
 		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
 		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
@@ -10947,7 +10993,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		if cooked, ok := current.literal.(string); ok {
 			elem.cooked = cooked
 		}
-		append(&tmpl.quasis, elem)
+		bump_append(&tmpl.quasis, elem)
 		eat(p) // consume TemplateHead
 
 		// Template substitution bodies (`${...}`) are independent
@@ -10961,7 +11007,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 			// Parse expression
 			expr := parse_assignment_expression(p)
 			if expr != nil {
-				append(&tmpl.expressions, expr)
+				bump_append(&tmpl.expressions, expr)
 			}
 
 			// Expect TemplateMiddle or TemplateTail
@@ -10975,7 +11021,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 				if cooked, ok := tok.literal.(string); ok {
 					elem.cooked = cooked
 				}
-				append(&tmpl.quasis, elem)
+				bump_append(&tmpl.quasis, elem)
 				eat(p)
 				// Continue to parse next expression
 			} else if tok.type == .TemplateTail {
@@ -10987,7 +11033,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 				if cooked, ok := tok.literal.(string); ok {
 					elem.cooked = cooked
 				}
-				append(&tmpl.quasis, elem)
+				bump_append(&tmpl.quasis, elem)
 				eat(p)
 				break
 			} else {
@@ -11101,7 +11147,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 							key = nil,
 							value = rest,
 						}
-						append(&op.properties, pp)
+						bump_append(&op.properties, pp)
 					}
 				}
 				continue
@@ -11156,7 +11202,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 				computed = prop.computed,
 				shorthand = prop.shorthand,
 			}
-			append(&op.properties, pp)
+			bump_append(&op.properties, pp)
 		}
 		return op, true
 	case ^ArrayExpression:
@@ -11581,7 +11627,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				loc     = e.loc,
 				pattern = ident,
 			}
-			append(&params, param)
+			bump_append(&params, param)
 		case ^AssignmentExpression:
 			// Single-param default: `(x = 1) => ...` arrives as AssignmentExpression
 			// when the parens don't produce a SequenceExpression (only one arg).
@@ -11593,7 +11639,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				if lhs_ok {
 					assign_pat.left = lhs_pat
 					param := FunctionParameter{ loc = e.loc, pattern = assign_pat }
-					append(&params, param)
+					bump_append(&params, param)
 				}
 			}
 		case ^ObjectExpression:
@@ -11603,14 +11649,14 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			// destructured binding (and every nested default value with it).
 			if pat, ok := expr_to_pattern(p, left); ok {
 				param := FunctionParameter{ loc = e.loc, pattern = pat }
-				append(&params, param)
+				bump_append(&params, param)
 			}
 		case ^ArrayExpression:
 			// Single destructure param: `([a, b]) => ...` - same fix as
 			// ObjectExpression above.
 			if pat, ok := expr_to_pattern(p, left); ok {
 				param := FunctionParameter{ loc = e.loc, pattern = pat }
-				append(&params, param)
+				bump_append(&params, param)
 			}
 		case ^SpreadElement:
 			// Single rest parameter arrow: `(...rest) => body`. The paren
@@ -11649,7 +11695,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					rest.loc = e.loc
 					rest.argument = inner_pat
 					param := FunctionParameter{ loc = e.loc, pattern = rest }
-					append(&params, param)
+					bump_append(&params, param)
 				} else {
 					report_error(p, "Invalid rest parameter target in arrow function")
 				}
@@ -11670,7 +11716,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 							loc     = arg.loc,
 							pattern = param_ident,
 						}
-						append(&params, param)
+						bump_append(&params, param)
 					case ^SpreadElement:
 						// Rest parameter: (a, b, ...rest) => ... (multi-param case).
 						// The SpreadElement was built during the earlier
@@ -11707,7 +11753,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 							loc     = arg.loc,
 							pattern = rest,
 						}
-						append(&params, param)
+						bump_append(&params, param)
 					case ^ObjectExpression:
 						// Convert ObjectExpression -> ObjectPattern via expr_to_pattern
 						// so nested properties, defaults, and rest elements are all
@@ -11716,7 +11762,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						// params like `(a, {x=1}, b) => ...`.
 						if pat, ok := expr_to_pattern(p, expr_ptr); ok {
 							param := FunctionParameter{ loc = arg.loc, pattern = pat }
-							append(&params, param)
+							bump_append(&params, param)
 						}
 					case ^ArrayExpression:
 						// Same fix as ObjectExpression above. The prior inline loop
@@ -11724,7 +11770,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						// nested AssignmentExpression / SpreadElement / Pattern.
 						if pat, ok := expr_to_pattern(p, expr_ptr); ok {
 							param := FunctionParameter{ loc = arg.loc, pattern = pat }
-							append(&params, param)
+							bump_append(&params, param)
 						}
 					case ^AssignmentExpression:
 						// Default parameter: `(a = 1, b = 2) => ...`. The sequence
@@ -11755,7 +11801,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 							loc     = arg.loc,
 							pattern = assign_pat,
 						}
-						append(&params, param)
+						bump_append(&params, param)
 					case:
 						report_error(p, "Expected identifier in arrow function parameters")
 					}
@@ -12119,7 +12165,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 		loc     = param.loc,
 		pattern = param_ident,
 	}
-	append(&params, fn_param)
+	bump_append(&params, fn_param)
 
 	arrow := new_node(p, ArrowFunctionExpression)
 	arrow.loc = start
@@ -12358,7 +12404,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 		esm_dynamic.moduleRequest.start = spec_expr.loc.span.start
 		esm_dynamic.moduleRequest.end = spec_expr.loc.span.end
 	}
-	append(&p.dynamicImports, esm_dynamic)
+	bump_append(&p.dynamicImports, esm_dynamic)
 
 	return expression_from(p, import_expr)
 }
@@ -12401,11 +12447,11 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 		for prev in attributes {
 			if prev.key.name == key.name {
 				msg := fmt.tprintf("Duplicate import attribute key '%s'", key.name)
-				append(&p.errors, ParseError{loc = LexerLoc{offset = int(attr_loc.span.start)}, message = msg})
+				bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(attr_loc.span.start)}, message = msg})
 				break
 			}
 		}
-		append(&attributes, ImportAttribute{loc = attr_loc, key = key, value = value})
+		bump_append(&attributes, ImportAttribute{loc = attr_loc, key = key, value = value})
 		if !match_token(p, .Comma) { break }
 	}
 	expect_token(p, .RBrace)
@@ -12429,7 +12475,7 @@ parse_decorators :: proc(p: ^Parser) -> [dynamic]Decorator {
 		expr := parse_left_hand_side_expr(p)
 		d := Decorator{loc = start, expression = expr}
 		d.loc.span.end = prev_end_offset(p)
-		append(&decorators, d)
+		bump_append(&decorators, d)
 	}
 	return decorators
 }
@@ -12549,12 +12595,12 @@ parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 	eat(p)
 	if is_token(p, .Minus) {
 		parts := make([dynamic]string, 0, 4, p.allocator)
-		append(&parts, name)
+		bump_append(&parts, name)
 		for is_token(p, .Minus) {
-			append(&parts, "-")
+			bump_append(&parts, "-")
 			eat(p)
 			c := get_current(p)
-			append(&parts, c.value)
+			bump_append(&parts, c.value)
 			eat(p)
 		}
 		sb: strings.Builder
@@ -12580,7 +12626,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 			spread := new_node(p, JSXSpreadAttribute)
 			spread.loc = start; spread.argument = expr
 			spread.loc.span.end = prev_end_offset(p)
-			append(&opening.attributes, spread)
+			bump_append(&opening.attributes, spread)
 		} else if is_jsx_identifier_token(p) {
 			attr_start := cur_loc(p)
 			attr_name := parse_jsx_attribute_name(p)
@@ -12605,7 +12651,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 			attr: JSXAttribute
 			attr.loc = attr_start; attr.name = attr_name; attr.value = attr_value
 			attr.loc.span.end = prev_end_offset(p)
-			append(&opening.attributes, attr)
+			bump_append(&opening.attributes, attr)
 		} else { break }
 	}
 	if is_token(p, .Div) { eat(p); opening.self_closing = true }
@@ -12642,15 +12688,15 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 		// next `<` / `{`, so it naturally grabs the leading run when the
 		// current token is already one of those delimiters.
 		if text := parse_jsx_text(p); text != nil && text.value != "" {
-			append(&children, text)
+			bump_append(&children, text)
 		}
 		if is_token(p, .LAngle) {
 			if peek_dispatch(p).type == .Div { break }
 			nested := parse_jsx_element_or_fragment(p)
 			if nested != nil {
 				#partial switch v in nested^ {
-				case ^JSXElement:  append(&children, v)
-				case ^JSXFragment: append(&children, v)
+				case ^JSXElement:  bump_append(&children, v)
+				case ^JSXFragment: bump_append(&children, v)
 				}
 			}
 		} else if is_token(p, .LBrace) {
@@ -12672,7 +12718,7 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 				container.expression = expression_from(p, empty)
 			}
 			container.loc.span.end = prev_end_offset(p)
-			append(&children, container)
+			bump_append(&children, container)
 		}
 		// Progress guard: if no iteration advanced the cursor (e.g. malformed
 		// input where parse_jsx_element_or_fragment returned without consuming,
@@ -12966,7 +13012,7 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 		// invariant gates would lose track of it.
 		if has_leading_pipe {
 			types := make([dynamic]^TSType, 0, 1, p.allocator)
-			append(&types, first)
+			bump_append(&types, first)
 			u := new_node(p, TSUnionType); u.types = types
 			u.loc.span.start = leading_pipe_start
 			u.loc.span.end = prev_end_offset(p)
@@ -12975,8 +13021,8 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 		return first
 	}
 	types := make([dynamic]^TSType, 0, 4, p.allocator)
-	append(&types, first)
-	for is_token(p, .BitOr) { eat(p); t := parse_ts_intersection_type(p); if t != nil { append(&types, t) } }
+	bump_append(&types, first)
+	for is_token(p, .BitOr) { eat(p); t := parse_ts_intersection_type(p); if t != nil { bump_append(&types, t) } }
 	u := new_node(p, TSUnionType); u.types = types
 	if has_leading_pipe {
 		u.loc.span.start = leading_pipe_start
@@ -13000,7 +13046,7 @@ parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
 	if !is_token(p, .BitAnd) {
 		if has_leading_amp {
 			types := make([dynamic]^TSType, 0, 1, p.allocator)
-			append(&types, first)
+			bump_append(&types, first)
 			i := new_node(p, TSIntersectionType); i.types = types
 			i.loc.span.start = leading_amp_start
 			i.loc.span.end = prev_end_offset(p)
@@ -13009,8 +13055,8 @@ parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
 		return first
 	}
 	types := make([dynamic]^TSType, 0, 4, p.allocator)
-	append(&types, first)
-	for is_token(p, .BitAnd) { eat(p); t := parse_ts_primary_type(p); if t != nil { append(&types, t) } }
+	bump_append(&types, first)
+	for is_token(p, .BitAnd) { eat(p); t := parse_ts_primary_type(p); if t != nil { bump_append(&types, t) } }
 	i := new_node(p, TSIntersectionType); i.types = types
 	if has_leading_amp {
 		i.loc.span.start = leading_amp_start
@@ -13081,7 +13127,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	case .LBrace: return parse_ts_type_object(p)
 	case .LBracket:
 		eat(p); types := make([dynamic]^TSType, 0, 4, p.allocator)
-		for !is_token(p, .RBracket) && !is_token(p, .EOF) { t := parse_ts_type(p); if t != nil { append(&types, t) }; if !match_token(p, .Comma) { break } }
+		for !is_token(p, .RBracket) && !is_token(p, .EOF) { t := parse_ts_type(p); if t != nil { bump_append(&types, t) }; if !match_token(p, .Comma) { break } }
 		expect_token(p, .RBracket)
 		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = tup; return r
@@ -13299,7 +13345,7 @@ parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 	start := cur_loc(p); eat(p)
 	params := make([dynamic]^TSType, 0, 4, p.allocator)
 	for !is_close_angle_token(p) && !is_token(p, .EOF) {
-		t := parse_ts_type(p); if t != nil { append(&params, t) }; if !match_token(p, .Comma) { break }
+		t := parse_ts_type(p); if t != nil { bump_append(&params, t) }; if !match_token(p, .Comma) { break }
 	}
 	expect_close_angle(p)
 	inst := new_node(p, TSTypeParameterInstantiation); inst.loc = start; inst.params = params; inst.loc.span.end = prev_end_offset(p)
@@ -13713,7 +13759,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 			constraint = constraint, default_ = default_,
 		}
 		param.loc.span.end = prev_end_offset(p)
-		append(&params, param)
+		bump_append(&params, param)
 		if !match_token(p, .Comma) { break }
 	}
 	expect_token(p, .RAngle)
@@ -13814,15 +13860,15 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 				type_annotation = key_ann,
 			}
 			fp.loc.span.end = key_type_end
-			append(&idx_sig.parameters, fp)
+			bump_append(&idx_sig.parameters, fp)
 			// Consume optional semi/comma BEFORE setting the end span so the
 			// index signature span includes the terminator (matching OXC).
 			match_token(p, .Semi); match_token(p, .Comma)
 			idx_sig.loc.span.end = prev_end_offset(p)
 			first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
-			append(&members, first_sig)
+			bump_append(&members, first_sig)
 			for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-				sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
+				sig := parse_ts_object_member(p); if sig != nil { bump_append(&members, sig) }
 				match_token(p, .Semi); match_token(p, .Comma)
 			}
 			expect_token(p, .RBrace)
@@ -13862,7 +13908,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	members := make([dynamic]^TSSignature, 0, 4, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_off := u32(cur_offset(p))
-		sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
+		sig := parse_ts_object_member(p); if sig != nil { bump_append(&members, sig) }
 		match_token(p, .Semi); match_token(p, .Comma)
 		// Defensive: parse_ts_object_member can return nil without consuming
 		// (e.g. when cur is `.RBracket` left over from a malformed inner
@@ -13915,7 +13961,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 		if is_token(p, .Colon) { param_ann = parse_ts_type_annotation(p) }
 		fp := TSFunctionParam{loc = param_start, pattern = pattern, type_annotation = param_ann, optional = param_optional}
 		fp.loc.span.end = prev_end_offset(p)
-		append(&params, fp)
+		bump_append(&params, fp)
 		if !match_token(p, .Comma) { break }
 	}
 	expect_token(p, .RParen)
@@ -14031,7 +14077,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 				type_annotation = key_ann,
 			}
 			fp.loc.span.end = key_type_end
-			append(&idx_sig.parameters, fp)
+			bump_append(&idx_sig.parameters, fp)
 			// Consume optional semi/comma inside the function so the span includes
 			// the terminator (matching OXC). The caller also tries to match them
 			// but match_token is idempotent when the token is already consumed.
@@ -14284,7 +14330,7 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 			expression = expr,
 			type_parameters = type_args,
 		}
-		append(&out, h)
+		bump_append(&out, h)
 		if !match_token(p, .Comma) { break }
 	}
 	return out
@@ -14305,7 +14351,7 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	members := make([dynamic]^TSSignature, 0, 8, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_member_off := cur_offset(p)
-		sig := parse_ts_object_member(p); if sig != nil { append(&members, sig) }
+		sig := parse_ts_object_member(p); if sig != nil { bump_append(&members, sig) }
 		// Extend the member's span to cover its trailing `;` or `,` - OXC
 		// includes the terminator in the TSPropertySignature/TSMethodSignature
 		// span, but `parse_ts_object_member` returns before we consume it
@@ -14364,7 +14410,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		init: Maybe(^Expression)
 		if match_token(p, .Assign) { init = parse_assignment_expression(p) }
 		m := TSEnumMember{loc = ms, id = member_id, initializer = init}; m.loc.span.end = prev_end_offset(p)
-		append(&members, m)
+		bump_append(&members, m)
 		if !match_token(p, .Comma) { break }
 	}
 	expect_token(p, .RBrace)
@@ -14429,7 +14475,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			s := parse_statement_or_declaration(p)
-			if s != nil { append(&stmts, s) }
+			if s != nil { bump_append(&stmts, s) }
 		}
 		expect_token(p, .RBrace)
 		blk := new_node(p, TSModuleBlock)
@@ -14471,7 +14517,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			s := parse_statement_or_declaration(p)
-			if s != nil { append(&stmts, s) }
+			if s != nil { bump_append(&stmts, s) }
 		}
 		expect_token(p, .RBrace)
 		blk := new_node(p, TSModuleBlock)
