@@ -5044,10 +5044,22 @@ is_strict_reserved_word :: #force_inline proc(t: TokenType) -> bool {
 // used by parse_binding_pattern to gate `var implements = 1;` etc.
 // when `p.strict_mode` is active.
 is_strict_reserved_name :: #force_inline proc(name: string) -> bool {
-	switch name {
-	case "implements", "interface", "package", "private",
-	     "protected", "public":
-		return true
+	// Length range: implements=10, interface=9, protected=9, package=7,
+	// private=7, public=6. Anything outside [6, 10] cannot match.
+	//
+	// First-letter gate: only `i` and `p` start any of these six words.
+	// Real-world identifier names rarely start with `i` or `p`, so the
+	// gate prunes the vast majority of calls to a single byte load + two
+	// length compares. Only when the prefix matches do we run the actual
+	// per-name compare.
+	n := len(name)
+	if n < 6 || n > 10 { return false }
+	switch name[0] {
+	case 'i':
+		return name == "implements" || name == "interface"
+	case 'p':
+		return name == "package" || name == "private" ||
+		       name == "protected" || name == "public"
 	}
 	return false
 }
