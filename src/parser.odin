@@ -1285,9 +1285,9 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			if current.literal == "use strict" {
 				p.strict_mode = true
 				directive := Directive{
-					loc   = loc_from_token(current),
+					loc   = loc_from_token(&current),
 					value = StringLiteral{
-						loc   = loc_from_token(current),
+						loc   = loc_from_token(&current),
 						value = "use strict",
 						raw   = current.value,
 					},
@@ -1298,7 +1298,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 				// the ExpressionStatement as a directive prologue via its `directive`
 				// field so the emitter writes ESTree's `directive: "use strict"`.
 				str_lit := new_node(p, StringLiteral)
-				str_lit.loc = loc_from_token(current)
+				str_lit.loc = loc_from_token(&current)
 				str_lit.value = current.literal.(string) or_else ""
 				str_lit.raw = current.value
 				expr_stmt, expr_stmt_s := new_stmt(p, ExpressionStatement)
@@ -3124,7 +3124,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		if has_name {
 			current := get_current(p)
 			id = BindingIdentifier{
-				loc  = loc_from_token(current),
+				loc  = loc_from_token(&current),
 				name = current.value,
 			}
 			// §15.8.1 / §15.5.1 / §15.9.1 - the BindingIdentifier of an
@@ -3740,7 +3740,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	if can_be_binding_identifier(p.cur_type) {
 		current := get_current(p)
 		id = BindingIdentifier{
-			loc  = loc_from_token(current),
+			loc  = loc_from_token(&current),
 			name = current.value,
 		}
 		// ECMA-262 §15.7.1 - the ClassDeclaration / ClassExpression
@@ -4176,7 +4176,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		}
 
 		private_ident := new_node(p, PrivateIdentifier)
-		private_ident.loc = loc_from_token(current)
+		private_ident.loc = loc_from_token(&current)
 		private_ident.name = name
 		key = expression_from(p, private_ident)
 		p.private_id_count += 1
@@ -4188,7 +4188,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// hiding the real string from downstream walkers (ember.js etc.).
 		current := get_current(p)
 		str_lit := new_node(p, StringLiteral)
-		str_lit.loc = loc_from_token(current)
+		str_lit.loc = loc_from_token(&current)
 		str_lit.value = current.literal.(string) or_else ""
 		str_lit.raw = current.value
 		key = expression_from(p, str_lit)
@@ -4198,7 +4198,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// rather than an Identifier whose name is the numeric text.
 		current := get_current(p)
 		num_lit := new_node(p, NumericLiteral)
-		num_lit.loc = loc_from_token(current)
+		num_lit.loc = loc_from_token(&current)
 		num_lit.raw = current.value
 		if v, ok := current.literal.(f64); ok {
 			num_lit.value = v
@@ -4209,7 +4209,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// BigInt key: `1n()`. Emit as BigIntLiteral per §13.2.3.
 		current := get_current(p)
 		big := new_node(p, BigIntLiteral)
-		big.loc = loc_from_token(current)
+		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
 			big.value = current.value[:len(current.value)-1]
@@ -5704,7 +5704,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// every downstream string-walker.
 			current := get_current(p)
 			str_lit := new_node(p, StringLiteral)
-			str_lit.loc = loc_from_token(current)
+			str_lit.loc = loc_from_token(&current)
 			str_lit.value = current.literal.(string) or_else ""
 			str_lit.raw = current.value
 			str_lit.loc.span.end = cur_offset(p) + u32(len(current.value))
@@ -5716,7 +5716,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// keys don't support shorthand.
 			current := get_current(p)
 			num_lit := new_node(p, NumericLiteral)
-			num_lit.loc = loc_from_token(current)
+			num_lit.loc = loc_from_token(&current)
 			num_lit.raw = current.value
 			if v, ok := current.literal.(f64); ok {
 				num_lit.value = v
@@ -5732,7 +5732,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// like other Literal kinds.
 			current := get_current(p)
 			big := new_node(p, BigIntLiteral)
-			big.loc = loc_from_token(current)
+			big.loc = loc_from_token(&current)
 			big.raw = current.value
 			if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
 				big.value = current.value[:len(current.value)-1]
@@ -5973,8 +5973,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 
 // Helper to create identifier from token info
 new_identifier :: proc(p: ^Parser, tok: Token) -> ^Identifier {
+	tok := tok  // re-bind to a mutable local; Odin parameters aren't addressable
 	ident := new_node(p, Identifier)
-	ident.loc = loc_from_token(tok)
+	ident.loc = loc_from_token(&tok)
 	ident.name = tok.value
 	return ident
 }
@@ -7740,7 +7741,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		if string_has_unpaired_surrogate(val) {
 			report_error(p, "Import name string must not contain unpaired surrogates")
 		}
-		imported = Identifier{loc = loc_from_token(current), name = val}
+		imported = Identifier{loc = loc_from_token(&current), name = val}
 		is_string_import = true
 		eat(p)
 	} else {
@@ -7950,7 +7951,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			if string_has_unpaired_surrogate(val) {
 				report_error(p, "Export name string must not contain unpaired surrogates")
 			}
-			name_loc := loc_from_token(current)
+			name_loc := loc_from_token(&current)
 			exported = IdentifierName{loc = name_loc, name = val}
 			eat(p)
 		} else {
@@ -8038,7 +8039,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			if is_token(p, .String) {
 				current := get_current(p)
 				str_lit := new_node(p, StringLiteral)
-				str_lit.loc = loc_from_token(current)
+				str_lit.loc = loc_from_token(&current)
 				str_lit.value = current.literal.(string) or_else ""
 				str_lit.raw = current.value
 				// §16.2.3 — ModuleExportName : StringLiteral must be well-formed Unicode.
@@ -8611,7 +8612,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, "'yield' expression cannot be the operand of a unary operator")
 		}
 		unary := new_node(p, UnaryExpression)
-		unary.loc = loc_from_token(current)
+		unary.loc = loc_from_token(&current)
 		unary.operator = token_to_unary_op(current.type)
 		unary.argument = argument
 		unary.prefix = true
@@ -8672,7 +8673,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			return nil
 		}
 		update := new_node(p, UpdateExpression)
-		update.loc = loc_from_token(current)
+		update.loc = loc_from_token(&current)
 		update.operator = .Increment if current.type == .PlusPlus else .Decrement
 		update.argument = argument
 		update.prefix = true
@@ -8766,13 +8767,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error(p, "'await' expression requires an operand")
 			}
 			id := new_node(p, Identifier)
-			id.loc = loc_from_token(current)
+			id.loc = loc_from_token(&current)
 			id.name = "await"
 			id.loc.span.end = current.raw_end
 			return expression_from(p, id)
 		}
 		await := new_node(p, AwaitExpression)
-		await.loc = loc_from_token(current)
+		await.loc = loc_from_token(&current)
 		await.argument = argument
 		await.loc.span.end = prev_end_offset(p)
 		// Top-level await is module syntax
@@ -8787,7 +8788,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		argument := parse_unary_expr(p)
 		if argument == nil { return nil }
 		spread := new_node(p, SpreadElement)
-		spread.loc = loc_from_token(current)
+		spread.loc = loc_from_token(&current)
 		spread.argument = argument
 		spread.loc.span.end = prev_end_offset(p)
 		return expression_from(p, spread)
@@ -9353,7 +9354,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				// ,opt ]) is shared. Start-loc is the `import` keyword
 				// (current, before eat); the helper uses prev_end_offset for
 				// the closing paren.
-				return parse_dynamic_import_tail(p, loc_from_token(current), meta_name.name)
+				return parse_dynamic_import_tail(p, loc_from_token(&current), meta_name.name)
 			}
 
 			// §Grammar Notation: the `meta` in `import.meta` must not
@@ -9370,9 +9371,9 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				}
 			}
 			meta_prop := new_node(p, MetaProperty)
-			meta_prop.loc = loc_from_token(current)
+			meta_prop.loc = loc_from_token(&current)
 			meta_prop.meta = Identifier{
-				loc  = loc_from_token(current),
+				loc  = loc_from_token(&current),
 				name = "import",
 			}
 			meta_prop.property = Identifier{
@@ -9401,7 +9402,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .This:
 		eat(p)
 		this := new_node(p, ThisExpression)
-		this.loc = loc_from_token(current)
+		this.loc = loc_from_token(&current)
 		this.loc.span.end = prev_end_offset(p)
 		return expression_from(p, this)
 
@@ -9429,7 +9430,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			name = name[1:]
 		}
 		pid := new_node(p, PrivateIdentifier)
-		pid.loc = loc_from_token(current)
+		pid.loc = loc_from_token(&current)
 		pid.name = name
 		p.private_id_count += 1
 		eat(p)
@@ -9447,21 +9448,21 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 		eat(p)
 		super := new_node(p, Super)
-		super.loc = loc_from_token(current)
+		super.loc = loc_from_token(&current)
 		super.loc.span.end = prev_end_offset(p)
 		return expression_from(p, super)
 
 	case .Null:
 		eat(p)
 		nl, nl_e := new_expr(p, NullLiteral)
-		nl.loc = loc_from_token(current)
+		nl.loc = loc_from_token(&current)
 		nl.loc.span.end = prev_end_offset(p)
 		return nl_e
 
 	case .True, .False:
 		eat(p)
 		bl, bl_e := new_expr(p, BooleanLiteral)
-		bl.loc = loc_from_token(current)
+		bl.loc = loc_from_token(&current)
 		bl.value = current.type == .True
 		bl.loc.span.end = prev_end_offset(p)
 		return bl_e
@@ -9469,7 +9470,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .Number:
 		eat(p)
 		num, num_e := new_expr(p, NumericLiteral)
-		num.loc = loc_from_token(current)
+		num.loc = loc_from_token(&current)
 		num.raw = current.value
 		if val, ok := current.literal.(f64); ok {
 			num.value = val
@@ -9488,7 +9489,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .String:
 		eat(p)
 		str, str_e := new_expr(p, StringLiteral)
-		str.loc = loc_from_token(current)
+		str.loc = loc_from_token(&current)
 		str.raw = current.value
 		if val, ok := current.literal.(string); ok {
 			str.value = val
@@ -9506,7 +9507,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .BigInt:
 		eat(p)
 		big := new_node(p, BigIntLiteral)
-		big.loc = loc_from_token(current)
+		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		big.value = current.value  // Store as string
 		// ECMA-262 §12.9.3 - a LegacyOctalIntegerLiteral cannot form a
@@ -9540,7 +9541,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, "'async' keyword must not contain Unicode escape sequences")
 			eat(p)
 			ident := new_node(p, Identifier)
-			ident.loc = loc_from_token(current)
+			ident.loc = loc_from_token(&current)
 			ident.name = "async"
 			ident.loc.span.end = prev_end_offset(p)
 			return expression_from(p, ident)
@@ -9586,7 +9587,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				}
 				// Not an arrow, return the identifier as expression (async becomes identifier)
 				ident := new_node(p, Identifier)
-				ident.loc = loc_from_token(current)
+				ident.loc = loc_from_token(&current)
 				ident.name = "async"
 				ident.loc.span.end = prev_end_offset(p)
 				return expression_from(p, ident)
@@ -9679,7 +9680,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// async as identifier
 		eat(p)
 		ident := new_node(p, Identifier)
-		ident.loc = loc_from_token(current)
+		ident.loc = loc_from_token(&current)
 		ident.name = "async"
 		ident.loc.span.end = prev_end_offset(p)
 		return expression_from(p, ident)
@@ -9726,7 +9727,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 		eat(p)
 		id, id_expr := new_expr(p, Identifier)
-		id.loc = loc_from_token(current)
+		id.loc = loc_from_token(&current)
 		id.name = current.value
 		id.loc.span.end = prev_end_offset(p)
 		return id_expr
@@ -9740,7 +9741,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			if is_token(p, .Arrow) {
 				// This is () => ... - return a marker for empty params
 				seq := new_node(p, SequenceExpression)
-				seq.loc = loc_from_token(current)
+				seq.loc = loc_from_token(&current)
 				seq.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
 				return expression_from(p, seq)
 			}
@@ -9872,7 +9873,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .RegularExpression:
 		eat(p)
 		regex := new_node(p, RegExpLiteral)
-		regex.loc = loc_from_token(current)
+		regex.loc = loc_from_token(&current)
 		// Parse pattern and flags from token value (format: /pattern/flags)
 		raw := current.value
 		if len(raw) >= 2 && raw[0] == '/' {
@@ -10237,7 +10238,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// the string representation of the BigInt, per §13.2.3.1.
 		current := get_current(p)
 		big := new_node(p, BigIntLiteral)
-		big.loc = loc_from_token(current)
+		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
 			big.value = current.value[:len(current.value)-1]
@@ -10551,7 +10552,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 	case .Identifier:
 		eat(p)
 		ident := new_node(p, Identifier)
-		ident.loc = loc_from_token(current)
+		ident.loc = loc_from_token(&current)
 		ident.name = current.value
 		ident.loc.span.end = prev_end_offset(p)
 		return expression_from(p, ident)
@@ -10559,7 +10560,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 	case .String:
 		eat(p)
 		str := new_node(p, StringLiteral)
-		str.loc = loc_from_token(current)
+		str.loc = loc_from_token(&current)
 		str.raw = current.value
 		if val, ok := current.literal.(string); ok {
 			str.value = val
@@ -10570,7 +10571,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 	case .BigInt:
 		eat(p)
 		big := new_node(p, BigIntLiteral)
-		big.loc = loc_from_token(current)
+		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
 			big.value = current.value[:len(current.value)-1]
@@ -10583,7 +10584,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 	case .Number:
 		eat(p)
 		num := new_node(p, NumericLiteral)
-		num.loc = loc_from_token(current)
+		num.loc = loc_from_token(&current)
 		num.raw = current.value
 		if val, ok := current.literal.(f64); ok {
 			num.value = val
@@ -10596,7 +10597,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		if is_keyword_usable_as_property_name(current.type) {
 			eat(p)
 			ident := new_node(p, Identifier)
-			ident.loc = loc_from_token(current)
+			ident.loc = loc_from_token(&current)
 			ident.name = current.value
 			ident.loc.span.end = prev_end_offset(p)
 			return expression_from(p, ident)
@@ -10631,7 +10632,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		current := get_current(p)
 		name_tok_type := p.cur_type
 		id = BindingIdentifier{
-			loc  = loc_from_token(current),
+			loc  = loc_from_token(&current),
 			name = current.value,
 		}
 		// Same §15.7.1 binding-identifier checks as parse_class_declaration.
@@ -10727,7 +10728,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			meta := new_node(p, MetaProperty)
 			meta.loc = start
 			meta.meta = Identifier{loc = start, name = "new"}
-			meta.property = Identifier{loc = loc_from_token(target_tok), name = "target"}
+			meta.property = Identifier{loc = loc_from_token(&target_tok), name = "target"}
 			meta.loc.span.end = prev_end_offset(p)
 			return expression_from(p, meta)
 		}
@@ -10993,7 +10994,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 	// Handle simple template: `hello`
 	if current.type == .Template {
 		elem := TemplateElement{
-			loc  = loc_from_token(current),
+			loc  = loc_from_token(&current),
 			tail = true,
 			raw  = current.value,
 		}
@@ -11020,7 +11021,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 	if current.type == .TemplateHead {
 		// First quasi: `hello ${
 		elem := TemplateElement{
-			loc  = loc_from_token(current),
+			loc  = loc_from_token(&current),
 			tail = false,
 			raw  = current.value,
 		}
@@ -11048,7 +11049,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 			tok := get_current(p)
 			if tok.type == .TemplateMiddle {
 				elem := TemplateElement{
-					loc  = loc_from_token(tok),
+					loc  = loc_from_token(&tok),
 					tail = false,
 					raw  = tok.value,
 				}
@@ -11060,7 +11061,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 				// Continue to parse next expression
 			} else if tok.type == .TemplateTail {
 				elem := TemplateElement{
-					loc  = loc_from_token(tok),
+					loc  = loc_from_token(&tok),
 					tail = true,
 					raw  = tok.value,
 				}
@@ -12131,7 +12132,7 @@ parse_identifier :: proc(p: ^Parser) -> Identifier {
 	current := get_current(p)
 	eat(p)
 	return Identifier{
-		loc  = loc_from_token(current),
+		loc  = loc_from_token(&current),
 		name = current.value,
 	}
 }
@@ -12144,7 +12145,7 @@ parse_string_literal :: proc(p: ^Parser) -> StringLiteral {
 	current := get_current(p)
 	eat(p)
 	return StringLiteral{
-		loc   = loc_from_token(current),
+		loc   = loc_from_token(&current),
 		raw   = current.value,
 		value = current.literal.(string) or_else "",
 	}
@@ -12227,7 +12228,8 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 }
 
 parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expression {
-	start := loc_from_token(async_tok)
+	async_tok := async_tok  // re-bind to a mutable local; Odin parameters aren't addressable
+	start := loc_from_token(&async_tok)
 
 	// Parse parenthesized parameter list
 	if !expect_token(p, .LParen) {
@@ -12461,7 +12463,7 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 		key: IdentifierName
 		if is_token(p, .String) {
 			current := get_current(p)
-			key = IdentifierName{loc = loc_from_token(current), name = current.literal.(string) or_else current.value}
+			key = IdentifierName{loc = loc_from_token(&current), name = current.literal.(string) or_else current.value}
 			eat(p)
 		} else {
 			id := parse_identifier_name(p)
@@ -12854,7 +12856,7 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		name_loc := cur_loc(p)
 		name_cur := get_current(p)
 		name_ident := new_node(p, Identifier)
-		name_ident.loc = loc_from_token(name_cur)
+		name_ident.loc = loc_from_token(&name_cur)
 		name_ident.name = name_cur.value
 		eat(p) // consume identifier or `this`
 		name_expr := expression_from(p, name_ident)
@@ -12933,7 +12935,7 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	if is_predicate {
 		name_cur := get_current(p)
 		name_ident := new_node(p, Identifier)
-		name_ident.loc = loc_from_token(name_cur)
+		name_ident.loc = loc_from_token(&name_cur)
 		name_ident.name = name_cur.value
 		eat(p)
 		name_expr := expression_from(p, name_ident)
@@ -13207,7 +13209,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, le); node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
 	case .Number:
-		cur := get_current(p); nl := new_node(p, NumericLiteral); nl.loc = loc_from_token(cur); nl.raw = cur.value
+		cur := get_current(p); nl := new_node(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
 		if v, ok := cur.literal.(f64); ok { nl.value = v }; eat(p)
 		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, nl); node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
@@ -13358,7 +13360,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
 	cur := get_current(p)
-	id := new_node(p, Identifier); id.loc = loc_from_token(cur); id.name = cur.value; eat(p)
+	id := new_node(p, Identifier); id.loc = loc_from_token(&cur); id.name = cur.value; eat(p)
 	id_expr := expression_from(p, id)
 	for is_token(p, .Dot) {
 		eat(p); prop := parse_identifier_name(p)
@@ -13695,7 +13697,8 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 // Expression→Pattern needed because parse_function_params already produced
 // proper FunctionParameter nodes with type annotations attached.
 try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression {
-	start_loc := loc_from_token(lparen_tok)
+	lparen_tok := lparen_tok  // re-bind to a mutable local; Odin parameters aren't addressable
+	start_loc := loc_from_token(&lparen_tok)
 	snap := lexer_snapshot(p)
 	prev_pending_paren := p.pending_paren_start
 
@@ -13766,7 +13769,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
 		param_start := cur_loc(p)
 		cur := get_current(p)
-		name := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}
+		name := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 		eat(p) // consume identifier
 		constraint: Maybe(^TSType)
 		default_: Maybe(^TSType)
@@ -13978,7 +13981,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 			this_tok := get_current(p)
 			eat(p)
 			this_id := new_node(p, Identifier)
-			this_id.loc = loc_from_token(this_tok)
+			this_id.loc = loc_from_token(&this_tok)
 			this_id.name = "this"
 			pattern = this_id
 		} else {
@@ -14083,7 +14086,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			param_start := cur_loc(p)
 			param_name_tok := get_current(p)
 			param_name_ident := new_node(p, Identifier)
-			param_name_ident.loc = loc_from_token(param_name_tok)
+			param_name_ident.loc = loc_from_token(&param_name_tok)
 			param_name_ident.name = param_name_tok.value
 			eat(p) // consume identifier
 			colon_start := cur_loc(p)  // position of `:` before key type
@@ -14156,12 +14159,12 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	if is_token(p, .LBracket) {
 		computed = true; eat(p); key = parse_assignment_expression(p); expect_token(p, .RBracket)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-		cur := get_current(p); id := new_node(p, Identifier); id.loc = loc_from_token(cur); id.name = cur.value
+		cur := get_current(p); id := new_node(p, Identifier); id.loc = loc_from_token(&cur); id.name = cur.value
 		key = expression_from(p, id); eat(p)
 	} else if is_token(p, .String) {
 		str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; key = expression_from(p, sn)
 	} else if is_token(p, .Number) {
-		cur := get_current(p); nm := new_node(p, NumericLiteral); nm.loc = loc_from_token(cur); nm.raw = cur.value
+		cur := get_current(p); nm := new_node(p, NumericLiteral); nm.loc = loc_from_token(&cur); nm.raw = cur.value
 		if v, ok := cur.literal.(f64); ok { nm.value = v }; key = expression_from(p, nm); eat(p)
 	} else { return nil }
 	optional := match_token(p, .Question)
@@ -14346,7 +14349,7 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 			break
 		}
 		tok := get_current(p)
-		id := new_node(p, Identifier); id.loc = loc_from_token(tok); id.name = tok.value; eat(p)
+		id := new_node(p, Identifier); id.loc = loc_from_token(&tok); id.name = tok.value; eat(p)
 		expr := expression_from(p, id)
 		for is_token(p, .Dot) {
 			eat(p)
@@ -14373,7 +14376,7 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p); eat(p)
 	cur := get_current(p)
-	id := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}; eat(p)
+	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}; eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
 	extends_list: [dynamic]TSInterfaceHeritage
@@ -14413,7 +14416,7 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p); eat(p)
 	cur := get_current(p)
-	id := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}; eat(p)
+	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}; eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
 	expect_token(p, .Assign)
@@ -14430,7 +14433,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .Const) { is_const = true; eat(p) }
 	eat(p)
 	cur := get_current(p)
-	id := BindingIdentifier{loc = loc_from_token(cur), name = cur.value}; eat(p)
+	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}; eat(p)
 	body_start := cur_loc(p); expect_token(p, .LBrace)
 	members := make([dynamic]TSEnumMember, 0, 8, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
@@ -14438,7 +14441,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		if is_token(p, .String) {
 			str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
 		} else {
-			mid := new_node(p, Identifier); mid.loc = loc_from_token(mc); mid.name = mc.value; eat(p)
+			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
 			member_id = expression_from(p, mid)
 		}
 		init: Maybe(^Expression)
@@ -14471,7 +14474,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		id_expr = expression_from(p, sn)
 	} else {
 		cur := get_current(p)
-		id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(cur); id_ident.name = cur.value
+		id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
 		eat(p)
 		id_expr = expression_from(p, id_ident)
 	}
@@ -14527,7 +14530,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 // Called AFTER the outer `.` is consumed, so current token is the next name.
 parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSModuleDeclaration {
 	cur := get_current(p)
-	id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(cur); id_ident.name = cur.value
+	id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
 	eat(p)
 	id_expr := expression_from(p, id_ident)
 
@@ -14616,10 +14619,10 @@ cur_loc :: #force_inline proc(p: ^Parser) -> Loc {
 			span = Span{start = ft.start, end = ft.end},
 		}
 	}
-	return loc_from_token(p.cur_tok)
+	return loc_from_token(&p.cur_tok)
 }
 
-loc_from_token :: #force_inline proc(t: Token) -> Loc {
+loc_from_token :: #force_inline proc(t: ^Token) -> Loc {
 	// Prefer t.raw_end: it's the true source-byte end from the FastToken,
 	// which is correct even when .value has been replaced by the cooked
 	// identifier name (escaped identifiers: source `C\u00e9` occupies 7 bytes
