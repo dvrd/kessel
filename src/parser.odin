@@ -325,9 +325,6 @@ Parser :: struct {
 	// paren-wrapped form from `({}.x)` etc.
 	last_paren_expr: ^Expression,
 
-	// Token length (always set, even for punctuation where .value is skipped)
-	cur_len: u16,
-
 	// Allocator for AST allocations (used for [dynamic] arrays)
 	allocator: mem.Allocator,
 
@@ -469,13 +466,6 @@ Parser :: struct {
 	force_source_type: Maybe(SourceType),
 
 	// CLI `--show-semantic-errors` (OPT-6). When true, parse_program runs
-	// the extra scope-verification pass that catches cross-statement
-	// lexical redeclaration (`let x; let x;`), lexical/var clashes
-	// (`let x; var x;`), and nested-scope variants. Off by default so
-	// consumers that already run their own semantic pass (tsc, ESLint)
-	// don't get duplicate diagnostics.
-	show_semantic_errors: bool,
-
 	// CLI `--force-strict`. When true, parse_program starts with
 	// strict_mode on, bypassing the directive-prologue detection. Used
 	// by test262's `onlyStrict` fixtures so the harness can enforce
@@ -544,9 +534,6 @@ Parser :: struct {
 	staticExports:  [dynamic]ESMStaticExport,
 	dynamicImports: [dynamic]ESMDynamicImport,
 	importMetas:    [dynamic]ESMImportMeta,
-
-	// Position tracking
-	last_pos:        LexerLoc,
 
 	// Pending scope-bearing bodies queued during parse for verify_scopes to
 	// iterate post-parse. See ScopePending doc-comment above for the

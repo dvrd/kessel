@@ -931,7 +931,6 @@ parse_file :: proc(file_path: string) {
 		initial_source_type = .Script
 		p.force_source_type = .Script
 	}
-	p.show_semantic_errors = show_semantic_errors_enabled
 	p.force_strict = force_strict_enabled
 
 	// `--preserve-parens`: thread to the parser so parse_primary_expr can

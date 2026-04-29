@@ -78,7 +78,6 @@ Lexer :: struct {
 	source_bytes: []u8,              // 16B — read every token
 	offset:     int,                  // 8B  — read/write every token
 	had_line_terminator: bool,        // 1B  — write every token
-	in_template: bool,                // 1B  (use template_brace_depth instead)
 	last_token_type: TokenType,       // 1B  — write every token
 	template_depth: u8,               // 1B  — number of active template interpolations
 	// (Reserved.) Was previously populated by an unused full-source SIMD
@@ -120,7 +119,6 @@ Lexer :: struct {
 	column:     int,
 	allocator:  mem.Allocator,
 	template_stack: [dynamic]bool,
-	jsx_context: bool,
 	strict_mode: bool,
 	at_start_of_file: bool,
 
@@ -210,7 +208,6 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 	l.offset = 0
 	l.line = 1
 	l.allocator = alloc
-	l.jsx_context = false
 	l.strict_mode = false
 	l.last_token_type = .EOF
 	l.at_start_of_file = true
