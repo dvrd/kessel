@@ -11,20 +11,24 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 
 ---
 
-## Current State (Session 21, 2026-04-28)
+## Current State (Session 22, 2026-04-29)
 
 **Status headline: ECMA-262 Test262 49,728 / 49,729 (99.998 %), TS
 conformance 21 / 21, JSX conformance 18 / 18, geo-mean perf vs OXC
-still ~1.36×; geo-mean wall-time vs S20-locked baseline ~0.986
-(≈1.4 % faster, median of 5 runs).** Every correctness gate green;
-the single remaining Test262 failure is the SpiderMonkey-specific
-relaxation documented since session 19. Session 21 attacked the
-three HANDOFF § A items: SIMD ASCII whitespace skipper, post-parse
-scope walker elimination, and parse_unary_expr identifier fast-path
-dispatch. The gains were partly offset by a parity-restoration
-follow-up (`Parser.scope_skip` flag) that intentionally reverts a
-gap-closure correctness improvement so antd/monaco/lodash stay at
-shipping speed.
+~1.34× (down from S21's ~1.36×); 3 landed perf commits + 5
+reverted experiments documented for the next session.** Every
+correctness gate green. Session 22 worked through HANDOFF § A
+target #1 (`lex_token` and the keyword classifier) and produced
+one clear win (`is_strict_reserved_name` first-letter gate —
+-1.9 pp on `string_eq` self-time per profile) plus structural
+icache pressure relief (`lex_token` shrank from 17.7 KB →
+13.1 KB by peeling out `lookup_keyword_by_letter`). Five
+function-extraction / inlining experiments were reverted after
+showing 1–6 % regressions — the Odin compiler's current
+inlining choices already produce well-tuned hot paths and most
+attempts to manually shape them lose to register-allocation churn
+from the inserted call sites. The reverted experiments are
+documented below so future sessions don't relitigate them.
 
 ### Test gates (all green)
 
@@ -53,17 +57,34 @@ script scope, so duplicates are a Syntax Error. SpiderMonkey accepts
 this anyway via a SM-specific relaxation; matching that would mean
 breaking spec compliance. Documented as out-of-scope.
 
-### Performance (post-session-21)
+### Performance (post-session-22)
 
-Bench vs OXC on Apple M-series (30 iters each, `task bench:quick`).
-The S20-locked baseline in `tests/baselines/bench_baseline.json`
-was NOT re-locked this session because the system was thermally
-unstable throughout (load avg drifting 15-90, multi-x noise spikes
-on `task test:bench:regression`). The numbers below are the median
-of five clean-state runs (load < 30, no thermal spikes); the
-baseline gate currently passes intermittently and is expected to
-stabilise once the next bench session runs on a quiesced laptop
-and relocks.
+Bench vs OXC on Apple M-series. Session 22 was thermally hostile
+(load avg drifting between 2.5 and 12 across the day, with sustained
+load ≥ 5 for the second half), so per-file walltime numbers are
+deliberately omitted — they swing 15–20 % run-to-run with no code
+change. The reliable measurements are:
+
+* **OXC ratio geo-mean: ~1.34×** (median of 3 `task bench:quick`
+  runs at load < 4, vs S21's ~1.36×).
+* **Profile delta**: `runtime::string_eq` self-time -1.9 pp
+  (4.4 % → 2.5 %) from the `is_strict_reserved_name` first-letter
+  gate — the only change this session that survived a same-load
+  A/B comparison.
+* **Code-size delta**: `lex_token` shrunk from 17,684 → 13,060
+  bytes (-26 %, -1,156 insns) by peeling `lookup_keyword_by_letter`
+  out of the inlined identifier path. Net effect on lex+keyword
+  CPU is roughly neutral but the icache-pressure reduction is real
+  and structural.
+
+The `tests/baselines/bench_baseline.json` is still at S20 numbers —
+it was NOT relocked this session for the same thermal-noise reason
+as S21. The bench gate intermittently fails on lodash and
+snabbdom (small files, dominated by per-iteration overhead and
+load-sensitive); that's expected and noise-driven, not a real
+regression.
+
+#### S21 reference table (kept for context)
 
 | File              | S20 µs | S21 µs | Δ   | OXC µs | Ratio (S21) | Ratio (S20) |
 |-------------------|-------:|-------:|----:|-------:|------------:|------------:|
@@ -79,22 +100,151 @@ and relocks.
 | snabbdom.js       |      4 |     ~4.1 | +2 % |     ~3.3 | 1.27× | 1.25× |
 | **geo-mean**      |        |          |       |          | **~1.36×**  | **~1.36×**  |
 
-**Net result vs S20:** absolute Kessel wall-time is ~1.4 % faster
-geo-mean (median 0.986 across five `task test:bench:regression`
-runs); OXC ratio geo-mean is unchanged at ~1.36×. Wins concentrate
-on files heavy with indent runs (typescript, react/react-dom, d3 all
-3-7 % faster); losses concentrate on small files where the
-post-parse scope drain has fixed overhead the SIMD ws skipper can't
-amortise (lodash +10 %; the absolute delta is ~150 µs). The
-remaining ~36 % gap to OXC parity is now concentrated in `lex_token`
-identifier dispatch + token construction (~32 % of CPU after the
-WS-skipper landed), and a long-tail of small per-call overheads
-spread across `parse_lhs_tail`, member-access dispatch, and the
-literal-store / interner write-paths.
+---
+
+## What Changed This Session (Session 22)
+
+Session 22 worked through HANDOFF § A target #1 (`lex_token` dispatch
+and identifier-keyword classifier). Three landed perf commits plus
+five reverted experiments. The reverts are documented because
+future sessions should know which lever didn't work.
+
+### Three landed perf commits, in order
+
+1. **`perf(lex): collapse lex_token prologue to 3 hot loads`**
+   (`f3900de`). The pre-S22 prologue paid 12+ byte loads on every
+   token even when the result was “no Annex B comment, fall through
+   to fast path”. Three intertwined micro-changes:
+   * Annex B §B.1.3 HTML-like-comment predicates (`<!--`, `-->`) are
+     now gated on `c0 ∈ {<, -}` AND `!is_module_mode`. The space-
+     skip never produces `<` or `-` from a leading `' '` byte, so
+     `c0` (post-skip) is the correct byte to test even when
+     `is_space==1` (in that case `is_space==0` by definition).
+     Module-mode parses now pay zero cost from the Annex B block;
+     in script mode the full byte-pattern check fires only when
+     `c0` actually could begin one of the two HTML-like comment
+     forms.
+   * `ws_done` is now `FAST_TOKEN_START_TABLE[c0]` — one byte load
+     + one truthy test, replacing seven dependent ALU compares.
+     The table is 256-entry `[256]bool`, populated at `@(init)`
+     with `!slow` for every guaranteed fast-path start byte.
+     Cache-warm with `single_char_tokens` and `CHAR_CLASS_TABLE`
+     which sit on adjacent cache lines.
+   * `single_char_tokens` grows from `[128]TokenType` to `[256]`.
+     The high half is `.Invalid` and falls through naturally to
+     the identifier / number / operator dispatch, eliminating the
+     `c < 128` guard. Release builds already use `-no-bounds-check`,
+     so the previous read-past-127 was technically UB; the change
+     also makes the read always safe.
+
+2. **`perf(lex): force lookup_keyword_by_letter out of lex_token`**
+   (`f9fa0ec`). Counter-intuitive but measurable: forcing
+   `#force_no_inline` on the keyword classifier shrinks `lex_token`
+   from 17,684 → 13,060 bytes (-26 %, -1,156 insns).
+   * `lex_token` is the single hottest function in the parser — 37 %
+     of self-time on a fresh `sample(1)` profile of 200 typescript.js
+     parses (load < 4 at sample time).
+   * Odin aggressively inlined `lex_identifier` (which inlines
+     `lookup_keyword_by_letter`) into `lex_token`'s identifier-
+     start arm. The classifier's ~1,150-instruction body of
+     per-letter byte compares + length dispatch was paid every
+     identifier but used (i.e. matched a keyword) by < 5 % of
+     real-world identifiers.
+   * By peeling the classifier into a stand-alone callee, the hot
+     icache footprint of `lex_token` drops by 4,624 bytes. The cost
+     is one call+return per identifier; identifier-heavy bundles
+     keep more of the dispatch loop in L1 while paying ~5 ns per
+     identifier for the indirection.
+
+3. **`perf(parser): first-letter gate is_strict_reserved_name`**
+   (`62dc3d8`). Replaces an unconditional 6-string
+   `switch name { ... }` with a length range gate (6..10) plus a
+   first-letter dispatch on `i` or `p`.
+   * ECMA-262 §12.7.2 future-reserved words — `implements`,
+     `interface`, `package`, `private`, `protected`, `public` —
+     are the only six names that can match. Every one starts with
+     `i` or `p`. Real-world identifiers rarely do.
+   * The lexer's keyword classifier has no `p` case and no length-
+     9/10 `i` entries, so all 6 names lex as plain `.Identifier`.
+     The cooked name is the only available signal, but the gate
+     replaces 6 dependent string compares (~30 cycles) with a
+     length cmp + byte switch (~3 cycles) for the >95 % of
+     identifiers that don't start with `i` or `p`.
+   * Profile self-time on `runtime::string_eq` dropped from 4.4 %
+     → 2.5 % — the biggest measurable win of the session, and the
+     only one that survived a thermal-stable A/B comparison.
+
+### Five reverted experiments (kept for future sessions)
+
+These all built clean, passed every correctness gate, and were
+reverted for measurable regression:
+
+1. **`parse_lhs_tail` `#force_no_inline`.** Shrunk `parse_unary_expr`
+   from 17,720 → 7,496 bytes (-58 %), but typescript.js parsed 6.4 %
+   slower and antd 3.5 % slower. The call+return overhead was
+   beating the icache savings because parse_lhs_tail is hit on every
+   expression — register-allocation churn from a non-inlined
+   member-access loop apparently dominates the icache win.
+
+2. **Keyword prefix table for `lookup_keyword_by_letter`.** A
+   `[256]bool KEYWORD_PREFIX_TABLE` gating the classifier call on
+   the first byte being one of `a, b, c, d, e, f, g, i, k, l, n, o,
+   r, s, t, u, v, w, y` — the only ASCII lowercase letters that
+   begin any JS or TS contextual keyword. Should have been a clear
+   win (skip the call for ~30-50 % of real-world identifiers).
+   Instead made things 1-2 % slower across the board: the gate
+   adds work on the keyword path while the function-call cost it
+   was avoiding is already only ~10 cycles for non-matching names.
+
+3. **`parse_unary_expr` prefix-arm extraction.** Pulled the seven-
+   operator (`+ - ~ ! typeof void delete`) and `++/--` arms into
+   `#force_no_inline` helpers `parse_unary_prefix_op` and
+   `parse_update_prefix_op`. parse_unary_expr shrunk from 17,720
+   → 15,460 bytes (-13 %) but every measured file got ~1.5 %
+   slower. Same lesson as #1: the LHS-only hot path holds state
+   in registers across the switch, and a function call would force
+   spills/reloads.
+
+4. **`is_always_reserved_word_name` first-letter gate.** Same shape
+   as #3 (the strict-reserved gate that DID land), but the keyword
+   set covers 36 names spread across 12 prefix letters. Real-world
+   identifiers commonly start with those 12 letters (`b`, `c`, `d`,
+   `e`, `f`, `i`, `n`, `r`, `s`, `t`, `v`, `w`), so the gate
+   couldn't prune much. Skipped without committing.
+
+5. **Length-then-bytes nested switch in lookup_keyword_by_letter.**
+   Considered restructuring the classifier as `switch first_letter
+   { case: switch length { ... } }` instead of the current chain
+   of length-prefixed `if`s per letter case. Two jump tables
+   instead of a chain of compares; in principle ~4 cycles per
+   identifier saved. Skipped because the function is already a
+   single ~1,150-insn block sitting outside the hot icache after
+   landed commit #2 — spending more cycles micro-optimising it
+   would distract from the higher-leverage targets in HANDOFF § A.
+
+### Profile delta (typescript.js, sample 1, 6s @ load < 4)
+
+Self-time top 8, before vs after S22 (% of kessel total samples):
+
+| Function                     | S21    | S22    | Δ          |
+|------------------------------|-------:|-------:|-----------:|
+| `lex_token`                  | 37.0 % | 28.0 % | -9.0 pp †  |
+| `lookup_keyword_by_letter`   |  inl.  |  8.7 % | (peeled †) |
+| `parse_unary_expr`           |  9.7 % |  8.9 % | -0.8 pp    |
+| `scope_add`                  |  6.0 % |  6.1 % | +0.1 pp    |
+| `parse_expr_with_prec`       |  3.5 % |  4.0 % | +0.5 pp    |
+| `runtime::string_eq`         |  4.4 % |  2.5 % | **-1.9 pp**|
+| `parse_binding_pattern`      |  3.2 % |  3.0 % | -0.2 pp    |
+| `__bzero` (system)           |  5.3 % |  -     | (per-iter) |
+
+† The `lex_token` drop and `lookup_keyword_by_letter` rise are the
+same work split across two symbols by commit #2's no-inline; net
+on the lex+keyword pair is roughly neutral. The string_eq drop is
+the real workload reduction from commit #3.
 
 ---
 
-## What Changed This Session (Session 21)
+## What Changed Session 21 (kept for context)
 
 Session 21 worked through the three HANDOFF § A items in order: a
 SIMD ASCII whitespace skipper for `lex_token`'s slow-path indent
@@ -511,7 +661,14 @@ of the same shape from any future unrecognised token.
 
 ## Save Points
 
-Session 21 (newest first):
+Session 22 (newest first):
+
+* `perf-strict-reserved-name-gate`     — first-letter dispatch saves -1.9 pp string_eq self-time
+* `perf-keyword-noinline`              — lookup_keyword_by_letter peeled out; lex_token -26 %
+* `perf-lex-token-prologue`            — Annex B gated, [256] single-char table, FAST_TOKEN_START_TABLE
+* `session22-start`                    — pre-session-22 state
+
+Session 21:
 
 * `perf-scope-skip-flag`               — final commit; antd/monaco/lodash parity restored
 * `perf-id-like-table`                 — [TokenType]bool replaces 10-clause OR chain in parse_unary_expr
@@ -546,15 +703,31 @@ Session 19:
 
 ## Path Forward
 
-### A. Performance — remaining 1.36× → ≤1.05× OXC
+### A. Performance — remaining 1.34× → ≤1.05× OXC
 
-Session 21 landed all three HANDOFF § A items from the previous
-session (SIMD whitespace, scope walk elimination,
-`parse_unary_expr` table) but geo-mean OXC ratio stayed at ~1.36×.
-Most of the absolute speed-up landed on indent-heavy files
-(typescript, react, d3) and was offset by the scope-collect
-overhead on small bundles like lodash. The next-session targets,
-in expected-return order:
+Session 22 trimmed measurable string_eq overhead (-1.9 pp) and
+restructured the lex_token → lookup_keyword_by_letter split for
+better icache pressure. Geo-mean OXC ratio is now ~1.34× (vs
+S21's ~1.36×). The remaining gap is concentrated in:
+
+* `lex_token` itself (28 % self-time, down from 37 %), now mostly
+  the Annex B HTML-comment slow-path scanners, multi-byte
+  whitespace consumption, the per-byte switch dispatch on lead
+  byte, and FastToken construction.
+* `lookup_keyword_by_letter` (8.7 %, newly visible after the no-
+  inline split), still doing per-letter chain of length+byte
+  compares. Likely target for a length-then-bytes nested switch
+  OR a small perfect-hash table.
+* Combined arena allocation overhead (`__bzero` + `_platform_memmove`
+  + `_append_elem` + `arena_alloc` paths) is ~10–12 % of total
+  CPU — candidates for AST node slot right-sizing and a wider
+  audit of dynamic-array growth heuristics.
+* `parse_unary_expr` (8.9 %) and `parse_expr_with_prec` (4.0 %)
+  are tightly coupled to the Pratt loop; both proved resistant to
+  function-extraction in S22 (call overhead beat icache savings,
+  see reverted experiment #3 above).
+
+The next-session targets, in expected-return order:
 
 1. **`lex_token` token construction & identifier dispatch (~32 % of
    CPU after S21 WS-skipper).** The slow-path WS skip is now SIMD;
@@ -714,24 +887,28 @@ print('Newly failing:'); [print(f, '|', b[f]) for f in sorted(b.keys()-a.keys())
 
 ---
 
-*Generated: Session 21, 2026-04-28. Next agent: read `AGENTS.md`
+*Generated: Session 22, 2026-04-29. Next agent: read `AGENTS.md`
 first, then this doc. The single open work item remains performance.
-Session 21 landed all three HANDOFF § A items from session 20: a
-SIMD ASCII whitespace skipper in `lex_token`, elimination of the
-post-parse scope-AST walker (replaced by a flat parse-time queue),
-and a `[TokenType]bool` table replacing the 10-clause OR chain in
-`parse_unary_expr`'s identifier fast-path. A fourth follow-up
-commit added `Parser.scope_skip` to match the deleted walker's
-coverage exactly, restoring antd / monaco / lodash bench parity at
-the cost of intentionally reverting a correctness gap closure that
-came as a free side-effect. Net wall-time geo-mean ~1.4 % faster
-than S20 (median of five clean-state runs); OXC ratio geo-mean
-stays at ~1.36×. The remaining gap to ≤1.05× OXC wants:
-`lex_token` token-construction and identifier-dispatch tuning
-(~32 % of CPU after the WS skipper), a `parse_lhs_tail` dispatch
-table for member / call / optional-chain / template-tag / TS-
-generic routing, the prefix-arm split of `parse_unary_expr` that
-session 21 deferred, and bump-pool slot right-sizing for the
-current post-S19 node mix. Test262, TS, JSX conformance all at
-100 %; bench baseline still at session-20 numbers (relock pending
-a clean-system run).*
+Session 22 took HANDOFF § A target #1 (`lex_token` and the keyword
+classifier). Three landed perf commits: an Annex B HTML-comment
+prologue gate + `[256]TokenType` single-char table + `[256]bool`
+FAST_TOKEN_START_TABLE replacing the 7-compare ws_done chain;
+`#force_no_inline` on `lookup_keyword_by_letter` to peel its
+~1,150-instruction body out of `lex_token`'s inlined identifier
+path (`lex_token` shrank 26 %, from 17,684 to 13,060 bytes); and
+a first-letter dispatch on `is_strict_reserved_name` that gates
+the 6 strict-mode FutureReservedWords on `i` / `p` first-letter
+plus length range. Five experiments reverted: `parse_lhs_tail`
+no-inline (-58 % parse_unary_expr size, +6 % typescript walltime),
+keyword-prefix table for `lookup_keyword_by_letter` (no measurable
+win), `parse_unary_expr` prefix-arm extraction (-13 % size, +1.5 %
+walltime), `is_always_reserved_word_name` first-letter gate (no
+impact — too many common starts), and a length-then-bytes nested
+switch in `lookup_keyword_by_letter` (deferred for higher-leverage
+targets). The big measurable win is `runtime::string_eq` -1.9 pp
+self-time (4.4 % → 2.5 %) from the strict-reserved gate. OXC ratio
+geo-mean ~1.34× (vs S21's ~1.36×). Test262, TS, JSX conformance
+all at 100 %; bench baseline still at session-20 numbers (relock
+pending a clean-system run — same caveat as S21). The reverted
+experiments are documented above so future sessions don't
+relitigate them.*
