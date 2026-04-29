@@ -67,11 +67,15 @@
       "fixture_dirs": [
         "tests/fixtures/early_errors"
       ],
-      "verifiers": [],
-      "baselines": [],
+      "verifiers": [
+        "tests/verifiers/verify_negative.js"
+      ],
+      "baselines": [
+        "tests/baselines/negative_baseline.json"
+      ],
       "policy": "baseline-gated",
-      "coverage_status": "weak",
-      "notes": "Fixtures exist (module_context/ and strict_mode/) but no dedicated verifier owns this surface yet; these are parser-adjacent semantic claims and will need a separate gate to become visible."
+      "coverage_status": "medium",
+      "notes": "Owned by verify_negative.js, which walks tests/fixtures/early_errors/ alongside tests/fixtures/negative/. The flat early-error set, module_context/ (parsed with --source-type=script), and strict_mode/ all gate on the same rejected/accepted criterion. 40 early-error fixtures, 40/40 reject. Lifting to strong would add positive counterpart fixtures and deep-compare error positions vs OXC."
     },
     {
       "name": "ambiguity_ts_jsx",

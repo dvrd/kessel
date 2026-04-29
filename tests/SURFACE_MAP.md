@@ -57,18 +57,22 @@ Status legend:
   numeric-separator fixtures are still silently accepted and baselined as
   known bugs — lifting to `strong` requires closing those.
 
-### `early_errors` — [weak] [baseline-gated]
+### `early_errors` — [medium] [baseline-gated]
 - **Claim:** Module-vs-script and strict-mode semantic early errors surface
   at parse time.
 - **Fixtures:** `tests/fixtures/early_errors/module_context/*`,
   `tests/fixtures/early_errors/strict_mode/*`, and the flat fixture set.
-- **Verifiers:** none yet.
-- **Baselines:** none yet.
-- **Notes:** Fixtures are staged but unowned. This is the gap that keeps
-  the suite from making a full semantic-early-error claim. A future
-  `verify_early_errors.js` would lift this to `medium` by exercising the
-  fixtures in the right goal (script vs module) and asserting that each is
-  rejected.
+- **Verifiers:** [`tests/verifiers/verify_negative.js`](./verifiers/verify_negative.js).
+- **Baselines:** `tests/baselines/negative_baseline.json`.
+- **Notes:** Owned by `verify_negative.js`, which walks both
+  `tests/fixtures/negative/` AND `tests/fixtures/early_errors/`
+  (40 fixtures across the flat set + `module_context/` + `strict_mode/`).
+  `module_context/` is parsed with `--source-type=script` so top-level
+  `import`/`export`/`import.meta`/top-level `await` trip the right
+  diagnostic. Currently 40/40 reject as expected. Lifting this to
+  `strong` would add positive-counterpart fixtures (the same code that
+  errors as a script must succeed as a module) and a deep-compare
+  layer asserting the *exact* error positions match OXC.
 
 ### `ambiguity_ts_jsx` — [medium] [baseline-gated]
 - **Claim:** JS / TS / JSX boundary cases parse deterministically in the
