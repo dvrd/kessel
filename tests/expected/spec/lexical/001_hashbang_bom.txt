@@ -6,54 +6,6 @@
   "hashbang": null,
   "body": [
     {
-      "type": "ExpressionStatement",
-      "start": 1,
-      "end": 2,
-      "expression": {
-        "type": "PrivateIdentifier",
-        "start": 1,
-        "end": 2,
-        "name": ""      }    },
-    {
-      "type": "ExpressionStatement",
-      "start": 2,
-      "end": 15,
-      "expression": {
-        "type": "BinaryExpression",
-        "start": 2,
-        "end": 15,
-        "operator": "/",
-        "left": {
-          "type": "UnaryExpression",
-          "start": 2,
-          "end": 11,
-          "operator": "!",
-          "prefix": true,
-          "argument": {
-            "type": "Literal",
-            "start": 3,
-            "end": 11,
-            "value": null,
-            "raw": "/usr/bin",
-            "regex": {
-              "pattern": "usr",
-              "flags": "bin"
-            }          }        },
-        "right": {
-          "type": "Identifier",
-          "start": 12,
-          "end": 15,
-          "name": "env"        }      }    },
-    {
-      "type": "ExpressionStatement",
-      "start": 16,
-      "end": 20,
-      "expression": {
-        "type": "Identifier",
-        "start": 16,
-        "end": 20,
-        "name": "node"      }    },
-    {
       "type": "VariableDeclaration",
       "start": 358,
       "end": 370,
@@ -112,49 +64,11 @@
     {
       "message": "Invalid character `!`",
       "line": 1,
-      "column": 4,
-      "offset": 3
-    },
-    {
-      "message": "Private identifier can only appear as the LHS of an 'in' expression or as a class member",
-      "line": 1,
-      "column": 4,
-      "offset": 3
-    },
-    {
-      "message": "Expected semicolon",
-      "line": 1,
       "column": 5,
       "offset": 4
-    },
-    {
-      "message": "Expected semicolon",
-      "line": 1,
-      "column": 19,
-      "offset": 18
-    },
-    {
-      "message": "Invalid regular expression flag",
-      "line": 1,
-      "column": 11,
-      "offset": 10
-    },
-    {
-      "message": "Invalid regular expression flag",
-      "line": 1,
-      "column": 13,
-      "offset": 12
     }
   ]
 }
-Parse errors (6):
-  Line 1, Column 4: Invalid character `!`
-  Line 1, Column 4: Private identifier can only appear as the LHS of an 'in' expression or as a class member
-  Line 1, Column 5: Expected semicolon
-  Line 1, Column 19: Expected semicolon
-  Line 1, Column 11: Invalid regular expression flag
-  Line 1, Column 13: Invalid regular expression flag
+Parse errors (1):
+  Line 1, Column 5: Invalid character `!`
 
---- Statistics ---
-Arena: used=39728B reserved=16777216B ratio=0%
-Parse errors: 6

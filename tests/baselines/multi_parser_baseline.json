@@ -57,7 +57,7 @@
   },
   "tests/fixtures/spec/es2020/004_dynamic_import.js": {
     "acorn": 3,
-    "babel": 5
+    "babel": 7
   },
   "tests/fixtures/spec/es2020/005_import_meta.js": {
     "acorn": 2,
@@ -200,6 +200,22 @@
     "babel": -1
   },
   "tests/fixtures/spec/typescript/010_type_predicate.js": {
+    "acorn": -1,
+    "babel": -1
+  },
+  "tests/fixtures/spec/typescript/011_interface_extends.js": {
+    "acorn": -1,
+    "babel": -1
+  },
+  "tests/fixtures/spec/typescript/012_const_enum.js": {
+    "acorn": -1,
+    "babel": -1
+  },
+  "tests/fixtures/spec/typescript/013_class_implements.js": {
+    "acorn": -1,
+    "babel": -1
+  },
+  "tests/fixtures/spec/typescript/014_type_parameter_constraints.js": {
     "acorn": -1,
     "babel": -1
   },

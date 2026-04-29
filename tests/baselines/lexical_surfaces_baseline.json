@@ -1,7 +1,7 @@
 {
   "001_hashbang_bom.js": {
     "status": "fail",
-    "reason": "parse failed: 2 parse error(s)"
+    "reason": "parse failed: 1 parse error(s)"
   },
   "002_crlf_restricted_production.js": {
     "status": "pass",

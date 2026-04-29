@@ -218,6 +218,38 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 		   l.source_bytes[l.offset] == '#' &&
 		   l.source_bytes[l.offset + 1] == '!' {
 			l.bom_before_hashbang = true
+			// Spec rejects BOM-before-hashbang — record one diagnostic
+			// and skip the entire offending line. Without the skip the
+			// `#!...` body lexes as a sequence of regular tokens (private
+			// identifier, `!`, the program body, etc.) producing a 5-6 error
+			// cascade. OXC matches this stop-after-one behaviour.
+			append(&l.lexer_errors, LexerError{offset = u32(l.offset + 1), message = "Invalid character `!`"})
+			// Skip past the hashbang line.
+			for l.offset < len(source) {
+				c := l.source_bytes[l.offset]
+				if c == '\n' || c == '\r' { break }
+				if c == 0xE2 && l.offset + 2 < len(source) &&
+				   l.source_bytes[l.offset+1] == 0x80 &&
+				   (l.source_bytes[l.offset+2] == 0xA8 || l.source_bytes[l.offset+2] == 0xA9) {
+					break
+				}
+				l.offset += 1
+			}
+			// Consume the terminator so the rest of the lexer doesn't see
+			// a leading newline.
+			if l.offset < len(source) {
+				c := l.source_bytes[l.offset]
+				if c == '\r' {
+					l.offset += 1
+					if l.offset < len(source) && l.source_bytes[l.offset] == '\n' { l.offset += 1 }
+				} else if c == '\n' {
+					l.offset += 1
+				} else if c == 0xE2 && l.offset + 2 < len(source) &&
+				          l.source_bytes[l.offset+1] == 0x80 &&
+				          (l.source_bytes[l.offset+2] == 0xA8 || l.source_bytes[l.offset+2] == 0xA9) {
+					l.offset += 3
+				}
+			}
 		}
 	}
 

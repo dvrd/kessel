@@ -1205,15 +1205,12 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		p.in_module_top_level = true
 	}
 
-	// BOM-followed-by-hashbang: the lexer already skipped the BOM (it's a
-	// valid WhiteSpace character), but the `#!` that follows is invalid
-	// because hashbang must be the very first bytes of the source.
-	// OXC/Acorn/Babel all reject this; we match with the same diagnostic
-	// text OXC uses ("Invalid character `!`") so the spec-fixtures
-	// parse-error parity escape recognises it as agreement.
-	if p.lexer != nil && p.lexer.bom_before_hashbang {
-		report_error(p, "Invalid character `!`")
-	}
+	// BOM-followed-by-hashbang is rejected by the lexer (it emits one
+	// `Invalid character `!`` diagnostic at the `!` position, then skips
+	// past the offending line so the rest of the source lexes cleanly).
+	// Previously the parser emitted a duplicate diagnostic here —
+	// removed because the lexer is the canonical source.
+	_ = p.lexer
 	// Pre-size body based on source length: ~1 top-level statement per 50 bytes
 	body_cap := 16
 	if p.source_len > 4096 {
