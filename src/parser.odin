@@ -12129,12 +12129,16 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 }
 
 parse_identifier :: proc(p: ^Parser) -> Identifier {
-	current := get_current(p)
+	// Read loc / name from p.cur_tok BEFORE eat advances. Saves the
+	// 64 B Token snapshot copy that `current := get_current(p)` was
+	// doing once per identifier-name (called from member access, import
+	// /export specifiers, JSX attribute names, dynamic imports, optional
+	// chains, ~13 sites total). The string slice in p.cur_tok.value
+	// points into the source bytes, which outlive eat(p).
+	loc := loc_from_token(&p.cur_tok)
+	name := p.cur_tok.value
 	eat(p)
-	return Identifier{
-		loc  = loc_from_token(&current),
-		name = current.value,
-	}
+	return Identifier{loc = loc, name = name}
 }
 
 parse_identifier_name :: proc(p: ^Parser) -> Identifier {
@@ -12142,13 +12146,13 @@ parse_identifier_name :: proc(p: ^Parser) -> Identifier {
 }
 
 parse_string_literal :: proc(p: ^Parser) -> StringLiteral {
-	current := get_current(p)
+	// Same shape as parse_identifier above: snapshot only the fields
+	// we need before eat(p), avoiding the 64 B Token copy.
+	loc := loc_from_token(&p.cur_tok)
+	raw := p.cur_tok.value
+	value := p.cur_tok.literal.(string) or_else ""
 	eat(p)
-	return StringLiteral{
-		loc   = loc_from_token(&current),
-		raw   = current.value,
-		value = current.literal.(string) or_else "",
-	}
+	return StringLiteral{loc = loc, raw = raw, value = value}
 }
 
 // ============================================================================
