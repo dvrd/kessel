@@ -8869,17 +8869,20 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// out of p.cur_tok before eat() advances — a full Token copy is ~64
 		// bytes and was showing up in the parse_unary_expr profile when this
 		// fast path runs once per identifier in the program.
+		//
+		// `loc.line` / `loc.column` are NEVER written on `p.cur_tok` (verify
+		// with `rg 'cur_tok\.loc\.line' src/`). The lexer only stores byte
+		// offsets; line / column are computed lazily by `report_error` via
+		// `offset_to_line_col` when an error is actually emitted. Reading
+		// them here returned permanent 0, then we'd write 0 back into
+		// `id.loc.{line,column}` — four wasted memory ops per identifier on
+		// the hot path. Skip the loads, leave the Loc fields zero-initialised.
 		id_offset := u32(p.cur_tok.loc.offset)
-		id_line   := u32(p.cur_tok.loc.line)
-		id_col    := u32(p.cur_tok.loc.column)
 		id_value  := p.cur_tok.value
 		eat(p)
 		id, id_e := new_expr(p, Identifier)
-		id.loc = Loc{
-			span   = Span{start = id_offset, end = prev_end_offset(p)},
-			line   = id_line,
-			column = id_col,
-		}
+		id.loc.span.start = id_offset
+		id.loc.span.end   = prev_end_offset(p)
 		id.name = id_value
 		expr = id_e
 		// Inline LHS tail loop (member access, calls)
@@ -14623,6 +14626,13 @@ loc_from_token :: #force_inline proc(t: Token) -> Loc {
 	// raw_end population (raw_end stays 0 until set by advance_token /
 	// prime_token_cache / peek_token). This keeps the compile-time zero-init
 	// safe for synthetic Tokens constructed outside the lexer pipeline.
+	//
+	// `t.loc.line` / `t.loc.column` are NEVER written by the lexer or
+	// parser — they're computed lazily by `report_error` from `offset` via
+	// `offset_to_line_col`. Reading them here returned permanent 0, then
+	// we'd write 0 into `Loc.{line,column}` — four wasted memory ops per
+	// `loc_from_token` call (called on every AST node from a current-token
+	// span). Leave the Loc's line / column zero-initialised.
 	end := u32(t.loc.offset + len(t.value))
 	if t.raw_end != 0 && t.raw_end > u32(t.loc.offset) {
 		end = t.raw_end
@@ -14632,8 +14642,6 @@ loc_from_token :: #force_inline proc(t: Token) -> Loc {
 			start = u32(t.loc.offset),
 			end   = end,
 		},
-		line   = u32(t.loc.line),
-		column = u32(t.loc.column),
 	}
 }
 
