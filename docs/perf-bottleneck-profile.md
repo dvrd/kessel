@@ -203,23 +203,65 @@ add up to 11.5 % of CPU. Plus the dispatched-to bodies
 
 ### In (high-confidence wins, ordered by ROI)
 
-1. **Non-mutex single-threaded arena allocator (1–2 days, predicted 8–10 %)**
-   Write `kessel_arena_allocator_proc` mirroring `arena_allocator_proc`
-   with the `sync.mutex_guard` lines removed. Single-threaded parse =
-   no contention, mutex is pure overhead. Expose as
-   `mvirtual_unsync.arena_allocator(&arena)` and replace `parser.allocator`.
-   Closes the entire 9.8 pp ALLOC gap.
+**Note (S22.2 follow-up): Two predicted wins from the original analysis
+were implemented and measured — both underperformed dramatically.
+Profile attribution percentages do NOT linearly map to wall-time savings.**
 
-2. **First-letter gate before `lookup_keyword_by_letter` (1 hour, predicted 1–2 %)**
-   Move the length+letter check from inside `lookup_keyword_by_letter`
-   (which is `#force_no_inline`) up to the call site in
-   `lex_identifier`. Skips the call+return for ~30 % of identifiers
-   that can't be keywords.
+1. **Non-mutex single-threaded arena allocator** — ATTEMPTED, REVERTED
+   * Predicted: 8–10 % wall time. Measured: ~0.4 % (within noise).
+   * Implementation: clean copy of `arena_allocator_proc` with
+     `sync.mutex_guard` removed and `arena_alloc_unguarded` body
+     inlined. Replaced 14 call sites in `main.odin`. All gates green.
+   * Why prediction was wrong: on Apple Silicon, Odin's
+     `sync.mutex_guard` compiles to two atomic exchanges (acquire +
+     release) which take ~1–3 ns each. Total mutex overhead is
+     ~3–6 ns per call — not the 10–20 ns I assumed. The rest of
+     the "10 % ALLOC" attribution is real work (bump pointer, cap
+     check, memcpy) that doesn't disappear by removing dispatch.
+   * Profile after the change: `kessel_arena_allocator_proc` 1.6 % +
+     `fast_arena_alloc` 2.3 % = 3.9 % (vs old 4.6 %). Saved ~0.7 pp
+     of profile attribution but not of wall time.
 
-3. **Pre-allocate dynamic-array capacity at known bounds (1 day, predicted 1–2 %)**
-   For `obj.properties`, `arr.elements`, `tmpl.quasis`, `seq.expressions`,
-   `body.body`, etc., pre-allocate based on a quick peek-scan or sized
-   heuristic. Eliminates the 2× growth path for ~80 % of appends.
+2. **First-letter gate before `lookup_keyword_by_letter`** — ATTEMPTED, REVERTED
+   * Predicted: 1–2 %. Measured: within ±1 % noise.
+   * Implementation: moved the `length ∈ [2,10]` and
+     `first ∈ [a..z]` checks from inside the no-inline callee up to
+     `lex_identifier`. All gates green.
+   * Why prediction was wrong: ~70 % of real identifiers ARE in the
+     gate's accepted range (lowercase, 2–10 chars). The gate skips
+     ~30 % of calls, but each skipped call+return costs only ~3–5 ns.
+     Skipping 30 % of a 5 ns op across the file is < 1 % of parse.
+
+### The lesson: profile %s overstate the achievable savings
+
+When a function shows up at X % of CPU, only the *dispatch + bookkeeping*
+portion of those cycles is removable by call-graph restructuring. The
+*actual computational work* (bump pointer, memcpy, comparison) is
+irreducible at this level. To save real wall time, we have to eliminate
+the WORK, not just the wrapping. Levers that eliminate work:
+
+* Pre-sizing dynamic arrays (no growth = no realloc + memcpy)
+* Flat buffers instead of dynamic arrays (no per-element bookkeeping)
+* Indices instead of pointers (smaller AST = fewer cache misses)
+* Single-pass tokenize-and-emit (no intermediate token storage)
+
+These are all step #5 (full DoD migration). It is now the only remaining
+structural lever with a credible double-digit gain.
+
+### Revised predicted ROI table (post-measurement)
+
+| # | Lever | Predicted | Measured | Verdict |
+|---|---|---:|---:|---|
+| 1 | Non-mutex arena | 8–10 % | 0.4 % | reverted |
+| 2 | Keyword first-letter gate | 1–2 % | noise | reverted |
+| 3 | Pre-allocate dynamic-array capacity | 1–2 % | not tried | unlikely > 1 % given #1+#2 |
+| 4 | OXC-style proc-ptr byte dispatch | 2–4 % | −1.5 % (Apr 2026) | dead |
+| 5 | Inline tagged unions (step #3) | 5–8 % | 0.3 % geo / 5 % monaco | reverted |
+| 6 | **Full DoD/SoA migration (step #5)** | **12 %** | **not tried** | **the real lever** |
+
+Four of the five "quick wins" came in 5–10× smaller than predicted.
+The remaining 6 % gap to OXC requires structural change, not
+dispatch-layer surgery.
 
 ### Out (proven low-or-no-gain, do not retry)
 
@@ -244,27 +286,32 @@ add up to 11.5 % of CPU. Plus the dispatched-to bodies
   Tested in S22 with mixed results (variant tested was reverted). The
   current per-letter-then-length structure is reasonable.
 
-## The arithmetic of closing the gap
+## The arithmetic of closing the gap (REVISED post-S22.2)
 
 Current state: **kessel 1.064× OXC geo-mean (1.20× monaco worst)**.
 
-If we land #1 (non-mutex arena, predicted 8–10 % wall time):
+The original projection assumed every dispatch-overhead percentage
+would convert 1:1 into wall time when removed. After measuring two of
+those levers, both came back 5–10× smaller than predicted because the
+attributed cycles were doing irreducible work, not just bookkeeping.
+
+**Updated projection: dispatch-layer micro-optimisation can deliver at
+most ~1–2 % combined. The remaining ~5 % gap requires eliminating
+the WORK itself — step #5 (full DoD/SoA migration) or it doesn't happen.**
+
+Step #5 best-case (12 % at predicted strength):
 
 ```
-1.064 × (1 - 0.09) ≈ 0.968   geo-mean ratio (kessel BEATS OXC)
-1.20 × (1 - 0.10) ≈ 1.08    monaco ratio
-1.17 × (1 - 0.10) ≈ 1.05    cesium ratio
+1.064 × (1 - 0.10) ≈ 0.96   geo-mean (kessel BEATS OXC by ~4 %)
+1.20  × (1 - 0.12) ≈ 1.06   monaco within 6 %
+1.17  × (1 - 0.12) ≈ 1.03   cesium at parity
 ```
 
-If we additionally land #2 + #3 (first-letter gate + pre-allocate caps,
-predicted 2–4 % combined):
+Step #5 pessimistic (5× less than predicted, in line with #1–#3 results):
 
 ```
-0.968 × (1 - 0.03) ≈ 0.94   kessel beats OXC by ~6 % on geo-mean
-1.08  × (1 - 0.03) ≈ 1.05   monaco at parity
-1.05  × (1 - 0.03) ≈ 1.02   cesium at parity
+1.064 × (1 - 0.025) ≈ 1.04   geo-mean (still good enough to ship)
 ```
 
-That would put kessel **at OXC parity or better on every file in the corpus**.
-
-The path is concrete. The biggest move (#1) is the smallest code change.
+Either way, step #5 is the only honest path. Dispatch-layer
+optimisation has been exhausted.
