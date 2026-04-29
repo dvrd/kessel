@@ -3216,7 +3216,7 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 // where keywords are <5 % of identifiers) stay in L1 for the actual hot
 // loop, paying a single call+return only when an identifier ACTUALLY needs
 // keyword classification.
-lookup_keyword_by_letter :: #force_no_inline proc(src: []u8, start: u32, end: u32) -> TokenType {
+lookup_keyword_by_letter :: #force_inline proc(src: []u8, start: u32, end: u32) -> TokenType {
 	length := end - start
 	if length < 2 || length > 10 { return .Identifier }
 
