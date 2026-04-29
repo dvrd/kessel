@@ -743,7 +743,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	} else if p.source_len < 64 * 1024 {
 		pool_size = p.source_len * 30 + 32 * 1024
 	} else {
-		pool_size = p.source_len * 15
+		pool_size = p.source_len * 32
 	}
 	bump_init(&p.node_pool, alloc, pool_size)
 
