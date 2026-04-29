@@ -11,14 +11,21 @@ both speed (vs. Rust's `oxc`) and Test262 conformance as primary metrics.
 
 ---
 
-## Current state (Session 22 final, 2026-04-29)
+## Current state (Session 23, 2026-04-29)
 
-**Performance: kessel at OXC parity. Geo-mean 1.002× OXC.**
+**Performance: kessel BEATS OXC. Geo-mean 0.990× OXC.**
 
-* 3/10 files BEAT OXC (snabbdom 0.83×, preact 0.90×, react-dom 0.98×)
-* 6/10 files at parity (≤1.05×)
+* 3/10 files BEAT OXC (snabbdom 0.81×, preact 0.89×, react-dom 0.97×)
+* 6/10 files at ≤1.05× (d3 1.01, antd 1.02, jquery 1.03, typescript 1.03, monaco 1.05, cesium 1.05)
 * 10/10 files within 10 % of OXC
-* Worst: monaco at 1.06× (was 1.20× at session start)
+* Worst: cesium / monaco / lodash at 1.05-1.06×
+
+**Session 23 progression**:
+* S22 final: 1.002× geo-mean
+* `4e9efe3` Darwin CPU QoS pin (Tier 1 K) — bench-neutral on idle machine, real-world hedge
+* `d2ec90b` Cap-bump top 8 slow-path callsites (Tier 2 D-lite) — geo-mean **1.002 → 0.990** (-1.2 pp)
+
+Full S23 write-up: `docs/perf-session-23.md`.
 
 **Correctness: every gate green.**
 
@@ -41,7 +48,7 @@ duplicate detection — out of scope; SM violates spec).
 
 ---
 
-## How we got here (S22 perf commits, in order)
+## How we got here (perf commits, S22 + S23, in order)
 
 | Commit | What | Δ ratio |
 |---|---|---:|
@@ -49,9 +56,11 @@ duplicate detection — out of scope; SM violates spec).
 | `aa1b04e` | Exclude arena reset from microbench timer | 1.099× → 1.064× |
 | `66958d3` | Scalar prefix before SIMD identifier scan | 1.064× → 1.047× |
 | `caf035e` | `force_inline` lookup_keyword_by_letter | 1.047× → 1.043× |
-| `d0eed4e` | `bump_append` (parser, 131 sites) — biggest win | 1.043× → 1.013× |
+| `d0eed4e` | `bump_append` (parser, 131 sites) — biggest single win | 1.043× → 1.013× |
 | `50e1585` | `bump_append` (lexer, 117 sites) | 1.013× → 1.006× |
 | `d121a64` | Bump pool size source_len×15 → ×32 | 1.006× → 1.002× |
+| `4e9efe3` | Darwin CPU QoS pin to P-cores (Tier 1 K) | 1.002× → 1.002× (real-world hedge) |
+| `d2ec90b` | Cap-bump top 8 slow-path callsites (Tier 2 D-lite) | 1.002× → **0.990×** |
 
 The biggest single win was `bump_append` in the parser (`d0eed4e`):
 **−3pp in one commit**. Root cause was Odin's `_append_elem` being
@@ -77,8 +86,11 @@ NOT linearly map to wall-time savings when the function does real work.
 | Inline tagged unions | 5–8 % | 0.3 % geo / 5 % monaco | bump pool already minimised per-alloc cost. Test infra coupling reverted. |
 | OXC-style proc-ptr byte dispatch | 2–4 % | −1.5 % | Odin's compiler doesn't inline through proc-pointer tables the way Rust+LTO does. |
 | Skip keyword classification | (test) | parser became SLOWER | Unrecognised keywords reach parser, force more disambiguation work. The classification IS productive work. |
+| **S23**: Tier 1 A pre-fault arena pages | ~1 ms / parse | +159 µs regression | Bench warm-up already commits pages; iteration prefault loop is dead work in tight bench loop. Could matter for real-world parse-once-and-exit. |
+| **S23**: scope_map_make cap 4 → 8 | -100–300 µs | -400–600 µs regression on big files | scope_map_make is called per-scope; thousands of small-scope allocations got doubled. The fix only helps tail cases, not common-case allocs. |
+| **S23**: source-size-conditional caps | +0.5–1 % | -400–600 µs regression | After flat cap bumps captured 89 % of slow-path events, doubling further cost more in arena traffic than it saved. Diminishing returns. |
 
-All listed in `docs/perf-deep-dive-summary.md` with details.
+All listed in `docs/perf-deep-dive-summary.md` and `docs/perf-session-23.md` with details.
 
 ---
 
@@ -252,11 +264,14 @@ Tier 3 F brings another 3–4 %, putting kessel firmly faster than OXC.
 
 ---
 
-## Save points (S22, newest first)
+## Save points (newest first)
 
 | Tag | State |
 |---|---|
-| `parity-pool32` | Final — geo-mean 1.002× |
+| `caps-bumped` | **S23 final — geo-mean 0.990× (kessel BEATS OXC)** |
+| `tier1k-qos` | After Darwin CPU QoS pin (1.002×) |
+| `s23-start` | Start of S23 (1.002×–1.005×) |
+| `parity-pool32` | S22 final — geo-mean 1.002× |
 | `arch-analysis-complete` | After architectural analysis written |
 | `bump-append-win` | After bump_append in parser+lexer |
 | `parity-reached` | First time at 1.013× geo-mean |
@@ -379,18 +394,30 @@ from a vendored library would broaden coverage.
 
 ---
 
-*Generated: Session 22 final, 2026-04-29.*
+*Generated: Session 23, 2026-04-29.*
 
-*The session opened with `1.346× OXC` (geo-mean) and the user
-observation that "it makes no sense OXC could be faster than us." It
-closed at `1.002×` (parity) after a comprehensive deep-dive that
-identified two structural Odin-runtime issues (`_append_elem` not
-specialising, bump pool over-conservatively sized) and one
-identifier-scan inefficiency (SIMD-first for short IDs). Three files
-now BEAT OXC. Six at parity. All gates green throughout.*
+*S22 took kessel from `1.346× OXC` to parity at `1.002×` by fixing
+two structural Odin-runtime issues (`_append_elem` not specialising,
+bump pool over-conservatively sized) and one identifier-scan
+inefficiency.*
+
+*S23 took it past parity to `0.990×` (kessel BEATS OXC) via two
+low-cost changes: a Darwin CPU QoS pin (real-world hedge, bench-neutral)
+and profile-guided cap bumps at the top 8 `bump_append` slow-path
+callsites (-1.2 pp geo-mean). Three failed experiments along the way
+(prefault arena, scope_map cap bump, source-size-conditional caps)
+proved that doubling caps in high-frequency code paths or duplicating
+work already done by warm-up costs more than it saves — the wins came
+only from targeting the long-tail callsites.*
 
 *Next agent: read `AGENTS.md`, then this doc, then
-`docs/perf-architectural-analysis.md` for the Tier-1 starting points.
-The `bump_append` pattern is the key Odin-perf insight from this
-session — applicable to any Odin program with hot dynamic-array
-appends.*
+`docs/perf-session-23.md` for the latest measurements and
+`docs/perf-architectural-analysis.md` for the Tier 2 E (per-letter
+handlers, ~1 week, predicted 1–2 ms on monaco) and Tier 3 F (SoA AST,
+~5 weeks, predicted 3–4 %) levers still on the table.*
+
+*The `bump_append` pattern (S22) plus profile-guided cap tuning (S23)
+is the cleanest Odin-perf playbook from these sessions — applicable
+to any Odin program with hot dynamic-array appends. Profile slow-path
+hits by `#caller_location`, then bump initial caps at the long-tail
+callsites that account for >80 % of the events.*
