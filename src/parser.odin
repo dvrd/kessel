@@ -3423,7 +3423,12 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 		return params
 	}
 
-	params = make([dynamic]FunctionParameter, 0, 3, p.allocator)
+	// Cap bumped from 3 → 8 (S23). Profile on monaco showed this was the
+	// #1 slow-path source: 1465 grow events / parse for functions with
+	// >3 params. cap=8 covers ~95th percentile of real-world function
+	// arities; the 80B/param cost of the extra slots is dwarfed by the
+	// runtime grow cost (50-100 ns per slow-path event).
+	params = make([dynamic]FunctionParameter, 0, 8, p.allocator)
 	for {
 		// Trailing comma: if we see ')' after comma, stop
 		if is_token(p, .RParen) {
@@ -3590,9 +3595,11 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		directives = make([dynamic]Directive, 0, 0, p.allocator),
 	}
 	// If the body is non-empty, pre-grow the statement vector to its
-	// typical capacity to avoid log-N realloc churn.
+	// typical capacity to avoid log-N realloc churn. Cap bumped from
+	// 8 → 16 (S23): 430 functions on monaco had >8 statements, triggering
+	// runtime grow. cap=16 covers most non-trivial function bodies.
 	if !is_token(p, .RBrace) && !is_token(p, .EOF) {
-		reserve(&body.body, 8)
+		reserve(&body.body, 16)
 	}
 
 	prev_in_function := p.in_function
@@ -3877,8 +3884,11 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 		// when we know there's at least one element (or stray semicolon).
 		body = make([dynamic]ClassElement, 0, 0, p.allocator),
 	}
+	// Cap bumped from 8 → 16 (S23): 323 classes on monaco had >8 elements,
+	// triggering runtime grow. Class bodies tend to have many small members
+	// (constructor + 5-15 methods + a few fields).
 	if !is_token(p, .RBrace) && !is_token(p, .EOF) {
-		reserve(&body.body, 8)
+		reserve(&body.body, 16)
 	}
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
@@ -4718,7 +4728,11 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	decl := new_node(p, VariableDeclaration)
 	decl.loc = start
 	decl.kind = kind
-	decl.declarations = make([dynamic]VariableDeclarator, 0, 2, p.allocator)
+	// Cap bumped from 2 → 4 (S23). Most `var/let/const a = ...` are
+	// single-declarator (~80%), but multi-declarator forms (`var a, b, c`)
+	// triggered 1229 slow-path grows on monaco. cap=4 covers the long tail
+	// without significant memory overhead.
+	decl.declarations = make([dynamic]VariableDeclarator, 0, 4, p.allocator)
 
 	for {
 		d := parse_variable_declarator(p, kind, in_for, is_declare)
@@ -8366,7 +8380,10 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		if cur_type == .Comma {
 			seq, seq_e := new_expr(p, SequenceExpression)
 			seq.loc = loc_from_expr(left)
-			seq.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
+			// Cap bumped from 4 → 8 (S23). Profile on monaco: 1254 grow events
+			// for sequence expressions with >4 commas. Common in `for (i = 0,
+			// j = 0, k = 0; ...)` and minified `(a, b, c, d, e)` chains.
+			seq.expressions = make([dynamic]^Expression, 0, 8, p.allocator)
 			bump_append(&seq.expressions, left)
 			for match_token(p, .Comma) {
 				expr := parse_assignment_expression(p)
@@ -9939,7 +9956,10 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 	// and explicit no-op cases. Defer the bump reservation until we
 	// know there's at least one element.
 	if !is_token(p, .RBracket) && !is_token(p, .EOF) {
-		arr.elements = make([dynamic]Maybe(^Expression), 0, 8, p.allocator)
+		// Cap bumped from 8 → 16 (S23). Array literals with >8 elements
+		// triggered 520 slow-path grows on monaco. Common in const-data
+		// arrays (lookup tables, error-code lists, opcode tables).
+		arr.elements = make([dynamic]Maybe(^Expression), 0, 16, p.allocator)
 	}
 
 	// Inside an ArrayExpression literal, `in` is always valid as a
@@ -10032,7 +10052,10 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	// argument values, options bags, factory return shapes, etc. Defer
 	// the bump reservation until we know there's at least one property.
 	if !is_token(p, .RBrace) && !is_token(p, .EOF) && !is_token(p, .Semi) {
-		obj.properties = make([dynamic]Property, 0, 4, p.allocator)
+		// Cap bumped from 4 → 8 (S23). Object literals with >4 properties
+		// triggered 661 slow-path grows on monaco. Common in config objects
+		// (`{ name, type, kind, value, span, comments }` etc).
+		obj.properties = make([dynamic]Property, 0, 8, p.allocator)
 	}
 
 	// Inside an ObjectExpression literal, `in` is always valid as a
@@ -10787,7 +10810,10 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 	args: [dynamic]^Expression
 
 	if !is_token(p, .RParen) {
-		args = make([dynamic]^Expression, 0, 4, p.allocator)
+		// Cap bumped from 4 → 8 (S23). Function calls with >4 args triggered
+		// 945 slow-path grows on monaco. Many APIs take 5-8 args (e.g.
+		// React.createElement(type, props, ...children) or fmt.Printf-style).
+		args = make([dynamic]^Expression, 0, 8, p.allocator)
 		for {
 			// `(,)` and `(a,,b)` — elision is not allowed in Arguments
 			// per §13.3.5. The grammar is `Arguments :: ( ArgumentList )`
