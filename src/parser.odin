@@ -5579,10 +5579,24 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		report_escaped_reserved_word(p)
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
-		// FutureReservedWords (like `enum`) are never valid BindingIdentifiers.
-		// Skip when has_escape - that case is already caught by
-		// report_escaped_reserved_word above.
-		if !p.cur_tok.has_escape && is_always_reserved_word_name(id_name) {
+		// FutureReservedWords are never valid BindingIdentifiers. The
+		// previous version called `is_always_reserved_word_name(id_name)`
+		// here (a 36-way string switch on every binding identifier), but
+		// kessel's lexer emits dedicated tokens for 35 of those 36 reserved
+		// words — they're caught by `is_reserved_word_for_binding` at the
+		// top of this function before we ever reach the identifier branch.
+		// The only word from that list that arrives as `.Identifier` (with
+		// `has_escape == false`) is `enum`, which kessel lexes as a TS
+		// contextual identifier so `var enum = 1;` works in sloppy script.
+		// Replacing the 36-way switch with a single equality check elides
+		// up to 35 string compares per binding identifier in the bench
+		// corpus (~50K bindings on monaco, parse_binding_pattern was
+		// holding 33 of the 87 monaco `string_eq` profile samples).
+		//
+		// has_escape == true takes the slow path via
+		// `report_escaped_reserved_word(p)` already; we don't repeat the
+		// full check here.
+		if !p.cur_tok.has_escape && id_name == "enum" {
 			msg := fmt.tprintf("'%s' is a reserved word and cannot be used as a binding identifier", id_name)
 			report_error(p, msg)
 		}
