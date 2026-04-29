@@ -67,3 +67,56 @@ qualitative difference.
 ## Recommendation
 
 Phase 2 (full SoA migration, ~3 weeks) is justified. Do it.
+
+---
+
+## Update: v2 prototype with fair AoS (2026-04-29)
+
+The v1 prototype compared `mem.virtual.arena_allocator` (slow path with
+mutex + vtable) against pre-allocated SoA buffers. That was **unfair to
+kessel's actual implementation**: kessel uses a custom `bump_alloc`
+pool for AST nodes that's just pointer arithmetic, not the slow arena
+path.
+
+`bench/dod_proto/proto2.odin` reruns the comparison with both AoS and
+SoA using the SAME bump-pool primitive:
+
+```
+$ ./bench/dod_proto/proto2 30 10
+AoS/bump  med=3411 us
+SoA       med=3008 us
+SoA vs AoS/bump: -11.8 % time  (1.134× speedup)
+
+$ ./bench/dod_proto/proto2 20 12
+AoS/bump  med=15494 us
+SoA       med=14060 us
+SoA vs AoS/bump: -9.3 % time  (1.102× speedup)
+```
+
+**SoA is ~10–12 % faster than fair-AoS, not 2.2×.** The 2.2× from v1 was
+the arena-vtable overhead, not SoA's structural advantage.
+
+### Real-world projection (revised)
+
+AST construction in kessel is ~25–30 % of parse CPU (sum of ~20 % of
+PARSE + most of ALLOC). SoA being 10–12 % faster on that subset
+projects to **~3–4 % wall-time savings** on real fixtures.
+
+That's notable but smaller than the 12 % originally predicted. Step #5
+delivers a real but modest improvement, not a dramatic one. Combined
+with the architectural cleanup (smaller AST, simpler serialization,
+no `raw_transfer.odin` pointer-rewrite logic), it remains worthwhile —
+but the cost/benefit is borderline.
+
+### Updated decision gate
+
+| Δ AoS/bump → SoA | Action |
+|---|---|
+| ≥ 15 % | Strong go |
+| 8 – 15 % | Conditional go (we're here, ~10 %) |
+| 0 – 8 % | Stop |
+| Negative | Stop + document |
+
+Borderline. Wave 1 of Phase 2 will be a real test: if migrating
+Identifier + Member + Call + Binary delivers ~3 % wall time on real
+fixtures, scale up; if not, stop and ship at 1.064×.
