@@ -98,8 +98,8 @@
   ]
 }
 Parse errors (1):
-  Line 0, Column 0: 'x' has already been declared
+  Line 8, Column 1: 'x' has already been declared
 
 --- Statistics ---
-Arena: used=11664B reserved=16777216B ratio=0%
+Arena: used=37680B reserved=16777216B ratio=0%
 Parse errors: 1

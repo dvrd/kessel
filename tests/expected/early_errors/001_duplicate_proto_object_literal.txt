@@ -98,8 +98,8 @@
   ]
 }
 Parse errors (1):
-  Line 0, Column 0: Redefinition of __proto__ property
+  Line 4, Column 29: Redefinition of __proto__ property
 
 --- Statistics ---
-Arena: used=37184B reserved=16777216B ratio=0%
+Arena: used=37712B reserved=16777216B ratio=0%
 Parse errors: 1

@@ -76,8 +76,8 @@
 }
 Parse errors (2):
   Line 6, Column 9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
-  Line 0, Column 0: Private field '#foo' must be declared in an enclosing class
+  Line 6, Column 9: Private field '#foo' must be declared in an enclosing class
 
 --- Statistics ---
-Arena: used=10720B reserved=16777216B ratio=0%
+Arena: used=37136B reserved=16777216B ratio=0%
 Parse errors: 2

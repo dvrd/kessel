@@ -998,11 +998,11 @@ parse_file :: proc(file_path: string) {
 				out_s("\"span\": {\n")
 				print_indent(6)
 				out_s("\"start\": ")
-				out_u32(to_utf16(u32(err.loc.offset)))
+				out_u32(to_utf16(u32(err.loc)))
 				out_s(",\n")
 				print_indent(6)
 				out_s("\"end\": ")
-				out_u32(to_utf16(u32(err.loc.offset) + 1))
+				out_u32(to_utf16(u32(err.loc) + 1))
 				out_s("\n")
 				print_indent(5)
 				out_s("}\n")
@@ -1025,12 +1025,12 @@ parse_file :: proc(file_path: string) {
 				out_string(err.message)
 				out_s(",\n")
 				print_indent(3)
-				line, col := offset_to_line_col(p.lexer.line_offsets, u32(err.loc.offset))
+				line, col := offset_to_line_col(p.lexer.line_offsets, u32(err.loc))
 				out_printf("\"line\": %d,\n", line)
 				print_indent(3)
 				out_printf("\"column\": %d,\n", col)
 				print_indent(3)
-				out_printf("\"offset\": %d\n", err.loc.offset)
+				out_printf("\"offset\": %d\n", int(err.loc))
 				print_indent(2)
 				if i < len(p.errors) - 1 { out_s("},\n") } else { out_s("}\n") }
 			}
@@ -1073,9 +1073,21 @@ parse_file :: proc(file_path: string) {
 	// leaving `task test:real` to see only "Parse errors: N" in stderr
 	// without any line/column/message to triage.
 	if len(p.errors) > 0 {
+		// Compute line / column from offset on demand. The lexer's line
+		// table is built lazily — this is the only printer-side caller, so
+		// we ensure it exists before the loop. `LexerLoc` carries only the
+		// byte offset; line / column never live on the parser's hot path.
+		if p.lexer != nil && p.lexer.num_lines == 0 {
+			build_line_table(p.lexer)
+		}
 		fmt.printf("Parse errors (%d):\n", len(p.errors))
 		for err in p.errors {
-			fmt.printf("  Line %d, Column %d: %s\n", err.loc.line, err.loc.column, err.message)
+			line: u32 = 0
+			col:  u32 = 0
+			if p.lexer != nil {
+				line, col = offset_to_line_col(p.lexer.line_offsets, u32(err.loc))
+			}
+			fmt.printf("  Line %d, Column %d: %s\n", line, col, err.message)
 		}
 	}
 	delete(direct_buf, context.allocator)

@@ -106,8 +106,8 @@
 Parse errors (3):
   Line 7, Column 1: 'let' is disallowed as a lexically bound name
   Line 8, Column 1: 'let' is disallowed as a lexically bound name
-  Line 0, Column 0: 'let' has already been declared
+  Line 7, Column 1: 'let' has already been declared
 
 --- Statistics ---
-Arena: used=10880B reserved=16777216B ratio=0%
+Arena: used=37680B reserved=16777216B ratio=0%
 Parse errors: 3

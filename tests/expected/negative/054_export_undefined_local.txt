@@ -74,8 +74,8 @@
   ]
 }
 Parse errors (1):
-  Line 0, Column 0: Export 'foo' is not defined in the module
+  Line 6, Column 10: Export 'foo' is not defined in the module
 
 --- Statistics ---
-Arena: used=12296B reserved=16777216B ratio=0%
+Arena: used=38408B reserved=16777216B ratio=0%
 Parse errors: 1

@@ -128,8 +128,8 @@
 }
 Parse errors (2):
   Line 11, Column 1: Duplicate import binding 'a'
-  Line 0, Column 0: 'a' has already been declared
+  Line 10, Column 22: 'a' has already been declared
 
 --- Statistics ---
-Arena: used=17480B reserved=16777216B ratio=0%
+Arena: used=38664B reserved=16777216B ratio=0%
 Parse errors: 2

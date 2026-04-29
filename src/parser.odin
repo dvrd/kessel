@@ -36,7 +36,7 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		ft := a.cur
 		p.cur_type = ft.kind
 		p.cur_tok.type = ft.kind
-		p.cur_tok.loc.offset = int(ft.start)
+		p.cur_tok.loc = LexerLoc(ft.start)
 		p.cur_tok.raw_end = ft.end
 		// Branchless: always write (avoids conditional branch per token)
 		p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
@@ -89,7 +89,7 @@ peek_token :: #force_inline proc(p: ^Parser) -> Token {
 		ft := p.lexer.nxt
 		tok: Token
 		tok.type = ft.kind
-		tok.loc.offset = int(ft.start)
+		tok.loc = LexerLoc(ft.start)
 		tok.raw_end = ft.end
 		tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
 		if ft.kind < .LBrace && ft.kind != .EOF && ft.start < ft.end {
@@ -108,7 +108,7 @@ prime_token_cache :: proc(p: ^Parser) {
 		ft := p.lexer.cur
 		p.cur_type = ft.kind
 		p.cur_tok.type = ft.kind
-		p.cur_tok.loc.offset = int(ft.start)
+		p.cur_tok.loc = LexerLoc(ft.start)
 		p.cur_tok.raw_end = ft.end
 		p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
 		p.cur_tok.has_escape = (ft.flags & FLAG_HAS_ESCAPE) != 0
@@ -958,20 +958,15 @@ new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Statement) {
 // Only safe when T is exactly one of the types in the Expression union
 
 // Report an error
+//
+// `LexerLoc` carries only `offset` now. Line / column are computed at
+// print time by `parse_error_line_column` (helper at the bottom of the
+// file) so we don't pay for them on the hot path of every successful
+// parse. The lazy line-table build still lives there, gated on the
+// first time anyone asks for line info.
 report_error :: proc(p: ^Parser, message: string) {
-	loc := LexerLoc{offset = int(cur_offset(p))}
-	// Compute line/col lazily from line table (only on errors)
-	if p.lexer != nil && loc.line == 0 {
-		// Lazy line table build - only on first error
-		if p.lexer.num_lines == 0 {
-			build_line_table(p.lexer)
-		}
-		line, col := offset_to_line_col(p.lexer.line_offsets, u32(loc.offset))
-		loc.line = int(line)
-		loc.column = int(col)
-	}
 	err := ParseError{
-		loc     = loc,
+		loc     = LexerLoc(cur_offset(p)),
 		message = message,
 	}
 	bump_append(&p.errors, err)
@@ -1201,7 +1196,7 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 		for !is_token(p, .EOF) && int(cur_offset(p)) == start_offset {
 			if stuck_count == 0 {
 				already_reported := len(p.errors) > 0 &&
-					p.errors[len(p.errors)-1].loc.offset == int(cur_offset(p))
+					p.errors[len(p.errors)-1].loc == LexerLoc(cur_offset(p))
 				// Closing tokens (`)`, `]`) can appear as orphans during error
 				// recovery without being syntax errors in themselves. Only
 				// report for tokens that genuinely cannot appear at statement
@@ -1405,7 +1400,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// entries from p.pending_cover_inits.
 	for off in p.pending_cover_inits {
 		bump_append(&p.errors, ParseError{
-			loc     = LexerLoc{offset = int(off)},
+			loc     = LexerLoc(off),
 			message = "Invalid shorthand property initializer",
 		})
 	}
@@ -1413,7 +1408,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// by expr_to_pattern (i.e., NOT used as a destructuring target).
 	for pair in p.pending_proto_dups {
 		bump_append(&p.errors, ParseError{
-			loc     = LexerLoc{offset = int(pair[1])},
+			loc     = LexerLoc(pair[1]),
 			message = "Redefinition of __proto__ property",
 		})
 	}
@@ -1430,15 +1425,11 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// the Parser; this is the first point after parse where we're sure
 	// the lexer has seen every token.
 	if p.lexer != nil && len(p.lexer.lexer_errors) > 0 {
-		if p.lexer.num_lines == 0 {
-			build_line_table(p.lexer)
-		}
 		for lex_err in p.lexer.lexer_errors {
-			loc := LexerLoc{offset = int(lex_err.offset)}
-			line, col := offset_to_line_col(p.lexer.line_offsets, lex_err.offset)
-			loc.line = int(line)
-			loc.column = int(col)
-			err := ParseError{loc = loc, message = lex_err.message}
+			err := ParseError{
+				loc     = LexerLoc(lex_err.offset),
+				message = lex_err.message,
+			}
 			bump_append(&p.errors, err)
 		}
 	}
@@ -1459,7 +1450,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			ft := p.lexer.cur
 			p.cur_type = ft.kind
 			p.cur_tok.type = ft.kind
-			p.cur_tok.loc.offset = int(ft.start)
+			p.cur_tok.loc = LexerLoc(ft.start)
 			if ft.kind < .LBrace && ft.start < ft.end {
 				p.cur_tok.value = p.lexer.source[ft.start:ft.end]
 			}
@@ -2211,7 +2202,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				ft := p.lexer.cur
 				p.cur_type = ft.kind
 				p.cur_tok.type = ft.kind
-				p.cur_tok.loc.offset = int(ft.start)
+				p.cur_tok.loc = LexerLoc(ft.start)
 				if ft.kind < .LBrace && ft.start < ft.end {
 					p.cur_tok.value = p.lexer.source[ft.start:ft.end]
 				}
@@ -2417,7 +2408,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					kind_str := "of"
 					if is_in { kind_str = "in" }
 					msg := fmt.tprintf("'%s' is already declared in for-%s head", n, kind_str)
-					bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+					bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
 				}
 			}
 		}
@@ -2509,7 +2500,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for n in head_names {
 				if off, have := scope_map_get(&body_vars, n); have {
 					msg := fmt.tprintf("'%s' is already declared in for-loop head", n)
-					bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+					bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
 				}
 			}
 		}
@@ -2995,7 +2986,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 			for n in param_names {
 				if off, have := scope_map_get(&body_lex, n); have {
 					msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
-					bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+					bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
 				}
 			}
 		}
@@ -3665,7 +3656,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 			// Report unexpected token if not already covered by a prior error
 			// at this position (same logic as parse_program_item recovery).
 			already := len(p.errors) > 0 &&
-			           p.errors[len(p.errors)-1].loc.offset == int(cur_offset(p))
+			           p.errors[len(p.errors)-1].loc == LexerLoc(cur_offset(p))
 			is_closer := p.cur_type == .RParen || p.cur_type == .RBracket
 			if !already && !is_closer {
 				msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
@@ -3689,7 +3680,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 			if str_lit == nil { continue }
 			if string_raw_has_forbidden_escape(str_lit.raw) {
 				bump_append(&p.errors, ParseError{
-					loc     = LexerLoc{offset = int(str_lit.loc.span.start)},
+					loc     = LexerLoc(str_lit.loc.span.start),
 					message = "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
 				})
 			}
@@ -6381,7 +6372,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					off := decl_offs[i]
 					if _, exists := scope_map_get(&exported, name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", name)
-						bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+						bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
 					} else {
 						scope_map_set(&exported, name, off)
 					}
@@ -6403,7 +6394,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				if var_name != "" {
 					if _, exists := scope_map_get(&exported, var_name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
-						bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(var_off)}, message = msg})
+						bump_append(&p.errors, ParseError{loc = LexerLoc(var_off), message = msg})
 					} else {
 						scope_map_set(&exported, var_name, var_off)
 					}
@@ -6413,7 +6404,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 		case ^ExportDefaultDeclaration:
 			if v == nil { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
-				bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(v.loc.span.start)}, message = "Duplicate exported name 'default'"})
+				bump_append(&p.errors, ParseError{loc = LexerLoc(v.loc.span.start), message = "Duplicate exported name 'default'"})
 			} else { scope_map_set(&exported, "default", v.loc.span.start) }
 		case ^ExportAllDeclaration:
 			if v == nil { continue }
@@ -6421,7 +6412,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
 				if _, exists := scope_map_get(&exported, ns_name.name); exists {
 					msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
-					bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(ns_name.loc.span.start)}, message = msg})
+					bump_append(&p.errors, ParseError{loc = LexerLoc(ns_name.loc.span.start), message = msg})
 				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.span.start) }
 			}
 		}
@@ -6441,7 +6432,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				if !(local.name in names) {
 					msg := fmt.tprintf("Export '%s' is not defined in the module", local.name)
 					err := ParseError{
-						loc = LexerLoc{offset = int(local.loc.span.start)},
+						loc = LexerLoc(local.loc.span.start),
 						message = msg,
 					}
 					bump_append(&p.errors, err)
@@ -6449,7 +6440,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			case ^StringLiteral:
 				if local != nil {
 					err := ParseError{
-						loc = LexerLoc{offset = int(local.loc.span.start)},
+						loc = LexerLoc(local.loc.span.start),
 						message = "A string literal cannot be used as an exported binding without `from`",
 					}
 					bump_append(&p.errors, err)
@@ -6585,18 +6576,18 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 	case .Lexical:
 		if _, have := scope_map_get(lex, name); have {
 			msg := fmt.tprintf("'%s' has already been declared", name)
-			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
 			return
 		}
 		if _, have := scope_map_get(vars, name); have {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
 		}
 		scope_map_set(lex, name, at)
 	case .Var:
 		if _, have := scope_map_get(lex, name); have {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
 			return
 		}
 		// Repeats of the same var are legal (§13.3.2 - VarDeclaredNames
@@ -6614,7 +6605,7 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 			// in `vars`, it came from let/const/class - clash.
 			if _, vh := scope_map_get(vars, name); !vh {
 				msg := fmt.tprintf("'%s' has already been declared", name)
-				bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+				bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
 			}
 			return
 		}
@@ -6622,7 +6613,7 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 			// var-from-real-var before us. `{ var f; function f(){} }`
 			// in sloppy rejects per Acorn / V8.
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(at)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
 			return
 		}
 		scope_map_set(lex, name, at)
@@ -6920,7 +6911,7 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
 			msg := fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n)
-			bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(off)}, message = msg})
+			bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
 		}
 	}
 }
@@ -7296,7 +7287,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 				if len(pid.name) > 0 && !pn_stack_has(stack, pid.name) {
 					msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
 					bump_append(&p.errors, ParseError{
-						loc = LexerLoc{offset = int(pid.loc.span.start)},
+						loc = LexerLoc(pid.loc.span.start),
 						message = msg,
 					})
 				}
@@ -7312,7 +7303,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 		if len(e.name) > 0 && !pn_stack_has(stack, e.name) {
 			msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", e.name)
 			bump_append(&p.errors, ParseError{
-				loc = LexerLoc{offset = int(e.loc.span.start)},
+				loc = LexerLoc(e.loc.span.start),
 				message = msg,
 			})
 		}
@@ -7330,7 +7321,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 			if len(pid_left.name) > 0 && !pn_stack_has(stack, pid_left.name) {
 				msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid_left.name)
 				bump_append(&p.errors, ParseError{
-					loc = LexerLoc{offset = int(pid_left.loc.span.start)},
+					loc = LexerLoc(pid_left.loc.span.start),
 					message = msg,
 				})
 			}
@@ -7766,7 +7757,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// (module code). `eval` and `arguments` are forbidden.
 	if is_eval_or_arguments(local.name) {
 		msg := fmt.tprintf("'%s' cannot be used as an import binding name", local.name)
-		bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(local.loc.span.start)}, message = msg})
+		bump_append(&p.errors, ParseError{loc = LexerLoc(local.loc.span.start), message = msg})
 	}
 
 	return spec
@@ -8877,7 +8868,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// them here returned permanent 0, then we'd write 0 back into
 		// `id.loc.{line,column}` — four wasted memory ops per identifier on
 		// the hot path. Skip the loads, leave the Loc fields zero-initialised.
-		id_offset := u32(p.cur_tok.loc.offset)
+		id_offset := u32(p.cur_tok.loc)
 		id_value  := p.cur_tok.value
 		eat(p)
 		id, id_e := new_expr(p, Identifier)
@@ -10951,7 +10942,7 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 			ft := p.lexer.cur
 			p.cur_type = ft.kind
 			p.cur_tok.type = ft.kind
-			p.cur_tok.loc.offset = int(ft.start)
+			p.cur_tok.loc = LexerLoc(ft.start)
 			if ft.kind < .LBrace && ft.start < ft.end {
 				p.cur_tok.value = p.lexer.source[ft.start:ft.end]
 			}
@@ -12476,7 +12467,7 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 		for prev in attributes {
 			if prev.key.name == key.name {
 				msg := fmt.tprintf("Duplicate import attribute key '%s'", key.name)
-				bump_append(&p.errors, ParseError{loc = LexerLoc{offset = int(attr_loc.span.start)}, message = msg})
+				bump_append(&p.errors, ParseError{loc = LexerLoc(attr_loc.span.start), message = msg})
 				break
 			}
 		}
@@ -12784,7 +12775,7 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	p.lexer.nxt = lex_token(p.lexer)
 	p.cur_type = p.lexer.cur.kind
 	p.cur_tok.type = p.lexer.cur.kind
-	p.cur_tok.loc.offset = int(p.lexer.cur.start)
+	p.cur_tok.loc = LexerLoc(p.lexer.cur.start)
 	if p.lexer.cur.start < p.lexer.cur.end {
 		p.cur_tok.value = p.lexer.source[p.lexer.cur.start:p.lexer.cur.end]
 	}
@@ -14569,7 +14560,7 @@ cur_offset :: #force_inline proc(p: ^Parser) -> u32 {
 	if p.lexer != nil {
 		return p.lexer.cur.start
 	}
-	return u32(p.cur_tok.loc.offset)
+	return u32(p.cur_tok.loc)
 }
 
 // prev_end_offset returns the end offset of the LAST consumed token. Use this
@@ -14633,13 +14624,13 @@ loc_from_token :: #force_inline proc(t: Token) -> Loc {
 	// we'd write 0 into `Loc.{line,column}` — four wasted memory ops per
 	// `loc_from_token` call (called on every AST node from a current-token
 	// span). Leave the Loc's line / column zero-initialised.
-	end := u32(t.loc.offset + len(t.value))
-	if t.raw_end != 0 && t.raw_end > u32(t.loc.offset) {
+	end := u32(int(t.loc) + len(t.value))
+	if t.raw_end != 0 && t.raw_end > u32(t.loc) {
 		end = t.raw_end
 	}
 	return Loc{
 		span   = Span{
-			start = u32(t.loc.offset),
+			start = u32(t.loc),
 			end   = end,
 		},
 	}

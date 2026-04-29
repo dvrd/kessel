@@ -190,12 +190,20 @@ LiteralValue :: union {
 	},
 }
 
-// Source location
-LexerLoc :: struct {
-	offset: int,
-	line:   int,
-	column: int,
-}
+// Source location — byte offset only.
+//
+// Earlier revisions wrapped this in a struct alongside `line` and
+// `column`, but the lexer never writes the latter two and the parser
+// only ever read 0. Line / column are computed lazily from `offset`
+// in the error path (`report_error` / the printer in main.odin) via
+// `offset_to_line_col`. With those gone, the wrapper struct buys
+// nothing — collapsed to `distinct int` so callers still pass it
+// nominally (no random integers leaking into Token / ParseError) but
+// it occupies one machine word, not three.
+//
+// Net: `LexerLoc` shrank from 24 → 8 bytes; every `current := p.cur_tok`
+// snapshot and every cross-function Token copy got 16 bytes lighter.
+LexerLoc :: distinct int
 
 // IsAssignmentOperator checks if token is an assignment operator
 is_assignment_operator :: proc(t: TokenType) -> bool {

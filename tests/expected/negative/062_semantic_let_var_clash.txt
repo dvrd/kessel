@@ -94,8 +94,8 @@
   ]
 }
 Parse errors (1):
-  Line 0, Column 0: Identifier 'x' has already been declared
+  Line 9, Column 1: Identifier 'x' has already been declared
 
 --- Statistics ---
-Arena: used=11392B reserved=16777216B ratio=0%
+Arena: used=37488B reserved=16777216B ratio=0%
 Parse errors: 1
