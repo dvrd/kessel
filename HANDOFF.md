@@ -304,37 +304,46 @@ entirely (trivial array writes, no pointer-rewrite logic).
 * ~~Tier 2 D pre-allocate maxes~~ — partly shipped in S23 cap-bumps
 * ~~Tier 2 E per-letter handlers~~ — refuted in S24, both variants.
 * **`parse_binding_pattern` enum-only check (S24 the-big-one)** —
-  shipped in `cc72af8`. The pattern is repeatable on similar
-  predicates. Specific candidates with the same shape:
-  * The 7 OTHER call sites of `is_always_reserved_word_name`
-    (3766, 5746, 5882, 5919, 10251, 10504, 10637) — most are gated
-    by `has_escape` (live) but 5882 / 5919 / 10504 are object-pattern
-    and shorthand sites that COULD be optimised similarly. Each is
-    less hot than parse_binding_pattern's site, so the win is
-    smaller, but the pattern is the same.
-  * `parse_class_element` keyword-string switches (4 cases at
-    4077–4089) — TS class member modifiers (public / private /
-    protected / readonly).
-  * `parse_ts_identifier_type` (11 cases at 13296+) — TS built-in
-    type keyword dispatch. Hot in TS code.
-  * `parse_function_param` modifier loop (4 cases at 3480+) — same
-    TS modifier shape.
+  shipped in `cc72af8`. The pattern repeats only on switches with
+  hot call sites + clear staticness arguments.
+* ~~Six smaller dead-state candidates~~ — audited end-of-S24 with
+  full discipline (build / conformance / SHA / 3–4-run bench each).
+  All correctness-safe; **none measurable**. Reverted. See
+  `docs/perf-session-24.md` post-mortem.
+  * Eliminate `p.cur_tok.type` writes (uncovered 5 hidden
+    direct-snapshot bugs first; even after fixing them, no win).
+  * Audit other 7 sites of `is_always_reserved_word_name`.
+  * Drop `tok.value` from `peek_token`.
+  * Table-ize `parse_ts_identifier_type`'s 11-way switch.
+  * First-byte-gate `parse_class_element` modifier switch.
+  * Combined `is_strict_reserved_*` predicate.
 * **Tier 1 C (ParseList)** — still on the table. After S24's wins the
   predicted ROI shrank to ~0.3 ms; validate with AB before committing.
 * **Tier 3 F (SoA migration)** — 4–5 weeks, ~3–4 % wall. Validated.
-  Now that kessel beats OXC on geo-mean, this is no longer a parity
-  play; it's a "how much further can we go" play.
+  Only remaining lever predicted to deliver >1 pp. Now a "how much
+  further can we go" play, not a parity play.
 * **Tier 1 B (mmap source)** — 1 day, real-world only.
 * **Tier 4 J (vm_deallocate)** — 1 hour, real-world only.
 
-Lesson from S24: **the profile-guided line-by-line pattern is the
-richest source of wins.** Predicted architectural levers (per-letter
-handlers, SoA AST) are increasingly unreliable as the codebase
-matures — the compiler has already optimised what it can. The
-remaining wins are hidden in the gap between what the profile shows
-and what the code _actually_ does — dead reads, vestigial fields,
-switches the lexer's behaviour has rendered nearly-dead. Look there
-first.
+Lessons from S24:
+
+1. **The profile-guided line-by-line pattern is the richest source
+   of wins** — but it has a sharp threshold. It pays handsomely on a
+   36-way switch over a hot path where 35 cases are unreachable; it
+   pays nothing measurable on smaller switches or on writes the
+   compiler can already elide.
+2. **Future audits should require BOTH** (a) a hot call site (>1 %
+   of profile) AND (b) a clear staticness argument that >50 % of the
+   work is unreachable.
+3. **Predicted architectural levers (per-letter handlers, SoA AST)
+   are increasingly unreliable** as the codebase matures — the
+   compiler has already optimised what it can.
+4. **The remaining wins are hidden in the gap between what the
+   profile shows and what the code actually does** — dead reads,
+   vestigial fields, switches the lexer's behaviour has rendered
+   nearly-dead. Look there first, but bring discipline (build /
+   conformance / SHA / multi-run bench) and revert anything that
+   doesn't clear noise.
 
 ---
 

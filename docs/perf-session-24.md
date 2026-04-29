@@ -345,3 +345,63 @@ For the next agent: the same pattern is likely repeatable in
 parsers, all of which carry similar string-switch / dead-state
 structure. The lex side is genuinely done; the parser side has more
 to give.
+
+## Post-mortem on the "smaller opportunities" list
+
+After the wins above, I drafted a list of six smaller candidates that
+looked like they might extend the methodology further:
+
+1. Eliminate redundant `p.cur_tok.type = ft.kind` writes (7 sites).
+2. Audit the 7 OTHER call sites of `is_always_reserved_word_name`.
+3. Drop `tok.value` from `peek_token` (only 1 of 26 callers reads it).
+4. Table-ize `parse_ts_identifier_type`'s 11-way string switch with a
+   first-byte gate.
+5. First-byte gate `parse_class_element`'s 4-case modifier switch.
+6. Replace the `is_strict_reserved_word \|\| is_strict_reserved_name`
+   OR-chain with a kind-gated single check.
+
+All six were implemented, validated for correctness (every conformance
+gate green, monaco output bit-for-bit identical), and benchmarked
+with 3–4 fresh runs each. **None produced a measurable win.** All six
+were reverted.
+
+What we learned by negating each one:
+
+* **Item 1** uncovered five hidden `current := p.cur_tok` direct
+  snapshots in parse_unary_expr (lines 8614 / 8675 / 8773 / 8803 /
+  8922) that bypass `get_current()`. The first attempt failed
+  conformance with 472 estree mismatches — a `++` token came back as
+  `--` because `current.type` was stale. After fixing those sites to
+  go through `get_current()`, the change was correct, but the
+  per-token store elision was already absorbed by the compiler / store
+  ports. No measurable bench delta.
+* **Item 3** confirmed that all 26 callers of peek_token only read
+  `.type` and `.had_line_terminator`; only one (`new.target`) reads
+  `.value`. Cutting the `.value` slice copy was correctness-safe, but
+  again no bench delta — SROA + the small absolute call count made it
+  invisible.
+* **Items 4 / 5 / 6** all involved smaller-than-36 switches. Each was
+  too small for the binding-pattern argument to repeat: when a switch
+  has 4–11 cases, the compiler's first-byte branching already keeps
+  it cheap, and the call frequency isn't large enough for the residual
+  savings to escape run-to-run noise.
+
+The **disciplined process itself was the right one** — build,
+conformance, SHA verify, multi-run bench, decide — and saved us from
+shipping six unmotivated diffs. But the conclusion is concrete:
+
+> The dead-state pruning methodology has a sharp threshold. It pays
+> handsomely on a 36-way switch over a hot path where 35 of the cases
+> are unreachable; it pays nothing measurable on smaller switches or
+> on writes the compiler can already elide. Future audits should
+> require BOTH (a) a hot call site (>1 % of profile) AND (b) a clear
+> staticness argument that >50 % of the work is unreachable.
+
+With that threshold, the realistic next-session candidates shrink:
+
+* **Tier 3 F (SoA AST)** — only remaining lever predicted to deliver
+  >1 pp. ~5 weeks; predicted 3–4 % wall.
+* **Specific function rewrites** (Pratt loop in parse_expr_with_prec,
+  parse_class_element decorator path) — require more invasive change
+  than dead-state pruning.
+* **Real-world-only** (mmap, vm_deallocate) — won't show in bench.
