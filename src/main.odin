@@ -536,6 +536,15 @@ out_printf :: proc(format: string, args: ..any) -> int {
 }
 
 main :: proc() {
+	// Apple Silicon scheduler biases threads to P-cores or E-cores by
+	// QoS class. CLI tools default to QOS_CLASS_DEFAULT, which can land
+	// on E-cores under load. Pin to USER_INTERACTIVE (the foreground-UI
+	// tier) so the parser stays on P-cores. No-op on non-Darwin.
+	//
+	// Set BEFORE any benchmark timing or production parsing so the
+	// scheduler hint applies to all subsequent work in this process.
+	pin_to_p_core()
+
 	if len(os.args) < 2 {
 		print_usage()
 		flush_stdout_writer()
