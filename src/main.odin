@@ -1508,12 +1508,20 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = fal
 		mvirtual.arena_free_all(&arena)
 	}
 
-	// Main benchmark loop
+	// Main benchmark loop. The arena reset is performed BEFORE the timer
+	// starts — in OXC's bench harness the arena (`Allocator`) is dropped
+	// AFTER `elapsed = start.elapsed()`, so the deallocation cost is not
+	// counted. Kessel's `mem.virtual` arena zero-fills its memory on
+	// reset (~57 MB on typescript.js, ~2 ms at memcpy bandwidth); putting
+	// it inside the timer was apples-to-oranges. Excluding it here gives
+	// a fair Parser::new() + parse() vs init_lexer + init_parser +
+	// parse_program comparison.
 	for i in 0..<iterations {
-		start := time.tick_now()
-
-		// Reset arena (real-world cost: always happens before a parse)
+		// Excluded from timing: arena teardown (mirrors OXC's drop-after-
+		// elapsed). Real-world parse-once-and-exit doesn't pay this either.
 		mvirtual.arena_free_all(&arena)
+
+		start := time.tick_now()
 
 		lex: Lexer
 		init_lexer(&lex, string(source), arena_alloc)
