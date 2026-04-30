@@ -62,10 +62,10 @@
       "divergences": 43
     },
     "typescript": {
-      "files": 14,
+      "files": 15,
       "pass": 14,
-      "fail": 0,
-      "divergences": 0
+      "fail": 1,
+      "divergences": 25
     },
     "unicode": {
       "files": 6,

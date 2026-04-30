@@ -302,6 +302,33 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 	case ^MetaProperty:
 		rewrite_string(&v.meta.name, source_base)
 		rewrite_string(&v.property.name, source_base)
+	// ChainExpression (S26 W3). Wraps a ^Expression that's a Member or
+	// Call expression with `optional: true`. Sibling latent gap: the JSON
+	// path emits these correctly, but the binary path's switch fell
+	// through to the default and left the inner pointer un-rewritten on
+	// every optional-chain (`a?.b`, `a?.()`).
+	case ^ChainExpression:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+	// JSX expression variants (S26 W3). Each one is the entry point for
+	// either a JSX subtree (Element/Fragment) or a leaf-level child
+	// (Text/ExpressionContainer/EmptyExpression/SpreadChild). The JSX
+	// walker section below mirrors the TSType walker pattern: bottom-up
+	// helpers, dispatch from this position. Before this commit, the four
+	// most common React-shaped expressions silently left their inner
+	// pointers un-rewritten in the binary buffer.
+	case ^JSXElement:
+		rewrite_jsx_element(v, base, source_base)
+	case ^JSXFragment:
+		rewrite_jsx_fragment(v, base, source_base)
+	case ^JSXText:
+		rewrite_string(&v.value, source_base)
+		rewrite_string(&v.raw, source_base)
+	case ^JSXExpressionContainer:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+	case ^JSXEmptyExpression:
+		// no pointer fields beyond loc
+	case ^JSXSpreadChild:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
 	// TS expression variants (S26 W2-alt). Same partial-switch position as
 	// the JS variants; reach into the TSType walker for type-annotation
 	// slots. Without these, TS-bearing expressions in the binary buffer
@@ -323,7 +350,10 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 		// skipped here, leaving the inner expression's pointer unrewritten.
 		rewrite_expr_field(v.expression, &v.expression, base, source_base)
 	case:
-		// Unknown / not-yet-wired (e.g. JSX, TODO(s26-w3)) — skip.
+		// Unknown / not-yet-wired — skip. As of S26 W3 every Expression
+		// union variant has an explicit case above; this default exists
+		// only as a forward-compat catch-all for new variants added to
+		// src/ast.odin's `Expression :: union { ... }` declaration.
 	}
 }
 
@@ -440,6 +470,28 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 		rewrite_ptr((^rawptr)(&v.declaration), base)
 	case ^ExportAllDeclaration:
 		// string fields in source
+	// TS Statement variants (S26 W3). Same partial-switch position as the
+	// JS variants; reach into the TSType walker for type-annotation slots
+	// and into the JS expr/stmt walkers for the embedded id / module-body
+	// surfaces. Without these, every TS-typed top-level construct
+	// (interface / type / enum / namespace) leaves its inner pointers
+	// un-rewritten in the binary buffer, so a downstream consumer reading
+	// `id.name`, `extends[i].expression`, enum members, or a nested
+	// namespace body hits absolute arena addresses outside the buffer.
+	case ^TSInterfaceDeclaration:
+		rewrite_string(&v.id.name, source_base)
+		rewrite_maybe_ts_type_parameter_declaration(&v.type_parameters, base, source_base)
+		rewrite_ts_interface_heritage_array(&v.extends, base, source_base)
+		rewrite_ts_signature_array(&v.body.body, base, source_base)
+	case ^TSTypeAliasDeclaration:
+		rewrite_string(&v.id.name, source_base)
+		rewrite_maybe_ts_type_parameter_declaration(&v.type_parameters, base, source_base)
+		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
+	case ^TSEnumDeclaration:
+		rewrite_string(&v.id.name, source_base)
+		rewrite_ts_enum_body(&v.body, base, source_base)
+	case ^TSModuleDeclaration:
+		rewrite_ts_module_declaration(v, base, source_base)
 	case:
 		// Unknown statement type
 	}
@@ -596,9 +648,9 @@ rewrite_arrow_function :: proc(f: ^ArrowFunctionExpression, base: uintptr, sourc
 // TSInterfaceHeritage), and field-level wrappers mirror the JS-side
 // rewrite_expr_field / rewrite_maybe_expr conventions.
 //
-// Out of scope (W3+): TS Statement variants (TSInterfaceDeclaration,
-// TSTypeAliasDeclaration, TSEnumDeclaration, TSModuleDeclaration), JSX
-// variants. They will reuse this same TSType walker once wired.
+// Used by both W2-alt (class/function/identifier slots, TS-bearing
+// Expression variants) and W3 (TSInterfaceDeclaration /
+// TSTypeAliasDeclaration top-level slots that point into the type tree).
 // =============================================================================
 
 rewrite_ts_type_field :: #force_inline proc(t: ^TSType, field_addr: rawptr, base: uintptr, source_base: uintptr) {
@@ -832,6 +884,218 @@ rewrite_ts_type :: proc(t: ^TSType, base: uintptr, source_base: uintptr) {
 		rewrite_maybe_expr(&v.qualifier, base, source_base)
 		rewrite_maybe_ts_type_parameter_instantiation(&v.type_parameters, base, source_base)
 	}
+}
+
+// =============================================================================
+// TS Statement helpers (S26 W3)
+//
+// `rewrite_statement` now dispatches into TSInterfaceDeclaration /
+// TSTypeAliasDeclaration / TSEnumDeclaration / TSModuleDeclaration. The
+// interface / type-alias paths reuse the existing TSType walker directly;
+// the enum and module paths need their own helpers because TSEnumBody /
+// TSModuleBody hold member structs that aren't reachable from any other
+// surface.
+// =============================================================================
+
+rewrite_ts_enum_body :: proc(b: ^TSEnumBody, base: uintptr, source_base: uintptr) {
+	for i in 0..<len(b.members) {
+		m := &b.members[i]
+		rewrite_expr_field(m.id, &m.id, base, source_base)
+		rewrite_maybe_expr(&m.initializer, base, source_base)
+	}
+	rewrite_dynamic_header(&b.members, base, len(b.members))
+}
+
+// TSModuleDeclaration walker, factored out because the body field can
+// recursively hold another TSModuleDeclaration (`namespace A.B.C {}`
+// desugars to a chain of nested module declarations) and we want a
+// single entry point for both the top-level and recursive cases.
+rewrite_ts_module_declaration :: proc(m: ^TSModuleDeclaration, base: uintptr, source_base: uintptr) {
+	rewrite_expr_field(m.id, &m.id, base, source_base)
+	rewrite_maybe_ts_module_body(&m.body, base, source_base)
+}
+
+// TSModuleBody is `union { ^TSModuleBlock, ^TSModuleDeclaration }` —
+// pointer variants only, same shape as Expression / Statement at the
+// memory level (`{inner_ptr: 8, tag: 1, pad: 7}`). Walk the inner
+// struct, then collapse the union ptr.
+rewrite_ts_module_body :: proc(b: ^TSModuleBody, base: uintptr, source_base: uintptr) {
+	if b == nil { return }
+	#partial switch v in b^ {
+	case ^TSModuleBlock:
+		rewrite_statement_array(&v.body, base, source_base)
+	case ^TSModuleDeclaration:
+		rewrite_ts_module_declaration(v, base, source_base)
+	}
+}
+
+rewrite_maybe_ts_module_body :: #force_inline proc(field: ^Maybe(^TSModuleBody), base: uintptr, source_base: uintptr) {
+	if b, ok := field.?; ok {
+		rewrite_ts_module_body(b, base, source_base)
+		rewrite_union_ptr(b, base)
+		rewrite_ptr((^rawptr)(field), base)
+	}
+}
+
+// =============================================================================
+// JSX walker (S26 W3)
+//
+// Walks every JSX-typed slot reachable from the JSX expression-union
+// variants (JSXElement, JSXFragment, JSXText, JSXExpressionContainer,
+// JSXEmptyExpression, JSXSpreadChild). Built bottom-up: leaf helpers
+// (rewrite_jsx_identifier, rewrite_jsx_member_expression,
+// rewrite_jsx_namespaced_name) feed the union helpers (rewrite_jsx_*_name
+// for the three name-shaped unions; rewrite_jsx_attribute_item for the
+// attribute union; rewrite_jsx_child for the child union), and the
+// public entry points rewrite_jsx_element / rewrite_jsx_fragment are
+// dispatched from rewrite_expression's switch above.
+//
+// The JSX-side unions are a mix of value-typed variants (JSXIdentifier
+// inside JSXElementName / JSXMemberObject / JSXAttributeName, JSXAttribute
+// inside JSXAttributeItem) and pointer-typed variants. Value-typed
+// variants are walked in place via a `(^T)(union_addr)` overlay, mirroring
+// the rewrite_ts_signature pattern; pointer-typed variants follow the
+// rewrite_union_ptr + rewrite_ptr pattern used by rewrite_expr_field.
+// =============================================================================
+
+rewrite_jsx_identifier :: #force_inline proc(id: ^JSXIdentifier, source_base: uintptr) {
+	rewrite_string(&id.name, source_base)
+}
+
+// JSXMemberObject :: union { JSXIdentifier (value), ^JSXMemberExpression }.
+// The union value lives at the supplied address; on tag 0 the JSXIdentifier
+// is overlaid in place, on tag 1 the inner ^JSXMemberExpression is walked
+// and its slot collapsed.
+rewrite_jsx_member_object :: proc(obj: ^JSXMemberObject, base: uintptr, source_base: uintptr) {
+	#partial switch v in obj^ {
+	case JSXIdentifier:
+		rewrite_jsx_identifier((^JSXIdentifier)(obj), source_base)
+	case ^JSXMemberExpression:
+		rewrite_jsx_member_expression(v, base, source_base)
+		rewrite_union_ptr(obj, base)
+	}
+}
+
+rewrite_jsx_member_expression :: proc(m: ^JSXMemberExpression, base: uintptr, source_base: uintptr) {
+	if m == nil { return }
+	rewrite_jsx_member_object(&m.object, base, source_base)
+	rewrite_jsx_identifier(&m.property, source_base)
+}
+
+rewrite_jsx_namespaced_name :: proc(n: ^JSXNamespacedName, source_base: uintptr) {
+	if n == nil { return }
+	rewrite_jsx_identifier(&n.namespace, source_base)
+	rewrite_jsx_identifier(&n.name, source_base)
+}
+
+// JSXElementName :: union { JSXIdentifier (value), ^JSXMemberExpression,
+// ^JSXNamespacedName }. Used by JSXOpeningElement.name and
+// JSXClosingElement.name.
+rewrite_jsx_element_name :: proc(n: ^JSXElementName, base: uintptr, source_base: uintptr) {
+	#partial switch v in n^ {
+	case JSXIdentifier:
+		rewrite_jsx_identifier((^JSXIdentifier)(n), source_base)
+	case ^JSXMemberExpression:
+		rewrite_jsx_member_expression(v, base, source_base)
+		rewrite_union_ptr(n, base)
+	case ^JSXNamespacedName:
+		rewrite_jsx_namespaced_name(v, source_base)
+		rewrite_union_ptr(n, base)
+	}
+}
+
+// JSXAttributeName :: union { JSXIdentifier (value), ^JSXNamespacedName }.
+rewrite_jsx_attribute_name :: proc(n: ^JSXAttributeName, base: uintptr, source_base: uintptr) {
+	#partial switch v in n^ {
+	case JSXIdentifier:
+		rewrite_jsx_identifier((^JSXIdentifier)(n), source_base)
+	case ^JSXNamespacedName:
+		rewrite_jsx_namespaced_name(v, source_base)
+		rewrite_union_ptr(n, base)
+	}
+}
+
+// JSXAttributeItem :: union { JSXAttribute (value), ^JSXSpreadAttribute }.
+// Stored inline in the [dynamic]JSXAttributeItem array — the union value
+// lives directly in the array slot.
+rewrite_jsx_attribute_item :: proc(it: ^JSXAttributeItem, base: uintptr, source_base: uintptr) {
+	#partial switch v in it^ {
+	case JSXAttribute:
+		a := (^JSXAttribute)(it)
+		rewrite_jsx_attribute_name(&a.name, base, source_base)
+		rewrite_maybe_expr(&a.value, base, source_base)
+	case ^JSXSpreadAttribute:
+		rewrite_expr_field(v.argument, &v.argument, base, source_base)
+		rewrite_union_ptr(it, base)
+	}
+}
+
+rewrite_jsx_attribute_array :: proc(arr: ^[dynamic]JSXAttributeItem, base: uintptr, source_base: uintptr) {
+	for i in 0..<len(arr) {
+		rewrite_jsx_attribute_item(&arr[i], base, source_base)
+	}
+	rewrite_dynamic_header(arr, base, len(arr))
+}
+
+// JSXChild :: union { ^JSXElement, ^JSXFragment, ^JSXText,
+// ^JSXExpressionContainer, ^JSXSpreadChild } — all-pointer variants. Same
+// memory shape as Expression / Statement; walk the inner struct, then
+// collapse the slot's inner ptr via rewrite_union_ptr.
+rewrite_jsx_child :: proc(c: ^JSXChild, base: uintptr, source_base: uintptr) {
+	#partial switch v in c^ {
+	case ^JSXElement:
+		rewrite_jsx_element(v, base, source_base)
+		rewrite_union_ptr(c, base)
+	case ^JSXFragment:
+		rewrite_jsx_fragment(v, base, source_base)
+		rewrite_union_ptr(c, base)
+	case ^JSXText:
+		rewrite_string(&v.value, source_base)
+		rewrite_string(&v.raw, source_base)
+		rewrite_union_ptr(c, base)
+	case ^JSXExpressionContainer:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+		rewrite_union_ptr(c, base)
+	case ^JSXSpreadChild:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+		rewrite_union_ptr(c, base)
+	}
+}
+
+rewrite_jsx_child_array :: proc(arr: ^[dynamic]JSXChild, base: uintptr, source_base: uintptr) {
+	for i in 0..<len(arr) {
+		rewrite_jsx_child(&arr[i], base, source_base)
+	}
+	rewrite_dynamic_header(arr, base, len(arr))
+}
+
+rewrite_jsx_opening_element :: proc(o: ^JSXOpeningElement, base: uintptr, source_base: uintptr) {
+	if o == nil { return }
+	rewrite_jsx_element_name(&o.name, base, source_base)
+	rewrite_jsx_attribute_array(&o.attributes, base, source_base)
+}
+
+rewrite_jsx_closing_element :: proc(c: ^JSXClosingElement, base: uintptr, source_base: uintptr) {
+	if c == nil { return }
+	rewrite_jsx_element_name(&c.name, base, source_base)
+}
+
+rewrite_jsx_element :: proc(e: ^JSXElement, base: uintptr, source_base: uintptr) {
+	if e == nil { return }
+	rewrite_jsx_opening_element(e.opening_element, base, source_base)
+	rewrite_ptr((^rawptr)(&e.opening_element), base)
+	rewrite_jsx_child_array(&e.children, base, source_base)
+	if ce, ok := e.closing_element.?; ok {
+		rewrite_jsx_closing_element(ce, base, source_base)
+		rewrite_ptr((^rawptr)(&e.closing_element), base)
+	}
+}
+
+rewrite_jsx_fragment :: proc(f: ^JSXFragment, base: uintptr, source_base: uintptr) {
+	if f == nil { return }
+	// opening_fragment / closing_fragment are inline value structs holding
+	// only `loc` — nothing to rewrite. Walk children only.
+	rewrite_jsx_child_array(&f.children, base, source_base)
 }
 
 // Walk a [dynamic]Decorator slot. Each Decorator is `{loc, expression: ^Expression}`;

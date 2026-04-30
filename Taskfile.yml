@@ -161,6 +161,17 @@ tasks:
       # walker. Red before the fix, green after; tested via the curated
       # 002_generic_class.js + 013_class_implements.js fixtures.
       - node tests/verifiers/verify_class_typescript.js
+      # TS-statement / JSX binary-buffer gate (S26 W3). Walks every TS
+      # statement variant (TSInterfaceDeclaration / TSTypeAliasDeclaration
+      # / TSEnumDeclaration / TSModuleDeclaration) and the JSX expression
+      # variants (JSXElement / JSXFragment / JSXText /
+      # JSXExpressionContainer / JSXEmptyExpression / JSXSpreadChild) plus
+      # ChainExpression. Before W3 these all hit `case:` defaults in
+      # rewrite_statement / rewrite_expression and left their inner
+      # pointers as bare arena addresses. Red before the fix, green after;
+      # tested via 011_interface_extends.js + 012_const_enum.js +
+      # 015_namespace_module.js + spec/jsx/005_nested_element.js.
+      - node tests/verifiers/verify_ts_statements_jsx.js
 
   test:estree:strict:
     desc: Zero-tolerance ESTree drift gate — every real-world integration walk must match OXC byte-for-byte.
@@ -178,6 +189,7 @@ tasks:
       - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser oxc
       - node tests/verifiers/verify_class_decorators.js
       - node tests/verifiers/verify_class_typescript.js
+      - node tests/verifiers/verify_ts_statements_jsx.js
 
   test:integration:update:
     desc: Re-capture tests/baselines/integration_baseline.json for every file the estree gate walks through verify_integration.
