@@ -110,9 +110,14 @@ function discoverTypescript() {
     catch { out.push({ suite:'typescript', abs, rel, lang:'', expected:'unknown', skipReason:'read-error' }); return; }
 
     // Multi-file projects: TSC's "@filename:" directive packs multiple
-    // virtual files into one fixture. OXC's tasks/coverage/typescript/meta.rs
-    // splits these into TestUnitData[]; we don't, so skip when ≥ 2.
-    const filenameDirectives = (source.match(/^\/\/\s*@filename:/gm) || []).length;
+    // virtual files into one fixture. Both `@filename:` and `@Filename:`
+    // (capital F) appear in the corpus — case-insensitive match is required.
+    // Without /i, ~2,100 multi-file fixtures with `@Filename:` were silently
+    // parsed as one big concatenated source and produced fake kessel-only-
+    // rejects (the parser correctly errored on the glommed content).
+    // OXC's tasks/coverage/typescript/meta.rs splits these into TestUnitData[];
+    // we don't, so skip when ≥ 2.
+    const filenameDirectives = (source.match(/^\/\/\s*@filename:/gmi) || []).length;
     if (filenameDirectives >= 2) {
       out.push({ suite:'typescript', abs, rel, lang:'', expected:'unknown', skipReason:'multi-file' });
       return;
@@ -120,9 +125,9 @@ function discoverTypescript() {
 
     // Dialect: `.tsx` → tsx, `.ts` → ts. The single-`@filename:` case may
     // override the on-disk extension (e.g. `.ts` file marked as `file.tsx`),
-    // so honour it.
+    // so honour it. Case-insensitive for the same reason as above.
     let lang = ext === '.tsx' ? 'tsx' : 'ts';
-    const single = source.match(/^\/\/\s*@filename:\s*(\S+)/m);
+    const single = source.match(/^\/\/\s*@filename:\s*(\S+)/mi);
     if (single) {
       const dirExt = path.extname(single[1]).toLowerCase();
       if (dirExt === '.tsx') lang = 'tsx';
