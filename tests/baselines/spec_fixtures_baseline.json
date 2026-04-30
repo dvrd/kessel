@@ -80,9 +80,9 @@
     "total": 10
   },
   "jsx": {
-    "pass": 8,
+    "pass": 10,
     "fail": 0,
-    "total": 8
+    "total": 10
   },
   "lexical": {
     "pass": 10,
@@ -93,6 +93,11 @@
     "pass": 12,
     "fail": 0,
     "total": 12
+  },
+  "tsx": {
+    "pass": 2,
+    "fail": 0,
+    "total": 2
   },
   "typescript": {
     "pass": 14,

@@ -8,6 +8,7 @@
     "jsx",
     "lexical",
     "regex_disambiguation",
+    "tsx",
     "typescript",
     "unicode"
   ],
@@ -37,8 +38,8 @@
       "divergences": 0
     },
     "jsx": {
-      "files": 8,
-      "pass": 8,
+      "files": 10,
+      "pass": 10,
       "fail": 0,
       "divergences": 0
     },
@@ -53,6 +54,12 @@
       "pass": 12,
       "fail": 0,
       "divergences": 0
+    },
+    "tsx": {
+      "files": 2,
+      "pass": 0,
+      "fail": 2,
+      "divergences": 43
     },
     "typescript": {
       "files": 14,

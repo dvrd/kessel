@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-04-28T09:10:31.213Z",
+  "generated_at": "2026-04-30T06:52:12.014Z",
   "summary": {
-    "total": 18,
-    "pass": 18,
+    "total": 22,
+    "pass": 22,
     "fail": 0,
     "skip": 0
   },
@@ -43,6 +43,26 @@
       "timeout_ms": null
     },
     "tests/fixtures/spec/jsx/008_comment_child.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/009_function_component_with_hooks.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/jsx/010_form_with_controlled_inputs.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/tsx/001_generic_component.js": {
+      "status": "pass",
+      "errors": 0,
+      "timeout_ms": null
+    },
+    "tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js": {
       "status": "pass",
       "errors": 0,
       "timeout_ms": null

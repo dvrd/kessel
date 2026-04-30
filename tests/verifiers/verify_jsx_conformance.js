@@ -6,10 +6,13 @@
 // shape as verify_ts_conformance.js — see that file for the rationale,
 // baseline format, and regression-classification rules.
 //
-// Corpus = two sources:
+// Corpus = three sources:
 //   1. tests/fixtures/spec/jsx/*.js          (curated JSX fixtures —
 //      .js extension, parsed with --lang=jsx).
-//   2. tests/fixtures/jsx_conformance_corpus.json (manifest of vendored
+//   2. tests/fixtures/spec/tsx/*.js          (curated TSX fixtures —
+//      .js extension, parsed with --lang=tsx). Added in S26 W2 to give
+//      TSX a first-class category beyond the ambiguity edge cases.
+//   3. tests/fixtures/jsx_conformance_corpus.json (manifest of vendored
 //      real-world JSX/TSX files; opt-in to keep the gate predictable).
 //
 // Baseline lives at `tests/baselines/jsx_conformance_baseline.json`.
@@ -80,6 +83,13 @@ function discoverCorpus() {
   const jsxDir = path.join(ROOT, 'tests/fixtures/spec/jsx');
   for (const abs of walkDir(jsxDir, ['.js'])) {
     fixtures.push({ abs, rel: path.relative(ROOT, abs), lang: 'jsx' });
+  }
+  // S26 W2: spec/tsx/ — same shape as spec/jsx/ but parsed with --lang=tsx.
+  // Catches TSX-only patterns (generics on components, as-casts inside JSX
+  // children, ref typing, polymorphic `as=` props) that --lang=jsx rejects.
+  const tsxDir = path.join(ROOT, 'tests/fixtures/spec/tsx');
+  for (const abs of walkDir(tsxDir, ['.js'])) {
+    fixtures.push({ abs, rel: path.relative(ROOT, abs), lang: 'tsx' });
   }
   // Ambiguity fixtures: each has its own intended mode; covered here for
   // wide regression detection across JSX / TS / JS-relational boundary cases.

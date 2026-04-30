@@ -38,6 +38,9 @@ const DEFAULT_FAMILIES = [
   'jsx',
   'lexical',
   'regex_disambiguation',
+  // S26 W2: spec/tsx/ — first-class TSX category for generics-on-components,
+  // as-casts in JSX children, polymorphic `as=` props, ref typing.
+  'tsx',
   'typescript',
   'unicode',
 ];

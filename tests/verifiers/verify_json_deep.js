@@ -60,6 +60,8 @@ const source = fs.readFileSync(file, 'utf8');
 //     in the bucket is plain JS.
 function detectDialect(p) {
   if (p.includes('/spec/jsx/'))        return 'jsx';
+  // S26 W2 — first-class TSX category, parsed with --lang=tsx.
+  if (p.includes('/spec/tsx/'))        return 'tsx';
   if (p.includes('/spec/typescript/')) return 'ts';
   if (p.includes('/spec/ambiguity/'))  return 'tsx';
   if (p.includes('/spec/interactions/')) {

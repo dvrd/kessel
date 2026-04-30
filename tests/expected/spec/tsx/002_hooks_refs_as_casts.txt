@@ -1,0 +1,1694 @@
+{
+  "type": "Program",
+  "start": 788,
+  "end": 2180,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 788,
+      "end": 898,
+      "id": {
+        "type": "Identifier",
+        "start": 793,
+        "end": 799,
+        "name": "Action",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSUnionType",
+        "start": 804,
+        "end": 897,
+        "types": [
+          {
+            "type": "TSTypeLiteral",
+            "start": 806,
+            "end": 836,
+            "members": [
+              {
+                "type": "TSPropertySignature",
+                "start": 808,
+                "end": 819,
+                "key": {
+                  "type": "Identifier",
+                  "start": 808,
+                  "end": 812,
+                  "name": "type",
+                  "typeAnnotation": null
+                },
+                "computed": false,
+                "optional": false,
+                "readonly": false,
+                "typeAnnotation": {
+                  "type": "TSTypeAnnotation",
+                  "start": 812,
+                  "end": 819,
+                  "typeAnnotation": {
+                    "type": "TSLiteralType",
+                    "start": 814,
+                    "end": 819,
+                    "literal": {
+                      "type": "Literal",
+                      "start": 814,
+                      "end": 819,
+                      "value": "set",
+                      "raw": "\"set\""
+                    }
+                  }
+                }
+              },
+              {
+                "type": "TSPropertySignature",
+                "start": 821,
+                "end": 834,
+                "key": {
+                  "type": "Identifier",
+                  "start": 821,
+                  "end": 826,
+                  "name": "value",
+                  "typeAnnotation": null
+                },
+                "computed": false,
+                "optional": false,
+                "readonly": false,
+                "typeAnnotation": {
+                  "type": "TSTypeAnnotation",
+                  "start": 826,
+                  "end": 834,
+                  "typeAnnotation": {
+                    "type": "TSStringKeyword",
+                    "start": 828,
+                    "end": 834
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "TSTypeLiteral",
+            "start": 841,
+            "end": 858,
+            "members": [
+              {
+                "type": "TSPropertySignature",
+                "start": 843,
+                "end": 856,
+                "key": {
+                  "type": "Identifier",
+                  "start": 843,
+                  "end": 847,
+                  "name": "type",
+                  "typeAnnotation": null
+                },
+                "computed": false,
+                "optional": false,
+                "readonly": false,
+                "typeAnnotation": {
+                  "type": "TSTypeAnnotation",
+                  "start": 847,
+                  "end": 856,
+                  "typeAnnotation": {
+                    "type": "TSLiteralType",
+                    "start": 849,
+                    "end": 856,
+                    "literal": {
+                      "type": "Literal",
+                      "start": 849,
+                      "end": 856,
+                      "value": "clear",
+                      "raw": "\"clear\""
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "TSTypeLiteral",
+            "start": 863,
+            "end": 897,
+            "members": [
+              {
+                "type": "TSPropertySignature",
+                "start": 865,
+                "end": 879,
+                "key": {
+                  "type": "Identifier",
+                  "start": 865,
+                  "end": 869,
+                  "name": "type",
+                  "typeAnnotation": null
+                },
+                "computed": false,
+                "optional": false,
+                "readonly": false,
+                "typeAnnotation": {
+                  "type": "TSTypeAnnotation",
+                  "start": 869,
+                  "end": 879,
+                  "typeAnnotation": {
+                    "type": "TSLiteralType",
+                    "start": 871,
+                    "end": 879,
+                    "literal": {
+                      "type": "Literal",
+                      "start": 871,
+                      "end": 879,
+                      "value": "append",
+                      "raw": "\"append\""
+                    }
+                  }
+                }
+              },
+              {
+                "type": "TSPropertySignature",
+                "start": 881,
+                "end": 895,
+                "key": {
+                  "type": "Identifier",
+                  "start": 881,
+                  "end": 887,
+                  "name": "suffix",
+                  "typeAnnotation": null
+                },
+                "computed": false,
+                "optional": false,
+                "readonly": false,
+                "typeAnnotation": {
+                  "type": "TSTypeAnnotation",
+                  "start": 887,
+                  "end": 895,
+                  "typeAnnotation": {
+                    "type": "TSStringKeyword",
+                    "start": 889,
+                    "end": 895
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 900,
+      "end": 1107,
+      "id": {
+        "type": "Identifier",
+        "start": 909,
+        "end": 916,
+        "name": "reducer",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "Identifier",
+          "start": 917,
+          "end": 930,
+          "name": "state",
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 922,
+            "end": 930,
+            "typeAnnotation": {
+              "type": "TSStringKeyword",
+              "start": 924,
+              "end": 930
+            }
+          }
+        },
+        {
+          "type": "Identifier",
+          "start": 932,
+          "end": 946,
+          "name": "action",
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 938,
+            "end": 946,
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 940,
+              "end": 946,
+              "typeName": {
+                "type": "Identifier",
+                "start": 940,
+                "end": 946,
+                "name": "Action",
+                "typeAnnotation": null
+              },
+              "typeArguments": null
+            }
+          }
+        }
+      ],
+      "returnType": {
+        "type": "TSTypeAnnotation",
+        "start": 947,
+        "end": 955,
+        "typeAnnotation": {
+          "type": "TSStringKeyword",
+          "start": 949,
+          "end": 955
+        }
+      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 956,
+        "end": 1107,
+        "body": [
+          {
+            "type": "SwitchStatement",
+            "start": 960,
+            "end": 1105,
+            "discriminant": {
+              "type": "MemberExpression",
+              "start": 968,
+              "end": 979,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 968,
+                "end": 974,
+                "name": "action",
+                "typeAnnotation": null              },
+              "property": {
+                "type": "Identifier",
+                "start": 975,
+                "end": 979,
+                "name": "type",
+                "typeAnnotation": null              }            },
+            "cases": [
+              {
+                "type": "SwitchCase",
+                "start": 987,
+                "end": 1022,
+                "test": {
+                  "type": "Literal",
+                  "start": 992,
+                  "end": 997,
+                  "value": "set",
+                  "raw": "\"set\""                },
+                "consequent": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 1002,
+                    "end": 1022,
+                    "argument": {
+                      "type": "MemberExpression",
+                      "start": 1009,
+                      "end": 1021,
+                      "computed": false,
+                      "object": {
+                        "type": "Identifier",
+                        "start": 1009,
+                        "end": 1015,
+                        "name": "action",
+                        "typeAnnotation": null                      },
+                      "property": {
+                        "type": "Identifier",
+                        "start": 1016,
+                        "end": 1021,
+                        "name": "value",
+                        "typeAnnotation": null                      }                    }                  }
+                ]
+              },
+              {
+                "type": "SwitchCase",
+                "start": 1027,
+                "end": 1052,
+                "test": {
+                  "type": "Literal",
+                  "start": 1032,
+                  "end": 1039,
+                  "value": "clear",
+                  "raw": "\"clear\""                },
+                "consequent": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 1042,
+                    "end": 1052,
+                    "argument": {
+                      "type": "Literal",
+                      "start": 1049,
+                      "end": 1051,
+                      "value": "",
+                      "raw": "\"\""                    }                  }
+                ]
+              },
+              {
+                "type": "SwitchCase",
+                "start": 1057,
+                "end": 1101,
+                "test": {
+                  "type": "Literal",
+                  "start": 1062,
+                  "end": 1070,
+                  "value": "append",
+                  "raw": "\"append\""                },
+                "consequent": [
+                  {
+                    "type": "ReturnStatement",
+                    "start": 1072,
+                    "end": 1101,
+                    "argument": {
+                      "type": "BinaryExpression",
+                      "start": 1079,
+                      "end": 1100,
+                      "operator": "+",
+                      "left": {
+                        "type": "Identifier",
+                        "start": 1079,
+                        "end": 1084,
+                        "name": "state",
+                        "typeAnnotation": null                      },
+                      "right": {
+                        "type": "MemberExpression",
+                        "start": 1087,
+                        "end": 1100,
+                        "computed": false,
+                        "object": {
+                          "type": "Identifier",
+                          "start": 1087,
+                          "end": 1093,
+                          "name": "action",
+                          "typeAnnotation": null                        },
+                        "property": {
+                          "type": "Identifier",
+                          "start": 1094,
+                          "end": 1100,
+                          "name": "suffix",
+                          "typeAnnotation": null                        }                      }                    }                  }
+                ]
+              }
+            ]          }
+        ]
+      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1109,
+      "end": 1158,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1115,
+          "end": 1157,
+          "id": {
+            "type": "Identifier",
+            "start": 1115,
+            "end": 1127,
+            "name": "initialState",
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 1127,
+              "end": 1135,
+              "typeAnnotation": {
+                "type": "TSStringKeyword",
+                "start": 1129,
+                "end": 1135
+              }
+            }          },
+          "init": {
+            "type": "TSSatisfiesExpression",
+            "start": 1138,
+            "end": 1157,
+            "expression": {
+              "type": "Literal",
+              "start": 1138,
+              "end": 1140,
+              "value": "",
+              "raw": "\"\""
+            },
+            "typeAnnotation": {
+              "type": "TSStringKeyword",
+              "start": 1151,
+              "end": 1157
+            }          }        }
+      ]    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 1160,
+      "end": 2179,
+      "id": {
+        "type": "Identifier",
+        "start": 1169,
+        "end": 1175,
+        "name": "Editor",
+        "typeAnnotation": null
+      },
+      "typeParameters": null,
+      "expression": false,
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "ObjectPattern",
+          "start": 1176,
+          "end": 1186,
+          "properties": [
+            {
+              "type": "Property",
+              "start": 1178,
+              "end": 1180,
+              "shorthand": true,
+              "computed": false,
+              "kind": "init",
+              "method": false,
+              "key": {
+                "type": "Identifier",
+                "start": 1178,
+                "end": 1180,
+                "name": "id",
+                "typeAnnotation": null
+              },
+              "value": {
+                "type": "Identifier",
+                "start": 1178,
+                "end": 1180,
+                "name": "id",
+                "typeAnnotation": null
+              }
+            },
+            {
+              "type": "Property",
+              "start": 1182,
+              "end": 1184,
+              "shorthand": true,
+              "computed": false,
+              "kind": "init",
+              "method": false,
+              "key": {
+                "type": "Identifier",
+                "start": 1182,
+                "end": 1184,
+                "name": "As",
+                "typeAnnotation": null
+              },
+              "value": {
+                "type": "Identifier",
+                "start": 1182,
+                "end": 1184,
+                "name": "As",
+                "typeAnnotation": null
+              }
+            }
+          ]
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 1228,
+        "end": 2179,
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "start": 1232,
+            "end": 1273,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 1238,
+                "end": 1272,
+                "id": {
+                  "type": "Identifier",
+                  "start": 1238,
+                  "end": 1241,
+                  "name": "ref",
+                  "typeAnnotation": null                },
+                "init": {
+                  "type": "CallExpression",
+                  "start": 1244,
+                  "end": 1272,
+                  "callee": {
+                    "type": "Identifier",
+                    "start": 1244,
+                    "end": 1250,
+                    "name": "useRef",
+                    "typeAnnotation": null                  },
+                  "typeArguments": {
+                    "type": "TSTypeParameterInstantiation",
+                    "start": 1250,
+                    "end": 1266,
+                    "params": [
+                      {
+                        "type": "TSTypeReference",
+                        "start": 1251,
+                        "end": 1265,
+                        "typeName": {
+                          "type": "Identifier",
+                          "start": 1251,
+                          "end": 1265,
+                          "name": "HTMLDivElement",
+                          "typeAnnotation": null
+                        },
+                        "typeArguments": null
+                      }
+                    ]
+                  },
+                  "arguments": [
+                    {
+                      "type": "Literal",
+                      "start": 1267,
+                      "end": 1271,
+                      "value": null,
+                      "raw": "null"                    }
+                  ]                }              }
+            ]          },
+          {
+            "type": "VariableDeclaration",
+            "start": 1276,
+            "end": 1332,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 1282,
+                "end": 1331,
+                "id": {
+                  "type": "ArrayPattern",
+                  "start": 1282,
+                  "end": 1299,
+                  "elements": [
+                    {
+                      "type": "Identifier",
+                      "start": 1283,
+                      "end": 1288,
+                      "name": "draft",
+                      "typeAnnotation": null
+                    },
+                    {
+                      "type": "Identifier",
+                      "start": 1290,
+                      "end": 1298,
+                      "name": "setDraft",
+                      "typeAnnotation": null
+                    }
+                  ]                },
+                "init": {
+                  "type": "CallExpression",
+                  "start": 1302,
+                  "end": 1331,
+                  "callee": {
+                    "type": "Identifier",
+                    "start": 1302,
+                    "end": 1310,
+                    "name": "useState",
+                    "typeAnnotation": null                  },
+                  "typeArguments": {
+                    "type": "TSTypeParameterInstantiation",
+                    "start": 1310,
+                    "end": 1325,
+                    "params": [
+                      {
+                        "type": "TSUnionType",
+                        "start": 1311,
+                        "end": 1324,
+                        "types": [
+                          {
+                            "type": "TSStringKeyword",
+                            "start": 1311,
+                            "end": 1317
+                          },
+                          {
+                            "type": "TSNullKeyword",
+                            "start": 1320,
+                            "end": 1324
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "arguments": [
+                    {
+                      "type": "Literal",
+                      "start": 1326,
+                      "end": 1330,
+                      "value": null,
+                      "raw": "null"                    }
+                  ]                }              }
+            ]          },
+          {
+            "type": "VariableDeclaration",
+            "start": 1335,
+            "end": 1411,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 1341,
+                "end": 1410,
+                "id": {
+                  "type": "ArrayPattern",
+                  "start": 1341,
+                  "end": 1358,
+                  "elements": [
+                    {
+                      "type": "Identifier",
+                      "start": 1342,
+                      "end": 1347,
+                      "name": "state",
+                      "typeAnnotation": null
+                    },
+                    {
+                      "type": "Identifier",
+                      "start": 1349,
+                      "end": 1357,
+                      "name": "dispatch",
+                      "typeAnnotation": null
+                    }
+                  ]                },
+                "init": {
+                  "type": "CallExpression",
+                  "start": 1361,
+                  "end": 1410,
+                  "callee": {
+                    "type": "Identifier",
+                    "start": 1361,
+                    "end": 1371,
+                    "name": "useReducer",
+                    "typeAnnotation": null                  },
+                  "typeArguments": {
+                    "type": "TSTypeParameterInstantiation",
+                    "start": 1371,
+                    "end": 1387,
+                    "params": [
+                      {
+                        "type": "TSUnknownType"
+                      }
+                    ]
+                  },
+                  "arguments": [
+                    {
+                      "type": "Identifier",
+                      "start": 1388,
+                      "end": 1395,
+                      "name": "reducer",
+                      "typeAnnotation": null                    },
+                    {
+                      "type": "Identifier",
+                      "start": 1397,
+                      "end": 1409,
+                      "name": "initialState",
+                      "typeAnnotation": null                    }
+                  ]                }              }
+            ]          },
+          {
+            "type": "ExpressionStatement",
+            "start": 1415,
+            "end": 1732,
+            "expression": {
+              "type": "CallExpression",
+              "start": 1415,
+              "end": 1731,
+              "callee": {
+                "type": "Identifier",
+                "start": 1415,
+                "end": 1424,
+                "name": "useEffect",
+                "typeAnnotation": null              },
+              "typeArguments": null,
+              "arguments": [
+                {
+                  "type": "ArrowFunctionExpression",
+                  "start": 1425,
+                  "end": 1726,
+                  "id": null,
+                  "expression": false,
+                  "generator": false,
+                  "async": false,
+                  "typeParameters": null,
+                  "params": [],
+                  "returnType": null,
+                  "body": {
+                    "type": "BlockStatement",
+                    "start": 1431,
+                    "end": 1726,
+                    "body": [
+                      {
+                        "type": "VariableDeclaration",
+                        "start": 1437,
+                        "end": 1480,
+                        "kind": "const",
+                        "declarations": [
+                          {
+                            "type": "VariableDeclarator",
+                            "start": 1443,
+                            "end": 1479,
+                            "id": {
+                              "type": "Identifier",
+                              "start": 1443,
+                              "end": 1447,
+                              "name": "node",
+                              "typeAnnotation": null                            },
+                            "init": {
+                              "type": "TSAsExpression",
+                              "start": 1450,
+                              "end": 1479,
+                              "expression": {
+                                "type": "MemberExpression",
+                                "start": 1450,
+                                "end": 1461,
+                                "computed": false,
+                                "object": {
+                                  "type": "Identifier",
+                                  "start": 1450,
+                                  "end": 1453,
+                                  "name": "ref",
+                                  "typeAnnotation": null                                },
+                                "property": {
+                                  "type": "Identifier",
+                                  "start": 1454,
+                                  "end": 1461,
+                                  "name": "current",
+                                  "typeAnnotation": null                                }
+                              },
+                              "typeAnnotation": {
+                                "type": "TSTypeReference",
+                                "start": 1465,
+                                "end": 1479,
+                                "typeName": {
+                                  "type": "Identifier",
+                                  "start": 1465,
+                                  "end": 1479,
+                                  "name": "HTMLDivElement",
+                                  "typeAnnotation": null
+                                },
+                                "typeArguments": null
+                              }                            }                          }
+                        ]                      },
+                      {
+                        "type": "VariableDeclaration",
+                        "start": 1485,
+                        "end": 1616,
+                        "kind": "const",
+                        "declarations": [
+                          {
+                            "type": "VariableDeclarator",
+                            "start": 1491,
+                            "end": 1615,
+                            "id": {
+                              "type": "Identifier",
+                              "start": 1491,
+                              "end": 1496,
+                              "name": "onKey",
+                              "typeAnnotation": null                            },
+                            "init": {
+                              "type": "ArrowFunctionExpression",
+                              "start": 1499,
+                              "end": 1615,
+                              "id": null,
+                              "expression": false,
+                              "generator": false,
+                              "async": false,
+                              "typeParameters": null,
+                              "params": [
+                                {
+                                  "type": "Identifier",
+                                  "start": 1500,
+                                  "end": 1508,
+                                  "name": "e",
+                                  "typeAnnotation": {
+                                    "type": "TSTypeAnnotation",
+                                    "start": 1501,
+                                    "end": 1508,
+                                    "typeAnnotation": {
+                                      "type": "TSTypeReference",
+                                      "start": 1503,
+                                      "end": 1508,
+                                      "typeName": {
+                                        "type": "Identifier",
+                                        "start": 1503,
+                                        "end": 1508,
+                                        "name": "Event",
+                                        "typeAnnotation": null
+                                      },
+                                      "typeArguments": null
+                                    }
+                                  }
+                                }
+                              ],
+                              "returnType": null,
+                              "body": {
+                                "type": "BlockStatement",
+                                "start": 1513,
+                                "end": 1615,
+                                "body": [
+                                  {
+                                    "type": "VariableDeclaration",
+                                    "start": 1521,
+                                    "end": 1550,
+                                    "kind": "const",
+                                    "declarations": [
+                                      {
+                                        "type": "VariableDeclarator",
+                                        "start": 1527,
+                                        "end": 1549,
+                                        "id": {
+                                          "type": "Identifier",
+                                          "start": 1527,
+                                          "end": 1528,
+                                          "name": "k",
+                                          "typeAnnotation": null                                        },
+                                        "init": {
+                                          "type": "TSAsExpression",
+                                          "start": 1531,
+                                          "end": 1549,
+                                          "expression": {
+                                            "type": "Identifier",
+                                            "start": 1531,
+                                            "end": 1532,
+                                            "name": "e",
+                                            "typeAnnotation": null
+                                          },
+                                          "typeAnnotation": {
+                                            "type": "TSTypeReference",
+                                            "start": 1536,
+                                            "end": 1549,
+                                            "typeName": {
+                                              "type": "Identifier",
+                                              "start": 1536,
+                                              "end": 1549,
+                                              "name": "KeyboardEvent",
+                                              "typeAnnotation": null
+                                            },
+                                            "typeArguments": null
+                                          }                                        }                                      }
+                                    ]                                  },
+                                  {
+                                    "type": "IfStatement",
+                                    "start": 1557,
+                                    "end": 1609,
+                                    "test": {
+                                      "type": "BinaryExpression",
+                                      "start": 1561,
+                                      "end": 1579,
+                                      "operator": "===",
+                                      "left": {
+                                        "type": "MemberExpression",
+                                        "start": 1561,
+                                        "end": 1566,
+                                        "computed": false,
+                                        "object": {
+                                          "type": "Identifier",
+                                          "start": 1561,
+                                          "end": 1562,
+                                          "name": "k",
+                                          "typeAnnotation": null                                        },
+                                        "property": {
+                                          "type": "Identifier",
+                                          "start": 1563,
+                                          "end": 1566,
+                                          "name": "key",
+                                          "typeAnnotation": null                                        }                                      },
+                                      "right": {
+                                        "type": "Literal",
+                                        "start": 1571,
+                                        "end": 1579,
+                                        "value": "Escape",
+                                        "raw": "\"Escape\""                                      }                                    },
+                                    "consequent": {
+                                      "type": "ExpressionStatement",
+                                      "start": 1581,
+                                      "end": 1609,
+                                      "expression": {
+                                        "type": "CallExpression",
+                                        "start": 1581,
+                                        "end": 1608,
+                                        "callee": {
+                                          "type": "Identifier",
+                                          "start": 1581,
+                                          "end": 1589,
+                                          "name": "dispatch",
+                                          "typeAnnotation": null                                        },
+                                        "typeArguments": null,
+                                        "arguments": [
+                                          {
+                                            "type": "ObjectExpression",
+                                            "start": 1590,
+                                            "end": 1607,
+                                            "properties": [
+                                              {
+                                                "type": "Property",
+                                                "start": 1592,
+                                                "end": 1605,
+                                                "kind": "init",
+                                                "method": false,
+                                                "shorthand": false,
+                                                "computed": false,
+                                                "key": {
+                                                  "type": "Identifier",
+                                                  "start": 1592,
+                                                  "end": 1596,
+                                                  "name": "type",
+                                                  "typeAnnotation": null                                                },
+                                                "value": {
+                                                  "type": "Literal",
+                                                  "start": 1598,
+                                                  "end": 1605,
+                                                  "value": "clear",
+                                                  "raw": "\"clear\""                                                }
+                                              }
+                                            ]                                          }
+                                        ]                                      }                                    },
+                                    "alternate": null                                  }
+                                ]
+                              }                            }                          }
+                        ]                      },
+                      {
+                        "type": "ExpressionStatement",
+                        "start": 1621,
+                        "end": 1661,
+                        "expression": {
+                          "type": "CallExpression",
+                          "start": 1621,
+                          "end": 1660,
+                          "callee": {
+                            "type": "MemberExpression",
+                            "start": 1621,
+                            "end": 1642,
+                            "computed": false,
+                            "object": {
+                              "type": "Identifier",
+                              "start": 1621,
+                              "end": 1625,
+                              "name": "node",
+                              "typeAnnotation": null                            },
+                            "property": {
+                              "type": "Identifier",
+                              "start": 1626,
+                              "end": 1642,
+                              "name": "addEventListener",
+                              "typeAnnotation": null                            }                          },
+                          "typeArguments": null,
+                          "arguments": [
+                            {
+                              "type": "Literal",
+                              "start": 1643,
+                              "end": 1652,
+                              "value": "keydown",
+                              "raw": "\"keydown\""                            },
+                            {
+                              "type": "Identifier",
+                              "start": 1654,
+                              "end": 1659,
+                              "name": "onKey",
+                              "typeAnnotation": null                            }
+                          ]                        }                      },
+                      {
+                        "type": "ReturnStatement",
+                        "start": 1666,
+                        "end": 1722,
+                        "argument": {
+                          "type": "ArrowFunctionExpression",
+                          "start": 1673,
+                          "end": 1721,
+                          "id": null,
+                          "expression": true,
+                          "generator": false,
+                          "async": false,
+                          "typeParameters": null,
+                          "params": [],
+                          "returnType": null,
+                          "body": {
+                            "type": "CallExpression",
+                            "start": 1679,
+                            "end": 1721,
+                            "callee": {
+                              "type": "MemberExpression",
+                              "start": 1679,
+                              "end": 1703,
+                              "computed": false,
+                              "object": {
+                                "type": "Identifier",
+                                "start": 1679,
+                                "end": 1683,
+                                "name": "node",
+                                "typeAnnotation": null                              },
+                              "property": {
+                                "type": "Identifier",
+                                "start": 1684,
+                                "end": 1703,
+                                "name": "removeEventListener",
+                                "typeAnnotation": null                              }                            },
+                            "typeArguments": null,
+                            "arguments": [
+                              {
+                                "type": "Literal",
+                                "start": 1704,
+                                "end": 1713,
+                                "value": "keydown",
+                                "raw": "\"keydown\""                              },
+                              {
+                                "type": "Identifier",
+                                "start": 1715,
+                                "end": 1720,
+                                "name": "onKey",
+                                "typeAnnotation": null                              }
+                            ]                          }                        }                      }
+                    ]
+                  }                },
+                {
+                  "type": "ArrayExpression",
+                  "start": 1728,
+                  "end": 1730,
+                  "elements": [
+                  ]                }
+              ]            }          },
+          {
+            "type": "VariableDeclaration",
+            "start": 1736,
+            "end": 1761,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 1742,
+                "end": 1760,
+                "id": {
+                  "type": "Identifier",
+                  "start": 1742,
+                  "end": 1746,
+                  "name": "Comp",
+                  "typeAnnotation": null                },
+                "init": {
+                  "type": "LogicalExpression",
+                  "start": 1749,
+                  "end": 1760,
+                  "operator": "??",
+                  "left": {
+                    "type": "Identifier",
+                    "start": 1749,
+                    "end": 1751,
+                    "name": "As",
+                    "typeAnnotation": null                  },
+                  "right": {
+                    "type": "Literal",
+                    "start": 1755,
+                    "end": 1760,
+                    "value": "div",
+                    "raw": "\"div\""                  }                }              }
+            ]          },
+          {
+            "type": "ReturnStatement",
+            "start": 1765,
+            "end": 2177,
+            "argument": {
+              "type": "JSXElement",
+              "start": 1778,
+              "end": 2172,
+              "openingElement": {
+                "type": "JSXOpeningElement",
+                "start": 1778,
+                "end": 1849,
+                "name": {
+                  "type": "JSXIdentifier",
+                  "start": 1779,
+                  "end": 1783,
+                  "name": "Comp"
+                },
+                "attributes": [
+                  {
+                    "type": "JSXAttribute",
+                    "start": 1784,
+                    "end": 1793,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 1784,
+                      "end": 1787,
+                      "name": "ref"
+                    },
+                    "value": {
+                      "type": "JSXExpressionContainer",
+                      "start": 1788,
+                      "end": 1793,
+                      "expression": {
+                        "type": "Identifier",
+                        "start": 1789,
+                        "end": 1792,
+                        "name": "ref",
+                        "typeAnnotation": null
+                      }                    }
+                  },
+                  {
+                    "type": "JSXAttribute",
+                    "start": 1794,
+                    "end": 1801,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 1794,
+                      "end": 1796,
+                      "name": "id"
+                    },
+                    "value": {
+                      "type": "JSXExpressionContainer",
+                      "start": 1797,
+                      "end": 1801,
+                      "expression": {
+                        "type": "Identifier",
+                        "start": 1798,
+                        "end": 1800,
+                        "name": "id",
+                        "typeAnnotation": null
+                      }                    }
+                  },
+                  {
+                    "type": "JSXAttribute",
+                    "start": 1802,
+                    "end": 1817,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 1802,
+                      "end": 1817,
+                      "name": "contentEditable"
+                    },
+                    "value": null
+                  },
+                  {
+                    "type": "JSXAttribute",
+                    "start": 1818,
+                    "end": 1848,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 1818,
+                      "end": 1848,
+                      "name": "suppressContentEditableWarning"
+                    },
+                    "value": null
+                  }
+                ],
+                "selfClosing": false,
+                "typeArguments": null
+              },
+              "children": [
+                {
+                  "type": "JSXText",
+                  "start": 1849,
+                  "end": 1856,
+                  "value": "\n      ",
+                  "raw": "\n      "
+                },
+                {
+                  "type": "JSXElement",
+                  "start": 1856,
+                  "end": 1879,
+                  "openingElement": {
+                    "type": "JSXOpeningElement",
+                    "start": 1856,
+                    "end": 1864,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 1857,
+                      "end": 1863,
+                      "name": "strong"
+                    },
+                    "attributes": [],
+                    "selfClosing": false,
+                    "typeArguments": null
+                  },
+                  "children": [
+                    {
+                      "type": "JSXText",
+                      "start": 1864,
+                      "end": 1870,
+                      "value": "Draft:",
+                      "raw": "Draft:"
+                    }
+                  ],
+                  "closingElement": {
+                    "type": "JSXClosingElement",
+                    "start": 1870,
+                    "end": 1879,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 1872,
+                      "end": 1878,
+                      "name": "strong"
+                    }
+                  }
+                },
+                {
+                  "type": "JSXText",
+                  "start": 1879,
+                  "end": 1886,
+                  "value": "\n      ",
+                  "raw": "\n      "
+                },
+                {
+                  "type": "JSXExpressionContainer",
+                  "start": 1886,
+                  "end": 1914,
+                  "expression": {
+                    "type": "TSAsExpression",
+                    "start": 1888,
+                    "end": 1913,
+                    "expression": {
+                      "type": "LogicalExpression",
+                      "start": 1888,
+                      "end": 1902,
+                      "operator": "??",
+                      "left": {
+                        "type": "Identifier",
+                        "start": 1888,
+                        "end": 1893,
+                        "name": "draft",
+                        "typeAnnotation": null                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 1897,
+                        "end": 1902,
+                        "name": "state",
+                        "typeAnnotation": null                      }
+                    },
+                    "typeAnnotation": {
+                      "type": "TSStringKeyword",
+                      "start": 1907,
+                      "end": 1913
+                    }
+                  }
+                },
+                {
+                  "type": "JSXText",
+                  "start": 1914,
+                  "end": 1921,
+                  "value": "\n      ",
+                  "raw": "\n      "
+                },
+                {
+                  "type": "JSXElement",
+                  "start": 1921,
+                  "end": 2016,
+                  "openingElement": {
+                    "type": "JSXOpeningElement",
+                    "start": 1921,
+                    "end": 1987,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 1922,
+                      "end": 1928,
+                      "name": "button"
+                    },
+                    "attributes": [
+                      {
+                        "type": "JSXAttribute",
+                        "start": 1929,
+                        "end": 1986,
+                        "name": {
+                          "type": "JSXIdentifier",
+                          "start": 1929,
+                          "end": 1936,
+                          "name": "onClick"
+                        },
+                        "value": {
+                          "type": "JSXExpressionContainer",
+                          "start": 1937,
+                          "end": 1986,
+                          "expression": {
+                            "type": "ArrowFunctionExpression",
+                            "start": 1938,
+                            "end": 1985,
+                            "id": null,
+                            "expression": true,
+                            "generator": false,
+                            "async": false,
+                            "typeParameters": null,
+                            "params": [],
+                            "returnType": null,
+                            "body": {
+                              "type": "CallExpression",
+                              "start": 1944,
+                              "end": 1985,
+                              "callee": {
+                                "type": "Identifier",
+                                "start": 1944,
+                                "end": 1952,
+                                "name": "dispatch",
+                                "typeAnnotation": null                              },
+                              "typeArguments": null,
+                              "arguments": [
+                                {
+                                  "type": "ObjectExpression",
+                                  "start": 1953,
+                                  "end": 1984,
+                                  "properties": [
+                                    {
+                                      "type": "Property",
+                                      "start": 1955,
+                                      "end": 1969,
+                                      "kind": "init",
+                                      "method": false,
+                                      "shorthand": false,
+                                      "computed": false,
+                                      "key": {
+                                        "type": "Identifier",
+                                        "start": 1955,
+                                        "end": 1959,
+                                        "name": "type",
+                                        "typeAnnotation": null                                      },
+                                      "value": {
+                                        "type": "Literal",
+                                        "start": 1961,
+                                        "end": 1969,
+                                        "value": "append",
+                                        "raw": "\"append\""                                      }
+                                    },
+                                    {
+                                      "type": "Property",
+                                      "start": 1971,
+                                      "end": 1982,
+                                      "kind": "init",
+                                      "method": false,
+                                      "shorthand": false,
+                                      "computed": false,
+                                      "key": {
+                                        "type": "Identifier",
+                                        "start": 1971,
+                                        "end": 1977,
+                                        "name": "suffix",
+                                        "typeAnnotation": null                                      },
+                                      "value": {
+                                        "type": "Literal",
+                                        "start": 1979,
+                                        "end": 1982,
+                                        "value": "!",
+                                        "raw": "\"!\""                                      }
+                                    }
+                                  ]                                }
+                              ]                            }
+                          }                        }
+                      }
+                    ],
+                    "selfClosing": false,
+                    "typeArguments": null
+                  },
+                  "children": [
+                    {
+                      "type": "JSXText",
+                      "start": 1987,
+                      "end": 2007,
+                      "value": "\n        bang\n      ",
+                      "raw": "\n        bang\n      "
+                    }
+                  ],
+                  "closingElement": {
+                    "type": "JSXClosingElement",
+                    "start": 2007,
+                    "end": 2016,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 2009,
+                      "end": 2015,
+                      "name": "button"
+                    }
+                  }
+                },
+                {
+                  "type": "JSXText",
+                  "start": 2016,
+                  "end": 2023,
+                  "value": "\n      ",
+                  "raw": "\n      "
+                },
+                {
+                  "type": "JSXElement",
+                  "start": 2023,
+                  "end": 2160,
+                  "openingElement": {
+                    "type": "JSXOpeningElement",
+                    "start": 2023,
+                    "end": 2160,
+                    "name": {
+                      "type": "JSXIdentifier",
+                      "start": 2024,
+                      "end": 2029,
+                      "name": "input"
+                    },
+                    "attributes": [
+                      {
+                        "type": "JSXAttribute",
+                        "start": 2038,
+                        "end": 2049,
+                        "name": {
+                          "type": "JSXIdentifier",
+                          "start": 2038,
+                          "end": 2042,
+                          "name": "type"
+                        },
+                        "value": {
+                          "type": "Literal",
+                          "start": 2043,
+                          "end": 2049,
+                          "value": "text",
+                          "raw": "\"text\""                        }
+                      },
+                      {
+                        "type": "JSXAttribute",
+                        "start": 2058,
+                        "end": 2078,
+                        "name": {
+                          "type": "JSXIdentifier",
+                          "start": 2058,
+                          "end": 2070,
+                          "name": "defaultValue"
+                        },
+                        "value": {
+                          "type": "JSXExpressionContainer",
+                          "start": 2071,
+                          "end": 2078,
+                          "expression": {
+                            "type": "Identifier",
+                            "start": 2072,
+                            "end": 2077,
+                            "name": "state",
+                            "typeAnnotation": null
+                          }                        }
+                      },
+                      {
+                        "type": "JSXAttribute",
+                        "start": 2087,
+                        "end": 2151,
+                        "name": {
+                          "type": "JSXIdentifier",
+                          "start": 2087,
+                          "end": 2095,
+                          "name": "onChange"
+                        },
+                        "value": {
+                          "type": "JSXExpressionContainer",
+                          "start": 2096,
+                          "end": 2151,
+                          "expression": {
+                            "type": "ArrowFunctionExpression",
+                            "start": 2097,
+                            "end": 2150,
+                            "id": null,
+                            "expression": true,
+                            "generator": false,
+                            "async": false,
+                            "typeParameters": null,
+                            "params": [
+                              {
+                                "type": "Identifier",
+                                "start": 2098,
+                                "end": 2099,
+                                "name": "e",
+                                "typeAnnotation": null
+                              }
+                            ],
+                            "returnType": null,
+                            "body": {
+                              "type": "CallExpression",
+                              "start": 2104,
+                              "end": 2150,
+                              "callee": {
+                                "type": "Identifier",
+                                "start": 2104,
+                                "end": 2112,
+                                "name": "setDraft",
+                                "typeAnnotation": null                              },
+                              "typeArguments": null,
+                              "arguments": [
+                                {
+                                  "type": "MemberExpression",
+                                  "start": 0,
+                                  "end": 2149,
+                                  "computed": false,
+                                  "object": {
+                                    "type": "TSAsExpression",
+                                    "start": 2114,
+                                    "end": 2142,
+                                    "expression": {
+                                      "type": "MemberExpression",
+                                      "start": 2114,
+                                      "end": 2122,
+                                      "computed": false,
+                                      "object": {
+                                        "type": "Identifier",
+                                        "start": 2114,
+                                        "end": 2115,
+                                        "name": "e",
+                                        "typeAnnotation": null                                      },
+                                      "property": {
+                                        "type": "Identifier",
+                                        "start": 2116,
+                                        "end": 2122,
+                                        "name": "target",
+                                        "typeAnnotation": null                                      }
+                                    },
+                                    "typeAnnotation": {
+                                      "type": "TSTypeReference",
+                                      "start": 2126,
+                                      "end": 2142,
+                                      "typeName": {
+                                        "type": "Identifier",
+                                        "start": 2126,
+                                        "end": 2142,
+                                        "name": "HTMLInputElement",
+                                        "typeAnnotation": null
+                                      },
+                                      "typeArguments": null
+                                    }                                  },
+                                  "property": {
+                                    "type": "Identifier",
+                                    "start": 2144,
+                                    "end": 2149,
+                                    "name": "value",
+                                    "typeAnnotation": null                                  }                                }
+                              ]                            }
+                          }                        }
+                      }
+                    ],
+                    "selfClosing": true,
+                    "typeArguments": null
+                  },
+                  "children": [],
+                  "closingElement": null
+                },
+                {
+                  "type": "JSXText",
+                  "start": 2160,
+                  "end": 2165,
+                  "value": "\n    ",
+                  "raw": "\n    "
+                }
+              ],
+              "closingElement": {
+                "type": "JSXClosingElement",
+                "start": 2165,
+                "end": 2172,
+                "name": {
+                  "type": "JSXIdentifier",
+                  "start": 2167,
+                  "end": 2171,
+                  "name": "Comp"
+                }
+              }
+            }          }
+        ]
+      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 67,
+      "value": " Realistic TSX hooks + refs + as-cast pattern. Covers shapes that"
+    },
+    {
+      "type": "Line",
+      "start": 68,
+      "end": 104,
+      "value": " only appear in TSX, not pure JSX:"
+    },
+    {
+      "type": "Line",
+      "start": 105,
+      "end": 107,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 108,
+      "end": 180,
+      "value": "   * `useRef<HTMLDivElement>(null)` — generic call inside a function"
+    },
+    {
+      "type": "Line",
+      "start": 181,
+      "end": 224,
+      "value": "     body, distinct from the JSX-tag form"
+    },
+    {
+      "type": "Line",
+      "start": 225,
+      "end": 289,
+      "value": "   * `e as KeyboardEvent` cast inside a JSX event-handler body"
+    },
+    {
+      "type": "Line",
+      "start": 290,
+      "end": 359,
+      "value": "   * Discriminated-union prop type with TSAsExpression in JSX child"
+    },
+    {
+      "type": "Line",
+      "start": 360,
+      "end": 429,
+      "value": "   * `<Icon as={MyIcon} />` polymorphic-component pattern (the prop"
+    },
+    {
+      "type": "Line",
+      "start": 430,
+      "end": 495,
+      "value": "     value is itself a component reference, common in mantine /"
+    },
+    {
+      "type": "Line",
+      "start": 496,
+      "end": 513,
+      "value": "     chakra-ui)"
+    },
+    {
+      "type": "Line",
+      "start": 514,
+      "end": 586,
+      "value": "   * Type parameter on a useReducer call: `useReducer<typeof reducer>`"
+    },
+    {
+      "type": "Line",
+      "start": 587,
+      "end": 655,
+      "value": "   * Hook return type asserted via `satisfies` in a separate const"
+    },
+    {
+      "type": "Line",
+      "start": 656,
+      "end": 726,
+      "value": "   * useState with explicit generic: `useState<string | null>(null)`"
+    },
+    {
+      "type": "Line",
+      "start": 727,
+      "end": 729,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 730,
+      "end": 789,
+      "value": " Parsed with --lang=tsx (auto-discovered from spec/tsx/)."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=111656B reserved=16777216B ratio=0%
+Parse errors: 0

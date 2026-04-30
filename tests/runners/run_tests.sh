@@ -85,6 +85,10 @@ while IFS= read -r fixture; do
     case "$rel_path" in
         spec/typescript/*)  lang_flag="--lang=ts"  ;;
         spec/jsx/*)         lang_flag="--lang=jsx" ;;
+        # spec/tsx/ added in S26 W2 — first-class TSX category for
+        # generics-on-components, as-casts in JSX children, polymorphic
+        # `as=` props, ref typing. Same auto-discovery as spec/jsx/.
+        spec/tsx/*)         lang_flag="--lang=tsx" ;;
         # Ambiguity fixtures exercise TS+JSX disambiguation (<Type>expr vs
         # <Tag>, generic-call vs relational, generic-arrow, etc.). They need
         # TSX mode so both grammars are live.
