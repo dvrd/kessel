@@ -41,9 +41,43 @@ if (!file) {
 const absFile = path.isAbsolute(file) ? file : path.resolve(process.cwd(), file);
 const baselineKey = path.relative(ROOT, absFile);
 
+// W5: detect dialect from path so the gate can walk TS/TSX/JSX fixtures end
+// to end. `tests/fixtures/spec/typescript/*.js` parses as TS, `spec/tsx/*.js`
+// as TSX, `spec/jsx/*.js` as JSX; everything else is plain JS. Mirrors
+// verify_json_deep.js's detectDialect/syntheticName helpers, which is the
+// single source of truth used by the deep-emit gate — kessel and OXC
+// must agree on the grammar in play.
+function detectDialect(p) {
+  if (p.includes('/spec/jsx/'))        return 'jsx';
+  if (p.includes('/spec/tsx/'))        return 'tsx';
+  if (p.includes('/spec/typescript/')) return 'ts';
+  if (p.includes('/spec/ambiguity/'))  return 'tsx';
+  // spec/interactions/ is a mixed bucket where dialect is encoded in
+  // the filename marker (`_jsx_`, `_ts_`). Mirrors verify_json_deep.js.
+  if (p.includes('/spec/interactions/')) {
+    if (/_jsx_/.test(p)) return 'jsx';
+    if (/_ts_/.test(p))  return 'ts';
+  }
+  return 'js';
+}
+// OXC infers JS/JSX/TS/TSX from filename extension, but our fixtures all
+// end in `.js` regardless of content; synthesize an extension so OXC's
+// JSX/TS grammar fires. Kessel reads `--lang=` for the same decision.
+function syntheticName(p, dialect) {
+  const base = path.basename(p);
+  switch (dialect) {
+    case 'jsx': return base.replace(/\.js$/, '.jsx');
+    case 'ts':  return base.replace(/\.js$/, '.ts');
+    case 'tsx': return base.replace(/\.js$/, '.tsx');
+    default:    return base;
+  }
+}
+const dialect = detectDialect(absFile);
+const langFlag = dialect === 'js' ? '' : ` --lang=${dialect}`;
+
 const kesselBin = path.resolve(__dirname, '../../bin/kessel');
 const source = fs.readFileSync(file, 'utf8');
-const name = path.basename(file);
+const name = syntheticName(absFile, dialect);
 
 // ============================================================
 // OXC: parse (source of truth)
@@ -54,7 +88,7 @@ const oxcAst = oxc.program;
 // ============================================================
 // Kessel: raw transfer
 // ============================================================
-execSync(`${kesselBin} raw "${file}" --out /tmp/_verify_integ.bin`, { stdio: 'pipe' });
+execSync(`${kesselBin} raw "${file}"${langFlag} --out /tmp/_verify_integ.bin`, { stdio: 'pipe' });
 const bin = fs.readFileSync('/tmp/_verify_integ.bin');
 const HEADER = 20;
 if (bin.readUInt32LE(0) !== 0x4B455353) { console.error('Bad magic'); process.exit(1); }
@@ -119,7 +153,13 @@ const STMT = { 1:'ExpressionStatement',2:'EmptyStatement',3:'BlockStatement',
   16:'WithStatement',17:'ThrowStatement',18:'TryStatement',
   19:'FunctionDeclaration',20:'VariableDeclaration',21:'ClassDeclaration',
   22:'ImportDeclaration',23:'ExportNamedDeclaration',24:'ExportDefaultDeclaration',
-  25:'ExportAllDeclaration' };
+  25:'ExportAllDeclaration',
+  // W5: TS-statement variants. Without these tags 26-29 surface as
+  // STMT[tag] = undefined and the walker's `if (!kType) return;` guard
+  // silently skips the node — making the integration gate completely
+  // blind to the binary fixes shipped in S26 W3 on TS-stmt slots.
+  26:'TSInterfaceDeclaration',27:'TSTypeAliasDeclaration',
+  28:'TSEnumDeclaration',29:'TSModuleDeclaration' };
 
 // Enum string tables (mirror src/parser.odin enum definitions).
 const BIN_OP = ['+','-','*','/','%','**','|','^','&','<<','>>','>>>','==','!=','===','!==','<','<=','>','>=','instanceof','in'];
@@ -137,6 +177,123 @@ function normalizeType(kesselType) {
     return 'Literal';
   return kesselType;
 }
+
+// ============================================================
+// W5: layout constants for the new node types the walker handles.
+// Mirror src/ast.odin. Adopted from verify_class_decorators.js,
+// verify_class_typescript.js, and verify_ts_statements_jsx.js — those
+// gates already exercised the offsets, so reusing them here is a port,
+// not a re-derivation. If any of these structs shift, rerun the
+// /tmp/layout_probe*.odin pattern referenced by those gates and update.
+// ============================================================
+
+// ClassExpression (size 216) — ClassDeclaration shares layout via
+// `using expr: ClassExpression`.
+const CE_ID_NAME_OFF        = 32;   // Maybe(BindingIdentifier).name string
+const CE_BODY_BODY_OFF      = 80;   // ClassBody.body dyn header
+const CE_DECORATORS_OFF     = 120;  // [dynamic]Decorator dyn header
+
+// ClassElement (size 112).
+const CELEM_SIZE            = 112;
+const CELEM_KEY_OFF         = 16;   // ^Expression union ptr
+const CELEM_VALUE_OFF       = 24;   // Maybe(^Expression) — Method body
+const CELEM_DECORATORS_OFF  = 48;   // [dynamic]Decorator dyn header
+
+// Decorator (size 24).
+const DECOR_SIZE            = 24;
+const DECOR_EXPR_OFF        = 16;   // ^Expression union ptr
+
+// TSInterfaceDeclaration (size 160).
+const TSI_ID_NAME_OFF       = 32;
+const TSI_EXTENDS_OFF       = 56;   // [dynamic]TSInterfaceHeritage
+const TSIH_SIZE             = 32;
+const TSIH_EXPRESSION_OFF   = 16;
+
+// TSTypeAliasDeclaration: id is BindingIdentifier at +16, name at +32.
+const TSA_ID_NAME_OFF       = 32;
+
+// TSEnumDeclaration (size 112).
+const TSE_ID_NAME_OFF       = 32;
+const TSE_BODY_MEMBERS_OFF  = 64;   // TSEnumBody.members dyn header
+const TSEM_SIZE             = 32;
+const TSEM_ID_OFF           = 16;   // ^Expression (Identifier or StringLiteral)
+
+// TSModuleDeclaration (size 48). Note: the JSON path folds qualified
+// `namespace A.B { ... }` into a TSQualifiedName; the binary path does
+// NOT fold (the fold is purely a JSON-emit transform). The integration
+// walker therefore only validates that .id resolves to an in-buffer
+// Expression and .body's Maybe ptr is set. Deep shape parity is covered
+// by verify_json_deep / verify_ts_statements_jsx.
+const TSM_ID_OFF            = 16;   // ^Expression union ptr
+const TSM_BODY_OFF          = 24;   // Maybe(^TSModuleBody)
+
+// JSXElement (size 72).
+const JSXE_OPENING_OFF      = 16;   // ^JSXOpeningElement
+const JSXE_CHILDREN_OFF     = 24;   // [dynamic]JSXChild (16-byte slots)
+const JSXE_CLOSING_OFF      = 64;   // Maybe(^JSXClosingElement)
+
+// JSXFragment: loc(16) + opening_fragment(value, JSXOpeningFragment is
+// just Loc=16) + children(dyn=16) + closing_fragment(Loc=16).
+const JSXFRAG_CHILDREN_OFF  = 32;
+
+// JSXOpeningElement: loc(16) + name(JSXElementName 40-byte union) +
+// attributes(dyn=16) + self_closing(1).
+const JSXOE_NAME_OFF        = 16;
+const JSXOE_ATTRS_OFF       = 56;
+
+// JSXIdentifier value: loc(16) + name string(16). When the
+// JSXElementName union variant is JSXIdentifier (tag 1) the name string
+// lives at union+16. Tag for the 40-byte JSXElementName union is at +32
+// (after the 32-byte inline JSXIdentifier value variant).
+const JSXID_NAME_OFF        = 16;
+const JSXNAME_TAG_OFF       = 32;
+const JSXNAME_TAG_IDENT     = 1;
+
+// JSXChild slot: 16-byte union (inner ptr@0, tag@8). Variant tags
+// 1=^JSXElement, 2=^JSXFragment, 3=^JSXText, 4=^JSXExpressionContainer,
+// 5=^JSXSpreadChild (1-based per src/ast.odin).
+const JSXCHILD_SIZE         = 16;
+const JSXCHILD_TAG_ELEMENT  = 1;
+const JSXCHILD_TAG_FRAGMENT = 2;
+const JSXCHILD_TAG_EXPRCONT = 4;
+
+// JSXExpressionContainer (size 24): expression ^Expression @+16.
+const JSXEC_EXPRESSION_OFF  = 16;
+
+// ChainExpression (size 24): expression ^Expression @+16.
+const CHAIN_EXPRESSION_OFF  = 16;
+
+// ParenthesizedExpression (size 24): expression ^Expression @+16.
+const PAREN_EXPRESSION_OFF  = 16;
+
+// TSAsExpression / TSSatisfiesExpression / TSNonNullExpression: same
+// shape — expression at +16. TSTypeAssertion is the odd one out
+// (type_annotation@16, expression@24) because it's the only TS
+// expression where the type appears textually first.
+const TS_AS_EXPRESSION_OFF        = 16;
+const TS_SATISFIES_EXPRESSION_OFF = 16;
+const TS_NONNULL_EXPRESSION_OFF   = 16;
+const TS_ASSERTION_EXPRESSION_OFF = 24;
+
+// TaggedTemplateExpression (size 32): tag@16, quasi@24 (both ^Expression).
+const TT_TAG_OFF            = 16;
+const TT_QUASI_OFF          = 24;
+
+// TemplateLiteral: loc(16) + quasis([dynamic]TemplateElement) +
+// expressions([dynamic]^Expression). Each `[dynamic]T` field is 40
+// bytes wide in the binary buffer (data + len + cap + allocator), not
+// 8 — raw_transfer keeps the Odin struct stride to preserve alignment
+// even though `dyn()` reads only the {data, len} prefix. So expressions
+// lives at +16+40 = +56, not +32. Burned by this mistake while shipping
+// W5: with TPL_EXPRS_OFF=32 the read lands in the cap field of quasis,
+// which raw_transfer doesn't rewrite — hence kessel=0 vs oxc=N for
+// every template literal containing interpolations on prettier.js.
+const TPL_QUASIS_OFF        = 16;
+const TPL_EXPRS_OFF         = 56;
+
+// Identifier name string lives at +16 (Identifier struct: loc + name +
+// type_annotation Maybe + optional bool).
+const IDENT_NAME_OFF        = 16;
 
 let errors = 0;
 let matched = 0;
@@ -349,13 +506,81 @@ function verifyStmt(off, kType, oNode, p) {
       // handler and finalizer are intentionally not recursed (Maybe layout out of scope).
       break;
     }
+    case 'ClassDeclaration': {
+      verifyClassDecl(off, oNode, p);
+      break;
+    }
+    case 'TSInterfaceDeclaration': {
+      // W5: id.name + extends.length + extends[0].expression name when
+      // the JSON side reports an Identifier (qualified-parent shapes
+      // resolve to MemberExpression in JSON; only assert the binary
+      // union ptr is in-buffer in that case).
+      eq(`${p}.id.name`, str(off + TSI_ID_NAME_OFF), oNode.id && oNode.id.name);
+      const ext = dyn(off + TSI_EXTENDS_OFF);
+      if (Array.isArray(oNode.extends)) {
+        eq(`${p}.extends.length`, ext.len, oNode.extends.length);
+        for (let i = 0; i < Math.min(ext.len, oNode.extends.length); i++) {
+          const tih = ext.data + i * TSIH_SIZE;
+          const exprUnionOff = u32(tih + TSIH_EXPRESSION_OFF);
+          if (oNode.extends[i].expression && oNode.extends[i].expression.type === 'Identifier' && exprUnionOff > 0) {
+            verifyExpr(exprUnionOff, oNode.extends[i].expression, `${p}.extends[${i}].expression`);
+          }
+        }
+      }
+      break;
+    }
+    case 'TSTypeAliasDeclaration': {
+      eq(`${p}.id.name`, str(off + TSA_ID_NAME_OFF), oNode.id && oNode.id.name);
+      break;
+    }
+    case 'TSEnumDeclaration': {
+      eq(`${p}.id.name`, str(off + TSE_ID_NAME_OFF), oNode.id && oNode.id.name);
+      // OXC sometimes nests members under .body.members, sometimes under
+      // .members directly depending on plugin/version. Accept either.
+      const oxcMembers = (oNode.body && oNode.body.members) || oNode.members || [];
+      const members = dyn(off + TSE_BODY_MEMBERS_OFF);
+      eq(`${p}.body.members.length`, members.len, oxcMembers.length);
+      for (let i = 0; i < Math.min(members.len, oxcMembers.length); i++) {
+        const mOff = members.data + i * TSEM_SIZE;
+        const idUnionOff = u32(mOff + TSEM_ID_OFF);
+        if (idUnionOff > 0 && oxcMembers[i].id) {
+          verifyExpr(idUnionOff, oxcMembers[i].id, `${p}.members[${i}].id`);
+        }
+      }
+      break;
+    }
+    case 'TSModuleDeclaration': {
+      // The binary path does NOT fold qualified namespace ids (`namespace A.B`);
+      // the JSON path does. Only assert id resolves into the buffer; deep
+      // shape parity is the dedicated W3 verifier's job.
+      const idUnionOff = u32(off + TSM_ID_OFF);
+      if (idUnionOff === 0 || idUnionOff >= buf.length) {
+        fail(`${p}.id`, `union ptr ${idUnionOff} out of buffer`);
+      } else {
+        ok(`${p}.id`);
+      }
+      // body is Maybe(^TSModuleBody): zero means absent (`namespace A;`),
+      // non-zero must be in-buffer.
+      const bodyVal = u32(off + TSM_BODY_OFF);
+      if (oNode.body) {
+        if (bodyVal === 0 || bodyVal >= buf.length) {
+          fail(`${p}.body`, `expected set, got ${bodyVal}`);
+        } else {
+          ok(`${p}.body`);
+        }
+      }
+      break;
+    }
     case 'FunctionDeclaration':
     case 'FunctionExpression_Stmt': {
       // FunctionDeclaration uses `using expr: FunctionExpression`, same
       // layout. Body (FunctionBody) starts at offset 96; its .body
       // dyn-header sits at +96+16 = +112.
       const s = u32(off), e = u32(off+4);
-      if (s <= e && e <= source.length) ok(`${p}.span`);
+      // Spans are byte offsets, source.length is UTF-16 code units —
+      // use sourceBuf.length so non-ASCII content (e.g. emoji or arrows in
+      // comments) doesn't trip a false-positive span end check.
+      if (s <= e && e <= sourceBuf.length) ok(`${p}.span`);
       else fail(`${p}.span`, `${s}-${e}`);
       const bdy = dyn(off + 112);
       if (oNode.body && Array.isArray(oNode.body.body)) {
@@ -561,11 +786,191 @@ function verifyExpr(unionOff, oNode, p) {
       // No fields to verify
       ok(`${p}`);
       break;
+    // ====================================================================
+    // W5: JSX, ChainExpression, TS-expression variants, Parens, Templates.
+    // ====================================================================
+    case 'JSXElement': {
+      verifyJSXElement(off, oNode, p);
+      break;
+    }
+    case 'JSXFragment': {
+      const children = dyn(off + JSXFRAG_CHILDREN_OFF);
+      if (Array.isArray(oNode.children)) {
+        eq(`${p}.children.length`, children.len, oNode.children.length);
+        for (let i = 0; i < Math.min(children.len, oNode.children.length); i++) {
+          verifyJSXChild(children.data + i * JSXCHILD_SIZE, oNode.children[i], `${p}.children[${i}]`);
+        }
+      }
+      break;
+    }
+    case 'JSXExpressionContainer': {
+      const exprUOff = u32(off + JSXEC_EXPRESSION_OFF);
+      if (exprUOff > 0 && oNode.expression && oNode.expression.type !== 'JSXEmptyExpression') {
+        verifyExpr(exprUOff, oNode.expression, `${p}.expression`);
+      }
+      break;
+    }
+    case 'ChainExpression': {
+      const exprUOff = u32(off + CHAIN_EXPRESSION_OFF);
+      if (exprUOff > 0 && oNode.expression) verifyExpr(exprUOff, oNode.expression, `${p}.expression`);
+      break;
+    }
+    case 'ParenthesizedExpression': {
+      const exprUOff = u32(off + PAREN_EXPRESSION_OFF);
+      if (exprUOff > 0 && oNode.expression) verifyExpr(exprUOff, oNode.expression, `${p}.expression`);
+      break;
+    }
+    case 'TSAsExpression':
+    case 'TSSatisfiesExpression':
+    case 'TSNonNullExpression': {
+      // Same shape: expression@+16, type_annotation (when present)@+24.
+      const innerOff = u32(off + TS_AS_EXPRESSION_OFF);
+      if (innerOff > 0 && oNode.expression) verifyExpr(innerOff, oNode.expression, `${p}.expression`);
+      break;
+    }
+    case 'TSTypeAssertion': {
+      // The odd one: type_annotation@+16, expression@+24 (TS surface
+      // mirrors the textual `<Type>expr` order).
+      const innerOff = u32(off + TS_ASSERTION_EXPRESSION_OFF);
+      if (innerOff > 0 && oNode.expression) verifyExpr(innerOff, oNode.expression, `${p}.expression`);
+      break;
+    }
+    case 'TaggedTemplateExpression': {
+      const tagOff = u32(off + TT_TAG_OFF);
+      if (tagOff > 0 && oNode.tag) verifyExpr(tagOff, oNode.tag, `${p}.tag`);
+      const quasiOff = u32(off + TT_QUASI_OFF);
+      if (quasiOff > 0 && oNode.quasi) verifyExpr(quasiOff, oNode.quasi, `${p}.quasi`);
+      break;
+    }
+    case 'TemplateLiteral': {
+      // quasis count + expressions count; deep shape parity (cooked/raw,
+      // tail flags) is covered by verify_json_deep.
+      const quasis = dyn(off + TPL_QUASIS_OFF);
+      if (Array.isArray(oNode.quasis)) eq(`${p}.quasis.length`, quasis.len, oNode.quasis.length);
+      const exprs = dyn(off + TPL_EXPRS_OFF);
+      if (Array.isArray(oNode.expressions)) {
+        eq(`${p}.expressions.length`, exprs.len, oNode.expressions.length);
+        for (let i = 0; i < Math.min(exprs.len, oNode.expressions.length); i++) {
+          const eOff = u32(exprs.data + i * 8);
+          if (eOff > 0 && oNode.expressions[i]) verifyExpr(eOff, oNode.expressions[i], `${p}.expressions[${i}]`);
+        }
+      }
+      break;
+    }
   }
 }
 
+// ============================================================
+// W5 helpers: ClassDeclaration body walk and JSX element/child walks.
+// Factored out of verifyStmt/verifyExpr so the switches stay readable
+// (and to keep individual functions under the 70-line TigerStyle
+// guideline).
+// ============================================================
+
+function verifyClassDecl(off, oNode, p) {
+  // id.name when present (anonymous class declarations use ClassExpression
+  // semantics where id is null; ClassDeclaration always has an id).
+  if (oNode.id && typeof oNode.id.name === 'string') {
+    eq(`${p}.id.name`, str(off + CE_ID_NAME_OFF), oNode.id.name);
+  }
+  // class-level decorators — exercises S26 W1 binary plumbing.
+  const classDecs = dyn(off + CE_DECORATORS_OFF);
+  const oDecs = oNode.decorators || [];
+  if (oDecs.length > 0 || classDecs.len > 0) {
+    eq(`${p}.decorators.length`, classDecs.len, oDecs.length);
+    for (let i = 0; i < Math.min(classDecs.len, oDecs.length); i++) {
+      const decOff = classDecs.data + i * DECOR_SIZE;
+      const exprUOff = u32(decOff + DECOR_EXPR_OFF);
+      if (exprUOff > 0 && oDecs[i].expression) {
+        verifyExpr(exprUOff, oDecs[i].expression, `${p}.decorators[${i}].expression`);
+      }
+    }
+  }
+  // body methods — recurse keys, decorators, and method-body FunctionExpressions.
+  const body = dyn(off + CE_BODY_BODY_OFF);
+  const oBody = (oNode.body && Array.isArray(oNode.body.body)) ? oNode.body.body : [];
+  eq(`${p}.body.body.length`, body.len, oBody.length);
+  for (let i = 0; i < Math.min(body.len, oBody.length); i++) {
+    verifyClassElement(body.data + i * CELEM_SIZE, oBody[i], `${p}.body[${i}]`);
+  }
+}
+
+function verifyClassElement(elemOff, oNode, p) {
+  // key — Identifier / StringLiteral / NumericLiteral / computed expr.
+  const keyUOff = u32(elemOff + CELEM_KEY_OFF);
+  if (keyUOff > 0 && oNode.key) verifyExpr(keyUOff, oNode.key, `${p}.key`);
+  // per-element decorators — exercises S26 W1 method-decorator plumbing.
+  const elemDecs = dyn(elemOff + CELEM_DECORATORS_OFF);
+  const oDecs = oNode.decorators || [];
+  if (oDecs.length > 0 || elemDecs.len > 0) {
+    eq(`${p}.decorators.length`, elemDecs.len, oDecs.length);
+    for (let d = 0; d < Math.min(elemDecs.len, oDecs.length); d++) {
+      const decOff = elemDecs.data + d * DECOR_SIZE;
+      const exprUOff = u32(decOff + DECOR_EXPR_OFF);
+      if (exprUOff > 0 && oDecs[d].expression) {
+        verifyExpr(exprUOff, oDecs[d].expression, `${p}.decorators[${d}].expression`);
+      }
+    }
+  }
+  // value — MethodDefinition.value is FunctionExpression; PropertyDefinition
+  // .value is Maybe(Expression). Either path lands on verifyExpr which
+  // handles FunctionExpression bodies in the existing walker.
+  const valueUOff = u32(elemOff + CELEM_VALUE_OFF);
+  if (valueUOff > 0 && oNode.value) verifyExpr(valueUOff, oNode.value, `${p}.value`);
+}
+
+function verifyJSXElement(elemOff, oNode, p) {
+  // opening_element.name (only assert when the JSXElementName union is a
+  // JSXIdentifier; member/namespaced shapes are validated structurally
+  // by verify_json_deep).
+  const openingOff = u32(elemOff + JSXE_OPENING_OFF);
+  if (openingOff > 0 && oNode.openingElement && oNode.openingElement.name) {
+    const nameTag = u8(openingOff + JSXOE_NAME_OFF + JSXNAME_TAG_OFF);
+    if (nameTag === JSXNAME_TAG_IDENT && oNode.openingElement.name.type === 'JSXIdentifier') {
+      eq(`${p}.openingElement.name.name`,
+         str(openingOff + JSXOE_NAME_OFF + JSXID_NAME_OFF),
+         oNode.openingElement.name.name);
+    }
+  }
+  // children
+  const children = dyn(elemOff + JSXE_CHILDREN_OFF);
+  if (Array.isArray(oNode.children)) {
+    eq(`${p}.children.length`, children.len, oNode.children.length);
+    for (let i = 0; i < Math.min(children.len, oNode.children.length); i++) {
+      verifyJSXChild(children.data + i * JSXCHILD_SIZE, oNode.children[i], `${p}.children[${i}]`);
+    }
+  }
+}
+
+function verifyJSXChild(slotOff, oNode, p) {
+  if (!oNode) return;
+  const ptr = u32(slotOff);
+  const tag = u8(slotOff + 8);
+  if (ptr === 0 || ptr >= buf.length) return;
+  if (tag === JSXCHILD_TAG_ELEMENT && oNode.type === 'JSXElement') {
+    verifyJSXElement(ptr, oNode, p);
+  } else if (tag === JSXCHILD_TAG_FRAGMENT && oNode.type === 'JSXFragment') {
+    // JSXFragment has children at +32 (after loc + opening_fragment value).
+    const children = dyn(ptr + JSXFRAG_CHILDREN_OFF);
+    if (Array.isArray(oNode.children)) {
+      eq(`${p}.children.length`, children.len, oNode.children.length);
+      for (let i = 0; i < Math.min(children.len, oNode.children.length); i++) {
+        verifyJSXChild(children.data + i * JSXCHILD_SIZE, oNode.children[i], `${p}.children[${i}]`);
+      }
+    }
+  } else if (tag === JSXCHILD_TAG_EXPRCONT && oNode.type === 'JSXExpressionContainer') {
+    const exprUOff = u32(ptr + JSXEC_EXPRESSION_OFF);
+    if (exprUOff > 0 && oNode.expression && oNode.expression.type !== 'JSXEmptyExpression') {
+      verifyExpr(exprUOff, oNode.expression, `${p}.expression`);
+    }
+  }
+  // JSXText / JSXSpreadChild leaves: no recursion in this walker; deep
+  // shape (value/raw on text, spread argument) is covered by
+  // verify_json_deep.
+}
+
 // Run
-console.log(`Verifying: ${name} (${source.length} bytes)`);
+console.log(`Verifying: ${name} (${sourceBuf.length} bytes)`);
 console.log(`  OXC parseSync: ${oxcAst.body.length} top-level statements`);
 
 verifyProgram();

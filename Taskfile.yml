@@ -143,6 +143,24 @@ tasks:
       - node tests/verifiers/verify_integration.js bench/real_world/react-dom.dev.js --baseline
       - node tests/verifiers/verify_integration.js bench/real_world/batch2/preact.js --baseline
       - node tests/verifiers/verify_integration.js bench/real_world/batch3/snabbdom.js --baseline
+      # S26 W5 — broader binary-path gate. Curated TS/TSX/JSX spec fixtures
+      # that exercise the new walker code (ClassDeclaration body + decorators,
+      # TSInterfaceDeclaration / TSTypeAliasDeclaration / TSEnumDeclaration /
+      # TSModuleDeclaration, JSXElement / JSXFragment / JSXExpressionContainer,
+      # ChainExpression, TSAsExpression / TSSatisfies / TSNonNull / TSAssertion,
+      # ParenthesizedExpression, TaggedTemplateExpression, TemplateLiteral).
+      # Each fixture exercises one or more S26 W1+W2-alt+W3 binary fixes on
+      # production-shaped code. Baselined at 0 — any regression fails.
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/002_generic_class.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/011_interface_extends.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/012_const_enum.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/013_class_implements.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/015_namespace_module.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/005_nested_element.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/010_form_with_controlled_inputs.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js --baseline
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js --baseline
       # Deep JSON-level compare — covers ALL 57 emitted node types (not just the
       # 37 the raw-buffer integration verifier walks). Gates snabbdom.js, the
       # smallest real file we can round-trip cleanly against every reference.
@@ -186,6 +204,17 @@ tasks:
       - node tests/verifiers/verify_integration.js bench/real_world/react-dom.dev.js
       - node tests/verifiers/verify_integration.js bench/real_world/batch2/preact.js
       - node tests/verifiers/verify_integration.js bench/real_world/batch3/snabbdom.js
+      # S26 W5 — strict zero-tolerance pass for the spec fixture surfaces.
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/002_generic_class.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/011_interface_extends.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/012_const_enum.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/013_class_implements.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/015_namespace_module.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/005_nested_element.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/010_form_with_controlled_inputs.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js
       - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser oxc
       - node tests/verifiers/verify_class_decorators.js
       - node tests/verifiers/verify_class_typescript.js
@@ -200,6 +229,17 @@ tasks:
       - node tests/verifiers/verify_integration.js bench/real_world/react-dom.dev.js --update
       - node tests/verifiers/verify_integration.js bench/real_world/batch2/preact.js --update
       - node tests/verifiers/verify_integration.js bench/real_world/batch3/snabbdom.js --update
+      # S26 W5 — spec fixtures (curated, all baselined at 0).
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/002_generic_class.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/011_interface_extends.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/012_const_enum.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/013_class_implements.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/015_namespace_module.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/005_nested_element.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/010_form_with_controlled_inputs.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js --update
 
   test:test262:
     desc: ECMA-262 syntax subset (66 curated parse-smoke tests, exit-code only)
