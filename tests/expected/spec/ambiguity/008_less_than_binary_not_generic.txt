@@ -20,7 +20,8 @@
             "start": 57,
             "end": 59,
             "name": "ok",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "LogicalExpression",
             "start": 62,
@@ -36,13 +37,15 @@
                 "start": 62,
                 "end": 66,
                 "name": "left",
-                "typeAnnotation": null              },
+                "typeAnnotation": null,
+                "optional": false              },
               "right": {
                 "type": "Identifier",
                 "start": 69,
                 "end": 74,
                 "name": "right",
-                "typeAnnotation": null              }            },
+                "typeAnnotation": null,
+                "optional": false              }            },
             "right": {
               "type": "BinaryExpression",
               "start": 78,
@@ -53,13 +56,15 @@
                 "start": 78,
                 "end": 84,
                 "name": "middle",
-                "typeAnnotation": null              },
+                "typeAnnotation": null,
+                "optional": false              },
               "right": {
                 "type": "Identifier",
                 "start": 87,
                 "end": 92,
                 "name": "lower",
-                "typeAnnotation": null              }            }          }        }
+                "typeAnnotation": null,
+                "optional": false              }            }          }        }
       ]    }
   ],
   "comments": [
@@ -73,5 +78,5 @@
 }
 
 --- Statistics ---
-Arena: used=6584B reserved=16777216B ratio=0%
+Arena: used=36336B reserved=16777216B ratio=0%
 Parse errors: 0

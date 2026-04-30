@@ -19,14 +19,16 @@
             "start": 63,
             "end": 66,
             "name": "Foo",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "local": {
             "type": "Identifier",
             "start": 63,
             "end": 66,
             "name": "Foo",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "importKind": "value"
         }
@@ -56,7 +58,8 @@
             "start": 89,
             "end": 92,
             "name": "mod",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "ImportExpression",
             "start": 95,
@@ -82,5 +85,5 @@
 }
 
 --- Statistics ---
-Arena: used=8520B reserved=16777216B ratio=0%
+Arena: used=37640B reserved=16777216B ratio=0%
 Parse errors: 0

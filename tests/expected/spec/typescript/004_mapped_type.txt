@@ -14,7 +14,8 @@
         "start": 84,
         "end": 92,
         "name": "Readonly",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -30,7 +31,8 @@
               "start": 93,
               "end": 94,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -49,7 +51,8 @@
           "start": 110,
           "end": 111,
           "name": "K",
-          "typeAnnotation": null
+          "typeAnnotation": null,
+          "optional": false
         },
         "constraint": {
           "type": "TSTypeOperator",
@@ -65,7 +68,8 @@
               "start": 121,
               "end": 122,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           }
@@ -84,7 +88,8 @@
               "start": 125,
               "end": 126,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           },
@@ -97,7 +102,8 @@
               "start": 127,
               "end": 128,
               "name": "K",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           }
@@ -115,7 +121,8 @@
         "start": 138,
         "end": 145,
         "name": "Partial",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -131,7 +138,8 @@
               "start": 146,
               "end": 147,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -150,7 +158,8 @@
           "start": 154,
           "end": 155,
           "name": "K",
-          "typeAnnotation": null
+          "typeAnnotation": null,
+          "optional": false
         },
         "constraint": {
           "type": "TSTypeOperator",
@@ -166,7 +175,8 @@
               "start": 165,
               "end": 166,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           }
@@ -185,7 +195,8 @@
               "start": 170,
               "end": 171,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           },
@@ -198,7 +209,8 @@
               "start": 172,
               "end": 173,
               "name": "K",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           }
@@ -216,7 +228,8 @@
         "start": 183,
         "end": 191,
         "name": "Required",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -232,7 +245,8 @@
               "start": 192,
               "end": 193,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -251,7 +265,8 @@
           "start": 200,
           "end": 201,
           "name": "K",
-          "typeAnnotation": null
+          "typeAnnotation": null,
+          "optional": false
         },
         "constraint": {
           "type": "TSTypeOperator",
@@ -267,7 +282,8 @@
               "start": 211,
               "end": 212,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           }
@@ -286,7 +302,8 @@
               "start": 217,
               "end": 218,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           },
@@ -299,7 +316,8 @@
               "start": 219,
               "end": 220,
               "name": "K",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           }
@@ -320,5 +338,5 @@
 }
 
 --- Statistics ---
-Arena: used=7776B reserved=16777216B ratio=0%
+Arena: used=36624B reserved=16777216B ratio=0%
 Parse errors: 0

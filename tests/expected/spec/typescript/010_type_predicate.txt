@@ -14,7 +14,8 @@
         "start": 143,
         "end": 151,
         "name": "isString",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "expression": false,
@@ -35,7 +36,8 @@
               "start": 155,
               "end": 162
             }
-          }
+          },
+          "optional": false
         }
       ],
       "returnType": {
@@ -52,7 +54,8 @@
             "start": 165,
             "end": 166,
             "name": "x",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeAnnotation": {
             "type": "TSTypeAnnotation",
@@ -91,7 +94,8 @@
                   "start": 195,
                   "end": 196,
                   "name": "x",
-                  "typeAnnotation": null                }              },
+                  "typeAnnotation": null,
+                  "optional": false                }              },
               "right": {
                 "type": "Literal",
                 "start": 201,
@@ -109,7 +113,8 @@
         "start": 222,
         "end": 229,
         "name": "asserts",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "expression": false,
@@ -130,7 +135,8 @@
               "start": 233,
               "end": 240
             }
-          }
+          },
+          "optional": false
         }
       ],
       "returnType": {
@@ -147,7 +153,8 @@
             "start": 251,
             "end": 252,
             "name": "x",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeAnnotation": {
             "type": "TSTypeAnnotation",
@@ -186,7 +193,8 @@
                   "start": 278,
                   "end": 279,
                   "name": "x",
-                  "typeAnnotation": null                }              },
+                  "typeAnnotation": null,
+                  "optional": false                }              },
               "right": {
                 "type": "Literal",
                 "start": 284,
@@ -206,7 +214,8 @@
                   "start": 304,
                   "end": 309,
                   "name": "Error",
-                  "typeAnnotation": null                },
+                  "typeAnnotation": null,
+                  "optional": false                },
                 "typeArguments": null,
                 "arguments": [
                 ]              }            },
@@ -231,5 +240,5 @@
 }
 
 --- Statistics ---
-Arena: used=9320B reserved=16777216B ratio=0%
+Arena: used=36784B reserved=16777216B ratio=0%
 Parse errors: 0

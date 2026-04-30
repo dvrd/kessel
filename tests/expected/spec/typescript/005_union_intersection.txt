@@ -14,7 +14,8 @@
         "start": 102,
         "end": 116,
         "name": "StringOrNumber",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -44,7 +45,8 @@
         "start": 141,
         "end": 145,
         "name": "Both",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -61,7 +63,8 @@
               "start": 148,
               "end": 152,
               "name": "HasA",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           },
@@ -74,7 +77,8 @@
               "start": 155,
               "end": 159,
               "name": "HasB",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           }
@@ -90,7 +94,8 @@
         "start": 166,
         "end": 173,
         "name": "Complex",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -116,7 +121,8 @@
                     "start": 177,
                     "end": 178,
                     "name": "A",
-                    "typeAnnotation": null
+                    "typeAnnotation": null,
+                    "optional": false
                   },
                   "typeArguments": null
                 },
@@ -129,7 +135,8 @@
                     "start": 181,
                     "end": 182,
                     "name": "B",
-                    "typeAnnotation": null
+                    "typeAnnotation": null,
+                    "optional": false
                   },
                   "typeArguments": null
                 }
@@ -145,7 +152,8 @@
               "start": 186,
               "end": 187,
               "name": "C",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeArguments": null
           }
@@ -161,7 +169,8 @@
         "start": 194,
         "end": 201,
         "name": "Literal",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -226,5 +235,5 @@
 }
 
 --- Statistics ---
-Arena: used=6992B reserved=16777216B ratio=0%
+Arena: used=35920B reserved=16777216B ratio=0%
 Parse errors: 0

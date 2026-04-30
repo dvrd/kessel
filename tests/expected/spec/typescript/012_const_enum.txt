@@ -14,7 +14,8 @@
         "start": 271,
         "end": 280,
         "name": "Direction",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "body": {
         "type": "TSEnumBody",
@@ -30,7 +31,8 @@
               "start": 285,
               "end": 287,
               "name": "Up",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": null
@@ -44,7 +46,8 @@
               "start": 291,
               "end": 295,
               "name": "Down",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": null
@@ -58,7 +61,8 @@
               "start": 299,
               "end": 303,
               "name": "Left",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -78,7 +82,8 @@
               "start": 313,
               "end": 318,
               "name": "Right",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": null
@@ -96,7 +101,8 @@
         "start": 334,
         "end": 340,
         "name": "Status",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "body": {
         "type": "TSEnumBody",
@@ -112,7 +118,8 @@
               "start": 345,
               "end": 351,
               "name": "Active",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -132,7 +139,8 @@
               "start": 366,
               "end": 374,
               "name": "Inactive",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -156,7 +164,8 @@
         "start": 403,
         "end": 408,
         "name": "Mixed",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "body": {
         "type": "TSEnumBody",
@@ -172,7 +181,8 @@
               "start": 413,
               "end": 417,
               "name": "Zero",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -192,7 +202,8 @@
               "start": 425,
               "end": 428,
               "name": "One",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -223,7 +234,8 @@
               "start": 441,
               "end": 444,
               "name": "Two",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -254,7 +266,8 @@
               "start": 457,
               "end": 461,
               "name": "Four",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -289,7 +302,8 @@
         "start": 494,
         "end": 506,
         "name": "AmbientFlags",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "body": {
         "type": "TSEnumBody",
@@ -305,7 +319,8 @@
               "start": 511,
               "end": 515,
               "name": "None",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -325,7 +340,8 @@
               "start": 523,
               "end": 531,
               "name": "ReadOnly",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -370,5 +386,5 @@
 }
 
 --- Statistics ---
-Arena: used=14256B reserved=16777216B ratio=0%
+Arena: used=36784B reserved=16777216B ratio=0%
 Parse errors: 0

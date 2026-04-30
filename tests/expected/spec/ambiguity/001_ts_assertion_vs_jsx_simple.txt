@@ -20,7 +20,8 @@
             "start": 86,
             "end": 91,
             "name": "value",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "JSXElement",
             "start": 94,
@@ -92,5 +93,5 @@ Parse errors (3):
   Line 3, Column 1: Expected >, got EOF
 
 --- Statistics ---
-Arena: used=8280B reserved=16777216B ratio=0%
+Arena: used=37680B reserved=16777216B ratio=0%
 Parse errors: 3

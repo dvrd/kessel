@@ -14,7 +14,8 @@
         "start": 793,
         "end": 799,
         "name": "Action",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -36,7 +37,8 @@
                   "start": 808,
                   "end": 812,
                   "name": "type",
-                  "typeAnnotation": null
+                  "typeAnnotation": null,
+                  "optional": false
                 },
                 "computed": false,
                 "optional": false,
@@ -68,7 +70,8 @@
                   "start": 821,
                   "end": 826,
                   "name": "value",
-                  "typeAnnotation": null
+                  "typeAnnotation": null,
+                  "optional": false
                 },
                 "computed": false,
                 "optional": false,
@@ -100,7 +103,8 @@
                   "start": 843,
                   "end": 847,
                   "name": "type",
-                  "typeAnnotation": null
+                  "typeAnnotation": null,
+                  "optional": false
                 },
                 "computed": false,
                 "optional": false,
@@ -139,7 +143,8 @@
                   "start": 865,
                   "end": 869,
                   "name": "type",
-                  "typeAnnotation": null
+                  "typeAnnotation": null,
+                  "optional": false
                 },
                 "computed": false,
                 "optional": false,
@@ -171,7 +176,8 @@
                   "start": 881,
                   "end": 887,
                   "name": "suffix",
-                  "typeAnnotation": null
+                  "typeAnnotation": null,
+                  "optional": false
                 },
                 "computed": false,
                 "optional": false,
@@ -201,7 +207,8 @@
         "start": 909,
         "end": 916,
         "name": "reducer",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "expression": false,
@@ -222,7 +229,8 @@
               "start": 924,
               "end": 930
             }
-          }
+          },
+          "optional": false
         },
         {
           "type": "Identifier",
@@ -242,11 +250,13 @@
                 "start": 940,
                 "end": 946,
                 "name": "Action",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               },
               "typeArguments": null
             }
-          }
+          },
+          "optional": false
         }
       ],
       "returnType": {
@@ -278,13 +288,15 @@
                 "start": 968,
                 "end": 974,
                 "name": "action",
-                "typeAnnotation": null              },
+                "typeAnnotation": null,
+                "optional": false              },
               "property": {
                 "type": "Identifier",
                 "start": 975,
                 "end": 979,
                 "name": "type",
-                "typeAnnotation": null              }            },
+                "typeAnnotation": null,
+                "optional": false              }            },
             "cases": [
               {
                 "type": "SwitchCase",
@@ -311,13 +323,15 @@
                         "start": 1009,
                         "end": 1015,
                         "name": "action",
-                        "typeAnnotation": null                      },
+                        "typeAnnotation": null,
+                        "optional": false                      },
                       "property": {
                         "type": "Identifier",
                         "start": 1016,
                         "end": 1021,
                         "name": "value",
-                        "typeAnnotation": null                      }                    }                  }
+                        "typeAnnotation": null,
+                        "optional": false                      }                    }                  }
                 ]
               },
               {
@@ -368,7 +382,8 @@
                         "start": 1079,
                         "end": 1084,
                         "name": "state",
-                        "typeAnnotation": null                      },
+                        "typeAnnotation": null,
+                        "optional": false                      },
                       "right": {
                         "type": "MemberExpression",
                         "start": 1087,
@@ -379,13 +394,15 @@
                           "start": 1087,
                           "end": 1093,
                           "name": "action",
-                          "typeAnnotation": null                        },
+                          "typeAnnotation": null,
+                          "optional": false                        },
                         "property": {
                           "type": "Identifier",
                           "start": 1094,
                           "end": 1100,
                           "name": "suffix",
-                          "typeAnnotation": null                        }                      }                    }                  }
+                          "typeAnnotation": null,
+                          "optional": false                        }                      }                    }                  }
                 ]
               }
             ]          }
@@ -415,7 +432,8 @@
                 "start": 1129,
                 "end": 1135
               }
-            }          },
+            },
+            "optional": false          },
           "init": {
             "type": "TSSatisfiesExpression",
             "start": 1138,
@@ -442,7 +460,8 @@
         "start": 1169,
         "end": 1175,
         "name": "Editor",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "expression": false,
@@ -462,19 +481,22 @@
               "computed": false,
               "kind": "init",
               "method": false,
+              "optional": false,
               "key": {
                 "type": "Identifier",
                 "start": 1178,
                 "end": 1180,
                 "name": "id",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               },
               "value": {
                 "type": "Identifier",
                 "start": 1178,
                 "end": 1180,
                 "name": "id",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               }
             },
             {
@@ -485,24 +507,30 @@
               "computed": false,
               "kind": "init",
               "method": false,
+              "optional": false,
               "key": {
                 "type": "Identifier",
                 "start": 1182,
                 "end": 1184,
                 "name": "As",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               },
               "value": {
                 "type": "Identifier",
                 "start": 1182,
                 "end": 1184,
                 "name": "As",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               }
             }
-          ]
+          ],
+          "optional": false,
+          "typeAnnotation": null
         }
       ],
+      "returnType": null,
       "body": {
         "type": "BlockStatement",
         "start": 1228,
@@ -523,7 +551,8 @@
                   "start": 1238,
                   "end": 1241,
                   "name": "ref",
-                  "typeAnnotation": null                },
+                  "typeAnnotation": null,
+                  "optional": false                },
                 "init": {
                   "type": "CallExpression",
                   "start": 1244,
@@ -533,7 +562,8 @@
                     "start": 1244,
                     "end": 1250,
                     "name": "useRef",
-                    "typeAnnotation": null                  },
+                    "typeAnnotation": null,
+                    "optional": false                  },
                   "typeArguments": {
                     "type": "TSTypeParameterInstantiation",
                     "start": 1250,
@@ -548,7 +578,8 @@
                           "start": 1251,
                           "end": 1265,
                           "name": "HTMLDivElement",
-                          "typeAnnotation": null
+                          "typeAnnotation": null,
+                          "optional": false
                         },
                         "typeArguments": null
                       }
@@ -583,16 +614,20 @@
                       "start": 1283,
                       "end": 1288,
                       "name": "draft",
-                      "typeAnnotation": null
+                      "typeAnnotation": null,
+                      "optional": false
                     },
                     {
                       "type": "Identifier",
                       "start": 1290,
                       "end": 1298,
                       "name": "setDraft",
-                      "typeAnnotation": null
+                      "typeAnnotation": null,
+                      "optional": false
                     }
-                  ]                },
+                  ],
+                  "optional": false,
+                  "typeAnnotation": null                },
                 "init": {
                   "type": "CallExpression",
                   "start": 1302,
@@ -602,7 +637,8 @@
                     "start": 1302,
                     "end": 1310,
                     "name": "useState",
-                    "typeAnnotation": null                  },
+                    "typeAnnotation": null,
+                    "optional": false                  },
                   "typeArguments": {
                     "type": "TSTypeParameterInstantiation",
                     "start": 1310,
@@ -656,16 +692,20 @@
                       "start": 1342,
                       "end": 1347,
                       "name": "state",
-                      "typeAnnotation": null
+                      "typeAnnotation": null,
+                      "optional": false
                     },
                     {
                       "type": "Identifier",
                       "start": 1349,
                       "end": 1357,
                       "name": "dispatch",
-                      "typeAnnotation": null
+                      "typeAnnotation": null,
+                      "optional": false
                     }
-                  ]                },
+                  ],
+                  "optional": false,
+                  "typeAnnotation": null                },
                 "init": {
                   "type": "CallExpression",
                   "start": 1361,
@@ -675,7 +715,8 @@
                     "start": 1361,
                     "end": 1371,
                     "name": "useReducer",
-                    "typeAnnotation": null                  },
+                    "typeAnnotation": null,
+                    "optional": false                  },
                   "typeArguments": {
                     "type": "TSTypeParameterInstantiation",
                     "start": 1371,
@@ -692,13 +733,15 @@
                       "start": 1388,
                       "end": 1395,
                       "name": "reducer",
-                      "typeAnnotation": null                    },
+                      "typeAnnotation": null,
+                      "optional": false                    },
                     {
                       "type": "Identifier",
                       "start": 1397,
                       "end": 1409,
                       "name": "initialState",
-                      "typeAnnotation": null                    }
+                      "typeAnnotation": null,
+                      "optional": false                    }
                   ]                }              }
             ]          },
           {
@@ -714,7 +757,8 @@
                 "start": 1415,
                 "end": 1424,
                 "name": "useEffect",
-                "typeAnnotation": null              },
+                "typeAnnotation": null,
+                "optional": false              },
               "typeArguments": null,
               "arguments": [
                 {
@@ -748,7 +792,8 @@
                               "start": 1443,
                               "end": 1447,
                               "name": "node",
-                              "typeAnnotation": null                            },
+                              "typeAnnotation": null,
+                              "optional": false                            },
                             "init": {
                               "type": "TSAsExpression",
                               "start": 1450,
@@ -763,13 +808,15 @@
                                   "start": 1450,
                                   "end": 1453,
                                   "name": "ref",
-                                  "typeAnnotation": null                                },
+                                  "typeAnnotation": null,
+                                  "optional": false                                },
                                 "property": {
                                   "type": "Identifier",
                                   "start": 1454,
                                   "end": 1461,
                                   "name": "current",
-                                  "typeAnnotation": null                                }
+                                  "typeAnnotation": null,
+                                  "optional": false                                }
                               },
                               "typeAnnotation": {
                                 "type": "TSTypeReference",
@@ -780,7 +827,8 @@
                                   "start": 1465,
                                   "end": 1479,
                                   "name": "HTMLDivElement",
-                                  "typeAnnotation": null
+                                  "typeAnnotation": null,
+                                  "optional": false
                                 },
                                 "typeArguments": null
                               }                            }                          }
@@ -800,7 +848,8 @@
                               "start": 1491,
                               "end": 1496,
                               "name": "onKey",
-                              "typeAnnotation": null                            },
+                              "typeAnnotation": null,
+                              "optional": false                            },
                             "init": {
                               "type": "ArrowFunctionExpression",
                               "start": 1499,
@@ -829,11 +878,13 @@
                                         "start": 1503,
                                         "end": 1508,
                                         "name": "Event",
-                                        "typeAnnotation": null
+                                        "typeAnnotation": null,
+                                        "optional": false
                                       },
                                       "typeArguments": null
                                     }
-                                  }
+                                  },
+                                  "optional": false
                                 }
                               ],
                               "returnType": null,
@@ -857,7 +908,8 @@
                                           "start": 1527,
                                           "end": 1528,
                                           "name": "k",
-                                          "typeAnnotation": null                                        },
+                                          "typeAnnotation": null,
+                                          "optional": false                                        },
                                         "init": {
                                           "type": "TSAsExpression",
                                           "start": 1531,
@@ -867,7 +919,8 @@
                                             "start": 1531,
                                             "end": 1532,
                                             "name": "e",
-                                            "typeAnnotation": null
+                                            "typeAnnotation": null,
+                                            "optional": false
                                           },
                                           "typeAnnotation": {
                                             "type": "TSTypeReference",
@@ -878,7 +931,8 @@
                                               "start": 1536,
                                               "end": 1549,
                                               "name": "KeyboardEvent",
-                                              "typeAnnotation": null
+                                              "typeAnnotation": null,
+                                              "optional": false
                                             },
                                             "typeArguments": null
                                           }                                        }                                      }
@@ -902,13 +956,15 @@
                                           "start": 1561,
                                           "end": 1562,
                                           "name": "k",
-                                          "typeAnnotation": null                                        },
+                                          "typeAnnotation": null,
+                                          "optional": false                                        },
                                         "property": {
                                           "type": "Identifier",
                                           "start": 1563,
                                           "end": 1566,
                                           "name": "key",
-                                          "typeAnnotation": null                                        }                                      },
+                                          "typeAnnotation": null,
+                                          "optional": false                                        }                                      },
                                       "right": {
                                         "type": "Literal",
                                         "start": 1571,
@@ -928,7 +984,8 @@
                                           "start": 1581,
                                           "end": 1589,
                                           "name": "dispatch",
-                                          "typeAnnotation": null                                        },
+                                          "typeAnnotation": null,
+                                          "optional": false                                        },
                                         "typeArguments": null,
                                         "arguments": [
                                           {
@@ -944,12 +1001,14 @@
                                                 "method": false,
                                                 "shorthand": false,
                                                 "computed": false,
+                                                "optional": false,
                                                 "key": {
                                                   "type": "Identifier",
                                                   "start": 1592,
                                                   "end": 1596,
                                                   "name": "type",
-                                                  "typeAnnotation": null                                                },
+                                                  "typeAnnotation": null,
+                                                  "optional": false                                                },
                                                 "value": {
                                                   "type": "Literal",
                                                   "start": 1598,
@@ -981,13 +1040,15 @@
                               "start": 1621,
                               "end": 1625,
                               "name": "node",
-                              "typeAnnotation": null                            },
+                              "typeAnnotation": null,
+                              "optional": false                            },
                             "property": {
                               "type": "Identifier",
                               "start": 1626,
                               "end": 1642,
                               "name": "addEventListener",
-                              "typeAnnotation": null                            }                          },
+                              "typeAnnotation": null,
+                              "optional": false                            }                          },
                           "typeArguments": null,
                           "arguments": [
                             {
@@ -1001,7 +1062,8 @@
                               "start": 1654,
                               "end": 1659,
                               "name": "onKey",
-                              "typeAnnotation": null                            }
+                              "typeAnnotation": null,
+                              "optional": false                            }
                           ]                        }                      },
                       {
                         "type": "ReturnStatement",
@@ -1032,13 +1094,15 @@
                                 "start": 1679,
                                 "end": 1683,
                                 "name": "node",
-                                "typeAnnotation": null                              },
+                                "typeAnnotation": null,
+                                "optional": false                              },
                               "property": {
                                 "type": "Identifier",
                                 "start": 1684,
                                 "end": 1703,
                                 "name": "removeEventListener",
-                                "typeAnnotation": null                              }                            },
+                                "typeAnnotation": null,
+                                "optional": false                              }                            },
                             "typeArguments": null,
                             "arguments": [
                               {
@@ -1052,7 +1116,8 @@
                                 "start": 1715,
                                 "end": 1720,
                                 "name": "onKey",
-                                "typeAnnotation": null                              }
+                                "typeAnnotation": null,
+                                "optional": false                              }
                             ]                          }                        }                      }
                     ]
                   }                },
@@ -1078,7 +1143,8 @@
                   "start": 1742,
                   "end": 1746,
                   "name": "Comp",
-                  "typeAnnotation": null                },
+                  "typeAnnotation": null,
+                  "optional": false                },
                 "init": {
                   "type": "LogicalExpression",
                   "start": 1749,
@@ -1089,7 +1155,8 @@
                     "start": 1749,
                     "end": 1751,
                     "name": "As",
-                    "typeAnnotation": null                  },
+                    "typeAnnotation": null,
+                    "optional": false                  },
                   "right": {
                     "type": "Literal",
                     "start": 1755,
@@ -1135,7 +1202,8 @@
                         "start": 1789,
                         "end": 1792,
                         "name": "ref",
-                        "typeAnnotation": null
+                        "typeAnnotation": null,
+                        "optional": false
                       }                    }
                   },
                   {
@@ -1157,7 +1225,8 @@
                         "start": 1798,
                         "end": 1800,
                         "name": "id",
-                        "typeAnnotation": null
+                        "typeAnnotation": null,
+                        "optional": false
                       }                    }
                   },
                   {
@@ -1260,13 +1329,15 @@
                         "start": 1888,
                         "end": 1893,
                         "name": "draft",
-                        "typeAnnotation": null                      },
+                        "typeAnnotation": null,
+                        "optional": false                      },
                       "right": {
                         "type": "Identifier",
                         "start": 1897,
                         "end": 1902,
                         "name": "state",
-                        "typeAnnotation": null                      }
+                        "typeAnnotation": null,
+                        "optional": false                      }
                     },
                     "typeAnnotation": {
                       "type": "TSStringKeyword",
@@ -1331,7 +1402,8 @@
                                 "start": 1944,
                                 "end": 1952,
                                 "name": "dispatch",
-                                "typeAnnotation": null                              },
+                                "typeAnnotation": null,
+                                "optional": false                              },
                               "typeArguments": null,
                               "arguments": [
                                 {
@@ -1347,12 +1419,14 @@
                                       "method": false,
                                       "shorthand": false,
                                       "computed": false,
+                                      "optional": false,
                                       "key": {
                                         "type": "Identifier",
                                         "start": 1955,
                                         "end": 1959,
                                         "name": "type",
-                                        "typeAnnotation": null                                      },
+                                        "typeAnnotation": null,
+                                        "optional": false                                      },
                                       "value": {
                                         "type": "Literal",
                                         "start": 1961,
@@ -1368,12 +1442,14 @@
                                       "method": false,
                                       "shorthand": false,
                                       "computed": false,
+                                      "optional": false,
                                       "key": {
                                         "type": "Identifier",
                                         "start": 1971,
                                         "end": 1977,
                                         "name": "suffix",
-                                        "typeAnnotation": null                                      },
+                                        "typeAnnotation": null,
+                                        "optional": false                                      },
                                       "value": {
                                         "type": "Literal",
                                         "start": 1979,
@@ -1468,7 +1544,8 @@
                             "start": 2072,
                             "end": 2077,
                             "name": "state",
-                            "typeAnnotation": null
+                            "typeAnnotation": null,
+                            "optional": false
                           }                        }
                       },
                       {
@@ -1500,7 +1577,8 @@
                                 "start": 2098,
                                 "end": 2099,
                                 "name": "e",
-                                "typeAnnotation": null
+                                "typeAnnotation": null,
+                                "optional": false
                               }
                             ],
                             "returnType": null,
@@ -1513,7 +1591,8 @@
                                 "start": 2104,
                                 "end": 2112,
                                 "name": "setDraft",
-                                "typeAnnotation": null                              },
+                                "typeAnnotation": null,
+                                "optional": false                              },
                               "typeArguments": null,
                               "arguments": [
                                 {
@@ -1535,13 +1614,15 @@
                                         "start": 2114,
                                         "end": 2115,
                                         "name": "e",
-                                        "typeAnnotation": null                                      },
+                                        "typeAnnotation": null,
+                                        "optional": false                                      },
                                       "property": {
                                         "type": "Identifier",
                                         "start": 2116,
                                         "end": 2122,
                                         "name": "target",
-                                        "typeAnnotation": null                                      }
+                                        "typeAnnotation": null,
+                                        "optional": false                                      }
                                     },
                                     "typeAnnotation": {
                                       "type": "TSTypeReference",
@@ -1552,7 +1633,8 @@
                                         "start": 2126,
                                         "end": 2142,
                                         "name": "HTMLInputElement",
-                                        "typeAnnotation": null
+                                        "typeAnnotation": null,
+                                        "optional": false
                                       },
                                       "typeArguments": null
                                     }                                  },
@@ -1561,7 +1643,8 @@
                                     "start": 2144,
                                     "end": 2149,
                                     "name": "value",
-                                    "typeAnnotation": null                                  }                                }
+                                    "typeAnnotation": null,
+                                    "optional": false                                  }                                }
                               ]                            }
                           }                        }
                       }

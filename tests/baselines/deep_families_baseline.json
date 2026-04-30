@@ -59,13 +59,13 @@
       "files": 2,
       "pass": 0,
       "fail": 2,
-      "divergences": 43
+      "divergences": 17
     },
     "typescript": {
       "files": 15,
       "pass": 14,
       "fail": 1,
-      "divergences": 25
+      "divergences": 18
     },
     "unicode": {
       "files": 6,

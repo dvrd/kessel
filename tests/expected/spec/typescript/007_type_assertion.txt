@@ -20,7 +20,8 @@
             "start": 145,
             "end": 146,
             "name": "a",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "TSTypeAssertion",
             "start": 149,
@@ -35,7 +36,8 @@
               "start": 157,
               "end": 162,
               "name": "value",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             }          }        }
       ]    },
     {
@@ -53,7 +55,8 @@
             "start": 170,
             "end": 171,
             "name": "b",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "TSTypeAssertion",
             "start": 174,
@@ -73,13 +76,15 @@
                 "start": 183,
                 "end": 184,
                 "name": "x",
-                "typeAnnotation": null              },
+                "typeAnnotation": null,
+                "optional": false              },
               "right": {
                 "type": "Identifier",
                 "start": 187,
                 "end": 188,
                 "name": "y",
-                "typeAnnotation": null              }
+                "typeAnnotation": null,
+                "optional": false              }
             }          }        }
       ]    }
   ],
@@ -100,5 +105,5 @@
 }
 
 --- Statistics ---
-Arena: used=8584B reserved=16777216B ratio=0%
+Arena: used=37232B reserved=16777216B ratio=0%
 Parse errors: 0

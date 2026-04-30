@@ -14,7 +14,8 @@
         "start": 157,
         "end": 161,
         "name": "Dict",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "extends": [],
@@ -42,7 +43,8 @@
                     "start": 172,
                     "end": 178
                   }
-                }
+                },
+                "optional": false
               }
             ],
             "typeAnnotation": {
@@ -71,7 +73,8 @@
         "start": 196,
         "end": 207,
         "name": "ReadonlyMap",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "typeAnnotation": {
@@ -98,7 +101,8 @@
                     "start": 228,
                     "end": 234
                   }
-                }
+                },
+                "optional": false
               }
             ],
             "typeAnnotation": {
@@ -136,5 +140,5 @@
 }
 
 --- Statistics ---
-Arena: used=7600B reserved=16777216B ratio=0%
+Arena: used=35952B reserved=16777216B ratio=0%
 Parse errors: 0

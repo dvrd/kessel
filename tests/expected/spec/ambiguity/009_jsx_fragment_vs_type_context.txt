@@ -20,7 +20,8 @@
             "start": 48,
             "end": 52,
             "name": "view",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "JSXFragment",
             "start": 55,
@@ -93,5 +94,5 @@
 }
 
 --- Statistics ---
-Arena: used=7224B reserved=16777216B ratio=0%
+Arena: used=36752B reserved=16777216B ratio=0%
 Parse errors: 0

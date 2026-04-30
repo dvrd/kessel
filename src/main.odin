@@ -2018,10 +2018,15 @@ emit_identifier_name_object :: proc(id: IdentifierName, indent: int) {
 	out_s("\"name\": ")
 	out_string(id.name)
 	if emit_ts_shape {
-		// TS-ESTree shape parity - OXC emits these fields unconditionally.
+		// TS-ESTree shape parity - OXC emits these fields unconditionally
+		// on every Identifier, even where the source has no annotation or
+		// `?` marker. S26 W4: added `optional: false` alongside the
+		// existing `typeAnnotation: null`.
 		out_s(",\n")
 		print_indent(indent + 1)
-		out_s("\"typeAnnotation\": null")
+		out_s("\"typeAnnotation\": null,\n")
+		print_indent(indent + 1)
+		out_s("\"optional\": false")
 	}
 	out_s("\n")
 	print_indent(indent)
@@ -2053,9 +2058,12 @@ emit_binding_identifier_object :: proc(id: BindingIdentifier, indent: int) {
 	out_s("\"name\": ")
 	out_string(id.name)
 	if emit_ts_shape {
+		// Same TS-shape footer as emit_identifier_name_object (S26 W4).
 		out_s(",\n")
 		print_indent(indent + 1)
-		out_s("\"typeAnnotation\": null")
+		out_s("\"typeAnnotation\": null,\n")
+		print_indent(indent + 1)
+		out_s("\"optional\": false")
 	}
 	out_s("\n")
 	print_indent(indent)
@@ -3087,12 +3095,19 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent)
 			out_s("]")
 		}
-		// TypeScript return type annotation.
+		// TypeScript return type annotation. In TS-shape mode always emit
+		// the field (null when absent) for OXC parity — the FunctionExpression
+		// / ArrowFunctionExpression cases already do this; FunctionDeclaration
+		// was the lone holdout (S26 W4).
 		if ann, ok := s.expr.return_type.(^TSTypeAnnotation); ok {
 			out_s(",\n")
 			print_indent(indent)
 			out_s("\"returnType\": ")
 			emit_ts_type_annotation_node(ann, indent)
+		} else if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"returnType\": null")
 		}
 		out_s(",\n")
 		print_indent(indent)
@@ -3455,6 +3470,17 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			}
 			print_indent(indent)
 			out_s("]")
+		}
+		// S26 W4: TS-ESTree distinguishes `export ... ` (value space) from
+		// `export type ... ` (type space) via `exportKind`. Kessel doesn't
+		// parse the `type` modifier yet, so every ExportNamedDeclaration is
+		// in value space — emit a hard-coded `"value"` placeholder for now.
+		// When `export type` lands, switch to a real lookup off the parsed
+		// flag.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"exportKind\": \"value\"")
 		}
 
 	case ^ExportDefaultDeclaration:
@@ -3873,11 +3899,15 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		emit_span_leading(s.id.loc, indent + 1)
 		out_s("\"name\": ")
 		out_string(s.id.name)
-		// typeAnnotation: OXC always emits null on the interface id in TS-shape mode.
+		// typeAnnotation + optional: OXC always emits both on the interface
+		// id in TS-shape mode (S26 W4: added optional alongside the
+		// existing typeAnnotation).
 		if emit_ts_shape {
 			out_s(",\n")
 			print_indent(indent + 1)
-			out_s("\"typeAnnotation\": null")
+			out_s("\"typeAnnotation\": null,\n")
+			print_indent(indent + 1)
+			out_s("\"optional\": false")
 		}
 		out_s("\n")
 		print_indent(indent)
@@ -3953,12 +3983,14 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		emit_span_leading(s.id.loc, indent + 1)
 		out_s("\"name\": ")
 		out_string(s.id.name)
-		// TS-ESTree shape: OXC always emits `typeAnnotation: null` on enum
-		// identifiers (mirrors Identifier's TS-shape nullable fields).
+		// TS-ESTree shape: OXC always emits `typeAnnotation: null` and
+		// `optional: false` on enum identifiers (S26 W4: added optional).
 		if emit_ts_shape {
 			out_s(",\n")
 			print_indent(indent + 1)
-			out_s("\"typeAnnotation\": null")
+			out_s("\"typeAnnotation\": null,\n")
+			print_indent(indent + 1)
+			out_s("\"optional\": false")
 		}
 		out_s("\n")
 		print_indent(indent)
@@ -4032,6 +4064,14 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		}
 		out_s(",\n")
 		print_indent(indent)
+		out_s("\"kind\": ")
+		out_string(ts_module_kind_label(s.kind))
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"global\": ")
+		out_bool(s.global)
+		out_s(",\n")
+		print_indent(indent)
 		out_s("\"declare\": ")
 		out_bool(s.declare)
 
@@ -4040,6 +4080,19 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_indent(indent)
 		out_s("\"[UNIMPLEMENTED]\": true")
 	}
+}
+
+// Map TSModuleKind to its OXC string label. `namespace`, `module`, and
+// `global` correspond to `namespace Foo {}`, `declare module 'x' {}`, and
+// `declare global {}`. Emitted unconditionally on every TSModuleDeclaration
+// (S26 W4).
+ts_module_kind_label :: proc(kind: TSModuleKind) -> string {
+	switch kind {
+	case .Namespace: return "namespace"
+	case .Module:    return "module"
+	case .Global:    return "global"
+	}
+	return "namespace"
 }
 
 print_pattern_ast :: proc(pattern: Pattern, indent: int) {
@@ -4065,6 +4118,17 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 			out_s(",\n")
 			print_indent(indent)
 			out_s("\"typeAnnotation\": null")
+		}
+		// S26 W4: TS-ESTree always emits `optional: false` on every binding
+		// Identifier, even ones with no `?` marker (parameters and class
+		// fields are the obvious carriers, but OXC emits it on plain `let x`
+		// declarators too). The Identifier struct doesn't carry an
+		// `optional` flag yet — every binding-position Identifier in source
+		// today is non-optional, so emit a hard-coded `false`.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"optional\": false")
 		}
 	case ^RestElement:
 		// ESTree `RestElement { argument: Pattern }` - the `...x` inside
@@ -4099,6 +4163,18 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		out_s("\n")
 		print_indent(indent)
 		out_s("}")
+		// S26 W4: TS-shape footer — OXC always emits `optional: false` and
+		// a `typeAnnotation` field on every Pattern node, including
+		// AssignmentPattern. The default for the latter is null since the
+		// `: T` annotation in `function f(x: T = 1)` lives on the inner
+		// Identifier, not on the AssignmentPattern wrapper itself.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"optional\": false,\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": null")
+		}
 	case ^MemberExpression:
 		// Destructuring target like `({a} = obj, foo.bar = 1)`. ESTree emits
 		// the MemberExpression inline in the pattern position. Rebuild a local
@@ -4132,6 +4208,22 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 			}
 			print_indent(indent)
 			out_s("]")
+		}
+		// S26 W4: TS-ESTree always emits `optional: false` and a
+		// `typeAnnotation` field on every Pattern node, regardless of
+		// whether the source has a `?` marker or `:T` annotation. Kessel's
+		// AST doesn't carry these on ArrayPattern/ObjectPattern today, so
+		// emit hard-coded `false` / `null` placeholders. Closing the
+		// type-annotation-on-non-Identifier-pattern bug (`function
+		// f({a,b}: Props)` silently drops the annotation in the parser) is
+		// the next beat (W4b) — once the AST gains a slot, switch this to
+		// a real lookup.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"optional\": false,\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": null")
 		}
 	case ^ObjectPattern:
 		print_indent(indent)
@@ -4176,6 +4268,14 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 				out_s("\"kind\": \"init\",\n")
 				print_indent(indent + 2)
 				out_s("\"method\": false,\n")
+				// S26 W4: TS-ESTree emits `optional: false` on Property,
+				// even in a pattern position. ObjectPatternProperty doesn't
+				// carry an optional flag (no source syntax for it), so emit
+				// the placeholder unconditionally in TS-shape mode.
+				if emit_ts_shape {
+					print_indent(indent + 2)
+					out_s("\"optional\": false,\n")
+				}
 				// key: ObjectPatternPropertyKey is a union of IdentifierName,
 				// ^StringLiteral, or ^Expression (for computed). Previously omitted
 				// entirely - OXC emits the key as an Identifier/Literal/Expression
@@ -4254,6 +4354,15 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 			print_indent(indent)
 			out_s("]")
 		}
+		// S26 W4: same TS-shape footer as ArrayPattern — OXC always emits
+		// `optional: false` and a `typeAnnotation` field on every Pattern.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"optional\": false,\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": null")
+		}
 	case:
 		print_indent(indent)
 		out_s("null")
@@ -4314,6 +4423,14 @@ print_expression_as_pattern :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent)
 			out_s("]")
 		}
+		// Mirror the print_pattern_ast ArrayPattern footer (S26 W4).
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"optional\": false,\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": null")
+		}
 	case ^ObjectExpression:
 		print_indent(indent)
 		out_s("\"type\": \"ObjectPattern\",\n")
@@ -4363,6 +4480,11 @@ print_expression_as_pattern :: proc(expr: ^Expression, indent: int) {
 				out_s("\"kind\": \"init\",\n")
 				print_indent(indent + 2)
 				out_s("\"method\": false,\n")
+				// Mirror the print_pattern_ast Property footer (S26 W4).
+				if emit_ts_shape {
+					print_indent(indent + 2)
+					out_s("\"optional\": false,\n")
+				}
 				print_indent(indent + 2)
 				out_s("\"key\": ")
 				if prop.key != nil {
@@ -4386,6 +4508,14 @@ print_expression_as_pattern :: proc(expr: ^Expression, indent: int) {
 			}
 			print_indent(indent)
 			out_s("]")
+		}
+		// Mirror the print_pattern_ast ObjectPattern footer (S26 W4).
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"optional\": false,\n")
+			print_indent(indent)
+			out_s("\"typeAnnotation\": null")
 		}
 	case ^AssignmentExpression:
 		// Only `=` forms a destructuring default; `+=`/etc. are not valid
@@ -4478,6 +4608,14 @@ emit_ts_module_body :: proc(body: ^TSModuleBody, indent: int) {
 		} else {
 			out_s("null")
 		}
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"kind\": ")
+		out_string(ts_module_kind_label(v.kind))
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"global\": ")
+		out_bool(v.global)
 		out_s(",\n")
 		print_indent(indent + 1)
 		out_s("\"declare\": ")
@@ -4880,6 +5018,17 @@ emit_ts_signature :: proc(sig: ^TSSignature, indent: int) {
 					print_indent(indent + 3)
 					out_s("\"typeAnnotation\": ")
 					emit_ts_type_annotation_node(ann, indent + 3)
+				} else if emit_ts_shape {
+					out_s(",\n")
+					print_indent(indent + 3)
+					out_s("\"typeAnnotation\": null")
+				}
+				// S26 W4: TSMethodSignature param Identifiers also need the
+				// TS-shape `optional: false` placeholder for parity with OXC.
+				if emit_ts_shape {
+					out_s(",\n")
+					print_indent(indent + 3)
+					out_s("\"optional\": false")
 				}
 				out_s("\n")
 				print_indent(indent + 2)
@@ -4923,6 +5072,17 @@ emit_ts_signature :: proc(sig: ^TSSignature, indent: int) {
 					print_indent(indent + 3)
 					out_s("\"typeAnnotation\": ")
 					emit_ts_type_annotation_node(ann, indent + 3)
+				} else if emit_ts_shape {
+					out_s(",\n")
+					print_indent(indent + 3)
+					out_s("\"typeAnnotation\": null")
+				}
+				// S26 W4: same TS-shape `optional: false` placeholder as the
+				// TSMethodSignature params above.
+				if emit_ts_shape {
+					out_s(",\n")
+					print_indent(indent + 3)
+					out_s("\"optional\": false")
 				}
 				out_s("\n")
 				print_indent(indent + 2)
@@ -5187,6 +5347,55 @@ emit_ts_type_parameter_declaration :: proc(decl_opt: Maybe(^TSTypeParameterDecla
 	out_s("}")
 }
 
+// emit_ts_type_name converts a type-position expression (the `typeName`
+// slot on TSTypeReference / TSTypeQuery / TSImportType) into the OXC
+// TS-ESTree shape. A plain Identifier maps directly; a MemberExpression
+// chain (`A.B.C`) folds left-deep into a recursive TSQualifiedName tree:
+//
+//   MemberExpression{object: A, property: B}
+//     -> TSQualifiedName{left: A, right: B}
+//   MemberExpression{object: MemberExpression{A, B}, property: C}
+//     -> TSQualifiedName{left: TSQualifiedName{left: A, right: B}, right: C}
+//
+// Kessel's parser produces MemberExpression even in type position today,
+// matching swc's choice; OXC produces TSQualifiedName. This emit-time
+// rewrite gives us OXC parity without changing the parser. Each emitted
+// Identifier carries the same TS-shape footer (`typeAnnotation: null,
+// optional: false`) as every other TS-mode Identifier.
+emit_ts_type_name :: proc(expr: ^Expression, indent: int) {
+	if expr == nil { out_s("null"); return }
+	if me, ok := expr^.(^MemberExpression); ok {
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSQualifiedName\"")
+		emit_span_fields(me.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"left\": ")
+		emit_ts_type_name(me.object, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"right\": ")
+		// .property is always an Identifier in a valid TS qualified name
+		// (`A.B`, `A.B.C`); recurse via emit_ts_type_name so a non-Identifier
+		// property would still produce well-formed JSON rather than crash.
+		emit_ts_type_name(me.property, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+		return
+	}
+	// Leaf — plain Identifier (or other expression). Wrap in `{...}` and
+	// dispatch through the standard expression printer; that path emits
+	// the TS-shape footer (typeAnnotation, optional) on Identifier so
+	// every TSQualifiedName leaf matches OXC's shape.
+	out_s("{\n")
+	print_expression_ast(expr, indent + 1)
+	out_s("\n")
+	print_indent(indent)
+	out_s("}")
+}
+
 // emit_ts_type_annotation_node writes a TSTypeAnnotation wrapper object:
 // { "type": "TSTypeAnnotation", "start": N, "end": N, "typeAnnotation": <TSType> }
 emit_ts_type_annotation_node :: proc(ann: ^TSTypeAnnotation, indent: int) {
@@ -5276,11 +5485,9 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		emit_span_fields(v.loc, indent + 1)
 		out_s(",\n")
 		print_indent(indent + 1)
-		out_s("\"typeName\": {\n")
-		print_expression_ast(v.type_name, indent + 2)
-		out_s("\n")
-		print_indent(indent + 1)
-		out_s("},\n")
+		out_s("\"typeName\": ")
+		emit_ts_type_name(v.type_name, indent + 1)
+		out_s(",\n")
 		print_indent(indent + 1)
 		// `typeArguments` is the TS-ESTree field for the `<A, B>` instantiation
 		// on a reference, e.g. `Array<T>`. The parser records it on
@@ -5452,10 +5659,14 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		emit_span_leading(v.type_parameter.name.loc, indent + 2)
 		out_s("\"name\": ")
 		out_string(v.type_parameter.name.name)
+		// S26 W4: TS-shape parity — OXC always emits `typeAnnotation: null`
+		// AND `optional: false` on every Identifier in TS mode.
 		if emit_ts_shape {
 			out_s(",\n")
 			print_indent(indent + 2)
-			out_s("\"typeAnnotation\": null")
+			out_s("\"typeAnnotation\": null,\n")
+			print_indent(indent + 2)
+			out_s("\"optional\": false")
 		}
 		out_s("\n")
 		print_indent(indent + 1)
@@ -5767,6 +5978,19 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			print_indent(indent)
 			out_s("\"typeAnnotation\": null")
 		}
+		// S26 W4: TS-ESTree emits `optional: false` on EVERY Identifier in
+		// TS-shape mode — not just binding-position ones. OXC's TS-mode
+		// output puts it on function ids, TypeParameter names, property
+		// keys, TSTypeReference typeNames, etc. Kessel's Identifier struct
+		// has no `optional` slot today (no source syntax for an optional
+		// expression-position identifier), so emit a hard-coded `false`
+		// placeholder. The pattern-position emit in print_pattern_ast does
+		// the same.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"optional\": false")
+		}
 
 	case ^ThisExpression:
 		// No additional fields
@@ -5876,6 +6100,15 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 			out_s("\"computed\": ")
 			out_bool(prop.computed)
 			out_s(",\n")
+			// S26 W4: TS-ESTree always emits `optional: false` on Property,
+			// in both ObjectExpression and ObjectPattern positions. Kessel's
+			// ObjectPropertyExpression doesn't carry an optional flag
+			// (no source syntax for `{a?: b}` outside type positions), so
+			// emit the placeholder unconditionally in TS-shape mode.
+			if emit_ts_shape {
+				print_indent(indent + 2)
+				out_s("\"optional\": false,\n")
+			}
 
 			if prop.key != nil {
 				print_indent(indent + 2)

@@ -20,7 +20,8 @@
             "start": 49,
             "end": 54,
             "name": "value",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "CallExpression",
             "start": 57,
@@ -39,7 +40,8 @@
                   "start": 57,
                   "end": 60,
                   "name": "foo",
-                  "typeAnnotation": null                },
+                  "typeAnnotation": null,
+                  "optional": false                },
                 "typeArguments": {
                   "type": "TSTypeParameterInstantiation",
                   "start": 60,
@@ -59,7 +61,8 @@
                 "start": 71,
                 "end": 74,
                 "name": "bar",
-                "typeAnnotation": null              }            },
+                "typeAnnotation": null,
+                "optional": false              }            },
             "typeArguments": {
               "type": "TSTypeParameterInstantiation",
               "start": 74,
@@ -87,5 +90,5 @@
 }
 
 --- Statistics ---
-Arena: used=6712B reserved=16777216B ratio=0%
+Arena: used=36176B reserved=16777216B ratio=0%
 Parse errors: 0

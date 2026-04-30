@@ -14,7 +14,8 @@
         "start": 902,
         "end": 905,
         "name": "Geo",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "body": {
         "type": "TSModuleBlock",
@@ -40,7 +41,8 @@
                     "start": 923,
                     "end": 925,
                     "name": "PI",
-                    "typeAnnotation": null                  },
+                    "typeAnnotation": null,
+                    "optional": false                  },
                   "init": {
                     "type": "Literal",
                     "start": 928,
@@ -50,7 +52,8 @@
               ]            },
             "specifiers": [],
             "source": null,
-            "attributes": []
+            "attributes": [],
+            "exportKind": "value"
           },
           {
             "type": "ExportNamedDeclaration",
@@ -65,7 +68,8 @@
                 "start": 952,
                 "end": 956,
                 "name": "area",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               },
               "typeParameters": null,
               "expression": false,
@@ -86,7 +90,8 @@
                       "start": 960,
                       "end": 966
                     }
-                  }
+                  },
+                  "optional": false
                 }
               ],
               "returnType": {
@@ -123,27 +128,33 @@
                           "start": 989,
                           "end": 991,
                           "name": "PI",
-                          "typeAnnotation": null                        },
+                          "typeAnnotation": null,
+                          "optional": false                        },
                         "right": {
                           "type": "Identifier",
                           "start": 994,
                           "end": 995,
                           "name": "r",
-                          "typeAnnotation": null                        }                      },
+                          "typeAnnotation": null,
+                          "optional": false                        }                      },
                       "right": {
                         "type": "Identifier",
                         "start": 998,
                         "end": 999,
                         "name": "r",
-                        "typeAnnotation": null                      }                    }                  }
+                        "typeAnnotation": null,
+                        "optional": false                      }                    }                  }
                 ]
               }            },
             "specifiers": [],
             "source": null,
-            "attributes": []
+            "attributes": [],
+            "exportKind": "value"
           }
         ]
       },
+      "kind": "namespace",
+      "global": false,
       "declare": false    },
     {
       "type": "TSModuleDeclaration",
@@ -174,7 +185,8 @@
                 "start": 1053,
                 "end": 1057,
                 "name": "init",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               },
               "typeParameters": null,
               "expression": false,
@@ -204,7 +216,8 @@
                             "start": 1066,
                             "end": 1071,
                             "name": "debug",
-                            "typeAnnotation": null
+                            "typeAnnotation": null,
+                            "optional": false
                           },
                           "computed": false,
                           "optional": false,
@@ -222,7 +235,8 @@
                         }
                       ]
                     }
-                  }
+                  },
+                  "optional": false
                 }
               ],
               "returnType": {
@@ -244,7 +258,8 @@
               }            },
             "specifiers": [],
             "source": null,
-            "attributes": []
+            "attributes": [],
+            "exportKind": "value"
           },
           {
             "type": "ExportNamedDeclaration",
@@ -274,15 +289,19 @@
                         "start": 1115,
                         "end": 1121
                       }
-                    }                  },
+                    },
+                    "optional": false                  },
                   "init": null                }
               ]            },
             "specifiers": [],
             "source": null,
-            "attributes": []
+            "attributes": [],
+            "exportKind": "value"
           }
         ]
       },
+      "kind": "module",
+      "global": false,
       "declare": true    },
     {
       "type": "TSModuleDeclaration",
@@ -293,7 +312,8 @@
         "start": 1136,
         "end": 1141,
         "name": "Outer",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "body": {
         "type": "TSModuleDeclaration",
@@ -304,7 +324,8 @@
           "start": 1142,
           "end": 1147,
           "name": "Inner",
-          "typeAnnotation": null
+          "typeAnnotation": null,
+          "optional": false
         },
         "body": {
           "type": "TSModuleBlock",
@@ -319,7 +340,8 @@
                 "type": "Unknown"              },
               "specifiers": [],
               "source": null,
-              "attributes": []
+              "attributes": [],
+              "exportKind": "value"
             },
             {
               "type": "ExportNamedDeclaration",
@@ -340,7 +362,8 @@
                       "start": 1192,
                       "end": 1195,
                       "name": "TAG",
-                      "typeAnnotation": null                    },
+                      "typeAnnotation": null,
+                      "optional": false                    },
                     "init": {
                       "type": "Literal",
                       "start": 1198,
@@ -350,12 +373,17 @@
                 ]              },
               "specifiers": [],
               "source": null,
-              "attributes": []
+              "attributes": [],
+              "exportKind": "value"
             }
           ]
         },
+        "kind": "namespace",
+        "global": false,
         "declare": false
       },
+      "kind": "namespace",
+      "global": false,
       "declare": false    }
   ],
   "comments": [

@@ -191,10 +191,11 @@ const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   // the lexer currently doesn't preserve the shebang.
   Program:                  new Set([]),
   // Identifier: Kessel mirrors OXC's TS shape (emits `typeAnnotation: null`
-  // and friends in TS mode via the emit_ts_shape toggle). The `optional`
-  // field is stripped only where the TS `?` marker isn't applicable.
-  Identifier:               new Set(['optional']),
-  BindingIdentifier:        new Set(['optional']),
+  // and friends in TS mode via the emit_ts_shape toggle). As of S26 W4
+  // Kessel also emits `optional: false` on every binding-position
+  // Identifier in TS mode, so we drop the strip and compare directly.
+  Identifier:               new Set([]),
+  BindingIdentifier:        new Set([]),
   // FunctionDeclaration/Expression: `predicate` is a Babel leftover that
   // OXC sometimes surfaces. `declare` is always emitted by OXC.
   FunctionDeclaration:      new Set(['predicate', 'declare']),

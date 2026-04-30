@@ -14,7 +14,8 @@
         "start": 152,
         "end": 160,
         "name": "identity",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -30,7 +31,8 @@
               "start": 161,
               "end": 162,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -62,11 +64,13 @@
                 "start": 167,
                 "end": 168,
                 "name": "T",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               },
               "typeArguments": null
             }
-          }
+          },
+          "optional": false
         }
       ],
       "returnType": {
@@ -82,7 +86,8 @@
             "start": 171,
             "end": 172,
             "name": "T",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": null
         }
@@ -101,7 +106,8 @@
               "start": 184,
               "end": 185,
               "name": "x",
-              "typeAnnotation": null            }          }
+              "typeAnnotation": null,
+              "optional": false            }          }
         ]
       }    },
     {
@@ -119,7 +125,8 @@
             "start": 195,
             "end": 196,
             "name": "a",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "CallExpression",
             "start": 199,
@@ -129,7 +136,8 @@
               "start": 199,
               "end": 207,
               "name": "identity",
-              "typeAnnotation": null            },
+              "typeAnnotation": null,
+              "optional": false            },
             "typeArguments": {
               "type": "TSTypeParameterInstantiation",
               "start": 207,
@@ -166,7 +174,8 @@
             "start": 227,
             "end": 228,
             "name": "b",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "CallExpression",
             "start": 231,
@@ -176,7 +185,8 @@
               "start": 231,
               "end": 239,
               "name": "identity",
-              "typeAnnotation": null            },
+              "typeAnnotation": null,
+              "optional": false            },
             "typeArguments": {
               "type": "TSTypeParameterInstantiation",
               "start": 239,
@@ -216,5 +226,5 @@
 }
 
 --- Statistics ---
-Arena: used=8376B reserved=16777216B ratio=0%
+Arena: used=37456B reserved=16777216B ratio=0%
 Parse errors: 0

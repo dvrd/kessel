@@ -14,7 +14,8 @@
         "start": 139,
         "end": 147,
         "name": "IsString",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -30,7 +31,8 @@
               "start": 148,
               "end": 149,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -53,7 +55,8 @@
             "start": 153,
             "end": 154,
             "name": "T",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": null
         },
@@ -97,7 +100,8 @@
         "start": 191,
         "end": 196,
         "name": "Unbox",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -113,7 +117,8 @@
               "start": 197,
               "end": 198,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -136,7 +141,8 @@
             "start": 202,
             "end": 203,
             "name": "T",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": null
         },
@@ -154,7 +160,8 @@
                 "start": 214,
                 "end": 219,
                 "name": "value",
-                "typeAnnotation": null
+                "typeAnnotation": null,
+                "optional": false
               },
               "computed": false,
               "optional": false,
@@ -176,7 +183,8 @@
                       "start": 227,
                       "end": 228,
                       "name": "V",
-                      "typeAnnotation": null
+                      "typeAnnotation": null,
+                      "optional": false
                     },
                     "constraint": null,
                     "default": null,
@@ -198,7 +206,8 @@
             "start": 233,
             "end": 234,
             "name": "V",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": null
         },
@@ -211,7 +220,8 @@
             "start": 237,
             "end": 238,
             "name": "T",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": null
         }
@@ -235,5 +245,5 @@
 }
 
 --- Statistics ---
-Arena: used=7816B reserved=16777216B ratio=0%
+Arena: used=36368B reserved=16777216B ratio=0%
 Parse errors: 0

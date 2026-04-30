@@ -20,7 +20,8 @@
             "start": 63,
             "end": 67,
             "name": "view",
-            "typeAnnotation": null          },
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "JSXElement",
             "start": 70,
@@ -93,5 +94,5 @@
 }
 
 --- Statistics ---
-Arena: used=7224B reserved=16777216B ratio=0%
+Arena: used=36752B reserved=16777216B ratio=0%
 Parse errors: 0

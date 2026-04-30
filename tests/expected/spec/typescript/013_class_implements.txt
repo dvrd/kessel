@@ -14,7 +14,8 @@
         "start": 303,
         "end": 312,
         "name": "Printable",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "extends": [],
@@ -32,7 +33,8 @@
               "start": 317,
               "end": 322,
               "name": "print",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "kind": "method",
             "typeParameters": null,
@@ -63,7 +65,8 @@
         "start": 345,
         "end": 357,
         "name": "Serializable",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -79,7 +82,8 @@
               "start": 358,
               "end": 359,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -104,7 +108,8 @@
               "start": 365,
               "end": 374,
               "name": "serialize",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "kind": "method",
             "typeParameters": null,
@@ -125,7 +130,8 @@
                   "start": 378,
                   "end": 379,
                   "name": "T",
-                  "typeAnnotation": null
+                  "typeAnnotation": null,
+                  "optional": false
                 },
                 "typeArguments": null
               }
@@ -143,7 +149,8 @@
         "start": 390,
         "end": 395,
         "name": "Plain",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "superClass": null,
@@ -158,7 +165,8 @@
             "start": 407,
             "end": 416,
             "name": "Printable",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": null
         }
@@ -177,7 +185,8 @@
               "start": 421,
               "end": 426,
               "name": "print",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "value": {
               "type": "FunctionExpression",
@@ -226,7 +235,8 @@
         "start": 447,
         "end": 451,
         "name": "Dual",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": null,
       "superClass": null,
@@ -241,7 +251,8 @@
             "start": 463,
             "end": 472,
             "name": "Printable",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": null
         },
@@ -254,7 +265,8 @@
             "start": 474,
             "end": 486,
             "name": "Serializable",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": {
             "type": "TSTypeParameterInstantiation",
@@ -284,7 +296,8 @@
               "start": 499,
               "end": 504,
               "name": "print",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "value": {
               "type": "FunctionExpression",
@@ -329,7 +342,8 @@
               "start": 518,
               "end": 527,
               "name": "serialize",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "value": {
               "type": "FunctionExpression",
@@ -388,7 +402,8 @@
         "start": 568,
         "end": 575,
         "name": "Generic",
-        "typeAnnotation": null
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -404,7 +419,8 @@
               "start": 576,
               "end": 577,
               "name": "T",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -426,7 +442,8 @@
             "start": 590,
             "end": 602,
             "name": "Serializable",
-            "typeAnnotation": null
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": {
             "type": "TSTypeParameterInstantiation",
@@ -442,7 +459,8 @@
                   "start": 603,
                   "end": 604,
                   "name": "T",
-                  "typeAnnotation": null
+                  "typeAnnotation": null,
+                  "optional": false
                 },
                 "typeArguments": null
               }
@@ -464,7 +482,8 @@
               "start": 610,
               "end": 619,
               "name": "serialize",
-              "typeAnnotation": null
+              "typeAnnotation": null,
+              "optional": false
             },
             "value": {
               "type": "FunctionExpression",
@@ -490,7 +509,8 @@
                     "start": 623,
                     "end": 624,
                     "name": "T",
-                    "typeAnnotation": null
+                    "typeAnnotation": null,
+                    "optional": false
                   },
                   "typeArguments": null
                 }
@@ -524,7 +544,8 @@
                           "start": 646,
                           "end": 647,
                           "name": "T",
-                          "typeAnnotation": null
+                          "typeAnnotation": null,
+                          "optional": false
                         },
                         "typeArguments": null
                       }                    }                  }
@@ -576,5 +597,5 @@
 }
 
 --- Statistics ---
-Arena: used=21120B reserved=16777216B ratio=0%
+Arena: used=42736B reserved=16777216B ratio=0%
 Parse errors: 0
