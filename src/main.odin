@@ -2704,10 +2704,22 @@ print_variable_declaration_body :: proc(s: ^VariableDeclaration, indent: int) {
 		out_s("\"type\": \"VariableDeclarator\",\n")
 		print_indent(indent + 2)
 		emit_span_leading(decl.loc, indent + 2)
-		out_s("\"id\": {\n")
-		print_pattern_ast(decl.id, indent + 3)
-		print_indent(indent + 2)
-		out_s("},\n")
+		// `decl.id` is nil when error recovery (e.g. reserved-word as binding,
+		// or an incomplete `let : T`) couldn't synthesize a pattern. Without
+		// this nil-check the emitter wrote `"id": {null}` — invalid JSON
+		// that broke any downstream tool that round-trips the AST. Mirrors
+		// the `"init": null` pattern below. (S26 W6 phase 3 bug class #3:
+		// closes 135 "<no-error-captured>" cases in the OXC corpus triage,
+		// each of which was kessel emitting unparseable JSON.)
+		out_s("\"id\": ")
+		if decl.id == nil {
+			out_s("null,\n")
+		} else {
+			out_s("{\n")
+			print_pattern_ast(decl.id, indent + 3)
+			print_indent(indent + 2)
+			out_s("},\n")
+		}
 		print_indent(indent + 2)
 		out_s("\"init\": ")
 		if init, ok := decl.init.(^Expression); ok {

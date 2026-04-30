@@ -449,7 +449,10 @@ function printSummary(summary) {
   if (args.jsonOut) {
     // Per-bucket caps so a triage JSON keeps signal across all failure
     // classes — a single 500-cap drowns small buckets in the big ones.
-    const cap = { 'kessel-crash':500, 'kessel-timeout':500, 'kessel-only-rejects':500,
+    // kessel-only-rejects is uncapped so the triage script can cluster the
+    // full 2k+ population by first-error-message; the others stay capped to
+    // keep the JSON small.
+    const cap = { 'kessel-crash':500, 'kessel-timeout':500, 'kessel-only-rejects':Infinity,
                   'should-pass-rejected':200, 'oxc-only-rejects':200 };
     const taken = {};
     const failures = [];

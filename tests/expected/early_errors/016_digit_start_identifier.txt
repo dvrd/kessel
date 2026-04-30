@@ -15,8 +15,7 @@
           "type": "VariableDeclarator",
           "start": 202,
           "end": 202,
-          "id": {
-            null          },
+          "id": null,
           "init": null        }
       ]    },
     {
@@ -118,5 +117,5 @@ Parse errors (6):
   Line 4, Column 8: Identifier directly after number
 
 --- Statistics ---
-Arena: used=36992B reserved=16777216B ratio=0%
+Arena: used=37328B reserved=16777216B ratio=0%
 Parse errors: 6
