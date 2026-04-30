@@ -359,6 +359,28 @@ tasks:
     cmds:
       - bash tests/runners/oxc_corpus_fetch.sh estree
 
+  test:oxc-corpus:
+    desc: "Run the OXC conformance corpus smoke gate (TS + Babel + estree-conformance, ~25k fixtures, ~2-3 min). Compares per-fixture parse outcome against OXC live and against expected (Babel `throws` / estree `pass`). Baseline-gated: any regression in kessel-crash / kessel-only-rejects / kessel-timeout / should-pass-rejected fails. Off the default `task test` chain because of run time."
+    deps: [build, bench:oxc:build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_oxc_corpus.js --baseline
+
+  test:oxc-corpus:full:
+    desc: "Run the OXC corpus without baseline-gating; print fresh summary. Used for triage. Optional --json-out via KESSEL_OXC_JSON env var."
+    deps: [build, bench:oxc:build]
+    silent: true
+    cmds:
+      - mkdir -p tmp
+      - node tests/verifiers/verify_oxc_corpus.js --json-out tmp/oxc_corpus_run.json
+
+  test:oxc-corpus:update:
+    desc: "Re-capture tests/baselines/oxc_corpus_baseline.json after an intentional fix."
+    deps: [build, bench:oxc:build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_oxc_corpus.js --update
+
   test:multi-parser:
     desc: ESTree cross-parser compat — compare Kessel against Acorn and Babel
     deps: [build]

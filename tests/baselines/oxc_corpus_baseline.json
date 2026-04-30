@@ -1,0 +1,1164 @@
+{
+  "totalFiles": 25140,
+  "verdicts": {
+    "ok-vs-oxc": 15200,
+    "skip-multi-file": 1466,
+    "oxc-only-rejects": 783,
+    "kessel-only-rejects": 2756,
+    "kessel-crash": 242,
+    "should-reject-passed": 27,
+    "pass-both": 2440,
+    "should-pass-rejected": 1706,
+    "reject-both": 520
+  },
+  "bySuite": {
+    "typescript": {
+      "total": 19209,
+      "verdicts": {
+        "ok-vs-oxc": 15200,
+        "skip-multi-file": 1466,
+        "oxc-only-rejects": 179,
+        "kessel-only-rejects": 2131,
+        "kessel-crash": 233
+      }
+    },
+    "babel": {
+      "total": 5892,
+      "verdicts": {
+        "should-reject-passed": 27,
+        "pass-both": 2403,
+        "kessel-only-rejects": 623,
+        "should-pass-rejected": 1706,
+        "oxc-only-rejects": 604,
+        "reject-both": 520,
+        "kessel-crash": 9
+      }
+    },
+    "estree": {
+      "total": 39,
+      "verdicts": {
+        "pass-both": 37,
+        "kessel-only-rejects": 2
+      }
+    }
+  },
+  "bySubdir": {
+    "typescript/compiler": {
+      "skip-multi-file": 742,
+      "oxc-only-rejects": 61,
+      "kessel-only-rejects": 1110,
+      "kessel-crash": 151
+    },
+    "typescript/conformance/additionalChecks": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/conformance/ambient": {
+      "kessel-only-rejects": 2,
+      "kessel-crash": 2,
+      "skip-multi-file": 4
+    },
+    "typescript/conformance/async": {
+      "kessel-only-rejects": 20,
+      "oxc-only-rejects": 4,
+      "skip-multi-file": 5
+    },
+    "typescript/conformance/classes": {
+      "oxc-only-rejects": 9,
+      "kessel-only-rejects": 88,
+      "kessel-crash": 3,
+      "skip-multi-file": 6
+    },
+    "typescript/conformance/constEnums": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/conformance/controlFlow": {
+      "kessel-only-rejects": 14,
+      "kessel-crash": 2
+    },
+    "typescript/conformance/declarationEmit": {
+      "kessel-crash": 1,
+      "skip-multi-file": 9,
+      "kessel-only-rejects": 3
+    },
+    "typescript/conformance/decorators": {
+      "kessel-only-rejects": 24,
+      "skip-multi-file": 4,
+      "oxc-only-rejects": 1,
+      "kessel-crash": 1
+    },
+    "typescript/conformance/directives": {
+      "skip-multi-file": 1,
+      "kessel-only-rejects": 1
+    },
+    "typescript/conformance/dynamicImport": {
+      "skip-multi-file": 58
+    },
+    "typescript/conformance/emitter": {
+      "skip-multi-file": 12
+    },
+    "typescript/conformance/enums": {
+      "oxc-only-rejects": 1
+    },
+    "typescript/conformance/es2018": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/conformance/es2019": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/conformance/es2020": {
+      "kessel-only-rejects": 1,
+      "skip-multi-file": 5
+    },
+    "typescript/conformance/es2022": {
+      "kessel-only-rejects": 2,
+      "skip-multi-file": 1
+    },
+    "typescript/conformance/es6": {
+      "kessel-crash": 4,
+      "kessel-only-rejects": 94,
+      "oxc-only-rejects": 23,
+      "skip-multi-file": 48
+    },
+    "typescript/conformance/es7": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/conformance/esDecorators": {
+      "oxc-only-rejects": 3,
+      "kessel-only-rejects": 8,
+      "skip-multi-file": 41
+    },
+    "typescript/conformance/expressions": {
+      "kessel-only-rejects": 62,
+      "skip-multi-file": 4,
+      "kessel-crash": 9
+    },
+    "typescript/conformance/externalModules": {
+      "kessel-only-rejects": 112,
+      "oxc-only-rejects": 3,
+      "skip-multi-file": 31,
+      "kessel-crash": 1
+    },
+    "typescript/conformance/functions": {
+      "kessel-only-rejects": 4
+    },
+    "typescript/conformance/generators": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/conformance/importAssertion": {
+      "skip-multi-file": 3
+    },
+    "typescript/conformance/importAttributes": {
+      "skip-multi-file": 8
+    },
+    "typescript/conformance/importDefer": {
+      "skip-multi-file": 15,
+      "oxc-only-rejects": 2
+    },
+    "typescript/conformance/interfaces": {
+      "kessel-only-rejects": 5,
+      "oxc-only-rejects": 2
+    },
+    "typescript/conformance/internalModules": {
+      "skip-multi-file": 13,
+      "kessel-only-rejects": 6,
+      "kessel-crash": 7
+    },
+    "typescript/conformance/jsdoc": {
+      "skip-multi-file": 76,
+      "kessel-only-rejects": 16
+    },
+    "typescript/conformance/jsx": {
+      "kessel-only-rejects": 84,
+      "skip-multi-file": 35,
+      "oxc-only-rejects": 2,
+      "kessel-crash": 2
+    },
+    "typescript/conformance/moduleResolution": {
+      "kessel-only-rejects": 4,
+      "kessel-crash": 1,
+      "skip-multi-file": 16
+    },
+    "typescript/conformance/node": {
+      "skip-multi-file": 81,
+      "kessel-only-rejects": 3
+    },
+    "typescript/conformance/nonjsExtensions": {
+      "skip-multi-file": 5
+    },
+    "typescript/conformance/override": {
+      "oxc-only-rejects": 2,
+      "kessel-only-rejects": 3
+    },
+    "typescript/conformance/parser": {
+      "skip-multi-file": 20,
+      "oxc-only-rejects": 51,
+      "kessel-only-rejects": 84,
+      "kessel-crash": 9
+    },
+    "typescript/conformance/pedantic": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/conformance/references": {
+      "skip-multi-file": 15
+    },
+    "typescript/conformance/salsa": {
+      "skip-multi-file": 30,
+      "kessel-only-rejects": 18
+    },
+    "typescript/conformance/scanner": {
+      "oxc-only-rejects": 6,
+      "kessel-only-rejects": 2,
+      "skip-multi-file": 1
+    },
+    "typescript/conformance/statements": {
+      "kessel-only-rejects": 20,
+      "kessel-crash": 2,
+      "oxc-only-rejects": 6,
+      "skip-multi-file": 1
+    },
+    "typescript/conformance/types": {
+      "kessel-only-rejects": 273,
+      "kessel-crash": 28,
+      "skip-multi-file": 10,
+      "oxc-only-rejects": 3
+    },
+    "typescript/conformance/typings": {
+      "skip-multi-file": 9
+    },
+    "typescript/fourslash": {
+      "skip-multi-file": 151,
+      "kessel-only-rejects": 8
+    },
+    "typescript/projects/CircularReferencing": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/CircularReferencing-2": {
+      "kessel-only-rejects": 3
+    },
+    "typescript/projects/ModuleIdentifier": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/MultipleLevels": {
+      "kessel-only-rejects": 3
+    },
+    "typescript/projects/NestedDeclare": {
+      "kessel-crash": 1
+    },
+    "typescript/projects/NestedLocalModule-SimpleCase": {
+      "kessel-crash": 1
+    },
+    "typescript/projects/NestedLocalModule-WithRecursiveTypecheck": {
+      "kessel-crash": 2
+    },
+    "typescript/projects/NoModule": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/RelativePaths": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/VisibilityOfCrosssModuleTypeUsage": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/baseline": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/declarations_CascadingImports": {
+      "kessel-crash": 1
+    },
+    "typescript/projects/declarations_ExportNamespace": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/declarations_GlobalImport": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/declarations_ImportedInPrivate": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/declarations_ImportedUseInFunction": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/declarations_IndirectImport": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/declarations_MultipleTimesImport": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/declarations_MultipleTimesMultipleImport": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/declarations_SimpleImport": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/declareVariableCollision": {
+      "kessel-only-rejects": 3
+    },
+    "typescript/projects/ext-int-ext": {
+      "kessel-only-rejects": 1,
+      "kessel-crash": 1
+    },
+    "typescript/projects/non-relative": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/outputdir_module_multifolder": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/outputdir_module_simple": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/outputdir_module_subfolder": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/privacyCheck-ImportInParent": {
+      "kessel-crash": 1
+    },
+    "typescript/projects/privacyCheck-IndirectReference": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/privacyCheck-InsideModule": {
+      "kessel-crash": 2
+    },
+    "typescript/projects/privacyCheck-SimpleReference": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/relative-global": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/relative-global-ref": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/projects/relative-nested": {
+      "kessel-only-rejects": 2
+    },
+    "typescript/projects/relative-nested-ref": {
+      "kessel-only-rejects": 1
+    },
+    "typescript/transpile": {
+      "skip-multi-file": 6,
+      "kessel-only-rejects": 9,
+      "kessel-crash": 1
+    },
+    "babel/annex-b/disabled": {
+      "should-reject-passed": 1,
+      "kessel-only-rejects": 1,
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 2
+    },
+    "babel/annex-b/enabled": {
+      "kessel-only-rejects": 1,
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 2
+    },
+    "babel/comments/basic": {
+      "should-pass-rejected": 1
+    },
+    "babel/core/categorized": {
+      "should-pass-rejected": 7,
+      "kessel-only-rejects": 4,
+      "should-reject-passed": 3
+    },
+    "babel/core/create-parenthesized-expressions": {
+      "should-pass-rejected": 4,
+      "oxc-only-rejects": 1
+    },
+    "babel/core/escape-keyword": {
+      "should-pass-rejected": 1
+    },
+    "babel/core/escape-string": {
+      "kessel-only-rejects": 3
+    },
+    "babel/core/escape-template": {
+      "should-pass-rejected": 2
+    },
+    "babel/core/legacy-octal": {
+      "kessel-only-rejects": 2
+    },
+    "babel/core/object": {
+      "should-pass-rejected": 3
+    },
+    "babel/core/opts": {
+      "oxc-only-rejects": 2,
+      "kessel-only-rejects": 10,
+      "should-pass-rejected": 3
+    },
+    "babel/core/regression": {
+      "kessel-only-rejects": 1,
+      "oxc-only-rejects": 1
+    },
+    "babel/core/scope": {
+      "kessel-only-rejects": 30
+    },
+    "babel/core/sourcetype-commonjs": {
+      "should-reject-passed": 6,
+      "should-pass-rejected": 3,
+      "kessel-only-rejects": 2
+    },
+    "babel/core/sourcetype-unambiguous": {
+      "should-pass-rejected": 1,
+      "kessel-only-rejects": 1
+    },
+    "babel/core/uncategorised": {
+      "should-pass-rejected": 35,
+      "kessel-only-rejects": 70,
+      "oxc-only-rejects": 25
+    },
+    "babel/es2015/array-rest-spread": {
+      "should-pass-rejected": 4
+    },
+    "babel/es2015/arrow-functions": {
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 10
+    },
+    "babel/es2015/class": {
+      "kessel-only-rejects": 1
+    },
+    "babel/es2015/class-methods": {
+      "kessel-only-rejects": 4,
+      "should-pass-rejected": 3,
+      "oxc-only-rejects": 2
+    },
+    "babel/es2015/destructuring": {
+      "kessel-only-rejects": 1,
+      "should-pass-rejected": 4
+    },
+    "babel/es2015/duplicate-proto": {
+      "kessel-only-rejects": 3
+    },
+    "babel/es2015/for-in": {
+      "should-pass-rejected": 1,
+      "kessel-only-rejects": 5
+    },
+    "babel/es2015/for-of": {
+      "should-pass-rejected": 2,
+      "oxc-only-rejects": 1,
+      "kessel-only-rejects": 1
+    },
+    "babel/es2015/generators": {
+      "should-pass-rejected": 3
+    },
+    "babel/es2015/identifiers": {
+      "should-pass-rejected": 6
+    },
+    "babel/es2015/let": {
+      "should-pass-rejected": 2,
+      "kessel-only-rejects": 15
+    },
+    "babel/es2015/meta-properties": {
+      "kessel-only-rejects": 2,
+      "should-pass-rejected": 3
+    },
+    "babel/es2015/modules": {
+      "should-pass-rejected": 25,
+      "kessel-only-rejects": 1,
+      "oxc-only-rejects": 4,
+      "should-reject-passed": 1
+    },
+    "babel/es2015/object": {
+      "kessel-only-rejects": 1,
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 4
+    },
+    "babel/es2015/regex": {
+      "should-pass-rejected": 1
+    },
+    "babel/es2015/shorthand": {
+      "should-pass-rejected": 1,
+      "kessel-only-rejects": 1
+    },
+    "babel/es2015/statements": {
+      "should-pass-rejected": 4,
+      "kessel-only-rejects": 1
+    },
+    "babel/es2015/template": {
+      "should-pass-rejected": 1
+    },
+    "babel/es2015/uncategorised": {
+      "kessel-only-rejects": 22,
+      "should-pass-rejected": 52,
+      "oxc-only-rejects": 18,
+      "should-reject-passed": 1
+    },
+    "babel/es2015/yield": {
+      "should-pass-rejected": 10,
+      "kessel-only-rejects": 17
+    },
+    "babel/es2016/exponentiation-operator": {
+      "should-pass-rejected": 3,
+      "oxc-only-rejects": 5
+    },
+    "babel/es2016/simple-parameter-list": {
+      "kessel-only-rejects": 12,
+      "oxc-only-rejects": 2
+    },
+    "babel/es2017/async-arrow": {
+      "oxc-only-rejects": 4,
+      "should-pass-rejected": 7
+    },
+    "babel/es2017/async-call": {
+      "kessel-only-rejects": 1,
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 1
+    },
+    "babel/es2017/async-functions": {
+      "should-pass-rejected": 21,
+      "kessel-only-rejects": 9,
+      "oxc-only-rejects": 8
+    },
+    "babel/es2017/trailing-function-commas": {
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 1
+    },
+    "babel/es2018/async-generators": {
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 5
+    },
+    "babel/es2018/object-rest-spread": {
+      "should-pass-rejected": 10,
+      "oxc-only-rejects": 7
+    },
+    "babel/es2020/bigint": {
+      "should-pass-rejected": 4
+    },
+    "babel/es2020/dynamic-import": {
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 3
+    },
+    "babel/es2020/dynamic-import-createImportExpression-false": {
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 5
+    },
+    "babel/es2020/import-meta": {
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 1
+    },
+    "babel/es2020/nullish-coalescing-operator": {
+      "should-pass-rejected": 1
+    },
+    "babel/es2020/optional-chaining": {
+      "oxc-only-rejects": 8,
+      "should-pass-rejected": 1
+    },
+    "babel/es2021/for-async-of": {
+      "should-pass-rejected": 2
+    },
+    "babel/es2021/numeric-separator": {
+      "should-pass-rejected": 158
+    },
+    "babel/es2022/class-private-methods": {
+      "should-pass-rejected": 1
+    },
+    "babel/es2022/class-private-names-duplicated": {
+      "kessel-only-rejects": 60
+    },
+    "babel/es2022/class-private-properties": {
+      "kessel-only-rejects": 5,
+      "should-pass-rejected": 6
+    },
+    "babel/es2022/class-properties": {
+      "kessel-only-rejects": 8,
+      "should-pass-rejected": 6
+    },
+    "babel/es2022/class-static-block": {
+      "should-pass-rejected": 4,
+      "kessel-only-rejects": 8,
+      "oxc-only-rejects": 2
+    },
+    "babel/es2022/module-string-names": {
+      "should-pass-rejected": 3
+    },
+    "babel/es2022/private-in": {
+      "should-pass-rejected": 6,
+      "oxc-only-rejects": 2,
+      "kessel-only-rejects": 1
+    },
+    "babel/es2022/top-level-await-module": {
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 2
+    },
+    "babel/es2022/top-level-await-script": {
+      "oxc-only-rejects": 1
+    },
+    "babel/es2024/regexp-unicode-sets": {
+      "should-pass-rejected": 2
+    },
+    "babel/es2025/import-attributes": {
+      "should-pass-rejected": 4,
+      "oxc-only-rejects": 3,
+      "kessel-only-rejects": 1
+    },
+    "babel/es2026/async-explicit-resource-management": {
+      "kessel-only-rejects": 8,
+      "oxc-only-rejects": 5,
+      "should-pass-rejected": 11
+    },
+    "babel/es2026/explicit-resource-management": {
+      "should-pass-rejected": 9,
+      "kessel-only-rejects": 9,
+      "oxc-only-rejects": 8
+    },
+    "babel/esprima/declaration-function": {
+      "kessel-only-rejects": 1
+    },
+    "babel/esprima/directive-prolog": {
+      "kessel-only-rejects": 1
+    },
+    "babel/esprima/es2015-array-binding-pattern": {
+      "kessel-only-rejects": 1,
+      "should-pass-rejected": 1
+    },
+    "babel/esprima/es2015-array-pattern": {
+      "kessel-only-rejects": 3
+    },
+    "babel/esprima/es2015-arrow-function": {
+      "oxc-only-rejects": 7,
+      "kessel-only-rejects": 2,
+      "should-pass-rejected": 1
+    },
+    "babel/esprima/es2015-class": {
+      "kessel-only-rejects": 1
+    },
+    "babel/esprima/es2015-destructuring-assignment": {
+      "should-pass-rejected": 2
+    },
+    "babel/esprima/es2015-destructuring-assignment-object-pattern": {
+      "should-pass-rejected": 3
+    },
+    "babel/esprima/es2015-export-declaration": {
+      "should-pass-rejected": 1
+    },
+    "babel/esprima/es2015-for-of": {
+      "kessel-only-rejects": 3,
+      "should-pass-rejected": 2
+    },
+    "babel/esprima/es2015-generator": {
+      "should-pass-rejected": 2,
+      "oxc-only-rejects": 2
+    },
+    "babel/esprima/es2015-identifier": {
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 1
+    },
+    "babel/esprima/es2015-import-declaration": {
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 3
+    },
+    "babel/esprima/es2015-lexical-declaration": {
+      "oxc-only-rejects": 1,
+      "kessel-only-rejects": 2
+    },
+    "babel/esprima/es2015-meta-property": {
+      "kessel-only-rejects": 1,
+      "should-pass-rejected": 1
+    },
+    "babel/esprima/es2015-object-initialiser": {
+      "kessel-only-rejects": 6
+    },
+    "babel/esprima/es2015-spread-element": {
+      "oxc-only-rejects": 2
+    },
+    "babel/esprima/es2015-super-property": {
+      "oxc-only-rejects": 2,
+      "kessel-only-rejects": 1
+    },
+    "babel/esprima/es2015-template-literals": {
+      "should-pass-rejected": 3
+    },
+    "babel/esprima/es2015-yield": {
+      "should-pass-rejected": 14,
+      "kessel-only-rejects": 15
+    },
+    "babel/esprima/expression-primary-array": {
+      "should-pass-rejected": 1
+    },
+    "babel/esprima/invalid-syntax": {
+      "should-pass-rejected": 75,
+      "oxc-only-rejects": 24,
+      "kessel-only-rejects": 81
+    },
+    "babel/esprima/rest-parameter": {
+      "should-pass-rejected": 1
+    },
+    "babel/esprima/statement-expression": {
+      "should-pass-rejected": 4
+    },
+    "babel/esprima/statement-iteration": {
+      "kessel-only-rejects": 1
+    },
+    "babel/esprima/statement-variable": {
+      "oxc-only-rejects": 1
+    },
+    "babel/estree/class-method": {
+      "should-pass-rejected": 4
+    },
+    "babel/estree/class-private-property": {
+      "should-pass-rejected": 2
+    },
+    "babel/estree/flow": {
+      "oxc-only-rejects": 1
+    },
+    "babel/estree/object-method": {
+      "should-pass-rejected": 2,
+      "kessel-only-rejects": 1
+    },
+    "babel/estree/typescript": {
+      "oxc-only-rejects": 5,
+      "should-pass-rejected": 5,
+      "kessel-only-rejects": 1
+    },
+    "babel/experimental/_no-plugin": {
+      "should-reject-passed": 1,
+      "oxc-only-rejects": 4,
+      "kessel-crash": 1
+    },
+    "babel/experimental/_removed-plugins": {
+      "should-reject-passed": 1
+    },
+    "babel/experimental/async-do-expressions": {
+      "should-pass-rejected": 8
+    },
+    "babel/experimental/bind-operator": {
+      "should-pass-rejected": 2
+    },
+    "babel/experimental/decorator-auto-accessors": {
+      "should-pass-rejected": 3,
+      "should-reject-passed": 1
+    },
+    "babel/experimental/decorators": {
+      "oxc-only-rejects": 2,
+      "should-reject-passed": 4,
+      "should-pass-rejected": 4,
+      "kessel-only-rejects": 1
+    },
+    "babel/experimental/decorators-legacy": {
+      "should-pass-rejected": 7,
+      "oxc-only-rejects": 5
+    },
+    "babel/experimental/deferred-import-evaluation": {
+      "should-pass-rejected": 3
+    },
+    "babel/experimental/destructuring-private": {
+      "should-pass-rejected": 11
+    },
+    "babel/experimental/discard-binding": {
+      "should-pass-rejected": 10,
+      "oxc-only-rejects": 10,
+      "should-reject-passed": 1,
+      "kessel-crash": 1
+    },
+    "babel/experimental/do-expressions": {
+      "should-pass-rejected": 3
+    },
+    "babel/experimental/export-extensions": {
+      "should-pass-rejected": 6,
+      "oxc-only-rejects": 1
+    },
+    "babel/experimental/function-sent": {
+      "should-pass-rejected": 7
+    },
+    "babel/experimental/import-attributes-createImportExpression-false": {
+      "should-pass-rejected": 5,
+      "oxc-only-rejects": 3,
+      "kessel-only-rejects": 1
+    },
+    "babel/experimental/module-blocks": {
+      "should-pass-rejected": 18
+    },
+    "babel/experimental/optional-chaining-assign": {
+      "should-pass-rejected": 14
+    },
+    "babel/experimental/partial-application": {
+      "should-pass-rejected": 7
+    },
+    "babel/experimental/pipeline-operator-fsharp": {
+      "should-pass-rejected": 30
+    },
+    "babel/experimental/pipeline-operator-hack": {
+      "should-pass-rejected": 403
+    },
+    "babel/experimental/source-phase-imports": {
+      "should-pass-rejected": 2
+    },
+    "babel/experimental/template-literal-invalid-escapes-untagged": {
+      "should-pass-rejected": 68
+    },
+    "babel/experimental/throw-expression": {
+      "oxc-only-rejects": 3,
+      "should-pass-rejected": 1
+    },
+    "babel/experimental/uncategorised": {
+      "should-pass-rejected": 1
+    },
+    "babel/flow/anonymous-function-no-parens-types": {
+      "should-pass-rejected": 14,
+      "oxc-only-rejects": 1
+    },
+    "babel/flow/anonymous-function-types": {
+      "oxc-only-rejects": 4,
+      "should-pass-rejected": 9
+    },
+    "babel/flow/array-types": {
+      "oxc-only-rejects": 6,
+      "should-pass-rejected": 3
+    },
+    "babel/flow/arrows-in-ternaries": {
+      "should-pass-rejected": 8
+    },
+    "babel/flow/async-call": {
+      "kessel-only-rejects": 1,
+      "oxc-only-rejects": 1
+    },
+    "babel/flow/bounded-polymorphism": {
+      "should-pass-rejected": 2
+    },
+    "babel/flow/call-properties": {
+      "oxc-only-rejects": 5
+    },
+    "babel/flow/class-private-property": {
+      "oxc-only-rejects": 2,
+      "kessel-only-rejects": 1,
+      "should-pass-rejected": 3
+    },
+    "babel/flow/class-properties": {
+      "kessel-only-rejects": 6,
+      "should-pass-rejected": 6,
+      "oxc-only-rejects": 2
+    },
+    "babel/flow/classes": {
+      "should-pass-rejected": 5,
+      "oxc-only-rejects": 1
+    },
+    "babel/flow/comment": {
+      "should-reject-passed": 2,
+      "should-pass-rejected": 1
+    },
+    "babel/flow/declare-class": {
+      "should-pass-rejected": 7
+    },
+    "babel/flow/declare-export": {
+      "should-pass-rejected": 17,
+      "kessel-crash": 2
+    },
+    "babel/flow/declare-module": {
+      "should-pass-rejected": 9,
+      "oxc-only-rejects": 2,
+      "kessel-crash": 3
+    },
+    "babel/flow/declare-statements": {
+      "oxc-only-rejects": 13,
+      "should-pass-rejected": 8
+    },
+    "babel/flow/def-site-variance": {
+      "should-pass-rejected": 1
+    },
+    "babel/flow/enum-declaration": {
+      "should-pass-rejected": 17,
+      "oxc-only-rejects": 18
+    },
+    "babel/flow/expect-plugin": {
+      "oxc-only-rejects": 2
+    },
+    "babel/flow/explicit-inexact-object": {
+      "should-pass-rejected": 14
+    },
+    "babel/flow/imports": {
+      "should-pass-rejected": 1,
+      "kessel-only-rejects": 1
+    },
+    "babel/flow/indexed-access-types": {
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 1
+    },
+    "babel/flow/interface-types": {
+      "oxc-only-rejects": 6,
+      "should-pass-rejected": 3
+    },
+    "babel/flow/interfaces-as-identifier": {
+      "kessel-only-rejects": 6
+    },
+    "babel/flow/interfaces-module-and-script": {
+      "oxc-only-rejects": 10,
+      "should-pass-rejected": 8
+    },
+    "babel/flow/internal-slot": {
+      "oxc-only-rejects": 9
+    },
+    "babel/flow/iterator": {
+      "should-pass-rejected": 15
+    },
+    "babel/flow/literal-types": {
+      "should-pass-rejected": 6,
+      "oxc-only-rejects": 10
+    },
+    "babel/flow/multiple-declarations": {
+      "should-pass-rejected": 2,
+      "oxc-only-rejects": 4
+    },
+    "babel/flow/object-types": {
+      "should-pass-rejected": 3,
+      "oxc-only-rejects": 3
+    },
+    "babel/flow/opaque-type-alias": {
+      "should-pass-rejected": 12,
+      "kessel-crash": 1
+    },
+    "babel/flow/optional-type": {
+      "should-pass-rejected": 3,
+      "oxc-only-rejects": 2
+    },
+    "babel/flow/predicates": {
+      "should-pass-rejected": 6
+    },
+    "babel/flow/proto-props": {
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 2
+    },
+    "babel/flow/qualified-generic-type": {
+      "oxc-only-rejects": 3,
+      "should-pass-rejected": 1
+    },
+    "babel/flow/regression": {
+      "should-pass-rejected": 8,
+      "oxc-only-rejects": 4
+    },
+    "babel/flow/scope": {
+      "oxc-only-rejects": 23,
+      "should-pass-rejected": 14
+    },
+    "babel/flow/sourcetype-script": {
+      "should-pass-rejected": 3
+    },
+    "babel/flow/this-annotation": {
+      "should-pass-rejected": 18,
+      "oxc-only-rejects": 6
+    },
+    "babel/flow/trailing-function-commas-type": {
+      "should-pass-rejected": 1
+    },
+    "babel/flow/tuples": {
+      "oxc-only-rejects": 4
+    },
+    "babel/flow/type-alias": {
+      "oxc-only-rejects": 5,
+      "should-pass-rejected": 1
+    },
+    "babel/flow/type-annotations": {
+      "oxc-only-rejects": 75,
+      "should-pass-rejected": 59
+    },
+    "babel/flow/type-exports": {
+      "oxc-only-rejects": 2,
+      "should-pass-rejected": 3
+    },
+    "babel/flow/type-generics": {
+      "should-pass-rejected": 7,
+      "oxc-only-rejects": 3
+    },
+    "babel/flow/type-grouping": {
+      "oxc-only-rejects": 4
+    },
+    "babel/flow/type-imports": {
+      "should-pass-rejected": 9,
+      "oxc-only-rejects": 4
+    },
+    "babel/flow/type-parameter-declaration": {
+      "should-pass-rejected": 8,
+      "oxc-only-rejects": 7
+    },
+    "babel/flow/typeapp-call": {
+      "should-pass-rejected": 16,
+      "oxc-only-rejects": 7
+    },
+    "babel/flow/typecasts": {
+      "should-pass-rejected": 19
+    },
+    "babel/jsx/basic": {
+      "oxc-only-rejects": 36,
+      "should-pass-rejected": 1
+    },
+    "babel/jsx/errors": {
+      "oxc-only-rejects": 10,
+      "kessel-only-rejects": 1,
+      "should-pass-rejected": 6,
+      "should-reject-passed": 1
+    },
+    "babel/jsx/html-entities": {
+      "oxc-only-rejects": 4
+    },
+    "babel/jsx/regression": {
+      "oxc-only-rejects": 11,
+      "should-pass-rejected": 1
+    },
+    "babel/placeholders/_errors": {
+      "should-pass-rejected": 2
+    },
+    "babel/placeholders/arrow": {
+      "should-pass-rejected": 2
+    },
+    "babel/placeholders/class": {
+      "should-pass-rejected": 9
+    },
+    "babel/placeholders/export": {
+      "should-pass-rejected": 14
+    },
+    "babel/placeholders/expression": {
+      "should-pass-rejected": 2
+    },
+    "babel/placeholders/function": {
+      "should-pass-rejected": 5
+    },
+    "babel/placeholders/import": {
+      "should-pass-rejected": 15
+    },
+    "babel/placeholders/labels": {
+      "should-pass-rejected": 4
+    },
+    "babel/placeholders/statement": {
+      "should-pass-rejected": 3
+    },
+    "babel/placeholders/try": {
+      "should-pass-rejected": 2
+    },
+    "babel/placeholders/typescript": {
+      "should-pass-rejected": 2
+    },
+    "babel/placeholders/variable": {
+      "should-pass-rejected": 6
+    },
+    "babel/tokens/template-string": {
+      "should-pass-rejected": 2
+    },
+    "babel/typescript/arrow-function": {
+      "kessel-only-rejects": 12,
+      "should-reject-passed": 1,
+      "should-pass-rejected": 1
+    },
+    "babel/typescript/assert-predicate": {
+      "kessel-only-rejects": 4,
+      "should-pass-rejected": 1
+    },
+    "babel/typescript/assign": {
+      "should-pass-rejected": 3
+    },
+    "babel/typescript/async-call": {
+      "oxc-only-rejects": 1
+    },
+    "babel/typescript/binary-expression": {
+      "kessel-only-rejects": 1
+    },
+    "babel/typescript/cast": {
+      "should-pass-rejected": 7,
+      "kessel-only-rejects": 4,
+      "oxc-only-rejects": 1
+    },
+    "babel/typescript/catch-clause": {
+      "kessel-only-rejects": 1
+    },
+    "babel/typescript/class": {
+      "kessel-only-rejects": 33,
+      "oxc-only-rejects": 19,
+      "should-pass-rejected": 17
+    },
+    "babel/typescript/conditional": {
+      "should-reject-passed": 3
+    },
+    "babel/typescript/const": {
+      "oxc-only-rejects": 2
+    },
+    "babel/typescript/declare": {
+      "oxc-only-rejects": 8,
+      "kessel-only-rejects": 3,
+      "should-pass-rejected": 4
+    },
+    "babel/typescript/decorators": {
+      "kessel-only-rejects": 1
+    },
+    "babel/typescript/dts": {
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 1
+    },
+    "babel/typescript/expect-plugin": {
+      "oxc-only-rejects": 2
+    },
+    "babel/typescript/explicit-resource-management": {
+      "oxc-only-rejects": 1
+    },
+    "babel/typescript/exponentiation": {
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 1
+    },
+    "babel/typescript/export": {
+      "kessel-only-rejects": 4
+    },
+    "babel/typescript/function": {
+      "oxc-only-rejects": 2,
+      "kessel-only-rejects": 1,
+      "kessel-crash": 1
+    },
+    "babel/typescript/import": {
+      "kessel-only-rejects": 16
+    },
+    "babel/typescript/interface": {
+      "should-pass-rejected": 6,
+      "oxc-only-rejects": 12,
+      "kessel-only-rejects": 2
+    },
+    "babel/typescript/legacy-decorators": {
+      "kessel-only-rejects": 1
+    },
+    "babel/typescript/module-namespace": {
+      "kessel-only-rejects": 3,
+      "oxc-only-rejects": 4,
+      "should-pass-rejected": 1
+    },
+    "babel/typescript/regression": {
+      "kessel-only-rejects": 4,
+      "should-pass-rejected": 1
+    },
+    "babel/typescript/scope": {
+      "kessel-only-rejects": 10,
+      "oxc-only-rejects": 2
+    },
+    "babel/typescript/static-blocks": {
+      "should-pass-rejected": 9
+    },
+    "babel/typescript/tsx": {
+      "oxc-only-rejects": 1,
+      "should-pass-rejected": 3,
+      "kessel-only-rejects": 2
+    },
+    "babel/typescript/type-alias": {
+      "oxc-only-rejects": 1,
+      "kessel-only-rejects": 1
+    },
+    "babel/typescript/type-arguments": {
+      "kessel-only-rejects": 9,
+      "oxc-only-rejects": 6,
+      "should-pass-rejected": 5
+    },
+    "babel/typescript/type-arguments-bit-shift-left-like": {
+      "kessel-only-rejects": 7
+    },
+    "babel/typescript/type-only-import-export-specifiers": {
+      "kessel-only-rejects": 10,
+      "should-pass-rejected": 5,
+      "oxc-only-rejects": 1
+    },
+    "babel/typescript/types": {
+      "kessel-only-rejects": 31,
+      "oxc-only-rejects": 14,
+      "should-pass-rejected": 8
+    },
+    "babel/typescript/types-arrow-function": {
+      "kessel-only-rejects": 1
+    },
+    "babel/typescript/variable-declarator": {
+      "kessel-only-rejects": 1
+    },
+    "babel/v8intrinsic/expression": {
+      "should-pass-rejected": 4,
+      "oxc-only-rejects": 1
+    },
+    "estree/": {
+      "kessel-only-rejects": 2
+    }
+  }
+}
