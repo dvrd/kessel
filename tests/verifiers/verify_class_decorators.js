@@ -5,12 +5,14 @@
 // stacked-feature fixture `tests/fixtures/spec/interactions/001_decorators_private_static_block.js`
 // and asserts that:
 //
-//   * ClassDeclaration `id.name`           is rewritten to "A"
-//   * Class-level `decorators[0].expression.name`         is "frozen"
-//   * Per-method `decorators[0].expression.name` (`@bound value()`) is "bound"
+//   * ClassDeclaration `id.name`                is rewritten to "A"
+//   * Class-level `decorators[0].expression.name`              is "frozen"
+//   * Per-method `decorators[0].expression.name` (`@bound value()`)  is "bound"
+//   * Each top-level FunctionDeclaration `id.name` is rewritten
+//     (the fixture's `function frozen(C){...}` / `function bound(...){}`)
 //
-// Before S26 W1 these strings were left as raw source pointers in the
-// binary buffer and `c.decorators` / `elem.decorators` slots had
+// Before S26 W1 all four pointer surfaces were left as raw source pointers
+// in the binary buffer and `c.decorators` / `elem.decorators` slots had
 // dynamic-array headers with un-rewritten data ptrs. JSON output was
 // already correct; the gap was silent.
 //
@@ -134,8 +136,14 @@ function str(off) {
 const PROGRAM_BODY_OFF       = 24;
 const STMT_UNION_SIZE        = 16;   // {ptr:8, tag:1, pad:7}
 const STMT_TAG_CLASSDECL     = 21;
+const STMT_TAG_FUNCDECL      = 19;
 const EXPR_UNION_SIZE        = 16;
 const EXPR_TAG_IDENTIFIER    = 9;
+
+// FunctionExpression layout (size 224). FunctionDeclaration shares the
+// same layout via `using expr: FunctionExpression`.
+const FUNC_EXPR_ID_OFF       = 16;
+const FUNC_EXPR_ID_NAME_OFF  = FUNC_EXPR_ID_OFF + 16;
 
 const CLASS_EXPR_ID_OFF      = 16;   // Maybe(BindingIdentifier)
 const CLASS_EXPR_ID_NAME_OFF = CLASS_EXPR_ID_OFF + 16; // BI.name (after BI.loc)
@@ -238,6 +246,34 @@ for (let i = 0; i < bodyHeader.len; i++) {
 if (!methodMatched) {
 	failed++;
 	console.error('FAIL: no class element matched the JSON-side decorator expectation');
+}
+
+// 4. FunctionDeclaration id.name — walks every top-level FunctionDeclaration
+// in Program.body and asserts the binary's `f.id.name` matches the JSON's.
+// Catches regressions to the `f.id` rewrite path on rewrite_function_expression
+// (separate code site from the class walks but same Maybe(BindingIdentifier)
+// helper).
+const funcExpectations = ast.body
+	.filter((s) => s.type === 'FunctionDeclaration' && s.id && typeof s.id.name === 'string')
+	.map((s) => s.id.name);
+if (funcExpectations.length === 0) {
+	failed++;
+	console.error('  FAIL fixture sanity: no top-level FunctionDeclarations to gate f.id.name');
+}
+let funcMatches = 0;
+for (let i = 0; i < progBody.len; i++) {
+	const slotOff = progBody.data + i * 8;
+	const slotPtr = u32(slotOff);
+	if (slotPtr === 0) continue;
+	const u = unionAt(slotPtr);
+	if (u.tag !== STMT_TAG_FUNCDECL) continue;
+	const nameStr = str(u.ptr + FUNC_EXPR_ID_NAME_OFF);
+	check(`fn[${funcMatches}].id.name`, nameStr, funcExpectations[funcMatches]);
+	funcMatches++;
+}
+if (funcMatches !== funcExpectations.length) {
+	failed++;
+	console.error(`  FAIL fn-decl count: walked ${funcMatches}, expected ${funcExpectations.length}`);
 }
 
 if (failed > 0) {
