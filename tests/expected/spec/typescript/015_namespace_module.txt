@@ -274,7 +274,7 @@
                   "id": {
                     "type": "Identifier",
                     "start": 1106,
-                    "end": 1113,
+                    "end": 1121,
                     "name": "VERSION",
                     "typeAnnotation": {
                       "type": "TSTypeAnnotation",

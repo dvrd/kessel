@@ -5001,11 +5001,31 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 
 	pattern := parse_binding_pattern(p)
 
-	// TypeScript type annotation - store on Identifier binding node.
+	// TypeScript type annotation. Identifier binding nodes carry the
+	// annotation directly; ObjectPattern / ArrayPattern carry it on the
+	// pattern slot (S26 W4b) so `const {a}: Props = ...` and
+	// `const [x]: T[] = ...` round-trip correctly. OXC also extends the
+	// binding node's `end` over the annotation — mirror that here for
+	// span parity (S26 W4d: 2 baseline divergences on tsx/002 and
+	// typescript/015).
 	if is_token(p, .Colon) {
 		ann := parse_ts_type_annotation(p)
-		if ident, ok := pattern.(^Identifier); ok {
-			ident.type_annotation = ann
+		#partial switch t in pattern {
+		case ^Identifier:
+			t.type_annotation = ann
+			if ann != nil && ann.loc.span.end > t.loc.span.end {
+				t.loc.span.end = ann.loc.span.end
+			}
+		case ^ObjectPattern:
+			t.type_annotation = ann
+			if ann != nil && ann.loc.span.end > t.loc.span.end {
+				t.loc.span.end = ann.loc.span.end
+			}
+		case ^ArrayPattern:
+			t.type_annotation = ann
+			if ann != nil && ann.loc.span.end > t.loc.span.end {
+				t.loc.span.end = ann.loc.span.end
+			}
 		}
 	}
 
@@ -13982,7 +14002,16 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_off := u32(cur_offset(p))
 		sig := parse_ts_object_member(p); if sig != nil { bump_append(&members, sig) }
+		// S26 W4d: extend the member's span over the trailing `;` / `,`
+		// terminator so the TSPropertySignature / TSMethodSignature span
+		// matches OXC's convention. Same widen pattern as the TSInterfaceBody
+		// loop further down. Pre-fix: every TSTypeLiteral member ended one
+		// byte short of OXC on `{ id: string; foo: number; }` and friends.
+		has_term := is_token(p, .Semi) || is_token(p, .Comma)
 		match_token(p, .Semi); match_token(p, .Comma)
+		if has_term && sig != nil {
+			set_ts_sig_end(sig, prev_end_offset(p))
+		}
 		// Defensive: parse_ts_object_member can return nil without consuming
 		// (e.g. when cur is `.RBracket` left over from a malformed inner
 		// type). Without this guard the loop spins forever — reproduced by
@@ -14032,6 +14061,30 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 		}
 		param_ann: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Colon) { param_ann = parse_ts_type_annotation(p) }
+		// S26 W4d: extend the inner pattern's span over the type annotation
+		// so the emitted Identifier (or ObjectPattern/ArrayPattern) end
+		// matches OXC's convention. The annotation lives on the
+		// TSFunctionParam itself (not on the inner pattern); the span
+		// extension is purely positional. parse_function_param already
+		// applies the same widen to plain JS function parameters; this
+		// closes the symmetric gap on TS function-type signatures
+		// (3 baseline divergences on tsx/001).
+		if ann, ok := param_ann.(^TSTypeAnnotation); ok && ann != nil {
+			#partial switch t in pattern {
+			case ^Identifier:
+				if ann.loc.span.end > t.loc.span.end {
+					t.loc.span.end = ann.loc.span.end
+				}
+			case ^ObjectPattern:
+				if ann.loc.span.end > t.loc.span.end {
+					t.loc.span.end = ann.loc.span.end
+				}
+			case ^ArrayPattern:
+				if ann.loc.span.end > t.loc.span.end {
+					t.loc.span.end = ann.loc.span.end
+				}
+			}
+		}
 		fp := TSFunctionParam{loc = param_start, pattern = pattern, type_annotation = param_ann, optional = param_optional}
 		fp.loc.span.end = prev_end_offset(p)
 		bump_append(&params, fp)

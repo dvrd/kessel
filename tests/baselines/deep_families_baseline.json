@@ -57,15 +57,15 @@
     },
     "tsx": {
       "files": 2,
-      "pass": 0,
-      "fail": 2,
-      "divergences": 7
+      "pass": 2,
+      "fail": 0,
+      "divergences": 0
     },
     "typescript": {
       "files": 15,
-      "pass": 14,
-      "fail": 1,
-      "divergences": 1
+      "pass": 15,
+      "fail": 0,
+      "divergences": 0
     },
     "unicode": {
       "files": 6,

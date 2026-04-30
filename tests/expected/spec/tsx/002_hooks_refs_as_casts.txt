@@ -31,7 +31,7 @@
               {
                 "type": "TSPropertySignature",
                 "start": 808,
-                "end": 819,
+                "end": 820,
                 "key": {
                   "type": "Identifier",
                   "start": 808,
@@ -137,7 +137,7 @@
               {
                 "type": "TSPropertySignature",
                 "start": 865,
-                "end": 879,
+                "end": 880,
                 "key": {
                   "type": "Identifier",
                   "start": 865,
@@ -422,7 +422,7 @@
           "id": {
             "type": "Identifier",
             "start": 1115,
-            "end": 1127,
+            "end": 1135,
             "name": "initialState",
             "typeAnnotation": {
               "type": "TSTypeAnnotation",
@@ -540,7 +540,7 @@
                 {
                   "type": "TSPropertySignature",
                   "start": 1190,
-                  "end": 1200,
+                  "end": 1201,
                   "key": {
                     "type": "Identifier",
                     "start": 1190,

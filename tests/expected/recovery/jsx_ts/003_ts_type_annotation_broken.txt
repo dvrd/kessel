@@ -18,7 +18,7 @@
           "id": {
             "type": "Identifier",
             "start": 46,
-            "end": 51,
+            "end": 59,
             "name": "value",
             "typeAnnotation": {
               "type": "TSTypeAnnotation",
@@ -98,5 +98,5 @@ Parse errors (2):
   Line 2, Column 27: Expected semicolon
 
 --- Statistics ---
-Arena: used=37264B reserved=16777216B ratio=0%
+Arena: used=37680B reserved=16777216B ratio=0%
 Parse errors: 2
