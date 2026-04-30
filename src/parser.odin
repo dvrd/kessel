@@ -14010,8 +14010,13 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
 			bump_append(&members, first_sig)
 			for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+				// Progress guard (TigerStyle: every loop must have a fixed upper
+				// bound). Without this, an unsupported TS member shape that leaves
+				// parse_ts_object_member at nil with no advance loops forever.
+				prev_off := int(cur_offset(p))
 				sig := parse_ts_object_member(p); if sig != nil { bump_append(&members, sig) }
 				match_token(p, .Semi); match_token(p, .Comma)
+				if int(cur_offset(p)) == prev_off { eat(p) }
 			}
 			expect_token(p, .RBrace)
 			lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.span.end = prev_end_offset(p)
@@ -14651,8 +14656,21 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		defer p.in_ambient = prev_ambient
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+			// Progress guard: when parse_statement_or_declaration hits an
+			// unsupported TS form (e.g. `import X = Y;` import-equals) it can
+			// return nil without advancing. Mirror parse_program_item's
+			// recovery: report the offending token, force-eat one. Without
+			// this, a single `import X = Y;` inside `namespace M { ... }`
+			// loops the parser forever (S26 W6 phase 3 bug class #1; this
+			// alone closed 146 typescript/compiler timeouts).
+			prev_offset := int(cur_offset(p))
 			s := parse_statement_or_declaration(p)
 			if s != nil { bump_append(&stmts, s) }
+			else if int(cur_offset(p)) == prev_offset {
+				msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
+				report_error(p, msg)
+				eat(p)
+			}
 		}
 		expect_token(p, .RBrace)
 		blk := new_node(p, TSModuleBlock)
@@ -14693,8 +14711,17 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		defer p.in_ambient = prev_ambient
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+			// Same progress guard as parse_ts_module_declaration's body loop —
+			// nested namespaces (`namespace A.B.C { ... }` / `module M.N { ... }`)
+			// hit the same hang shape on unsupported TS forms.
+			prev_offset := int(cur_offset(p))
 			s := parse_statement_or_declaration(p)
 			if s != nil { bump_append(&stmts, s) }
+			else if int(cur_offset(p)) == prev_offset {
+				msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
+				report_error(p, msg)
+				eat(p)
+			}
 		}
 		expect_token(p, .RBrace)
 		blk := new_node(p, TSModuleBlock)
