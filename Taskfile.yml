@@ -335,6 +335,30 @@ tasks:
       - KESSEL_T262_JSON=tmp/test262_full_run.json bash tests/runners/run_test262_full.sh
       - node tests/verifiers/verify_test262_full_regression.js --update
 
+  test:oxc-corpus:fetch:
+    desc: "Fetch the OXC conformance corpus (microsoft/TypeScript + babel/babel + oxc-project/estree-conformance) at the SHAs OXC pins in tasks/coverage/. Sparse-checks out the relevant fixture trees (~213 MB total). Idempotent — re-runs are no-ops if SHAs already match. Required before `task test:oxc-corpus`."
+    silent: true
+    cmds:
+      - bash tests/runners/oxc_corpus_fetch.sh
+
+  test:oxc-corpus:fetch:typescript:
+    desc: "Fetch only the microsoft/TypeScript corpus (largest of the three, ~138 MB)."
+    silent: true
+    cmds:
+      - bash tests/runners/oxc_corpus_fetch.sh typescript
+
+  test:oxc-corpus:fetch:babel:
+    desc: "Fetch only the babel/babel parser fixtures (~70 MB)."
+    silent: true
+    cmds:
+      - bash tests/runners/oxc_corpus_fetch.sh babel
+
+  test:oxc-corpus:fetch:estree:
+    desc: "Fetch only the oxc-project/estree-conformance corpus (~5 MB, has ESTree-format JSON oracles)."
+    silent: true
+    cmds:
+      - bash tests/runners/oxc_corpus_fetch.sh estree
+
   test:multi-parser:
     desc: ESTree cross-parser compat — compare Kessel against Acorn and Babel
     deps: [build]
