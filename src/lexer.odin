@@ -1860,6 +1860,36 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 					h4 := hex_val(src[l.offset + 5])
 					if h1 >= 0 && h2 >= 0 && h3 >= 0 && h4 >= 0 {
 						cp := u32(h1*4096 + h2*256 + h3*16 + h4)
+						// S26 W5b: surrogate-pair combination.
+					// `\uD835\uDD6B` (UTF-16 surrogate pair for U+1D56B "ᵖb")
+					// must encode as a SINGLE 4-byte UTF-8 sequence, not as
+					// two 3-byte sequences encoding the surrogate halves
+					// (which is invalid UTF-8 / WTF-8). Pre-W5b the cooked
+					// string was 6 bytes of invalid UTF-8; readers like
+					// `Buffer.toString('utf8', …)` would replace each surrogate
+					// half with U+FFFD. Surfaced via verify_integration walking
+					// markdown-it / mathjax / showdown / katex / tippy entity
+					// tables (~2000 mismatches across 5 files).
+					//
+					// ECMA-262 §12.9.4.1 SS: SV, SE: when a String literal
+					// contains `\u<HighSurrogate>\u<LowSurrogate>` the parser
+					// must concatenate to the supplementary code point.
+					if cp >= 0xD800 && cp <= 0xDBFF && l.offset + 11 < src_len &&
+					   src[l.offset + 6] == '\\' && src[l.offset + 7] == 'u' {
+						lh1 := hex_val(src[l.offset + 8])
+						lh2 := hex_val(src[l.offset + 9])
+						lh3 := hex_val(src[l.offset + 10])
+						lh4 := hex_val(src[l.offset + 11])
+						if lh1 >= 0 && lh2 >= 0 && lh3 >= 0 && lh4 >= 0 {
+							low_cp := u32(lh1*4096 + lh2*256 + lh3*16 + lh4)
+							if low_cp >= 0xDC00 && low_cp <= 0xDFFF {
+								cp = 0x10000 + (cp - 0xD800) * 0x400 + (low_cp - 0xDC00)
+								append_utf8(&cook_buf, cp)
+								l.offset += 12
+								continue
+							}
+						}
+					}
 						append_utf8(&cook_buf, cp)
 						l.offset += 6
 					} else {

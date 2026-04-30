@@ -1151,8 +1151,23 @@ rewrite_array_expression :: proc(a: ^ArrayExpression, base: uintptr, source_base
 rewrite_object_expression :: proc(o: ^ObjectExpression, base: uintptr, source_base: uintptr) {
 	for i in 0..<len(o.properties) {
 		prop := &o.properties[i]
+		// Shorthand `{a}` parses with `prop.value = prop.key` — both
+		// fields hold the SAME ^Expression union pointer (see
+		// parse_property's shorthand branch in src/parser.odin). The
+		// previous unconditional double-rewrite walked the SAME union
+		// twice; the second pass tried to dereference the already-rewritten
+		// inner pointer (now an arena offset, not a real pointer) and
+		// segfaulted. Surfaced via S26 W5b walking sucrase.js / d3.js /
+		// yup.js / zod.js / and ~25 other batch2/batch3 files. Detect
+		// pointer equality BEFORE the first rewrite, then mirror the
+		// resulting offset to `prop.value`'s slot.
+		same_node := prop.value == prop.key
 		rewrite_expr_field(prop.key, &prop.key, base, source_base)
-		rewrite_expr_field(prop.value, &prop.value, base, source_base)
+		if same_node {
+			(^u32)(&prop.value)^ = (^u32)(&prop.key)^
+		} else {
+			rewrite_expr_field(prop.value, &prop.value, base, source_base)
+		}
 	}
 	rewrite_dynamic_header(&o.properties, base, len(o.properties))
 }

@@ -8820,7 +8820,9 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 			id := new_node(p, Identifier)
 			id.loc = loc_from_token(&current)
-			id.name = "await"
+			// S26 W5b: source-slice (current.value), not literal.
+			// String literals are RODATA-pointing and break raw_transfer.
+			id.name = current.value
 			id.loc.span.end = current.raw_end
 			return expression_from(p, id)
 		}
@@ -9594,7 +9596,18 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			eat(p)
 			ident := new_node(p, Identifier)
 			ident.loc = loc_from_token(&current)
-			ident.name = "async"
+			// S26 W5b — use the SOURCE-SLICE name, not a string literal.
+			// `"async"` is a compile-time literal whose `raw_data` lives in the
+			// binary's RODATA segment — outside both the source-bytes range and
+			// the parser arena range. raw_transfer's rewrite_string then writes
+			// a garbage offset for the field, and the binary buffer surfaces
+			// the Identifier with `name=""`. JSON path is correct (it just
+			// prints the live Odin string), so the bug stayed silent until W5
+			// extended verify_integration to walk Identifier names through every
+			// reachable expression slot. Source slice is in-source, so
+			// rewrite_string's source-base branch fires and produces a
+			// well-formed offset.
+			ident.name = current.value
 			ident.loc.span.end = prev_end_offset(p)
 			return expression_from(p, ident)
 		}
@@ -9637,10 +9650,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				if is_token(p, .Arrow) {
 					return parse_async_arrow_function(p, param_ident)
 				}
-				// Not an arrow, return the identifier as expression (async becomes identifier)
+				// Not an arrow, return the identifier as expression (async becomes identifier).
+				// S26 W5b: source-slice name (see above for why a literal breaks raw_transfer).
 				ident := new_node(p, Identifier)
 				ident.loc = loc_from_token(&current)
-				ident.name = "async"
+				ident.name = current.value
 				ident.loc.span.end = prev_end_offset(p)
 				return expression_from(p, ident)
 			} else if next.type == .LParen {
@@ -9730,10 +9744,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 		// async as identifier
+		// S26 W5b: source-slice name (see escaped-async branch for why a literal breaks raw_transfer).
 		eat(p)
 		ident := new_node(p, Identifier)
 		ident.loc = loc_from_token(&current)
-		ident.name = "async"
+		ident.name = current.value
 		ident.loc.span.end = prev_end_offset(p)
 		return expression_from(p, ident)
 
@@ -10538,7 +10553,41 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		assign := new_node(p, AssignmentExpression)
 		assign.loc = start
 		assign.operator = .Assign
-		assign.left = key
+		// S26 W5b — don't alias `key`. Previously assign.left = key
+		// shared the same ^Expression pointer with prop.key; raw_transfer
+		// then walked that Expression union TWICE (once via prop.key, once
+		// via assign.left), and the second walk dereferenced an
+		// already-rewritten inner pointer (now an arena offset, not a real
+		// pointer) and segfaulted. Surfaced via S26 W5b on yup.js —
+		// `({excludeEmptyString = false, message, name} = options)` triggers
+		// the alias inside a destructuring cover.
+		//
+		// Clone the inner Identifier into a fresh Expression union so each
+		// AST slot owns its own node (matches ESTree shape — the JSON path
+		// already emits two distinct Identifier objects at these positions).
+		if key != nil {
+			#partial switch k in key^ {
+			case ^Identifier:
+				if k != nil {
+					cloned := new_node(p, Identifier)
+					cloned.loc = k.loc
+					cloned.name = k.name
+					assign.left = expression_from(p, cloned)
+				} else {
+					assign.left = key
+				}
+			case:
+				// Non-Identifier keys (StringLiteral, NumericLiteral) cannot
+				// legally be the LHS of CoverInitializedName, but the parse
+				// is permissive here and expr_to_pattern / parse-program
+				// emits the SyntaxError later. Keep the alias for those
+				// shapes — they don't hit the raw-transfer crash because the
+				// node never round-trips successfully anyway.
+				assign.left = key
+			}
+		} else {
+			assign.left = key
+		}
 		assign.right = default_val
 		assign.loc.span.end = prev_end_offset(p)
 		shorthand = true
@@ -14047,7 +14096,9 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 			eat(p)
 			this_id := new_node(p, Identifier)
 			this_id.loc = loc_from_token(&this_tok)
-			this_id.name = "this"
+			// S26 W5b: source-slice (this_tok.value), not literal — same
+			// RODATA bug as the .Async paths.
+			this_id.name = this_tok.value
 			pattern = this_id
 		} else {
 			pattern = parse_binding_pattern(p)

@@ -24,7 +24,7 @@
             "type": "Literal",
             "start": 156,
             "end": 170,
-            "value": "\ud834\udf06",
+            "value": "𝌆",
             "raw": "\"\\uD834\\uDF06\""          }        }
       ]    }
   ],
@@ -63,5 +63,5 @@
 }
 
 --- Statistics ---
-Arena: used=10240B reserved=16777216B ratio=0%
+Arena: used=36120B reserved=16777216B ratio=0%
 Parse errors: 0

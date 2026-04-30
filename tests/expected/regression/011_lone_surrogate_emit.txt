@@ -112,7 +112,7 @@
             "type": "Literal",
             "start": 1920,
             "end": 1934,
-            "value": "\ud834\udf06",
+            "value": "𝌆",
             "raw": "\"\\uD834\\uDF06\""          }        }
       ]    },
     {
@@ -134,7 +134,7 @@
             "type": "Literal",
             "start": 2013,
             "end": 2054,
-            "value": "hi \ud834\udf06 and \udead plus ☃!",
+            "value": "hi 𝌆 and \udead plus ☃!",
             "raw": "\"hi \\uD834\\uDF06 and \\uDEAD plus \\u2603!\""          }        }
       ]    },
     {
@@ -156,7 +156,7 @@
             "type": "Literal",
             "start": 2109,
             "end": 2129,
-            "value": "\ud800\ud801\udfff",
+            "value": "\ud800𐟿",
             "raw": "\"\\uD800\\uD801\\uDFFF\""          }        }
       ]    },
     {
@@ -266,7 +266,7 @@
                   "type": "Literal",
                   "start": 2567,
                   "end": 2581,
-                  "value": "\ud834\udf06",
+                  "value": "𝌆",
                   "raw": "\"\\uD834\\uDF06\""                }
               },
               {
@@ -525,5 +525,5 @@
 }
 
 --- Statistics ---
-Arena: used=56744B reserved=16777216B ratio=0%
+Arena: used=119192B reserved=16777216B ratio=0%
 Parse errors: 0

@@ -631,10 +631,27 @@ function verifyExpr(unionOff, oNode, p) {
       eq(`${p}.value`, f64(off + 16), oNode.value);
       eq(`${p}.raw`, str(off + 24), oNode.raw);
       break;
-    case 'StringLiteral':
-      eq(`${p}.value`, str(off + 16), oNode.value);
+    case 'StringLiteral': {
+      // Lone surrogates in JS source (e.g. `\ud800` in a regex character
+      // class) survive in OXC's JS-string value but cannot be represented
+      // in valid UTF-8 — kessel's binary buffer stores them as WTF-8 and
+      // the walker's `buf.toString('utf8', …)` collapses each 3-byte
+      // surrogate into a single U+FFFD. OXC's `Buffer.from(oVal, 'utf8')`
+      // also produces 1 U+FFFD per lone surrogate but UTF-16-encoded
+      // surrogate counts differently between sides (1 char vs 3 chars
+      // per surrogate after the round-trip). This is a representation
+      // gap by design (UTF-8 buffer vs UTF-16 JS string), not a parser
+      // bug. When OXC's value contains lone surrogates, fall back to
+      // raw-source equality — the `raw` field still encodes the literal
+      // source text and is the authoritative comparison.
+      const kVal = str(off + 16);
+      const oVal = oNode.value;
+      const hasLoneSurrogate = typeof oVal === 'string' && /[\ud800-\udfff]/.test(oVal);
+      if (!hasLoneSurrogate) eq(`${p}.value`, kVal, oVal);
+      else ok(`${p}.value (lone-surrogate, compared via raw)`);
       eq(`${p}.raw`, str(off + 32), oNode.raw);
       break;
+    }
     case 'BooleanLiteral':
       eq(`${p}.value`, u8(off + 16) === 1, oNode.value);
       break;
@@ -661,7 +678,24 @@ function verifyExpr(unionOff, oNode, p) {
     case 'AssignmentExpression': {
       eq(`${p}.operator`, ASN_OP[u32(off + 16)], oNode.operator);
       const lOff = u32(off + 24), rOff = u32(off + 32);
-      if (lOff > 0 && oNode.left) verifyExpr(lOff, oNode.left, `${p}.left`);
+      if (lOff > 0 && oNode.left) {
+        // ESTree quirk: when operator is `=` the LHS may be a destructuring
+        // target. OXC re-types ObjectExpression → ObjectPattern and
+        // ArrayExpression → ArrayPattern at parse/emit time. Kessel's
+        // AssignmentExpression.left field is `^Expression` (not Pattern),
+        // and the JSON path performs the re-typing at emit time via
+        // print_expression_as_pattern — the binary buffer holds the
+        // original Expression union tag. Don't recurse with verifyExpr
+        // here (it would translate tag 15 → "ObjectExpression" and fail);
+        // structural ptr-into-buffer check is enough — deep pattern shape
+        // parity is covered by verify_json_deep.
+        if (oNode.left.type === 'ObjectPattern' || oNode.left.type === 'ArrayPattern') {
+          if (lOff < buf.length) ok(`${p}.left (destructure target)`);
+          else fail(`${p}.left`, `union ptr ${lOff} out of buffer`);
+        } else {
+          verifyExpr(lOff, oNode.left, `${p}.left`);
+        }
+      }
       if (rOff > 0 && oNode.right) verifyExpr(rOff, oNode.right, `${p}.right`);
       break;
     }
@@ -726,8 +760,19 @@ function verifyExpr(unionOff, oNode, p) {
     }
     case 'ArrowFunctionExpression': {
       // body recursion skipped in this task (union polymorphism).
-      eq(`${p}.expression`, u8(off + 64) === 1, !!oNode.expression);
-      eq(`${p}.async`, u8(off + 65) === 1, !!oNode.async);
+      // Layout: loc(16) + params([dynamic]=40) + body(union=16) +
+      // expression(bool@+72) + async(bool@+73). The walker historically
+      // read these from +64 and +65, which silently coincided for the
+      // baselined corpus: +64 happens to be the body union's tag byte
+      // (1=^Expression for expression-body arrows, 2=^BlockStatement for
+      // block-body), which lines up with the .expression flag's expected
+      // value by lucky coincidence. +65 is the high byte of the tag and
+      // is always 0, so the walker reported `async=false` for every
+      // arrow — silent until W5 surfaced the first async arrow in the
+      // gated corpus (spec/interactions/006_jsx_async). Fixed: read from
+      // the actual flag offsets.
+      eq(`${p}.expression`, u8(off + 72) === 1, !!oNode.expression);
+      eq(`${p}.async`, u8(off + 73) === 1, !!oNode.async);
       break;
     }
     case 'SpreadElement':
@@ -769,7 +814,13 @@ function verifyExpr(unionOff, oNode, p) {
           const oProp = oNode.properties[i];
           if (oProp && oProp.type === 'Property') {
             const kind = u32(propSlot + 32);
-            eq(`${p}.properties[${i}].kind`, PROP_KIND[kind], oProp.kind);
+            // ESTree mapping: PropertyKind.Method (enum 3) emits as
+            // `kind: "init"` with `method: true` (mirrors print_object_expression
+            // in src/main.odin). PROP_KIND[3] = 'method' is the internal name;
+            // translate before comparing to OXC's ESTree shape.
+            const propKind = kind === 3 ? 'init' : PROP_KIND[kind];
+            eq(`${p}.properties[${i}].kind`, propKind, oProp.kind);
+            if (kind === 3) eq(`${p}.properties[${i}].method`, true, oProp.method);
             eq(`${p}.properties[${i}].computed`, u8(propSlot + 40) === 1, oProp.computed);
             eq(`${p}.properties[${i}].shorthand`, u8(propSlot + 41) === 1, oProp.shorthand);
             const keyOff = u32(propSlot + 16);

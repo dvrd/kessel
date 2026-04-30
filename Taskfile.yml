@@ -161,6 +161,25 @@ tasks:
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js --baseline
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js --baseline
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js --baseline
+      # 006 — added W5b after fixing the ArrowFunctionExpression .expression /
+      # .async offset bug (was reading from body-union tag bytes, not the
+      # actual flags). Exercises async arrow + JSX child + JSXAttribute value.
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/006_jsx_async_expression_children.js --baseline
+      # S26 W5b — each fixture below was crashing or mismatching pre-W5b.
+      # Locked in at 0 to gate the bug classes we just closed:
+      #   prettier.js — PropertyKind.Method emit + ObjectPattern reinterpret
+      #                + async-flag offset fix (3 walker bugs).
+      #   rxjs.js     — `async`-Identifier RODATA-literal parser bug.
+      #   sucrase.js  — raw_transfer shorthand-property double-walk SIGSEGV.
+      #   yup.js      — raw_transfer shorthand-with-default alias SIGSEGV.
+      #   showdown.js — surrogate-pair UTF-8 encoding bug (1009 mismatches).
+      #   d3.js       — SIGSEGV on shorthand-properties in production code.
+      - node tests/verifiers/verify_integration.js bench/real_world/prettier.js --baseline
+      - node tests/verifiers/verify_integration.js bench/real_world/batch2/rxjs.js --baseline
+      - node tests/verifiers/verify_integration.js bench/real_world/batch3/sucrase.js --baseline
+      - node tests/verifiers/verify_integration.js bench/real_world/batch2/yup.js --baseline
+      - node tests/verifiers/verify_integration.js bench/real_world/batch3/showdown.js --baseline
+      - node tests/verifiers/verify_integration.js bench/real_world/d3.js --baseline
       # Deep JSON-level compare — covers ALL 57 emitted node types (not just the
       # 37 the raw-buffer integration verifier walks). Gates snabbdom.js, the
       # smallest real file we can round-trip cleanly against every reference.
@@ -215,6 +234,14 @@ tasks:
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/006_jsx_async_expression_children.js
+      # S26 W5b strict pass for the 6 real-world bug-class fixtures.
+      - node tests/verifiers/verify_integration.js bench/real_world/prettier.js
+      - node tests/verifiers/verify_integration.js bench/real_world/batch2/rxjs.js
+      - node tests/verifiers/verify_integration.js bench/real_world/batch3/sucrase.js
+      - node tests/verifiers/verify_integration.js bench/real_world/batch2/yup.js
+      - node tests/verifiers/verify_integration.js bench/real_world/batch3/showdown.js
+      - node tests/verifiers/verify_integration.js bench/real_world/d3.js
       - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser oxc
       - node tests/verifiers/verify_class_decorators.js
       - node tests/verifiers/verify_class_typescript.js
@@ -240,6 +267,14 @@ tasks:
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js --update
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js --update
       - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js --update
+      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/006_jsx_async_expression_children.js --update
+      # S26 W5b — 6 real-world bug-class fixtures.
+      - node tests/verifiers/verify_integration.js bench/real_world/prettier.js --update
+      - node tests/verifiers/verify_integration.js bench/real_world/batch2/rxjs.js --update
+      - node tests/verifiers/verify_integration.js bench/real_world/batch3/sucrase.js --update
+      - node tests/verifiers/verify_integration.js bench/real_world/batch2/yup.js --update
+      - node tests/verifiers/verify_integration.js bench/real_world/batch3/showdown.js --update
+      - node tests/verifiers/verify_integration.js bench/real_world/d3.js --update
 
   test:test262:
     desc: ECMA-262 syntax subset (66 curated parse-smoke tests, exit-code only)
