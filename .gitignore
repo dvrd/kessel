@@ -2,10 +2,14 @@ bin/
 tmp/
 _archive/
 bench/
+vendor/
+
 *.dSYM/
 
-# AI
 AGENTS.md
+HANDOFF.md
+
 .task/
 .firecrawl/
-vendor/
+.profile_runs/
+.research/
