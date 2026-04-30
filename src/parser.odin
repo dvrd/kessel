@@ -11295,6 +11295,14 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 			// Special case shorthand `{x}` where key == value == Identifier: the
 			// parser may point both at the same node; either path converts
 			// correctly below.
+			//
+			// Nil-guard: a malformed shorthand like `{ p: void }` (where `void`
+			// has no argument because the next token is `}`) leaves prop.value
+			// nil. The type assertion `prop.value.(^AssignmentExpression)` auto-
+			// derefs and segfaults on nil. Skip the property; the upstream parse
+			// error already explains what went wrong. Closes 2 babel discard-
+			// binding SIGSEGVs (S26 W6 phase 3 bug class #2, second variant).
+			if prop.value == nil { continue }
 			value_pat: Pattern
 			if ae, is_assign := prop.value.(^AssignmentExpression); is_assign && ae.operator == .Assign {
 				lhs_pat, lhs_ok := expr_to_pattern(p, ae.left)
@@ -11844,6 +11852,15 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				// Multiple parameters: (a, b) => ...
 				// Each element in the sequence should be an identifier (or pattern)
 				for expr_ptr in e.expressions {
+					// Nil entries arise during error recovery when a cover-expression
+					// element fails to parse. Concrete shape: `([]?, {}) => {}` parses
+					// `[]?` as ConditionalExpression whose consequent is missing
+					// (next token is `,`, not an expression start), so parse_conditional_
+					// expr returns nil and the sequence captures a nil pointer for that
+					// slot. Without this guard, `expr_ptr^` segfaults. Closes 5 SIGSEGVs
+					// across babel/typescript optional-arrow / discard-binding fixtures
+					// (S26 W6 phase 3 bug class #2).
+					if expr_ptr == nil { continue }
 					#partial switch arg in expr_ptr^ {
 					case ^Identifier:
 						param_ident := new_node(p, Identifier)
