@@ -120,3 +120,56 @@ but the cost/benefit is borderline.
 Borderline. Wave 1 of Phase 2 will be a real test: if migrating
 Identifier + Member + Call + Binary delivers ~3 % wall time on real
 fixtures, scale up; if not, stop and ship at 1.064×.
+
+---
+
+## Update: v3 prototype with realistic interleaved work (S25, 2026-04-30)
+
+v2's pure-construction model overstated the SoA win because it
+excluded the per-token cost (source reads, token-shape writes) that
+competes with SoA's parallel arrays for L1d.
+
+`bench/dod_proto/proto3.odin` adds realistic per-node "other work":
+
+* Source-byte read from a 1.7 MB corpus (simulates span lookup)
+* 8-byte string compare (simulates `lookup_keyword_by_letter`)
+* 64-byte token-shape write (simulates `advance_token` snapshot)
+* Light arithmetic (simulates span bookkeeping)
+
+Proto3 has compile-time toggles (`-define:SIM_NONE=true`,
+`-define:SIM_LIGHT=true`) to isolate which surrounding-work cost
+flips the SoA win.
+
+### Results (median of 10 runs at depth 12, 100 iter)
+
+```
+no sim     (proto2-equivalent)   SoA -5.5 %
+light sim  (+ source read)        SoA -3.0 %
+full sim   (+ token write)        SoA +2.5 %  (SoA LOSES)
+```
+
+Real kessel does both source reads AND token-shape writes per token,
+so the production-realistic projection is between light-sim and
+full-sim — i.e. somewhere between SoA winning by 3 % on the
+AST-construction subset and losing by 2.5 %.
+
+### Wall-time projection
+
+AST construction is ~17 % of wall in current kessel (per S24
+profile: ALLOC ~10 % + half of parse_unary_expr / parse_expr_with_prec
+~ 7 %).
+
+* Best case (light-sim regime, SoA -3 %): wall delta -0.51 pp
+* Likely case (mid regime, SoA 0 %): wall delta 0 pp
+* Worst case (full-sim regime, SoA +2.5 %): wall delta +0.43 pp
+
+The S24 commits (`d0eed4e` bump_append, `4fb90a5` LexerLoc shrink,
+`ee76e1f` cur_lit gating) closed exactly the AoS-side inefficiencies
+the v2 prototype had measured against. With those wins in tree, the
+residual SoA advantage in pure construction is -5.5 % (down from
+-10 to -12 %), and that residual gets erased by realistic cache
+pressure from surrounding work.
+
+### Verdict: **STOP** Tier 3 F.
+
+See `docs/perf-session-25-wave0.md` for the full write-up.
