@@ -580,8 +580,14 @@ rewrite_binding_pattern :: proc(pat: ^Pattern, base: uintptr, source_base: uintp
 		rewrite_identifier(v, base, source_base)
 	case ^ObjectPattern:
 		rewrite_dynamic_header(&v.properties, base, len(v.properties))
+		// S26 W4b: ObjectPattern grew a `type_annotation: Maybe(^TSTypeAnnotation)`
+		// slot to capture `function f({a, b}: T)` annotations the parser
+		// previously dropped on the floor. Walk it through the binary path.
+		rewrite_maybe_ts_type_annotation(&v.type_annotation, base, source_base)
 	case ^ArrayPattern:
 		// elements is []Maybe(Pattern) — slice, not dynamic
+		// S26 W4b: same type_annotation slot as ObjectPattern.
+		rewrite_maybe_ts_type_annotation(&v.type_annotation, base, source_base)
 	case ^AssignmentPattern:
 		rewrite_expr_field(v.right, &v.right, base, source_base)
 	}

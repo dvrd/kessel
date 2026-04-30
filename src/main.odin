@@ -3048,6 +3048,24 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		print_variable_declaration_body(s, indent)
 
 	case ^FunctionDeclaration:
+		// S26 W4b: ambient (no-body) function declarations —
+		// `declare function f(): T;`, overload signatures, and the
+		// `export function init(opts): void;` lines inside
+		// `declare module 'x' { ... }` — are emitted as TSDeclareFunction
+		// in TS-ESTree, not FunctionDeclaration. The parser already
+		// distinguishes the two via `expr.no_body`; switch on it here so
+		// the emitted `type` field, `body: null` placeholder, and the
+		// always-on `declare: <bool>` field all match OXC. Plain JS keeps
+		// the historical FunctionDeclaration shape.
+		emit_as_declare_fn := emit_ts_shape && s.expr.no_body
+		if emit_as_declare_fn {
+			// Override the default `"type": "FunctionDeclaration"` written
+			// upstream of this switch arm. We can't actually rewrite the
+			// already-emitted bytes, so the `type` field is fixed by the
+			// caller-side path: emit_decl_type_label / decl_type_string
+			// already pick TSDeclareFunction when no_body is set. This
+			// branch only adjusts the field set that follows.
+		}
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"id\": ")
@@ -3068,7 +3086,8 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			out_s("\"typeParameters\": null,\n")
 		}
 		print_indent(indent)
-		// expression: false - FunctionDeclaration always has a block body.
+		// expression: false. OXC emits this on both FunctionDeclaration
+		// and TSDeclareFunction for symmetry with ArrowFunctionExpression.
 		out_s("\"expression\": false,\n")
 		print_indent(indent)
 		out_s("\"generator\": ")
@@ -3111,14 +3130,27 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		}
 		out_s(",\n")
 		print_indent(indent)
-		out_println("\"body\": {")
-		fn_body := &s.expr.body
-		print_function_body_inline(fn_body, indent + 1)
-		out_s("\n")
-		print_indent(indent)
-		out_print("}")
-		// JS FunctionDeclaration: emit `declare` only when true (OXC parity).
-		if s.expr.declare {
+		// Body: TSDeclareFunction has `body: null`; FunctionDeclaration has
+		// the inline BlockStatement.
+		if emit_as_declare_fn {
+			out_s("\"body\": null")
+		} else {
+			out_println("\"body\": {")
+			fn_body := &s.expr.body
+			print_function_body_inline(fn_body, indent + 1)
+			out_s("\n")
+			print_indent(indent)
+			out_print("}")
+		}
+		// `declare`: TS-shape mode always emits the field (false placeholder
+		// when absent); plain JS only when set. TSDeclareFunction is
+		// inherently a TS-only node, so it always emits.
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"declare\": ")
+			out_bool(s.expr.declare)
+		} else if s.expr.declare {
 			out_s(",\n")
 			print_indent(indent)
 			out_s("\"declare\": true")
@@ -4048,32 +4080,10 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		out_bool(s.declare)
 
 	case ^TSModuleDeclaration:
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"id\": {\n")
-		print_expression_ast(s.id, indent + 1)
-		out_s("\n")
-		print_indent(indent)
-		out_s("},\n")
-		print_indent(indent)
-		out_s("\"body\": ")
-		if body_union, ok := s.body.(^TSModuleBody); ok && body_union != nil {
-			emit_ts_module_body(body_union, indent)
-		} else {
-			out_s("null")
-		}
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"kind\": ")
-		out_string(ts_module_kind_label(s.kind))
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"global\": ")
-		out_bool(s.global)
-		out_s(",\n")
-		print_indent(indent)
-		out_s("\"declare\": ")
-		out_bool(s.declare)
+		// S26 W4b: fold the qualified-name desugar chain into OXC's flat
+		// shape — single TSModuleDeclaration with a TSQualifiedName id
+		// and the deepest TSModuleBlock body.
+		emit_ts_module_decl_fields(s, indent)
 
 	case:
 		out_s(",\n")
@@ -4093,6 +4103,116 @@ ts_module_kind_label :: proc(kind: TSModuleKind) -> string {
 	case .Global:    return "global"
 	}
 	return "namespace"
+}
+
+// Walk the qualified-name desugar chain starting at `m`. Kessel's parser
+// represents `namespace A.B.C {}` as a chain of nested TSModuleDeclaration
+// nodes whose body slots hold ^TSModuleDeclaration (not ^TSModuleBlock).
+// OXC instead emits a single TSModuleDeclaration with a left-deep
+// TSQualifiedName id and a TSModuleBlock body. This walker collects the
+// chain so the emitter can fold it into OXC's shape (S26 W4b).
+//
+// Returns:
+//   ids[]            — the id ^Expression at each level, leftmost first
+//   deepest          — the deepest TSModuleDeclaration in the chain
+//                      (caller pulls .body and the per-decl flags from it)
+//
+// User-written nested namespaces (`namespace A { namespace B {} }`) parse
+// as TSModuleDeclaration -> ^TSModuleBlock -> Statement -> TSModuleDeclaration,
+// which terminates this walker after the first link, leaving the user's
+// shape intact.
+ts_module_chain :: proc(m: ^TSModuleDeclaration) -> ([dynamic]^Expression, ^TSModuleDeclaration) {
+	ids := make([dynamic]^Expression, 0, 4, context.temp_allocator)
+	cur := m
+	append(&ids, cur.id)
+	for {
+		body_union, ok := cur.body.(^TSModuleBody)
+		if !ok || body_union == nil { break }
+		inner, is_decl := body_union^.(^TSModuleDeclaration)
+		if !is_decl || inner == nil { break }
+		cur = inner
+		append(&ids, cur.id)
+	}
+	return ids, cur
+}
+
+// Emit the `id` field for a TSModuleDeclaration whose qualified-name
+// chain has been collected by ts_module_chain. A single id passes through
+// as a plain Identifier; two or more fold left-deep into a recursive
+// TSQualifiedName tree matching OXC's shape:
+//
+//   ids = [A]              -> { Identifier A }
+//   ids = [A, B]           -> TSQualifiedName{ left: A, right: B }
+//   ids = [A, B, C]        -> TSQualifiedName{ left: TSQualifiedName{A,B}, right: C }
+//
+// Each TSQualifiedName carries `start` = leftmost id's start and `end` =
+// rightmost id's end at its level, matching OXC's per-segment span
+// accumulation.
+emit_ts_module_qualified_id :: proc(ids: []^Expression, indent: int) {
+	if len(ids) == 1 {
+		out_s("{\n")
+		print_expression_ast(ids[0], indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+		return
+	}
+	// 2+ — fold left-deep. The right side is always the last id.
+	left_ids  := ids[:len(ids)-1]
+	right_id  := ids[len(ids)-1]
+	left_loc  := get_expression_loc(ids[0])
+	right_loc := get_expression_loc(right_id)
+	span := Loc{ span = { start = left_loc.span.start, end = right_loc.span.end } }
+
+	out_s("{\n")
+	print_indent(indent + 1)
+	out_s("\"type\": \"TSQualifiedName\"")
+	emit_span_fields(span, indent + 1)
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"left\": ")
+	emit_ts_module_qualified_id(left_ids, indent + 1)
+	out_s(",\n")
+	print_indent(indent + 1)
+	out_s("\"right\": {\n")
+	print_expression_ast(right_id, indent + 2)
+	out_s("\n")
+	print_indent(indent + 1)
+	out_s("}\n")
+	print_indent(indent)
+	out_s("}")
+}
+
+// Helper used by the inline TSModuleBody emitter — when the union variant
+// is ^TSModuleDeclaration we want the SAME fold + flatten as the top-level
+// case, not a recursive nested-decl emit. emit_ts_module_decl_fields
+// handles both, parameterised on the indent base.
+emit_ts_module_decl_fields :: proc(m: ^TSModuleDeclaration, indent: int) {
+	ids, deepest := ts_module_chain(m)
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"id\": ")
+	emit_ts_module_qualified_id(ids[:], indent)
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"body\": ")
+	if body_union, ok := deepest.body.(^TSModuleBody); ok && body_union != nil {
+		emit_ts_module_body(body_union, indent)
+	} else {
+		out_s("null")
+	}
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"kind\": ")
+	out_string(ts_module_kind_label(m.kind))
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"global\": ")
+	out_bool(m.global)
+	out_s(",\n")
+	print_indent(indent)
+	out_s("\"declare\": ")
+	out_bool(m.declare)
 }
 
 print_pattern_ast :: proc(pattern: Pattern, indent: int) {
@@ -4211,19 +4331,22 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 		}
 		// S26 W4: TS-ESTree always emits `optional: false` and a
 		// `typeAnnotation` field on every Pattern node, regardless of
-		// whether the source has a `?` marker or `:T` annotation. Kessel's
-		// AST doesn't carry these on ArrayPattern/ObjectPattern today, so
-		// emit hard-coded `false` / `null` placeholders. Closing the
-		// type-annotation-on-non-Identifier-pattern bug (`function
-		// f({a,b}: Props)` silently drops the annotation in the parser) is
-		// the next beat (W4b) — once the AST gains a slot, switch this to
-		// a real lookup.
+		// whether the source has a `?` marker or `:T` annotation.
+		// S26 W4b: ArrayPattern.type_annotation is now a real AST slot
+		// populated by parse_function_param when the source has
+		// `function f([a, b]: T)`; emit the actual annotation when set,
+		// `null` otherwise.
 		if emit_ts_shape {
 			out_s(",\n")
 			print_indent(indent)
 			out_s("\"optional\": false,\n")
 			print_indent(indent)
-			out_s("\"typeAnnotation\": null")
+			out_s("\"typeAnnotation\": ")
+			if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
+				emit_ts_type_annotation_node(ann, indent)
+			} else {
+				out_s("null")
+			}
 		}
 	case ^ObjectPattern:
 		print_indent(indent)
@@ -4354,14 +4477,21 @@ print_pattern_ast :: proc(pattern: Pattern, indent: int) {
 			print_indent(indent)
 			out_s("]")
 		}
-		// S26 W4: same TS-shape footer as ArrayPattern — OXC always emits
-		// `optional: false` and a `typeAnnotation` field on every Pattern.
+		// S26 W4 / W4b: same TS-shape footer as ArrayPattern — OXC always
+		// emits `optional: false` and a `typeAnnotation` field, with the
+		// real annotation when `function f({a, b}: T)` puts one on the
+		// ObjectPattern.
 		if emit_ts_shape {
 			out_s(",\n")
 			print_indent(indent)
 			out_s("\"optional\": false,\n")
 			print_indent(indent)
-			out_s("\"typeAnnotation\": null")
+			out_s("\"typeAnnotation\": ")
+			if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
+				emit_ts_type_annotation_node(ann, indent)
+			} else {
+				out_s("null")
+			}
 		}
 	case:
 		print_indent(indent)
@@ -4589,37 +4719,16 @@ emit_ts_module_body :: proc(body: ^TSModuleBody, indent: int) {
 		print_indent(indent)
 		out_s("}")
 	case ^TSModuleDeclaration:
-		// Nested namespace: emit a sub TSModuleDeclaration node inline.
+		// Nested-namespace case reached via ^TSModuleBody from a TSModuleBlock
+		// (user-written `namespace A { namespace B {} }`). Same field set as
+		// the top-level emit; emit_ts_module_decl_fields handles the
+		// dotted-name fold internally so a deeper `namespace A.B {}` chain
+		// nested inside a block still flattens correctly.
 		out_s("{\n")
 		print_indent(indent + 1)
 		out_s("\"type\": \"TSModuleDeclaration\"")
 		emit_span_fields(v.loc, indent + 1)
-		out_s(",\n")
-		print_indent(indent + 1)
-		out_s("\"id\": {\n")
-		print_expression_ast(v.id, indent + 2)
-		out_s("\n")
-		print_indent(indent + 1)
-		out_s("},\n")
-		print_indent(indent + 1)
-		out_s("\"body\": ")
-		if inner, ok := v.body.(^TSModuleBody); ok && inner != nil {
-			emit_ts_module_body(inner, indent + 1)
-		} else {
-			out_s("null")
-		}
-		out_s(",\n")
-		print_indent(indent + 1)
-		out_s("\"kind\": ")
-		out_string(ts_module_kind_label(v.kind))
-		out_s(",\n")
-		print_indent(indent + 1)
-		out_s("\"global\": ")
-		out_bool(v.global)
-		out_s(",\n")
-		print_indent(indent + 1)
-		out_s("\"declare\": ")
-		out_bool(v.declare)
+		emit_ts_module_decl_fields(v, indent + 1)
 		out_s("\n")
 		print_indent(indent)
 		out_s("}")
@@ -6892,7 +7001,15 @@ get_statement_type_name :: proc(stmt: ^Statement) -> string {
 	case ^WithStatement:        return "WithStatement"
 	case ^ThrowStatement:       return "ThrowStatement"
 	case ^TryStatement:         return "TryStatement"
-	case ^FunctionDeclaration:  return "FunctionDeclaration"
+	case ^FunctionDeclaration:
+		// S26 W4b: ambient (no-body) function declarations emit as
+		// TSDeclareFunction in TS-ESTree mode. The shape switch lives at
+		// the type-label level so the upstream `"type": <label>` write
+		// picks the right one without rewriting bytes downstream.
+		if emit_ts_shape && s.expr.no_body {
+			return "TSDeclareFunction"
+		}
+		return "FunctionDeclaration"
 	case ^VariableDeclaration:  return "VariableDeclaration"
 	case ^ClassDeclaration:     return "ClassDeclaration"
 	case ^ImportDeclaration:    return "ImportDeclaration"

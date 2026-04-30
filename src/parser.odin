@@ -3548,15 +3548,40 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		}
 	}
 
-	// TypeScript type annotation on parameter - store on Identifier node.
-	// OXC extends the Identifier.end to include the annotation; mirror it.
+	// TypeScript type annotation on parameter. Identifier patterns store
+	// the annotation on the Identifier itself (OXC convention). For
+	// destructuring patterns (ObjectPattern, ArrayPattern, RestElement)
+	// OXC stores it on the pattern node — S26 W4b added the corresponding
+	// slots to ObjectPattern + ArrayPattern. Pre-W4b the annotation was
+	// parsed but silently dropped for these shapes; surfaced by 3
+	// divergences on tsx/001 + tsx/002. AssignmentPattern carries it on
+	// its inner left pattern. OXC also extends the pattern's span to
+	// include the annotation; mirror that for parity with `id.end =
+	// ann.end` on Identifier.
 	if is_token(p, .Colon) {
 		ann := parse_ts_type_annotation(p)
-		if ident, ok := pattern.(^Identifier); ok {
-			ident.type_annotation = ann
-			if ann != nil && ann.loc.span.end > ident.loc.span.end {
-				ident.loc.span.end = ann.loc.span.end
+		#partial switch t in pattern {
+		case ^Identifier:
+			t.type_annotation = ann
+			if ann != nil && ann.loc.span.end > t.loc.span.end {
+				t.loc.span.end = ann.loc.span.end
 			}
+		case ^ObjectPattern:
+			t.type_annotation = ann
+			if ann != nil && ann.loc.span.end > t.loc.span.end {
+				t.loc.span.end = ann.loc.span.end
+			}
+		case ^ArrayPattern:
+			t.type_annotation = ann
+			if ann != nil && ann.loc.span.end > t.loc.span.end {
+				t.loc.span.end = ann.loc.span.end
+			}
+		case:
+			// Other Pattern variants (AssignmentPattern, RestElement,
+			// MemberExpression) don't carry the annotation directly today;
+			// the inner Identifier or pattern picks it up via the relevant
+			// recursive parse path. AssignmentPattern in particular is
+			// always wrapping a typed inner pattern handled above.
 		}
 	}
 

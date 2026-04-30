@@ -26,6 +26,6 @@ declare module "ext-pkg" {
 }
 
 namespace Outer.Inner {
-  export type ID = string;
   export const TAG = "inner";
+  export const VERSION = 1;
 }

@@ -383,7 +383,13 @@ safely('015_modules', () => {
 		maybePtrSet(`015 module[${walked-1}].body`, mOff + TSM_BODY_OFF, true);
 
 		// id is a ^Expression union; resolve to either an Identifier name
-		// or a StringLiteral value depending on the JSON-side type.
+		// or a StringLiteral value depending on the JSON-side type. As of
+		// S26 W4b the JSON path folds `namespace A.B { ... }` into a
+		// TSQualifiedName id (left-deep chain). The binary path does NOT
+		// fold — the fold is purely a JSON-emit transform — so the binary's
+		// id is still the LEFTMOST Identifier of the chain. Read JSON's
+		// leftmost ident off the TSQualifiedName by walking `.left` until
+		// we hit an Identifier; compare that to the binary id.
 		const idUnionPtr = u32(mOff + TSM_ID_OFF);
 		const u = unionAt(idUnionPtr);
 		if (json.id.type === 'Identifier') {
@@ -391,12 +397,20 @@ safely('015_modules', () => {
 				readExprIdentName(idUnionPtr),
 				json.id.name);
 		} else if (json.id.type === 'Literal' || json.id.type === 'StringLiteral') {
-			// kessel emits the JSON `Literal`/`StringLiteral` shape with
-			// `value` as the string. Binary side stores StringLiteral.value
-			// at +16. Both should agree.
 			check(`015 module[${walked-1}].id.value`,
 				readExprStringValue(idUnionPtr),
 				json.id.value);
+		} else if (json.id.type === 'TSQualifiedName') {
+			let leftmost = json.id;
+			while (leftmost && leftmost.type === 'TSQualifiedName') leftmost = leftmost.left;
+			if (leftmost && leftmost.type === 'Identifier') {
+				check(`015 module[${walked-1}].id.leftmost.name (binary unfolded)`,
+					readExprIdentName(idUnionPtr),
+					leftmost.name);
+			} else {
+				failed++;
+				console.error(`  FAIL 015 module[${walked-1}].id: TSQualifiedName has non-Identifier leftmost ${leftmost && leftmost.type}`);
+			}
 		} else {
 			failed++;
 			console.error(`  FAIL 015 module[${walked-1}].id: unhandled JSON id.type=${json.id.type}, binary union tag=${u.tag}`);

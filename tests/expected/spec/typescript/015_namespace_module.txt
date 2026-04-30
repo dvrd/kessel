@@ -1,7 +1,7 @@
 {
   "type": "Program",
   "start": 892,
-  "end": 1209,
+  "end": 1210,
   "sourceType": "script",
   "hashbang": null,
   "body": [
@@ -145,7 +145,8 @@
                         "typeAnnotation": null,
                         "optional": false                      }                    }                  }
                 ]
-              }            },
+              },
+              "declare": false            },
             "specifiers": [],
             "source": null,
             "attributes": [],
@@ -177,7 +178,7 @@
             "start": 1037,
             "end": 1090,
             "declaration": {
-              "type": "FunctionDeclaration",
+              "type": "TSDeclareFunction",
               "start": 1044,
               "end": 1090,
               "id": {
@@ -249,13 +250,8 @@
                   "end": 1089
                 }
               },
-              "body": {
-                "type": "BlockStatement",
-                "start": 1093,
-                "end": 1099,
-                "body": [
-                ]
-              }            },
+              "body": null,
+              "declare": false            },
             "specifiers": [],
             "source": null,
             "attributes": [],
@@ -306,81 +302,100 @@
     {
       "type": "TSModuleDeclaration",
       "start": 1126,
-      "end": 1208,
+      "end": 1209,
       "id": {
-        "type": "Identifier",
+        "type": "TSQualifiedName",
         "start": 1136,
-        "end": 1141,
-        "name": "Outer",
-        "typeAnnotation": null,
-        "optional": false
-      },
-      "body": {
-        "type": "TSModuleDeclaration",
-        "start": 1142,
-        "end": 1208,
-        "id": {
+        "end": 1147,
+        "left": {
+          "type": "Identifier",
+          "start": 1136,
+          "end": 1141,
+          "name": "Outer",
+          "typeAnnotation": null,
+          "optional": false
+        },
+        "right": {
           "type": "Identifier",
           "start": 1142,
           "end": 1147,
           "name": "Inner",
           "typeAnnotation": null,
           "optional": false
-        },
-        "body": {
-          "type": "TSModuleBlock",
-          "start": 1148,
-          "end": 1208,
-          "body": [
-            {
-              "type": "ExportNamedDeclaration",
-              "start": 1152,
-              "end": 1176,
-              "declaration": {
-                "type": "Unknown"              },
-              "specifiers": [],
-              "source": null,
-              "attributes": [],
-              "exportKind": "value"
-            },
-            {
-              "type": "ExportNamedDeclaration",
-              "start": 1179,
-              "end": 1206,
-              "declaration": {
-                "type": "VariableDeclaration",
-                "start": 1186,
-                "end": 1206,
-                "kind": "const",
-                "declarations": [
-                  {
-                    "type": "VariableDeclarator",
-                    "start": 1192,
-                    "end": 1205,
-                    "id": {
-                      "type": "Identifier",
-                      "start": 1192,
-                      "end": 1195,
-                      "name": "TAG",
-                      "typeAnnotation": null,
-                      "optional": false                    },
-                    "init": {
-                      "type": "Literal",
-                      "start": 1198,
-                      "end": 1205,
-                      "value": "inner",
-                      "raw": "\"inner\""                    }                  }
-                ]              },
-              "specifiers": [],
-              "source": null,
-              "attributes": [],
-              "exportKind": "value"
-            }
-          ]
-        },
-        "kind": "namespace",
-        "global": false,
-        "declare": false
+        }
+      },
+      "body": {
+        "type": "TSModuleBlock",
+        "start": 1148,
+        "end": 1209,
+        "body": [
+          {
+            "type": "ExportNamedDeclaration",
+            "start": 1152,
+            "end": 1179,
+            "declaration": {
+              "type": "VariableDeclaration",
+              "start": 1159,
+              "end": 1179,
+              "kind": "const",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 1165,
+                  "end": 1178,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 1165,
+                    "end": 1168,
+                    "name": "TAG",
+                    "typeAnnotation": null,
+                    "optional": false                  },
+                  "init": {
+                    "type": "Literal",
+                    "start": 1171,
+                    "end": 1178,
+                    "value": "inner",
+                    "raw": "\"inner\""                  }                }
+              ]            },
+            "specifiers": [],
+            "source": null,
+            "attributes": [],
+            "exportKind": "value"
+          },
+          {
+            "type": "ExportNamedDeclaration",
+            "start": 1182,
+            "end": 1207,
+            "declaration": {
+              "type": "VariableDeclaration",
+              "start": 1189,
+              "end": 1207,
+              "kind": "const",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 1195,
+                  "end": 1206,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 1195,
+                    "end": 1202,
+                    "name": "VERSION",
+                    "typeAnnotation": null,
+                    "optional": false                  },
+                  "init": {
+                    "type": "Literal",
+                    "start": 1205,
+                    "end": 1206,
+                    "value": 1,
+                    "raw": "1"                  }                }
+              ]            },
+            "specifiers": [],
+            "source": null,
+            "attributes": [],
+            "exportKind": "value"
+          }
+        ]
       },
       "kind": "namespace",
       "global": false,
@@ -481,5 +496,5 @@
 }
 
 --- Statistics ---
-Arena: used=74272B reserved=16777216B ratio=0%
+Arena: used=74648B reserved=16777216B ratio=0%
 Parse errors: 0

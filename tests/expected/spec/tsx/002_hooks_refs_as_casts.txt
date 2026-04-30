@@ -407,7 +407,8 @@
               }
             ]          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 1109,
@@ -471,7 +472,7 @@
         {
           "type": "ObjectPattern",
           "start": 1176,
-          "end": 1186,
+          "end": 1226,
           "properties": [
             {
               "type": "Property",
@@ -527,7 +528,92 @@
             }
           ],
           "optional": false,
-          "typeAnnotation": null
+          "typeAnnotation": {
+            "type": "TSTypeAnnotation",
+            "start": 1186,
+            "end": 1226,
+            "typeAnnotation": {
+              "type": "TSTypeLiteral",
+              "start": 1188,
+              "end": 1226,
+              "members": [
+                {
+                  "type": "TSPropertySignature",
+                  "start": 1190,
+                  "end": 1200,
+                  "key": {
+                    "type": "Identifier",
+                    "start": 1190,
+                    "end": 1192,
+                    "name": "id",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "computed": false,
+                  "optional": false,
+                  "readonly": false,
+                  "typeAnnotation": {
+                    "type": "TSTypeAnnotation",
+                    "start": 1192,
+                    "end": 1200,
+                    "typeAnnotation": {
+                      "type": "TSStringKeyword",
+                      "start": 1194,
+                      "end": 1200
+                    }
+                  }
+                },
+                {
+                  "type": "TSPropertySignature",
+                  "start": 1202,
+                  "end": 1224,
+                  "key": {
+                    "type": "Identifier",
+                    "start": 1202,
+                    "end": 1204,
+                    "name": "As",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "computed": false,
+                  "optional": true,
+                  "readonly": false,
+                  "typeAnnotation": {
+                    "type": "TSTypeAnnotation",
+                    "start": 1205,
+                    "end": 1224,
+                    "typeAnnotation": {
+                      "type": "TSTypeReference",
+                      "start": 1207,
+                      "end": 1224,
+                      "typeName": {
+                        "type": "TSQualifiedName",
+                        "start": 1207,
+                        "end": 1224,
+                        "left": {
+                          "type": "Identifier",
+                          "start": 1207,
+                          "end": 1212,
+                          "name": "React",
+                          "typeAnnotation": null,
+                          "optional": false
+                        },
+                        "right": {
+                          "type": "Identifier",
+                          "start": 1213,
+                          "end": 1224,
+                          "name": "ElementType",
+                          "typeAnnotation": null,
+                          "optional": false
+                        }
+                      },
+                      "typeArguments": null
+                    }
+                  }
+                }
+              ]
+            }
+          }
         }
       ],
       "returnType": null,
@@ -1676,7 +1762,8 @@
               }
             }          }
         ]
-      }    }
+      },
+      "declare": false    }
   ],
   "comments": [
     {

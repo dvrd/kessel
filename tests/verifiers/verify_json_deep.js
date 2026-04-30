@@ -197,9 +197,14 @@ const STRIP_FIELDS_BY_TYPE_PER_PARSER = {
   Identifier:               new Set([]),
   BindingIdentifier:        new Set([]),
   // FunctionDeclaration/Expression: `predicate` is a Babel leftover that
-  // OXC sometimes surfaces. `declare` is always emitted by OXC.
-  FunctionDeclaration:      new Set(['predicate', 'declare']),
+  // OXC sometimes surfaces. As of S26 W4b kessel emits `declare: <bool>`
+  // unconditionally in TS-shape mode (matching OXC), so the strip is
+  // dropped — both sides compare directly. TSDeclareFunction shares the
+  // same field shape (S26 W4b: ambient declarations now emit as
+  // TSDeclareFunction with body:null, declare:true).
+  FunctionDeclaration:      new Set(['predicate']),
   FunctionExpression:       new Set(['predicate']),
+  TSDeclareFunction:        new Set(['predicate']),
   ArrowFunctionExpression:  new Set([]),
   // MethodDefinition: Kessel now emits accessibility and override when set.
   // typeParameters is TS-specific on methods; strip for now (rarely set).

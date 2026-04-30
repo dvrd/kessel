@@ -103,7 +103,8 @@
                 "value": "string",
                 "raw": "\"string\""              }            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "FunctionDeclaration",
       "start": 213,
@@ -221,7 +222,8 @@
                 ]              }            },
             "alternate": null          }
         ]
-      }    }
+      },
+      "declare": false    }
   ],
   "comments": [
     {

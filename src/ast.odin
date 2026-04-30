@@ -1002,11 +1002,22 @@ ObjectPatternProperty :: struct {
 ObjectPattern :: struct {
 	loc:        Loc,
 	properties: [dynamic]ObjectPatternProperty,
+	// TS-position type annotation: `function f({a, b}: Props)` attaches
+	// `: Props` to the ObjectPattern itself in OXC's TS-ESTree shape
+	// (Identifier patterns store it on the Identifier; non-Identifier
+	// patterns store it on the pattern node). Pre-S26 W4b kessel's
+	// parser parsed the annotation but silently dropped it for non-
+	// Identifier patterns; adding the slot lets parse_function_param
+	// thread it through.
+	type_annotation: Maybe(^TSTypeAnnotation),
 }
 
 ArrayPattern :: struct {
 	loc:      Loc,
 	elements: []Maybe(Pattern),
+	// Same TS-position annotation as ObjectPattern (`function
+	// f([a, b]: number[])`). Same drop bug, same fix (S26 W4b).
+	type_annotation: Maybe(^TSTypeAnnotation),
 }
 
 AssignmentPattern :: struct {
