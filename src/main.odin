@@ -867,14 +867,16 @@ run_server_mode :: proc() {
 }
 
 parse_file :: proc(file_path: string) {
-	// Read file
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil {
+	// Read file (mmap on POSIX, fall back to read on Windows / failure;
+	// see src/source_io.odin).
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok {
 		out_printf("Error: Could not read file: %s\n", file_path)
 		flush_stdout_writer()
 		os.exit(1)
 	}
-	defer delete(source, context.allocator)
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 
 	// Create virtual arena for allocations (lazy commit via virtual memory)
 	arena: mvirtual.Arena
@@ -1105,12 +1107,13 @@ parse_file :: proc(file_path: string) {
 // ============================================================================
 
 raw_transfer_file :: proc(file_path: string, out_path: string) {
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil {
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok {
 		fmt.eprintf("Error: Could not read file: %s\n", file_path)
 		os.exit(1)
 	}
-	defer delete(source, context.allocator)
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 
 	arena: mvirtual.Arena
 	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
@@ -1152,9 +1155,10 @@ raw_transfer_file :: proc(file_path: string, out_path: string) {
 // ============================================================================
 
 parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, file_size: int, error_count: int) {
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil { return false, 0, 0 }
-	defer delete(source, context.allocator)
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok { return false, 0, 0 }
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 
 	arena: mvirtual.Arena
 	_ = mvirtual.arena_init_static(&arena, uint(max(len(source) * 256, 16 * 1024 * 1024)))
@@ -1209,9 +1213,10 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 // ============================================================================
 
 parse_file_raw_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, file_size: int, error_count: int) {
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil { return false, 0, 0 }
-	defer delete(source, context.allocator)
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok { return false, 0, 0 }
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 
 	arena: mvirtual.Arena
 	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
@@ -1401,13 +1406,14 @@ parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: 
 // Measures lexer dispatch + token emission in isolation.
 // Fast-path lex-only benchmark (uses lex_token, same as parser)
 microbench_lex :: proc(file_path: string, iterations: int) {
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil {
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok {
 		out_printf("Error: Could not read file: %s\n", file_path)
 		flush_stdout_writer()
 		os.exit(1)
 	}
-	defer delete(source, context.allocator)
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 	file_size := len(source)
 
 	// Warm-up
@@ -1482,14 +1488,17 @@ microbench_lex :: proc(file_path: string, iterations: int) {
 }
 
 microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = false) {
-	// Read file once
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil {
+	// Read file once. mmap path is taken on POSIX (Darwin / Linux / BSD);
+	// see src/source_io.odin. Bench-neutral because the read happens
+	// outside the timed loop.
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok {
 		out_printf("Error: Could not read file: %s\n", file_path)
 		flush_stdout_writer()
 		os.exit(1)
 	}
-	defer delete(source, context.allocator)
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 
 	file_size := len(source)
 
@@ -6865,14 +6874,14 @@ bigint_to_decimal :: proc(bigint_source: string) -> string {
 // ============================================================================
 
 lex_file :: proc(file_path: string) {
-	// Read file
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil {
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok {
 		out_printf("Error: Could not read file: %s\n", file_path)
 		flush_stdout_writer()
 		os.exit(1)
 	}
-	defer delete(source, context.allocator)
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 
 	// Create virtual arena for allocations (lazy commit via virtual memory)
 	arena: mvirtual.Arena
@@ -6945,12 +6954,13 @@ lex_file :: proc(file_path: string) {
 // ============================================================================
 
 profile_parser_file :: proc(file_path: string, iterations: int) {
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil {
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok {
 		fmt.eprintf("Error: Could not read file: %s\n", file_path)
 		os.exit(1)
 	}
-	defer delete(source, context.allocator)
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 
 	file_size := len(source)
 	full_us := make([dynamic]f64, context.allocator)
@@ -7091,12 +7101,13 @@ profile_parser_file :: proc(file_path: string, iterations: int) {
 }
 
 profile_lex_file :: proc(file_path: string, iterations: int) {
-	source, read_err := os.read_entire_file_from_path(file_path, context.allocator)
-	if read_err != nil {
+	src_buf, src_ok := source_read(file_path, context.allocator)
+	if !src_ok {
 		fmt.eprintf("Error: Could not read file: %s\n", file_path)
 		os.exit(1)
 	}
-	defer delete(source, context.allocator)
+	defer source_release(src_buf, context.allocator)
+	source := src_buf.data
 
 	file_size := len(source)
 	durations := make([dynamic]f64, context.allocator)
