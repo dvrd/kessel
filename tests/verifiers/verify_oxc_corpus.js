@@ -318,8 +318,12 @@ async function runAll(fixtures) {
 }
 
 function classify(fix, k, o) {
-  if (k.crashed) return 'kessel-crash';
+  // Order matters: timeout sets `crashed=true` because we SIGKILL on
+  // timeout, so check timeout first to keep hangs distinguishable from
+  // genuine SIGSEGVs / panics. Without this split, every infinite-loop
+  // bug looks like a memory bug.
   if (k.timeout) return 'kessel-timeout';
+  if (k.crashed) return 'kessel-crash';
   if (o.threw)   return 'oxc-error';
 
   const kAccepts = k.parseErrs === 0;
@@ -438,12 +442,21 @@ function printSummary(summary) {
   printSummary(summary);
 
   if (args.jsonOut) {
-    const failures = results
-      .filter(r => r.verdict.startsWith('kessel-') || r.verdict === 'should-pass-rejected' || r.verdict === 'oxc-only-rejects')
-      .slice(0, 500)
-      .map(r => ({ suite:r.fix.suite, file:r.fix.rel, verdict:r.verdict,
-                   kErrs: r.k && r.k.parseErrs, oErrs: r.o && r.o.errCount,
-                   exit: r.k && r.k.exit, signal: r.k && r.k.signal }));
+    // Per-bucket caps so a triage JSON keeps signal across all failure
+    // classes — a single 500-cap drowns small buckets in the big ones.
+    const cap = { 'kessel-crash':500, 'kessel-timeout':500, 'kessel-only-rejects':500,
+                  'should-pass-rejected':200, 'oxc-only-rejects':200 };
+    const taken = {};
+    const failures = [];
+    for (const r of results) {
+      const max = cap[r.verdict];
+      if (max == null) continue;
+      taken[r.verdict] = (taken[r.verdict] || 0) + 1;
+      if (taken[r.verdict] > max) continue;
+      failures.push({ suite:r.fix.suite, file:r.fix.rel, verdict:r.verdict,
+                      kErrs: r.k && r.k.parseErrs, oErrs: r.o && r.o.errCount,
+                      exit: r.k && r.k.exit, signal: r.k && r.k.signal });
+    }
     fs.writeFileSync(args.jsonOut, JSON.stringify({
       summary, failures, generated_at: new Date().toISOString(),
     }, null, 2));
