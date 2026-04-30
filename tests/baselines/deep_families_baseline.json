@@ -59,7 +59,7 @@
       "files": 2,
       "pass": 0,
       "fail": 2,
-      "divergences": 12
+      "divergences": 7
     },
     "typescript": {
       "files": 15,

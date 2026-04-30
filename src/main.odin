@@ -5747,6 +5747,31 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"typeAnnotation\": ")
 		emit_ts_type(v.type_annotation, indent + 1)
+	case ^TSTypeQuery:
+		// `typeof X` in type position. The parser already builds a
+		// TSTypeQuery node with expr_name set to the parsed left-hand
+		// side (Identifier for `typeof X`, MemberExpression for
+		// `typeof X.Y`); without an emit case, every TSTypeQuery fell
+		// through to the TSUnknownType fallback below — 5 baseline
+		// divergences on tsx/002 (S26 W4c). The emit shape mirrors
+		// TSTypeReference: typeName-style expr_name (folded to
+		// TSQualifiedName for member chains via emit_ts_type_name) plus
+		// optional `typeArguments` instantiation list.
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSTypeQuery\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"exprName\": ")
+		emit_ts_type_name(v.expr_name, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		if targs, ok := v.type_parameters.(^TSTypeParameterInstantiation); ok && targs != nil {
+			out_s("\"typeArguments\": ")
+			emit_ts_type_argument_list(v.type_parameters, indent + 1)
+		} else {
+			out_s("\"typeArguments\": null")
+		}
 	case ^TSMappedType:
 		// OXC shape (oxc-parser @0.127+):
 		//   key: Identifier  (just the variable name, e.g. K in [K in keyof T])

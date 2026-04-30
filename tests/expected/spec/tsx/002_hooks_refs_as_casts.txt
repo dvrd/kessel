@@ -809,7 +809,18 @@
                     "end": 1387,
                     "params": [
                       {
-                        "type": "TSUnknownType"
+                        "type": "TSTypeQuery",
+                        "start": 1372,
+                        "end": 1386,
+                        "exprName": {
+                          "type": "Identifier",
+                          "start": 1379,
+                          "end": 1386,
+                          "name": "reducer",
+                          "typeAnnotation": null,
+                          "optional": false
+                        },
+                        "typeArguments": null
                       }
                     ]
                   },
