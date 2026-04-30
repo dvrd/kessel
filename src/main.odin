@@ -667,14 +667,33 @@ main :: proc() {
 	case "raw":
 		// Produce raw transfer buffer - for testing/benchmarking the zero-copy path
 		if len(os.args) < 3 {
-			out_println("Usage: kessel raw <file> [--out file.bin]")
+			out_println("Usage: kessel raw <file> [--out file.bin] [--lang=js|jsx|ts|tsx]")
 			flush_stdout_writer()
 			os.exit(1)
 		}
 		raw_file := os.args[2]
 		raw_out := ""
-		if len(os.args) >= 5 && os.args[3] == "--out" {
-			raw_out = os.args[4]
+		// Walk remaining argv — order-insensitive so callers can interleave
+		// --out and --lang. Mirrors `kessel parse`'s flag handling.
+		i := 3
+		for i < len(os.args) {
+			arg := os.args[i]
+			if arg == "--out" && i + 1 < len(os.args) {
+				raw_out = os.args[i+1]
+				i += 2
+			} else if strings.has_prefix(arg, "--lang=") {
+				lang_val := arg[7:]
+				l, ok := parse_lang_flag(lang_val)
+				if !ok {
+					fmt.eprintf("Error: unknown --lang value '%s' (expected js|jsx|ts|tsx)\n", lang_val)
+					os.exit(2)
+				}
+				cli_lang_override = l
+				i += 1
+			} else {
+				fmt.eprintf("Error: unrecognised flag '%s' for `kessel raw`\n", arg)
+				os.exit(2)
+			}
 		}
 		raw_transfer_file(raw_file, raw_out)
 
@@ -1126,7 +1145,7 @@ raw_transfer_file :: proc(file_path: string, out_path: string) {
 	arena_alloc := mvirtual.arena_allocator(&arena)
 
 	start := time.tick_now()
-	result := produce_raw_buffer(string(source), &arena, arena_alloc)
+	result := produce_raw_buffer(string(source), &arena, arena_alloc, resolve_lang(file_path))
 	elapsed := time.tick_since(start)
 
 	if out_path != "" {

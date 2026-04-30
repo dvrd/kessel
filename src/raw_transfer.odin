@@ -226,7 +226,7 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 	
 	#partial switch v in expr {
 	case ^Identifier:
-		rewrite_string(&v.name, source_base)
+		rewrite_identifier(v, base, source_base)
 	case ^PrivateIdentifier:
 		rewrite_string(&v.name, source_base)
 	case ^NullLiteral:
@@ -302,8 +302,28 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 	case ^MetaProperty:
 		rewrite_string(&v.meta.name, source_base)
 		rewrite_string(&v.property.name, source_base)
+	// TS expression variants (S26 W2-alt). Same partial-switch position as
+	// the JS variants; reach into the TSType walker for type-annotation
+	// slots. Without these, TS-bearing expressions in the binary buffer
+	// leave the wrapped expression and type pointers unrewritten.
+	case ^TSAsExpression:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
+	case ^TSSatisfiesExpression:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
+	case ^TSNonNullExpression:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+	case ^TSTypeAssertion:
+		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+	case ^ParenthesizedExpression:
+		// Pure ESTree wrapper — emitted only under --preserve-parens but
+		// the variant exists in the union and would otherwise be silently
+		// skipped here, leaving the inner expression's pointer unrewritten.
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
 	case:
-		// Unknown expression type — skip
+		// Unknown / not-yet-wired (e.g. JSX, TODO(s26-w3)) — skip.
 	}
 }
 
@@ -493,11 +513,19 @@ rewrite_variable_declaration :: proc(v: ^VariableDeclaration, base: uintptr, sou
 	rewrite_dynamic_header(&v.declarations, base, len(v.declarations))
 }
 
+// Identifier carries a Maybe(^TSTypeAnnotation) that's set on TS-typed
+// bindings (`(v: T)`, `let x: T`, class field keys with annotations) and
+// nil on plain JS identifiers. Walk both surfaces uniformly.
+rewrite_identifier :: #force_inline proc(v: ^Identifier, base: uintptr, source_base: uintptr) {
+	rewrite_string(&v.name, source_base)
+	rewrite_maybe_ts_type_annotation(&v.type_annotation, base, source_base)
+}
+
 rewrite_binding_pattern :: proc(pat: ^Pattern, base: uintptr, source_base: uintptr) {
 	if pat == nil { return }
 	#partial switch v in pat^ {
 	case ^Identifier:
-		rewrite_string(&v.name, source_base)
+		rewrite_identifier(v, base, source_base)
 	case ^ObjectPattern:
 		rewrite_dynamic_header(&v.properties, base, len(v.properties))
 	case ^ArrayPattern:
@@ -532,15 +560,16 @@ rewrite_function_expression :: proc(f: ^FunctionExpression, base: uintptr, sourc
 	// without this rewrite, named FunctionExpression / FunctionDeclaration
 	// nodes leave a raw source ptr in the binary buffer.
 	rewrite_maybe_binding_id_name(&f.id, source_base)
+	rewrite_maybe_ts_type_parameter_declaration(&f.type_parameters, base, source_base)
 	rewrite_function_params(&f.params, base, source_base)
 	rewrite_function_body(&f.body, base, source_base)
-	// TODO(s26-w2): walk f.type_parameters / f.return_type once the TS
-	// type-tree walker lands. Same gap exists on ArrowFunctionExpression
-	// and on the class TS slots below.
+	rewrite_maybe_ts_type_annotation(&f.return_type, base, source_base)
 }
 
 rewrite_arrow_function :: proc(f: ^ArrowFunctionExpression, base: uintptr, source_base: uintptr) {
+	rewrite_maybe_ts_type_parameter_declaration(&f.type_parameters, base, source_base)
 	rewrite_function_params(&f.params, base, source_base)
+	rewrite_maybe_ts_type_annotation(&f.return_type, base, source_base)
 	#partial switch body in f.body {
 	case ^Expression:
 		// Expression-form body (e.g. `x => x+1`). Recurse + rewrite the
@@ -553,6 +582,255 @@ rewrite_arrow_function :: proc(f: ^ArrowFunctionExpression, base: uintptr, sourc
 		// the outer pointer directly.
 		rewrite_statement_array(&body.body, base, source_base)
 		rewrite_ptr((^rawptr)(&f.body), base)
+	}
+}
+
+// =============================================================================
+// TypeScript walker (S26 W2-alt)
+//
+// Walks every TS-typed slot reachable from class / function / arrow node
+// surfaces and from the TS-bearing Expression union variants. Built
+// bottom-up: the master rewrite_ts_type partial-switches on the TSType
+// union, helpers handle the recurring container shapes (TSTypeAnnotation,
+// TSTypeParameterDeclaration / Instantiation, TSFunctionParam, TSSignature,
+// TSInterfaceHeritage), and field-level wrappers mirror the JS-side
+// rewrite_expr_field / rewrite_maybe_expr conventions.
+//
+// Out of scope (W3+): TS Statement variants (TSInterfaceDeclaration,
+// TSTypeAliasDeclaration, TSEnumDeclaration, TSModuleDeclaration), JSX
+// variants. They will reuse this same TSType walker once wired.
+// =============================================================================
+
+rewrite_ts_type_field :: #force_inline proc(t: ^TSType, field_addr: rawptr, base: uintptr, source_base: uintptr) {
+	if t == nil { return }
+	rewrite_ts_type(t, base, source_base)
+	rewrite_union_ptr(t, base)             // TSType is a union of pointer variants
+	rewrite_ptr((^rawptr)(field_addr), base) // outer ^TSType field
+}
+
+rewrite_maybe_ts_type :: #force_inline proc(field: ^Maybe(^TSType), base: uintptr, source_base: uintptr) {
+	if t, ok := field.?; ok {
+		rewrite_ts_type(t, base, source_base)
+		rewrite_union_ptr(t, base)
+		rewrite_ptr((^rawptr)(field), base)
+	}
+}
+
+rewrite_ts_type_array :: proc(arr: ^[dynamic]^TSType, base: uintptr, source_base: uintptr) {
+	for i in 0..<len(arr) {
+		slot := &arr[i]
+		rewrite_ts_type_field(slot^, slot, base, source_base)
+	}
+	rewrite_dynamic_header(arr, base, len(arr))
+}
+
+// ^TSTypeAnnotation wraps a single ^TSType. Walk that, then the parent's
+// pointer slot is rewritten by the *_field / *_maybe wrapper variants.
+rewrite_ts_type_annotation :: proc(a: ^TSTypeAnnotation, base: uintptr, source_base: uintptr) {
+	if a == nil { return }
+	rewrite_ts_type_field(a.type_annotation, &a.type_annotation, base, source_base)
+}
+
+rewrite_ts_type_annotation_field :: #force_inline proc(a: ^TSTypeAnnotation, field_addr: rawptr, base: uintptr, source_base: uintptr) {
+	if a == nil { return }
+	rewrite_ts_type_annotation(a, base, source_base)
+	rewrite_ptr((^rawptr)(field_addr), base)
+}
+
+rewrite_maybe_ts_type_annotation :: #force_inline proc(field: ^Maybe(^TSTypeAnnotation), base: uintptr, source_base: uintptr) {
+	if a, ok := field.?; ok {
+		rewrite_ts_type_annotation(a, base, source_base)
+		rewrite_ptr((^rawptr)(field), base)
+	}
+}
+
+// TSTypeParameter is an embedded value type (not a pointer) inside
+// TSTypeParameterDeclaration.params, TSInferType.type_parameter, and
+// TSMappedType.type_parameter. Walk in place.
+rewrite_ts_type_parameter :: proc(p: ^TSTypeParameter, base: uintptr, source_base: uintptr) {
+	rewrite_string(&p.name.name, source_base)
+	rewrite_maybe_ts_type(&p.constraint, base, source_base)
+	rewrite_maybe_ts_type(&p.default_, base, source_base)
+}
+
+rewrite_ts_type_parameter_declaration :: proc(d: ^TSTypeParameterDeclaration, base: uintptr, source_base: uintptr) {
+	if d == nil { return }
+	for i in 0..<len(d.params) {
+		rewrite_ts_type_parameter(&d.params[i], base, source_base)
+	}
+	rewrite_dynamic_header(&d.params, base, len(d.params))
+}
+
+rewrite_maybe_ts_type_parameter_declaration :: #force_inline proc(field: ^Maybe(^TSTypeParameterDeclaration), base: uintptr, source_base: uintptr) {
+	if d, ok := field.?; ok {
+		rewrite_ts_type_parameter_declaration(d, base, source_base)
+		rewrite_ptr((^rawptr)(field), base)
+	}
+}
+
+rewrite_ts_type_parameter_instantiation :: proc(inst: ^TSTypeParameterInstantiation, base: uintptr, source_base: uintptr) {
+	if inst == nil { return }
+	rewrite_ts_type_array(&inst.params, base, source_base)
+}
+
+rewrite_maybe_ts_type_parameter_instantiation :: #force_inline proc(field: ^Maybe(^TSTypeParameterInstantiation), base: uintptr, source_base: uintptr) {
+	if inst, ok := field.?; ok {
+		rewrite_ts_type_parameter_instantiation(inst, base, source_base)
+		rewrite_ptr((^rawptr)(field), base)
+	}
+}
+
+// TSFunctionParam is a value type embedded in TSFunctionType.params /
+// TSConstructorType.params / TS*Signature.params arrays.
+rewrite_ts_function_param :: proc(p: ^TSFunctionParam, base: uintptr, source_base: uintptr) {
+	rewrite_binding_pattern(&p.pattern, base, source_base)
+	rewrite_maybe_ts_type_annotation(&p.type_annotation, base, source_base)
+}
+
+rewrite_ts_function_param_array :: proc(arr: ^[dynamic]TSFunctionParam, base: uintptr, source_base: uintptr) {
+	for i in 0..<len(arr) {
+		rewrite_ts_function_param(&arr[i], base, source_base)
+	}
+	rewrite_dynamic_header(arr, base, len(arr))
+}
+
+// TSSignature is a value-typed union held as ^TSSignature in
+// TSTypeLiteral.members / TSInterfaceBody.body. The pointer addresses a
+// union value with the variant struct stored inline at offset 0; we
+// type-assert the tag, then overlay a typed pointer on the same address
+// to walk the inline struct in place.
+rewrite_ts_signature :: proc(s: ^TSSignature, base: uintptr, source_base: uintptr) {
+	if s == nil { return }
+	#partial switch _ in s^ {
+	case TSPropertySignature:
+		ps := (^TSPropertySignature)(s)
+		rewrite_expr_field(ps.key, &ps.key, base, source_base)
+		rewrite_maybe_ts_type_annotation(&ps.type_annotation, base, source_base)
+	case TSMethodSignature:
+		ms := (^TSMethodSignature)(s)
+		rewrite_expr_field(ms.key, &ms.key, base, source_base)
+		rewrite_maybe_ts_type_parameter_declaration(&ms.type_parameters, base, source_base)
+		rewrite_ts_function_param_array(&ms.params, base, source_base)
+		rewrite_maybe_ts_type_annotation(&ms.return_type, base, source_base)
+	case TSCallSignatureDeclaration:
+		cs := (^TSCallSignatureDeclaration)(s)
+		rewrite_maybe_ts_type_parameter_declaration(&cs.type_parameters, base, source_base)
+		rewrite_ts_function_param_array(&cs.params, base, source_base)
+		rewrite_maybe_ts_type_annotation(&cs.return_type, base, source_base)
+	case TSConstructSignatureDeclaration:
+		cs := (^TSConstructSignatureDeclaration)(s)
+		rewrite_maybe_ts_type_parameter_declaration(&cs.type_parameters, base, source_base)
+		rewrite_ts_function_param_array(&cs.params, base, source_base)
+		rewrite_maybe_ts_type_annotation(&cs.return_type, base, source_base)
+	case TSIndexSignature:
+		ix := (^TSIndexSignature)(s)
+		rewrite_ts_function_param_array(&ix.parameters, base, source_base)
+		rewrite_maybe_ts_type_annotation(&ix.type_annotation, base, source_base)
+	}
+}
+
+rewrite_ts_signature_array :: proc(arr: ^[dynamic]^TSSignature, base: uintptr, source_base: uintptr) {
+	for i in 0..<len(arr) {
+		slot := &arr[i]
+		if slot^ != nil {
+			rewrite_ts_signature(slot^, base, source_base)
+			rewrite_ptr((^rawptr)(slot), base) // ^TSSignature in the array slot
+		}
+	}
+	rewrite_dynamic_header(arr, base, len(arr))
+}
+
+rewrite_ts_interface_heritage :: proc(h: ^TSInterfaceHeritage, base: uintptr, source_base: uintptr) {
+	rewrite_expr_field(h.expression, &h.expression, base, source_base)
+	rewrite_maybe_ts_type_parameter_instantiation(&h.type_parameters, base, source_base)
+}
+
+rewrite_ts_interface_heritage_array :: proc(arr: ^[dynamic]TSInterfaceHeritage, base: uintptr, source_base: uintptr) {
+	for i in 0..<len(arr) {
+		rewrite_ts_interface_heritage(&arr[i], base, source_base)
+	}
+	rewrite_dynamic_header(arr, base, len(arr))
+}
+
+// Master TSType union walker. Keyword variants have only `loc` and need
+// no rewrites; compound variants recurse via the helpers above. The case
+// list mirrors src/ast.odin's `TSType :: union { ... }` declaration order.
+rewrite_ts_type :: proc(t: ^TSType, base: uintptr, source_base: uintptr) {
+	if t == nil { return }
+	#partial switch v in t {
+	// Keywords — no pointer fields beyond loc
+	case ^TSAnyKeyword, ^TSBigIntKeyword, ^TSBooleanKeyword, ^TSIntrinsicKeyword,
+	     ^TSNeverKeyword, ^TSNullKeyword, ^TSNumberKeyword, ^TSObjectKeyword,
+	     ^TSStringKeyword, ^TSSymbolKeyword, ^TSUndefinedKeyword, ^TSUnknownKeyword,
+	     ^TSVoidKeyword, ^TSThisType:
+		// nothing to walk
+	case ^TSTypeReference:
+		rewrite_expr_field(v.type_name, &v.type_name, base, source_base)
+		rewrite_maybe_ts_type_parameter_instantiation(&v.type_parameters, base, source_base)
+	case ^TSUnionType:
+		rewrite_ts_type_array(&v.types, base, source_base)
+	case ^TSIntersectionType:
+		rewrite_ts_type_array(&v.types, base, source_base)
+	case ^TSArrayType:
+		rewrite_ts_type_field(v.element_type, &v.element_type, base, source_base)
+	case ^TSTupleType:
+		rewrite_ts_type_array(&v.element_types, base, source_base)
+	case ^TSFunctionType:
+		rewrite_maybe_ts_type_parameter_declaration(&v.type_parameters, base, source_base)
+		rewrite_ts_function_param_array(&v.params, base, source_base)
+		rewrite_ts_type_annotation_field(v.return_type, &v.return_type, base, source_base)
+	case ^TSConstructorType:
+		rewrite_maybe_ts_type_parameter_declaration(&v.type_parameters, base, source_base)
+		rewrite_ts_function_param_array(&v.params, base, source_base)
+		rewrite_ts_type_annotation_field(v.return_type, &v.return_type, base, source_base)
+	case ^TSTypeLiteral:
+		rewrite_ts_signature_array(&v.members, base, source_base)
+	case ^TSConditionalType:
+		rewrite_ts_type_field(v.check_type,   &v.check_type,   base, source_base)
+		rewrite_ts_type_field(v.extends_type, &v.extends_type, base, source_base)
+		rewrite_ts_type_field(v.true_type,    &v.true_type,    base, source_base)
+		rewrite_ts_type_field(v.false_type,   &v.false_type,   base, source_base)
+	case ^TSInferType:
+		rewrite_ts_type_parameter(&v.type_parameter, base, source_base)
+	case ^TSTypeQuery:
+		rewrite_expr_field(v.expr_name, &v.expr_name, base, source_base)
+		rewrite_maybe_ts_type_parameter_instantiation(&v.type_parameters, base, source_base)
+	case ^TSTypeOperator:
+		rewrite_string(&v.operator, source_base)
+		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
+	case ^TSIndexedAccessType:
+		rewrite_ts_type_field(v.object_type, &v.object_type, base, source_base)
+		rewrite_ts_type_field(v.index_type,  &v.index_type,  base, source_base)
+	case ^TSMappedType:
+		rewrite_ts_type_parameter(&v.type_parameter, base, source_base)
+		rewrite_maybe_ts_type(&v.name_type,       base, source_base)
+		rewrite_maybe_ts_type(&v.type_annotation, base, source_base)
+	case ^TSLiteralType:
+		rewrite_expr_field(v.literal, &v.literal, base, source_base)
+	case ^TSTemplateLiteralType:
+		for i in 0..<len(v.quasis) {
+			q := &v.quasis[i]
+			rewrite_maybe_string(&q.cooked, source_base)
+			rewrite_string(&q.raw, source_base)
+		}
+		rewrite_dynamic_header(&v.quasis, base, len(v.quasis))
+		rewrite_ts_type_array(&v.types, base, source_base)
+	case ^TSParenthesizedType:
+		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
+	case ^TSRestType:
+		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
+	case ^TSOptionalType:
+		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
+	case ^TSNamedTupleMember:
+		rewrite_string(&v.label.name, source_base)
+		rewrite_ts_type_field(v.element_type, &v.element_type, base, source_base)
+	case ^TSTypePredicate:
+		rewrite_expr_field(v.parameter_name, &v.parameter_name, base, source_base)
+		rewrite_maybe_ts_type_annotation(&v.type_annotation, base, source_base)
+	case ^TSImportType:
+		rewrite_ts_type_field(v.argument, &v.argument, base, source_base)
+		rewrite_maybe_expr(&v.qualifier, base, source_base)
+		rewrite_maybe_ts_type_parameter_instantiation(&v.type_parameters, base, source_base)
 	}
 }
 
@@ -572,20 +850,20 @@ rewrite_class_expression :: proc(c: ^ClassExpression, base: uintptr, source_base
 	// Optional class name (`class Foo {}` vs `class {}`). Same fix as
 	// FunctionExpression.id — `name` slices into source, must be rewritten.
 	rewrite_maybe_binding_id_name(&c.id, source_base)
+	rewrite_maybe_ts_type_parameter_declaration(&c.type_parameters, base, source_base)
 	rewrite_maybe_expr(&c.super_class, base, source_base)
 	// Class-level decorators (`@dec class Foo {}`).
 	rewrite_decorator_array(&c.decorators, base, source_base)
+	rewrite_ts_interface_heritage_array(&c.implements, base, source_base)
 	for i in 0..<len(c.body.body) {
 		elem := &c.body.body[i]
 		rewrite_expr_field(elem.key, &elem.key, base, source_base)
 		rewrite_maybe_expr(&elem.value, base, source_base)
+		rewrite_maybe_ts_type_annotation(&elem.type_annotation, base, source_base)
 		// Per-element decorators (`@bound method() {}`, `@dec field;`).
 		rewrite_decorator_array(&elem.decorators, base, source_base)
 	}
 	rewrite_dynamic_header(&c.body.body, base, len(c.body.body))
-	// TODO(s26-w2): walk c.type_parameters / c.implements and each
-	// elem.type_annotation once the TS type-tree walker lands. Tracked
-	// alongside FunctionExpression's TS slots.
 }
 
 rewrite_array_expression :: proc(a: ^ArrayExpression, base: uintptr, source_base: uintptr) {
@@ -638,13 +916,18 @@ RawTransferResult :: struct {
 // The returned buffer contains the full AST with pointers rewritten to offsets.
 // The arena memory backing the buffer stays alive — caller must not free it
 // until done reading.
-produce_raw_buffer :: proc(source: string, arena: ^mvirtual.Arena, arena_alloc: mem.Allocator) -> RawTransferResult {
+//
+// `lang` selects the grammar (defaults to .JSX, matching init_parser's
+// default). Pass .TS / .TSX to parse TypeScript fixtures whose `.js`
+// extension would otherwise route through JSX mode and produce spurious
+// errors on `interface` / `type` declarations.
+produce_raw_buffer :: proc(source: string, arena: ^mvirtual.Arena, arena_alloc: mem.Allocator, lang: Lang = .JSX) -> RawTransferResult {
 	// Parse
 	lex: Lexer
 	init_lexer(&lex, source, arena_alloc)
 
 	p: Parser
-	init_parser(&p, &lex, arena_alloc)
+	init_parser(&p, &lex, arena_alloc, lang)
 	program := parse_program(&p, .Script)
 	error_count := len(p.errors)
 

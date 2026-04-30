@@ -154,6 +154,13 @@ tasks:
       # exercises the new wiring against the stacked-feature decorator
       # fixture. Red before the fix, green after.
       - node tests/verifiers/verify_class_decorators.js
+      # Class TS-slot binary-buffer gate (S26 W2-alt). Sibling of the
+      # decorator gate — walks `c.type_parameters`, `c.implements`,
+      # `elem.type_annotation`, `f.return_type`, and the inner
+      # Identifier.type_annotation through the new master rewrite_ts_type
+      # walker. Red before the fix, green after; tested via the curated
+      # 002_generic_class.js + 013_class_implements.js fixtures.
+      - node tests/verifiers/verify_class_typescript.js
 
   test:estree:strict:
     desc: Zero-tolerance ESTree drift gate — every real-world integration walk must match OXC byte-for-byte.
@@ -170,6 +177,7 @@ tasks:
       - node tests/verifiers/verify_integration.js bench/real_world/batch3/snabbdom.js
       - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser oxc
       - node tests/verifiers/verify_class_decorators.js
+      - node tests/verifiers/verify_class_typescript.js
 
   test:integration:update:
     desc: Re-capture tests/baselines/integration_baseline.json for every file the estree gate walks through verify_integration.
