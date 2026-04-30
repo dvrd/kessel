@@ -197,6 +197,23 @@ rewrite_maybe_stmt :: #force_inline proc(field: ^Maybe(^Statement), base: uintpt
 	}
 }
 
+// Helper: rewrite the embedded `name` string of a Maybe(BindingIdentifier)
+// in place when the Maybe is set. Used for ClassExpression.id and
+// FunctionExpression.id (and via `using expr` for ClassDeclaration /
+// FunctionDeclaration). The Maybe layout is:
+//
+//   {BindingIdentifier{loc, name: string} <value>, tag: u8 <padded>}
+//
+// so the value bytes start at the field's address, and we can overlay a
+// ^BindingIdentifier on `field` when the tag is set. The tag byte itself
+// is left untouched.
+rewrite_maybe_binding_id_name :: #force_inline proc(field: ^Maybe(BindingIdentifier), source_base: uintptr) {
+	if _, ok := field.?; ok {
+		bi := (^BindingIdentifier)(field)
+		rewrite_string(&bi.name, source_base)
+	}
+}
+
 // ============================================================================
 // Expression rewriter
 // ============================================================================
@@ -510,8 +527,16 @@ rewrite_function_body :: proc(body: ^FunctionBody, base: uintptr, source_base: u
 }
 
 rewrite_function_expression :: proc(f: ^FunctionExpression, base: uintptr, source_base: uintptr) {
+	// Optional name (`function foo() {}` vs `function() {}`). The string
+	// `name` slot lives inside the Maybe payload and points into source;
+	// without this rewrite, named FunctionExpression / FunctionDeclaration
+	// nodes leave a raw source ptr in the binary buffer.
+	rewrite_maybe_binding_id_name(&f.id, source_base)
 	rewrite_function_params(&f.params, base, source_base)
 	rewrite_function_body(&f.body, base, source_base)
+	// TODO(s26-w2): walk f.type_parameters / f.return_type once the TS
+	// type-tree walker lands. Same gap exists on ArrowFunctionExpression
+	// and on the class TS slots below.
 }
 
 rewrite_arrow_function :: proc(f: ^ArrowFunctionExpression, base: uintptr, source_base: uintptr) {
@@ -531,14 +556,36 @@ rewrite_arrow_function :: proc(f: ^ArrowFunctionExpression, base: uintptr, sourc
 	}
 }
 
+// Walk a [dynamic]Decorator slot. Each Decorator is `{loc, expression: ^Expression}`;
+// the expression slot is rewritten via the standard expr-field walker, then the
+// outer dynamic-array header is collapsed last (rewriting the header overwrites
+// the data ptr, so all element walks must happen first).
+rewrite_decorator_array :: proc(arr: ^[dynamic]Decorator, base: uintptr, source_base: uintptr) {
+	for i in 0..<len(arr) {
+		d := &arr[i]
+		rewrite_expr_field(d.expression, &d.expression, base, source_base)
+	}
+	rewrite_dynamic_header(arr, base, len(arr))
+}
+
 rewrite_class_expression :: proc(c: ^ClassExpression, base: uintptr, source_base: uintptr) {
+	// Optional class name (`class Foo {}` vs `class {}`). Same fix as
+	// FunctionExpression.id — `name` slices into source, must be rewritten.
+	rewrite_maybe_binding_id_name(&c.id, source_base)
 	rewrite_maybe_expr(&c.super_class, base, source_base)
+	// Class-level decorators (`@dec class Foo {}`).
+	rewrite_decorator_array(&c.decorators, base, source_base)
 	for i in 0..<len(c.body.body) {
 		elem := &c.body.body[i]
 		rewrite_expr_field(elem.key, &elem.key, base, source_base)
 		rewrite_maybe_expr(&elem.value, base, source_base)
+		// Per-element decorators (`@bound method() {}`, `@dec field;`).
+		rewrite_decorator_array(&elem.decorators, base, source_base)
 	}
 	rewrite_dynamic_header(&c.body.body, base, len(c.body.body))
+	// TODO(s26-w2): walk c.type_parameters / c.implements and each
+	// elem.type_annotation once the TS type-tree walker lands. Tracked
+	// alongside FunctionExpression's TS slots.
 }
 
 rewrite_array_expression :: proc(a: ^ArrayExpression, base: uintptr, source_base: uintptr) {

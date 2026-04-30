@@ -147,6 +147,13 @@ tasks:
       # 37 the raw-buffer integration verifier walks). Gates snabbdom.js, the
       # smallest real file we can round-trip cleanly against every reference.
       - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser oxc
+      # Class decorator binary-buffer gate (S26 W1). The raw_transfer walker
+      # had to be extended to follow `c.decorators`, `elem.decorators`, and
+      # the embedded `c.id.name` / `f.id.name` strings; verify_integration
+      # doesn't currently walk class bodies, so this dedicated verifier
+      # exercises the new wiring against the stacked-feature decorator
+      # fixture. Red before the fix, green after.
+      - node tests/verifiers/verify_class_decorators.js
 
   test:estree:strict:
     desc: Zero-tolerance ESTree drift gate — every real-world integration walk must match OXC byte-for-byte.
@@ -162,6 +169,7 @@ tasks:
       - node tests/verifiers/verify_integration.js bench/real_world/batch2/preact.js
       - node tests/verifiers/verify_integration.js bench/real_world/batch3/snabbdom.js
       - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser oxc
+      - node tests/verifiers/verify_class_decorators.js
 
   test:integration:update:
     desc: Re-capture tests/baselines/integration_baseline.json for every file the estree gate walks through verify_integration.
