@@ -4185,8 +4185,14 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	for i := 0; i < 12; i += 1 {
 		cur := p.cur_type
 		nxt := p.lexer.nxt.kind
+		// When the NEXT token indicates the keyword is being used as
+		// the member NAME rather than as a modifier prefix, break:
+		//   ( = ; , }   — plain member-name-then-body/init/field
+		//   <           — TS generic method `declare<T>(){}` (TS only)
+		//   ! ? :       — TS definite/optional/annotation `abstract!:T`
 		is_member_start := nxt == .LParen || nxt == .Assign || nxt == .Semi ||
-		                   nxt == .Comma || nxt == .RBrace
+		                   nxt == .Comma || nxt == .RBrace ||
+		                   (allow_ts_mode(p) && (nxt == .LAngle || nxt == .Not || nxt == .Question || nxt == .Colon))
 		if is_member_start {
 			break
 		}
@@ -4267,11 +4273,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	// Check for async keyword
 	if !is_accessor && is_token(p, .Async) {
-		// Only treat as async if followed by something that starts a method name
+		// Only treat `async` as a modifier if followed by something that
+		// starts a method name AND there's no line terminator between them.
+		// When `async` is followed by `(` or `<` it IS the method name
+		// (e.g. `async() {}`, `async<T>() {}`).
 		next := peek_dispatch(p)
-		if next.type == .Identifier || next.type == .PrivateIdentifier || next.type == .LBracket ||
-		   next.type == .String || next.type == .Number || next.type == .BigInt || next.type == .LParen ||
-		   next.type == .Mul || is_keyword_usable_as_property_name(next.type) {
+		looks_like_async_method := next.type == .Identifier || next.type == .PrivateIdentifier ||
+			next.type == .LBracket || next.type == .String || next.type == .Number ||
+			next.type == .BigInt || next.type == .Mul ||
+			is_keyword_usable_as_property_name(next.type)
+		if looks_like_async_method && !next.had_line_terminator {
 			is_async = true
 			eat(p) // consume async
 		}
@@ -11292,6 +11303,15 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 	}
 
+	// TypeScript generic type parameters on class expression: `(class<T> {})`,
+	// `(class C<T> {})`. Must come before the heritage clause, mirroring
+	// parse_class_declaration. Closes OXC corpus "Expected {, got <" cluster
+	// (S26 W7 bug class #40).
+	type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if (p.lang == .TS || p.lang == .TSX) && is_token(p, .LAngle) {
+		type_parameters = parse_ts_type_parameters(p)
+	}
+
 	super_class: Maybe(^Expression)
 	// §15.7 - ClassExpression is always strict mode code.
 	prev_strict_cls_expr := p.strict_mode
@@ -11335,7 +11355,9 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	expr := new_node(p, ClassExpression)
 	expr.loc = start
 	expr.id = id
+	expr.type_parameters = type_parameters
 	expr.super_class = super_class
+	expr.super_type_arguments = super_type_arguments
 	expr.body = body
 	expr.loc.span.end = prev_end_offset(p)
 
