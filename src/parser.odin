@@ -10923,6 +10923,17 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if !expect_token(p, .RParen) {
 			return nil
 		}
+		// TS return-type annotation on plain method shorthand:
+		//   const o = { method(): void { ... }, async return(v: R): Promise<...> {} }
+		// Mirrors the same hook on the getter/setter branch a few lines
+		// above. Without this the `:` after `)` was parsed as the start of
+		// a property-key shape, ending the property and tripping `Expected
+		// {`. Closes ~22 OXC corpus rejects in the "Expected {, got :"
+		// cluster.
+		method_return_type: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Colon) {
+			method_return_type = parse_ts_return_type_annotation(p)
+		}
 		body := parse_function_body(p)
 		body_strict := p.last_body_strict
 		p.in_generator = prev_in_generator
@@ -10957,6 +10968,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.body = body
 		fn.generator = is_generator
 		fn.async = is_async
+		fn.return_type = method_return_type
 		fn.loc.span.end = prev_end_offset(p)
 		value = expression_from(p, fn)
 	} else if match_token(p, .Colon) {
