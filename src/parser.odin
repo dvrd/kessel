@@ -4167,6 +4167,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	accessibility := ClassAccessibility.None
 	is_readonly := false
 	is_override := false
+	is_declare := false
 
 	// Bounded scan. A modifier token is only a modifier if the NEXT token
 	// is a plausible continuation of the member signature - not `(`, `=`,
@@ -4206,6 +4207,15 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			case "readonly":
 				if !is_readonly {
 					is_readonly = true;         eat(p); consumed = true
+				}
+			// TS §3.1 ambient class members - `declare prop: T;` /
+			// `declare static x: T;` etc. Lexed as a plain Identifier
+			// ("declare" is not a reserved word in Kessel's lexer), so
+			// match it by string value. Only legal in TS / TSX mode -
+			// JS class members named "declare" must remain methods.
+			case "declare":
+				if !is_declare && allow_ts_mode(p) {
+					is_declare = true;          eat(p); consumed = true
 				}
 			}
 		}
