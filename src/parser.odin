@@ -13834,6 +13834,55 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 
 parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	start := cur_loc(p); eat(p)
+	// TS type predicates (`x is T`, `this is T`, `asserts x is T`) are
+	// also allowed in non-return positions like `var x: this is string`
+	// or `let p: y is U`. The TS parser accepts them syntactically and
+	// defers the "only-valid-on-functions" check to the type checker;
+	// kessel matches that. Test:
+	// typescript/conformance/expressions/typeGuards/
+	// typePredicateOnVariableDeclaration01.ts.
+	asserts := false
+	is_predicate := false
+	if is_token(p, .Asserts) && (p.lexer.nxt.kind == .Identifier || p.lexer.nxt.kind == .This) {
+		asserts = true
+		eat(p)
+		is_predicate = true
+	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is {
+		is_predicate = true
+	}
+	if is_predicate {
+		pred_start := cur_loc(p)
+		name_cur := get_current(p)
+		name_ident := new_node(p, Identifier)
+		name_ident.loc = loc_from_token(&name_cur)
+		name_ident.name = name_cur.value
+		eat(p)
+		name_expr := expression_from(p, name_ident)
+		inner_ann_opt: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Is) {
+			eat(p)
+			inner_start := cur_loc(p)
+			inner_ty := parse_ts_type(p)
+			inner_ann := new_node(p, TSTypeAnnotation)
+			inner_ann.loc = inner_start
+			inner_ann.type_annotation = inner_ty
+			inner_ann.loc.span.end = prev_end_offset(p)
+			inner_ann_opt = inner_ann
+		}
+		pred := new_node(p, TSTypePredicate)
+		pred.loc = pred_start
+		pred.parameter_name = name_expr
+		pred.type_annotation = inner_ann_opt
+		pred.asserts = asserts
+		pred.loc.span.end = prev_end_offset(p)
+		pred_ts := new_node(p, TSType)
+		pred_ts^ = pred
+		ann := new_node(p, TSTypeAnnotation)
+		ann.loc = start
+		ann.type_annotation = pred_ts
+		ann.loc.span.end = prev_end_offset(p)
+		return ann
+	}
 	ts_type := parse_ts_type(p)
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
@@ -14999,6 +15048,24 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 		lexer_restore(p, snap)
 		report_error(p, "Unexpected '<': not a valid TS type assertion or generic arrow")
 		return nil
+	}
+	// After the closing `>`, the assertion's expression starts. If the
+	// next byte is `/` it's a regex literal (`<any>/re/g`), not
+	// division. The lexer pre-fetched it in division context because the
+	// previous token (`>`) sets can_start_regex=false; relex it as a
+	// regex now that we know we're back in expression position. Test:
+	// typescript/compiler/castExpressionParentheses.ts (`<any>/regexp/g`).
+	if p.cur_type == .Div || p.cur_type == .AssignDiv {
+		relex_as_regex(p.lexer)
+		p.cur_type = p.lexer.cur.kind
+		ft := p.lexer.cur
+		p.cur_tok.type = ft.kind
+		p.cur_tok.loc = LexerLoc(ft.start)
+		p.cur_tok.raw_end = ft.end
+		p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
+		if ft.kind == .RegularExpression {
+			p.cur_tok.literal = p.lexer.cur_lit_value
+		}
 	}
 	expr := parse_unary_expr(p)
 	if expr == nil {
