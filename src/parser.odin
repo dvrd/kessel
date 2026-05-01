@@ -14906,6 +14906,41 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		// Parse type parameter: `K in T`
 		param_start := cur_loc(p)
 		param_name := parse_identifier(p)
+		// Computed-property name disambiguation: `{ [x]: T }` parses the
+		// identifier `x` here too, but it's a computed key, not a mapped-
+		// type or index-signature parameter. Detect via current `]`. We
+		// already ate `[`; build the rest of a TSPropertySignature inline,
+		// then continue the regular object-member loop for siblings. Closes
+		// ~21 OXC corpus rejects in the "Expected :, got ]" cluster.
+		if is_token(p, .RBracket) {
+			eat(p) // consume `]`
+			key_ident := new_node(p, Identifier)
+			key_ident.loc = param_name.loc
+			key_ident.name = param_name.name
+			optional := match_token(p, .Question)
+			prop := TSPropertySignature{
+				loc = Loc{span = Span{start = lb_start.span.start}},
+				key = expression_from(p, key_ident),
+				computed = true, optional = optional,
+				readonly = readonly_mod == .True,
+			}
+			if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
+			prop.loc.span.end = prev_end_offset(p)
+			members := make([dynamic]^TSSignature, 0, 4, p.allocator)
+			first_sig := new_node(p, TSSignature); first_sig^ = prop
+			bump_append(&members, first_sig)
+			match_token(p, .Semi); match_token(p, .Comma)
+			for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+				prev_off := int(cur_offset(p))
+				sig := parse_ts_object_member(p); if sig != nil { bump_append(&members, sig) }
+				match_token(p, .Semi); match_token(p, .Comma)
+				if int(cur_offset(p)) == prev_off { eat(p) }
+			}
+			expect_token(p, .RBrace)
+			lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members
+			lit.loc.span.end = prev_end_offset(p)
+			r := new_node(p, TSType); r^ = lit; return r
+		}
 		if !is_token(p, .In) {
 			// Not a mapped type after all - it's an index signature
 			// `[ident : type]: value`. We've already eaten `[` and the
