@@ -13391,13 +13391,25 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		}
 		pn := new_node(p, TSParenthesizedType); pn.loc = start; pn.type_annotation = inner; pn.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = pn; return parse_ts_postfix(p, r, start)
-	case .LBrace: return parse_ts_type_object(p)
+	case .LBrace:
+		// TS object type literal `{ ... }`. Must thread through parse_ts_postfix
+		// so trailing `[]` (TSArrayType) and `[K]` (TSIndexedAccessType) attach
+		// correctly. Pre-fix: `var t: { x: string }[] = []` reported "Expected
+		// '=', ',', or ';' after variable binding" at the `[` because the
+		// type ended at the `}` and the parser tried to parse `[]` as the
+		// initializer of a different declarator. Closes 177 OXC corpus rejects
+		// in the cluster of that exact error message (S26 W6 phase 3 bug class
+		// #5).
+		return parse_ts_postfix(p, parse_ts_type_object(p), start)
 	case .LBracket:
 		eat(p); types := make([dynamic]^TSType, 0, 4, p.allocator)
 		for !is_token(p, .RBracket) && !is_token(p, .EOF) { t := parse_ts_type(p); if t != nil { bump_append(&types, t) }; if !match_token(p, .Comma) { break } }
 		expect_token(p, .RBracket)
 		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.span.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = tup; return r
+		r := new_node(p, TSType); r^ = tup
+		// Same chain as the LBrace branch above — `[T, U][]` (array of tuples)
+		// and `[T, U][N]` (indexed access into a tuple) need parse_ts_postfix.
+		return parse_ts_postfix(p, r, start)
 	case .Void:   return parse_ts_kw(p, TSVoidKeyword, start)
 	case .Null:   return parse_ts_kw(p, TSNullKeyword, start)
 	case .This:   return parse_ts_kw(p, TSThisType, start)
