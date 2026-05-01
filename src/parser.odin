@@ -14369,6 +14369,14 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		node := new_node(p, TSInferType); node.loc = start
 		node.type_parameter.name = BindingIdentifier{loc = pn.loc, name = pn.name}
 		node.type_parameter.loc = pn.loc // span of the bare `V` - OXC shape
+		// TS 4.7+ constrained infer: `infer A extends B`. The `extends`
+		// here is the constraint on the inferred type parameter, NOT the
+		// outer conditional's extends. Parse the constraint as a type.
+		if is_token(p, .Extends) {
+			eat(p) // consume `extends`
+			constraint_type := parse_ts_type(p)
+			node.type_parameter.constraint = constraint_type
+		}
 		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
 	case .Minus, .Plus:
