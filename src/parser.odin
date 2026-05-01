@@ -3481,6 +3481,23 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	param := new_node(p, FunctionParameter)
 	param.loc = cur_loc(p)
 
+	// TS parameter decorators: `foo(@dec x: T)`. Consume any leading `@expr`
+	// chain so the param parses; we don't yet attach the decorators to the
+	// FunctionParameter / inner Identifier (OXC does, on the Identifier's
+	// `decorators[]` field). Closes ~21 OXC corpus rejects in the
+	// "Expected binding pattern" cluster (the immediate symptom is
+	// parse_binding_pattern hitting `@`). Proper round-trip ATTACH is a
+	// follow-on AST extension.
+	if allow_ts_mode(p) {
+		for is_token(p, .At) {
+			eat(p) // consume `@`
+			// Decorator expression: identifier (optionally member-chained / called).
+			// parse_left_hand_side_expr handles `dec`, `a.b`, `dec(args)`.
+			_ = parse_left_hand_side_expr(p)
+		}
+		param.loc = cur_loc(p)
+	}
+
 	// TS "parameter properties" on constructors: access/readonly/override
 	// modifiers before the binding. Save them on the FunctionParameter so
 	// the emitter can wrap the param in TSParameterProperty when set.
