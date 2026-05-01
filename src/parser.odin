@@ -3818,8 +3818,17 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	prev_strict_class := p.strict_mode
 	p.strict_mode = true
 	defer p.strict_mode = prev_strict_class
+	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
+		// TS: optional type arguments on the super class — `extends Foo<T, U>`.
+		// parse_left_hand_side_expr stops at the `<` (it's not a JS infix op
+		// in this position), so we have to parse the args here. Closes 95+
+		// OXC corpus rejects in the "Expected {, got <" cluster (S26 W6
+		// phase 3 bug class #8). Same fix at the ClassExpression call site.
+		if (p.lang == .TS || p.lang == .TSX) && is_token(p, .LAngle) {
+			super_type_arguments = parse_ts_type_arguments(p)
+		}
 		// §15.7.1 - ClassHeritage uses LeftHandSideExpression. Unparenthesised
 		// arrow functions are AssignmentExpressions, not LeftHandSideExpressions.
 		// `class C extends (() => {}){}` IS legal (paren promotes to primary);
@@ -3876,12 +3885,13 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Allocate ClassDeclaration and Statement separately
 	decl := new_node(p, ClassDeclaration)
 	decl.expr = {
-		loc             = start,
-		id              = id,
-		super_class     = super_class,
-		body            = body,
-		type_parameters = type_parameters,
-		implements      = implements_list,
+		loc                  = start,
+		id                   = id,
+		super_class          = super_class,
+		super_type_arguments = super_type_arguments,
+		body                 = body,
+		type_parameters      = type_parameters,
+		implements           = implements_list,
 	}
 	decl.expr.loc.span.end = prev_end_offset(p)
 
@@ -10888,8 +10898,12 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	prev_strict_cls_expr := p.strict_mode
 	p.strict_mode = true
 	defer p.strict_mode = prev_strict_cls_expr
+	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
+		if (p.lang == .TS || p.lang == .TSX) && is_token(p, .LAngle) {
+			super_type_arguments = parse_ts_type_arguments(p)
+		}
 		// Unparenthesised arrow functions are AssignmentExpressions, not
 		// LeftHandSideExpressions. Parenthesised arrows are fine.
 		if sc, have := super_class.(^Expression); have && sc != nil {

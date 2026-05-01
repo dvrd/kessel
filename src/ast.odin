@@ -1163,15 +1163,23 @@ ClassElement :: struct {
 }
 
 ClassExpression :: struct {
-	loc:               Loc,
-	id:                Maybe(BindingIdentifier),
-	super_class:       Maybe(^Expression),
-	body:              ClassBody,
-	decorators:        [dynamic]Decorator,
-	type_parameters:   Maybe(^TSTypeParameterDeclaration),
-	implements:        [dynamic]TSInterfaceHeritage,
-	declare:           bool,
-	abstract:          bool,
+	loc:                  Loc,
+	id:                   Maybe(BindingIdentifier),
+	super_class:          Maybe(^Expression),
+	body:                 ClassBody,
+	decorators:           [dynamic]Decorator,
+	type_parameters:      Maybe(^TSTypeParameterDeclaration),
+	implements:           [dynamic]TSInterfaceHeritage,
+	declare:              bool,
+	abstract:             bool,
+	// Appended last to preserve existing struct field offsets used by the
+	// raw_transfer binary layout and verify_integration.js walker. Adding
+	// a Maybe(^T) in the middle shifts every following field by 16 bytes,
+	// which silently corrupts every walker offset for ClassDeclaration
+	// downstream of the insertion point. (Hit on S26 W6 phase 3 bug class
+	// #8: spec/typescript/002_generic_class binary walker reported
+	// `body.body.length: kessel=0 oxc=3` because `body` had moved.)
+	super_type_arguments: Maybe(^TSTypeParameterInstantiation),  // TS: `extends Foo<T, U>`
 }
 
 // StaticBlock for ES2022 static class blocks (static { ... })
