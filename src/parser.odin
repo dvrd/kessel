@@ -14243,6 +14243,22 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 			// RODATA bug as the .Async paths.
 			this_id.name = this_tok.value
 			pattern = this_id
+		} else if is_token(p, .Dot3) {
+			// TS rest parameter in function-type signature: `(...args: T) => U`.
+			// parse_function_parameter (the JS-side analogue) handles this with
+			// a Dot3 → RestElement-wrapping branch; parse_ts_sig_params shipped
+			// without one, so every TS function type with rest reported
+			// "Expected binding pattern" at the `...`. Closes 180 OXC corpus
+			// rejects in the cluster of that exact error message (S26 W6 phase
+			// 3 bug class #6).
+			rest_start := cur_loc(p)
+			eat(p)  // consume `...`
+			inner := parse_binding_pattern(p)
+			rest := new_node(p, RestElement)
+			rest.loc = rest_start
+			rest.argument = inner
+			rest.loc.span.end = prev_end_offset(p)
+			pattern = rest
 		} else {
 			pattern = parse_binding_pattern(p)
 		}
