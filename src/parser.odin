@@ -1614,7 +1614,25 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// We check string value here at the statement level.
 		val := p.cur_tok.value
 		if val == "declare" {
-			return parse_ts_declare_statement(p)
+			// Only treat as a declare declaration if the next token can start
+			// a declaration. Otherwise `declare` is just an identifier
+			// (e.g. `declare instanceof C;` where `declare` is a variable).
+			nxt := peek_token(p)
+			is_decl_start := false
+			#partial switch nxt.type {
+			case .Function, .Class, .Abstract, .Import, .Const, .Let, .Var:
+				is_decl_start = true
+			case .Identifier:
+				if nxt.value == "interface" || nxt.value == "type" ||
+				   nxt.value == "enum" || nxt.value == "namespace" ||
+				   nxt.value == "module" || nxt.value == "abstract" {
+					is_decl_start = true
+				}
+			}
+			if is_decl_start {
+				return parse_ts_declare_statement(p)
+			}
+			return parse_expression_or_labeled_statement(p)
 		}
 		if val == "interface" {
 			return parse_ts_interface_declaration(p)
