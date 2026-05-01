@@ -5882,6 +5882,52 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		print_indent(indent + 1)
 		out_s("\"typeAnnotation\": ")
 		emit_ts_type(v.type_annotation, indent + 1)
+	case ^TSRestType:
+		// `[A, ...B[]]` — the `...B[]` segment is a TSRestType wrapping a
+		// TSArrayType. Only legal as a tuple element. (S26 W6 phase 3 #19)
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSRestType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type(v.type_annotation, indent + 1)
+	case ^TSOptionalType:
+		// `[T?, U]` — a tuple element marked optional with a postfix `?`.
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSOptionalType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeAnnotation\": ")
+		emit_ts_type(v.type_annotation, indent + 1)
+	case ^TSNamedTupleMember:
+		// `[a: string, b?: number]` — named-tuple-member elements with
+		// optional `?` between label and type. OXC shape:
+		//   { type: "TSNamedTupleMember", label, elementType, optional }
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSNamedTupleMember\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"label\": {\n")
+		print_indent(indent + 2)
+		out_s("\"type\": \"Identifier\"")
+		emit_span_fields(v.label.loc, indent + 2)
+		out_s(",\n")
+		print_indent(indent + 2)
+		out_s("\"name\": ")
+		out_string(v.label.name)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("},\n")
+		print_indent(indent + 1)
+		out_s("\"elementType\": ")
+		emit_ts_type(v.element_type, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"optional\": ")
+		out_s(v.optional ? "true" : "false")
 	case ^TSTypeOperator:
 		print_indent(indent + 1)
 		out_s("\"type\": \"TSTypeOperator\"")

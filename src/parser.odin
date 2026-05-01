@@ -13691,8 +13691,75 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// #5).
 		return parse_ts_postfix(p, parse_ts_type_object(p), start)
 	case .LBracket:
-		eat(p); types := make([dynamic]^TSType, 0, 4, p.allocator)
-		for !is_token(p, .RBracket) && !is_token(p, .EOF) { t := parse_ts_type(p); if t != nil { bump_append(&types, t) }; if !match_token(p, .Comma) { break } }
+		// TS tuple type, with support for variadic and optional/named elements:
+		//   plain      `[T, U]`
+		//   variadic   `[A, ...B[]]`,  `[...A, B]`,  `[...Elements, "abc"]`
+		//   optional   `[T?, U]`  (TSOptionalType, postfix on the element)
+		//   named      `[a: string, b?: number]`  (TSNamedTupleMember)
+		// Closes ~30 OXC corpus rejects in the "Expected ], got ..." cluster
+		// (S26 W6 phase 3 bug class #19). Pre-fix the inner loop called
+		// parse_ts_type directly which doesn't recognise the leading `...` or
+		// the `name:` / `name?:` named-element prefix.
+		eat(p) // consume `[`
+		types := make([dynamic]^TSType, 0, 4, p.allocator)
+		for !is_token(p, .RBracket) && !is_token(p, .EOF) {
+			elem_start := cur_loc(p)
+			elev: ^TSType
+			if is_token(p, .Dot3) {
+				eat(p) // consume `...`
+				inner := parse_ts_type(p)
+				rest := new_node(p, TSRestType)
+				rest.loc = elem_start
+				rest.type_annotation = inner
+				rest.loc.span.end = prev_end_offset(p)
+				elev = new_node(p, TSType); elev^ = rest
+			} else {
+				// Named tuple element `name: T` or `name?: T` — detected
+				// via 1-2 token lookahead. Restricted to .Identifier so a
+				// regular `T : U` (illegal but conceivable) doesn't get
+				// misclassified.
+				named := false
+				if p.cur_type == .Identifier {
+					nxt := p.lexer.nxt.kind
+					if nxt == .Colon { named = true }
+					if nxt == .Question {
+						snap := lexer_snapshot(p)
+						eat(p) // ident
+						eat(p) // ?
+						if p.cur_type == .Colon { named = true }
+						lexer_restore(p, snap)
+					}
+				}
+				if named {
+					label_tok := get_current(p)
+					eat(p) // consume label identifier
+					optional := false
+					if is_token(p, .Question) { optional = true; eat(p) }
+					expect_token(p, .Colon)
+					inner := parse_ts_type(p)
+					named_member := new_node(p, TSNamedTupleMember)
+					named_member.loc = elem_start
+					named_member.label = BindingIdentifier{loc = loc_from_token(&label_tok), name = label_tok.value}
+					named_member.element_type = inner
+					named_member.optional = optional
+					named_member.loc.span.end = prev_end_offset(p)
+					elev = new_node(p, TSType); elev^ = named_member
+				} else {
+					elev = parse_ts_type(p)
+					// Postfix `?` on a tuple element — TSOptionalType.
+					if elev != nil && is_token(p, .Question) {
+						eat(p)
+						opt := new_node(p, TSOptionalType)
+						opt.loc = elem_start
+						opt.type_annotation = elev
+						opt.loc.span.end = prev_end_offset(p)
+						elev = new_node(p, TSType); elev^ = opt
+					}
+				}
+			}
+			if elev != nil { bump_append(&types, elev) }
+			if !match_token(p, .Comma) { break }
+		}
 		expect_token(p, .RBracket)
 		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = tup
