@@ -13544,6 +13544,24 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	case .Null:   return parse_ts_kw(p, TSNullKeyword, start)
 	case .This:   return parse_ts_kw(p, TSThisType, start)
 	case .Never:  return parse_ts_kw(p, TSNeverKeyword, start)
+	case .Const:
+		// TS const assertion target: `expr as const`. `const` is a JS
+		// reserved keyword (lexed as .Const), not a real type, but TS-ESTree
+		// models the assertion's type as TSTypeReference whose typeName is
+		// Identifier("const"). Pre-fix the parser fell through to
+		// parse_ts_type_reference's `cur := get_current(p); id.name = cur.value`
+		// which expects an Identifier kind — .Const failed and the as-arm
+		// reported "Expected semicolon" / "Expected binding pattern". Closes
+		// 50+ OXC corpus rejects in the "Expected semicolon" cluster (S26 W6
+		// phase 3 bug class #13).
+		cur_const := get_current(p)
+		id := new_node(p, Identifier); id.loc = loc_from_token(&cur_const); id.name = "const"
+		eat(p)
+		ref := new_node(p, TSTypeReference); ref.loc = start
+		ref.type_name = expression_from(p, id)
+		ref.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = ref
+		return parse_ts_postfix(p, r, start)
 	case .Typeof:
 		eat(p); expr := parse_left_hand_side_expr(p)
 		node := new_node(p, TSTypeQuery); node.loc = start; node.expr_name = expr; node.loc.span.end = prev_end_offset(p)
