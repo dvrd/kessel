@@ -2732,6 +2732,14 @@ print_variable_declaration_body :: proc(s: ^VariableDeclaration, indent: int) {
 		} else {
 			out_s("null")
 		}
+		// TS-only: emit `"definite": true` when the declarator carried `!:`.
+		// Match OXC's pattern of omitting the field when false (consistent
+		// with `s.declare` above for VariableDeclaration).
+		if decl.definite {
+			out_s(",\n")
+			print_indent(indent + 2)
+			out_s("\"definite\": true")
+		}
 		print_indent(indent + 1)
 		if i < len(s.declarations) - 1 {
 			out_s("},\n")

@@ -5089,6 +5089,25 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 
 	pattern := parse_binding_pattern(p)
 
+	// TS definite assignment assertion: `var x!: T`, `let y!: U[]`, etc.
+	// The `!` appears between the binding pattern and the type annotation
+	// `:` (NOT after the annotation, NOT before the `=` initializer). Same
+	// `!:` syntax used on class fields, parsed identically there. Restricted
+	// to plain Identifier bindings — TS spec disallows `!` on object/array
+	// destructuring patterns. Closes ~50 OXC corpus rejects in the
+	// "Expected '=', ',', or ';' after variable binding" cluster (S26 W6
+	// phase 3 bug class #15).
+	definite := false
+	if is_token(p, .Not) {
+		nxt := p.lexer.nxt.kind
+		if nxt == .Colon {
+			if _, is_ident := pattern.(^Identifier); is_ident {
+				definite = true
+				eat(p) // consume `!`
+			}
+		}
+	}
+
 	// TypeScript type annotation. Identifier binding nodes carry the
 	// annotation directly; ObjectPattern / ArrayPattern carry it on the
 	// pattern slot (S26 W4b) so `const {a}: Props = ...` and
@@ -5157,6 +5176,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	decl.loc = start
 	decl.id = pattern
 	decl.init = init
+	decl.definite = definite
 	decl.loc.span.end = prev_end_offset(p)
 
 	return decl
@@ -13656,32 +13676,42 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		node.type_parameter.loc = pn.loc // span of the bare `V` - OXC shape
 		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
-	case .String:
-		lit := parse_string_literal(p); le := new_node(p, StringLiteral); le^ = lit
-		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, le); node.loc.span.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node; return r
-	case .Number:
-		cur := get_current(p); nl := new_node(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
-		if v, ok := cur.literal.(f64); ok { nl.value = v }; eat(p)
-		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, nl); node.loc.span.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node; return r
-	case .BigInt:
-		// BigInt literal type: `const y: 12n = 12n`. Same shape as the .Number
-		// case above but lit is BigIntLiteral. Closes 50+ OXC corpus rejects
-		// (S26 W6 phase 3 bug class #11). Pre-fix the type-position fell
-		// through to parse_ts_type_reference which expects an Identifier and
-		// rejected `12n`; the same gap was silently masked in `type T = 12n`
-		// position by the parser breaking the alias and re-parsing `12n` as
-		// a JS expression-statement.
-		cur := get_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
-		if v, ok := cur.literal.(string); ok { bl.value = v }; eat(p)
-		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, bl); node.loc.span.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node; return r
-	case .True, .False:
-		val := p.cur_type == .True; eat(p)
-		bl := new_node(p, BooleanLiteral); bl.loc = start; bl.value = val
-		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, bl); node.loc.span.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node; return r
+	case .String, .Number, .BigInt, .True, .False:
+		// TS literal-type postfix chain: `"abc"[]`, `1[]`, `42n[]`, `true[]`,
+		// `1[][]`, `1 | 1[]`, etc. Pre-fix all four literal-type cases
+		// returned `r` directly without going through parse_ts_postfix, so
+		// `T = 1[]` reported "Expected '=', ',', or ';' after variable binding"
+		// at the `[` (the parser ended the type at the literal and tried to
+		// parse `[]` as a different declarator's initializer). Mirrors the
+		// same parse_ts_postfix wrapping used by .LBrace / .LBracket / kw
+		// cases above. Closes ~30 OXC corpus rejects in the "Expected '=',
+		// ',', or ';' after variable binding" cluster (S26 W6 phase 3 bug
+		// class #16). One return path covers all four literal kinds; the
+		// inner switch only differs in the literal-node construction.
+		lit_expr: ^Expression
+		#partial switch p.cur_type {
+		case .String:
+			lit := parse_string_literal(p); le := new_node(p, StringLiteral); le^ = lit
+			lit_expr = expression_from(p, le)
+		case .Number:
+			cur := get_current(p); nl := new_node(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
+			if v, ok := cur.literal.(f64); ok { nl.value = v }
+			eat(p)
+			lit_expr = expression_from(p, nl)
+		case .BigInt:
+			// BigInt literal type: `const y: 12n = 12n`. (S26 W6 phase 3 #11.)
+			cur := get_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
+			if v, ok := cur.literal.(string); ok { bl.value = v }
+			eat(p)
+			lit_expr = expression_from(p, bl)
+		case .True, .False:
+			val := p.cur_type == .True; eat(p)
+			bl := new_node(p, BooleanLiteral); bl.loc = start; bl.value = val
+			lit_expr = expression_from(p, bl)
+		}
+		node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit_expr; node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node
+		return parse_ts_postfix(p, r, start)
 	case .Import:
 		// TS import type: `import("module").Member<TArgs>`
 		// Grammar (TS 4.6+):

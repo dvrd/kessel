@@ -184,8 +184,10 @@ function verifyVarDecl(off, json, path) {
 }
 
 function verifyDeclarator(dataOff, idx, json, path) {
-  // VariableDeclarator: {Loc:16, id:Pattern(16), init:Maybe(^Expr)(8)} = 40 bytes
-  const dOff = dataOff + idx * 40;
+  // VariableDeclarator: {Loc:16, id:Pattern(16), init:Maybe(^Expr)(8),
+  //   definite:bool(1, padded to 8)} = 48 bytes (S26 W6 phase 3 #15:
+  //   appended `definite` for TS `var x!: T` definite assignment).
+  const dOff = dataOff + idx * 48;
 
   // id is Pattern union at offset 16
   const idUnion = readUnion(dOff + 16);

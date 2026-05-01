@@ -1273,6 +1273,13 @@ VariableDeclarator :: struct {
 	loc:   Loc,
 	id:    Pattern,
 	init:  Maybe(^Expression),
+	// TS-only: `var x!: T` definite assignment assertion. Mirrors the
+	// `definite` flag on ClassElement (which uses the same `foo!:` syntax
+	// for class fields). ESTree-TS shape emits `"definite": true` only when
+	// set; OXC and ts-eslint both omit the field when false. Append-only at
+	// end of struct (see HANDOFF design decision #6: middle-of-struct field
+	// inserts shift binary-buffer offsets and silently corrupt raw_transfer).
+	definite: bool,
 }
 
 VariableKind :: enum {

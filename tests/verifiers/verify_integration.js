@@ -341,7 +341,10 @@ function verifyStmt(off, kType, oNode, p) {
       const decls = dyn(off + 24);
       eq(`${p}.declarations.len`, decls.len, oNode.declarations.length);
       for (let i = 0; i < Math.min(decls.len, oNode.declarations.length); i++) {
-        verifyDeclarator(decls.data + i * 40, oNode.declarations[i], `${p}.decl[${i}]`);
+        // VariableDeclarator: {Loc:16, id:Pattern(16), init:Maybe(^Expr)(8),
+        //   definite:bool} = 48 bytes (S26 W6 phase 3 #15: appended
+        //   `definite` for TS `var x!: T` definite assignment).
+        verifyDeclarator(decls.data + i * 48, oNode.declarations[i], `${p}.decl[${i}]`);
       }
       break;
     }
