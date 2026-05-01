@@ -4517,9 +4517,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			eat(p)
 		}
 	} else if is_token(p, .Not) {
-		// `foo!:` - definite assignment assertion. `.Not` = logical-not token.
+		// `foo!:` / `foo!;` / `foo! = ...` - definite assignment assertion.
+		// The `:` form pairs with a type annotation; the bare forms (`p!;`,
+		// `p! = 1`, `p!,`) are TS shorthand for definite-without-annotation.
+		// `.Not` = logical-not token.
 		nxt := p.lexer.nxt.kind
-		if nxt == .Colon {
+		if nxt == .Colon || nxt == .Semi || nxt == .Assign ||
+		   nxt == .Comma || nxt == .RBrace {
 			field_definite = true
 			eat(p)
 		}
@@ -13952,7 +13956,15 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 		return after_close == .Colon || after_close == .Question ||
 		       after_close == .Comma || after_close == .Assign
 	}
-	if nxt != .Identifier { return false }
+	// Accept any token that can stand in for a BindingIdentifier in
+	// parameter position — plain `.Identifier` plus every contextual
+	// keyword (`from`, `of`, `as`, `async`, `let`, `static`, ...). Pre-fix
+	// the check only allowed `.Identifier`, so a TS function type whose
+	// inner param happened to be named `from` (`(from: T) => U`) failed
+	// the cheap detect and fell through to parenthesized-type parsing,
+	// which then tripped on the `:`. Test:
+	// typescript/compiler/genericCallInferenceWithGenericLocalFunction.ts.
+	if !is_identifier_like_token(nxt) { return false }
 
 	snap := lexer_snapshot(p)
 	eat(p) // consume `(`
@@ -14267,12 +14279,17 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			return parse_ts_postfix(p, r, start)
 		}
 
+		// Parenthesized type: `(T)`. Note we deliberately DO NOT consume
+		// a trailing `=>` here as if it made the whole `(T) => U` a function
+		// type. TS function-type syntax requires NAMED parameters
+		// (`(x: T) => U`); the named-params branch is handled above by
+		// looks_like_ts_function_type. A bare `(T) => U` is therefore not a
+		// type production at this position - the `=>` belongs to an outer
+		// arrow expression whose return type is `(T)`. Test: TS
+		// `parseArrowFunctionWithFunctionReturnType.ts` (`<T>(): (() => T) =>
+		// null as any` - the outer `=>` belongs to the arrow function, the
+		// inner `() => T` is the parenthesized return type).
 		eat(p); inner := parse_ts_type(p); expect_token(p, .RParen)
-		if is_token(p, .Arrow) {
-			eat(p); parse_ts_type(p)
-			fn := new_node(p, TSFunctionType); fn.loc = start; fn.loc.span.end = prev_end_offset(p)
-			r := new_node(p, TSType); r^ = fn; return r
-		}
 		pn := new_node(p, TSParenthesizedType); pn.loc = start; pn.type_annotation = inner; pn.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = pn; return parse_ts_postfix(p, r, start)
 	case .LBrace:
@@ -14920,14 +14937,18 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	// but appears as a modifier only before another Identifier, so the
 	// `<Identifier ...` path below catches `<out T>`.
 	if nxt_kind == .Const || nxt_kind == .In {
+		// `<const T>` / `<in T>` are type-parameter modifier syntax
+		// for generic arrows. `<const>X` is also a TS 3.4-era “const
+		// assertion” (TSTypeAssertion with `const` as the type name).
+		// Try generic arrow first; on failure, fall through to the
+		// assertion path so `<const>10` parses as TSTypeAssertion.
 		snap := lexer_snapshot(p)
 		result := parse_ts_generic_arrow(p, start)
 		if result != nil && len(p.errors) == snap.errors_len {
 			return result
 		}
 		lexer_restore(p, snap)
-		report_error(p, "Malformed generic arrow function")
-		return nil
+		// fall through to the assertion attempt below
 	}
 
 	if nxt_kind == .Identifier {
@@ -15217,7 +15238,16 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 					if t_depth == 0 { return false }
 					t_depth -= 1
 				case '=':
-					if t_depth == 0 && j + 1 < src_len && src[j+1] == '>' { return true }
+					// `=>` arrow detection. At top-level it terminates the
+					// scan with success. Inside a balanced group, the `>` is
+					// PART of the arrow token — we must skip BOTH bytes so
+					// the `>` isn't later mis-consumed as a group closer.
+					// Test: `<T>(): (() => T) => null as any` (the inner
+					// `=>` of the parenthesised function type).
+					if j + 1 < src_len && src[j+1] == '>' {
+						if t_depth == 0 { return true }
+						j += 1  // outer loop adds one more, so we step past `>`
+					}
 				case ',', ';':
 					if t_depth == 0 { break ts_scan }
 				case '"', '\'':
@@ -15724,6 +15754,28 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 		}
 		param_ann: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Colon) { param_ann = parse_ts_type_annotation(p) }
+		// TS function-type params accept a default-value initializer
+		// (`(a: number = 1) => number`). The TS spec marks this as an
+		// error in pure type position, but every mainstream parser
+		// (TypeScript, Babel, OXC) ACCEPTS the syntax and surfaces it as
+		// an AssignmentPattern wrapping the binding. Match that
+		// behaviour - test:
+		// typescript/compiler/defaultValueInFunctionTypes.ts.
+		if is_token(p, .Assign) {
+			eat(p) // consume `=`
+			default_expr := parse_assignment_expression(p)
+			if default_expr != nil {
+				#partial switch inner in pattern {
+				case ^Identifier, ^ObjectPattern, ^ArrayPattern:
+					ap := new_node(p, AssignmentPattern)
+					ap.loc = param_start
+					ap.left = pattern
+					ap.right = default_expr
+					ap.loc.span.end = prev_end_offset(p)
+					pattern = ap
+				}
+			}
+		}
 		// S26 W4d: extend the inner pattern's span over the type annotation
 		// so the emitted Identifier (or ObjectPattern/ArrayPattern) end
 		// matches OXC's convention. The annotation lives on the
