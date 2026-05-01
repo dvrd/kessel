@@ -13558,6 +13558,18 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		if v, ok := cur.literal.(f64); ok { nl.value = v }; eat(p)
 		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, nl); node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
+	case .BigInt:
+		// BigInt literal type: `const y: 12n = 12n`. Same shape as the .Number
+		// case above but lit is BigIntLiteral. Closes 50+ OXC corpus rejects
+		// (S26 W6 phase 3 bug class #11). Pre-fix the type-position fell
+		// through to parse_ts_type_reference which expects an Identifier and
+		// rejected `12n`; the same gap was silently masked in `type T = 12n`
+		// position by the parser breaking the alias and re-parsing `12n` as
+		// a JS expression-statement.
+		cur := get_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
+		if v, ok := cur.literal.(string); ok { bl.value = v }; eat(p)
+		node := new_node(p, TSLiteralType); node.loc = start; node.literal = expression_from(p, bl); node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node; return r
 	case .True, .False:
 		val := p.cur_type == .True; eat(p)
 		bl := new_node(p, BooleanLiteral); bl.loc = start; bl.value = val
