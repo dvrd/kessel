@@ -1,33 +1,33 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15106,
+    "ok-vs-oxc": 15136,
     "skip-multi-file": 3519,
     "oxc-only-rejects": 892,
-    "kessel-only-rejects": 883,
-    "should-reject-passed": 21,
-    "pass-both": 2542,
-    "should-pass-rejected": 1661,
+    "kessel-only-rejects": 842,
+    "should-reject-passed": 26,
+    "pass-both": 2550,
+    "should-pass-rejected": 1659,
     "reject-both": 516
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15106,
+        "ok-vs-oxc": 15136,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 231,
-        "kessel-only-rejects": 353
+        "oxc-only-rejects": 229,
+        "kessel-only-rejects": 325
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
-        "should-reject-passed": 21,
-        "pass-both": 2505,
-        "kessel-only-rejects": 528,
-        "should-pass-rejected": 1661,
-        "oxc-only-rejects": 661,
+        "should-reject-passed": 26,
+        "pass-both": 2513,
+        "kessel-only-rejects": 515,
+        "should-pass-rejected": 1659,
+        "oxc-only-rejects": 663,
         "reject-both": 516
       }
     },
@@ -42,8 +42,8 @@
   "bySubdir": {
     "typescript/compiler": {
       "skip-multi-file": 1188,
-      "oxc-only-rejects": 79,
-      "kessel-only-rejects": 154
+      "oxc-only-rejects": 77,
+      "kessel-only-rejects": 138
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10,
@@ -55,7 +55,7 @@
     },
     "typescript/conformance/classes": {
       "oxc-only-rejects": 16,
-      "kessel-only-rejects": 37,
+      "kessel-only-rejects": 35,
       "skip-multi-file": 11
     },
     "typescript/conformance/constEnums": {
@@ -105,7 +105,7 @@
     },
     "typescript/conformance/expressions": {
       "skip-multi-file": 4,
-      "kessel-only-rejects": 7
+      "kessel-only-rejects": 6
     },
     "typescript/conformance/externalModules": {
       "skip-multi-file": 151,
@@ -159,7 +159,7 @@
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
       "oxc-only-rejects": 66,
-      "kessel-only-rejects": 55
+      "kessel-only-rejects": 53
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -179,7 +179,7 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/types": {
-      "kessel-only-rejects": 16,
+      "kessel-only-rejects": 10,
       "skip-multi-file": 10,
       "oxc-only-rejects": 7
     },
@@ -195,9 +195,6 @@
     },
     "typescript/projects/declarations_GlobalImport": {
       "oxc-only-rejects": 1
-    },
-    "typescript/projects/declareVariableCollision": {
-      "kessel-only-rejects": 1
     },
     "typescript/transpile": {
       "skip-multi-file": 8,
@@ -277,7 +274,7 @@
       "kessel-only-rejects": 1
     },
     "babel/es2015/class-methods": {
-      "kessel-only-rejects": 4,
+      "kessel-only-rejects": 3,
       "should-pass-rejected": 3,
       "oxc-only-rejects": 2
     },
@@ -365,14 +362,15 @@
     },
     "babel/es2017/async-functions": {
       "should-pass-rejected": 21,
-      "kessel-only-rejects": 9,
-      "oxc-only-rejects": 8
+      "oxc-only-rejects": 8,
+      "kessel-only-rejects": 8
     },
     "babel/es2017/trailing-function-commas": {
       "should-pass-rejected": 1,
       "oxc-only-rejects": 1
     },
     "babel/es2018/async-generators": {
+      "kessel-only-rejects": 1,
       "should-pass-rejected": 1,
       "oxc-only-rejects": 5
     },
@@ -654,8 +652,8 @@
       "oxc-only-rejects": 1
     },
     "babel/flow/anonymous-function-types": {
-      "oxc-only-rejects": 4,
-      "should-pass-rejected": 9
+      "oxc-only-rejects": 5,
+      "should-pass-rejected": 8
     },
     "babel/flow/array-types": {
       "oxc-only-rejects": 7,
@@ -884,6 +882,7 @@
       "should-pass-rejected": 2
     },
     "babel/typescript/arrow-function": {
+      "should-reject-passed": 1,
       "kessel-only-rejects": 6,
       "should-pass-rejected": 1
     },
@@ -899,16 +898,17 @@
     },
     "babel/typescript/cast": {
       "should-pass-rejected": 7,
-      "oxc-only-rejects": 1,
-      "kessel-only-rejects": 1
+      "kessel-only-rejects": 1,
+      "oxc-only-rejects": 1
     },
     "babel/typescript/class": {
       "oxc-only-rejects": 30,
       "should-pass-rejected": 6,
-      "kessel-only-rejects": 11
+      "kessel-only-rejects": 8
     },
     "babel/typescript/conditional": {
-      "kessel-only-rejects": 4
+      "should-reject-passed": 3,
+      "kessel-only-rejects": 1
     },
     "babel/typescript/const": {
       "oxc-only-rejects": 3
@@ -919,7 +919,7 @@
       "should-pass-rejected": 4
     },
     "babel/typescript/decorators": {
-      "kessel-only-rejects": 2
+      "should-reject-passed": 1
     },
     "babel/typescript/dts": {
       "oxc-only-rejects": 1,
@@ -946,13 +946,8 @@
       "should-pass-rejected": 4,
       "oxc-only-rejects": 14
     },
-    "babel/typescript/legacy-decorators": {
-      "kessel-only-rejects": 2
-    },
     "babel/typescript/module-namespace": {
-      "kessel-only-rejects": 2,
-      "oxc-only-rejects": 4,
-      "should-pass-rejected": 1
+      "oxc-only-rejects": 5
     },
     "babel/typescript/regression": {
       "kessel-only-rejects": 1,
@@ -987,8 +982,8 @@
       "kessel-only-rejects": 3
     },
     "babel/typescript/types": {
-      "kessel-only-rejects": 4,
       "oxc-only-rejects": 16,
+      "kessel-only-rejects": 4,
       "should-pass-rejected": 5
     },
     "babel/typescript/types-arrow-function": {

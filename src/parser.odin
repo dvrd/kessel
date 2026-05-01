@@ -1646,8 +1646,11 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			return parse_ts_interface_declaration(p)
 		}
 		if val == "type" {
-			// `type Foo = ...` - next token must be an identifier (the alias name).
-			if is_next_token(p, .Identifier) {
+			// `type Foo = ...` - next token must be an identifier (the alias
+			// name). TS allows contextual keywords like `abstract`, `module`,
+			// `namespace`, etc. as type alias names.
+			nxt_tok := peek_token(p)
+			if can_be_binding_identifier(nxt_tok.type) || is_keyword_usable_as_property_name(nxt_tok.type) {
 				return parse_ts_type_alias_declaration(p)
 			}
 			return parse_expression_or_labeled_statement(p)
@@ -14575,14 +14578,20 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		r := new_node(p, TSType); r^ = it
 		return parse_ts_postfix(p, r, start)
 	case .Identifier: return parse_ts_identifier_type(p)
-	case .Await, .Yield:
-		// In TS type position, contextually-reserved keywords like
-		// `await` and `yield` are allowed as plain TypeReference names.
-		// Examples (TS conformance):
-		//   var v: await;          // inside async fn - OK in type context
-		//   var v: yield;          // inside generator - OK in type context
-		// Closes ~6 OXC corpus rejects in the "Expected '=', ',', or ';'
-		// after variable binding" cluster.
+	case .Await, .Yield,
+	     .Abstract, .Declare, .Override, .Readonly,
+	     .Static, .Get, .Set, .Async, .Let, .Of, .From, .As,
+	     .Constructor, .Accessor, .Module, .Namespace,
+	     .Implements, .Require, .Package, .Private, .Protected, .Public,
+	     .Target, .Using, .Assert, .Asserts, .Satisfies:
+		// In TS type position, contextually-reserved keywords are
+		// allowed as plain TypeReference names:
+		//   type abstract = "abstract"; let x: abstract;
+		//   var v: await;  var v: yield;  var v: static;
+		// Catches every keyword token that can_be_binding_identifier
+		// or is_keyword_usable_as_property_name accepts, except those
+		// with dedicated type-level semantics (.Void, .Null, .This,
+		// .Typeof, .Keyof, .Unique, .Infer, .Import, .New, .Never).
 		return parse_ts_type_reference(p)
 	}
 	return nil
