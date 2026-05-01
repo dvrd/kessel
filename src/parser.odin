@@ -1620,7 +1620,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			nxt := peek_token(p)
 			is_decl_start := false
 			#partial switch nxt.type {
-			case .Function, .Class, .Abstract, .Import, .Const, .Let, .Var:
+			case .Function, .Class, .Abstract, .Import, .Const, .Let, .Var, .Async:
 				is_decl_start = true
 			case .Identifier:
 				if nxt.value == "interface" || nxt.value == "type" ||
@@ -15596,6 +15596,17 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		stmt = parse_function_declaration(p, false, true) // allow_no_body=true for declare
 		if stmt != nil {
 			if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
+		}
+	case .Async:
+		// `declare async function foo(): Promise<void>;` (TS). The
+		// inner parse_function_declaration already consumes a leading
+		// `.Async` token before `function`, so we just need to allow the
+		// no-body ambient form. allow_no_body=true.
+		if p.lexer.nxt.kind == .Function && !p.cur_tok.had_line_terminator {
+			stmt = parse_function_declaration(p, false, true)
+			if stmt != nil {
+				if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
+			}
 		}
 	case .Class:
 		stmt = parse_class_declaration(p)
