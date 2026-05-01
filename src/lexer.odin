@@ -2313,6 +2313,21 @@ lex_slash :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Div, flags = flags}
 }
 
+// Force-lex a `/` as division (not regex). Called by the parser when
+// it knows the `/` follows a postfix operator (e.g. TS non-null `x!`)
+// and the can_start_regex heuristic was wrong.
+lex_slash_as_div :: proc(l: ^Lexer) -> FastToken {
+	start := u32(l.offset)
+	flags := u8(0)
+	if l.had_line_terminator { flags |= 1 }
+	if l.offset + 1 < len(l.source) && l.source_bytes[l.offset + 1] == '=' {
+		l.offset += 2
+		return FastToken{start = start, end = u32(l.offset), kind = .AssignDiv, flags = flags}
+	}
+	l.offset += 1
+	return FastToken{start = start, end = u32(l.offset), kind = .Div, flags = flags}
+}
+
 lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	l.offset += 1 // skip opening /
 	src := l.source_bytes

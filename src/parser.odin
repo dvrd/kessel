@@ -9667,6 +9667,22 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// TS non-null assertion `x!`. Only consume `!` as a postfix when
 			// the next token can't start a new expression - otherwise `a!b` is
 			// ambiguous. Safe next-tokens: operator/punct/terminator.
+			// Before checking nxt, handle the regex/division ambiguity.
+			// The lexer's can_start_regex saw `!` (prefix-NOT) and lexed
+			// the next `/` as regex. In TS mode, postfix `!` (non-null
+			// assertion) means `/` is division. Re-lex the lookahead.
+			if p.lexer.nxt.kind == .RegularExpression && allow_ts_mode(p) {
+				// Remove any "Unterminated regular expression" error that
+				// the lexer emitted when it mis-lexed the `/` as regex.
+				for len(p.lexer.lexer_errors) > 0 {
+					last := p.lexer.lexer_errors[len(p.lexer.lexer_errors) - 1]
+					if last.offset >= p.lexer.nxt.start {
+						pop(&p.lexer.lexer_errors)
+					} else { break }
+				}
+				p.lexer.offset = int(p.lexer.nxt.start)
+				p.lexer.nxt = lex_slash_as_div(p.lexer)
+			}
 			nxt := p.lexer.nxt.kind
 			allow := false
 			#partial switch nxt {
@@ -9699,6 +9715,11 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				return expr
 			}
 			eat(p) // consume `!`
+			// After consuming `!` as a non-null assertion, the next token
+			// may have been mis-lexed as regex (because `!` is in the
+			// lexer's can_start_regex set for the prefix-NOT case). The
+			// postfix assertion means `/` is always division here.
+
 			nn := new_node(p, TSNonNullExpression)
 			nn.loc = loc_from_expr(expr)
 			nn.expression = expr
