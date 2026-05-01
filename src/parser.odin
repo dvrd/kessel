@@ -9946,7 +9946,57 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 							}
 							break
 						}
-						if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' {
+						// TS / TSX async arrow with return type annotation:
+						// `async (): T => body`. After the matching `)` the
+						// next non-trivia byte is `:`; the type annotation
+						// extends until the `=>` (skipping balanced
+						// `<>` / `()` / `[]` / `{}` and string content).
+						// Pre-fix the lookahead bailed at the `:` and treated
+						// `async (...)` as a plain CallExpression of `async`.
+						// Closes ~30 OXC corpus rejects in the
+						// "Expected semicolon" cluster (S26 W6 phase 3 #17).
+						if (p.lang == .TS || p.lang == .TSX) && j < src_len && src[j] == ':' {
+							j += 1
+							t_depth := 0
+							ts_scan: for j < src_len {
+								tch := src[j]
+								switch tch {
+								case '<', '(', '[', '{':
+									t_depth += 1
+								case '>', ')', ']', '}':
+									if t_depth == 0 {
+										// Hit a closer outside any nested
+										// group — type ended without `=>`,
+										// not an arrow head.
+										break ts_scan
+									}
+									t_depth -= 1
+								case '=':
+									if t_depth == 0 && j + 1 < src_len && src[j+1] == '>' {
+										is_arrow_head = true
+										break ts_scan
+									}
+								case ',', ';':
+									if t_depth == 0 { break ts_scan }
+								case '"', '\'':
+									quote := tch
+									j += 1
+									for j < src_len && src[j] != quote {
+										if src[j] == '\\' && j + 1 < src_len { j += 1 }
+										j += 1
+									}
+								case '/':
+									if j + 1 < src_len && src[j+1] == '/' {
+										for j < src_len && src[j] != '\n' { j += 1 }
+									} else if j + 1 < src_len && src[j+1] == '*' {
+										j += 2
+										for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
+										if j + 1 < src_len { j += 1 }
+									}
+								}
+								j += 1
+							}
+						} else if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' {
 							is_arrow_head = true
 						}
 					}
@@ -12601,6 +12651,19 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// yield 1) => x; }`).
 	scan_arrow_params_for_yield_only(p, params[:])
 
+	// Optional TS return-type annotation: `async (): Promise<T> => body`.
+	// In TS / TSX the `:` after the param list opens a TSTypeAnnotation
+	// before the `=>`. Mirrors the plain-arrow case in
+	// parse_ts_generic_arrow / parse_primary_expr's LParen branch. Closes
+	// ~30 OXC corpus rejects in the "Expected semicolon" cluster (S26 W6
+	// phase 3 bug class #17). Pre-fix the parser saw `:` after `)`, gave
+	// up on the arrow and tried to treat the whole thing as an async
+	// CallExpression of an Identifier `async`.
+	async_return_type: Maybe(^TSTypeAnnotation)
+	if (p.lang == .TS || p.lang == .TSX) && is_token(p, .Colon) {
+		async_return_type = parse_ts_type_annotation(p)
+	}
+
 	if !expect_token(p, .Arrow) {
 		return nil
 	}
@@ -12647,6 +12710,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	arrow.body = body
 	arrow.expression = !is_block_body
 	arrow.async = true
+	if rt, ok := async_return_type.?; ok { arrow.return_type = rt }
 	arrow.loc.span.end = prev_end_offset(p)
 
 	// Async arrow with paren'd params: UniqueFormalParameters always.

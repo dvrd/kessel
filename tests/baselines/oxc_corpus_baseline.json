@@ -1,12 +1,12 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 14639,
+    "ok-vs-oxc": 14645,
     "skip-multi-file": 3519,
     "oxc-only-rejects": 828,
-    "kessel-only-rejects": 1436,
+    "kessel-only-rejects": 1428,
     "should-reject-passed": 27,
-    "pass-both": 2478,
+    "pass-both": 2480,
     "should-pass-rejected": 1694,
     "reject-both": 519
   },
@@ -14,18 +14,18 @@
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 14639,
+        "ok-vs-oxc": 14645,
         "skip-multi-file": 3519,
         "oxc-only-rejects": 203,
-        "kessel-only-rejects": 848
+        "kessel-only-rejects": 842
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 27,
-        "pass-both": 2441,
-        "kessel-only-rejects": 586,
+        "pass-both": 2443,
+        "kessel-only-rejects": 584,
         "should-pass-rejected": 1694,
         "oxc-only-rejects": 625,
         "reject-both": 519
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 72,
-      "kessel-only-rejects": 409
+      "kessel-only-rejects": 406
     },
     "typescript/conformance/additionalChecks": {
       "kessel-only-rejects": 1
@@ -52,7 +52,7 @@
       "skip-multi-file": 10
     },
     "typescript/conformance/async": {
-      "kessel-only-rejects": 18,
+      "kessel-only-rejects": 15,
       "oxc-only-rejects": 4,
       "skip-multi-file": 5
     },
@@ -901,8 +901,8 @@
       "should-pass-rejected": 2
     },
     "babel/typescript/arrow-function": {
-      "kessel-only-rejects": 12,
       "should-reject-passed": 1,
+      "kessel-only-rejects": 9,
       "should-pass-rejected": 1
     },
     "babel/typescript/assert-predicate": {
@@ -932,7 +932,8 @@
       "should-pass-rejected": 14
     },
     "babel/typescript/conditional": {
-      "should-reject-passed": 3
+      "should-reject-passed": 3,
+      "kessel-only-rejects": 1
     },
     "babel/typescript/const": {
       "oxc-only-rejects": 3
