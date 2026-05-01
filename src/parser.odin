@@ -13125,6 +13125,72 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 	return attributes
 }
 
+// Decorator : @ DecoratorMemberExpression | @ DecoratorCallExpression
+//            | @ DecoratorParenthesizedExpression
+// DecoratorMemberExpression : IdentifierReference
+//                            | DecoratorMemberExpression . IdentifierName
+//                            | DecoratorMemberExpression . PrivateIdentifier
+// DecoratorCallExpression : DecoratorMemberExpression Arguments
+// DecoratorParenthesizedExpression : ( Expression )
+//
+// The grammar deliberately excludes computed `[...]` member access. Pre
+// S26 W6 phase 3 #31 the parser called parse_left_hand_side_expr which
+// happily ate `@dec["method"]()` as one decorator and starved the
+// following class element. parse_decorator_expression below honours the
+// restricted grammar so `@dec ["method"]() {}` parses as decorator +
+// computed-key method.
+parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
+	start := cur_loc(p)
+	expr: ^Expression
+	if is_token(p, .LParen) {
+		eat(p)
+		expr = parse_expression(p)
+		expect_token(p, .RParen)
+	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+		current := get_current(p)
+		expr = expression_from(p, new_identifier(p, current))
+		eat(p)
+		// Dotted chain only - reject computed access by stopping at non-`.`.
+		for is_token(p, .Dot) {
+			eat(p)
+			if !(is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type)) {
+				report_error(p, "Expected identifier after '.' in decorator")
+				break
+			}
+			prop_tok := get_current(p)
+			prop_id := new_identifier(p, prop_tok)
+			eat(p)
+			mem := new_node(p, MemberExpression)
+			mem.loc = start
+			mem.object = expr
+			mem.property = expression_from(p, prop_id)
+			mem.computed = false
+			mem.optional = false
+			mem.loc.span.end = prev_end_offset(p)
+			expr = expression_from(p, mem)
+		}
+	} else {
+		// Don't emit a new error - downstream emits "Decorators can
+		// only be applied to class expressions" / "Expected class after
+		// decorator" which already covers the malformed-decorator case
+		// and is the message the negative-fixtures gate locks in.
+		return nil
+	}
+	// Optional single Arguments suffix. parse_arguments consumes both
+	// `(` and `)` itself, so don't eat them here.
+	if is_token(p, .LParen) {
+		args := parse_arguments(p)
+		call := new_node(p, CallExpression)
+		call.loc = start
+		call.callee = expr
+		call.arguments = args
+		call.optional = false
+		call.loc.span.end = prev_end_offset(p)
+		expr = expression_from(p, call)
+	}
+	return expr
+}
+
 parse_decorators :: proc(p: ^Parser) -> [dynamic]Decorator {
 	// Lazy alloc - the parser calls parse_decorators on entry to every
 	// class declaration, class element, and function declaration. The
@@ -13139,7 +13205,7 @@ parse_decorators :: proc(p: ^Parser) -> [dynamic]Decorator {
 	for is_token(p, .At) {
 		start := cur_loc(p)
 		eat(p)
-		expr := parse_left_hand_side_expr(p)
+		expr := parse_decorator_expression(p)
 		d := Decorator{loc = start, expression = expr}
 		d.loc.span.end = prev_end_offset(p)
 		bump_append(&decorators, d)
