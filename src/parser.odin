@@ -10909,11 +10909,22 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.return_type = accessor_return_type
 		fn.loc.span.end = prev_end_offset(p)
 		value = expression_from(p, fn)
-	} else if is_token(p, .LParen) {
+	} else if is_token(p, .LParen) || (allow_ts_mode(p) && is_token(p, .LAngle)) {
 		// Method shorthand: foo() {}
+		// TS extension - generic method shorthand: foo<T>(a: T) { ... }
+		// Mirrors the same dance parse_class_element does at the
+		// `method_type_parameters` block. Closes the ~17 OXC corpus
+		// rejects in the "Expected }, got <" cluster (typescript
+		// fixtures like assignEveryTypeToAny.ts and
+		// optionalParameterRetainsNull.ts that use
+		// `{ f<T>(x: T) { return x; } }` shape).
 		kind = .Method
-		// Capture location of ( for the FunctionExpression
+		// Capture location of ( (or `<`) for the FunctionExpression.
 		fn_start := cur_loc(p)
+		method_type_parameters: Maybe(^TSTypeParameterDeclaration)
+		if allow_ts_mode(p) && is_token(p, .LAngle) {
+			method_type_parameters = parse_ts_type_parameters(p)
+		}
 		if !expect_token(p, .LParen) {
 			return nil
 		}
@@ -10995,6 +11006,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.body = body
 		fn.generator = is_generator
 		fn.async = is_async
+		fn.type_parameters = method_type_parameters
 		fn.return_type = method_return_type
 		fn.loc.span.end = prev_end_offset(p)
 		value = expression_from(p, fn)
