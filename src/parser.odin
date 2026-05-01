@@ -14076,12 +14076,39 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			elev: ^TSType
 			if is_token(p, .Dot3) {
 				eat(p) // consume `...`
-				inner := parse_ts_type(p)
-				rest := new_node(p, TSRestType)
-				rest.loc = elem_start
-				rest.type_annotation = inner
-				rest.loc.span.end = prev_end_offset(p)
-				elev = new_node(p, TSType); elev^ = rest
+				// Labeled rest tuple element `...name: T[]`. Detect via
+				// 1-token lookahead - a label is an Identifier whose next
+				// token is `:`. Wrap the resulting TSRestType inside a
+				// TSNamedTupleMember to match OXC's ESTree shape (see
+				// namedTupleMembers.ts WithOptAndRest / RecusiveRest).
+				if p.cur_type == .Identifier && p.lexer.nxt.kind == .Colon {
+					rest_label_tok := get_current(p)
+					eat(p) // consume label
+					eat(p) // consume `:`
+					rest_inner := parse_ts_type(p)
+					rest := new_node(p, TSRestType)
+					rest.loc = elem_start
+					rest.type_annotation = rest_inner
+					rest.loc.span.end = prev_end_offset(p)
+					rest_t := new_node(p, TSType); rest_t^ = rest
+					named_rest := new_node(p, TSNamedTupleMember)
+					named_rest.loc = elem_start
+					named_rest.label = BindingIdentifier{
+						loc = loc_from_token(&rest_label_tok),
+						name = rest_label_tok.value,
+					}
+					named_rest.element_type = rest_t
+					named_rest.optional = false
+					named_rest.loc.span.end = prev_end_offset(p)
+					elev = new_node(p, TSType); elev^ = named_rest
+				} else {
+					inner := parse_ts_type(p)
+					rest := new_node(p, TSRestType)
+					rest.loc = elem_start
+					rest.type_annotation = inner
+					rest.loc.span.end = prev_end_offset(p)
+					elev = new_node(p, TSType); elev^ = rest
+				}
 			} else {
 				// Named tuple element `name: T` or `name?: T` — detected
 				// via 1-2 token lookahead. Restricted to .Identifier so a
@@ -14457,6 +14484,32 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	result := base
 	for is_token(p, .LBracket) {
+		// ASI-style guard: if the `[` is on a new line AND the contents
+		// look like an index signature (`[Ident :` ...), this `[` is not
+		// a postfix on the current type - it's the start of the next
+		// interface / type-literal member. Without this guard, code like
+		//
+		//   interface I {
+		//     thisIsNotATag(x: string): void
+		//     [x: number]: I;
+		//   }
+		//
+		// has `void` greedily extended to `void[x: number]` (TSIndexedAccessType)
+		// and the index signature is consumed mid-type, then everything
+		// downstream cascades. Closes most of the
+		// taggedTemplateStringsWithTypedTags / indexer2A /
+		// noPropertyAccessFromIndexSignature1 cluster.
+		if p.cur_tok.had_line_terminator &&
+		   p.lexer.nxt.kind == .Identifier {
+			snap := lexer_snapshot(p)
+			eat(p) // `[`
+			eat(p) // identifier
+			after := p.cur_type
+			lexer_restore(p, snap)
+			if after == .Colon {
+				break
+			}
+		}
 		if is_next_token(p, .RBracket) {
 			// Array type: `T[]`.
 			eat(p); eat(p)
