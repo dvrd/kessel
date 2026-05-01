@@ -1662,9 +1662,26 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 			return parse_expression_or_labeled_statement(p)
 		}
-		if val == "module" && is_next_token(p, .String) {
-			// `module "external-name" { ... }` - quoted name is the module form
-			return parse_ts_module_declaration(p, .Module)
+		if val == "module" {
+			// `module "external-name" { ... }` (quoted-name module) or
+			// `module M { ... }` (bare-identifier module, equivalent to
+			// namespace). TS allows both forms; the identifier form is the
+			// legacy spelling of `namespace M { ... }`.
+			if is_next_token(p, .String) || is_next_token(p, .Identifier) {
+				return parse_ts_module_declaration(p, .Module)
+			}
+			return parse_expression_or_labeled_statement(p)
+		}
+		// `global { ... }` — TS global augmentation without `declare` prefix.
+		// Appears at top level, inside namespaces, or inside ambient modules.
+		if val == "global" && is_next_token(p, .LBrace) {
+			stmt := parse_ts_global_declaration(p)
+			if stmt != nil {
+				if mod, ok := stmt^.(^TSModuleDeclaration); ok {
+					mod.global = true
+				}
+			}
+			return stmt
 		}
 		return parse_expression_or_labeled_statement(p)
 	case .LBrace:
