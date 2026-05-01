@@ -4442,7 +4442,19 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		return elem
 	}
 
-	// It's a method - parse parameters and body
+	// It's a method - parse parameters and body. TS allows generic methods
+	// `foo<T>(x: T): T { ... }` — parse the optional <T,U,...> here, before
+	// the `(`. Pre-fix the parser jumped straight to expect_token(.LParen)
+	// and reported `Expected (, got <` on every generic class method.
+	// Closes 100+ OXC corpus rejects in the cluster of that exact error
+	// message (S26 W6 phase 3 bug class #7). Mirrors the same dance
+	// parse_function_declaration does at line 3810. Stored on the
+	// FunctionExpression's type_parameters slot below.
+	method_type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) {
+		method_type_parameters = parse_ts_type_parameters(p)
+	}
+
 	// Capture paren position for FunctionExpression start
 	paren_loc := cur_loc(p)
 	if !expect_token(p, .LParen) {
@@ -4597,6 +4609,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	fn_expr.body = body
 	fn_expr.generator = is_generator
 	fn_expr.async = is_async
+	fn_expr.type_parameters = method_type_parameters
 	fn_expr.return_type = method_return_type
 	fn_expr.loc.span.end = prev_end_offset(p)
 
