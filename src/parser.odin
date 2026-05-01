@@ -14158,8 +14158,55 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		r := new_node(p, TSType); r^ = ref
 		return parse_ts_postfix(p, r, start)
 	case .Typeof:
-		eat(p); expr := parse_left_hand_side_expr(p)
-		node := new_node(p, TSTypeQuery); node.loc = start; node.expr_name = expr; node.loc.span.end = prev_end_offset(p)
+		// TS type-query: `typeof X` / `typeof X.Y.Z` / `typeof X<TArgs>`
+		// (the type-arguments form is TS 4.7+, used to instantiate generic
+		// type-of references). Pre S26 W6 phase 3 #34 the branch called
+		// parse_left_hand_side_expr which read `<` as the start of a JS
+		// less-than comparison, breaking files like
+		//   var v: typeof A<B>;
+		// (parserTypeQuery8.ts) and the babel
+		//   typescript/types/typeof-type-parameters/input.ts
+		// fixture. Parse a dotted Identifier chain ourselves and
+		// optionally consume a TS type-arguments list after.
+		eat(p) // consume `typeof`
+		tq_expr: ^Expression
+		// Allow keyword identifiers (Identifier / kw-as-name / Await / Yield).
+		if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) ||
+		   is_token(p, .Await) || is_token(p, .Yield) {
+			tq_cur := get_current(p)
+			tq_id := new_node(p, Identifier); tq_id.loc = loc_from_token(&tq_cur); tq_id.name = tq_cur.value
+			eat(p)
+			tq_expr = expression_from(p, tq_id)
+			for is_token(p, .Dot) {
+				eat(p)
+				tq_prop := parse_identifier_name(p)
+				tq_mem := new_node(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
+				tq_pid := new_node(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
+				tq_mem.property = expression_from(p, tq_pid); tq_mem.computed = false; tq_mem.optional = false
+				tq_mem.loc.span.end = prev_end_offset(p)
+				tq_expr = expression_from(p, tq_mem)
+			}
+		} else if is_token(p, .Import) {
+			// `typeof import("...")` form - delegate to import-type and
+			// flag is_typeof on the resulting node.
+			imp_ts := parse_ts_primary_type(p)
+			if imp_ts != nil {
+				#partial switch v in imp_ts^ {
+				case ^TSImportType:
+					if v != nil { v.is_typeof = true }
+				}
+			}
+			return imp_ts
+		} else {
+			// Fallback - keep the legacy expression-style parse so any
+			// shape we don't handle here still produces a node.
+			tq_expr = parse_left_hand_side_expr(p)
+		}
+		node := new_node(p, TSTypeQuery); node.loc = start; node.expr_name = tq_expr
+		if is_token(p, .LAngle) {
+			node.type_parameters = parse_ts_type_arguments(p)
+		}
+		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return parse_ts_postfix(p, r, start)
 	case .Keyof:
 		eat(p); operand := parse_ts_primary_type(p)
