@@ -9446,7 +9446,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			     .LogicalAnd, .LogicalOr, .Nullish, .BitAnd, .BitOr, .BitXor,
 			     .LShift, .RShift, .URShift, .Eq, .NotEq, .EqStrict, .NotEqStrict,
 			     .LAngle, .RAngle, .LEq, .GEq, .Question, .Colon,
-			     .Arrow, .EOF, .In, .Instanceof, .As, .Satisfies:
+			     .Arrow, .EOF, .In, .Instanceof, .As, .Satisfies, .Not,
+			     .PlusPlus, .MinusMinus:
 				allow = true
 			}
 			// IMPORTANT: in Odin `break` inside `switch` inside `for` exits
