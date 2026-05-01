@@ -14757,6 +14757,28 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	params := make([dynamic]TSTypeParameter, 0, 4, p.allocator)
 	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
 		param_start := cur_loc(p)
+		// TS type-parameter modifiers — may appear in any order before the
+		// name. `const` (TS 5.0+) lexes as the .Const keyword; `in` lexes
+		// as the .In keyword; `out` is a contextual identifier. They are
+		// only modifiers if followed by something that can legitimately
+		// start a type parameter (another modifier or an identifier name);
+		// otherwise treat as the parameter name itself (TS allows using
+		// reserved-ish words like `out` as a type-parameter name).
+		in_mod, out_mod, const_mod := false, false, false
+		for {
+			nxt := peek_token(p)
+			nxt_starts_param := nxt.type == .Identifier || nxt.type == .Const || nxt.type == .In
+			if p.cur_type == .Const && nxt_starts_param {
+				const_mod = true; eat(p); continue
+			}
+			if p.cur_type == .In && nxt_starts_param {
+				in_mod = true; eat(p); continue
+			}
+			if p.cur_type == .Identifier && p.cur_tok.value == "out" && nxt_starts_param {
+				out_mod = true; eat(p); continue
+			}
+			break
+		}
 		cur := get_current(p)
 		name := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 		eat(p) // consume identifier
@@ -14783,6 +14805,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		param := TSTypeParameter{
 			loc = param_start, name = name,
 			constraint = constraint, default_ = default_,
+			in_ = in_mod, out = out_mod, const_ = const_mod,
 		}
 		param.loc.span.end = prev_end_offset(p)
 		bump_append(&params, param)

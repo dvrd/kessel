@@ -1,12 +1,12 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 14924,
+    "ok-vs-oxc": 14942,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 865,
-    "kessel-only-rejects": 1102,
+    "oxc-only-rejects": 866,
+    "kessel-only-rejects": 1082,
     "should-reject-passed": 23,
-    "pass-both": 2516,
+    "pass-both": 2517,
     "should-pass-rejected": 1676,
     "reject-both": 515
   },
@@ -14,18 +14,18 @@
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 14924,
+        "ok-vs-oxc": 14942,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 218,
-        "kessel-only-rejects": 548
+        "oxc-only-rejects": 219,
+        "kessel-only-rejects": 529
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 23,
-        "pass-both": 2479,
-        "kessel-only-rejects": 552,
+        "pass-both": 2480,
+        "kessel-only-rejects": 551,
         "should-pass-rejected": 1676,
         "oxc-only-rejects": 647,
         "reject-both": 515
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 79,
-      "kessel-only-rejects": 224
+      "kessel-only-rejects": 208
     },
     "typescript/conformance/additionalChecks": {
       "kessel-only-rejects": 1
@@ -100,7 +100,7 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/es6": {
-      "kessel-only-rejects": 46,
+      "kessel-only-rejects": 45,
       "oxc-only-rejects": 25,
       "skip-multi-file": 49
     },
@@ -189,9 +189,9 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/types": {
-      "kessel-only-rejects": 61,
+      "kessel-only-rejects": 59,
       "skip-multi-file": 10,
-      "oxc-only-rejects": 5
+      "oxc-only-rejects": 6
     },
     "typescript/conformance/typings": {
       "skip-multi-file": 9
@@ -1002,7 +1002,7 @@
       "oxc-only-rejects": 1
     },
     "babel/typescript/types": {
-      "kessel-only-rejects": 9,
+      "kessel-only-rejects": 8,
       "oxc-only-rejects": 17,
       "should-pass-rejected": 5
     },
