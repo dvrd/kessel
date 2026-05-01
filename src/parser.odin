@@ -13433,9 +13433,70 @@ parse_ts_kw :: proc(p: ^Parser, $T: typeid, start: Loc) -> ^TSType {
 	return parse_ts_postfix(p, result, start)
 }
 
+// parse_ts_constructor_type parses a TS constructor type literal starting at
+// the `new` token (which has not yet been consumed). `abstract` is true when
+// the prefix `abstract` keyword has already been eaten by the caller. Shape
+// matches OXC's TSConstructorType: { abstract, typeParameters, params, returnType }.
+parse_ts_constructor_type :: proc(p: ^Parser, start: Loc, abstract: bool) -> ^TSType {
+	eat(p) // consume `new`
+	type_params: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) {
+		type_params = parse_ts_type_parameters(p)
+	}
+	if !is_token(p, .LParen) {
+		report_error(p, "Expected '(' after 'new' in constructor type")
+		return nil
+	}
+	params := parse_ts_sig_params(p)
+	if !is_token(p, .Arrow) {
+		report_error(p, "Expected '=>' in constructor type")
+		return nil
+	}
+	arrow_start := u32(cur_offset(p))
+	eat(p) // consume `=>`
+	ret_type := parse_ts_type_annotation_bare(p)
+	if ret_type != nil {
+		ret_type.loc.span.start = arrow_start
+	}
+	ctor := new_node(p, TSConstructorType)
+	ctor.loc = start
+	ctor.type_parameters = type_params
+	ctor.params = params
+	ctor.return_type = ret_type
+	ctor.abstract_ = abstract
+	ctor.loc.span.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = ctor
+	return parse_ts_postfix(p, r, start)
+}
+
 parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
+	// `abstract new(...) => T` — TS abstract constructor type. `abstract`
+	// lexes as .Identifier (contextual keyword); we require the next token
+	// to be .New so the lookahead has zero false positives. Treated here
+	// rather than inside the .New case so the `start` Loc captures the
+	// `abstract` token (not the `new` after it).
+	// `abstract new(...) => T` — the lexer emits `.Abstract` for the
+	// keyword (see lexer.odin keyword-table). When followed by `new` it's
+	// an abstract-constructor type prefix; otherwise it falls through and
+	// is parsed as a TSTypeReference whose typeName is Identifier("abstract")
+	// via the .Abstract case in the main switch below.
+	if p.cur_type == .Abstract && peek_token(p).type == .New {
+		eat(p) // consume `abstract`
+		return parse_ts_constructor_type(p, start, true)
+	}
 	#partial switch p.cur_type {
+	case .New:
+		// TS constructor type literal: `new (x: T) => U`, optionally with
+		// type parameters `new <T>(x: T) => U`. Closes ~80 OXC corpus
+		// rejects in the "Expected '=', ',', or ';' after variable binding"
+		// cluster (S26 W6 phase 3 bug class #14). Pre-fix the .New token
+		// in type position fell through to the default `return nil` and the
+		// outer parser surfaced `new` as a JS NewExpression in expression
+		// position, breaking the variable binding. ESTree-TS shape:
+		//   { type: "TSConstructorType", abstract, typeParameters, params,
+		//     returnType }
+		return parse_ts_constructor_type(p, start, false)
 	case .LAngle:
 		// TS generic function type: `<T>(x: T) => U`. The `<` in type
 		// position has only one possible meaning — the start of TSFunctionType

@@ -5780,6 +5780,46 @@ emit_ts_type :: proc(t: ^TSType, indent: int) {
 		} else {
 			out_s("null")
 		}
+	case ^TSConstructorType:
+		// `new (params) => ret` constructor types, plus the abstract variant
+		// `abstract new (...) => ret`. Same shape as TSFunctionType with an
+		// extra `abstract: bool` field. OXC shape:
+		//   { type: "TSConstructorType", abstract, typeParameters, params,
+		//     returnType }
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSConstructorType\"")
+		emit_span_fields(v.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"abstract\": ")
+		out_s(v.abstract_ ? "true" : "false")
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"typeParameters\": ")
+		emit_ts_type_parameter_declaration(v.type_parameters, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"params\": [")
+		if len(v.params) == 0 {
+			out_s("]")
+		} else {
+			out_s("\n")
+			for fp, i in v.params {
+				print_indent(indent + 2)
+				emit_ts_function_param(fp, indent + 2)
+				if i < len(v.params) - 1 { out_s(",\n") } else { out_s("\n") }
+			}
+			print_indent(indent + 1)
+			out_s("]")
+		}
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"returnType\": ")
+		if v.return_type != nil {
+			emit_ts_type_annotation_node(v.return_type, indent + 1)
+		} else {
+			out_s("null")
+		}
 	case ^TSTupleType:
 		// `[A, B]` tuple types. Previously fell through to the default
 		// TSUnknownType arm, so every tuple annotation surfaced as
