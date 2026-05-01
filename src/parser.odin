@@ -14228,6 +14228,20 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// optionally consume a TS type-arguments list after.
 		eat(p) // consume `typeof`
 		tq_expr: ^Expression
+		// `typeof import("...")` form must short-circuit BEFORE the
+		// identifier / property-name fall-through, because `.Import` is
+		// also in is_keyword_usable_as_property_name's whitelist (so an
+		// `obj.import` member access works in expression position).
+		if is_token(p, .Import) {
+			imp_ts := parse_ts_primary_type(p)
+			if imp_ts != nil {
+				#partial switch v in imp_ts^ {
+				case ^TSImportType:
+					if v != nil { v.is_typeof = true }
+				}
+			}
+			return imp_ts
+		}
 		// Allow keyword identifiers (Identifier / kw-as-name / Await / Yield).
 		if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) ||
 		   is_token(p, .Await) || is_token(p, .Yield) {
@@ -14244,17 +14258,6 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				tq_mem.loc.span.end = prev_end_offset(p)
 				tq_expr = expression_from(p, tq_mem)
 			}
-		} else if is_token(p, .Import) {
-			// `typeof import("...")` form - delegate to import-type and
-			// flag is_typeof on the resulting node.
-			imp_ts := parse_ts_primary_type(p)
-			if imp_ts != nil {
-				#partial switch v in imp_ts^ {
-				case ^TSImportType:
-					if v != nil { v.is_typeof = true }
-				}
-			}
-			return imp_ts
 		} else {
 			// Fallback - keep the legacy expression-style parse so any
 			// shape we don't handle here still produces a node.
@@ -14469,6 +14472,21 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
 	value := get_current(p).value
+	// Built-in keyword names like `string` / `number` / `any` are
+	// pre-empted by a TSTypeReference whenever they form a qualified-name
+	// chain. TS allows shadowing primitives with namespace declarations:
+	//
+	//   declare namespace string { interface X { } }
+	//   var x: string.X;          // TypeReference, not TSStringKeyword
+	//
+	// Without this opt-out the keyword arm below short-circuits the
+	// chain and the `.X` cascade ends up unconsumed, surfacing as
+	// "Expected '=', ',', or ';' after variable binding". Closes a
+	// handful of files in that cluster (parserModuleDeclaration11.ts,
+	// uniqueSymbolsErrors.ts).
+	if p.lexer.nxt.kind == .Dot {
+		return parse_ts_type_reference(p)
+	}
 	switch value {
 	case "any":       return parse_ts_kw(p, TSAnyKeyword, start)
 	case "number":    return parse_ts_kw(p, TSNumberKeyword, start)
