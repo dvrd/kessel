@@ -4445,9 +4445,17 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	field_optional := false
 	field_definite := false
 	if is_token(p, .Question) {
-		// Only consume `?` when we're clearly on a class field (next is `:` or `=` or `;`).
+		// Consume `?` when we're clearly on a class field (next is `:` /
+		// `=` / `;` / `,` / `}`) OR on an optional class method (`?(...)`
+		// or `?<T>(...)`). The TS optional class member surface form
+		// `class C { method?() {} }` previously left the `?` on the
+		// cursor and tripped "Expected (, got ?" — closes the
+		// 14-file cluster of that exact error. Mirrors the `?:` field
+		// shape next to it.
 		nxt := p.lexer.nxt.kind
-		if nxt == .Colon || nxt == .Assign || nxt == .Semi || nxt == .Comma || nxt == .RBrace {
+		if nxt == .Colon || nxt == .Assign || nxt == .Semi ||
+		   nxt == .Comma || nxt == .RBrace ||
+		   nxt == .LParen || nxt == .LAngle {
 			field_optional = true
 			eat(p)
 		}
