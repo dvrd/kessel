@@ -1,12 +1,12 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15136,
+    "ok-vs-oxc": 15135,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 892,
-    "kessel-only-rejects": 842,
+    "oxc-only-rejects": 893,
+    "kessel-only-rejects": 838,
     "should-reject-passed": 26,
-    "pass-both": 2550,
+    "pass-both": 2554,
     "should-pass-rejected": 1659,
     "reject-both": 516
   },
@@ -14,9 +14,9 @@
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15136,
+        "ok-vs-oxc": 15135,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 229,
+        "oxc-only-rejects": 230,
         "kessel-only-rejects": 325
       }
     },
@@ -24,8 +24,8 @@
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 26,
-        "pass-both": 2513,
-        "kessel-only-rejects": 515,
+        "pass-both": 2517,
+        "kessel-only-rejects": 511,
         "should-pass-rejected": 1659,
         "oxc-only-rejects": 663,
         "reject-both": 516
@@ -181,7 +181,7 @@
     "typescript/conformance/types": {
       "kessel-only-rejects": 10,
       "skip-multi-file": 10,
-      "oxc-only-rejects": 7
+      "oxc-only-rejects": 8
     },
     "typescript/conformance/typings": {
       "skip-multi-file": 9
@@ -887,7 +887,6 @@
       "should-pass-rejected": 1
     },
     "babel/typescript/assert-predicate": {
-      "kessel-only-rejects": 3,
       "should-pass-rejected": 1
     },
     "babel/typescript/assign": {
@@ -983,7 +982,7 @@
     },
     "babel/typescript/types": {
       "oxc-only-rejects": 16,
-      "kessel-only-rejects": 4,
+      "kessel-only-rejects": 3,
       "should-pass-rejected": 5
     },
     "babel/typescript/types-arrow-function": {

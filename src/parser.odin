@@ -10137,7 +10137,8 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				}
 			}
 		}
-		if !async_lt_break && (next.type == .Identifier || next.type == .LParen || async_arrow_ctx_kw) {
+		if !async_lt_break && (next.type == .Identifier || next.type == .LParen || async_arrow_ctx_kw ||
+		   (allow_ts_mode(p) && next.type == .LAngle)) {
 			// This might be an async arrow function: async x => x or async () => {}
 			if next.type == .Identifier || async_arrow_ctx_kw {
 				// async x => ...
@@ -10287,6 +10288,27 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				// Fall through: `async` will be re-parsed as a bare
 				// IdentifierReference below; the LHS-tail loop then
 				// consumes `(...)` as a CallExpression.
+			} else if allow_ts_mode(p) && next.type == .LAngle {
+				// TS async generic arrow: `async <T>(a: T): T => a`.
+				// Trial-parse: consume `async`, parse `<T>` as type params,
+				// then delegate to the paren-params path. On failure, roll
+				// back and treat `async` as a plain identifier.
+				snap := lexer_snapshot(p)
+				eat(p) // consume async
+				type_params := parse_ts_type_parameters(p)
+				if is_token(p, .LParen) {
+					arrow := parse_async_arrow_with_parens(p, current)
+					if arrow != nil {
+						// Attach the type parameters.
+						if ae, ok := arrow^.(^ArrowFunctionExpression); ok && ae != nil {
+							ae.type_parameters = type_params
+						}
+						if len(p.errors) == snap.errors_len {
+							return arrow
+						}
+					}
+				}
+				lexer_restore(p, snap)
 			}
 		}
 		// async as identifier
