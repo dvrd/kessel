@@ -13238,6 +13238,14 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		// and is the message the negative-fixtures gate locks in.
 		return nil
 	}
+	// TS: optional type arguments on decorator expression —
+	// `@decorator<string>()` / `@decorator<T>`. TypeScript allows
+	// generic type arguments on the decorator call expression.
+	type_arguments: Maybe(^TSTypeParameterInstantiation)
+	if allow_ts_mode(p) && is_token(p, .LAngle) {
+		type_arguments = parse_ts_type_arguments(p)
+	}
+
 	// Optional single Arguments suffix. parse_arguments consumes both
 	// `(` and `)` itself, so don't eat them here.
 	if is_token(p, .LParen) {
@@ -13247,6 +13255,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		call.callee = expr
 		call.arguments = args
 		call.optional = false
+		call.type_parameters = type_arguments
 		call.loc.span.end = prev_end_offset(p)
 		expr = expression_from(p, call)
 	}
@@ -13291,12 +13300,25 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 		}
 		return stmt
 	}
-	if !is_token(p, .Class) { report_error(p, "Expected class after decorator"); return nil }
+	// `abstract class` after decorator — consume `abstract` and set the
+	// flag, mirroring the statement-level `.Abstract` → `.Class` path.
+	is_abstract_class := false
+	if is_token(p, .Abstract) {
+		if is_next_token(p, .Class) {
+			is_abstract_class = true
+			eat(p) // consume `abstract`
+		}
+	}
+	if !is_token(p, .Class) {
+		report_error(p, "Expected class after decorator")
+		return nil
+	}
 	stmt := parse_class_declaration(p)
 	if stmt != nil {
 		#partial switch s in stmt^ {
 		case ^ClassDeclaration:
 			s.expr.decorators = decorators
+			if is_abstract_class { s.expr.abstract = true }
 			if len(decorators) > 0 { s.expr.loc.span.start = decorators[0].loc.span.start }
 		}
 	}
