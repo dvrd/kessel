@@ -10707,6 +10707,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if !expect_token(p, .RParen) {
 			return nil
 		}
+		// TypeScript return type annotation on object-literal accessor.
+		accessor_return_type: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Colon) {
+			accessor_return_type = parse_ts_return_type_annotation(p)
+		}
 		body := parse_function_body(p)
 		body_strict := p.last_body_strict
 		p.in_method = prev_in_method
@@ -10761,6 +10766,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.body = body
 		fn.generator = is_generator
 		fn.async = is_async
+		fn.return_type = accessor_return_type
 		fn.loc.span.end = prev_end_offset(p)
 		value = expression_from(p, fn)
 	} else if is_token(p, .LParen) {
