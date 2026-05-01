@@ -1,34 +1,34 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15154,
+    "ok-vs-oxc": 15159,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 901,
-    "kessel-only-rejects": 799,
+    "oxc-only-rejects": 903,
+    "kessel-only-rejects": 790,
     "should-reject-passed": 26,
-    "pass-both": 2569,
+    "pass-both": 2573,
     "should-pass-rejected": 1658,
-    "reject-both": 514
+    "reject-both": 512
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15154,
+        "ok-vs-oxc": 15159,
         "skip-multi-file": 3519,
         "oxc-only-rejects": 235,
-        "kessel-only-rejects": 301
+        "kessel-only-rejects": 296
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 26,
-        "pass-both": 2532,
-        "kessel-only-rejects": 496,
+        "pass-both": 2536,
+        "kessel-only-rejects": 492,
         "should-pass-rejected": 1658,
-        "oxc-only-rejects": 666,
-        "reject-both": 514
+        "oxc-only-rejects": 668,
+        "reject-both": 512
       }
     },
     "estree": {
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 78,
-      "kessel-only-rejects": 123
+      "kessel-only-rejects": 119
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10,
@@ -91,7 +91,7 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/es6": {
-      "kessel-only-rejects": 36,
+      "kessel-only-rejects": 35,
       "oxc-only-rejects": 25,
       "skip-multi-file": 49
     },
@@ -963,25 +963,22 @@
       "kessel-only-rejects": 1
     },
     "babel/typescript/type-arguments": {
-      "kessel-only-rejects": 4,
       "oxc-only-rejects": 8,
-      "should-pass-rejected": 3
+      "should-pass-rejected": 3,
+      "kessel-only-rejects": 3
     },
     "babel/typescript/type-arguments-bit-shift-left-like": {
       "kessel-only-rejects": 7
     },
     "babel/typescript/type-only-import-export-specifiers": {
-      "oxc-only-rejects": 5,
+      "oxc-only-rejects": 7,
       "should-pass-rejected": 2,
-      "kessel-only-rejects": 3
+      "kessel-only-rejects": 1
     },
     "babel/typescript/types": {
       "oxc-only-rejects": 16,
       "kessel-only-rejects": 3,
       "should-pass-rejected": 5
-    },
-    "babel/typescript/types-arrow-function": {
-      "kessel-only-rejects": 1
     },
     "babel/v8intrinsic/expression": {
       "should-pass-rejected": 4,

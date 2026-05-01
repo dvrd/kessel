@@ -8160,6 +8160,21 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		               is_keyword_usable_as_property_name(nxt)
 		if nxt_is_name && nxt != .As {
 			eat(p) // consume `type`
+		} else if nxt == .As {
+			// `import { type as }` / `import { type as as foo }` — the
+			// `type` modifier is followed by the imported name `as`. We
+			// need 2-token lookahead to distinguish:
+			//   `type as ,` / `type as }` / `type as from` → imported=as,
+			//                                                modifier on
+			//   `type as foo`           → rename: imported=type, local=foo
+			snap := lexer_snapshot(p)
+			eat(p)            // consume `type`
+			eat(p)            // consume `as`
+			after := p.cur_type
+			lexer_restore(p, snap)
+			if after == .Comma || after == .RBrace || after == .From {
+				eat(p) // commit: consume `type` modifier
+			}
 		}
 	}
 
@@ -8572,6 +8587,17 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 			               is_keyword_usable_as_property_name(nxt)
 			if nxt_is_name && nxt != .As {
 				eat(p) // consume `type`
+			} else if nxt == .As {
+				// `export { type as }` / `export { type as as foo }`. See
+				// parse_import_specifier for the disambiguation rule.
+				snap := lexer_snapshot(p)
+				eat(p)
+				eat(p)
+				after := p.cur_type
+				lexer_restore(p, snap)
+				if after == .Comma || after == .RBrace || after == .From {
+					eat(p)
+				}
 			}
 		}
 
@@ -9585,6 +9611,26 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.optional = false // optional flag handled by ChainExpression wrapper
 				call.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, call)
+			} else if is_token(p, .LAngle) && (p.lang == .TS || p.lang == .TSX) {
+				// `f?.<T>()` — optional-chain call with TS type arguments.
+				// The type-arg list MUST be followed by `(args)` per babel /
+				// OXC; otherwise it's a parse error. Build a CallExpression
+				// with type_parameters inside the chain. Test:
+				// babel/typescript/type-arguments/call-optional-chain/input.ts.
+				targs := parse_ts_type_arguments(p)
+				if !is_token(p, .LParen) {
+					report_error(p, "Expected '(' after type arguments in optional call")
+					return expr
+				}
+				args := parse_arguments(p)
+				call := new_node(p, CallExpression)
+				call.loc = loc_from_expr(expr)
+				call.callee = expr
+				call.arguments = args
+				call.type_parameters = targs
+				call.optional = false // optional flag handled by ChainExpression wrapper
+				call.loc.span.end = prev_end_offset(p)
+				expr = expression_from(p, call)
 			} else {
 				report_error(p, "Unexpected token after ?.")
 				return expr
@@ -9716,6 +9762,14 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			     .LAngle, .RAngle, .LEq, .GEq, .Question, .Colon,
 			     .Arrow, .EOF, .In, .Instanceof, .As, .Satisfies, .Not,
 			     .PlusPlus, .MinusMinus:
+				allow = true
+			}
+			// ASI follower: if the next token is on a new line, consuming
+			// `!` here is safe — the next token will trigger ASI in the
+			// caller's statement-end check. Without this, `null!\nlet x =
+			// 2` reported "Expected semicolon" because the `!` lookahead
+			// saw `let` (an Identifier-like) and refused to consume.
+			if !allow && (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 				allow = true
 			}
 			// IMPORTANT: in Odin `break` inside `switch` inside `for` exits
@@ -14004,9 +14058,16 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 			eat(p)
 		}
 		after_close: TokenType = .EOF
+		after_rparen: TokenType = .EOF
 		if depth == 0 && p.cur_type == close_kind {
-			eat(p) // consume the matching close
+			eat(p) // consume the matching close `}` / `]`
 			after_close = p.cur_type
+			// `({a})=>R` — capture the token after the outer `)` BEFORE
+			// restoring, since lexer_restore rewinds the cur/nxt cache.
+			if after_close == .RParen {
+				eat(p) // consume `)`
+				after_rparen = p.cur_type
+			}
 		}
 		lexer_restore(p, snap)
 		// Function-type signals after a destructured parameter:
@@ -14014,8 +14075,18 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 		//   `?` - optional parameter
 		//   `,` - more parameters follow
 		//   `=` - default initializer (rare but legal in TS function types)
-		return after_close == .Colon || after_close == .Question ||
-		       after_close == .Comma || after_close == .Assign
+		if after_close == .Colon || after_close == .Question ||
+		   after_close == .Comma || after_close == .Assign {
+			return true
+		}
+		// Untyped destructured param: `({a})=>R`. The next non-trivia
+		// after the matching `}` is `)`, then `=>`. Test:
+		// typescript/compiler/renamingDestructuredPropertyInFunctionType.ts
+		// (lines 12-19, including untyped \`({ a: string }) => typeof X\`).
+		if after_close == .RParen && after_rparen == .Arrow {
+			return true
+		}
+		return false
 	}
 	// Accept any token that can stand in for a BindingIdentifier in
 	// parameter position — plain `.Identifier` plus every contextual
