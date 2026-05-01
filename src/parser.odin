@@ -5000,6 +5000,25 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		// `var\nlet x = 1` previously slid through with the lenient
 		// match_*, leaving the parser to emit two valid statements when
 		// the spec mandates a SyntaxError between them.
+		//
+		// ASI for `let x\n/regex/`: after a complete VariableDeclarator with
+		// no initializer, the next-line `/` cannot continue the declaration
+		// as division (the binding has no value to divide). Per ASI rule 1
+		// ("offending token is not allowed by any production"), insert a
+		// semicolon. Relex the `/` as a regex so the next statement parses.
+		// Test: babel/core/regression/2591/input.js (`let x\n/wow/;`).
+		if p.cur_type == .Div && p.cur_tok.had_line_terminator {
+			relex_as_regex(p.lexer)
+			ft := p.lexer.cur
+			p.cur_type = ft.kind
+			p.cur_tok.type = ft.kind
+			p.cur_tok.loc = LexerLoc(ft.start)
+			p.cur_tok.raw_end = ft.end
+			p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
+			if ft.kind == .RegularExpression {
+				p.cur_tok.literal = p.lexer.cur_lit_value
+			}
+		}
 		expect_semicolon_or_asi(p)
 	}
 
@@ -9507,6 +9526,25 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				report_error(p, "Expected identifier after '.'")
 				return expr
 			}
+			// `.in` / `.instanceof` etc.: the lexer's can_start_regex set
+			// includes these as regex-starters (they're operators in most
+			// contexts), so the next `/` was pre-fetched as a regex literal.
+			// In property-access position (\`a.in / b\`) it's division. Relex
+			// before consuming the property name. Test:
+			// babel/core/uncategorised/326/input.ts (`a.in / b`).
+			if (p.cur_type == .In || p.cur_type == .Instanceof) &&
+			   p.lexer.nxt.kind == .RegularExpression {
+				// Drop any "unterminated regex" lex error that came from
+				// the speculative regex-lex.
+				for len(p.lexer.lexer_errors) > 0 {
+					last := p.lexer.lexer_errors[len(p.lexer.lexer_errors) - 1]
+					if last.offset >= p.lexer.nxt.start {
+						pop(&p.lexer.lexer_errors)
+					} else { break }
+				}
+				p.lexer.offset = int(p.lexer.nxt.start)
+				p.lexer.nxt = lex_slash_as_div(p.lexer)
+			}
 			prop := parse_identifier_name(p)
 			member, member_e := new_expr(p, MemberExpression)
 			member.loc = loc_from_expr(expr)
@@ -9862,6 +9900,16 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				     .AssignPow, .AssignLShift, .AssignRShift, .AssignURShift,
 				     .AssignBitAnd, .AssignBitOr, .AssignBitXor,
 				     .AssignLogicalAnd, .AssignLogicalOr, .AssignNullish:
+					inst_follow = true
+				}
+				// ASI follower: when the next token sits on a new line, a
+				// freshly-completed `f<T>` is the end-of-statement form
+				// (TSInstantiationExpression) and the next line begins a
+				// new statement. Without this, `const x = f<true>\nlet y
+				// = 0` rolled back to a comparison parse. Test:
+				// babel/typescript/type-arguments/instantiation-expression-asi/
+				// input.ts.
+				if !inst_follow && !call_follow && p.cur_tok.had_line_terminator {
 					inst_follow = true
 				}
 			}

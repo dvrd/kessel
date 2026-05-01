@@ -4,9 +4,9 @@
     "ok-vs-oxc": 15159,
     "skip-multi-file": 3519,
     "oxc-only-rejects": 903,
-    "kessel-only-rejects": 790,
+    "kessel-only-rejects": 787,
     "should-reject-passed": 26,
-    "pass-both": 2573,
+    "pass-both": 2576,
     "should-pass-rejected": 1658,
     "reject-both": 512
   },
@@ -24,8 +24,8 @@
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 26,
-        "pass-both": 2536,
-        "kessel-only-rejects": 492,
+        "pass-both": 2539,
+        "kessel-only-rejects": 489,
         "should-pass-rejected": 1658,
         "oxc-only-rejects": 668,
         "reject-both": 512
@@ -242,7 +242,6 @@
       "should-pass-rejected": 3
     },
     "babel/core/regression": {
-      "kessel-only-rejects": 1,
       "oxc-only-rejects": 1
     },
     "babel/core/scope": {
@@ -258,7 +257,7 @@
     },
     "babel/core/uncategorised": {
       "should-pass-rejected": 35,
-      "kessel-only-rejects": 68,
+      "kessel-only-rejects": 67,
       "oxc-only-rejects": 25
     },
     "babel/es2015/array-rest-spread": {
@@ -965,7 +964,7 @@
     "babel/typescript/type-arguments": {
       "oxc-only-rejects": 8,
       "should-pass-rejected": 3,
-      "kessel-only-rejects": 3
+      "kessel-only-rejects": 2
     },
     "babel/typescript/type-arguments-bit-shift-left-like": {
       "kessel-only-rejects": 7
