@@ -15114,6 +15114,14 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 				}
 			}
 		}
+	case .Import:
+		// `declare import X = N` — ambient import-equals. TSImportEqualsDeclaration
+		// has no declare flag in ESTree; just parse it normally.
+		import_start := cur_loc(p)
+		eat(p) // consume `import`
+		if p.cur_type == .Identifier && p.lexer != nil && p.lexer.nxt.kind == .Assign {
+			stmt = parse_ts_import_equals(p, import_start, .Value)
+		}
 	case .Const:
 		if is_next_identifier_value(p, "enum") {
 			stmt = parse_ts_enum_declaration(p)
