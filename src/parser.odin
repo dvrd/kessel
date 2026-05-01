@@ -4241,12 +4241,22 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		}
 	}
 
-	// Check for get/set accessor keywords
+	// Check for get/set accessor keywords. `get` / `set` are contextual
+	// keywords — valid as plain class-member names too. The accessor
+	// promotion fires only when the next token can begin a property name
+	// (identifier, string, computed-name `[`, generator `*`, or any
+	// keyword usable as a property name). Tokens like `=` (field init),
+	// `:` (TS type annotation), `?` (TS optional field), `,` `;` `(` `}`
+	// (separators / immediate body) keep `get` / `set` as the field name
+	// (e.g. `public get = function() {}`, `set: boolean;`).
 	if is_token(p, .Get) || is_token(p, .Set) {
 		is_getter := is_token(p, .Get)
-		// Only treat as accessor if followed by a method name (not LParen directly)
 		next := peek_dispatch(p)
-		if next.type != .LParen && next.type != .Semi && next.type != .RBrace {
+		looks_like_accessor_name := next.type == .Identifier || next.type == .String ||
+			next.type == .Number || next.type == .BigInt || next.type == .LBracket ||
+			next.type == .Mul || next.type == .PrivateIdentifier ||
+			is_keyword_usable_as_property_name(next.type)
+		if looks_like_accessor_name {
 			if is_getter {
 				kind = .Get
 			} else {
