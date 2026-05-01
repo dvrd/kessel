@@ -449,6 +449,13 @@ Parser :: struct {
 	//          forbidden, generic arrow requires trailing comma.
 	lang:            Lang,
 
+	// Depth counter for nested ConditionalExpression consequent branches.
+	// Incremented while parsing the consequent of `? ...`, decremented
+	// after. Used by looks_like_ts_arrow_params to suppress the aggressive
+	// byte-level `)...:...=>` scan that can misinterpret a ternary `:`
+	// as a TS arrow return-type annotation.
+	conditional_depth: int,
+
 	// Disallow 'in' as binary operator (for for-loop init parsing)
 	no_in:           bool,
 	// True while parsing the RHS of an `in` operator. Used to reject
@@ -12585,7 +12592,13 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	// branch is a relational operator, not a for-in separator.
 	prev_no_in := p.no_in
 	p.no_in = false
+	// Track that we're inside a ternary consequent so that
+	// looks_like_ts_arrow_params suppresses the aggressive
+	// byte-scan that can mistake the ternary `:` for a TS
+	// arrow return-type annotation.
+	p.conditional_depth += 1
 	consequent := parse_assignment_expression(p)
+	p.conditional_depth -= 1
 	p.no_in = prev_no_in
 	if consequent == nil {
 		return nil
@@ -14979,7 +14992,13 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 	// over-broad detection here is safe — the cost of a false-positive is
 	// one rollback. Closes ~30 OXC corpus rejects in the
 	// "Expected ), got :" cluster (S26 W6 phase 3 bug class #18).
-	if p.lexer != nil {
+	//
+	// EXCEPT inside a ternary consequent: the byte scan can misread the
+	// ternary `:` + alternate `v => 0` as `): RetType => body`, eating the
+	// colon and wrecking the ternary. When conditional_depth > 0 skip the
+	// broad scan; the `(ident :` fast path above is unambiguous and still
+	// fires. Closes OXC corpus "Expected :, got ;" sub-cluster (W7 #44).
+	if p.lexer != nil && p.conditional_depth == 0 {
 		src := p.lexer.source_bytes
 		lparen_off := int(p.lexer.cur.start)
 		depth := 0
