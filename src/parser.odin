@@ -1625,7 +1625,8 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			case .Identifier:
 				if nxt.value == "interface" || nxt.value == "type" ||
 				   nxt.value == "enum" || nxt.value == "namespace" ||
-				   nxt.value == "module" || nxt.value == "abstract" {
+				   nxt.value == "module" || nxt.value == "abstract" ||
+				   nxt.value == "global" {
 					is_decl_start = true
 				}
 			}
@@ -15193,6 +15194,22 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 					if mod, ok := stmt^.(^TSModuleDeclaration); ok { mod.declare = true }
 				}
 			}
+		case "global":
+			// `declare global { ... }` — TS global augmentation. Unlike
+			// `namespace X` / `module "x"`, the keyword IS the id (always
+			// the literal identifier `global`) and there's no dotted form,
+			// so we build the TSModuleDeclaration inline rather than
+			// reusing parse_ts_module_declaration which eats one keyword
+			// then expects a separate name token.
+			if is_next_token(p, .LBrace) {
+				stmt = parse_ts_global_declaration(p)
+				if stmt != nil {
+					if mod, ok := stmt^.(^TSModuleDeclaration); ok {
+						mod.declare = true
+						mod.global = true
+					}
+				}
+			}
 		}
 	}
 
@@ -15338,6 +15355,45 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	decl := new_node(p, TSEnumDeclaration); decl.loc = start; decl.id = id
 	decl.body = TSEnumBody{loc = body_start, members = members}; decl.body.loc.span.end = prev_end_offset(p)
 	decl.const_ = is_const; decl.loc.span.end = prev_end_offset(p)
+	stmt := new_node(p, Statement); stmt^ = decl; return stmt
+}
+
+// `declare global { ... }`. Caller has already eaten `declare`; current
+// token is the identifier `global` and the lookahead has confirmed `{`.
+// Produces a TSModuleDeclaration with kind=.Global and id=Identifier{"global"}.
+// Body parsing mirrors parse_ts_module_declaration's brace-block branch
+// (ambient context, progress-guarded statement loop, span widening).
+parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
+	start := cur_loc(p)
+	cur := get_current(p)
+	id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
+	eat(p) // consume `global`
+
+	decl := new_node(p, TSModuleDeclaration)
+	decl.loc = start
+	decl.id = expression_from(p, id_ident)
+	decl.kind = .Global
+
+	body_start := cur_loc(p); eat(p) // consume `{` (lookahead-confirmed)
+	stmts := make([dynamic]^Statement, 0, 8, p.allocator)
+	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		// Same progress guard as parse_ts_module_declaration (W6 phase 3 #1).
+		prev_offset := int(cur_offset(p))
+		s := parse_statement_or_declaration(p)
+		if s != nil { bump_append(&stmts, s) }
+		else if int(cur_offset(p)) == prev_offset {
+			msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
+			report_error(p, msg)
+			eat(p)
+		}
+	}
+	expect_token(p, .RBrace)
+	blk := new_node(p, TSModuleBlock)
+	blk.loc = body_start; blk.body = stmts
+	blk.loc.span.end = prev_end_offset(p)
+	body_union := new_node(p, TSModuleBody); body_union^ = blk
+	decl.body = body_union
+	decl.loc.span.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }
 
