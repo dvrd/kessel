@@ -6609,6 +6609,12 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 		// ExportNamedDeclaration has no "default" name (that's ExportDefaultDeclaration)
 		case ^ExportDefaultDeclaration:
 			if v == nil { continue }
+			// In TS mode, `export default` is allowed multiple times because
+			// (1) `export default interface I {}` is type-space and doesn't
+			// shadow a value default, and (2) TS surfaces this as a semantic
+			// rather than a syntax error — OXC and Babel both accept the
+			// duplicate. Skip the syntactic flag in TS / TSX modes.
+			if allow_ts_mode(p) { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
 				bump_append(&p.errors, ParseError{loc = LexerLoc(v.loc.span.start), message = "Duplicate exported name 'default'"})
 			} else { scope_map_set(&exported, "default", v.loc.span.start) }
@@ -13702,6 +13708,47 @@ parse_ts_constructor_type :: proc(p: ^Parser, start: Loc, abstract: bool) -> ^TS
 	return parse_ts_postfix(p, r, start)
 }
 
+// Parse a TS template-literal type with substitutions starting at the
+// .TemplateHead token. Mirrors parse_template_literal's quasi-collecting
+// loop but parses each `${...}` slot as a TS type rather than an
+// expression. Closes ~10 OXC corpus rejects in the variable-binding
+// cluster (e.g. `noSubstitutionTemplateStringLiteralTypes.ts` neighbours)
+// and is required for any `\`prefix-${T}-suffix\`` literal type.
+parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	head := get_current(p)
+	node := new_node(p, TSTemplateLiteralType); node.loc = start
+	node.quasis = make([dynamic]TemplateElement, 0, 4, p.allocator)
+	node.types  = make([dynamic]^TSType, 0, 4, p.allocator)
+	head_elem := TemplateElement{loc = loc_from_token(&head), tail = false, raw = head.value}
+	if cooked, ok := head.literal.(string); ok { head_elem.cooked = cooked }
+	bump_append(&node.quasis, head_elem)
+	eat(p) // consume TemplateHead
+	for {
+		t := parse_ts_type(p)
+		if t != nil { bump_append(&node.types, t) }
+		tok := get_current(p)
+		if tok.type == .TemplateMiddle {
+			mid_elem := TemplateElement{loc = loc_from_token(&tok), tail = false, raw = tok.value}
+			if cooked, ok := tok.literal.(string); ok { mid_elem.cooked = cooked }
+			bump_append(&node.quasis, mid_elem)
+			eat(p)
+			continue
+		}
+		if tok.type == .TemplateTail {
+			tail_elem := TemplateElement{loc = loc_from_token(&tok), tail = true, raw = tok.value}
+			if cooked, ok := tok.literal.(string); ok { tail_elem.cooked = cooked }
+			bump_append(&node.quasis, tail_elem)
+			eat(p)
+			break
+		}
+		report_error(p, "Expected template middle / tail token in template literal type")
+		break
+	}
+	node.loc.span.end = prev_end_offset(p) + 1 // include trailing backtick
+	r := new_node(p, TSType); r^ = node
+	return parse_ts_postfix(p, r, start)
+}
+
 parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
 	// `abstract new(...) => T` — TS abstract constructor type. `abstract`
@@ -13956,6 +14003,61 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		node.type_parameter.loc = pn.loc // span of the bare `V` - OXC shape
 		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
+	case .Minus, .Plus:
+		// TS prefixed numeric / bigint literal type: `let y: -1 = -1;`,
+		// `let z: -1n = -1n`. ESTree shape: TSLiteralType whose literal is
+		// a UnaryExpression(operator="-", argument=Literal). Only `-` and
+		// `+` qualify, and only on a numeric or bigint literal. Anything
+		// else (e.g. `-x`, `-(1)`) is a parse error in TS type position.
+		op_tok := get_current(p)
+		op_kind: UnaryOperator = op_tok.type == .Minus ? .Minus : .Plus
+		eat(p) // consume `-` / `+`
+		if p.cur_type != .Number && p.cur_type != .BigInt {
+			report_error(p, "Expected numeric or bigint literal after unary operator in type")
+			return nil
+		}
+		lit_start := cur_loc(p)
+		lit_expr: ^Expression
+		if p.cur_type == .Number {
+			cur := get_current(p); nl := new_node(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
+			if v, ok := cur.literal.(f64); ok { nl.value = v }
+			eat(p)
+			lit_expr = expression_from(p, nl)
+		} else {
+			cur := get_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
+			if v, ok := cur.literal.(string); ok { bl.value = v }
+			eat(p)
+			lit_expr = expression_from(p, bl)
+		}
+		unary := new_node(p, UnaryExpression)
+		unary.loc = start
+		unary.operator = op_kind
+		unary.argument = lit_expr
+		unary.prefix = true
+		unary.loc.span.end = prev_end_offset(p)
+		_ = lit_start
+		node := new_node(p, TSLiteralType); node.loc = start
+		node.literal = expression_from(p, unary)
+		node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node
+		return parse_ts_postfix(p, r, start)
+	case .Template:
+		// TS no-substitution template-literal type: `const x: `foo` = "foo"`.
+		// Shape: TSLiteralType whose literal is a TemplateLiteral with one
+		// quasi and zero expressions. Reuse parse_template_literal so the
+		// `cooked` decode and §12.9.6 escape validation match the JS
+		// expression-position template handling exactly.
+		lit := parse_template_literal(p, false)
+		node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit
+		node.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = node
+		return parse_ts_postfix(p, r, start)
+	case .TemplateHead:
+		// TS template-literal type with substitutions: `\`a${T}b\``. Each
+		// `${...}` slot holds a TYPE, not an expression — so we can't reuse
+		// parse_template_literal (which calls parse_assignment_expression).
+		// Build TSTemplateLiteralType directly: alternating quasis and types.
+		return parse_ts_template_literal_type(p, start)
 	case .String, .Number, .BigInt, .True, .False:
 		// TS literal-type postfix chain: `"abc"[]`, `1[]`, `42n[]`, `true[]`,
 		// `1[][]`, `1 | 1[]`, etc. Pre-fix all four literal-type cases
