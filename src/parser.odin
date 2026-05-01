@@ -13371,6 +13371,44 @@ parse_ts_kw :: proc(p: ^Parser, $T: typeid, start: Loc) -> ^TSType {
 parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
 	#partial switch p.cur_type {
+	case .LAngle:
+		// TS generic function type: `<T>(x: T) => U`. The `<` in type
+		// position has only one possible meaning — the start of TSFunctionType
+		// with type parameters. Pre-fix kessel didn't recognize this, so
+		// type annotations like `declare const f: <T>(x: T) => T` choked at
+		// the `<` and the parser fell back to default-binding logic that
+		// reported "Expected '=', ',', or ';' after variable binding". In
+		// type-alias position (`type F = <T>(...) => T`) the same gap was
+		// hidden because the parser silently treated `<T>(...) => T` as a
+		// JS ArrowFunctionExpression in expression-statement position
+		// (the trailing `;` made the test pass exit-cleanly while the AST
+		// shape was wrong). Closes 130+ OXC corpus rejects in the
+		// "Expected '=', ',', or ';' after variable binding" cluster
+		// (S26 W6 phase 3 bug class #9).
+		type_params := parse_ts_type_parameters(p)
+		if !is_token(p, .LParen) {
+			report_error(p, "Expected '(' after generic type parameters in function type")
+			return nil
+		}
+		params := parse_ts_sig_params(p)
+		if !is_token(p, .Arrow) {
+			report_error(p, "Expected '=>' in generic function type")
+			return nil
+		}
+		arrow_start := u32(cur_offset(p))
+		eat(p) // consume `=>`
+		ret_type := parse_ts_type_annotation_bare(p)
+		if ret_type != nil {
+			ret_type.loc.span.start = arrow_start
+		}
+		fn := new_node(p, TSFunctionType)
+		fn.loc = start
+		fn.type_parameters = type_params
+		fn.params = params
+		fn.return_type = ret_type
+		fn.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = fn
+		return parse_ts_postfix(p, r, start)
 	case .LParen:
 		// TS function type with named params: `(x: T, ...) => U`.
 		// Detected cheaply via 1-2 token lookahead because the outer type
