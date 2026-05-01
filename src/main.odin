@@ -2386,6 +2386,7 @@ expression_inner_nil :: proc(expr: ^Expression) -> bool {
 	case ^TSSatisfiesExpression:    return e == nil
 	case ^TSNonNullExpression:      return e == nil
 	case ^TSTypeAssertion:          return e == nil
+	case ^TSInstantiationExpression: return e == nil
 	case ^ParenthesizedExpression:  return e == nil
 	}
 	return true
@@ -2437,6 +2438,7 @@ get_expression_loc :: proc(expr: ^Expression) -> Loc {
 	case ^TSSatisfiesExpression:    return e.loc
 	case ^TSNonNullExpression:      return e.loc
 	case ^TSTypeAssertion:          return e.loc
+	case ^TSInstantiationExpression: return e.loc
 	case ^ParenthesizedExpression:  return e.loc
 	}
 	return Loc{}
@@ -7183,6 +7185,22 @@ print_expression_ast :: proc(expr: ^Expression, indent: int) {
 		print_indent(indent)
 		out_s("}")
 
+	case ^TSInstantiationExpression:
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(e.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("},\n")
+		print_indent(indent)
+		out_s("\"typeArguments\": ")
+		if e.type_arguments != nil {
+			emit_ts_type_argument_list(e.type_arguments, indent)
+		} else {
+			out_s("null")
+		}
+
 	case ^TSTypeAssertion:
 		out_s(",\n")
 		print_indent(indent)
@@ -7314,6 +7332,7 @@ get_expression_type_name :: proc(expr: ^Expression) -> string {
 	case ^TSSatisfiesExpression: return "TSSatisfiesExpression"
 	case ^TSNonNullExpression:   return "TSNonNullExpression"
 	case ^TSTypeAssertion:       return "TSTypeAssertion"
+	case ^TSInstantiationExpression: return "TSInstantiationExpression"
 	case ^ParenthesizedExpression: return "ParenthesizedExpression"
 	}
 	return "Unknown"

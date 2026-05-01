@@ -1,34 +1,34 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15135,
+    "ok-vs-oxc": 15137,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 893,
-    "kessel-only-rejects": 838,
+    "oxc-only-rejects": 894,
+    "kessel-only-rejects": 831,
     "should-reject-passed": 26,
-    "pass-both": 2554,
+    "pass-both": 2559,
     "should-pass-rejected": 1659,
-    "reject-both": 516
+    "reject-both": 515
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15135,
+        "ok-vs-oxc": 15137,
         "skip-multi-file": 3519,
         "oxc-only-rejects": 230,
-        "kessel-only-rejects": 325
+        "kessel-only-rejects": 323
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 26,
-        "pass-both": 2517,
-        "kessel-only-rejects": 511,
+        "pass-both": 2522,
+        "kessel-only-rejects": 506,
         "should-pass-rejected": 1659,
-        "oxc-only-rejects": 663,
-        "reject-both": 516
+        "oxc-only-rejects": 664,
+        "reject-both": 515
       }
     },
     "estree": {
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 77,
-      "kessel-only-rejects": 138
+      "kessel-only-rejects": 137
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10,
@@ -179,7 +179,7 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/types": {
-      "kessel-only-rejects": 10,
+      "kessel-only-rejects": 9,
       "skip-multi-file": 10,
       "oxc-only-rejects": 8
     },
@@ -883,7 +883,8 @@
     },
     "babel/typescript/arrow-function": {
       "should-reject-passed": 1,
-      "kessel-only-rejects": 6,
+      "kessel-only-rejects": 2,
+      "oxc-only-rejects": 1,
       "should-pass-rejected": 1
     },
     "babel/typescript/assert-predicate": {
@@ -949,7 +950,6 @@
       "oxc-only-rejects": 5
     },
     "babel/typescript/regression": {
-      "kessel-only-rejects": 1,
       "should-pass-rejected": 1
     },
     "babel/typescript/scope": {

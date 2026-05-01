@@ -476,6 +476,17 @@ TSTypeAssertion :: struct {
 	expression:      ^Expression,
 }
 
+// Instantiation expression: `f<T>` (the bare-type-arguments form, not
+// followed by `(args)`). Babel and OXC both surface this as a distinct
+// node so consumers can tell `f<T>` (instantiate the polymorphic value)
+// from `f<T>(args)` (CallExpression with type_parameters). See
+// microsoft/TypeScript#47607.
+TSInstantiationExpression :: struct {
+	loc:             Loc,
+	expression:      ^Expression,
+	type_arguments:  ^TSTypeParameterInstantiation,
+}
+
 // TS interface declaration
 TSInterfaceDeclaration :: struct {
 	loc:             Loc,
@@ -1530,6 +1541,7 @@ Expression :: union {
 	^TSSatisfiesExpression,
 	^TSNonNullExpression,
 	^TSTypeAssertion,
+	^TSInstantiationExpression,
 	^ParenthesizedExpression,
 }
 

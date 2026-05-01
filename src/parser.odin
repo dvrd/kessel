@@ -9751,19 +9751,51 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			targs := parse_ts_type_arguments(p)
 			// Decide: did the trial consume `<...>` cleanly and land on a
 			// followable token? If not, rollback.
-			follow_ok := false
+			//
+			// Two follow sets:
+			//   * `call_follow` — `(` / template head: this is a generic call
+			//     (CallExpression with type_parameters) or tagged template.
+			//   * `inst_follow` — anything that can follow a complete
+			//     expression but not start one (binary / postfix / chain
+			//     terminators / etc.). Commits to TSInstantiationExpression.
+			// Tokens that can plausibly start a NEW expression on the RHS
+			// (Identifier, Number, String, `[`, `{`, …) are deliberately NOT
+			// followers, so `f<x> y` rolls back and is reported as a binary-
+			// expression error rather than mis-committed as instantiation.
+			call_follow := false
+			inst_follow := false
 			if targs != nil && len(p.errors) == snap.errors_len {
 				#partial switch p.cur_type {
-				case .LParen, .TemplateHead, .Template,
-				     .Dot, .OptionalChain,
+				case .LParen, .TemplateHead, .Template:
+					call_follow = true
+				case .Dot, .OptionalChain,
 				     .Comma, .Semi, .RParen, .RBracket, .RBrace,
 				     .EOF, .Colon, .Question,
 				     .Eq, .NotEq, .EqStrict, .NotEqStrict,
 				     .LogicalAnd, .LogicalOr, .Nullish,
-				     .As, .Satisfies:
-					follow_ok = true
+				     .As, .Satisfies,
+				     // Relational / equality operators (TSInstantiation
+				     // followed by binary continuation: `a<b> instanceof C`,
+				     // `a<b> in c`, `a<b> < c`, `a<b> >= c`).
+				     .Instanceof, .In, .LAngle, .RAngle, .LEq, .GEq,
+				     // Arithmetic / bitwise (`a<b> + c`, `a<b> | c`, `a<b> << c`).
+				     .Plus, .Minus, .Mul, .Div, .Mod, .Pow,
+				     .BitAnd, .BitOr, .BitXor,
+				     .LShift, .RShift, .URShift,
+				     // Compound assignment lands on whatever target shape
+				     // the outer parser permits — `a<b> += c` is invalid in
+				     // the spec (instantiation expr isn't an assignment
+				     // target) but we still want to commit so the error fires
+				     // at the outer level rather than mis-rolling back to a
+				     // bogus comparison parse.
+				     .AssignAdd, .AssignSub, .AssignMul, .AssignDiv, .AssignMod,
+				     .AssignPow, .AssignLShift, .AssignRShift, .AssignURShift,
+				     .AssignBitAnd, .AssignBitOr, .AssignBitXor,
+				     .AssignLogicalAnd, .AssignLogicalOr, .AssignNullish:
+					inst_follow = true
 				}
 			}
+			follow_ok := call_follow || inst_follow
 			if !follow_ok {
 				lexer_restore(p, snap)
 				// Clear any phantom errors emitted by the speculative parse.
@@ -9779,12 +9811,29 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				}
 				return expr
 			}
+			// `new Foo<T>(args)` callee parse: allow_call=false, the type
+			// arguments belong to the outer NewExpression, not to us. Roll
+			// back so parse_new_expression's own `parse_ts_type_arguments`
+			// call picks them up. Same goes for the `(` follower (call_follow)
+			// or any binary-style follower (inst_follow): in callee-of-new
+			// position, `<T>` is unambiguously the new-expression's type
+			// arguments.
+			if !allow_call {
+				lexer_restore(p, snap)
+				if len(p.errors) > snap.errors_len {
+					resize(&p.errors, snap.errors_len)
+				}
+				if is_chain {
+					chain := new_node(p, ChainExpression)
+					chain.loc = chain_start
+					chain.expression = expr
+					chain.loc.span.end = prev_end_offset(p)
+					return expression_from(p, chain)
+				}
+				return expr
+			}
 			// Commit: if followed by `(` AND calls are allowed, it's a
 			// CallExpression with type_parameters.
-			// When allow_call=false (e.g. `new Foo<T>(args)` callee parse),
-			// stop here - the `(args)` belong to the outer NewExpression,
-			// not to a nested CallExpression around the callee.
-			// Store targs on a synthetic TSInstantiationExpression and break.
 			if is_token(p, .LParen) && allow_call {
 				saved_paren2 := p.pending_paren_start
 				p.pending_paren_start = max(u32)
@@ -9802,22 +9851,30 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				expr = call_e
 				continue
 			}
-			// No `(` follows - stand-alone TSInstantiationExpression isn't
-			// modelled yet. Rollback and let outer parser take the `<` as
-			// a binary operator (which will likely error, matching OXC on
-			// those rare forms).
-			lexer_restore(p, snap)
-			if len(p.errors) > snap.errors_len {
-				resize(&p.errors, snap.errors_len)
-			}
+			// Stand-alone TSInstantiationExpression: `f<T>` with no
+			// trailing `(args)`. The follower test above already verified
+			// the next token can legitimately end / continue an expression,
+			// so commit. Per OXC / Babel, when the inner is an optional
+			// chain (`a?.b<c>`), the ChainExpression wraps the chain and
+			// then TSInstantiationExpression wraps the ChainExpression.
+			inner := expr
+			inst_start := loc_from_expr(expr)
 			if is_chain {
 				chain := new_node(p, ChainExpression)
 				chain.loc = chain_start
 				chain.expression = expr
 				chain.loc.span.end = prev_end_offset(p)
-				return expression_from(p, chain)
+				inner = expression_from(p, chain)
+				inst_start = chain.loc
+				is_chain = false  // we just sealed the chain
 			}
-			return expr
+			inst, inst_e := new_expr(p, TSInstantiationExpression)
+			inst.loc = inst_start
+			inst.expression = inner
+			inst.type_arguments = targs
+			inst.loc.span.end = prev_end_offset(p)
+			expr = inst_e
+			continue
 		case:
 			if is_chain {
 				// Wrap the entire optional chain in ChainExpression
@@ -12259,6 +12316,8 @@ arrow_cover_walk_expr :: proc(expr: ^Expression, saw_yield, saw_await: ^bool) {
 	case ^TSNonNullExpression:
 		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
 	case ^TSTypeAssertion:
+		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
+	case ^TSInstantiationExpression:
 		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
 
 	// JSX cannot syntactically appear inside arrow params (params open with
