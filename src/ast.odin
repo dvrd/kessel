@@ -1447,6 +1447,23 @@ ExportAllDeclaration :: struct {
 	source:     StringLiteral,
 	exported:   Maybe(IdentifierName), // null for "export *", identifier for "export * as ns"
 	attributes: [dynamic]ImportAttribute,
+	export_kind: ImportExportKind,    // "value" by default; "type" for `export type * from`
+}
+
+// `export = expr;` — TS legacy CommonJS-compatible export. Body is a
+// single expression. Distinct AST node from ExportDefaultDeclaration
+// because semantics differ: only one TSExportAssignment per module is
+// allowed and it cannot mix with named exports.
+TSExportAssignment :: struct {
+	loc:        Loc,
+	expression: ^Expression,
+}
+
+// `export as namespace N;` — TS UMD-style global declaration in a
+// declaration file. Maps the module's exports to a global identifier.
+TSNamespaceExportDeclaration :: struct {
+	loc: Loc,
+	id:  Identifier,
 }
 
 // ============================================================================
@@ -1547,6 +1564,8 @@ Statement :: union {
 	^TSEnumDeclaration,
 	^TSModuleDeclaration,
 	^TSImportEqualsDeclaration,
+	^TSExportAssignment,
+	^TSNamespaceExportDeclaration,
 }
 
 Declaration :: union {

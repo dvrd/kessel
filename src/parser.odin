@@ -7378,7 +7378,8 @@ pn_walk_stmt :: proc(p: ^Parser, stmt: ^Statement, stack: ^PrivateNameStack) {
 	     ^ImportDeclaration, ^ExportAllDeclaration,
 	     ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
 	     ^TSEnumDeclaration, ^TSModuleDeclaration,
-	     ^TSImportEqualsDeclaration:
+	     ^TSImportEqualsDeclaration,
+	     ^TSExportAssignment, ^TSNamespaceExportDeclaration:
 		// No class-scoped sub-expressions to visit for the private-name
 		// walker. ImportDeclaration specifiers don't reference
 		// PrivateIdentifiers; TS type-level declarations don't emit
@@ -8090,11 +8091,72 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	if match_token(p, .Mul) {
-		return parse_export_all(p, start)
+		return parse_export_all(p, start, .Value)
 	}
 
 	if is_token(p, .LBrace) {
-		return parse_export_named(p, start)
+		return parse_export_named(p, start, .Value)
+	}
+
+	// `export = <expr>;` — TS legacy CommonJS-style export assignment.
+	// `=` here is NOT a binding-init; it's a sentinel that introduces a
+	// single expression-form export. The trailing semicolon (or ASI) is
+	// part of the declaration; the span includes it.
+	if is_token(p, .Assign) {
+		eat(p) // consume `=`
+		expr := parse_assignment_expression(p)
+		if !match_semicolon_or_asi(p) {
+			report_error(p, "Expected semicolon after export assignment")
+		}
+		decl := new_node(p, TSExportAssignment)
+		decl.loc = start; decl.expression = expr
+		decl.loc.span.end = prev_end_offset(p)
+		stmt := new_node(p, Statement); stmt^ = decl; return stmt
+	}
+
+	// `export as namespace <Identifier>;` — TS UMD-style declaration. `as`
+	// here is a contextual keyword; it lexes as a regular identifier in JS
+	// mode but parse_export_declaration is only entered for `export`, so
+	// the identifier `as` followed by identifier `namespace` is the cue.
+	if p.cur_type == .As {
+		nxt := peek_token(p)
+		if nxt.type == .Identifier && nxt.value == "namespace" {
+			eat(p) // consume `as`
+			eat(p) // consume `namespace`
+			cur := get_current(p)
+			id := Identifier{loc = loc_from_token(&cur), name = cur.value}
+			eat(p) // consume identifier
+			if !match_semicolon_or_asi(p) {
+				report_error(p, "Expected semicolon after 'export as namespace'")
+			}
+			decl := new_node(p, TSNamespaceExportDeclaration)
+			decl.loc = start; decl.id = id
+			decl.loc.span.end = prev_end_offset(p)
+			stmt := new_node(p, Statement); stmt^ = decl; return stmt
+		}
+	}
+
+	// `export type ...` — TS type-only export. Three forms:
+	//   export type { A, B };          — named, no source
+	//   export type { A } from "m";    — named, with source
+	//   export type * from "m";        — export-all
+	//   export type * as N from "m";   — export-all with namespace alias
+	//   export type X = ...;           — type alias (handled by fall-through)
+	//   export type X from ...;        — not valid; fall through to declaration parse
+	// Detect the `{` / `*` lookahead and dispatch with export_kind=.Type.
+	// `export type Identifier =` falls through to the declaration path,
+	// which already handles type aliases via parse_statement_or_declaration.
+	if p.cur_type == .Identifier && p.cur_tok.value == "type" {
+		nxt := peek_token(p)
+		if nxt.type == .LBrace {
+			eat(p) // consume `type`
+			return parse_export_named(p, start, .Type)
+		}
+		if nxt.type == .Mul {
+			eat(p) // consume `type`
+			eat(p) // consume `*`
+			return parse_export_all(p, start, .Type)
+		}
 	}
 
 	// After `export`, only `*`, `default`, `{`, or a declaration keyword
@@ -8205,6 +8267,19 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 				def^ = decl_union
 			}
 		}
+	} else if p.cur_type == .Identifier && p.cur_tok.value == "interface" &&
+	          is_next_token(p, .Identifier) {
+		// `export default interface X { ... }` — TS-only form. Babel and
+		// OXC accept it; spec-strict tools may not. Shape: ExportDefault
+		// Declaration whose declaration is a TSInterfaceDeclaration.
+		iface_stmt := parse_ts_interface_declaration(p)
+		if iface_stmt != nil {
+			if iface, ok := iface_stmt^.(^TSInterfaceDeclaration); ok {
+				decl_union := new_node(p, Declaration)
+				decl_union^ = iface
+				def^ = decl_union
+			}
+		}
 	} else {
 		// §16.2.3 ExportDeclaration: `export default` accepts only
 		// AssignmentExpression, FunctionDeclaration, or ClassDeclaration.
@@ -8260,7 +8335,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	return stmt
 }
 
-parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
+parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) -> ^Statement {
 	exported: Maybe(IdentifierName)
 
 	if match_token(p, .As) {
@@ -8293,6 +8368,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	decl.loc = start
 	decl.source = source
 	decl.exported = exported
+	decl.export_kind = export_kind
 	decl.attributes = parse_import_attributes(p)
 
 	// Consume the trailing semicolon BEFORE stamping the span end so the
@@ -8341,13 +8417,14 @@ parse_export_all :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	return stmt
 }
 
-parse_export_named :: proc(p: ^Parser, start: Loc) -> ^Statement {
+parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) -> ^Statement {
 	if !expect_token(p, .LBrace) {
 		return nil
 	}
 
 	decl := new_node(p, ExportNamedDeclaration)
 	decl.loc = start
+	decl.export_kind = export_kind
 	decl.specifiers = make([dynamic]ExportSpecifier, 0, 4, p.allocator)
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {

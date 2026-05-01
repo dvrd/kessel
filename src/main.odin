@@ -2293,6 +2293,8 @@ statement_inner_nil :: proc(stmt: ^Statement) -> bool {
 	case ^TSEnumDeclaration:         return s == nil
 	case ^TSModuleDeclaration:       return s == nil
 	case ^TSImportEqualsDeclaration: return s == nil
+	case ^TSExportAssignment:        return s == nil
+	case ^TSNamespaceExportDeclaration: return s == nil
 	}
 	return true  // unknown variant - treat as nil to be safe
 }
@@ -2330,6 +2332,8 @@ get_statement_loc :: proc(stmt: ^Statement) -> Loc {
 	case ^TSEnumDeclaration:        return s.loc
 	case ^TSModuleDeclaration:      return s.loc
 	case ^TSImportEqualsDeclaration: return s.loc
+	case ^TSExportAssignment:        return s.loc
+	case ^TSNamespaceExportDeclaration: return s.loc
 	}
 	return Loc{}
 }
@@ -3598,6 +3602,13 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent)
 			out_s("]")
 		}
+		if emit_ts_shape {
+			out_s(",\n")
+			print_indent(indent)
+			out_s("\"exportKind\": \"")
+			out_s(s.export_kind == .Type ? "type" : "value")
+			out_s("\"")
+		}
 
 	case ^DoWhileStatement:
 		out_println(",")
@@ -4130,6 +4141,23 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		case .Value: out_s("value")
 		}
 		out_s("\"")
+
+	case ^TSExportAssignment:
+		// `export = <expr>;` — single-field shape: { expression }.
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"expression\": {\n")
+		print_expression_ast(s.expression, indent + 1)
+		out_s("\n")
+		print_indent(indent)
+		out_s("}")
+
+	case ^TSNamespaceExportDeclaration:
+		// `export as namespace N;` — single-field shape: { id: Identifier }.
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"id\": ")
+		emit_identifier_name_object(IdentifierName{loc = s.id.loc, name = s.id.name}, indent)
 
 	case:
 		out_s(",\n")
@@ -7235,6 +7263,8 @@ get_statement_type_name :: proc(stmt: ^Statement) -> string {
 	case ^TSEnumDeclaration:    return "TSEnumDeclaration"
 	case ^TSModuleDeclaration:  return "TSModuleDeclaration"
 	case ^TSImportEqualsDeclaration: return "TSImportEqualsDeclaration"
+	case ^TSExportAssignment: return "TSExportAssignment"
+	case ^TSNamespaceExportDeclaration: return "TSNamespaceExportDeclaration"
 	}
 	return "Unknown"
 }
