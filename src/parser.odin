@@ -10069,7 +10069,21 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .LParen:
 		// Check for arrow function with empty params: () => ...
 		if is_next_token(p, .RParen) {
-			// Potential empty arrow function params
+			// Potential empty arrow function params. In TS / TSX `(): T =>`
+			// shape we need to drop into try_parse_ts_arrow_params so the
+			// return-type annotation is consumed; defer the eat-pair to the
+			// trial parser in that case.
+			if allow_ts_mode(p) {
+				// Peek past `()` to detect `: T =>`. Cheap byte-scan via
+				// looks_like_ts_arrow_params (already does this for the
+				// non-empty cases; the empty case lands here too because
+				// the byte-scan doesn't depend on the token kind).
+				if looks_like_ts_arrow_params(p) {
+					if arrow := try_parse_ts_arrow_params(p, current); arrow != nil {
+						return arrow
+					}
+				}
+			}
 			eat(p) // consume (
 			eat(p) // consume )
 			if is_token(p, .Arrow) {
@@ -12651,17 +12665,17 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// yield 1) => x; }`).
 	scan_arrow_params_for_yield_only(p, params[:])
 
-	// Optional TS return-type annotation: `async (): Promise<T> => body`.
+	// Optional TS return-type annotation: `async (): Promise<T> => body`,
+	// or with a type predicate `async (x): x is T => body`.
 	// In TS / TSX the `:` after the param list opens a TSTypeAnnotation
-	// before the `=>`. Mirrors the plain-arrow case in
-	// parse_ts_generic_arrow / parse_primary_expr's LParen branch. Closes
-	// ~30 OXC corpus rejects in the "Expected semicolon" cluster (S26 W6
-	// phase 3 bug class #17). Pre-fix the parser saw `:` after `)`, gave
-	// up on the arrow and tried to treat the whole thing as an async
-	// CallExpression of an Identifier `async`.
+	// before the `=>`. parse_ts_return_type_annotation handles both plain
+	// types and TypePredicate forms (`x is T`, `asserts x`, `asserts x is T`).
+	// Closes ~30 OXC corpus rejects in the "Expected semicolon" cluster
+	// (S26 W6 phase 3 bug class #17) plus the async-arrow type-predicate
+	// follow-up (#18).
 	async_return_type: Maybe(^TSTypeAnnotation)
 	if (p.lang == .TS || p.lang == .TSX) && is_token(p, .Colon) {
-		async_return_type = parse_ts_type_annotation(p)
+		async_return_type = parse_ts_return_type_annotation(p)
 	}
 
 	if !expect_token(p, .Arrow) {
@@ -14233,16 +14247,120 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 	assert(p.cur_type == .LParen)
 	nxt := p.lexer.nxt.kind
 	if nxt == .Dot3 { return true }
-	if nxt != .Identifier { return false }
 
-	// Need 2-token lookahead: current = `(`, nxt = Identifier, after
-	// that = ? Use the trial snapshot to peek without committing.
-	snap := lexer_snapshot(p)
-	eat(p) // consume `(`
-	eat(p) // consume Identifier
-	after := p.cur_type
-	lexer_restore(p, snap)
-	return after == .Colon
+	// Existing fast path: `(Identifier :` is unambiguously an arrow head.
+	if nxt == .Identifier {
+		snap := lexer_snapshot(p)
+		eat(p) // consume `(`
+		eat(p) // consume Identifier
+		after := p.cur_type
+		lexer_restore(p, snap)
+		if after == .Colon { return true }
+	}
+
+	// Byte-level scan for `(...): T =>` arrow heads where the inner params
+	// don't have a `: T` annotation but the return-type position does. This
+	// covers:
+	//   - empty `(): T => ...`
+	//   - bare-ident `(t): T => ...`,  `(t): t is U => ...`
+	//   - multi-ident `(a, b): T => ...`
+	//   - destructured `({a}): T => ...`
+	//   - rest-only is already caught by the .Dot3 fast path above.
+	// The trial parser try_parse_ts_arrow_params rolls back on failure, so
+	// over-broad detection here is safe — the cost of a false-positive is
+	// one rollback. Closes ~30 OXC corpus rejects in the
+	// "Expected ), got :" cluster (S26 W6 phase 3 bug class #18).
+	if p.lexer != nil {
+		src := p.lexer.source_bytes
+		lparen_off := int(p.lexer.cur.start)
+		depth := 0
+		i := lparen_off
+		src_len := len(src)
+		end_off := -1
+		scan: for i < src_len {
+			ch := src[i]
+			switch ch {
+			case '(', '[', '{':
+				depth += 1
+			case ')', ']', '}':
+				depth -= 1
+				if depth == 0 && ch == ')' { end_off = i; break scan }
+			case '"', '\'':
+				quote := ch
+				i += 1
+				for i < src_len && src[i] != quote {
+					if src[i] == '\\' && i + 1 < src_len { i += 1 }
+					i += 1
+				}
+			case '/':
+				if i + 1 < src_len && src[i+1] == '/' {
+					for i < src_len && src[i] != '\n' { i += 1 }
+				} else if i + 1 < src_len && src[i+1] == '*' {
+					i += 2
+					for i + 1 < src_len && !(src[i] == '*' && src[i+1] == '/') { i += 1 }
+					if i + 1 < src_len { i += 1 }
+				}
+			}
+			i += 1
+		}
+		if end_off < 0 { return false }
+		j := end_off + 1
+		for j < src_len {
+			ch := src[j]
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
+			if ch == '/' && j + 1 < src_len && src[j+1] == '/' {
+				for j < src_len && src[j] != '\n' { j += 1 }; continue
+			}
+			if ch == '/' && j + 1 < src_len && src[j+1] == '*' {
+				j += 2
+				for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
+				if j + 1 < src_len { j += 2 }
+				continue
+			}
+			break
+		}
+		// Direct `=>` — plain arrow without return type, but the regular
+		// non-TS path handles those. Returning true is harmless: the trial
+		// parser will succeed and build the same arrow.
+		if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' { return true }
+		// `:` here means a return-type annotation — walk past it tracking
+		// balanced groups, looking for top-level `=>`.
+		if j < src_len && src[j] == ':' {
+			j += 1
+			t_depth := 0
+			ts_scan: for j < src_len {
+				tch := src[j]
+				switch tch {
+				case '<', '(', '[', '{':
+					t_depth += 1
+				case '>', ')', ']', '}':
+					if t_depth == 0 { return false }
+					t_depth -= 1
+				case '=':
+					if t_depth == 0 && j + 1 < src_len && src[j+1] == '>' { return true }
+				case ',', ';':
+					if t_depth == 0 { break ts_scan }
+				case '"', '\'':
+					quote := tch
+					j += 1
+					for j < src_len && src[j] != quote {
+						if src[j] == '\\' && j + 1 < src_len { j += 1 }
+						j += 1
+					}
+				case '/':
+					if j + 1 < src_len && src[j+1] == '/' {
+						for j < src_len && src[j] != '\n' { j += 1 }
+					} else if j + 1 < src_len && src[j+1] == '*' {
+						j += 2
+						for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
+						if j + 1 < src_len { j += 1 }
+					}
+				}
+				j += 1
+			}
+		}
+	}
+	return false
 }
 
 // try_parse_ts_arrow_params - speculatively parse `(params) [:RetType]? =>
@@ -14273,10 +14391,19 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	}
 	eat(p) // consume `)`
 
-	// Optional return type annotation: `(params): T => body`.
+	// Optional return type annotation: `(params): T => body`. Use
+	// parse_ts_return_type_annotation rather than parse_ts_type_annotation
+	// so type-predicate forms `(x): x is T => ...`, `(x): asserts x => ...`,
+	// and `(x): asserts x is T => ...` parse as TSTypePredicate (closes
+	// ~25 OXC corpus rejects in the "Expected ), got :" cluster — S26 W6
+	// phase 3 bug class #18). Pre-fix the plain parse_ts_type_annotation
+	// path called parse_ts_type which doesn't recognise the predicate's
+	// `is` / `asserts` keywords; the trial bailed at `is` and the outer
+	// parser tried to re-parse the whole `(x: T)` as a paren-expr,
+	// reporting "Expected ), got :" on the now-illegal type colon.
 	return_type: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) {
-		return_type = parse_ts_type_annotation(p)
+		return_type = parse_ts_return_type_annotation(p)
 	}
 
 	if !is_token(p, .Arrow) {
