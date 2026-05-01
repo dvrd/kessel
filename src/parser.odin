@@ -8092,6 +8092,23 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	start := cur_loc(p)
 
+	// TS per-specifier type modifier: `import { type x } from "m"`,
+	// `import { type x as y } from "m"`, `import { type "a" as b } from "m"`.
+	// Detect by `Identifier("type")` followed by something that can start
+	// an imported-name (Identifier / String / kw-as-name) and is NOT `as`
+	// or `,` / `}` (those would mean "type" is the imported name itself).
+	// Closes the bulk of the 12-file "Expected }, got identifier" cluster
+	// (typescript fixtures: arbitraryModuleNamespaceIdentifiers,
+	// exportSpecifiers_js, etc.).
+	if allow_ts_mode(p) && p.cur_type == .Identifier && p.cur_tok.value == "type" {
+		nxt := p.lexer.nxt.kind
+		nxt_is_name := nxt == .Identifier || nxt == .String ||
+		               is_keyword_usable_as_property_name(nxt)
+		if nxt_is_name && nxt != .As {
+			eat(p) // consume `type`
+		}
+	}
+
 	imported: Identifier
 	is_string_import := false
 	if is_token(p, .String) {
@@ -8489,6 +8506,20 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		start_spec := cur_loc(p)
+
+		// TS per-specifier type modifier: `export { type Foo }`,
+		// `export { type Foo as Bar }`, `export { type "a" as "b" }`.
+		// Same disambiguation as parse_import_specifier above - only consume
+		// `type` when the following token can start a name AND isn't `as` /
+		// `}` / `,` (which would mean "type" is the local name itself).
+		if allow_ts_mode(p) && p.cur_type == .Identifier && p.cur_tok.value == "type" {
+			nxt := p.lexer.nxt.kind
+			nxt_is_name := nxt == .Identifier || nxt == .String ||
+			               is_keyword_usable_as_property_name(nxt)
+			if nxt_is_name && nxt != .As {
+				eat(p) // consume `type`
+			}
+		}
 
 		// ES2022 allows either an identifier OR a string literal on either
 		// side of `as`. Parse each slot independently.
