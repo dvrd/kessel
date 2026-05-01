@@ -3525,16 +3525,12 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 			print_indent(indent)
 			out_s("]")
 		}
-		// S26 W4: TS-ESTree distinguishes `export ... ` (value space) from
-		// `export type ... ` (type space) via `exportKind`. Kessel doesn't
-		// parse the `type` modifier yet, so every ExportNamedDeclaration is
-		// in value space — emit a hard-coded `"value"` placeholder for now.
-		// When `export type` lands, switch to a real lookup off the parsed
-		// flag.
 		if emit_ts_shape {
 			out_s(",\n")
 			print_indent(indent)
-			out_s("\"exportKind\": \"value\"")
+			out_s("\"exportKind\": \"")
+			out_s(s.export_kind == .Type ? "type" : "value")
+			out_s("\"")
 		}
 
 	case ^ExportDefaultDeclaration:

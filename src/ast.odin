@@ -1429,6 +1429,7 @@ ExportNamedDeclaration :: struct {
 	specifiers: [dynamic]ExportSpecifier,
 	source:     Maybe(StringLiteral),
 	attributes: [dynamic]ImportAttribute,
+	export_kind: ImportExportKind,
 }
 
 ExportDefaultDeclaration :: struct {

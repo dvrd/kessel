@@ -8089,19 +8089,40 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	decl_union := new_node(p, Declaration)
+	export_kind := ImportExportKind.Value
 	#partial switch v in decl^ {
-	case ^FunctionDeclaration:      decl_union^ = v
-	case ^VariableDeclaration:       decl_union^ = v
-	case ^ClassDeclaration:           decl_union^ = v
+	case ^FunctionDeclaration:
+		decl_union^ = v
+		if v.declare { export_kind = .Type }
+	case ^VariableDeclaration:
+		decl_union^ = v
+		if v.declare { export_kind = .Type }
+	case ^ClassDeclaration:
+		decl_union^ = v
+		if v.declare { export_kind = .Type }
 	case ^ImportDeclaration:          decl_union^ = v
 	case ^ExportNamedDeclaration:     decl_union^ = v
 	case ^ExportDefaultDeclaration:   decl_union^ = v
 	case ^ExportAllDeclaration:       decl_union^ = v
+	case ^TSInterfaceDeclaration:
+		decl_union^ = v
+		export_kind = .Type
+	case ^TSTypeAliasDeclaration:
+		decl_union^ = v
+		export_kind = .Type
+	case ^TSEnumDeclaration:
+		decl_union^ = v
+		if v.declare { export_kind = .Type }
+	case ^TSModuleDeclaration:
+		decl_union^ = v
+		if v.declare { export_kind = .Type }
+	case ^TSImportEqualsDeclaration:  decl_union^ = v
 	}
 
 	export_decl := new_node(p, ExportNamedDeclaration)
 	export_decl.loc = start
 	export_decl.declaration = decl_union
+	export_decl.export_kind = export_kind
 	export_decl.loc.span.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
