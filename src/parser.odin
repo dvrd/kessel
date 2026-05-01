@@ -14348,6 +14348,15 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		r := new_node(p, TSType); r^ = it
 		return parse_ts_postfix(p, r, start)
 	case .Identifier: return parse_ts_identifier_type(p)
+	case .Await, .Yield:
+		// In TS type position, contextually-reserved keywords like
+		// `await` and `yield` are allowed as plain TypeReference names.
+		// Examples (TS conformance):
+		//   var v: await;          // inside async fn - OK in type context
+		//   var v: yield;          // inside generator - OK in type context
+		// Closes ~6 OXC corpus rejects in the "Expected '=', ',', or ';'
+		// after variable binding" cluster.
+		return parse_ts_type_reference(p)
 	}
 	return nil
 }
