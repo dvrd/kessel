@@ -15086,6 +15086,17 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		if stmt != nil {
 			if cls, ok := stmt^.(^ClassDeclaration); ok { cls.declare = true }
 		}
+	case .Abstract:
+		if is_next_token(p, .Class) {
+			eat(p) // consume `abstract`
+			stmt = parse_class_declaration(p)
+			if stmt != nil {
+				if cls, ok := stmt^.(^ClassDeclaration); ok {
+					cls.expr.abstract = true
+					cls.declare = true
+				}
+			}
+		}
 	case .Const:
 		if is_next_identifier_value(p, "enum") {
 			stmt = parse_ts_enum_declaration(p)
