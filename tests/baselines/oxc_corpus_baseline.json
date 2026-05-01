@@ -1,33 +1,33 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 13515,
+    "ok-vs-oxc": 13774,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 783,
-    "kessel-only-rejects": 2622,
+    "oxc-only-rejects": 786,
+    "kessel-only-rejects": 2345,
     "should-reject-passed": 27,
-    "pass-both": 2441,
-    "should-pass-rejected": 1713,
+    "pass-both": 2457,
+    "should-pass-rejected": 1712,
     "reject-both": 520
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 13515,
+        "ok-vs-oxc": 13774,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 178,
-        "kessel-only-rejects": 1997
+        "oxc-only-rejects": 180,
+        "kessel-only-rejects": 1736
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 27,
-        "pass-both": 2404,
-        "kessel-only-rejects": 623,
-        "should-pass-rejected": 1713,
-        "oxc-only-rejects": 605,
+        "pass-both": 2420,
+        "kessel-only-rejects": 607,
+        "should-pass-rejected": 1712,
+        "oxc-only-rejects": 606,
         "reject-both": 520
       }
     },
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 61,
-      "kessel-only-rejects": 1044
+      "kessel-only-rejects": 888
     },
     "typescript/conformance/additionalChecks": {
       "kessel-only-rejects": 1
@@ -59,7 +59,7 @@
     },
     "typescript/conformance/classes": {
       "oxc-only-rejects": 9,
-      "kessel-only-rejects": 88,
+      "kessel-only-rejects": 87,
       "skip-multi-file": 11
     },
     "typescript/conformance/constEnums": {
@@ -124,8 +124,8 @@
     },
     "typescript/conformance/externalModules": {
       "skip-multi-file": 151,
-      "kessel-only-rejects": 16,
-      "oxc-only-rejects": 2
+      "oxc-only-rejects": 2,
+      "kessel-only-rejects": 11
     },
     "typescript/conformance/functions": {
       "kessel-only-rejects": 4
@@ -149,14 +149,14 @@
     },
     "typescript/conformance/internalModules": {
       "skip-multi-file": 14,
-      "kessel-only-rejects": 13
+      "kessel-only-rejects": 4
     },
     "typescript/conformance/jsdoc": {
       "skip-multi-file": 114,
       "kessel-only-rejects": 7
     },
     "typescript/conformance/jsx": {
-      "kessel-only-rejects": 85,
+      "kessel-only-rejects": 48,
       "skip-multi-file": 36,
       "oxc-only-rejects": 2
     },
@@ -175,8 +175,8 @@
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
-      "oxc-only-rejects": 51,
-      "kessel-only-rejects": 92
+      "oxc-only-rejects": 52,
+      "kessel-only-rejects": 91
     },
     "typescript/conformance/pedantic": {
       "kessel-only-rejects": 1
@@ -190,7 +190,7 @@
     },
     "typescript/conformance/scanner": {
       "oxc-only-rejects": 6,
-      "kessel-only-rejects": 2,
+      "kessel-only-rejects": 1,
       "skip-multi-file": 1
     },
     "typescript/conformance/statements": {
@@ -199,7 +199,7 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/types": {
-      "kessel-only-rejects": 301,
+      "kessel-only-rejects": 300,
       "skip-multi-file": 10,
       "oxc-only-rejects": 3
     },
@@ -213,106 +213,13 @@
     "typescript/fourslash/server": {
       "skip-multi-file": 188
     },
-    "typescript/projects/CircularReferencing": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/CircularReferencing-2": {
-      "kessel-only-rejects": 3
-    },
-    "typescript/projects/ModuleIdentifier": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/MultipleLevels": {
-      "kessel-only-rejects": 3
-    },
-    "typescript/projects/NestedDeclare": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/NestedLocalModule-SimpleCase": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/NestedLocalModule-WithRecursiveTypecheck": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/NoModule": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/RelativePaths": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/VisibilityOfCrosssModuleTypeUsage": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/baseline": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/declarations_CascadingImports": {
-      "kessel-only-rejects": 1
-    },
     "typescript/projects/declarations_ExportNamespace": {
       "kessel-only-rejects": 1
     },
     "typescript/projects/declarations_GlobalImport": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/declarations_ImportedInPrivate": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/declarations_ImportedUseInFunction": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/declarations_IndirectImport": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/declarations_MultipleTimesImport": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/declarations_MultipleTimesMultipleImport": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/declarations_SimpleImport": {
-      "kessel-only-rejects": 1
+      "oxc-only-rejects": 1
     },
     "typescript/projects/declareVariableCollision": {
-      "kessel-only-rejects": 3
-    },
-    "typescript/projects/ext-int-ext": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/non-relative": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/outputdir_module_multifolder": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/outputdir_module_simple": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/outputdir_module_subfolder": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/privacyCheck-ImportInParent": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/privacyCheck-IndirectReference": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/privacyCheck-InsideModule": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/privacyCheck-SimpleReference": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/relative-global": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/relative-global-ref": {
-      "kessel-only-rejects": 1
-    },
-    "typescript/projects/relative-nested": {
-      "kessel-only-rejects": 2
-    },
-    "typescript/projects/relative-nested-ref": {
       "kessel-only-rejects": 1
     },
     "typescript/transpile": {
@@ -682,8 +589,8 @@
       "kessel-only-rejects": 1
     },
     "babel/estree/typescript": {
-      "oxc-only-rejects": 5,
-      "should-pass-rejected": 5,
+      "oxc-only-rejects": 6,
+      "should-pass-rejected": 4,
       "kessel-only-rejects": 1
     },
     "babel/experimental/_no-plugin": {
@@ -1070,7 +977,7 @@
       "kessel-only-rejects": 1
     },
     "babel/typescript/import": {
-      "kessel-only-rejects": 16
+      "kessel-only-rejects": 1
     },
     "babel/typescript/interface": {
       "should-pass-rejected": 6,
@@ -1090,7 +997,7 @@
       "should-pass-rejected": 1
     },
     "babel/typescript/scope": {
-      "kessel-only-rejects": 10,
+      "kessel-only-rejects": 9,
       "oxc-only-rejects": 2
     },
     "babel/typescript/static-blocks": {

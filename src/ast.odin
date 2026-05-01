@@ -526,6 +526,40 @@ TSEnumMember :: struct {
 	initializer: Maybe(^Expression),
 }
 
+// TS `import X = N` / `import X = A.B.C` / `import X = require("m")`.
+// Top-level declaration form, distinct from ImportDeclaration. Per
+// TypeScript grammar this is the only place TSExternalModuleReference
+// appears (TS spec calls it ImportEqualsDeclaration; ESTree's TS-shape
+// adds the TS prefix).
+//
+//   id                : the local binding (Identifier)
+//   module_reference  : the right-hand side
+//                          - bare Identifier        (`= N`)
+//                          - `A.B.C` chain          (qualified entity name)
+//                          - `require("m")`         (external module ref)
+//                       Stored as ^Expression for the entity-name forms
+//                       (Identifier or MemberExpression chain that the
+//                       emitter folds into TSQualifiedName), or as a
+//                       ^TSExternalModuleReference for the `require()`
+//                       form.
+//   import_kind       : `import type X = ...` vs plain `import X = ...`
+TSImportEqualsDeclaration :: struct {
+	loc:              Loc,
+	id:               Identifier,
+	module_reference: TSModuleReference,
+	import_kind:      ImportExportKind,
+}
+
+TSModuleReference :: union {
+	^Expression,                  // Identifier or MemberExpression `A.B.C`
+	^TSExternalModuleReference,   // require("m")
+}
+
+TSExternalModuleReference :: struct {
+	loc:        Loc,
+	expression: ^StringLiteral,
+}
+
 // TS module/namespace declaration
 TSModuleDeclaration :: struct {
 	loc:     Loc,
@@ -1496,6 +1530,7 @@ Statement :: union {
 	^TSTypeAliasDeclaration,
 	^TSEnumDeclaration,
 	^TSModuleDeclaration,
+	^TSImportEqualsDeclaration,
 }
 
 Declaration :: union {
@@ -1510,6 +1545,7 @@ Declaration :: union {
 	^TSTypeAliasDeclaration,
 	^TSEnumDeclaration,
 	^TSModuleDeclaration,
+	^TSImportEqualsDeclaration,
 }
 
 Node :: union {

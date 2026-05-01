@@ -6318,6 +6318,7 @@ collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string]bo
 					if id, ok := inner.id.(BindingIdentifier); ok { names[id.name] = true }
 				case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
 				     ^TSEnumDeclaration, ^TSModuleDeclaration,
+				     ^TSImportEqualsDeclaration,
 				     ^ImportDeclaration, ^ExportNamedDeclaration,
 				     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
 					// Not bindable as ExportedBindings-targets for our purposes.
@@ -6873,6 +6874,7 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 				}
 			case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
 			     ^TSEnumDeclaration, ^TSModuleDeclaration,
+			     ^TSImportEqualsDeclaration,
 			     ^ImportDeclaration, ^ExportNamedDeclaration,
 			     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
 				// Types / nested decls - don't bind into the value scope
@@ -7237,7 +7239,8 @@ pn_walk_stmt :: proc(p: ^Parser, stmt: ^Statement, stack: ^PrivateNameStack) {
 	     ^ContinueStatement, ^WithStatement,
 	     ^ImportDeclaration, ^ExportAllDeclaration,
 	     ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
-	     ^TSEnumDeclaration, ^TSModuleDeclaration:
+	     ^TSEnumDeclaration, ^TSModuleDeclaration,
+	     ^TSImportEqualsDeclaration:
 		// No class-scoped sub-expressions to visit for the private-name
 		// walker. ImportDeclaration specifiers don't reference
 		// PrivateIdentifiers; TS type-level declarations don't emit
@@ -7624,6 +7627,15 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
+	// TS `import X = ...` / `import type X = ...` (TSImportEqualsDeclaration).
+	// Detect by `Identifier` followed by `=`. The `import type X = ...` form is
+	// also legal (type-only import-equals). Closes 291 kessel-only-rejects in
+	// the OXC corpus (S26 W6 phase 3 bug class #4) — the largest single bug
+	// cluster, all reporting "Expected from, got =" pre-fix.
+	if p.cur_type == .Identifier && p.lexer != nil && p.lexer.nxt.kind == .Assign {
+		return parse_ts_import_equals(p, start, decl.import_kind)
+	}
+
 	if is_token(p, .String) {
 		// import "module"
 		decl.source = parse_string_literal(p)
@@ -7778,6 +7790,103 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
 	stmt^ = (^ImportDeclaration)(decl)
+	return stmt
+}
+
+// TS `import X = ModuleReference` / `import X = require("m")`.
+// Caller (parse_import_declaration) has already consumed `import` and any
+// optional `type` modifier; `start` points at `import`'s position and
+// `import_kind` carries the type-only flag. Current token is the binding
+// Identifier (verified by caller; `next` is `.Assign`).
+//
+// Module reference shapes (TypeScript 5 grammar):
+//   * `Identifier`              — simple alias               (id)
+//   * `Identifier (`.` Identifier)+` — qualified entity name (member chain)
+//   * `require ( StringLiteral )` — external module reference
+//
+// We store the entity-name forms as a plain ^Expression (Identifier or
+// MemberExpression chain) and let the emitter fold member chains into the
+// ESTree TSQualifiedName shape — same trick parse_ts_module_declaration
+// uses for `namespace A.B.C { ... }` ids.
+parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExportKind) -> ^Statement {
+	decl := new_node(p, TSImportEqualsDeclaration)
+	decl.loc = start
+	decl.import_kind = import_kind
+
+	// Binding identifier.
+	id_loc := cur_loc(p)
+	decl.id = Identifier{loc = id_loc, name = cur_value(p)}
+	eat(p)  // consume id
+
+	// `=`. The caller's `next == .Assign` check guarantees we hit it; using
+	// expect_token still keeps the diagnostic stable if the lookahead changes.
+	if !expect_token(p, .Assign) {
+		return nil
+	}
+
+	// Module reference. `require` is a contextual keyword here — lex as
+	// Identifier, distinguish by the token value + a `(` follow-up.
+	if p.cur_type == .Identifier && p.cur_tok.value == "require" &&
+	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
+		req_start := cur_loc(p)
+		eat(p)  // consume `require`
+		if !expect_token(p, .LParen) { return nil }
+		if !is_token(p, .String) {
+			report_error(p, "Expected string literal in require() module reference")
+			return nil
+		}
+		str := parse_string_literal(p)
+		str_ptr := new_node(p, StringLiteral)
+		str_ptr^ = str
+		if !expect_token(p, .RParen) { return nil }
+		ext := new_node(p, TSExternalModuleReference)
+		ext.loc = req_start
+		ext.expression = str_ptr
+		ext.loc.span.end = prev_end_offset(p)
+		decl.module_reference = ext
+	} else {
+		// Entity-name chain: parse a primary identifier, then any `.id` tail.
+		// Mirrors parse_member_expr's non-computed dot path but kept inline so
+		// we don't accidentally accept `[expr]`, calls, optional chains, etc.
+		if p.cur_type != .Identifier {
+			report_error(p, "Expected identifier in import-equals module reference")
+			return nil
+		}
+		head_loc := cur_loc(p)
+		head := new_node(p, Identifier)
+		head.loc = head_loc
+		head.name = cur_value(p)
+		eat(p)
+		current_expr := expression_from(p, head)
+		for is_token(p, .Dot) {
+			eat(p)  // consume `.`
+			if p.cur_type != .Identifier {
+				report_error(p, "Expected identifier after '.' in import-equals module reference")
+				break
+			}
+			rhs_loc := cur_loc(p)
+			rhs := new_node(p, Identifier)
+			rhs.loc = rhs_loc
+			rhs.name = cur_value(p)
+			eat(p)
+			mem := new_node(p, MemberExpression)
+			mem.loc = head_loc
+			mem.object = current_expr
+			rhs_expr := expression_from(p, rhs)
+			mem.property = rhs_expr
+			mem.computed = false
+			mem.optional = false
+			mem.loc.span.end = prev_end_offset(p)
+			current_expr = expression_from(p, mem)
+		}
+		decl.module_reference = current_expr
+	}
+
+	match_semicolon_or_asi(p)
+	decl.loc.span.end = prev_end_offset(p)
+
+	stmt := new_node(p, Statement)
+	stmt^ = (^TSImportEqualsDeclaration)(decl)
 	return stmt
 }
 

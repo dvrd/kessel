@@ -1,0 +1,201 @@
+{
+  "type": "Program",
+  "start": 628,
+  "end": 710,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSImportEqualsDeclaration",
+      "start": 628,
+      "end": 641,
+      "id": {
+        "type": "Identifier",
+        "start": 635,
+        "end": 636,
+        "name": "X",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "moduleReference": {
+        "type": "Identifier",
+        "start": 639,
+        "end": 640,
+        "name": "N",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "importKind": "value"    },
+    {
+      "type": "TSImportEqualsDeclaration",
+      "start": 642,
+      "end": 659,
+      "id": {
+        "type": "Identifier",
+        "start": 649,
+        "end": 650,
+        "name": "Y",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "moduleReference": {
+        "type": "TSQualifiedName",
+        "start": 653,
+        "end": 658,
+        "left": {
+          "type": "TSQualifiedName",
+          "start": 653,
+          "end": 656,
+          "left": {
+            "type": "Identifier",
+            "start": 653,
+            "end": 654,
+            "name": "A",
+            "typeAnnotation": null,
+            "optional": false
+          },
+          "right": {
+            "type": "Identifier",
+            "start": 655,
+            "end": 656,
+            "name": "B",
+            "typeAnnotation": null,
+            "optional": false
+          }
+        },
+        "right": {
+          "type": "Identifier",
+          "start": 657,
+          "end": 658,
+          "name": "C",
+          "typeAnnotation": null,
+          "optional": false
+        }
+      },
+      "importKind": "value"    },
+    {
+      "type": "TSImportEqualsDeclaration",
+      "start": 660,
+      "end": 688,
+      "id": {
+        "type": "Identifier",
+        "start": 667,
+        "end": 668,
+        "name": "Z",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "moduleReference": {
+        "type": "TSExternalModuleReference",
+        "start": 671,
+        "end": 687,
+        "expression": {
+          "type": "Literal",
+          "start": 679,
+          "end": 686,
+          "value": "./mod",
+          "raw": "\"./mod\""
+        }
+      },
+      "importKind": "value"    },
+    {
+      "type": "TSImportEqualsDeclaration",
+      "start": 689,
+      "end": 709,
+      "id": {
+        "type": "Identifier",
+        "start": 701,
+        "end": 702,
+        "name": "T",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "moduleReference": {
+        "type": "Identifier",
+        "start": 705,
+        "end": 708,
+        "name": "Foo",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "importKind": "type"    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 72,
+      "value": " TSImportEqualsDeclaration — TS's `import X = ModuleReference` form."
+    },
+    {
+      "type": "Line",
+      "start": 73,
+      "end": 140,
+      "value": " Distinct from regular `import X from \"m\"` and ImportDeclaration."
+    },
+    {
+      "type": "Line",
+      "start": 141,
+      "end": 143,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 144,
+      "end": 201,
+      "value": " Three legal moduleReference shapes per the TS grammar:"
+    },
+    {
+      "type": "Line",
+      "start": 202,
+      "end": 247,
+      "value": "   * Identifier              `import X = N`"
+    },
+    {
+      "type": "Line",
+      "start": 248,
+      "end": 297,
+      "value": "   * Qualified entity name   `import Y = A.B.C`"
+    },
+    {
+      "type": "Line",
+      "start": 298,
+      "end": 358,
+      "value": "   * External module ref     `import Z = require(\"./mod\")`"
+    },
+    {
+      "type": "Line",
+      "start": 359,
+      "end": 411,
+      "value": "   * Type-only variant       `import type T = Foo`"
+    },
+    {
+      "type": "Line",
+      "start": 412,
+      "end": 414,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 415,
+      "end": 488,
+      "value": " Closes 275 of the 291 OXC corpus rejects in the \"Expected from, got =\""
+    },
+    {
+      "type": "Line",
+      "start": 489,
+      "end": 563,
+      "value": " cluster (S26 W6 phase 3 bug class #4). Pre-fix kessel ate `import X` as"
+    },
+    {
+      "type": "Line",
+      "start": 564,
+      "end": 629,
+      "value": " a default-import binding and choked on `=` looking for `from`."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=35888B reserved=16777216B ratio=0%
+Parse errors: 0

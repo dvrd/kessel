@@ -62,8 +62,8 @@
       "divergences": 0
     },
     "typescript": {
-      "files": 15,
-      "pass": 15,
+      "files": 16,
+      "pass": 16,
       "fail": 0,
       "divergences": 0
     },

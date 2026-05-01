@@ -2292,6 +2292,7 @@ statement_inner_nil :: proc(stmt: ^Statement) -> bool {
 	case ^TSTypeAliasDeclaration:    return s == nil
 	case ^TSEnumDeclaration:         return s == nil
 	case ^TSModuleDeclaration:       return s == nil
+	case ^TSImportEqualsDeclaration: return s == nil
 	}
 	return true  // unknown variant - treat as nil to be safe
 }
@@ -2328,6 +2329,7 @@ get_statement_loc :: proc(stmt: ^Statement) -> Loc {
 	case ^TSTypeAliasDeclaration:   return s.loc
 	case ^TSEnumDeclaration:        return s.loc
 	case ^TSModuleDeclaration:      return s.loc
+	case ^TSImportEqualsDeclaration: return s.loc
 	}
 	return Loc{}
 }
@@ -4097,11 +4099,96 @@ print_statement_ast :: proc(stmt: ^Statement, indent: int) {
 		// and the deepest TSModuleBlock body.
 		emit_ts_module_decl_fields(s, indent)
 
+	case ^TSImportEqualsDeclaration:
+		// S26 W6 phase 3 bug class #4. ESTree TS-shape:
+		//   { type, start, end, id: Identifier, moduleReference, importKind }
+		// moduleReference shapes:
+		//   * Identifier         (`= N`)
+		//   * TSQualifiedName    (`= A.B.C` — fold MemberExpression chain)
+		//   * TSExternalModuleReference (`= require("m")`)
+		// Use emit_identifier_name_object so the `id` Identifier carries the
+		// full TS-shape footer (`typeAnnotation: null, optional: false`); the
+		// hand-rolled inline form was missing those fields and produced 8
+		// divergences against OXC on the spec/typescript/020 fixture.
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"id\": ")
+		emit_identifier_name_object(IdentifierName{loc = s.id.loc, name = s.id.name}, indent)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"moduleReference\": ")
+		emit_ts_module_reference(s.module_reference, indent)
+		out_s(",\n")
+		print_indent(indent)
+		out_s("\"importKind\": \"")
+		switch s.import_kind {
+		case .Type:  out_s("type")
+		case .Value: out_s("value")
+		}
+		out_s("\"")
+
 	case:
 		out_s(",\n")
 		print_indent(indent)
 		out_s("\"[UNIMPLEMENTED]\": true")
 	}
+}
+
+// Emit a TSImportEqualsDeclaration's moduleReference field. Closes over
+// the three legal shapes:
+//   * ^TSExternalModuleReference — emit directly
+//   * ^Expression that's a bare ^Identifier — emit as Identifier
+//   * ^Expression that's a MemberExpression chain — flatten left-deep into
+//     a TSQualifiedName tree by collecting the chain's identifiers and
+//     reusing emit_ts_module_qualified_id (the same helper that backs
+//     TSModuleDeclaration's `namespace A.B.C { ... }` id emission).
+emit_ts_module_reference :: proc(ref: TSModuleReference, indent: int) {
+	switch r in ref {
+	case ^TSExternalModuleReference:
+		out_s("{\n")
+		print_indent(indent + 1)
+		out_s("\"type\": \"TSExternalModuleReference\"")
+		emit_span_fields(r.loc, indent + 1)
+		out_s(",\n")
+		print_indent(indent + 1)
+		out_s("\"expression\": {\n")
+		print_expression_ast(expression_from_str(r.expression), indent + 2)
+		out_s("\n")
+		print_indent(indent + 1)
+		out_s("}\n")
+		print_indent(indent)
+		out_s("}")
+	case ^Expression:
+		// Walk the MemberExpression chain to a flat []^Expression, then reuse
+		// emit_ts_module_qualified_id which handles both 1-element (bare
+		// identifier) and N-element (left-deep TSQualifiedName fold).
+		ids := make([dynamic]^Expression, 0, 4, context.temp_allocator)
+		walk: ^Expression = r
+		for walk != nil {
+			if mem, ok := walk^.(^MemberExpression); ok && mem != nil && !mem.computed {
+				append(&ids, mem.property)
+				walk = mem.object
+			} else {
+				append(&ids, walk)
+				break
+			}
+		}
+		// Reverse: collected right-to-left, emit_ts_module_qualified_id wants
+		// left-to-right.
+		for i := 0; i < len(ids) / 2; i += 1 {
+			j := len(ids) - 1 - i
+			ids[i], ids[j] = ids[j], ids[i]
+		}
+		emit_ts_module_qualified_id(ids[:], indent)
+	}
+}
+
+// Wrap a ^StringLiteral in an ^Expression for print_expression_ast — used
+// by emit_ts_module_reference's TSExternalModuleReference arm.
+expression_from_str :: proc(s: ^StringLiteral) -> ^Expression {
+	e := new(Expression, context.temp_allocator)
+	e^ = s
+	return e
 }
 
 // Map TSModuleKind to its OXC string label. `namespace`, `module`, and
@@ -7057,6 +7144,7 @@ get_statement_type_name :: proc(stmt: ^Statement) -> string {
 	case ^TSTypeAliasDeclaration: return "TSTypeAliasDeclaration"
 	case ^TSEnumDeclaration:    return "TSEnumDeclaration"
 	case ^TSModuleDeclaration:  return "TSModuleDeclaration"
+	case ^TSImportEqualsDeclaration: return "TSImportEqualsDeclaration"
 	}
 	return "Unknown"
 }
