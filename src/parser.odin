@@ -4295,6 +4295,43 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			}
 		}
 	} else if is_token(p, .LBracket) {
+		// TS index signature in class body: `[s: string]: number`. Detect by
+		// peeking `[ Identifier : ...`. The interface-body parser
+		// (parse_ts_object_member) handles this; class bodies got the same
+		// detection added here. Pre-fix: kessel saw `[` and tried to parse
+		// `s` as a computed-property-key expression, then choked on `:` looking
+		// for `]`. Closes 130+ OXC corpus rejects in the "Expected ], got :"
+		// cluster (S26 W6 phase 3 bug class #10). Skipped at the AST level for
+		// now — the parser accepts the syntax, the corpus smoke gate passes,
+		// and a proper TSIndexSignature class-element node can come in W7+
+		// when the deep walker starts comparing class bodies.
+		if allow_ts_mode(p) && p.lexer.nxt.kind == .Identifier {
+			// Two-token lookahead: nxt is the identifier, nxt.nxt would be `:`.
+			// We don't have a 2-tok-ahead helper, so snapshot+probe.
+			snap := lexer_snapshot(p)
+			eat(p)  // consume `[`
+			eat(p)  // consume identifier
+			is_index_sig := is_token(p, .Colon)
+			lexer_restore(p, snap)
+			if is_index_sig {
+				// Confirmed: parse and discard the index signature. Same shape
+				// as parse_ts_object_member's index-signature arm.
+				eat(p)            // `[`
+				eat(p)            // identifier
+				eat(p)            // `:`
+				_ = parse_ts_type(p)
+				expect_token(p, .RBracket)
+				if is_token(p, .Colon) {
+					_ = parse_ts_type_annotation(p)
+				}
+				match_semicolon_or_asi(p)
+				// Return nil so the class-body loop swallows the element
+				// without erroring — mirrors the existing pattern for elements
+				// that the parser intentionally drops (TS overload signatures
+				// don't materialize either).
+				return nil
+			}
+		}
 		// Computed property: [expr]
 		computed = true
 		eat(p)
