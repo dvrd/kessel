@@ -13824,7 +13824,23 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 	eat(p) // consume Identifier
 	after := p.cur_type
 	lexer_restore(p, snap)
-	return after == .Colon || after == .Question
+	// `:` / `?` — parameter type annotation or optional marker.
+	// `,` — multiple parameters `(a, b) => R`.
+	if after == .Colon || after == .Question || after == .Comma { return true }
+	// Single untyped parameter `(item) =>` — if `)` is immediately
+	// followed by `=>`, this is a function type with an untyped param.
+	// Without this check, `(item) => item is A` is mis-parsed as a
+	// parenthesised type reference.
+	if after == .RParen {
+		snap2 := lexer_snapshot(p)
+		eat(p) // consume `(`
+		eat(p) // consume Identifier
+		eat(p) // consume `)`
+		arrow_follows := p.cur_type == .Arrow
+		lexer_restore(p, snap2)
+		return arrow_follows
+	}
+	return false
 }
 
 parse_ts_type :: proc(p: ^Parser) -> ^TSType {
