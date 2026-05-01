@@ -15191,12 +15191,85 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		readonly_mod = .True; eat(p) // consume `readonly`, now at `[`
 	}
 
-	// Check `{ [K in` pattern. After optional readonly, `[` is current.
+	// Check `{ [K in` pattern. Mapped types REQUIRE the literal `in`
+	// keyword between the type-parameter name and the source type, so a
+	// 2-token-ahead probe is enough to disambiguate from:
+	//   - index signature       `[k : T]: V`
+	//   - computed property key `[Symbol.iterator]?(): R`
+	is_index_sig_after_readonly := false
 	if is_token(p, .LBracket) {
 		nxt := p.lexer.nxt
 		if nxt.kind == .Identifier || nxt.kind == .Let || nxt.kind == .As {
-			is_mapped = true
+			snap := lexer_snapshot(p)
+			eat(p) // `[`
+			eat(p) // identifier
+			after := p.cur_type
+			lexer_restore(p, snap)
+			if after == .In {
+				is_mapped = true
+			} else if after == .Colon {
+				is_index_sig_after_readonly = readonly_mod != .None
+			}
 		}
+	}
+
+	// `readonly [id: T]: V` (index signature with readonly modifier) - we
+	// already ate `readonly` above. Hand the rest off to
+	// parse_ts_object_member but with the readonly flag preserved by
+	// faking out a `.Readonly` arm. Easiest path: fall through to the
+	// regular object loop, but seed `members` with this one index
+	// signature parsed inline and reset the modifier so subsequent
+	// members don't inherit it.
+	if is_index_sig_after_readonly {
+		members := make([dynamic]^TSSignature, 0, 4, p.allocator)
+		lb_start := cur_loc(p)
+		eat(p) // `[`
+		param_start := cur_loc(p)
+		param_name_tok := get_current(p)
+		eat(p) // identifier
+		colon_start := cur_loc(p)
+		eat(p) // `:`
+		idx_ann := parse_ts_type(p)
+		key_type_end := prev_end_offset(p)
+		expect_token(p, .RBracket)
+		val_ann: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Colon) { val_ann = parse_ts_type_annotation(p) }
+		param_name_ident := new_node(p, Identifier)
+		param_name_ident.loc = loc_from_token(&param_name_tok)
+		param_name_ident.name = param_name_tok.value
+		key_ann := new_node(p, TSTypeAnnotation)
+		key_ann.loc.span.start = colon_start.span.start
+		key_ann.loc.span.end   = key_type_end
+		key_ann.type_annotation = idx_ann
+		sig_loc_start := modifier_start
+		idx_sig := TSIndexSignature{
+			loc = Loc{span = Span{start = sig_loc_start, end = lb_start.span.end}},
+			parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
+			type_annotation = val_ann,
+			readonly = readonly_mod == .True,
+		}
+		fp := TSFunctionParam{
+			loc = param_start,
+			pattern = param_name_ident,
+			type_annotation = key_ann,
+		}
+		fp.loc.span.end = key_type_end
+		bump_append(&idx_sig.parameters, fp)
+		match_token(p, .Semi); match_token(p, .Comma)
+		idx_sig.loc.span.end = prev_end_offset(p)
+		first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
+		bump_append(&members, first_sig)
+		readonly_mod = .None // consumed; subsequent members are independent
+		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+			prev_off := int(cur_offset(p))
+			sig := parse_ts_object_member(p); if sig != nil { bump_append(&members, sig) }
+			match_token(p, .Semi); match_token(p, .Comma)
+			if int(cur_offset(p)) == prev_off { eat(p) }
+		}
+		expect_token(p, .RBrace)
+		lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members
+		lit.loc.span.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = lit; return r
 	}
 
 	// If we ate readonly but it's not actually mapped, we need to treat
