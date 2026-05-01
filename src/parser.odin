@@ -3536,7 +3536,18 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		return param
 	}
 
-	pattern := parse_binding_pattern(p)
+	pattern: Pattern
+	if p.cur_type == .This && allow_ts_mode(p) {
+		// TS `this` parameter: `function(this: T) {}` — specifies the
+		// type of `this` inside the function. Not a real runtime param.
+		ident := new_node(p, Identifier)
+		ident.loc = loc_from_token(&p.cur_tok)
+		ident.name = "this"
+		eat(p)
+		pattern = ident
+	} else {
+		pattern = parse_binding_pattern(p)
+	}
 	param.pattern = pattern
 
 	// TypeScript: optional parameter marker `?` comes AFTER the name.
