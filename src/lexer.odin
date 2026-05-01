@@ -505,8 +505,14 @@ skip_block_comment :: proc(l: ^Lexer) {
 	end, had_nl := simd_skip_block_comment(l.source_bytes, l.offset)
 	if had_nl { l.had_line_terminator = true }
 	// §12.4 — A block comment that reaches EOF without a closing `*/` is a
-	// SyntaxError. Report it so the test runner sees `Parse errors: 1`.
-	if end >= len(l.source_bytes) {
+	// SyntaxError. simd_skip_block_comment returns `src_len` either way
+	// (terminated `*/` at end-of-file vs ran-off-the-end without finding
+	// one); distinguish by checking the trailing two bytes. Test:
+	// CRLF-and-LF files where the final two bytes are exactly `*/` with
+	// no trailing newline (typescript/compiler/baseIndexSignatureResolution.ts
+	// and ~9 sibling fixtures).
+	terminated := end >= 2 && l.source_bytes[end-2] == '*' && l.source_bytes[end-1] == '/'
+	if !terminated {
 		bump_append(&l.lexer_errors, LexerError{
 			offset  = comment_start,
 			message = "Unterminated block comment",
@@ -736,7 +742,10 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 						at_logical_line_start = true
 					}
 					// Unterminated block comment — report as lexer error.
-					if end >= src_len {
+					// (simd_skip_block_comment returns `src_len` for both
+					// terminated-at-EOF and run-off-end; check trailing `*/`.)
+					terminated := end >= 2 && src[end-2] == '*' && src[end-1] == '/'
+					if !terminated {
 						bump_append(&l.lexer_errors, LexerError{
 							offset  = u32(comment_start),
 							message = "Unterminated block comment",

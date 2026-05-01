@@ -4223,6 +4223,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if is_member_start {
 			break
 		}
+		// ASI: when the next token sits on a new line, a bare modifier-
+		// shaped identifier (`public\n private foo()`) is the FIELD NAME,
+		// not a modifier on the next member. The legal class-element
+		// production for `public` followed by a LineTerminator is the
+		// PropertyDefinition `public;` — same ASI rule that lets
+		// `accessor\n a;` parse as two fields. Test:
+		// typescript/compiler/asiPublicPrivateProtected.ts.
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+			break
+		}
 		consumed := false
 		#partial switch cur {
 		case .Static:
@@ -4492,10 +4502,12 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		return nil
 	}
 
-	// Check for generator star (not valid for private identifiers)
-	if !is_private && match_token(p, .Mul) {
-		is_generator = true
-	}
+	// (The generator `*` is parsed BEFORE the name above, around line
+	// 4354. There's no `name *` form in JS / TS — a stray `*` here
+	// belongs to the next class element, e.g. ASI-split
+	// `async\n *foo() {}` where `async` is a bare field and `*foo` is a
+	// generator method. Removing the post-name `*` consumption closes
+	// the babel "async\n *a(){}" no-asi fixture.)
 
 	// TS class field modifiers: `foo?:` (optional) or `foo!:` (definite assignment).
 	// These appear BEFORE the `:` type annotation and coexist with it.
