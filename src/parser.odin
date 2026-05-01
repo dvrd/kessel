@@ -14786,6 +14786,22 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	// error instead of cascading SIGSEGVs.
 	nxt_kind := p.lexer.nxt.kind
 
+	// TS type-parameter modifiers: `<const T>`, `<in T>`, `<out T>`.
+	// These can only appear in generic-arrow position (not assertions).
+	// `const` lexes as .Const keyword, `in` as .In. `out` is Identifier
+	// but appears as a modifier only before another Identifier, so the
+	// `<Identifier ...` path below catches `<out T>`.
+	if nxt_kind == .Const || nxt_kind == .In {
+		snap := lexer_snapshot(p)
+		result := parse_ts_generic_arrow(p, start)
+		if result != nil && len(p.errors) == snap.errors_len {
+			return result
+		}
+		lexer_restore(p, snap)
+		report_error(p, "Malformed generic arrow function")
+		return nil
+	}
+
 	if nxt_kind == .Identifier {
 		snap := lexer_snapshot(p)
 		eat(p)            // consume `<`
