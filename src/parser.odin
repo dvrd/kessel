@@ -2962,6 +2962,15 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 			report_error(p, "Catch parameter is missing")
 		} else {
 			param = parse_binding_pattern(p)
+			// TS § catch-clause-types - the catch parameter may carry a
+			// type annotation (`: any` or `: unknown` per TS rules; the
+			// type-checker enforces the narrow set, the parser accepts
+			// any TS type). Closes ≈16 OXC corpus rejects in the
+			// "Expected ), got :" cluster (destructureCatchClause.ts and
+			// friends use shapes like `catch ({ x }: unknown) { ... }`).
+			if allow_ts_mode(p) && is_token(p, .Colon) {
+				_ = parse_ts_type_annotation(p)
+			}
 		}
 		if !expect_token(p, .RParen) {
 			return nil
@@ -13689,6 +13698,49 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 		after := p.cur_type
 		lexer_restore(p, snap)
 		return after == .Colon
+	}
+	// Destructured parameter — `({ name }: T) => U` or `([x]: T) => U`.
+	// Skip the balanced `{...}` / `[...]` and check if `:`, `?`, `,` or
+	// `)`+`=>` follows. Closes ~16 OXC corpus rejects in the
+	// "Expected ), got :" cluster (typescript fixtures with shapes like
+	// `let f: ({ name: alias }: Named) => void` and
+	// `catch ({ x }: unknown)` patterns when used in function-type
+	// positions).
+	if nxt == .LBrace || nxt == .LBracket {
+		snap := lexer_snapshot(p)
+		eat(p) // consume `(`
+		open_kind := p.cur_type
+		close_kind: TokenType = .RBrace if open_kind == .LBrace else .RBracket
+		eat(p)  // consume `{` or `[`
+		depth := 1
+		// Bounded scan - destructuring patterns rarely exceed a few hundred
+		// tokens, but keep a hard cap to satisfy the no-unbounded-loop rule.
+		for i := 0; i < 4096 && depth > 0 && p.cur_type != .EOF; i += 1 {
+			#partial switch p.cur_type {
+			case .LBrace, .LBracket, .LParen:
+				depth += 1
+			case .RBrace, .RBracket, .RParen:
+				if p.cur_type == close_kind && depth == 1 {
+					depth = 0
+					continue // don't eat - want to inspect after
+				}
+				depth -= 1
+			}
+			eat(p)
+		}
+		after_close: TokenType = .EOF
+		if depth == 0 && p.cur_type == close_kind {
+			eat(p) // consume the matching close
+			after_close = p.cur_type
+		}
+		lexer_restore(p, snap)
+		// Function-type signals after a destructured parameter:
+		//   `:` - parameter type annotation
+		//   `?` - optional parameter
+		//   `,` - more parameters follow
+		//   `=` - default initializer (rare but legal in TS function types)
+		return after_close == .Colon || after_close == .Question ||
+		       after_close == .Comma || after_close == .Assign
 	}
 	if nxt != .Identifier { return false }
 
