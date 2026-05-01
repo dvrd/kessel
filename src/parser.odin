@@ -3997,6 +3997,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 	// or static method). Instance constructors only; static methods
 	// named `constructor` don't count.
 	constructor_seen := false
+	constructor_implementation_seen := false
 
 	for elem in elems {
 		if elem.key == nil { continue }
@@ -4012,12 +4013,39 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 
 		// §15.7.1 - at most one constructor per class. Detect by name
 		// + kind (Method or Constructor) + non-static + non-computed.
+		//
+		// TS exception: overload signatures — multiple `constructor(...);`
+		// declarations with empty bodies followed by ONE implementation
+		// `constructor(...) { ... }`. Detect by the FunctionExpression's
+		// body being empty (overload sig) vs non-empty (implementation).
+		// Closes 64 OXC corpus rejects in the "Duplicate constructor in
+		// class" cluster (S26 W6 phase 3 bug class #12).
 		if !elem.static && !elem.computed && (elem.kind == .Method || elem.kind == .Constructor) {
 			if class_element_prop_name(elem.key) == "constructor" {
-				if constructor_seen {
-					report_error(p, "Duplicate constructor in class")
-				} else {
+				// FunctionBody is a struct (not a union pointer); detect
+				// implementation by either a non-empty body[] or a non-zero
+				// span. Overload sigs leave both at zero.
+				has_body := false
+				if val_expr, vok := elem.value.(^Expression); vok && val_expr != nil {
+					if fn, fok := val_expr^.(^FunctionExpression); fok && fn != nil {
+						has_body = len(fn.body.body) > 0 || fn.body.loc.span.end > fn.body.loc.span.start
+					}
+				}
+				if allow_ts_mode(p) {
+					// Only error when SECOND implementation appears (two ctors
+					// with bodies). Overload sigs (empty body) freely repeat.
+					if has_body && constructor_implementation_seen {
+						report_error(p, "Duplicate constructor implementation in class")
+					}
+					if has_body { constructor_implementation_seen = true }
 					constructor_seen = true
+				} else {
+					// Plain JS: §15.7.1 — only one constructor allowed.
+					if constructor_seen {
+						report_error(p, "Duplicate constructor in class")
+					} else {
+						constructor_seen = true
+					}
 				}
 			}
 		}
