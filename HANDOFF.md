@@ -362,9 +362,11 @@ As of W9 end-of-session. No `git stash`, no WIP branches.
 |---|---|---|
 | **60 OXC-corpus kessel-only-rejects.** Genuine parser gaps (see "Remaining 60" below). | medium | `src/parser.odin` |
 | **1,135 corpus oxc-only-rejects.** kessel accepts what OXC rejects. Not yet triaged. | low | various |
-| **Semantic checker is a stub and the CLI flag wiring looks incomplete.** `src/checker.odin` has the skeleton but no actual checks. ~120 `report_semantic_error` calls in the parser are gated on `check_semantics=false` (default). A source-only review also found `--show-semantic-errors` parsed in `src/main.odin` but not visibly assigned to `p.check_semantics`; `init_parser()` copies `p.check_semantics` into `lexer.check_semantics` before callers set later parser flags. Verify and wire this before relying on semantic / regex validation modes. | high | `src/checker.odin`, `src/main.odin`, `src/parser.odin`, `src/lexer.odin` |
+| **Semantic checker is a stub and `--show-semantic-errors` is effectively dead.** `src/checker.odin` has no runtime checks and `init_checker` / `check_program` have no callers in `src`. ~120 `report_semantic_error` calls in the parser are gated on `check_semantics=false` (default). Source review found `--show-semantic-errors` is parsed into `show_semantic_errors_enabled`, but no source assignment to `p.check_semantics`; `init_parser()` copies `p.check_semantics` into `lexer.check_semantics`, so semantic-gated parser errors and regex semantic validation stay off. Wire the flag and add a CLI regression before relying on semantic / regex validation modes. | high | `src/checker.odin`, `src/main.odin`, `src/parser.odin`, `src/lexer.odin` |
+| **Multi-worker parse-to-disk path is not thread-safe and ignores language detection.** `parse_file_to_disk()` / `parse_file_raw_to_disk()` are called from `worker_proc`, but mutate global emitter state (`direct_buf`, `direct_pos`, `use_direct_buf`, `utf16_offsets`, plus emit toggles / loc state). The save/restore pattern is per-call, not thread-safe. These paths also call `init_parser()` / `produce_raw_buffer()` with default `.JSX`, ignoring extension detection and `--lang` for `.ts`, `.tsx`, `.mts`, `.cts`, `.d.ts`. Make emitter state per-worker/per-call and pass `resolve_lang(file_path)` through disk/raw paths. | high | `src/main.odin` |
 | **Line table can silently truncate and misses JS line terminators.** `build_line_table()` preallocates `src_len / 40 + 16`, then `break`s if there are more lines than capacity. Files with many short lines get wrong `loc` and error line/column data after the cap. It also only treats `\n` as a line break; JS also has `\r`, `\r\n`, U+2028, U+2029. | medium | `src/lexer.odin` |
-| **Raw-transfer pointer rewrite coverage is fragile/incomplete.** Source review found likely missing rewrites for `CallExpression.type_parameters`, `NewExpression.type_parameters`, `ImportExpression.options`, `ImportExpression.phase`, `ClassExpression.super_type_arguments`, `ImportDeclaration.source/attributes/phase`, export specifier/source/attribute internals, and the `TSInstantiationExpression` expression variant. The `#partial switch` defaults can hide new AST fields silently. Add coverage tests / exhaustive guards. | high | `src/raw_transfer.odin`, `src/ast.odin` |
+| **Expression loc helpers are incomplete.** `loc_from_expr()` and `get_expr_loc_ptr()` miss JSX variants, TS expression variants, and `TSInstantiationExpression`. If parser code calls `loc_from_expr()` on those nodes, spans become `{0,0}`; `set_expr_start` / `set_expr_end` / `get_expr_loc_ptr` currently look dead, but either delete them or make them exhaustive. | medium | `src/parser.odin` |
+| **Raw-transfer pointer rewrite coverage is fragile/incomplete.** Source review found missing variants: `TSInstantiationExpression`, `TSImportEqualsDeclaration`, `TSExportAssignment`, `TSNamespaceExportDeclaration`. Likely missing fields include `CallExpression.type_parameters`, `NewExpression.type_parameters`, `ImportExpression.options`, `ImportExpression.phase`, `ClassExpression.super_type_arguments`, `ImportDeclaration.source/attributes/phase`, and export specifier/source/attribute internals. The `#partial switch` defaults hide new AST fields silently; comments claiming full coverage are stale. Add coverage tests / exhaustive guards. | high | `src/raw_transfer.odin`, `src/ast.odin` |
 | **AST evolution has no compile-time guard.** Adding fields/variants requires updates to JSON emitter, raw-transfer walker, semantic checker, scope/private-name walkers, and tests. Today missing raw-transfer cases can compile and corrupt binary output. Add invariant tests that enumerate AST union variants and field surfaces. | medium | `src/ast.odin`, `src/raw_transfer.odin`, `src/main.odin` |
 | **2.5 GB unused vendor data.** `vendor/estree-conformance/` has 2.3 GB of golden-JSON oracles we don't consume. | annoying | `vendor/estree-conformance/` |
 | **TS multi-file `@filename:` projects skipped.** 3,519 fixtures (14%) skip-counted. | medium | `tests/verifiers/verify_oxc_corpus.js` |
@@ -458,6 +460,14 @@ are gated but the save/restore code still runs. Removing them is
 safe once the checker handles the checks, and will shrink the
 Parser struct and eliminate ~135 lines of save/restore boilerplate.
 
+**Dead/stale code and comments found by source-only review.** High-confidence
+dead helpers: `label_iter_in_scope`, `set_expr_start`, `set_expr_end`,
+`get_expr_loc_ptr` (only used by dead setters), `is_valid_script_property_value`,
+and checker entry points until wired. Stale comments include: lexer comment saying
+parser reads `bom_before_hashbang` (lexer now reports directly), continue-statement
+comment saying labels are not tracked, and raw_transfer comments saying all
+expression variants are handled.
+
 No git stash. No WIP branches. No half-merged feature flags.
 
 ---
@@ -468,49 +478,63 @@ Prioritized for the next session.
 
 ### Pipeline architecture
 
-1. **Build the semantic checker AST walker.** `src/checker.odin` is
+1. **Fix semantic flag wiring before checker work.** `--show-semantic-errors`
+   must set `p.check_semantics` and `lex.check_semantics` for all parse entry
+   points. Add a CLI regression where a semantic-only error is hidden by default
+   and shown with the flag, plus one invalid regex body that only appears when
+   semantic validation is enabled. **Files:** `src/main.odin`, `src/parser.odin`,
+   `src/lexer.odin`. **Difficulty:** low.
+
+2. **Build the semantic checker AST walker.** `src/checker.odin` is
    a stub. Implement `check_program` as a recursive visitor that
    walks `Program → Statement → Expression` and enforces early
    errors by inspecting ancestors. Start with break/continue (easiest
    to test), then labels, then super/new.target, then strict-mode
-   bindings. **Files:** `src/checker.odin`. **Difficulty:** medium.
+   bindings. Wire it from parse entry points when semantic checking is
+   requested. **Files:** `src/checker.odin`, `src/main.odin`. **Difficulty:** medium.
 
-2. **Remove validation-only state from the Parser struct.** Once
+3. **Fix parse-many thread safety and language mode.** Move JSON emitter state
+   (`direct_buf`, `direct_pos`, `use_direct_buf`, `utf16_offsets`, loc tables)
+   out of globals or make it thread-local/per-call. Pass `resolve_lang(file_path)`
+   through `parse_file_to_disk()` and `parse_file_raw_to_disk()` / `produce_raw_buffer()`.
+   Add a multi-worker `.ts` fixture regression. **Files:** `src/main.odin`. **Difficulty:** medium.
+
+4. **Remove validation-only state from the Parser struct.** Once
    the checker handles each category, remove the corresponding
    field and its ~135 lines of save/restore ceremony.
    **Files:** `src/parser.odin`. **Difficulty:** low per field.
 
 ### Parser gaps (60 remaining)
 
-3. **`<<` token splitting.** ~7 corpus files. Requires splitting the
+5. **`<<` token splitting.** ~7 corpus files. Requires splitting the
    `<<` (LShift) token into two `<` tokens during type-argument
    trial parse. **Files:** `src/lexer.odin` + `src/parser.odin`.
    **Difficulty:** hard.
 
-4. **Template literal type `>>` splitting.** ~1 corpus file. When
+6. **Template literal type `>>` splitting.** ~1 corpus file. When
    `>>` appears inside a template literal type `${...}`, the
    `try_split_close_angle` re-lex interferes with template depth
    tracking. The re-lexed `}` isn't recognized as a template closer.
    **Files:** `src/lexer.odin`. **Difficulty:** medium.
 
-5. **ASI edge cases.** ~3-4 corpus files. ASI inside interfaces and
+7. **ASI edge cases.** ~3-4 corpus files. ASI inside interfaces and
    type literals with computed optional properties (`[x]?: T` without
    semicolons). `can_insert_semicolon` doesn't know it's inside an
    interface/type-literal. **Difficulty:** medium.
 
-6. **Continue corpus bug-hunting.** Run
+8. **Continue corpus bug-hunting.** Run
    `node tests/verifiers/triage_kessel_only_rejects.js` for the
    live cluster list. Each remaining cluster is 1-3 files.
 
 ### Infrastructure
 
-8. **Implement TS multi-file `@filename:` splitting.** Unlock 3,519
+9. **Implement TS multi-file `@filename:` splitting.** Unlock 3,519
    currently-skipped corpus fixtures. **Difficulty:** medium.
 
-9. **Phase 2b — deep AST walker on the corpus.** Compare AST shape
-   (not just accept/reject) against OXC. **Difficulty:** medium.
+10. **Phase 2b — deep AST walker on the corpus.** Compare AST shape
+    (not just accept/reject) against OXC. **Difficulty:** medium.
 
-10. **Audit and harden raw_transfer exhaustiveness.** Start by wiring the
+11. **Audit and harden raw_transfer exhaustiveness.** Start by wiring the
     missing surfaces from the source review: `TSImportEqualsDeclaration`,
     `TSExportAssignment`, `TSNamespaceExportDeclaration`,
     `TSInstantiationExpression`, call/new type parameters,
@@ -519,16 +543,21 @@ Prioritized for the next session.
     fails when a new AST union variant or pointer/string-bearing field lacks
     a rewrite path. **Difficulty:** medium.
 
-11. **Fix line/loc table generation.** Make `build_line_table()` grow instead
+12. **Fix line/loc table generation.** Make `build_line_table()` grow instead
     of silently truncating and recognize all ECMAScript line terminators
     (`\n`, `\r`, `\r\n`, U+2028, U+2029). Add a fixture with many one-byte
     lines and mixed terminators. **Difficulty:** low.
 
-12. **Verify semantic flag ordering.** Confirm `--show-semantic-errors`
-    sets `p.check_semantics` before lexer regex validation is gated, or add
-    an explicit post-init setter that updates both parser and lexer. Add one
-    CLI regression where semantic-only errors are hidden by default and shown
-    with the flag. **Difficulty:** low.
+13. **Make expression location helpers exhaustive or delete dead ones.** Add
+    missing JSX / TS expression / `TSInstantiationExpression` cases to
+    `loc_from_expr()` and `get_expr_loc_ptr()`, or remove `set_expr_start`,
+    `set_expr_end`, and `get_expr_loc_ptr` if unused. Add invariant coverage
+    for every `Expression` union variant. **Difficulty:** low.
+
+14. **Cleanup dead code and stale comments.** Remove or update
+    `label_iter_in_scope`, `is_valid_script_property_value`, stale
+    `bom_before_hashbang` / continue-label / raw_transfer coverage comments,
+    and noisy placeholder comments around `_unused_lexer_pad`. **Difficulty:** low.
 
 ---
 

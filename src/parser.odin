@@ -1168,6 +1168,17 @@ expect_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 	return false
 }
 
+// match_semicolon_or_asi_export — like match_semicolon_or_asi but with
+// permissive ASI for export/import declarations. These are statements, not
+// expressions — `[` or `(` on the next line can't be a continuation.
+// Treats any line terminator as ASI, regardless of the next token.
+match_semicolon_or_asi_export :: #force_inline proc(p: ^Parser) -> bool {
+	if p.cur_type == .Semi { advance_token(p); return true }
+	if p.cur_tok.had_line_terminator { return true }
+	if p.cur_type == .RBrace || p.cur_type == .EOF { return true }
+	return false
+}
+
 // match_semicolon_or_asi tries to match a semicolon or allows ASI (for optional cases)
 match_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 	if p.cur_type == .Semi {
@@ -2301,11 +2312,23 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 		}
 	} else if !is_token(p, .Semi) {
-		// Parse as full expression (including comma) but stop at 'in'/'of'.
-		// The no_in flag prevents 'in' from being consumed as binary operator.
-		p.no_in = true
-		left_expr = parse_expr_with_prec(p, .Comma)
-		p.no_in = false
+		// Special case: `for (await of ...)` in script mode — `await` is
+		// an IdentifierReference used as the for-of LHS, not an
+		// AwaitExpression. Detect by checking that next token is `of`.
+		if is_token(p, .Await) && !p.in_async && p.lexer != nil &&
+		   p.lexer.nxt.kind == .Of {
+			cur := get_current(p)
+			id := new_node(p, Identifier)
+			id.loc = loc_from_token(&cur); id.name = cur.value
+			eat(p)
+			left_expr = expression_from(p, id)
+		} else {
+			// Parse as full expression (including comma) but stop at 'in'/'of'.
+			// The no_in flag prevents 'in' from being consumed as binary operator.
+			p.no_in = true
+			left_expr = parse_expr_with_prec(p, .Comma)
+			p.no_in = false
+		}
 	}
 
 	// Now check if this is for-in, for-of, or regular for
@@ -7978,7 +8001,10 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// also legal (type-only import-equals). Closes 291 kessel-only-rejects in
 	// the OXC corpus (S26 W6 phase 3 bug class #4) — the largest single bug
 	// cluster, all reporting "Expected from, got =" pre-fix.
-	if p.cur_type == .Identifier && p.lexer != nil && p.lexer.nxt.kind == .Assign {
+	// Check for TS import-equals: `import X = ...`. Also handles
+	// `import await = ...` (await as binding name in non-module).
+	if (p.cur_type == .Identifier || p.cur_type == .Await || p.cur_type == .Yield) &&
+	   p.lexer != nil && p.lexer.nxt.kind == .Assign {
 		return parse_ts_import_equals(p, start, decl.import_kind)
 	}
 
@@ -8206,7 +8232,8 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		current_expr := expression_from(p, head)
 		for is_token(p, .Dot) {
 			eat(p)  // consume `.`
-			if p.cur_type != .Identifier {
+			if p.cur_type != .Identifier && !is_keyword_usable_as_property_name(p.cur_type) &&
+			   p.cur_type != .Await && p.cur_type != .Yield {
 				report_error(p, "Expected identifier after '.' in import-equals module reference")
 				break
 			}
@@ -8618,8 +8645,10 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 
 	// Consume the trailing semicolon BEFORE stamping the span end so the
 	// ExportAllDeclaration includes its own `;` - matches ESTree/OXC/Acorn
-	// semantics. Previously the span stopped at the last token of `source`.
-	if !match_semicolon_or_asi(p) {
+	// semantics. Export declarations are statements, not expressions —
+	// they can't have member-access continuations. Use a permissive ASI:
+	// any line terminator terminates the declaration (even before `[`).
+	if !match_semicolon_or_asi_export(p) {
 		report_error(p, "Expected semicolon after export declaration")
 	}
 	decl.loc.span.end = prev_end_offset(p)
@@ -8758,7 +8787,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		decl.attributes = parse_import_attributes(p)
 	}
 
-	if !match_semicolon_or_asi(p) {
+	if !match_semicolon_or_asi_export(p) {
 		// `export {} null;` — unexpected token follows export clause on same line.
 		report_error(p, "Expected semicolon after export declaration")
 	}
