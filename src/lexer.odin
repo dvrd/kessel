@@ -141,6 +141,13 @@ Lexer :: struct {
 	hashbang_end:   u32,
 	has_hashbang:   bool,
 
+	// check_semantics: when false (the default), suppress regex-pattern
+	// validation diagnostics. The parser sets this from its own
+	// check_semantics flag during init_parser. Matches OXC's behaviour:
+	// regex body validation is a semantic-layer concern, not a parse-layer
+	// one, so the permissive parser skips it.
+	check_semantics: bool,
+
 	// bom_before_hashbang: true when the source opens with UTF-8 BOM
 	// (`EF BB BF`) immediately followed by `#!`. OXC, Acorn, and Babel all
 	// reject this: the hashbang production requires the `#!` to be the
@@ -2512,7 +2519,12 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	// every diagnostic that depends on flag context (property escapes,
 	// strict IdentityEscape, char-class range early errors in u/v mode,
 	// v-flag set notation, …) plus the flag-agnostic named-group checks.
-	regex_validate_pattern(l, u32(pattern_start), pattern_end, has_u, has_v)
+	// Gated on check_semantics: regex-body validation is a semantic-layer
+	// concern (OXC defers it to oxc_semantic). In permissive mode the
+	// regex literal is accepted as-is.
+	if l.check_semantics {
+		regex_validate_pattern(l, u32(pattern_start), pattern_end, has_u, has_v)
+	}
 
 	end := u32(l.offset)
 	full_regex := l.source[start:end]

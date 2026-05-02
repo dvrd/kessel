@@ -456,6 +456,12 @@ Parser :: struct {
 	// as a TS arrow return-type annotation.
 	conditional_depth: int,
 
+	// TS: depth counter for contexts where conditional types are suppressed.
+	// When > 0, parse_ts_type will NOT parse `extends … ? … : …` as a
+	// conditional type. Used by the infer-with-constraints speculative
+	// parse (TS 4.7+) to match OXC / TypeScript behaviour.
+	ts_disallow_conditional_types: int,
+
 	// Disallow 'in' as binary operator (for for-loop init parsing)
 	no_in:           bool,
 	// True while parsing the RHS of an `in` operator. Used to reject
@@ -801,6 +807,9 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.interner = interner
 
 	p.lexer = lexer
+	// Propagate semantic-checking mode to the lexer so that regex-body
+	// validation (a semantic concern) can be skipped in permissive mode.
+	lexer.check_semantics = p.check_semantics
 
 	// Prime token cache
 	prime_token_cache(p)
@@ -13989,6 +13998,10 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	if !is_token(p, .Colon) { return nil }
 	ann_start := cur_loc(p)
 	eat(p) // consume `:`
+	// Function return types re-allow conditional types.
+	saved_disallow_ct := p.ts_disallow_conditional_types
+	p.ts_disallow_conditional_types = 0
+	defer p.ts_disallow_conditional_types = saved_disallow_ct
 
 	// Detect "asserts <ident>" or "asserts <ident> is <type>" or "<ident> is <type>".
 	// We need to peek WITHOUT committing, because the annotation can also be
@@ -14133,6 +14146,11 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 // return slot can be a type predicate.
 parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	start := cur_loc(p)
+	// Function return types re-allow conditional types — the `=>`
+	// boundary acts like a grouping construct.
+	saved_disallow_ct := p.ts_disallow_conditional_types
+	p.ts_disallow_conditional_types = 0
+	defer p.ts_disallow_conditional_types = saved_disallow_ct
 	// Type-predicate fast path mirrors parse_ts_return_type_annotation but
 	// without the leading `:` consumption.
 	asserts := false
@@ -14305,9 +14323,18 @@ parse_ts_type :: proc(p: ^Parser) -> ^TSType {
 	check := parse_ts_union_type(p)
 	if check == nil { return nil }
 	// Conditional type: `T extends U ? X : Y`
-	if is_token(p, .Extends) {
+	// Suppressed when ts_disallow_conditional_types > 0 (e.g. inside
+	// the constraint of an `infer T extends C` during speculative parse).
+	if is_token(p, .Extends) && p.ts_disallow_conditional_types == 0 {
 		eat(p)
-		exts := parse_ts_union_type(p)
+		// The extends type of a conditional is parsed with conditional
+		// types suppressed (matching TypeScript's
+		// disallowConditionalTypesAnd). This ensures that `infer U
+		// extends C` inside the extends position always treats `extends`
+		// as a constraint (no speculative lookahead needed).
+		p.ts_disallow_conditional_types += 1
+		exts := parse_ts_type(p)
+		p.ts_disallow_conditional_types -= 1
 		expect_token(p, .Question)
 		true_type := parse_ts_type(p)
 		expect_token(p, .Colon)
@@ -14600,7 +14627,16 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// `parseArrowFunctionWithFunctionReturnType.ts` (`<T>(): (() => T) =>
 		// null as any` - the outer `=>` belongs to the arrow function, the
 		// inner `() => T` is the parenthesized return type).
-		eat(p); inner := parse_ts_type(p); expect_token(p, .RParen)
+		eat(p)
+		// Inside parentheses, conditional types are re-allowed (matching
+		// TypeScript's allowConditionalTypesAnd). This is critical for
+		// `(infer U extends number ? 1 : 0)` where the `?` should parse
+		// as a conditional type, not terminate the infer constraint.
+		saved_disallow := p.ts_disallow_conditional_types
+		p.ts_disallow_conditional_types = 0
+		inner := parse_ts_type(p)
+		p.ts_disallow_conditional_types = saved_disallow
+		expect_token(p, .RParen)
 		pn := new_node(p, TSParenthesizedType); pn.loc = start; pn.type_annotation = inner; pn.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = pn; return parse_ts_postfix(p, r, start)
 	case .LBrace:
@@ -14624,6 +14660,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// parse_ts_type directly which doesn't recognise the leading `...` or
 		// the `name:` / `name?:` named-element prefix.
 		eat(p) // consume `[`
+		// Re-allow conditional types inside brackets (tuple elements).
+		saved_disallow_ct := p.ts_disallow_conditional_types
+		p.ts_disallow_conditional_types = 0
 		types := make([dynamic]^TSType, 0, 4, p.allocator)
 		for !is_token(p, .RBracket) && !is_token(p, .EOF) {
 			elem_start := cur_loc(p)
@@ -14711,6 +14750,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			if !match_token(p, .Comma) { break }
 		}
 		expect_token(p, .RBracket)
+		p.ts_disallow_conditional_types = saved_disallow_ct
 		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = tup
 		// Same chain as the LBrace branch above — `[T, U][]` (array of tuples)
@@ -14829,11 +14869,45 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		node.type_parameter.loc = pn.loc // span of the bare `V` - OXC shape
 		// TS 4.7+ constrained infer: `infer A extends B`. The `extends`
 		// here is the constraint on the inferred type parameter, NOT the
-		// outer conditional's extends. Parse the constraint as a type.
+		// outer conditional's extends. Ambiguity: `infer U extends C ?`
+		// could be a constrained infer followed by `?` (conditional type)
+		// or just `infer U` with `extends C ? T : F` as a conditional.
+		// Resolution (matches OXC / TypeScript 4.7+):
+		//   - If already in a disallow-conditional-types context, the
+		//     `extends` is always the constraint (no ambiguity).
+		//   - Otherwise, speculatively parse the constraint with
+		//     conditional types disabled. If `?` follows, backtrack:
+		//     the `extends` belongs to the outer conditional, not infer.
 		if is_token(p, .Extends) {
-			eat(p) // consume `extends`
-			constraint_type := parse_ts_type(p)
-			node.type_parameter.constraint = constraint_type
+			if p.ts_disallow_conditional_types > 0 {
+				// Already in a no-conditional context → constraint is unambiguous.
+				eat(p)
+				p.ts_disallow_conditional_types += 1
+				constraint_type := parse_ts_type(p)
+				p.ts_disallow_conditional_types -= 1
+				node.type_parameter.constraint = constraint_type
+			} else {
+				// Speculative parse: snapshot, parse constraint with
+				// conditional types disabled, then check for `?`.
+				snap := lexer_snapshot(p)
+				eat(p) // consume `extends`
+				p.ts_disallow_conditional_types += 1
+				constraint_type := parse_ts_type(p)
+				p.ts_disallow_conditional_types -= 1
+				if is_token(p, .Question) {
+					// `?` follows → backtrack. The `extends` belongs
+					// to the outer conditional type, not the infer
+					// constraint. Rewind and leave `infer U` bare.
+					// Note: we do NOT reclaim bump-pool memory because
+					// nodes allocated during the trial may be pointed at
+					// by other live structures; the arena reclaims them
+					// at parse-file teardown.
+					lexer_restore(p, snap)
+				} else {
+					// No `?` → constraint is real.
+					node.type_parameter.constraint = constraint_type
+				}
+			}
 		}
 		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
@@ -15145,11 +15219,15 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 
 parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 	start := cur_loc(p); eat(p)
+	// Re-allow conditional types inside angle brackets.
+	saved_disallow_ct := p.ts_disallow_conditional_types
+	p.ts_disallow_conditional_types = 0
 	params := make([dynamic]^TSType, 0, 4, p.allocator)
 	for !is_close_angle_token(p) && !is_token(p, .EOF) {
 		t := parse_ts_type(p); if t != nil { bump_append(&params, t) }; if !match_token(p, .Comma) { break }
 	}
 	expect_close_angle(p)
+	p.ts_disallow_conditional_types = saved_disallow_ct
 	inst := new_node(p, TSTypeParameterInstantiation); inst.loc = start; inst.params = params; inst.loc.span.end = prev_end_offset(p)
 	return inst
 }
@@ -15697,6 +15775,9 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	if !is_token(p, .LAngle) { return nil }
 	start := cur_loc(p); eat(p) // consume `<`
+	// Re-allow conditional types inside angle brackets.
+	saved_disallow_ct := p.ts_disallow_conditional_types
+	p.ts_disallow_conditional_types = 0
 	params := make([dynamic]TSTypeParameter, 0, 4, p.allocator)
 	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
 		param_start := cur_loc(p)
@@ -15755,6 +15836,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		if !match_token(p, .Comma) { break }
 	}
 	expect_token(p, .RAngle)
+	p.ts_disallow_conditional_types = saved_disallow_ct
 	decl := new_node(p, TSTypeParameterDeclaration)
 	decl.loc = start; decl.params = params
 	decl.loc.span.end = prev_end_offset(p)
@@ -15763,6 +15845,14 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 
 parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p); eat(p) // consume `{`
+
+	// Re-allow conditional types inside braces (TypeScript's
+	// allowConditionalTypesAnd). Conditional types are suppressed only
+	// at the immediate level of the extends type in a conditional;
+	// inside any grouping construct (`{`, `[`, `(`) they're re-enabled.
+	saved_disallow_ct := p.ts_disallow_conditional_types
+	p.ts_disallow_conditional_types = 0
+	defer p.ts_disallow_conditional_types = saved_disallow_ct
 
 	// Detect mapped type: `{ [K in T]: V }` or `{ readonly [K in T]?: V }`.
 	// Use `is_next_identifier_value` for cheap lookahead without speculative parse.
