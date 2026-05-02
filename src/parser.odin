@@ -1587,8 +1587,16 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// In strict mode `let` is itself a reserved word - always a
 		// declaration there. The strict-mode binding-name check fires
 		// downstream if the next token isn't valid.
-		if p.strict_mode {
-			let_is_decl = true
+		// In strict mode, `let` is a keyword. If the next token can start
+		// a binding (Identifier, `[`, `{`), it's a declaration. Otherwise
+		// (`let + 1`, `let.x`), parse as expression — the semantic checker
+		// (or report_semantic_error) handles the strict-mode violation.
+		if p.strict_mode && !let_is_decl {
+			// Only force declaration if the next token looks like a binding.
+			if nxt_let.type == .LBracket || nxt_let.type == .LBrace ||
+			   is_identifier_like_token(nxt_let.type) {
+				let_is_decl = true
+			}
 		}
 		if let_is_decl {
 			return parse_variable_declaration(p, nil, true)
@@ -2232,8 +2240,20 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			let_starts_decl = true
 		}
 	}
-	if is_token(p, .Var) || (is_token(p, .Let) && let_starts_decl) || is_token(p, .Const) || is_token(p, .Using) ||
-	   (is_token(p, .Await) && peek_dispatch(p).type == .Using) {
+	// `using` in a for-head follows the same BindingIdentifier rule:
+	// `for (using of of)` → expression; `for (using x of ...)` → decl.
+	using_starts_decl := false
+	if is_token(p, .Using) {
+		nxt_u := peek_token(p)
+		using_starts_decl = (nxt_u.type == .Identifier || can_be_binding_identifier(nxt_u.type)) &&
+		                    !nxt_u.had_line_terminator
+	}
+	await_using_for_decl := false
+	if is_token(p, .Await) && peek_dispatch(p).type == .Using {
+		await_using_for_decl = await_using_starts_decl(p)
+	}
+	if is_token(p, .Var) || (is_token(p, .Let) && let_starts_decl) || is_token(p, .Const) ||
+	   (is_token(p, .Using) && using_starts_decl) || await_using_for_decl {
 		// Variable declaration - parse it. parse_variable_declaration returns a
 		// ^Statement union wrapping a ^VariableDeclaration; extract the inner
 		// variant via type assertion. Prior code transmuted the union pointer
