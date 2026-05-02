@@ -4623,7 +4623,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	                    p.cur_type != .LParen &&
 	                    p.cur_type != .Colon &&
 	                    p.cur_type != .Question &&
-	                    p.cur_type != .Not
+	                    p.cur_type != .Not &&
+	                    // In TS mode, `<` on the next line can start type
+	                    // parameters for a method: `method\n<T>() {}`.
+	                    !(allow_ts_mode(p) && is_open_angle_or_lshift(p))
 	if field_type_ann != nil || is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) || is_field_by_asi {
 		// Class field with initializer or just declaration
 		value: Maybe(^Expression)
@@ -14461,7 +14464,10 @@ parse_ts_type :: proc(p: ^Parser) -> ^TSType {
 	// Conditional type: `T extends U ? X : Y`
 	// Suppressed when ts_disallow_conditional_types > 0 (e.g. inside
 	// the constraint of an `infer T extends C` during speculative parse).
-	if is_token(p, .Extends) && p.ts_disallow_conditional_types == 0 {
+	// ASI guard: `extends` on a new line is NOT a conditional type
+	// continuation — it’s the start of the next member in an interface
+	// or type literal. e.g. `a?: number\nextends?: string`.
+	if is_token(p, .Extends) && p.ts_disallow_conditional_types == 0 && !p.cur_tok.had_line_terminator {
 		eat(p)
 		// The extends type of a conditional is parsed with conditional
 		// types suppressed (matching TypeScript's

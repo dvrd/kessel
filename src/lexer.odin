@@ -2482,11 +2482,15 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		return FastToken{start = start, end = end, kind = .RegularExpression, flags = flags}
 	}
 
-	if in_class {
-		bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated character class in regular expression"})
-	}
-	if group_depth > 0 {
-		bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
+	// Structural regex body checks — gated on check_semantics like the
+	// full pattern validator. OXC defers these to the semantic layer.
+	if l.check_semantics {
+		if in_class {
+			bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated character class in regular expression"})
+		}
+		if group_depth > 0 {
+			bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
+		}
 	}
 
 	// Pattern body validation is delegated to regex_validate_pattern
