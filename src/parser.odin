@@ -1598,16 +1598,16 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		let_is_decl := false
 		if nxt_let.type == .LBracket || nxt_let.type == .LBrace ||
 		   is_identifier_like_token(nxt_let.type) {
-			// §ASI restricted production: in sloppy mode, `let [LT] {` or
-			// `let [LT] <identifier>` triggers ASI so `let` is treated as an
-			// IdentifierReference (not a declaration). e.g. `for (x of []) let
-			// {}` and `for (;;) let\nx = 1` are valid in sloppy mode.
-			// IMPORTANT: `let [` (with or without LT before `[`) is ALWAYS a
-			// potential LexicalDeclaration — ExpressionStatement lookahead
-			// restriction prohibits `let [` at statement start (§ExprStmt).
+			// §ASI restricted production: in sloppy mode, `let [LT] <identifier>`
+			// triggers ASI so `let` is treated as an IdentifierReference (not a
+			// declaration). e.g. `for (;;) let\nx = 1` is valid in sloppy mode.
+			// IMPORTANT: `let [` and `let {` are ALWAYS declarations —
+			// ExpressionStatement lookahead restriction prohibits `let [`
+			// (§ExprStmt), and `let {` has no expression-statement reading
+			// (V8 and OXC both parse `let\n{ a } = …` as a declaration).
 			// In strict mode, `let` is a keyword, so always a declaration.
 			is_let_asi := nxt_let.had_line_terminator && !p.strict_mode &&
-			              (nxt_let.type == .LBrace || nxt_let.type == .Identifier)
+			              nxt_let.type == .Identifier
 			if !is_let_asi {
 				let_is_decl = true
 			}
@@ -8760,14 +8760,31 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 			if nxt_is_name && nxt != .As {
 				eat(p) // consume `type`
 			} else if nxt == .As {
-				// `export { type as }` / `export { type as as foo }`. See
-				// parse_import_specifier for the disambiguation rule.
+				// `export { type as }` / `export { type as as if }`. 4-token
+				// lookahead disambiguates whether `type` is a type modifier or
+				// a local name. After `type as`, check the next token:
+				//   `,` / `}` / `from` → `type` is modifier (`export { type as }`)
+				//   `as` → look one more: if a valid name follows (`as if`,
+				//          `as foo`), `type` is modifier; if `}` / `,` follows,
+				//          `type` is the local name (`export { type as as }`).
 				snap := lexer_snapshot(p)
-				eat(p)
-				eat(p)
+				eat(p) // consume `type`
+				eat(p) // consume first `as`
 				after := p.cur_type
-				lexer_restore(p, snap)
+				consume_type := false
 				if after == .Comma || after == .RBrace || after == .From {
+					consume_type = true
+				} else if after == .As {
+					// `type as as X` — peek past the second `as`.
+					eat(p) // consume second `as`
+					after_as := p.cur_type
+					if after_as == .Identifier || after_as == .String ||
+					   is_keyword_usable_as_property_name(after_as) {
+						consume_type = true
+					}
+				}
+				lexer_restore(p, snap)
+				if consume_type {
 					eat(p)
 				}
 			}
@@ -14025,9 +14042,24 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 			attr_value: Maybe(^Expression)
 			if is_token(p, .Assign) {
 				eat(p)
-				// Clear JSX string mode after consuming `=` — the string
-				// (if any) is already tokenized as `cur` at this point.
+				// Clear JSX string mode. For `attr="str"`, `cur` is the
+				// already-lexed String token (correct). For `attr={expr}`,
+				// `nxt` was lexed with jsx_string_mode still true during the
+				// eat above — that token is inside a JS expression where
+				// escapes MUST be honoured. Re-lex nxt so `\"` is processed
+				// as a JS escape, not as a literal backslash + closing quote.
 				p.lexer.jsx_string_mode = false
+				if (is_token(p, .LBrace) || is_token(p, .LAngle)) &&
+				   p.lexer.nxt.kind == .String {
+					// nxt is a String token lexed from inside a `{expr}`
+					// or `<elem>` with jsx_string_mode=true.  Rewind the
+					// lexer to nxt's start and re-lex in normal JS mode so
+					// escape sequences like `\"` are honoured.  Other token
+					// types (Template, Number, etc.) are unaffected by the
+					// flag and must NOT be re-lexed.
+					p.lexer.offset = int(p.lexer.nxt.start)
+					p.lexer.nxt = lex_token(p.lexer)
+				}
 				if is_token(p, .String) {
 					str := parse_string_literal(p)
 					str_expr := new_node(p, StringLiteral); str_expr^ = str
@@ -14151,6 +14183,24 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	}
 	if off == text_start { return nil }
 	value := src[text_start:off]
+	// The lexer already advanced past the previous `>` or `}` and tried
+	// to lex whatever followed as JavaScript tokens. If that content is
+	// actually JSX text (e.g. `7x invalid-js-identifier`), the lexer may
+	// have pushed spurious errors ("Identifier directly after number").
+	// Remove any lexer errors whose offset falls inside the text region
+	// we are re-claiming as JSXText.
+	{
+		text_end := u32(off)
+		write := 0
+		for i in 0..<len(p.lexer.lexer_errors) {
+			e := p.lexer.lexer_errors[i]
+			if e.offset < u32(text_start) || e.offset >= text_end {
+				p.lexer.lexer_errors[write] = e
+				write += 1
+			}
+		}
+		resize(&p.lexer.lexer_errors, write)
+	}
 	p.lexer.offset = off
 	p.lexer.cur = lex_token(p.lexer)
 	p.lexer.nxt = lex_token(p.lexer)

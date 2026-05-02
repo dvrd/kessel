@@ -3,11 +3,11 @@
   "verdicts": {
     "ok-vs-oxc": 15362,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 1146,
-    "kessel-only-rejects": 9,
+    "oxc-only-rejects": 1148,
+    "kessel-only-rejects": 6,
     "should-reject-passed": 34,
-    "pass-both": 3072,
-    "should-pass-rejected": 1491,
+    "pass-both": 3074,
+    "should-pass-rejected": 1490,
     "reject-both": 507
   },
   "bySuite": {
@@ -16,26 +16,25 @@
       "verdicts": {
         "ok-vs-oxc": 15362,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 324,
-        "kessel-only-rejects": 4
+        "oxc-only-rejects": 325,
+        "kessel-only-rejects": 3
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 34,
-        "pass-both": 3034,
-        "should-pass-rejected": 1491,
-        "oxc-only-rejects": 822,
+        "pass-both": 3035,
+        "should-pass-rejected": 1490,
+        "oxc-only-rejects": 823,
         "reject-both": 507,
-        "kessel-only-rejects": 4
+        "kessel-only-rejects": 3
       }
     },
     "estree": {
       "total": 39,
       "verdicts": {
-        "pass-both": 38,
-        "kessel-only-rejects": 1
+        "pass-both": 39
       }
     }
   },
@@ -131,8 +130,7 @@
     },
     "typescript/conformance/jsx": {
       "skip-multi-file": 36,
-      "oxc-only-rejects": 4,
-      "kessel-only-rejects": 1
+      "oxc-only-rejects": 5
     },
     "typescript/conformance/moduleResolution": {
       "skip-multi-file": 50
@@ -732,8 +730,7 @@
       "should-pass-rejected": 19
     },
     "babel/jsx/basic": {
-      "oxc-only-rejects": 36,
-      "should-pass-rejected": 1
+      "oxc-only-rejects": 37
     },
     "babel/jsx/errors": {
       "oxc-only-rejects": 11,
@@ -861,7 +858,6 @@
     },
     "babel/typescript/type-only-import-export-specifiers": {
       "oxc-only-rejects": 8,
-      "kessel-only-rejects": 1,
       "should-pass-rejected": 1
     },
     "babel/typescript/types": {
@@ -871,9 +867,6 @@
     "babel/v8intrinsic/expression": {
       "should-pass-rejected": 4,
       "oxc-only-rejects": 1
-    },
-    "estree/": {
-      "kessel-only-rejects": 1
     }
   }
 }

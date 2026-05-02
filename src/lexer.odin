@@ -1829,8 +1829,10 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 			return FastToken{start = start, end = end, kind = .String, flags = flags}
 		}
 
-		// Escape sequence
-		if c == '\\' && l.offset + 1 < src_len {
+		// Escape sequence. JSX attribute strings (jsx_string_mode) have
+		// NO escape sequences per JSX §2.2 — backslash is a literal
+		// character. Only JS strings process escapes.
+		if c == '\\' && l.offset + 1 < src_len && !l.jsx_string_mode {
 			next := src[l.offset + 1]
 
 			switch next {
