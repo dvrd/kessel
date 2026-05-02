@@ -10519,7 +10519,25 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 						// `async (...)` as a plain CallExpression of `async`.
 						// Closes ~30 OXC corpus rejects in the
 						// "Expected semicolon" cluster (S26 W6 phase 3 #17).
-						if (p.lang == .TS || p.lang == .TSX) && j < src_len && src[j] == ':' {
+						// TS return-type lookahead. When inside a ternary
+						// consequent AND there's no extra wrapping paren
+						// before `async`, the `:` after `async(b)` is the
+						// ternary's alt separator, NOT a return type.
+						// `(async(b): T => ...)` inside parens is fine.
+						skip_return_type := false
+						if p.conditional_depth > 0 {
+							// Check if `async` is shielded by outer parens.
+							async_pos := int(current.loc)
+							shielded := false
+							for k := async_pos - 1; k >= 0; k -= 1 {
+								ch := src[k]
+								if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { continue }
+								if ch == '(' { shielded = true }
+								break
+							}
+							skip_return_type = !shielded
+						}
+						if (p.lang == .TS || p.lang == .TSX) && !skip_return_type && j < src_len && src[j] == ':' {
 							j += 1
 							t_depth := 0
 							ts_scan: for j < src_len {
