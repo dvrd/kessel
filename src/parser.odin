@@ -11821,6 +11821,14 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 		return nil
 	}
 
+	// Inside function call arguments, the `in` operator is always allowed
+	// even when we're in a for-init position (no_in=true). §13.16:
+	// ArgumentList members are AssignmentExpressions, not restricted.
+	// Fixes `for (a(b in c)[0] in d)` where `b in c` was rejected.
+	saved_no_in := p.no_in
+	p.no_in = false
+	defer p.no_in = saved_no_in
+
 	// Lazy allocation - zero-argument calls (`fn()`) are extremely common
 	// (every method-chain step like `.map().filter().toArray()` has them)
 	// and would otherwise burn a 32-byte bump-pool reservation per call
@@ -13127,13 +13135,29 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// recovery keeps the full assignment tree structurally intact for
 	// downstream consumers (emit, walker).
 	if !is_valid_assignment_target(left, op == .Assign) {
-		report_error(p, "Invalid left-hand side in assignment")
+		// ArrayExpression / ObjectExpression with compound operators
+		// (+=, -=, etc.) are semantic errors, not structural ones —
+		// OXC defers the check. All other invalid LHS patterns (e.g.
+		// BinaryExpression `1 + 2 = 3`) are structural parse errors.
+		is_semantic := false
+		if op != .Assign && left != nil {
+			#partial switch _ in left^ {
+			case ^ArrayExpression, ^ObjectExpression:
+				is_semantic = true
+			case: // fall through
+			}
+		}
+		if is_semantic {
+			report_semantic_error(p, "Invalid left-hand side in assignment")
+		} else {
+			report_error(p, "Invalid left-hand side in assignment")
+		}
 	}
 	// CallExpression as an assignment target is a strict-mode error
 	// (Annex B.3.4 only relaxes it in sloppy script). is_valid_assignment_target
 	// accepts CallExpression unconditionally so the strict gate fires here.
 	if p.strict_mode && is_call_expression_target(left) {
-		report_error(p, "Invalid left-hand side in assignment")
+		report_semantic_error(p, "Invalid left-hand side in assignment")
 	}
 	// §13.15.1 - logical assignment operators (&&=, ||=, ??=) require a
 	// SIMPLE assignment target. CallExpressions are NOT simple targets even
