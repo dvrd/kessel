@@ -4789,17 +4789,24 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 		// §15.4.3 / §15.4.4 - class accessor arity (same rule as
 		// object-literal accessors; see parse_property for the parallel
-		// check).
-		if kind == .Get && len(params) != 0 {
+		// check). In TS mode, a leading `this` parameter is a type-only
+		// declaration (not a runtime param), so exclude it from arity.
+		real_params := count_real_params(p, params[:])
+		if kind == .Get && real_params != 0 {
 			report_error(p, "Getter must not have any formal parameters")
 		}
 		if kind == .Set {
-			if len(params) != 1 {
+			if real_params != 1 {
 				report_error(p, "Setter must have exactly one formal parameter")
 			} else {
-				pp := params[0].pattern
-				if _, is_rest := pp.(^RestElement); is_rest {
-					report_error(p, "Setter parameter cannot be a rest element")
+				// Skip the this-param to find the actual setter param.
+				real_idx := 0
+				if allow_ts_mode(p) && is_this_param(params[0]) { real_idx = 1 }
+				if real_idx < len(params) {
+					pp := params[real_idx].pattern
+					if _, is_rest := pp.(^RestElement); is_rest {
+						report_error(p, "Setter parameter cannot be a rest element")
+					}
 				}
 			}
 		}
@@ -5151,6 +5158,24 @@ params_are_simple :: proc(params: []FunctionParameter) -> bool {
 //     sloppy mode when params are simple (B.3.1 allows dups there).
 //   * class methods, object-literal methods, arrow functions - always
 //     UniqueFormalParameters.
+// is_this_param returns true if the given FunctionParameter has a
+// pattern of ^Identifier with name "this" — the TS-only `this`
+// parameter that specifies the type of `this` inside the function.
+is_this_param :: #force_inline proc(fp: FunctionParameter) -> bool {
+	id, is_id := fp.pattern.(^Identifier)
+	return is_id && id != nil && id.name == "this"
+}
+
+// count_real_params returns the number of "real" runtime parameters,
+// excluding a leading TS `this` parameter (type-only, not runtime).
+count_real_params :: #force_inline proc(p: ^Parser, params: []FunctionParameter) -> int {
+	n := len(params)
+	if n > 0 && allow_ts_mode(p) && is_this_param(params[0]) {
+		n -= 1
+	}
+	return n
+}
+
 // ECMA-262 §15.2.1 StrictFormalParameters forbids dups whenever the
 // code is strict; §15.1.2 extends the ban to any non-simple param list
 // regardless of mode. The `force_when_non_simple` bool threads that
@@ -9224,7 +9249,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			if inner != nil {
 				if ident, is_id := inner.(^Identifier); is_id && ident != nil {
 					msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
-					report_error(p, msg)
+					report_semantic_error(p, msg)
 				}
 			}
 		}
@@ -11198,19 +11223,24 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// enforce exact arity:
 		//   get  - zero parameters.
 		//   set  - exactly one non-rest parameter, no default.
-		if is_getter && len(params) != 0 {
+		obj_real_params := count_real_params(p, params[:])
+		if is_getter && obj_real_params != 0 {
 			report_error(p, "Getter must not have any formal parameters")
 		}
 		if is_setter {
 			// PropertySetParameterList : FormalParameter - exactly one,
 			// non-rest. Default initializers ARE allowed per
 			// BindingElement : SingleNameBinding Initializer_opt.
-			if len(params) != 1 {
+			if obj_real_params != 1 {
 				report_error(p, "Setter must have exactly one formal parameter")
 			} else {
-				pp := params[0].pattern
-				if _, is_rest := pp.(^RestElement); is_rest {
-					report_error(p, "Setter parameter cannot be a rest element")
+				real_idx := 0
+				if allow_ts_mode(p) && is_this_param(params[0]) { real_idx = 1 }
+				if real_idx < len(params) {
+					pp := params[real_idx].pattern
+					if _, is_rest := pp.(^RestElement); is_rest {
+						report_error(p, "Setter parameter cannot be a rest element")
+					}
 				}
 			}
 		}

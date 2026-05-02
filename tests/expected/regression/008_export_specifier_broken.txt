@@ -1,0 +1,186 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 152,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 58,
+      "end": 70,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 64,
+          "end": 69,
+          "id": {
+            "type": "Identifier",
+            "start": 64,
+            "end": 65,
+            "name": "a"          },
+          "init": {
+            "type": "Literal",
+            "start": 68,
+            "end": 69,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 71,
+      "end": 83,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 77,
+          "end": 82,
+          "id": {
+            "type": "Identifier",
+            "start": 77,
+            "end": 78,
+            "name": "b"          },
+          "init": {
+            "type": "Literal",
+            "start": 81,
+            "end": 82,
+            "value": 2,
+            "raw": "2"          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 84,
+      "end": 96,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 90,
+          "end": 95,
+          "id": {
+            "type": "Identifier",
+            "start": 90,
+            "end": 91,
+            "name": "c"          },
+          "init": {
+            "type": "Literal",
+            "start": 94,
+            "end": 95,
+            "value": 3,
+            "raw": "3"          }        }
+      ]    },
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 97,
+      "end": 121,
+      "declaration": null,
+      "specifiers": [
+        {
+          "type": "ExportSpecifier",
+          "start": 106,
+          "end": 107,
+          "local": {
+            "type": "Identifier",
+            "start": 106,
+            "end": 107,
+            "name": "a"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 106,
+            "end": 107,
+            "name": "a"
+          }
+        },
+        {
+          "type": "ExportSpecifier",
+          "start": 109,
+          "end": 111,
+          "local": {
+            "type": "Identifier",
+            "start": 109,
+            "end": 111,
+            "name": "as"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 109,
+            "end": 111,
+            "name": "as"
+          }
+        },
+        {
+          "type": "ExportSpecifier",
+          "start": 114,
+          "end": 115,
+          "local": {
+            "type": "Identifier",
+            "start": 114,
+            "end": 115,
+            "name": "b"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 114,
+            "end": 115,
+            "name": "b"
+          }
+        },
+        {
+          "type": "ExportSpecifier",
+          "start": 117,
+          "end": 118,
+          "local": {
+            "type": "Identifier",
+            "start": 117,
+            "end": 118,
+            "name": "c"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 117,
+            "end": 118,
+            "name": "c"
+          }
+        }
+      ],
+      "source": null,
+      "attributes": []    },
+    {
+      "type": "VariableDeclaration",
+      "start": 122,
+      "end": 151,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 128,
+          "end": 150,
+          "id": {
+            "type": "Identifier",
+            "start": 128,
+            "end": 146,
+            "name": "anchor_after_error"          },
+          "init": {
+            "type": "Literal",
+            "start": 149,
+            "end": 150,
+            "value": 1,
+            "raw": "1"          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 57,
+      "value": " Export specifier list with a malformed entry mid-list."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=38920B reserved=16777216B ratio=0%
+Parse errors: 0

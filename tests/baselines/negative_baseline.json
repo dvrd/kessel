@@ -109,7 +109,7 @@
   "tests/fixtures/early_errors/strict_mode/018_escaped_strict_reserved.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/017_labeled_function_declaration.js": "accepted",
   "tests/fixtures/early_errors/strict_mode/016_function_name_eval.js": "accepted",
-  "tests/fixtures/early_errors/strict_mode/015_delete_identifier.js": "rejected",
+  "tests/fixtures/early_errors/strict_mode/015_delete_identifier.js": "accepted",
   "tests/fixtures/early_errors/strict_mode/014_update_eval_arguments.js": "accepted",
   "tests/fixtures/early_errors/strict_mode/013_octal_escape_template.js": "rejected",
   "tests/fixtures/early_errors/strict_mode/012_octal_escape_string.js": "accepted",
