@@ -3,10 +3,10 @@
   "verdicts": {
     "ok-vs-oxc": 15355,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 1144,
-    "kessel-only-rejects": 39,
+    "oxc-only-rejects": 1145,
+    "kessel-only-rejects": 34,
     "should-reject-passed": 34,
-    "pass-both": 3051,
+    "pass-both": 3055,
     "should-pass-rejected": 1491,
     "reject-both": 507
   },
@@ -16,19 +16,19 @@
       "verdicts": {
         "ok-vs-oxc": 15355,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 322,
-        "kessel-only-rejects": 13
+        "oxc-only-rejects": 323,
+        "kessel-only-rejects": 12
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 34,
-        "pass-both": 3013,
+        "pass-both": 3017,
         "should-pass-rejected": 1491,
         "oxc-only-rejects": 822,
         "reject-both": 507,
-        "kessel-only-rejects": 25
+        "kessel-only-rejects": 21
       }
     },
     "estree": {
@@ -106,8 +106,7 @@
     },
     "typescript/conformance/externalModules": {
       "skip-multi-file": 151,
-      "oxc-only-rejects": 5,
-      "kessel-only-rejects": 1
+      "oxc-only-rejects": 6
     },
     "typescript/conformance/functions": {
       "oxc-only-rejects": 1
@@ -257,8 +256,7 @@
     },
     "babel/es2015/for-of": {
       "should-pass-rejected": 2,
-      "oxc-only-rejects": 1,
-      "kessel-only-rejects": 1
+      "oxc-only-rejects": 1
     },
     "babel/es2015/generators": {
       "should-pass-rejected": 1,
@@ -397,13 +395,11 @@
     },
     "babel/es2025/import-attributes": {
       "should-pass-rejected": 4,
-      "oxc-only-rejects": 3,
-      "kessel-only-rejects": 1
+      "oxc-only-rejects": 3
     },
     "babel/es2026/async-explicit-resource-management": {
       "oxc-only-rejects": 9,
-      "should-pass-rejected": 6,
-      "kessel-only-rejects": 1
+      "should-pass-rejected": 6
     },
     "babel/es2026/explicit-resource-management": {
       "should-pass-rejected": 4,
@@ -540,8 +536,7 @@
     },
     "babel/experimental/import-attributes-createImportExpression-false": {
       "should-pass-rejected": 5,
-      "oxc-only-rejects": 3,
-      "kessel-only-rejects": 1
+      "oxc-only-rejects": 3
     },
     "babel/experimental/module-blocks": {
       "should-pass-rejected": 18
