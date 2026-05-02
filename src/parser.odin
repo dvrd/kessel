@@ -11789,7 +11789,18 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		// On success the current token is past the `>`. If the parse
 		// failed (error was pushed), backtrack — the `<` is the less-than
 		// operator and this is a relational expression.
-		if len(p.errors) > snap.errors_len {
+		// Also backtrack when type args parsed OK but the next token
+		// can’t follow `new Expr<T>` — only `(` (call) and `.` / `[`
+		// (member) are valid. Anything else (identifier, `;`, EOF, …)
+		// means `<` was relational. Fixes `new A < B > C`.
+		parse_failed := len(p.errors) > snap.errors_len
+		next_valid := p.cur_type == .LParen || p.cur_type == .Dot ||
+		              p.cur_type == .LBracket || p.cur_type == .OptionalChain ||
+		              p.cur_type == .Template || p.cur_type == .TemplateHead ||
+		              p.cur_type == .Semi || p.cur_type == .EOF ||
+		              p.cur_type == .RBrace || p.cur_type == .RParen ||
+		              p.cur_type == .RBracket || p.cur_type == .Comma
+		if parse_failed || !next_valid {
 			lexer_restore(p, snap)
 		} else {
 			targs = ta
@@ -15242,7 +15253,9 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 			eat(p) // identifier
 			after := p.cur_type
 			lexer_restore(p, snap)
-			if after == .Colon {
+			// `[Ident :` → index signature, not postfix.
+			// `[Ident ]` followed by `:` or `?` → computed class member.
+			if after == .Colon || after == .RBracket {
 				break
 			}
 		}
