@@ -15257,17 +15257,20 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 		// downstream cascades. Closes most of the
 		// taggedTemplateStringsWithTypedTags / indexer2A /
 		// noPropertyAccessFromIndexSignature1 cluster.
-		if p.cur_tok.had_line_terminator &&
-		   p.lexer.nxt.kind == .Identifier {
-			snap := lexer_snapshot(p)
-			eat(p) // `[`
-			eat(p) // identifier
-			after := p.cur_type
-			lexer_restore(p, snap)
-			// `[Ident :` → index signature, not postfix.
-			// `[Ident ]` followed by `:` or `?` → computed class member.
-			if after == .Colon || after == .RBracket {
-				break
+		if p.cur_tok.had_line_terminator {
+			nxt_kind := p.lexer.nxt.kind
+			if nxt_kind == .Identifier || nxt_kind == .String || nxt_kind == .Number {
+				snap := lexer_snapshot(p)
+				eat(p) // `[`
+				eat(p) // identifier / string / number
+				after := p.cur_type
+				lexer_restore(p, snap)
+				// `[Ident :` → index signature, not postfix.
+				// `[Ident ]` → computed class/interface member.
+				// `["str" ]` → computed method overload.
+				if after == .Colon || after == .RBracket {
+					break
+				}
 			}
 		}
 		if is_next_token(p, .RBracket) {
