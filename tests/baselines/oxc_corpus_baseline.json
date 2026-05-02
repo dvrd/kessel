@@ -1,23 +1,23 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15352,
+    "ok-vs-oxc": 15355,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 1142,
-    "kessel-only-rejects": 43,
+    "oxc-only-rejects": 1144,
+    "kessel-only-rejects": 39,
     "should-reject-passed": 34,
     "pass-both": 3051,
-    "should-pass-rejected": 1492,
+    "should-pass-rejected": 1491,
     "reject-both": 507
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15352,
+        "ok-vs-oxc": 15355,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 321,
-        "kessel-only-rejects": 17
+        "oxc-only-rejects": 322,
+        "kessel-only-rejects": 13
       }
     },
     "babel": {
@@ -25,8 +25,8 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3013,
-        "should-pass-rejected": 1492,
-        "oxc-only-rejects": 821,
+        "should-pass-rejected": 1491,
+        "oxc-only-rejects": 822,
         "reject-both": 507,
         "kessel-only-rejects": 25
       }
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 96,
-      "kessel-only-rejects": 11
+      "kessel-only-rejects": 8
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10,
@@ -151,7 +151,7 @@
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
       "oxc-only-rejects": 77,
-      "kessel-only-rejects": 2
+      "kessel-only-rejects": 1
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -170,7 +170,7 @@
     },
     "typescript/conformance/types": {
       "skip-multi-file": 10,
-      "oxc-only-rejects": 13,
+      "oxc-only-rejects": 14,
       "kessel-only-rejects": 1
     },
     "typescript/conformance/typings": {
@@ -880,8 +880,8 @@
       "should-pass-rejected": 1
     },
     "babel/typescript/types": {
-      "oxc-only-rejects": 16,
-      "should-pass-rejected": 5
+      "oxc-only-rejects": 17,
+      "should-pass-rejected": 4
     },
     "babel/v8intrinsic/expression": {
       "should-pass-rejected": 4,
