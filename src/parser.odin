@@ -1132,26 +1132,19 @@ get_current :: #force_inline proc(p: ^Parser) -> Token {
 // Automatic Semicolon Insertion (ASI)
 // ============================================================================
 
-// can_insert_semicolon checks if ASI is allowed according to ECMAScript spec
-// Rule 1: Token preceded by line terminator, or token is } or EOF
-// Special case: Don't insert semicolon if next line starts with [, (, `, +, -, /, or .
-// as these indicate expression continuation
+// can_insert_semicolon checks if ASI is allowed according to ECMAScript spec.
+// Matches OXC's implementation: any line terminator before the current token,
+// or current token is `}` or EOF, triggers ASI. Continuation tokens (`(`, `[`,
+// etc.) are NOT suppressed here — the expression parser's LHS-tail loop
+// handles them by breaking on `had_line_terminator` before consuming call /
+// member-access / tagged-template continuations.
 can_insert_semicolon :: #force_inline proc(p: ^Parser) -> bool {
-	// Check if current token had a line terminator before it
 	if p.cur_tok.had_line_terminator {
-		// Check for tokens that indicate expression continuation (no ASI)
-		#partial switch p.cur_type {
-		case .LBracket, .LParen, .Template, .TemplateHead, .Plus, .Minus, .Div, .Dot:
-			return false
-		}
 		return true
 	}
-
-	// Check if current token is RBrace or EOF
 	if p.cur_type == .RBrace || p.cur_type == .EOF {
 		return true
 	}
-
 	return false
 }
 
@@ -5128,20 +5121,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 				p.cur_tok.literal = p.lexer.cur_lit_value
 			}
 		}
-		// In TS mode, variable declarations with type annotations but no
-		// initializer (`let y: any`) are complete. The next line may start
-		// with `(`, `[`, or other continuation tokens that suppress normal
-		// ASI. Use permissive ASI (line-terminator = semicolon) so that
-		// `let y: any\n(expr)` is two statements, not a call expression.
-		if allow_ts_mode(p) && p.cur_tok.had_line_terminator {
-			if p.cur_type != .Semi {
-				// ASI: treat line terminator as semicolon in TS
-			} else {
-				advance_token(p)
-			}
-		} else {
-			expect_semicolon_or_asi(p)
-		}
+		expect_semicolon_or_asi(p)
 	}
 
 	// ECMA-262 §14.3.1.1 - a LexicalDeclaration's BoundNames list must not
@@ -9892,8 +9872,6 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			mem2.loc.span.end = prev_end_offset(p)
 			expr = mem2_e
 		case .LParen:
-			// Identical recording path for the had-line-terminator branch below;
-			// see the main .LParen case above for the rationale.
 			if !allow_call {
 				return expr
 			}
