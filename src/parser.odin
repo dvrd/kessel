@@ -11519,7 +11519,15 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	eat(p) // consume class
 
 	id: Maybe(BindingIdentifier)
-	if can_be_binding_identifier(p.cur_type) {
+	// In TS mode, `class implements Foo {}` has no name — `implements` is
+	// the heritage clause keyword, not a class name. Don't consume it as
+	// the identifier when the next token is a plausible interface name or
+	// `{`. Same for `class extends Expr {}` which is already handled by
+	// the `extends` path below.
+	is_implements_keyword := (p.lang == .TS || p.lang == .TSX) &&
+	                         is_token(p, .Identifier) && p.cur_tok.value == "implements" &&
+	                         (p.lexer.nxt.kind == .Identifier || is_keyword_usable_as_property_name(p.lexer.nxt.kind) || p.lexer.nxt.kind == .LBrace)
+	if can_be_binding_identifier(p.cur_type) && !is_implements_keyword {
 		current := get_current(p)
 		name_tok_type := p.cur_type
 		id = BindingIdentifier{
@@ -11593,6 +11601,15 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		}
 	}
 
+	// TS: `class C extends Base implements I, J<T>` — same grammar as
+	// parse_class_declaration. `implements` is a contextual keyword.
+	implements_list: [dynamic]TSInterfaceHeritage
+	if (p.lang == .TS || p.lang == .TSX) &&
+	   is_token(p, .Identifier) && p.cur_tok.value == "implements" {
+		eat(p)
+		implements_list = parse_ts_heritage_list(p)
+	}
+
 	// See parse_class_declaration for the rationale - same save/restore.
 	prev_class_has_extends := p.class_has_extends
 	p.class_has_extends = (super_class != nil)
@@ -11606,6 +11623,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	expr.type_parameters = type_parameters
 	expr.super_class = super_class
 	expr.super_type_arguments = super_type_arguments
+	expr.implements = implements_list
 	expr.body = body
 	expr.loc.span.end = prev_end_offset(p)
 
@@ -13494,26 +13512,51 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		// and is the message the negative-fixtures gate locks in.
 		return nil
 	}
-	// TS: optional type arguments on decorator expression —
-	// `@decorator<string>()` / `@decorator<T>`. TypeScript allows
-	// generic type arguments on the decorator call expression.
+	// TS type arguments are handled inside the loop below, together with
+	// calls and member accesses, so the decorator expression supports
+	// `@a.b<T>(x).c` etc.
 	type_arguments: Maybe(^TSTypeParameterInstantiation)
-	if allow_ts_mode(p) && is_token(p, .LAngle) {
-		type_arguments = parse_ts_type_arguments(p)
-	}
 
-	// Optional single Arguments suffix. parse_arguments consumes both
-	// `(` and `)` itself, so don't eat them here.
-	if is_token(p, .LParen) {
-		args := parse_arguments(p)
-		call := new_node(p, CallExpression)
-		call.loc = start
-		call.callee = expr
-		call.arguments = args
-		call.optional = false
-		call.type_parameters = type_arguments
-		call.loc.span.end = prev_end_offset(p)
-		expr = expression_from(p, call)
+	// Post-member suffix loop: calls, member accesses, and TS type args.
+	// The TC39 stage 3 grammar limits decorators to
+	//   @member.chain | @member.chain(args) | @(expr)
+	// but TypeScript (and OXC/Babel) use LeftHandSideExpression which
+	// allows `@foo().bar`, `@foo().bar()`, `@a.b<T>(x).c`, etc.
+	// We match OXC's permissive parse to avoid rejecting real-world TS.
+	for {
+		if is_token(p, .LParen) {
+			args := parse_arguments(p)
+			call := new_node(p, CallExpression)
+			call.loc = start
+			call.callee = expr
+			call.arguments = args
+			call.optional = false
+			call.type_parameters = type_arguments
+			call.loc.span.end = prev_end_offset(p)
+			expr = expression_from(p, call)
+			type_arguments = nil // consumed
+		} else if is_token(p, .Dot) {
+			eat(p)
+			if !(is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type)) {
+				report_error(p, "Expected identifier after '.' in decorator")
+				break
+			}
+			prop_tok := get_current(p)
+			prop_id := new_identifier(p, prop_tok)
+			eat(p)
+			mem := new_node(p, MemberExpression)
+			mem.loc = start
+			mem.object = expr
+			mem.property = expression_from(p, prop_id)
+			mem.computed = false
+			mem.optional = false
+			mem.loc.span.end = prev_end_offset(p)
+			expr = expression_from(p, mem)
+		} else if allow_ts_mode(p) && is_token(p, .LAngle) {
+			type_arguments = parse_ts_type_arguments(p)
+		} else {
+			break
+		}
 	}
 	return expr
 }

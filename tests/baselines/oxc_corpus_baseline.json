@@ -1,12 +1,12 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15163,
+    "ok-vs-oxc": 15165,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 897,
-    "kessel-only-rejects": 784,
-    "should-reject-passed": 26,
-    "pass-both": 2592,
+    "oxc-only-rejects": 898,
+    "kessel-only-rejects": 777,
+    "should-reject-passed": 28,
+    "pass-both": 2594,
     "should-pass-rejected": 1647,
     "reject-both": 512
   },
@@ -14,18 +14,18 @@
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15163,
+        "ok-vs-oxc": 15165,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 236,
-        "kessel-only-rejects": 291
+        "oxc-only-rejects": 237,
+        "kessel-only-rejects": 288
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
-        "should-reject-passed": 26,
-        "pass-both": 2554,
-        "kessel-only-rejects": 492,
+        "should-reject-passed": 28,
+        "pass-both": 2556,
+        "kessel-only-rejects": 488,
         "should-pass-rejected": 1647,
         "oxc-only-rejects": 661,
         "reject-both": 512
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 78,
-      "kessel-only-rejects": 115
+      "kessel-only-rejects": 112
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10,
@@ -96,7 +96,7 @@
       "skip-multi-file": 49
     },
     "typescript/conformance/esDecorators": {
-      "oxc-only-rejects": 3,
+      "oxc-only-rejects": 4,
       "skip-multi-file": 41,
       "kessel-only-rejects": 1
     },
@@ -580,9 +580,9 @@
       "should-reject-passed": 1
     },
     "babel/experimental/decorators": {
-      "kessel-only-rejects": 4,
+      "kessel-only-rejects": 2,
       "oxc-only-rejects": 2,
-      "should-reject-passed": 2,
+      "should-reject-passed": 4,
       "should-pass-rejected": 4
     },
     "babel/experimental/decorators-legacy": {
@@ -896,7 +896,7 @@
     },
     "babel/typescript/class": {
       "oxc-only-rejects": 33,
-      "kessel-only-rejects": 5,
+      "kessel-only-rejects": 3,
       "should-pass-rejected": 3
     },
     "babel/typescript/conditional": {
