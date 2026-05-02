@@ -70,10 +70,10 @@ Tracked against three corpora:
 |---|---|
 | Unit fixtures | 415 / 415 (100%) |
 | Real-world JS | 467 / 467 (100%) |
-| OXC corpus (25,140 fixtures) | 15,191 agree with OXC; 554 kessel-only-rejects (mostly genuine gaps, not spec violations) |
+| OXC corpus (25,140 fixtures) | 15,335 agree with OXC; 83 kessel-only-rejects (genuine parser gaps) |
 | Test262 curated subset | 63 / 66 (95.5%) |
 
-The 554 remaining kessel-only-rejects are genuine parser gaps — mostly `<<` token splitting for generic type arguments, ternary disambiguation edge cases, and a handful of `using`/`await` disambiguation corners.
+The 83 remaining kessel-only-rejects are genuine parser gaps — mostly `<<` token splitting for generic type arguments (~9), `new A<B>` relational disambiguation (~4), regex validator edge cases (~5), Flow syntax (~10, won't fix), and a tail of 1-file edge cases.
 
 ## Getting Started
 
