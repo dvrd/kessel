@@ -16435,7 +16435,9 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 				}
 			}
 		case "module":
-			if is_next_token(p, .String) {
+			// `declare module "name" {}` (string literal) or
+			// `declare module Identifier {}` (ambient namespace).
+			if is_next_token(p, .String) || is_next_token(p, .Identifier) || is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
 				stmt = parse_ts_module_declaration(p, .Module)
 				if stmt != nil {
 					if mod, ok := stmt^.(^TSModuleDeclaration); ok { mod.declare = true }
