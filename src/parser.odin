@@ -1188,6 +1188,21 @@ match_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 	return can_insert_semicolon(p)
 }
 
+string_literal_can_be_directive :: #force_inline proc(p: ^Parser) -> bool {
+	nxt := p.lexer.nxt
+	if nxt.kind == .Semi || nxt.kind == .RBrace || nxt.kind == .EOF {
+		return true
+	}
+	if (nxt.flags & FLAG_NEW_LINE) != 0 {
+		#partial switch nxt.kind {
+		case .LBracket, .LParen, .Template, .TemplateHead, .Plus, .Minus, .Div, .Dot:
+			return false
+		}
+		return true
+	}
+	return false
+}
+
 // ============================================================================
 // Entry Point - Parse Program
 // ============================================================================
@@ -1363,7 +1378,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	for !is_token(p, .EOF) {
 		loop_start_offset := int(cur_offset(p))
 
-		if is_token(p, .String) {
+		if is_token(p, .String) && string_literal_can_be_directive(p) {
 			// Check for "use strict" directive
 			current := get_current(p)
 			if current.literal == "use strict" {
@@ -1609,7 +1624,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// downstream if the next token isn't valid.
 		// In strict mode, `let` is a keyword. If the next token can start
 		// a binding (Identifier, `[`, `{`), it's a declaration. Otherwise
-		// (`let + 1`, `let.x`), parse as expression — the semantic checker
+			// (`let + 1`, `let.x`), parse as expression — the semantic checker
 		// (or report_semantic_error) handles the strict-mode violation.
 		if p.strict_mode && !let_is_decl {
 			// Only force declaration if the next token looks like a binding.
@@ -2029,6 +2044,25 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	//   {1 2} 3                        // S7.9_A10_T8 — missing ; in block
 	//   if (false) x = 1 else x = -1   // S7.9_A11_T4 — missing ; before else
 	//   //comment\n line comment      // line-terminators — missing ;
+	//
+	// ASI for `yield\n/regex/` and similar: when the expression statement
+	// ends with a line terminator and the next token is `/` or `/=`, the
+	// slash is meant to start a regex on a new line, not continue as
+	// division. Re-lex so the next statement parses as a regex literal.
+	if (p.cur_type == .Div || p.cur_type == .AssignDiv) && p.cur_tok.had_line_terminator {
+		if p.lexer != nil {
+			relex_as_regex(p.lexer)
+			ft := p.lexer.cur
+			p.cur_type = ft.kind
+			p.cur_tok.type = ft.kind
+			p.cur_tok.loc = LexerLoc(ft.start)
+			p.cur_tok.raw_end = ft.end
+			p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
+			if ft.kind == .RegularExpression {
+				p.cur_tok.literal = p.lexer.cur_lit_value
+			}
+		}
+	}
 	expect_semicolon_or_asi(p)
 
 	expr_stmt.loc.span.end = prev_end_offset(p)
@@ -5094,7 +5128,20 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 				p.cur_tok.literal = p.lexer.cur_lit_value
 			}
 		}
-		expect_semicolon_or_asi(p)
+		// In TS mode, variable declarations with type annotations but no
+		// initializer (`let y: any`) are complete. The next line may start
+		// with `(`, `[`, or other continuation tokens that suppress normal
+		// ASI. Use permissive ASI (line-terminator = semicolon) so that
+		// `let y: any\n(expr)` is two statements, not a call expression.
+		if allow_ts_mode(p) && p.cur_tok.had_line_terminator {
+			if p.cur_type != .Semi {
+				// ASI: treat line terminator as semicolon in TS
+			} else {
+				advance_token(p)
+			}
+		} else {
+			expect_semicolon_or_asi(p)
+		}
 	}
 
 	// ECMA-262 §14.3.1.1 - a LexicalDeclaration's BoundNames list must not
@@ -8428,6 +8475,20 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
+	// TS class-modifier keywords (`public`, `private`, `protected`, `static`)
+	// can appear before `import` in legacy TS export-import forms like
+	// `export public import a = x.c;`. They are no-ops syntactically.
+	// Skip them so the downstream declaration parse sees `import`.
+	if allow_ts_mode(p) {
+		for (p.cur_type == .Identifier || p.cur_type == .Public || p.cur_type == .Private ||
+		     p.cur_type == .Protected || p.cur_type == .Static) &&
+		    (p.cur_tok.value == "public" || p.cur_tok.value == "private" ||
+		     p.cur_tok.value == "protected" || p.cur_tok.value == "static") &&
+		    is_next_token(p, .Import) {
+			eat(p)
+		}
+	}
+
 	// After `export`, only `*`, `default`, `{`, or a declaration keyword
 	// is valid. A bare string literal is always a SyntaxError.
 	if is_token(p, .String) {
@@ -9060,6 +9121,14 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				continue
 			}
 			if is_assignment_operator(cur_type) {
+				// `/=` on a new line is ambiguous: it could be compound
+				// assignment division or a regex `/=.../`. After expressions
+				// that cannot be valid assignment targets (YieldExpression,
+				// literals, etc.), treat the new-line `/=` as a statement
+				// boundary and break out of the infix loop so ASI fires.
+				if cur_type == .AssignDiv && p.cur_tok.had_line_terminator {
+					break
+				}
 				left = parse_assignment_expr(p, left)
 				continue
 			}
@@ -12678,6 +12747,14 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	if is_async {
 		p.in_async = true
 	}
+	// §15.3.4: ArrowFunction ConciseBody is parsed with [~Yield, ~Await]
+	// (unless the arrow itself is async, in which case [~Yield, +Await]).
+	// Arrow functions don't have their own [[Generator]] status, so
+	// `yield` inside a non-generator arrow in a generator function is
+	// just an identifier, not a YieldExpression. Reset `in_generator`
+	// so the expression parser treats `yield` as an identifier.
+	prev_in_generator := p.in_generator
+	p.in_generator = false
 	// Static block context does NOT propagate into arrow function bodies.
 	prev_static_block_arrow := p.in_static_block
 	p.in_static_block = false
@@ -12724,6 +12801,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	}
 
 	p.in_async = prev_async
+	p.in_generator = prev_in_generator
 
 	// Convert left to parameters
 	params := make([dynamic]FunctionParameter, 0, 4, p.allocator)

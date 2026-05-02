@@ -386,7 +386,17 @@ init_single_char_table :: proc "contextless" () {
 // Called by the parser when it knows `/` should be regex.
 relex_as_regex :: proc(l: ^Lexer) {
 	if l.cur.kind != .Div && l.cur.kind != .AssignDiv { return }
-	l.offset = int(l.cur.start)
+	// Trim any lexer errors that were emitted at or past the current token
+	// start. When the lexer initially scanned cur as Div/AssignDiv, the nxt
+	// scan may have produced spurious diagnostics (e.g. "Unterminated regular
+	// expression" for `{}/=/` where `/` at nxt was mis-classified). Re-lexing
+	// from cur.start produces a fresh regex token + fresh nxt, so those stale
+	// errors must go.
+	relex_start := l.cur.start
+	for len(l.lexer_errors) > 0 && l.lexer_errors[len(l.lexer_errors)-1].offset >= relex_start {
+		pop(&l.lexer_errors)
+	}
+	l.offset = int(relex_start)
 	start := l.cur.start
 	flags := l.cur.flags
 	l.cur = lex_regex(l, start, flags)
@@ -696,9 +706,10 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 			} else if c == 0xE3 && off + 2 < src_len && src[off+1] == 0x80 && src[off+2] == 0x80 {
 				// U+3000 IDEOGRAPHIC SPACE — Zs.
 				off += 3
-			} else if c == 0xC2 && off + 1 < src_len && src[off+1] == 0xA0 {
-				// U+00A0 NO-BREAK SPACE (`NBSP`). 2-byte UTF-8 `C2 A0`.
-				// WhiteSpace per §5.1.1 — not a line terminator.
+			} else if c == 0xC2 && off + 1 < src_len && (src[off+1] == 0x85 || src[off+1] == 0xA0) {
+				// U+0085 NEXT LINE (`NEL`) appears in TypeScript corpus files
+				// as whitespace, and U+00A0 NO-BREAK SPACE (`NBSP`) is ES
+				// WhiteSpace per §5.1.1. Neither one triggers ASI here.
 				off += 2
 			} else if c == 0xEF && off + 2 < src_len && src[off+1] == 0xBB && src[off+2] == 0xBF {
 				// U+FEFF ZWNBSP. WhiteSpace per §5.1.1.

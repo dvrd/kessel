@@ -1,12 +1,12 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15359,
+    "ok-vs-oxc": 15362,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 1145,
-    "kessel-only-rejects": 18,
+    "oxc-only-rejects": 1146,
+    "kessel-only-rejects": 9,
     "should-reject-passed": 34,
-    "pass-both": 3067,
+    "pass-both": 3072,
     "should-pass-rejected": 1491,
     "reject-both": 507
   },
@@ -14,21 +14,21 @@
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15359,
+        "ok-vs-oxc": 15362,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 323,
-        "kessel-only-rejects": 8
+        "oxc-only-rejects": 324,
+        "kessel-only-rejects": 4
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 34,
-        "pass-both": 3029,
+        "pass-both": 3034,
         "should-pass-rejected": 1491,
         "oxc-only-rejects": 822,
         "reject-both": 507,
-        "kessel-only-rejects": 9
+        "kessel-only-rejects": 4
       }
     },
     "estree": {
@@ -42,8 +42,8 @@
   "bySubdir": {
     "typescript/compiler": {
       "skip-multi-file": 1188,
-      "oxc-only-rejects": 96,
-      "kessel-only-rejects": 5
+      "oxc-only-rejects": 97,
+      "kessel-only-rejects": 2
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10,
@@ -90,7 +90,6 @@
     },
     "typescript/conformance/es6": {
       "oxc-only-rejects": 38,
-      "kessel-only-rejects": 1,
       "skip-multi-file": 49
     },
     "typescript/conformance/es7": {
@@ -200,8 +199,7 @@
     },
     "babel/core/categorized": {
       "should-pass-rejected": 7,
-      "should-reject-passed": 3,
-      "kessel-only-rejects": 1
+      "should-reject-passed": 3
     },
     "babel/core/create-parenthesized-expressions": {
       "should-pass-rejected": 4,
@@ -232,7 +230,6 @@
     },
     "babel/core/uncategorised": {
       "should-pass-rejected": 26,
-      "kessel-only-rejects": 1,
       "oxc-only-rejects": 34,
       "should-reject-passed": 1
     },
@@ -298,7 +295,6 @@
     },
     "babel/es2015/yield": {
       "oxc-only-rejects": 6,
-      "kessel-only-rejects": 3,
       "should-pass-rejected": 4
     },
     "babel/es2016/exponentiation-operator": {
