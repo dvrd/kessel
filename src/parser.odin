@@ -15174,6 +15174,22 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// with dedicated type-level semantics (.Void, .Null, .This,
 		// .Typeof, .Keyof, .Unique, .Infer, .Import, .New, .Never).
 		return parse_ts_type_reference(p)
+	case .Question:
+		// TS / Flow nullable prefix: `?string`. OXC accepts this
+		// permissively, parsing the inner type and ignoring the `?`.
+		if allow_ts_mode(p) {
+			eat(p) // consume `?`
+			return parse_ts_primary_type(p)
+		}
+		return nil
+	case .Not:
+		// JSDoc non-nullable prefix: `!string`. OXC produces
+		// TSJSDocNonNullableType. Accept permissively.
+		if allow_ts_mode(p) {
+			eat(p) // consume `!`
+			return parse_ts_primary_type(p)
+		}
+		return nil
 	case .Break, .Continue, .Return, .If, .Else, .For, .While, .Do,
 	     .Switch, .Case, .Default, .Throw, .Try, .Catch, .Finally,
 	     .With, .Debugger, .Delete, .In, .Instanceof, .Var,
@@ -15298,6 +15314,23 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 			iat.object_type = result; iat.index_type = index
 			iat.loc.span.end = prev_end_offset(p)
 			result = new_node(p, TSType); result^ = iat
+		}
+	}
+	// TS / JSDoc non-nullable postfix: `T!`. OXC produces
+	// TSJSDocNonNullableType. Accept permissively — just consume the `!`
+	// and return the inner type. Same-line only (ASI guard).
+	if is_token(p, .Not) && !p.cur_tok.had_line_terminator {
+		eat(p) // consume `!`
+	}
+	// TS / JSDoc nullable postfix: `T?`. OXC produces
+	// TSJSDocNullableType. Accept permissively. Only consume when `?`
+	// is NOT followed by `:` or another type-continuation (to avoid
+	// eating the `?` of a conditional type or an optional param `?:`).
+	if is_token(p, .Question) && !p.cur_tok.had_line_terminator {
+		nxt := p.lexer.nxt.kind
+		if nxt == .RParen || nxt == .Comma || nxt == .Semi || nxt == .RBrace ||
+		   nxt == .RBracket || nxt == .RAngle || nxt == .Assign || nxt == .EOF {
+			eat(p) // consume `?`
 		}
 	}
 	return result
