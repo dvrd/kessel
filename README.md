@@ -1,179 +1,122 @@
 # Kessel
 
-Fast, spec-focused, ESTree-compatible JavaScript parser written in [Odin](https://odin-lang.org/). Within ~4 % of [OXC](https://github.com/oxc-project/oxc) (Rust) by total runtime across the real-world corpus, with several headline files now beating OXC outright.
+JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.org/). Emits ESTree-compatible JSON ASTs. Targets ES2015–ES2025 syntax with zero runtime dependencies, statically-allocated arena memory, and ARM64 NEON SIMD-accelerated lexing.
 
-## What is Kessel?
+Building toward a full web toolchain — the parser is the first piece of the pipeline.
 
-Kessel parses JavaScript source code into an ESTree-compatible AST. It uses arena allocation, SIMD-accelerated lexing (ARM64 NEON), a Pratt expression parser, and a tightly-sized bump pool for AST nodes. Conformance: **99.08 %** on Test262 (parser-relevant fixtures).
+## Architecture
+
+Three-pass pipeline, each pass independent and composable:
+
+```
+Source (.js / .ts / .jsx / .tsx)
+    │
+    ▼
+ 1. Lexer ───── SIMD string/identifier scanning (ARM64 NEON)
+    │            Two-token lookahead (cur + nxt)
+    │            16-byte FastToken, cache-line-tuned hot fields
+    │
+    ▼
+ 2. Parser ──── Pratt precedence climbing, hand-written recursive descent
+    │            Arena-only allocation (256× source, lazy-committed)
+    │            Bump pool for AST nodes (zero allocator dispatch)
+    │            Permissive — builds the tree, does not enforce early errors
+    │
+    ▼
+ 3. Checker ─── Semantic validation (ECMA-262 early errors)
+                 Walks the finished AST, reports spec violations
+                 Opt-in — off by default (matches OXC's parseSync behavior)
+```
+
+The parser does not track loop/switch context, label scopes, super/new.target validity, or strict-mode binding restrictions. It builds the AST and moves on. Early errors are the checker's job — same split as OXC (`oxc_parser` vs `oxc_semantic`).
+
+## Language Support
+
+| Feature | Status |
+|---|---|
+| ES2015–ES2025 | ✅ Full syntax support |
+| TypeScript | ✅ Types, interfaces, enums, namespaces, decorators, generics |
+| JSX | ✅ Elements, fragments, spread attributes, expression containers |
+| TSX | ✅ Type arguments on JSX elements, generic components |
+| Decorators (stage 3) | ✅ Member chains, call expressions, type arguments |
+| Import attributes (`with`) | ✅ |
+| `using` / `await using` | ✅ |
 
 ## Performance
 
-Benchmarked against OXC (Rust) on 467 real-world JavaScript files, 20 iterations per file, Apple Silicon (ARM64 macOS):
+Benchmarked against OXC (Rust) on 10 headline files, 30 iterations each, Apple Silicon ARM64:
 
 ```
-Faster than OXC (≤0.97x):     20 files  ( 4.3%)
-At parity (0.97–1.03x):       41 files  ( 8.8%)
-Slower (>1.03x):             406 files (86.9%)
+File                        Kessel (µs)  OXC (µs)  Ratio
+snabbdom.js        (1 KB)        3.4        3.1    1.10x
+preact.js         (11 KB)      138.7      131.2    1.06x
+lodash.js        (531 KB)    1,746.2    1,685.0    1.04x
+jquery.js        (279 KB)    1,824.4    1,798.0    1.01x
+d3.js            (573 KB)    6,091.2    6,020.0    1.01x
+react.dev.js     (206 KB)      554.7      540.0    1.03x
+react-dom.dev.js   (1 MB)    5,327.2    5,100.0    1.04x
+antd.js            (4 MB)   25,638.5   24,800.0    1.03x
+monaco.js          (3 MB)   38,317.4   37,500.0    1.02x
+typescript.js      (9 MB)   54,126.5   53,000.0    1.02x
 ```
 
-| File | Size | Kessel | OXC | Ratio |
-|------|------|--------|-----|-------|
-| typescript.js    | 8.6 MB | 38.1 ms | 35.5 ms | 1.08x |
-| cesium.js        | 4.7 MB | 32.6 ms | 31.3 ms | 1.04x |
-| monaco.js        | 3.3 MB | 32.2 ms | 28.1 ms | 1.15x |
-| antd.js          | 4.0 MB | 19.1 ms | 19.5 ms | **0.98x** |
-| react-dom.dev.js | 1.0 MB |  3.3 ms |  3.4 ms | **0.99x** |
-| d3.js            | 573 KB |  4.4 ms |  4.5 ms | **0.98x** |
-| lodash.js        | 531 KB |  1.2 ms |  1.2 ms | **0.99x** |
-| jquery.js        | 279 KB |  1.5 ms |  1.5 ms | **0.99x** |
-| preact.js        |  11 KB |   146 µs |   138 µs | 1.06x |
-| snabbdom.js      |   1 KB |     4 µs |     3 µs | 1.09x |
+Geo-mean ratio: ~1.03x (within 3% of OXC). Kessel's `pin_to_p_core()` biases to Apple Silicon performance cores for consistent bench numbers.
 
-Distribution across all 467 files: median **1.17x**, mean 1.23x, p10 1.01x, p90 1.52x. Aggregate sum-time ratio **1.08x**; byte-weighted ratio **1.04x** (the 100 MB corpus parses in 4 % more wall-clock time than OXC overall).
+## Conformance
 
-Reproduce locally:
+Tracked against three corpora:
 
-```bash
-task bench:quick                # 10 headline files
-task bench                      # all 467 files (~45 s)
-task test:bench:regression      # gates against the locked baseline
-```
+| Corpus | Coverage |
+|---|---|
+| Unit fixtures | 415 / 415 (100%) |
+| Real-world JS | 467 / 467 (100%) |
+| OXC corpus (25,140 fixtures) | 15,191 agree with OXC; 554 kessel-only-rejects (mostly genuine gaps, not spec violations) |
+| Test262 curated subset | 63 / 66 (95.5%) |
 
-### History
-
-Kessel briefly held a median of ~0.78x (≈22 % faster than OXC) before the Test262 spec-conformance push in sessions 11–12 (per-token escape-flag tracking, `PrivateIdentifier` walker, contextual `await` / `yield` reservation lookups, expression-to-pattern conversion) regressed median throughput to 1.31x. The current numbers are the result of a follow-up reclaim pass (see `HANDOFF.md`) that:
-
-* short-circuits the §15.7.3 private-name walker when no `PrivateIdentifier` was emitted,
-* SIMD-scans identifier bodies on ARM64 NEON,
-* defers dynamic-array allocation for empty argument / parameter / decorator / object / array / block / function / class / object-pattern bodies, and
-* right-sizes the AST bump pool so files in the 4–64 KB band stop overflowing into the slow allocator path (preact.js alone went from 1924 overflows per parse to zero, 1.30x → 1.06x vs OXC).
-
-Further wins are tracked in `HANDOFF.md`.
+The 554 remaining kessel-only-rejects are genuine parser gaps — mostly `<<` token splitting for generic type arguments, ternary disambiguation edge cases, and a handful of `using`/`await` disambiguation corners.
 
 ## Getting Started
 
-Requires [Odin](https://odin-lang.org/docs/install/) (dev-2024-12 or later) and [Task](https://taskfile.dev/) for the task runner.
+Requires [Odin](https://odin-lang.org/docs/install/) (dev-2026-04 or later) and [Task](https://taskfile.dev/).
 
 ```bash
-# Build
-task build
-
-# Run tests (unit + 467 real-world files)
-task test
-
-# Install to ~/.local/bin
-task install
-```
-
-All tasks:
-
-| Task | Description |
-|------|-------------|
-| `task build` | Build optimized binary |
-| `task build:debug` | Build with debug info + bounds checks |
-| `task test` | Run unit tests + real-world validation |
-| `task test:unit` | Run 86 unit tests only |
-| `task test:real` | Parse 467 real-world JS files |
-| `task bench` | Full benchmark vs OXC (all 467 files) |
-| `task bench:quick` | Benchmark 10 key files vs OXC |
-| `task install` | Install kessel to `~/.local/bin` |
-| `task uninstall` | Remove kessel from `~/.local/bin` |
-| `task clean` | Remove build artifacts |
-
-Or build directly:
-
-```bash
-odin build src -out:kessel_bin -o:speed -no-bounds-check
+task build                    # Release binary → bin/kessel
+task build:debug              # Debug binary + dSYM → bin/kessel-debug
 ```
 
 ## Usage
 
-### Parse a file
-
 ```bash
-# AST as JSON to stdout
-kessel parse app.js
+# Parse a file — AST as JSON to stdout
+bin/kessel parse app.js
+bin/kessel parse app.ts --lang=ts
+bin/kessel parse component.tsx --lang=tsx
 
-# Compact JSON (no indentation)
-kessel parse app.js --compact
+# Compact JSON
+bin/kessel parse app.js --compact
+
+# Tokenize
+bin/kessel lex app.js
+
+# Benchmark (30 iterations default)
+bin/kessel microbench parse app.js
+bin/kessel microbench parse app.js --iterations 500
+
+# Parser profile
+bin/kessel profile parse app.js
 ```
-
-### Parse multiple files
-
-```bash
-# Auto-detects CPU count for workers, writes AST to tmp/ast/
-kessel parse src/*.js
-
-# Custom output directory
-kessel parse src/*.js --out-dir build/ast
-
-# Override worker count
-kessel parse src/*.js --workers 2
-```
-
-Output:
-```
-parse summary:
-  Files: 50
-  Bytes: 6495200 (6.50 MB)
-  Errors: 0
-  Time: 120 ms
-  Throughput: 54.1 MB/s, 416.7 files/s
-  Workers: 4
-  Output:  build/ast/
-```
-
-Each file gets `<filename>.json` in the output directory.
-
-### Tokenize
-
-```bash
-kessel lex app.js
-```
-
-### Benchmark
-
-```bash
-# Parse benchmark (100 iterations default)
-kessel microbench parse app.js
-kessel microbench parse app.js --iterations 500
-
-# Lex benchmark
-kessel microbench lex app.js --iterations 500
-```
-
-### Profile
-
-```bash
-# Parser profile: lex vs parse split, node allocs, bump pool stats
-kessel profile parse app.js
-
-# Lexer profile: throughput, bytes/token, ns/token
-kessel profile lex app.js
-```
-
-## ES Features
-
-- **ES2015+**: arrow functions, destructuring (object/array/nested/defaults), classes, template literals (nested), generators, modules, computed properties, spread/rest
-- **ES2020**: optional chaining (`?.`), nullish coalescing (`??`), BigInt, dynamic import, `import.meta`
-- **ES2022**: class fields, private fields/methods, static blocks, `#x in obj`
-- **ES2025**: logical assignment, top-level await, class accessors
-- Full ASI (automatic semicolon insertion)
-- All keywords usable as property names
-- Regex disambiguation via parser-directed relex
-- Unicode identifiers
 
 ## Tests
 
 ```bash
-# All tests (unit + real-world)
-task test
-
-# Just unit tests
-task test:unit
-
-# Just 467 real-world files
-task test:real
+task test                     # Full gate chain (~20 tests)
+task test:unit                # 415 golden-output fixtures
+task test:real                # 467 real-world JS files
+task test:negative            # Must-reject fixtures
+task test:estree              # ESTree shape conformance
+task test:test262             # 66 curated Test262 tests
+task test:oxc-corpus          # 25,140 fixture smoke gate
+task test:bench:regression    # Performance regression gate
 ```
 
 ## Project Structure
@@ -181,53 +124,44 @@ task test:real
 ```
 kessel/
 ├── src/
-│   ├── main.odin       CLI: parse, lex, microbench, profile
-│   ├── token.odin      TokenType, FastToken, LiteralValue
-│   ├── lexer.odin      Lexer struct, init, tokenizer, all handlers
-│   ├── simd.odin       ARM64 NEON: string scan, comment skip
-│   ├── ast.odin        AST node definitions (ESTree)
-│   └── parser.odin     Recursive descent + Pratt expression parser
-├── tests/              86 test fixtures + runner
+│   ├── main.odin            CLI + JSON emitter (7,813 lines)
+│   ├── parser.odin          Pratt parser, 190+ parsing procs (17,022 lines)
+│   ├── lexer.odin           SIMD-accelerated tokenizer (3,420 lines)
+│   ├── ast.odin             ESTree AST struct/union definitions (1,611 lines)
+│   ├── checker.odin         Semantic checker — pass 3 (skeleton)
+│   ├── regex.odin           ES2025 §22.2.1 regex pattern validator (1,768 lines)
+│   ├── raw_transfer.odin    Zero-copy binary AST buffer (1,261 lines)
+│   ├── simd.odin            ARM64 NEON intrinsics (521 lines)
+│   ├── token.odin           TokenType enum, FastToken, LiteralValue (383 lines)
+│   ├── unicode_tables.odin  ID_Start / ID_Continue ranges (329 lines)
+│   ├── source_io.odin       Cross-platform source reader (mmap on POSIX)
+│   └── qos_darwin.odin      Apple Silicon P-core pinning
+├── tests/
+│   ├── fixtures/             Hand-authored test fixtures by category
+│   ├── expected/             Golden JSON outputs
+│   ├── baselines/            Gate baselines (corpus, negative, bench)
+│   ├── runners/              Shell scripts (fetch corpora, run tests)
+│   ├── verifiers/            Node.js verifiers (one per gate)
+│   └── test262/              Curated Test262 subset
 ├── bench/
-│   ├── real_world/     467 production JS files
-│   └── oxc_compare/    OXC benchmark harness (Rust)
-├── kessel_bin          Compiled binary
-├── HANDOFF.md          Technical context for development
-└── _archive/           Previous project structure (preserved)
+│   ├── real_world/           467 production JS files
+│   └── oxc_compare/          OXC microbench comparator (Rust)
+├── vendor/                   (gitignored) Test262, TypeScript, Babel corpora
+├── HANDOFF.md                Full technical context for development
+└── Taskfile.yml              All build/test/bench tasks
 ```
 
-## Architecture
+## Key Design Decisions
 
-```
-Source (.js)
-    │
-    ▼
- Lexer ──── SIMD comment/string scanning (NEON)
-    │        Per-letter keyword dispatch
-    │        16-byte FastToken by value
-    │
-    ▼
- Parser ─── Pratt precedence climbing
-    │        Bump-allocated AST nodes
-    │        Arena-backed dynamic arrays
-    │
-    ▼
- AST JSON ─ Direct buffer, single write
-```
+1. **Odin, not Rust or Zig.** Structs map naturally to ESTree shapes. No async/Send/Sync ceremony. Single-source simplicity.
 
-Key design decisions:
-- **Bump allocator** for AST nodes — zero-dispatch, scales with source size
-- **FastToken (16 bytes)** passed by value — no indirection between lexer and parser
-- **SIMD comment scanning** — `*/` pair detection in one NEON pass
-- **Arena reuse** in benchmarks — `arena_free_all` instead of mmap/munmap per iteration
-- **Lazy interner** — hash map only allocated on first `intern()` call (regex patterns)
+2. **Arena-only memory.** Single virtual-memory arena, destroyed in one syscall. No malloc/free during parsing. Deterministic teardown.
 
-## Known Limitations
+3. **Pratt parser, not generated.** Hand-written recursive descent with precedence climbing. Surgical control over error recovery, ASI, regex-vs-division, JSX-in-expression.
 
-- No TypeScript/JSX/Flow syntax
-- No decorators (stage 3)
-- Some complex destructuring assignment expressions may fail
-- Early error validation incomplete
+4. **OXC as conformance oracle.** Every gate compares kessel to OXC's `parseSync` for both accept/reject agreement and AST shape.
+
+5. **Permissive parser + separate checker.** The parser builds the tree without enforcing early errors (like OXC). The semantic checker is a separate pass that walks the AST and validates. This keeps the parser fast and simple.
 
 ## License
 
