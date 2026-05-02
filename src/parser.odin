@@ -11765,9 +11765,21 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	}
 
 	// TS generic type arguments: `new Foo<string>()`.
+	// Ambiguity: `new Date<A;` is `(new Date) < A;` (relational), NOT
+	// `new Date<A>` (type args). Use speculative parse: try to parse
+	// type arguments and accept only if the closing `>` is found.
 	targs: Maybe(^TSTypeParameterInstantiation)
-	if is_token(p, .LAngle) {
-		targs = parse_ts_type_arguments(p)
+	if allow_ts_mode(p) && is_token(p, .LAngle) {
+		snap := lexer_snapshot(p)
+		ta := parse_ts_type_arguments(p)
+		// On success the current token is past the `>`. If the parse
+		// failed (error was pushed), backtrack — the `<` is the less-than
+		// operator and this is a relational expression.
+		if len(p.errors) > snap.errors_len {
+			lexer_restore(p, snap)
+		} else {
+			targs = ta
+		}
 	}
 
 	args: [dynamic]^Expression
@@ -13554,24 +13566,40 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		current := get_current(p)
 		expr = expression_from(p, new_identifier(p, current))
 		eat(p)
-		// Dotted chain only - reject computed access by stopping at non-`.`.
+		// Dotted chain — allows identifiers, keywords-as-property, AND
+		// private identifiers (`@C.#dec`, `@C.#self.#dec`). Reject
+		// computed access by stopping at non-`.`.
 		for is_token(p, .Dot) {
 			eat(p)
-			if !(is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type)) {
+			if is_token(p, .PrivateIdentifier) {
+				// Private field access: `@obj.#priv`
+				prop_tok := get_current(p)
+				prop_id := new_identifier(p, prop_tok)
+				eat(p)
+				mem := new_node(p, MemberExpression)
+				mem.loc = start
+				mem.object = expr
+				mem.property = expression_from(p, prop_id)
+				mem.computed = false
+				mem.optional = false
+				mem.loc.span.end = prev_end_offset(p)
+				expr = expression_from(p, mem)
+			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+				prop_tok := get_current(p)
+				prop_id := new_identifier(p, prop_tok)
+				eat(p)
+				mem := new_node(p, MemberExpression)
+				mem.loc = start
+				mem.object = expr
+				mem.property = expression_from(p, prop_id)
+				mem.computed = false
+				mem.optional = false
+				mem.loc.span.end = prev_end_offset(p)
+				expr = expression_from(p, mem)
+			} else {
 				report_error(p, "Expected identifier after '.' in decorator")
 				break
 			}
-			prop_tok := get_current(p)
-			prop_id := new_identifier(p, prop_tok)
-			eat(p)
-			mem := new_node(p, MemberExpression)
-			mem.loc = start
-			mem.object = expr
-			mem.property = expression_from(p, prop_id)
-			mem.computed = false
-			mem.optional = false
-			mem.loc.span.end = prev_end_offset(p)
-			expr = expression_from(p, mem)
 		}
 	} else {
 		// Don't emit a new error - downstream emits "Decorators can
@@ -13605,21 +13633,22 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			type_arguments = nil // consumed
 		} else if is_token(p, .Dot) {
 			eat(p)
-			if !(is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type)) {
+			if is_token(p, .PrivateIdentifier) || is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+				prop_tok := get_current(p)
+				prop_id := new_identifier(p, prop_tok)
+				eat(p)
+				mem := new_node(p, MemberExpression)
+				mem.loc = start
+				mem.object = expr
+				mem.property = expression_from(p, prop_id)
+				mem.computed = false
+				mem.optional = false
+				mem.loc.span.end = prev_end_offset(p)
+				expr = expression_from(p, mem)
+			} else {
 				report_error(p, "Expected identifier after '.' in decorator")
 				break
 			}
-			prop_tok := get_current(p)
-			prop_id := new_identifier(p, prop_tok)
-			eat(p)
-			mem := new_node(p, MemberExpression)
-			mem.loc = start
-			mem.object = expr
-			mem.property = expression_from(p, prop_id)
-			mem.computed = false
-			mem.optional = false
-			mem.loc.span.end = prev_end_offset(p)
-			expr = expression_from(p, mem)
 		} else if allow_ts_mode(p) && is_token(p, .LAngle) {
 			type_arguments = parse_ts_type_arguments(p)
 		} else {
@@ -14704,11 +14733,12 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				}
 			} else {
 				// Named tuple element `name: T` or `name?: T` — detected
-				// via 1-2 token lookahead. Restricted to .Identifier so a
-				// regular `T : U` (illegal but conceivable) doesn't get
-				// misclassified.
+				// via 1-2 token lookahead. TS allows keywords as tuple
+				// labels: `[function: T, string: U, void?: V]`. Accept
+				// any identifier-like or keyword token that's followed by
+				// `:` or `?:`.
 				named := false
-				if p.cur_type == .Identifier {
+				if p.cur_type == .Identifier || is_keyword_usable_as_property_name(p.cur_type) {
 					nxt := p.lexer.nxt.kind
 					if nxt == .Colon { named = true }
 					if nxt == .Question {
@@ -15835,7 +15865,9 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		bump_append(&params, param)
 		if !match_token(p, .Comma) { break }
 	}
-	expect_token(p, .RAngle)
+	// Use expect_close_angle so `>=` splits into `>` + `=`.
+	// Fixes: `type T<U>=U` where `>=` should close the type params.
+	expect_close_angle(p)
 	p.ts_disallow_conditional_types = saved_disallow_ct
 	decl := new_node(p, TSTypeParameterDeclaration)
 	decl.loc = start; decl.params = params
