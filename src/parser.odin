@@ -3523,7 +3523,9 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 		if param != nil {
 			if _, is_rest := param.pattern.(^RestElement); is_rest {
 				if is_token(p, .Comma) {
-					report_error(p, "Rest element may not have a trailing comma")
+					// In TS ambient / declare contexts, trailing commas after
+					// rest params are tolerated (type-level only). OXC accepts.
+					report_semantic_error(p, "Rest element may not have a trailing comma")
 				}
 			}
 		}
