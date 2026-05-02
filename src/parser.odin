@@ -986,6 +986,30 @@ new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Statement) {
 // file) so we don't pay for them on the hot path of every successful
 // parse. The lazy line-table build still lives there, gated on the
 // first time anyone asks for line info.
+// await_using_starts_decl decides whether `await using ...` at the
+// current position starts an AwaitUsingDeclaration (returns true) or
+// is an `await` expression with `using` as the operand (returns false).
+// Uses a 3-token lookahead via lexer snapshot/restore: advances past
+// `await` and `using`, checks the third token, then rewinds.
+// Declaration if and only if the third token is a BindingIdentifier
+// with no preceding LineTerminator. Anything else — `[`, `.`, `(`,
+// `` ` ``, `?`, `;`, `in`, `instanceof`, `of`, operators — means
+// `using` is an expression-position identifier.
+await_using_starts_decl :: proc(p: ^Parser) -> bool {
+	snap := lexer_snapshot(p)
+	advance_token(p) // consume `await`  → cur=`using`
+	advance_token(p) // consume `using`  → cur=third token
+	third_type := p.cur_type
+	third_lt := p.cur_tok.had_line_terminator
+	lexer_restore(p, snap)
+	// A LineTerminator between `using` and the binding breaks the
+	// restricted production.
+	if third_lt { return false }
+	// The token must be a BindingIdentifier — an Identifier or a
+	// contextual keyword that can serve as one.
+	return third_type == .Identifier || can_be_binding_identifier(third_type)
+}
+
 report_error :: proc(p: ^Parser, message: string) {
 	err := ParseError{
 		loc     = LexerLoc(cur_offset(p)),
@@ -1595,32 +1619,17 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_variable_declaration(p, nil, true)
 	case .Await:
 		if is_next_token(p, .Using) {
-			// `await using` is the AwaitUsingDeclaration head, but the
-			// production explicitly forbids ArrayBindingPattern; only a
-			// BindingIdentifier is allowed. So `await using[x]` is the
-			// AwaitExpression `await (using[x])`, not a declaration.
-			// Source-byte scan past `using` to the next non-whitespace
-			// byte; if it's `[`, fall through to the expression path.
-			// Test262: language/statements/await-using/syntax/await-using-
-			// invalid-arraybindingpattern-does-not-break-element-access.js.
-			is_decl := true
-			if p.lexer != nil {
-				src := p.lexer.source_bytes
-				i := int(p.lexer.nxt.end)
-				src_len := len(src)
-				had_lt := false
-				for i < src_len {
-					ch := src[i]
-					if ch == '\n' || ch == '\r' { had_lt = true; i += 1; continue }
-					if ch == ' ' || ch == '\t' { i += 1; continue }
-					break
-				}
-				if i < src_len && src[i] == '[' { is_decl = false }
-				// Restricted production: a LineTerminator between `using`
-				// and the binding fails the AwaitUsingDeclaration rule.
-				// Test262: await-using-declaring-let-split-across-two-lines.
-				if had_lt { is_decl = false }
-			}
+			// `await using` is the AwaitUsingDeclaration head, but ONLY if
+			// the token after `using` is a BindingIdentifier (no line break).
+			// Otherwise `using` is an identifier — the operand of `await`:
+			//   `await using[x]`    → await (using[x])
+			//   `await using.x`     → await (using.x)
+			//   `await using(x)`    → await (using(x))
+			//   `await using in foo` → await (using in foo)
+			//   `await using`x``    → await (using`x`)
+			// 3-token lookahead: save lexer state, lex past `using`, check
+			// the third token, then restore.
+			is_decl := await_using_starts_decl(p)
 			if is_decl {
 				return parse_variable_declaration(p, nil, true)
 			}
