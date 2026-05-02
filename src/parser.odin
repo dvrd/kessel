@@ -14234,7 +14234,8 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 	lexer_restore(p, snap)
 	// `:` / `?` — parameter type annotation or optional marker.
 	// `,` — multiple parameters `(a, b) => R`.
-	if after == .Colon || after == .Question || after == .Comma { return true }
+	// `=` — parameter default value `(a = 3) => R`.
+	if after == .Colon || after == .Question || after == .Comma || after == .Assign { return true }
 	// Single untyped parameter `(item) =>` — if `)` is immediately
 	// followed by `=>`, this is a function type with an untyped param.
 	// Without this check, `(item) => item is A` is mis-parsed as a
