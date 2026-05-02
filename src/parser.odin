@@ -8482,11 +8482,17 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		// `if`) are fine — the function-decl `}` already terminates the
 		// declaration. Test262: language/module-code/parse-err-invoke-
 		// anon-{fun,gen}-decl.js (`function() {}()`).
-		#partial switch p.cur_type {
-		case .LParen, .LBracket, .Dot, .OptionalChain,
-		     .Template, .TemplateHead, .Arrow,
-		     .PlusPlus, .MinusMinus:
-			report_error(p, "Unexpected token after 'export default function' declaration")
+		// Only flag a continuation token as an error if it's on the
+		// SAME line. A `(`, `[`, etc. on the NEXT line is a new
+		// statement (ASI applies at the declaration boundary), not a
+		// postfix extension of the function expression.
+		if !p.cur_tok.had_line_terminator {
+			#partial switch p.cur_type {
+			case .LParen, .LBracket, .Dot, .OptionalChain,
+			     .Template, .TemplateHead, .Arrow,
+			     .PlusPlus, .MinusMinus:
+				report_error(p, "Unexpected token after 'export default function' declaration")
+			}
 		}
 	} else if is_token(p, .Class) {
 		cls_stmt := parse_statement_or_declaration(p)
@@ -16167,6 +16173,10 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 // Assumes the opening `(` has NOT yet been consumed.
 parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 	expect_token(p, .LParen)
+	// Re-allow conditional types inside function signature parameters.
+	saved_disallow_ct := p.ts_disallow_conditional_types
+	p.ts_disallow_conditional_types = 0
+	defer p.ts_disallow_conditional_types = saved_disallow_ct
 	params := make([dynamic]TSFunctionParam, 0, 4, p.allocator)
 	for !is_token(p, .RParen) && !is_token(p, .EOF) {
 		param_start := cur_loc(p)
