@@ -13700,6 +13700,14 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			}
 		} else if allow_ts_mode(p) && is_token(p, .LAngle) {
 			type_arguments = parse_ts_type_arguments(p)
+		} else if allow_ts_mode(p) && is_token(p, .Not) && !p.cur_tok.had_line_terminator {
+			// TS non-null assertion postfix: `@x!`, `@x.y!`.
+			eat(p)
+			nna := new_node(p, TSNonNullExpression)
+			nna.loc = start
+			nna.expression = expr
+			nna.loc.span.end = prev_end_offset(p)
+			expr = expression_from(p, nna)
 		} else {
 			break
 		}
@@ -13920,7 +13928,10 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					attr_value = expression_from(p, str_expr)
 				} else if is_token(p, .LBrace) {
 					start := cur_loc(p)
-					eat(p); expr := parse_assignment_expression(p); expect_token(p, .RBrace)
+					// JSX attribute expression: `{expr}`. Use parse_expression
+					// (not parse_assignment_expression) to allow the comma
+					// operator: `{class1, class2}` is a SequenceExpression.
+					eat(p); expr := parse_expression(p); expect_token(p, .RBrace)
 					container := new_node(p, JSXExpressionContainer)
 					container.loc = start; container.expression = expr
 					container.loc.span.end = prev_end_offset(p)
