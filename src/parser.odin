@@ -3974,7 +3974,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// in this position), so we have to parse the args here. Closes 95+
 		// OXC corpus rejects in the "Expected {, got <" cluster (S26 W6
 		// phase 3 bug class #8). Same fix at the ClassExpression call site.
-		if (p.lang == .TS || p.lang == .TSX) && is_token(p, .LAngle) {
+		if (p.lang == .TS || p.lang == .TSX) && is_open_angle_or_lshift(p) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
 		// §15.7.1 - ClassHeritage uses LeftHandSideExpression. Unparenthesised
@@ -9758,7 +9758,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.optional = false // optional flag handled by ChainExpression wrapper
 				call.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, call)
-			} else if is_token(p, .LAngle) && (p.lang == .TS || p.lang == .TSX) {
+			} else if is_open_angle_or_lshift(p) && (p.lang == .TS || p.lang == .TSX) {
 				// `f?.<T>()` — optional-chain call with TS type arguments.
 				// The type-arg list MUST be followed by `(args)` per babel /
 				// OXC; otherwise it's a parse error. Build a CallExpression
@@ -9946,7 +9946,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			nn.loc.span.end = prev_end_offset(p)
 			expr = expression_from(p, nn)
 			continue
-		case .LAngle:
+		case .LAngle, .LShift:
 			// TS generic call / instantiation expression: `foo<T>(args)` or
 			// `foo<T>` as a stand-alone TSInstantiationExpression. Only in
 			// TS / TSX mode, and only via trial-parse because `<` is also
@@ -11355,7 +11355,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.return_type = accessor_return_type
 		fn.loc.span.end = prev_end_offset(p)
 		value = expression_from(p, fn)
-	} else if is_token(p, .LParen) || (allow_ts_mode(p) && is_token(p, .LAngle)) {
+	} else if is_token(p, .LParen) || (allow_ts_mode(p) && is_open_angle_or_lshift(p)) {
 		// Method shorthand: foo() {}
 		// TS extension - generic method shorthand: foo<T>(a: T) { ... }
 		// Mirrors the same dance parse_class_element does at the
@@ -11368,7 +11368,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Capture location of ( (or `<`) for the FunctionExpression.
 		fn_start := cur_loc(p)
 		method_type_parameters: Maybe(^TSTypeParameterDeclaration)
-		if allow_ts_mode(p) && is_token(p, .LAngle) {
+		if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 			method_type_parameters = parse_ts_type_parameters(p)
 		}
 		if !expect_token(p, .LParen) {
@@ -11705,7 +11705,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
-		if (p.lang == .TS || p.lang == .TSX) && is_token(p, .LAngle) {
+		if (p.lang == .TS || p.lang == .TSX) && is_open_angle_or_lshift(p) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
 		// Unparenthesised arrow functions are AssignmentExpressions, not
@@ -11830,7 +11830,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	// `new Date<A>` (type args). Use speculative parse: try to parse
 	// type arguments and accept only if the closing `>` is found.
 	targs: Maybe(^TSTypeParameterInstantiation)
-	if allow_ts_mode(p) && is_token(p, .LAngle) {
+	if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 		snap := lexer_snapshot(p)
 		ta := parse_ts_type_arguments(p)
 		// On success the current token is past the `>`. If the parse
@@ -13745,7 +13745,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				report_error(p, "Expected identifier after '.' in decorator")
 				break
 			}
-		} else if allow_ts_mode(p) && is_token(p, .LAngle) {
+		} else if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 			type_arguments = parse_ts_type_arguments(p)
 		} else if allow_ts_mode(p) && is_token(p, .Not) && !p.cur_tok.had_line_terminator {
 			// TS non-null assertion postfix: `@x!`, `@x.y!`.
@@ -13939,7 +13939,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 	// starts a type argument list, not a nested JSX element, because the
 	// element name just consumed the identifier and the next `<` cannot
 	// be a valid attribute or `>` / `/`.
-	if (p.lang == .TSX) && is_token(p, .LAngle) {
+	if (p.lang == .TSX) && is_open_angle_or_lshift(p) {
 		opening.type_arguments = parse_ts_type_arguments(p)
 	}
 
@@ -14964,7 +14964,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			tq_expr = parse_left_hand_side_expr(p)
 		}
 		node := new_node(p, TSTypeQuery); node.loc = start; node.expr_name = tq_expr
-		if is_token(p, .LAngle) {
+		if is_open_angle_or_lshift(p) {
 			node.type_parameters = parse_ts_type_arguments(p)
 		}
 		node.loc.span.end = prev_end_offset(p)
@@ -15196,7 +15196,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			it.qualifier = cur_qual
 		}
 		// Optional `<TArgs>` type arguments.
-		if is_token(p, .LAngle) {
+		if is_open_angle_or_lshift(p) {
 			targs := parse_ts_type_arguments(p)
 			if targs != nil {
 				it.type_parameters = targs
@@ -15396,14 +15396,31 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 		id_expr = expression_from(p, mem)
 	}
 	targs: Maybe(^TSTypeParameterInstantiation)
-	if is_token(p, .LAngle) { targs = parse_ts_type_arguments(p) }
+	if is_open_angle_or_lshift(p) { targs = parse_ts_type_arguments(p) }
 	ref := new_node(p, TSTypeReference); ref.loc = start; ref.type_name = id_expr; ref.type_parameters = targs
 	ref.loc.span.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = ref
 	return parse_ts_postfix(p, r, start)
 }
 
+// is_open_angle_or_lshift returns true when the current token is `<`
+// or `<<` (which can be split into two `<`s for nested type arguments).
+is_open_angle_or_lshift :: #force_inline proc(p: ^Parser) -> bool {
+	return p.cur_type == .LAngle || p.cur_type == .LShift
+}
+
+// ensure_open_angle splits `<<` into `<` + `<` if needed, then syncs
+// the parser's cur_type mirror. No-op when already at `<`.
+ensure_open_angle :: proc(p: ^Parser) {
+	if p.cur_type == .LShift || p.cur_type == .AssignLShift {
+		if try_split_open_angle(p.lexer) {
+			p.cur_type = .LAngle
+		}
+	}
+}
+
 parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
+	ensure_open_angle(p)
 	start := cur_loc(p); eat(p)
 	// Re-allow conditional types inside angle brackets.
 	saved_disallow_ct := p.ts_disallow_conditional_types
@@ -16831,7 +16848,7 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 			expr = expression_from(p, mem)
 		}
 		type_args: Maybe(^TSTypeParameterInstantiation)
-		if is_token(p, .LAngle) { type_args = parse_ts_type_arguments(p) }
+		if is_open_angle_or_lshift(p) { type_args = parse_ts_type_arguments(p) }
 		entry_end := prev_end_offset(p)
 		h := TSInterfaceHeritage{
 			loc = Loc{span = Span{start = entry_start.span.start, end = entry_end}},

@@ -439,6 +439,30 @@ try_split_close_angle :: proc(l: ^Lexer) -> bool {
 	}
 }
 
+// try_split_open_angle splits a `<<` (LShift) or `<<=` (AssignLShift)
+// token into a leading `<` (LAngle) and re-lexes the remainder.
+// Used by TS type-argument parsing when the type argument itself starts
+// with `<` (a generic function type): `f<<T>(v: T) => void>()`.
+try_split_open_angle :: proc(l: ^Lexer) -> bool {
+	#partial switch l.cur.kind {
+	case .LAngle:
+		return false  // already a single `<`; caller consumes normally
+	case .LShift, .AssignLShift:
+		start := l.cur.start
+		l.offset = int(start) + 1
+		l.cur = FastToken{
+			kind  = .LAngle,
+			start = start,
+			end   = start + 1,
+			flags = l.cur.flags,  // preserve line-terminator flag
+		}
+		l.nxt = lex_token(l)
+		return true
+	case:
+		return false
+	}
+}
+
 // Get source text for a fast token
 token_source :: #force_inline proc(l: ^Lexer, ft: FastToken) -> string {
 	if ft.start >= ft.end { return "" }
