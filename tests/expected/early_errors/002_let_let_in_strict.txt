@@ -52,19 +52,9 @@
       "end": 155,
       "value": " as a BindingIdentifier in a `let` declaration. `let let` is a SyntaxError."
     }
-  ],
-  "errors": [
-    {
-      "message": "'let' is a reserved identifier in strict mode",
-      "line": 4,
-      "column": 5,
-      "offset": 174
-    }
   ]
 }
-Parse errors (1):
-  Line 4, Column 5: 'let' is a reserved identifier in strict mode
 
 --- Statistics ---
-Arena: used=37360B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36144B reserved=16777216B ratio=0%
+Parse errors: 0

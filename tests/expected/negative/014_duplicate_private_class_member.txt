@@ -138,19 +138,9 @@
       "end": 249,
       "value": " and the forbidden `#constructor`."
     }
-  ],
-  "errors": [
-    {
-      "message": "Duplicate private class member '#x'",
-      "line": 10,
-      "column": 1,
-      "offset": 281
-    }
   ]
 }
-Parse errors (1):
-  Line 10, Column 1: Duplicate private class member '#x'
 
 --- Statistics ---
-Arena: used=40968B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=39752B reserved=16777216B ratio=0%
+Parse errors: 0

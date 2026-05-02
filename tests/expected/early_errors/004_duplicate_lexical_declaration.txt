@@ -56,26 +56,9 @@
       "end": 150,
       "value": " no duplicates. `let x = 1, x = 2;` is a SyntaxError regardless of mode."
     }
-  ],
-  "errors": [
-    {
-      "message": "Identifier 'x' has already been declared",
-      "line": 4,
-      "column": 1,
-      "offset": 169
-    },
-    {
-      "message": "'x' has already been declared",
-      "line": 3,
-      "column": 1,
-      "offset": 151
-    }
   ]
 }
-Parse errors (2):
-  Line 4, Column 1: Identifier 'x' has already been declared
-  Line 3, Column 1: 'x' has already been declared
 
 --- Statistics ---
-Arena: used=37328B reserved=16777216B ratio=0%
-Parse errors: 2
+Arena: used=36144B reserved=16777216B ratio=0%
+Parse errors: 0

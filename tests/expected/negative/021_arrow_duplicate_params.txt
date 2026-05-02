@@ -133,26 +133,9 @@
       "end": 199,
       "value": " or destructured, any duplicate BoundName is a SyntaxError."
     }
-  ],
-  "errors": [
-    {
-      "message": "Duplicate parameter name 'a' in strict mode",
-      "line": 4,
-      "column": 22,
-      "offset": 221
-    },
-    {
-      "message": "Duplicate parameter name 'x' in strict mode",
-      "line": 5,
-      "column": 24,
-      "offset": 246
-    }
   ]
 }
-Parse errors (2):
-  Line 4, Column 22: Duplicate parameter name 'a' in strict mode
-  Line 5, Column 24: Duplicate parameter name 'x' in strict mode
 
 --- Statistics ---
-Arena: used=10296B reserved=16777216B ratio=0%
-Parse errors: 2
+Arena: used=37640B reserved=16777216B ratio=0%
+Parse errors: 0

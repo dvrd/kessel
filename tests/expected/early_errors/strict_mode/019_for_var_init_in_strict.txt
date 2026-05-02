@@ -86,19 +86,9 @@
       "end": 354,
       "value": " verifier pins `--source-type=script` + `\"use strict\"` automatically."
     }
-  ],
-  "errors": [
-    {
-      "message": "for-in loop variable declaration may not have an initializer",
-      "line": 7,
-      "column": 19,
-      "offset": 387
-    }
   ]
 }
-Parse errors (1):
-  Line 7, Column 19: for-in loop variable declaration may not have an initializer
 
 --- Statistics ---
-Arena: used=11944B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35952B reserved=16777216B ratio=0%
+Parse errors: 0

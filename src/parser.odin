@@ -1007,6 +1007,14 @@ report_semantic_error :: #force_inline proc(p: ^Parser, message: string) {
 	report_error(p, message)
 }
 
+// report_semantic_error_at is like report_semantic_error but at a specific
+// source location (for checks that append errors after-the-fact, e.g.
+// scope analysis, private-name resolution, __proto__ dups).
+report_semantic_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
+	if !p.check_semantics { return }
+	bump_append(&p.errors, ParseError{loc = loc, message = message})
+}
+
 enable_profiling :: proc(p: ^Parser) {
 	if p == nil {
 		return
@@ -1174,7 +1182,7 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 				kn := "using"
 				if is_token(p, .Await) { kn = "await using" }
 				msg := fmt.tprintf("'%s' declaration is not allowed at the top level of a script", kn)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 		}
 	}
@@ -1439,10 +1447,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// Annex B.3.1: pending __proto__ duplicate errors that were NOT cleared
 	// by expr_to_pattern (i.e., NOT used as a destructuring target).
 	for pair in p.pending_proto_dups {
-		bump_append(&p.errors, ParseError{
-			loc     = LexerLoc(pair[1]),
-			message = "Redefinition of __proto__ property",
-		})
+		report_semantic_error_at(p, LexerLoc(pair[1]), "Redefinition of __proto__ property")
 	}
 
 	// §15.7.3 AllPrivateIdentifiersValid - every PrivateIdentifier
@@ -1920,7 +1925,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// rejecting `foo: { foo: {} }`.
 			if label_in_scope(p, e.name) {
 				msg := fmt.tprintf("Label '%s' has already been declared", e.name)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 			bump_append(&p.label_stack, e.name)
 			// ECMA-262 §14.8.1 - `continue label` requires the target label
@@ -2355,7 +2360,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					kind_name := "of"
 					if is_in { kind_name = "in" }
 					msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
-					report_error(p, msg)
+					report_semantic_error(p, msg)
 				}
 			}
 			// Strict-mode early-error: eval / arguments as an assignment
@@ -2396,7 +2401,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				kind_name := "of"
 				if is_in { kind_name = "in" }
 				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_name)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 			// §Explicit Resource Management - `using` and `await using` are
 			// only legal in a for-of (or for-await-of) head, never for-in.
@@ -2404,7 +2409,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				kn := "using"
 				if left_decl.kind == .AwaitUsing { kn = "await using" }
 				msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 			for_in_init_ok := is_in &&
 			                  !p.strict_mode &&
@@ -2425,7 +2430,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 						kind_name := "of"
 						if is_in { kind_name = "in" }
 						msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_name)
-						report_error(p, msg)
+						report_semantic_error(p, msg)
 						break
 					}
 				}
@@ -2479,7 +2484,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					kind_str := "of"
 					if is_in { kind_str = "in" }
 					msg := fmt.tprintf("'%s' is already declared in for-%s head", n, kind_str)
-					bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
+					report_semantic_error_at(p, LexerLoc(off), msg)
 				}
 			}
 		}
@@ -2571,7 +2576,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for n in head_names {
 				if off, have := scope_map_get(&body_vars, n); have {
 					msg := fmt.tprintf("'%s' is already declared in for-loop head", n)
-					bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
+					report_semantic_error_at(p, LexerLoc(off), msg)
 				}
 			}
 		}
@@ -3004,7 +3009,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 			for j := i + 1; j < len(name_list); j += 1 {
 				if name_list[i] == name_list[j] {
 					msg := fmt.tprintf("Identifier '%s' has already been declared in catch clause", name_list[i])
-					report_error(p, msg)
+					report_semantic_error(p, msg)
 					break
 				}
 			}
@@ -3037,7 +3042,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 			for n in param_names {
 				if off, have := scope_map_get(&body_lex, n); have {
 					msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
-					bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
+					report_semantic_error_at(p, LexerLoc(off), msg)
 				}
 			}
 		}
@@ -3382,7 +3387,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		if fn_id, have := id.(BindingIdentifier); have {
 			if is_eval_or_arguments(fn_id.name) {
 				msg := fmt.tprintf("Function name '%s' is not allowed in strict mode", fn_id.name)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 		}
 		// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1: "It is a Syntax Error if
@@ -3786,10 +3791,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		for str_lit in prologue_raws {
 			if str_lit == nil { continue }
 			if string_raw_has_forbidden_escape(str_lit.raw) {
-				bump_append(&p.errors, ParseError{
-					loc     = LexerLoc(str_lit.loc.span.start),
-					message = "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
-				})
+				report_semantic_error_at(p, LexerLoc(str_lit.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 			}
 		}
 	}
@@ -3859,10 +3861,10 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// / sloppy setting.
 		if is_strict_reserved_word(name_tok_type) || is_strict_reserved_name(current.value) {
 			msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		} else if is_eval_or_arguments(current.value) {
 			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		} else if current.value == "await" && await_is_reserved_here(p) {
 			report_semantic_error(p, "'await' cannot be used as a class name in module / async context")
 		}
@@ -4153,7 +4155,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		seen[name] = prev
 		if dup {
 			msg := fmt.tprintf("Duplicate private class member '#%s'", name)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		}
 		if static_mismatch {
 			// §15.7.1: a private getter / setter pair must have matching
@@ -4161,7 +4163,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 			// is a SyntaxError because the private slot is shared and
 			// can't straddle static/instance.
 			msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		}
 	}
 }
@@ -5050,7 +5052,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			kn := "using"
 			if kind == .AwaitUsing { kn = "await using" }
 			msg := fmt.tprintf("'%s' declaration is not allowed directly inside a switch case clause", kn)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		}
 	}
 
@@ -5183,7 +5185,7 @@ report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, fo
 				} else {
 					msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i])
 				}
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 				break
 			}
 		}
@@ -5226,7 +5228,7 @@ report_duplicate_lexical_names :: proc(p: ^Parser, decls: []VariableDeclarator) 
 		for j := 0; j < i; j += 1 {
 			if names[i] == names[j] {
 				msg := fmt.tprintf("Identifier '%s' has already been declared", names[i])
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 				break // one report per duplicate occurrence
 			}
 		}
@@ -5583,11 +5585,11 @@ report_strict_param_pattern :: proc(p: ^Parser, pat: Pattern) {
 		if v == nil { return }
 		if is_eval_or_arguments(v.name) {
 			msg := fmt.tprintf("Parameter name '%s' is not allowed in strict mode", v.name)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		} else if is_strict_reserved_name(v.name) ||
 		          v.name == "let" || v.name == "static" || v.name == "yield" {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		}
 	case ^ObjectPattern:
 		if v == nil { return }
@@ -5618,7 +5620,7 @@ report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
 	case ^Identifier:
 		if is_eval_or_arguments(e.name) {
 			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		}
 	case ^ParenthesizedExpression:
 		report_strict_eval_arguments_in_target(p, e.expression)
@@ -5652,7 +5654,7 @@ report_strict_update_on_eval_or_arguments :: proc(p: ^Parser, arg: ^Expression) 
 	if !is_id || ident == nil { return }
 	if is_eval_or_arguments(ident.name) {
 		msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", ident.name)
-		report_error(p, msg)
+		report_semantic_error(p, msg)
 	}
 }
 
@@ -5833,7 +5835,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// script they remain valid binding identifiers (`var let = 1;`).
 	if p.strict_mode && is_strict_reserved_word(p.cur_type) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
-		report_error(p, msg)
+		report_semantic_error(p, msg)
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -5915,14 +5917,14 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 			// strict mode (ECMA-262 §13.1.1).
 			if is_eval_or_arguments(id_name) {
 				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 			// Strict-mode FutureReservedWords that lex as .Identifier:
 			// `implements`, `interface`, `package`, `private`,
 			// `protected`, `public`.
 			if is_strict_reserved_name(id_name) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 		}
 		ident := new_node(p, Identifier)
@@ -6717,7 +6719,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					off := decl_offs[i]
 					if _, exists := scope_map_get(&exported, name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", name)
-						bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
+						report_semantic_error_at(p, LexerLoc(off), msg)
 					} else {
 						scope_map_set(&exported, name, off)
 					}
@@ -6739,7 +6741,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				if var_name != "" {
 					if _, exists := scope_map_get(&exported, var_name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
-						bump_append(&p.errors, ParseError{loc = LexerLoc(var_off), message = msg})
+						report_semantic_error_at(p, LexerLoc(var_off), msg)
 					} else {
 						scope_map_set(&exported, var_name, var_off)
 					}
@@ -6755,7 +6757,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			// duplicate. Skip the syntactic flag in TS / TSX modes.
 			if allow_ts_mode(p) { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
-				bump_append(&p.errors, ParseError{loc = LexerLoc(v.loc.span.start), message = "Duplicate exported name 'default'"})
+				report_semantic_error_at(p, LexerLoc(v.loc.span.start), "Duplicate exported name 'default'")
 			} else { scope_map_set(&exported, "default", v.loc.span.start) }
 		case ^ExportAllDeclaration:
 			if v == nil { continue }
@@ -6763,7 +6765,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
 				if _, exists := scope_map_get(&exported, ns_name.name); exists {
 					msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
-					bump_append(&p.errors, ParseError{loc = LexerLoc(ns_name.loc.span.start), message = msg})
+					report_semantic_error_at(p, LexerLoc(ns_name.loc.span.start), msg)
 				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.span.start) }
 			}
 		}
@@ -6782,11 +6784,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			case IdentifierName:
 				if !(local.name in names) {
 					msg := fmt.tprintf("Export '%s' is not defined in the module", local.name)
-					err := ParseError{
-						loc = LexerLoc(local.loc.span.start),
-						message = msg,
-					}
-					bump_append(&p.errors, err)
+					report_semantic_error_at(p, LexerLoc(local.loc.span.start), msg)
 				}
 			case ^StringLiteral:
 				if local != nil {
@@ -6927,18 +6925,18 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 	case .Lexical:
 		if _, have := scope_map_get(lex, name); have {
 			msg := fmt.tprintf("'%s' has already been declared", name)
-			bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
+			report_semantic_error_at(p, LexerLoc(at), msg)
 			return
 		}
 		if _, have := scope_map_get(vars, name); have {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
+			report_semantic_error_at(p, LexerLoc(at), msg)
 		}
 		scope_map_set(lex, name, at)
 	case .Var:
 		if _, have := scope_map_get(lex, name); have {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
+			report_semantic_error_at(p, LexerLoc(at), msg)
 			return
 		}
 		// Repeats of the same var are legal (§13.3.2 - VarDeclaredNames
@@ -6956,7 +6954,7 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 			// in `vars`, it came from let/const/class - clash.
 			if _, vh := scope_map_get(vars, name); !vh {
 				msg := fmt.tprintf("'%s' has already been declared", name)
-				bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
+				report_semantic_error_at(p, LexerLoc(at), msg)
 			}
 			return
 		}
@@ -6964,7 +6962,7 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 			// var-from-real-var before us. `{ var f; function f(){} }`
 			// in sloppy rejects per Acorn / V8.
 			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = msg})
+			report_semantic_error_at(p, LexerLoc(at), msg)
 			return
 		}
 		scope_map_set(lex, name, at)
@@ -7263,7 +7261,7 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
 			msg := fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n)
-			bump_append(&p.errors, ParseError{loc = LexerLoc(off), message = msg})
+			report_semantic_error_at(p, LexerLoc(off), msg)
 		}
 	}
 }
@@ -7640,10 +7638,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 				// resolution check would only emit a duplicate error.
 				if len(pid.name) > 0 && !pn_stack_has(stack, pid.name) {
 					msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
-					bump_append(&p.errors, ParseError{
-						loc = LexerLoc(pid.loc.span.start),
-						message = msg,
-					})
+					report_semantic_error_at(p, LexerLoc(pid.loc.span.start), msg)
 				}
 			} else {
 				pn_walk_expr(p, e.property, stack)
@@ -7656,10 +7651,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 		// Empty-name skip: see MemberExpression case above.
 		if len(e.name) > 0 && !pn_stack_has(stack, e.name) {
 			msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", e.name)
-			bump_append(&p.errors, ParseError{
-				loc = LexerLoc(e.loc.span.start),
-				message = msg,
-			})
+			report_semantic_error_at(p, LexerLoc(e.loc.span.start), msg)
 		}
 	case ^BinaryExpression:
 		if e == nil { return }
@@ -7674,10 +7666,7 @@ pn_walk_expr :: proc(p: ^Parser, expr: ^Expression, stack: ^PrivateNameStack) {
 			// Empty-name skip: see MemberExpression case above.
 			if len(pid_left.name) > 0 && !pn_stack_has(stack, pid_left.name) {
 				msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid_left.name)
-				bump_append(&p.errors, ParseError{
-					loc = LexerLoc(pid_left.loc.span.start),
-					message = msg,
-				})
+				report_semantic_error_at(p, LexerLoc(pid_left.loc.span.start), msg)
 			}
 		} else {
 			pn_walk_expr(p, e.left, stack)
@@ -8249,7 +8238,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// (module code). `eval` and `arguments` are forbidden.
 	if is_eval_or_arguments(local.name) {
 		msg := fmt.tprintf("'%s' cannot be used as an import binding name", local.name)
-		bump_append(&p.errors, ParseError{loc = LexerLoc(local.loc.span.start), message = msg})
+		report_semantic_error_at(p, LexerLoc(local.loc.span.start), msg)
 	}
 
 	return spec
@@ -9444,7 +9433,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.strict_mode {
 			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(p.cur_tok.value) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", p.cur_tok.value)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 		}
 		// Escaped `async` before `function` is SyntaxError (fast path).
@@ -10237,7 +10226,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// a StringLiteral whose surrounding code is strict. `raw` carries
 		// the source text including the outer quotes.
 		if p.strict_mode && string_raw_has_forbidden_escape(current.value) {
-			report_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			report_semantic_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 		return str_e
 
@@ -10530,7 +10519,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.strict_mode && current.type != .Await {
 			if is_strict_reserved_word(current.type) || is_strict_reserved_name(current.value) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
-				report_error(p, msg)
+				report_semantic_error(p, msg)
 			}
 		}
 		// §16.2 — `await` in module/async/static-block context is a keyword,
@@ -11119,7 +11108,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			if p.strict_mode {
 				if is_strict_reserved_word(key_tok_type) || is_strict_reserved_name(key_name) {
 					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", key_name)
-					report_error(p, msg)
+					report_semantic_error(p, msg)
 				}
 			}
 		}
@@ -11546,10 +11535,10 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		// Same §15.7.1 binding-identifier checks as parse_class_declaration.
 		if is_strict_reserved_word(name_tok_type) || is_strict_reserved_name(current.value) {
 			msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		} else if is_eval_or_arguments(current.value) {
 			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
-			report_error(p, msg)
+			report_semantic_error(p, msg)
 		} else if current.value == "await" && await_is_reserved_here(p) {
 			report_semantic_error(p, "'await' cannot be used as a class name in module / async context")
 		}
@@ -11940,7 +11929,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
 		// Strict-mode legacy-octal / \\8 / \\9 check (untagged only).
 		if !tagged && p.strict_mode && string_raw_has_forbidden_escape(elem.raw) {
-			report_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			report_semantic_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 		// Untagged templates reject §12.9.6 invalid EscapeSequences in
 		// ALL modes - truncated \xH, \uH, \u{bad}, legacy-octal, etc.
@@ -12018,7 +12007,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		if !tagged && p.strict_mode {
 			for q in tmpl.quasis {
 				if string_raw_has_forbidden_escape(q.raw) {
-					report_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+					report_semantic_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 					break
 				}
 			}
@@ -12584,20 +12573,20 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			if p.strict_mode {
 				if is_eval_or_arguments(e.name) {
 					msg := fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name)
-					report_error(p, msg)
+					report_semantic_error(p, msg)
 				} else if is_strict_reserved_name(e.name) || e.name == "let" || e.name == "static" || e.name == "yield" {
 					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name)
-					report_error(p, msg)
+					report_semantic_error(p, msg)
 				}
 			}
 			if e.name == "enum" {
-				report_error(p, "'enum' is a reserved identifier")
+				report_semantic_error(p, "'enum' is a reserved identifier")
 			}
 			if e.name == "await" && await_is_reserved_here(p) {
 				report_semantic_error(p, "'await' cannot be used as an arrow parameter in module / async context")
 			}
 			if e.name == "yield" && yield_is_reserved_here(p) {
-				report_error(p, "'yield' cannot be used as an arrow parameter in generator / strict context")
+				report_semantic_error(p, "'yield' cannot be used as an arrow parameter in generator / strict context")
 			}
 			ident := new_node(p, Identifier)
 			ident^ = e^

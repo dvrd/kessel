@@ -38,19 +38,9 @@
             "value": 1,
             "raw": "1"          }        }
       ]    }
-  ],
-  "errors": [
-    {
-      "message": "'yield' is a reserved identifier in strict mode",
-      "line": 2,
-      "column": 5,
-      "offset": 18
-    }
   ]
 }
-Parse errors (1):
-  Line 2, Column 5: 'yield' is a reserved identifier in strict mode
 
 --- Statistics ---
-Arena: used=8112B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35952B reserved=16777216B ratio=0%
+Parse errors: 0

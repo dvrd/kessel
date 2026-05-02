@@ -178,19 +178,9 @@
       "end": 57,
       "value": " Export specifier list with a malformed entry mid-list."
     }
-  ],
-  "errors": [
-    {
-      "message": "Export 'as' is not defined in the module",
-      "line": 5,
-      "column": 13,
-      "offset": 109
-    }
   ]
 }
-Parse errors (1):
-  Line 5, Column 13: Export 'as' is not defined in the module
 
 --- Statistics ---
-Arena: used=40008B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=38920B reserved=16777216B ratio=0%
+Parse errors: 0

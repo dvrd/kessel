@@ -50,19 +50,9 @@
       "end": 135,
       "value": " directly references `eval` or `arguments` is a SyntaxError."
     }
-  ],
-  "errors": [
-    {
-      "message": "Assignment to 'eval' is not allowed in strict mode",
-      "line": 4,
-      "column": 10,
-      "offset": 159
-    }
   ]
 }
-Parse errors (1):
-  Line 4, Column 10: Assignment to 'eval' is not allowed in strict mode
 
 --- Statistics ---
-Arena: used=8032B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35760B reserved=16777216B ratio=0%
+Parse errors: 0

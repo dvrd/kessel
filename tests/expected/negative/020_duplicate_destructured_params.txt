@@ -265,40 +265,9 @@
       "end": 341,
       "value": " param is non-simple, duplicates become SyntaxErrors."
     }
-  ],
-  "errors": [
-    {
-      "message": "Duplicate parameter name 'a' with non-simple parameter list",
-      "line": 7,
-      "column": 1,
-      "offset": 375
-    },
-    {
-      "message": "Duplicate parameter name 'x' with non-simple parameter list",
-      "line": 8,
-      "column": 1,
-      "offset": 408
-    },
-    {
-      "message": "Duplicate parameter name 'a' with non-simple parameter list",
-      "line": 9,
-      "column": 1,
-      "offset": 441
-    },
-    {
-      "message": "Duplicate parameter name 'a' with non-simple parameter list",
-      "line": 10,
-      "column": 1,
-      "offset": 475
-    }
   ]
 }
-Parse errors (4):
-  Line 7, Column 1: Duplicate parameter name 'a' with non-simple parameter list
-  Line 8, Column 1: Duplicate parameter name 'x' with non-simple parameter list
-  Line 9, Column 1: Duplicate parameter name 'a' with non-simple parameter list
-  Line 10, Column 1: Duplicate parameter name 'a' with non-simple parameter list
 
 --- Statistics ---
-Arena: used=15744B reserved=16777216B ratio=0%
-Parse errors: 4
+Arena: used=38960B reserved=16777216B ratio=0%
+Parse errors: 0

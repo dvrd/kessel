@@ -81,19 +81,9 @@
       "end": 291,
       "value": " forbidden."
     }
-  ],
-  "errors": [
-    {
-      "message": "'let' has already been declared",
-      "line": 7,
-      "column": 1,
-      "offset": 305
-    }
   ]
 }
-Parse errors (1):
-  Line 7, Column 1: 'let' has already been declared
 
 --- Statistics ---
-Arena: used=37744B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36528B reserved=16777216B ratio=0%
+Parse errors: 0

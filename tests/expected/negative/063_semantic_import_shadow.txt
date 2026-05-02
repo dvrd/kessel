@@ -86,19 +86,9 @@
       "end": 295,
       "value": " verifier-flags: --show-semantic-errors"
     }
-  ],
-  "errors": [
-    {
-      "message": "'x' has already been declared",
-      "line": 8,
-      "column": 1,
-      "offset": 315
-    }
   ]
 }
-Parse errors (1):
-  Line 8, Column 1: 'x' has already been declared
 
 --- Statistics ---
-Arena: used=38856B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=37704B reserved=16777216B ratio=0%
+Parse errors: 0

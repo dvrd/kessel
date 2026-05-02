@@ -117,19 +117,12 @@
       "line": 11,
       "column": 1,
       "offset": 593
-    },
-    {
-      "message": "'a' has already been declared",
-      "line": 10,
-      "column": 22,
-      "offset": 580
     }
   ]
 }
-Parse errors (2):
+Parse errors (1):
   Line 11, Column 1: Duplicate import binding 'a'
-  Line 10, Column 22: 'a' has already been declared
 
 --- Statistics ---
 Arena: used=38664B reserved=16777216B ratio=0%
-Parse errors: 2
+Parse errors: 1

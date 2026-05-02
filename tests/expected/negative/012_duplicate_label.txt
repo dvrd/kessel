@@ -67,19 +67,9 @@
       "end": 171,
       "value": " SyntaxError, not strict-gated."
     }
-  ],
-  "errors": [
-    {
-      "message": "Label 'outer' has already been declared",
-      "line": 5,
-      "column": 9,
-      "offset": 189
-    }
   ]
 }
-Parse errors (1):
-  Line 5, Column 9: Label 'outer' has already been declared
 
 --- Statistics ---
-Arena: used=8288B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35888B reserved=16777216B ratio=0%
+Parse errors: 0

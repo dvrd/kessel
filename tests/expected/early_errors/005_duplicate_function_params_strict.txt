@@ -73,19 +73,9 @@
       "end": 139,
       "value": " parameters of the same name is a SyntaxError. (Allowed in sloppy.)"
     }
-  ],
-  "errors": [
-    {
-      "message": "Duplicate parameter name 'a' in strict mode",
-      "line": 5,
-      "column": 1,
-      "offset": 185
-    }
   ]
 }
-Parse errors (1):
-  Line 5, Column 1: Duplicate parameter name 'a' in strict mode
 
 --- Statistics ---
-Arena: used=8384B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36336B reserved=16777216B ratio=0%
+Parse errors: 0
