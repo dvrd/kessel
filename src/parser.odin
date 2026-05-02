@@ -1692,7 +1692,15 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			return parse_expression_or_labeled_statement(p)
 		}
 		if val == "interface" {
-			return parse_ts_interface_declaration(p)
+			// `interface Foo { ... }` — next token must be an identifier
+			// (the interface name). In sloppy script, `interface` is a
+			// contextual keyword and can be used as an identifier:
+			// `interface = 1;`, `interface.foo`, `interface()`, etc.
+			nxt_tok := peek_token(p)
+			if can_be_binding_identifier(nxt_tok.type) || is_keyword_usable_as_property_name(nxt_tok.type) {
+				return parse_ts_interface_declaration(p)
+			}
+			return parse_expression_or_labeled_statement(p)
 		}
 		if val == "type" {
 			// `type Foo = ...` - next token must be an identifier (the alias
@@ -4297,10 +4305,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			// TS §3.1 ambient class members - `declare prop: T;` /
 			// `declare static x: T;` etc. Lexed as a plain Identifier
 			// ("declare" is not a reserved word in Kessel's lexer), so
-			// match it by string value. Only legal in TS / TSX mode -
-			// JS class members named "declare" must remain methods.
+			// match it by string value. OXC accepts `declare` as a
+			// class modifier in all modes (JS + TS), matching V8 / Babel.
 			case "declare":
-				if !is_declare && allow_ts_mode(p) {
+				if !is_declare {
 					is_declare = true;          eat(p); consumed = true
 				}
 			}
