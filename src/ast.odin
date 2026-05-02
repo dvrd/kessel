@@ -134,10 +134,11 @@ JSXFragment :: struct {
 }
 
 JSXOpeningElement :: struct {
-	loc:          Loc,
-	name:         JSXElementName,
-	attributes:   [dynamic]JSXAttributeItem,
-	self_closing: bool,
+	loc:            Loc,
+	name:           JSXElementName,
+	attributes:     [dynamic]JSXAttributeItem,
+	self_closing:   bool,
+	type_arguments: Maybe(^TSTypeParameterInstantiation),
 }
 
 JSXClosingElement :: struct {

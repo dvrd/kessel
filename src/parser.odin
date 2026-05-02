@@ -13752,6 +13752,16 @@ parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) -> ^JSXOpeningElement {
 	opening := new_node(p, JSXOpeningElement)
 	opening.loc = start; opening.name = name
+
+	// TSX: type arguments on the opening element — `<Foo<string> />`.
+	// Must come after the element name, before attributes. The `<` here
+	// starts a type argument list, not a nested JSX element, because the
+	// element name just consumed the identifier and the next `<` cannot
+	// be a valid attribute or `>` / `/`.
+	if (p.lang == .TSX) && is_token(p, .LAngle) {
+		opening.type_arguments = parse_ts_type_arguments(p)
+	}
+
 	opening.attributes = make([dynamic]JSXAttributeItem, 0, 4, p.allocator)
 	for !is_token(p, .RAngle) && !is_token(p, .Div) && !is_token(p, .EOF) {
 		if is_token(p, .LBrace) {

@@ -5093,11 +5093,16 @@ emit_jsx_element_body :: proc(e: ^JSXElement, indent: int) {
 	out_s("\"selfClosing\": ")
 	out_bool(e.opening_element.self_closing)
 	if emit_ts_shape {
-		// TS-ESTree shape parity: OXC emits `typeArguments: null` on every
+		// TS-ESTree shape parity: emit `typeArguments` on every
 		// JSXOpeningElement in .ts/.tsx mode.
 		out_s(",\n")
 		print_indent(indent + 1)
-		out_s("\"typeArguments\": null")
+		out_s("\"typeArguments\": ")
+		if ta, has := e.opening_element.type_arguments.(^TSTypeParameterInstantiation); has && ta != nil {
+			emit_ts_type_argument_list(ta, indent + 1)
+		} else {
+			out_s("null")
+		}
 	}
 	out_s("\n")
 	print_indent(indent)
