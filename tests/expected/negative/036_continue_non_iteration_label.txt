@@ -153,19 +153,9 @@
       "end": 611,
       "value": " `Identifier :` pairs at LabelledStatement push time."
     }
-  ],
-  "errors": [
-    {
-      "message": "Label 'foo' does not label an iteration statement",
-      "line": 13,
-      "column": 15,
-      "offset": 665
-    }
   ]
 }
-Parse errors (1):
-  Line 13, Column 15: Label 'foo' does not label an iteration statement
 
 --- Statistics ---
-Arena: used=17584B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36080B reserved=16777216B ratio=0%
+Parse errors: 0

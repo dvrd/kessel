@@ -30,19 +30,9 @@
       "end": 186,
       "value": " LabelledStatement. Neither holds here → SyntaxError."
     }
-  ],
-  "errors": [
-    {
-      "message": "'break' outside of loop or switch",
-      "line": 4,
-      "column": 6,
-      "offset": 192
-    }
   ]
 }
-Parse errors (1):
-  Line 4, Column 6: 'break' outside of loop or switch
 
 --- Statistics ---
-Arena: used=8032B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35760B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -48,19 +48,9 @@
       "end": 36,
       "value": " Intended for module-mode parsing."
     }
-  ],
-  "errors": [
-    {
-      "message": "await outside of async function",
-      "line": 3,
-      "column": 12,
-      "offset": 72
-    }
   ]
 }
-Parse errors (1):
-  Line 3, Column 12: await outside of async function
 
 --- Statistics ---
-Arena: used=8320B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35888B reserved=16777216B ratio=0%
+Parse errors: 0

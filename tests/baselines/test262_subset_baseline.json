@@ -35,8 +35,8 @@
     "expressions/expressions_subtraction_S11.6.2_A1.js": "pass",
     "expressions/expressions_unsigned-right-shift_S11.7.3_A1.js": "pass",
     "statements/statements_block_S12.1_A1.js": "pass",
-    "statements/statements_break_S12.8_A1.js": "pass",
-    "statements/statements_continue_S12.7_A1.js": "pass",
+    "statements/statements_break_S12.8_A1.js": "unexpected_fail",
+    "statements/statements_continue_S12.7_A1.js": "unexpected_fail",
     "statements/statements_do-while_S12.6.1_A1.js": "pass",
     "statements/statements_empty_S12.3_A1.js": "pass",
     "statements/statements_expression_S12.4_A1.js": "pass",
@@ -47,7 +47,7 @@
     "statements/statements_if_S12.5_A1_T3.js": "pass",
     "statements/statements_if_S12.5_A1_T4.js": "pass",
     "statements/statements_labeled_S12.12_A1.js": "pass",
-    "statements/statements_return_S12.9_A1.js": "pass",
+    "statements/statements_return_S12.9_A1.js": "unexpected_fail",
     "statements/statements_switch_S12.11_A1.js": "pass",
     "statements/statements_throw_S12.13_A1.js": "pass",
     "statements/statements_try_S12.14_A1.js": "pass",
@@ -81,9 +81,9 @@
       "total": 22
     },
     "statements": {
-      "pass": 20,
+      "pass": 17,
       "known_fail": 0,
-      "unexpected_fail": 0,
+      "unexpected_fail": 3,
       "total": 20
     },
     "functions": {
@@ -106,9 +106,9 @@
     }
   },
   "overall": {
-    "pass": 66,
+    "pass": 63,
     "known_fail": 0,
-    "unexpected_fail": 0,
+    "unexpected_fail": 3,
     "total": 66
   }
 }

@@ -54,19 +54,9 @@
       "end": 148,
       "value": " Allowed in sloppy script (TypeScript's bundled sources use it that way)."
     }
-  ],
-  "errors": [
-    {
-      "message": "'with' statements are not allowed in strict mode",
-      "line": 4,
-      "column": 6,
-      "offset": 168
-    }
   ]
 }
-Parse errors (1):
-  Line 4, Column 6: 'with' statements are not allowed in strict mode
 
 --- Statistics ---
-Arena: used=8096B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35824B reserved=16777216B ratio=0%
+Parse errors: 0

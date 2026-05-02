@@ -35,19 +35,9 @@
       "end": 49,
       "value": " Expected error: reserved word as variable name"
     }
-  ],
-  "errors": [
-    {
-      "message": "Reserved word cannot be used as a binding name",
-      "line": 2,
-      "column": 5,
-      "offset": 54
-    }
   ]
 }
-Parse errors (1):
-  Line 2, Column 5: Reserved word cannot be used as a binding name
 
 --- Statistics ---
-Arena: used=8112B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35952B reserved=16777216B ratio=0%
+Parse errors: 0

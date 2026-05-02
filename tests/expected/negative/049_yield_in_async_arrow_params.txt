@@ -112,19 +112,9 @@
       "end": 486,
       "value": " async-arrow-head the param-yield ban fires. Walker runs post-params."
     }
-  ],
-  "errors": [
-    {
-      "message": "Yield expression is not allowed in arrow function parameters",
-      "line": 9,
-      "column": 30,
-      "offset": 536
-    }
   ]
 }
-Parse errors (1):
-  Line 9, Column 30: Yield expression is not allowed in arrow function parameters
 
 --- Statistics ---
-Arena: used=15248B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36336B reserved=16777216B ratio=0%
+Parse errors: 0

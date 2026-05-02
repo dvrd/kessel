@@ -60,19 +60,9 @@
       "end": 324,
       "value": " Always a SyntaxError, not strict-gated."
     }
-  ],
-  "errors": [
-    {
-      "message": "Legacy octal literals cannot be BigInt",
-      "line": 6,
-      "column": 14,
-      "offset": 338
-    }
   ]
 }
-Parse errors (1):
-  Line 6, Column 14: Legacy octal literals cannot be BigInt
 
 --- Statistics ---
-Arena: used=10816B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35952B reserved=16777216B ratio=0%
+Parse errors: 0

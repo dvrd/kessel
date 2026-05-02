@@ -94,19 +94,9 @@
       "end": 274,
       "value": " constructor and its body may not invoke super()."
     }
-  ],
-  "errors": [
-    {
-      "message": "'super' call is only allowed in the constructor of a derived class",
-      "line": 7,
-      "column": 8,
-      "offset": 309
-    }
   ]
 }
-Parse errors (1):
-  Line 7, Column 8: 'super' call is only allowed in the constructor of a derived class
 
 --- Statistics ---
-Arena: used=11608B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=37680B reserved=16777216B ratio=0%
+Parse errors: 0

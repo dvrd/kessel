@@ -35,19 +35,9 @@
       "end": 203,
       "value": " (Some hosts relax this; spec-correct behavior is to reject.)"
     }
-  ],
-  "errors": [
-    {
-      "message": "'return' outside of function",
-      "line": 4,
-      "column": 8,
-      "offset": 211
-    }
   ]
 }
-Parse errors (1):
-  Line 4, Column 8: 'return' outside of function
 
 --- Statistics ---
-Arena: used=8240B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35760B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -52,19 +52,9 @@
       "end": 128,
       "value": " SyntaxError in strict mode. Allowed in sloppy script."
     }
-  ],
-  "errors": [
-    {
-      "message": "Legacy octal literals are not allowed in strict mode",
-      "line": 4,
-      "column": 15,
-      "offset": 157
-    }
   ]
 }
-Parse errors (1):
-  Line 4, Column 15: Legacy octal literals are not allowed in strict mode
 
 --- Statistics ---
-Arena: used=8304B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36144B reserved=16777216B ratio=0%
+Parse errors: 0

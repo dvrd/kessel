@@ -145,19 +145,12 @@
       "line": 10,
       "column": 1,
       "offset": 281
-    },
-    {
-      "message": "Class private member name cannot be '#constructor'",
-      "line": 13,
-      "column": 1,
-      "offset": 312
     }
   ]
 }
-Parse errors (2):
+Parse errors (1):
   Line 10, Column 1: Duplicate private class member '#x'
-  Line 13, Column 1: Class private member name cannot be '#constructor'
 
 --- Statistics ---
-Arena: used=12936B reserved=16777216B ratio=0%
-Parse errors: 2
+Arena: used=40968B reserved=16777216B ratio=0%
+Parse errors: 1

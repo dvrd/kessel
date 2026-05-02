@@ -68,19 +68,9 @@
       "end": 217,
       "value": " strict / sloppy mode. Plain function sloppy still allows `var yield`."
     }
-  ],
-  "errors": [
-    {
-      "message": "'yield' is reserved as a binding name inside a generator",
-      "line": 5,
-      "column": 6,
-      "offset": 239
-    }
   ]
 }
-Parse errors (1):
-  Line 5, Column 6: 'yield' is reserved as a binding name inside a generator
 
 --- Statistics ---
-Arena: used=9344B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36080B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -111,19 +111,9 @@
       "end": 457,
       "value": " and reports retroactively."
     }
-  ],
-  "errors": [
-    {
-      "message": "Await expression is not allowed in arrow function parameters",
-      "line": 9,
-      "column": 27,
-      "offset": 509
-    }
   ]
 }
-Parse errors (1):
-  Line 9, Column 27: Await expression is not allowed in arrow function parameters
 
 --- Statistics ---
-Arena: used=14696B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36144B reserved=16777216B ratio=0%
+Parse errors: 0

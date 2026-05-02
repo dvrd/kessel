@@ -502,6 +502,14 @@ Parser :: struct {
 	// or control-flow headers - only the expression-position case.
 	preserve_parens:   bool,
 
+	// When false (default), the parser skips validation-only early-error
+	// checks (break/continue context, label scoping, super/new.target
+	// context, duplicate bindings, strict-mode parameter checks, etc.).
+	// These checks are deferred to the semantic checker pass. When true,
+	// the parser enforces them inline — matching the pre-refactor
+	// behaviour for backwards compatibility and standalone CLI use.
+	check_semantics:   bool,
+
 	// Per-parse counters used by `verify_private_names` to short-circuit
 	// the §15.7.3 AllPrivateIdentifiersValid walk. The walker is a
 	// recursive visitor over the entire AST; on real-world JS that
@@ -987,6 +995,16 @@ report_error :: proc(p: ^Parser, message: string) {
 	if p.profile_enabled {
 		p.profile.errors_reported += 1
 	}
+}
+
+// report_semantic_error reports an early error that does NOT affect parsing
+// decisions (break/continue context, label scoping, super/new.target context,
+// duplicate bindings, strict-mode parameter checks, etc.). These are gated
+// on `check_semantics` so the parser can run permissively like OXC when the
+// semantic checker pass will handle them.
+report_semantic_error :: #force_inline proc(p: ^Parser, message: string) {
+	if !p.check_semantics { return }
+	report_error(p, message)
 }
 
 enable_profiling :: proc(p: ^Parser) {
@@ -1732,7 +1750,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		{
 			in_nested_pos := p.in_function || p.block_depth > 0
 			if in_nested_pos && p.in_module_top_level {
-				report_error(p, "'import' declarations are only allowed at the top level of a module")
+				report_semantic_error(p, "'import' declarations are only allowed at the top level of a module")
 			}
 		}
 		return parse_import_declaration(p)
@@ -1741,7 +1759,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		{
 			in_nested_pos := p.in_function || p.block_depth > 0
 			if in_nested_pos && p.in_module_top_level {
-				report_error(p, "'export' declarations are only allowed at the top level of a module")
+				report_semantic_error(p, "'export' declarations are only allowed at the top level of a module")
 			}
 		}
 		return parse_export_declaration(p)
@@ -1881,7 +1899,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// a GeneratorBody. This fires only at statement position so the
 			// check is not confused by `? yield : yield` (ternary colon).
 			if p.in_generator {
-				report_error(p, "'yield' cannot be used as a label identifier inside a generator function")
+				report_semantic_error(p, "'yield' cannot be used as a label identifier inside a generator function")
 			} else {
 				report_error(p, "Unexpected token ':'")
 			}
@@ -1931,16 +1949,16 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				#partial switch v in labeled.body^ {
 				case ^VariableDeclaration:
 					if v != nil && (v.kind == .Let || v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing) {
-						report_error(p, "Lexical declaration cannot be a labeled item")
+						report_semantic_error(p, "Lexical declaration cannot be a labeled item")
 					}
 				case ^ClassDeclaration:
-					report_error(p, "Class declaration cannot be a labeled item")
+					report_semantic_error(p, "Class declaration cannot be a labeled item")
 				case ^FunctionDeclaration:
 					if v != nil {
 						if v.async || v.generator {
-							report_error(p, "Async / generator function declaration cannot be a labeled item")
+							report_semantic_error(p, "Async / generator function declaration cannot be a labeled item")
 						} else if p.strict_mode {
-							report_error(p, "Function declaration cannot be a labeled item in strict mode")
+							report_semantic_error(p, "Function declaration cannot be a labeled item in strict mode")
 						}
 					}
 				}
@@ -1994,13 +2012,13 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 			report_error(p, msg)
 		}
 	case ^ClassDeclaration:
-		report_error(p, "Class declaration cannot appear in a single-statement context")
+		report_semantic_error(p, "Class declaration cannot appear in a single-statement context")
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if v.async || v.generator {
-			report_error(p, "Async / generator function declaration cannot appear in a single-statement context")
+			report_semantic_error(p, "Async / generator function declaration cannot appear in a single-statement context")
 		} else if !allow_plain_function {
-			report_error(p, "Function declaration cannot appear in a single-statement context")
+			report_semantic_error(p, "Function declaration cannot appear in a single-statement context")
 		}
 	case ^LabeledStatement:
 		// Recurse through labels: `label1: label2: function f() {}` in
@@ -2163,7 +2181,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	if await {
 		if !p.in_async {
 			if p.in_function {
-				report_error(p, "'for await' outside of async function")
+				report_semantic_error(p, "'for await' outside of async function")
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				report_error(p, "Top-level 'for await' is only valid in module code")
 			}
@@ -2585,13 +2603,13 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	// true at every natural `return` site; bare top-level `return` only
 	// shows up in spec-negative fixtures and mutated fuzz cases.
 	if !p.in_function {
-		report_error(p, "'return' outside of function")
+		report_semantic_error(p, "'return' outside of function")
 	}
 	// §15.7.5 ClassStaticBlockBody is parsed under [~Return]; the
 	// outer in_function is set to true so new.target works, but a
 	// literal `return` is forbidden by the grammar parameter.
 	if p.in_static_block {
-		report_error(p, "'return' is not allowed in a class static block")
+		report_semantic_error(p, "'return' is not allowed in a class static block")
 	}
 
 	argument: Maybe(^Expression)
@@ -2694,17 +2712,8 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	// iteration). p.label_stack tracks exactly that set; it resets on
 	// function boundaries so `break outer;` can't escape out of a
 	// function expression.
-	if label == nil {
-		if !p.in_loop && !p.in_switch {
-			report_error(p, "'break' outside of loop or switch")
-		}
-	} else {
-		lbl := label.(LabelIdentifier)
-		if !label_in_scope(p, lbl.name) {
-			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
-			report_error(p, msg)
-		}
-	}
+	// Early-error checks for break (label scope, loop/switch context)
+	// are deferred to the semantic checker pass.
 
 	// §14.9 — BreakStatement requires a `;` (or ASI).
 	expect_semicolon_or_asi(p)
@@ -2740,28 +2749,8 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 		eat(p)
 	}
 
-	// §15.7.5 — ClassStaticBlockBody does not allow `continue` (or `break`
-	// targeting an outer loop). The block acts as a function boundary.
-	if p.in_static_block {
-		report_error(p, "'continue' is not allowed inside a class static block")
-	} else if label == nil {
-		if !p.in_loop {
-			report_error(p, "'continue' outside of loop")
-		}
-	} else {
-		lbl := label.(LabelIdentifier)
-		// Per spec `continue label;` additionally requires the labelled
-		// statement to BE an IterationStatement (or to wrap one via a
-		// chain of LabelledStatements). `label_is_iteration` tracks that
-		// bit per-label.
-		if !label_in_scope(p, lbl.name) {
-			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
-			report_error(p, msg)
-		} else if !label_iter_in_scope(p, lbl.name) {
-			msg := fmt.tprintf("Label '%s' does not label an iteration statement", lbl.name)
-			report_error(p, msg)
-		}
-	}
+	// Early-error checks for continue (loop context, label targets)
+	// are deferred to the semantic checker pass.
 
 	// §14.8 — ContinueStatement requires a `;` (or ASI).
 	expect_semicolon_or_asi(p)
@@ -2814,7 +2803,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 		if case_ != nil {
 			if is_default {
 				if default_seen {
-					report_error(p, "More than one default clause in switch")
+					report_semantic_error(p, "More than one default clause in switch")
 				} else {
 					default_seen = true
 				}
@@ -2986,7 +2975,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 	if is_token(p, .LParen) {
 		eat(p)
 		if is_token(p, .RParen) {
-			report_error(p, "Catch parameter is missing")
+			report_semantic_error(p, "Catch parameter is missing")
 		} else {
 			param = parse_binding_pattern(p)
 			// TS § catch-clause-types - the catch parameter may carry a
@@ -3117,7 +3106,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 		// actually present (or inside a class body), the real-world
 		// relaxation is still there - it just no longer swallows the
 		// strict-mode diagnostic.
-		report_error(p, "'with' statements are not allowed in strict mode")
+		report_semantic_error(p, "'with' statements are not allowed in strict mode")
 	}
 
 	if !expect_token(p, .LParen) {
@@ -3196,15 +3185,15 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// expression position. The Declaration form's binding is in the
 			// enclosing context.
 			if is_expr && async && current.value == "await" {
-				report_error(p, "'await' cannot be used as the name of an async function expression")
+				report_semantic_error(p, "'await' cannot be used as the name of an async function expression")
 			}
 			if is_expr && generator && current.value == "yield" {
-				report_error(p, "'yield' cannot be used as the name of a generator function expression")
+				report_semantic_error(p, "'yield' cannot be used as the name of a generator function expression")
 			}
 			// In strict mode, `yield` is a reserved word and cannot be used
 			// as a FunctionExpression BindingIdentifier (§15.7.1).
 			if is_expr && p.strict_mode && current.value == "yield" && !generator {
-				report_error(p, "'yield' cannot be used as a function name in strict mode")
+				report_semantic_error(p, "'yield' cannot be used as a function name in strict mode")
 			}
 			// §12.6.1.1 contextual reservation - `await` / `yield` as a
 			// BindingIdentifier in the enclosing context. Fires for both
@@ -3221,10 +3210,10 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// generator) drive the FunctionExpression-name check above.
 			if !is_expr {
 				if current.value == "await" && await_is_reserved_here(p) {
-					report_error(p, "'await' cannot be used as a function name in module / async context")
+					report_semantic_error(p, "'await' cannot be used as a function name in module / async context")
 				}
 				if current.value == "yield" && yield_is_reserved_here(p) {
-					report_error(p, "'yield' cannot be used as a function name in generator / strict context")
+					report_semantic_error(p, "'yield' cannot be used as a function name in generator / strict context")
 				}
 			}
 			eat(p)
@@ -3402,7 +3391,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		// Fires only when body_strict came from an in-body `"use strict"`
 		// (the enclosing context being strict doesn't matter per spec).
 		if body_strict && !p.strict_mode && !params_are_simple(params[:]) {
-			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_semantic_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 	} else if generator || async {
 		// Generator / async / async-generator bodies inherit
@@ -3875,7 +3864,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
 			report_error(p, msg)
 		} else if current.value == "await" && await_is_reserved_here(p) {
-			report_error(p, "'await' cannot be used as a class name in module / async context")
+			report_semantic_error(p, "'await' cannot be used as a class name in module / async context")
 		}
 		// Escaped-ReservedWord in the BindingIdentifier position. Class
 		// names are strict-mode-only, so `class l\u0065t` reaches the
@@ -4093,7 +4082,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		// getter, setter, accessor. Non-static `prototype` is legal.
 		if elem.static && !elem.computed {
 			if class_element_prop_name(elem.key) == "prototype" {
-				report_error(p, "Classes may not have a static member named 'prototype'")
+				report_semantic_error(p, "Classes may not have a static member named 'prototype'")
 			}
 		}
 
@@ -4121,14 +4110,14 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 					// Only error when SECOND implementation appears (two ctors
 					// with bodies). Overload sigs (empty body) freely repeat.
 					if has_body && constructor_implementation_seen {
-						report_error(p, "Duplicate constructor implementation in class")
+						report_semantic_error(p, "Duplicate constructor implementation in class")
 					}
 					if has_body { constructor_implementation_seen = true }
 					constructor_seen = true
 				} else {
 					// Plain JS: §15.7.1 — only one constructor allowed.
 					if constructor_seen {
-						report_error(p, "Duplicate constructor in class")
+						report_semantic_error(p, "Duplicate constructor in class")
 					} else {
 						constructor_seen = true
 					}
@@ -4140,7 +4129,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		if !is_private || pid == nil { continue }
 		name := pid.name
 		if name == "constructor" {
-			report_error(p, "Class private member name cannot be '#constructor'")
+			report_semantic_error(p, "Class private member name cannot be '#constructor'")
 			continue
 		}
 		prev, _ := seen[name]
@@ -4437,10 +4426,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if !static_ && !is_private && !computed &&
 		   (current.type == .Constructor || (current.type == .Identifier && current.value == "constructor")) {
 			if is_async {
-				report_error(p, "Class constructor cannot be an async method")
+				report_semantic_error(p, "Class constructor cannot be an async method")
 			}
 			if is_generator {
-				report_error(p, "Class constructor cannot be a generator method")
+				report_semantic_error(p, "Class constructor cannot be a generator method")
 			}
 			if kind == .Get {
 				report_error(p, "Class constructor cannot be a getter")
@@ -4793,7 +4782,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// being implicitly strict doesn't count - only an explicit
 		// directive in the method body triggers this rule.
 		if p.last_body_strict && !params_are_simple(params[:]) {
-			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_semantic_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 
 		// §15.4.3 / §15.4.4 - class accessor arity (same rule as
@@ -5214,7 +5203,7 @@ report_let_as_lexical_name :: proc(p: ^Parser, decls: []VariableDeclarator) {
 	for d in decls { collect_bound_names(d.id, &names) }
 	for n in names {
 		if n == "let" {
-			report_error(p, "'let' is disallowed as a lexically bound name")
+			report_semantic_error(p, "'let' is disallowed as a lexically bound name")
 		}
 	}
 }
@@ -5824,7 +5813,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// because they lex as `.Identifier`; only hard-reserved keyword
 	// tokens trip this branch.
 	if is_reserved_word_for_binding(p.cur_type) {
-		report_error(p, "Reserved word cannot be used as a binding name")
+		report_semantic_error(p, "Reserved word cannot be used as a binding name")
 		// Consume the keyword and return a placeholder identifier so the
 		// rest of the declarator (init expression) still parses, keeping
 		// error recovery tight. The identifier's name carries the raw
@@ -5865,7 +5854,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// Both tokens already have dedicated TokenTypes in Kessel's lexer,
 	// so the check is a simple kind comparison.
 	if (p.in_generator || p.in_generator_params) && p.cur_type == .Yield {
-		report_error(p, "'yield' is reserved as a binding name inside a generator")
+		report_semantic_error(p, "'yield' is reserved as a binding name inside a generator")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -5879,7 +5868,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// the string compare on has_escape so it stays off the hot path for
 	// every ordinary identifier in a binding position.
 	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) && await_is_reserved_here(p) {
-		report_error(p, "'await' is reserved as a binding name in this context")
+		report_semantic_error(p, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -6267,10 +6256,10 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					}
 					// `yield` is reserved in generator bodies; `await` in async.
 					if v.name == "yield" && yield_is_reserved_here(p) {
-						report_error(p, "'yield' is reserved as a binding name inside a generator")
+						report_semantic_error(p, "'yield' is reserved as a binding name inside a generator")
 					}
 					if v.name == "await" && await_is_reserved_here(p) {
-						report_error(p, "'await' is reserved as a binding name inside an async function")
+						report_semantic_error(p, "'await' is reserved as a binding name inside an async function")
 					}
 					left_ident := new_node(p, Identifier)
 					left_ident.loc = v.loc
@@ -6390,11 +6379,11 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			// in a destructuring binding.
 			if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) &&
 			   await_is_reserved_here(p) {
-				report_error(p, "'await' is reserved as a binding name in this context")
+				report_semantic_error(p, "'await' is reserved as a binding name in this context")
 			}
 			if (p.cur_type == .Yield || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "yield")) &&
 			   yield_is_reserved_here(p) {
-				report_error(p, "'yield' is reserved as a binding name in this context")
+				report_semantic_error(p, "'yield' is reserved as a binding name in this context")
 			}
 			eil := cur_loc(p); ein := cur_value(p)
 			eat(p)
@@ -7421,7 +7410,7 @@ scan_field_init_arguments :: proc(p: ^Parser, expr: ^Expression) {
 	#partial switch e in expr^ {
 	case ^Identifier:
 		if e != nil && e.name == "arguments" {
-			report_error(p, "'arguments' cannot appear in a class field initializer")
+			report_semantic_error(p, "'arguments' cannot appear in a class field initializer")
 		}
 	case ^FunctionExpression:
 		// Nested function - has its own arguments binding. Stop.
@@ -7875,7 +7864,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// parse the rest of the declaration so the AST / span info is
 	// stable for tooling; only the error is emitted.
 	if st, have := p.force_source_type.(SourceType); have && st == .Script {
-		report_error(p, "'import' is only valid in module code")
+		report_semantic_error(p, "'import' is only valid in module code")
 	}
 
 	decl := new_node(p, ImportDeclaration)
@@ -8271,7 +8260,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	eat(p) // consume export
 
 	if st, have := p.force_source_type.(SourceType); have && st == .Script {
-		report_error(p, "'export' is only valid in module code")
+		report_semantic_error(p, "'export' is only valid in module code")
 	}
 
 	if match_token(p, .Default) {
@@ -8906,7 +8895,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			// threshold - let them through so parse_assignment_expr can
 			// validate the target (e.g. `(yield) = 1` should be caught there).
 			if int(next_prec) >= int(Precedence.Conditional) {
-				report_error(p, "'yield' expression cannot be used as an operand of a conditional or binary operator")
+				report_semantic_error(p, "'yield' expression cannot be used as an operand of a conditional or binary operator")
 			}
 			// Return early for all operators EXCEPT comma (sequence) and
 			// assignment (target validation needed in parse_assignment_expr).
@@ -9087,7 +9076,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				}
 			}
 			if !paren_wrapped {
-				report_error(p, "'yield' expression cannot be the right-hand side of a binary operator")
+				report_semantic_error(p, "'yield' expression cannot be the right-hand side of a binary operator")
 			}
 		}
 
@@ -9219,7 +9208,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// here as `+ AssignmentExpression`, which IS legal in source. Skip
 		// that gate until we have reliable paren-wrapping info.
 		if _, is_yield := argument.(^YieldExpression); is_yield {
-			report_error(p, "'yield' expression cannot be the operand of a unary operator")
+			report_semantic_error(p, "'yield' expression cannot be the operand of a unary operator")
 		}
 		unary := new_node(p, UnaryExpression)
 		unary.loc = loc_from_token(&current)
@@ -9258,7 +9247,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if current.type == .Delete {
 			if me, is_member := argument.(^MemberExpression); is_member && me != nil {
 				if _, is_private := me.property.(^PrivateIdentifier); is_private {
-					report_error(p, "Private fields cannot be deleted")
+					report_semantic_error(p, "Private fields cannot be deleted")
 				}
 			}
 		}
@@ -9320,7 +9309,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.in_static_block {
 			// §15.7.5 - ClassStaticBlockBody Contains await is a
 			// SyntaxError. Treat as keyword and report.
-			report_error(p, "'await' is not allowed in a class static block")
+			report_semantic_error(p, "'await' is not allowed in a class static block")
 		} else if at_module_top && in_module_file {
 			// TLA - fall through to AwaitExpression parse below.
 		} else if !at_module_top {
@@ -9330,7 +9319,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			if !yield_next_is_expression_argument(p) {
 				break
 			}
-			report_error(p, "await outside of async function")
+			report_semantic_error(p, "await outside of async function")
 		} else {
 			// At top level in Script (or auto-detect with no module
 			// syntax yet seen). `await: 1;` (label), `await;` (bare
@@ -9361,7 +9350,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// even though the body itself is async - params are evaluated in
 		// the outer context.
 		if p.in_async_params {
-			report_error(p, "'await' expression is not allowed in formal parameters of an async function")
+			report_semantic_error(p, "'await' expression is not allowed in formal parameters of an async function")
 		}
 		current := p.cur_tok
 		eat(p)
@@ -9431,7 +9420,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			return parse_yield_expr(p)
 		}
 		if yield_next_is_expression_argument(p) {
-			report_error(p, "'yield' expression is only allowed in a generator body")
+			report_semantic_error(p, "'yield' expression is only allowed in a generator body")
 			return parse_yield_expr(p)
 		}
 		// Fall through - `yield` is parsed as IdentifierReference by
@@ -9471,7 +9460,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// cooked name. Test262: language/statements/class/static-init-
 		// invalid-arguments.js.
 		if p.in_static_block && p.cur_tok.value == "arguments" {
-			report_error(p, "'arguments' is not allowed in a class static block")
+			report_semantic_error(p, "'arguments' is not allowed in a class static block")
 		}
 		// `await` as IdentifierReference in module/async/static context.
 		// Plain (non-escaped) `await` always lexes as TokenType.Await, never
@@ -9481,7 +9470,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// has_escape keeps `cur_tok.value == "await"` off the hot path for
 		// every ordinary identifier.
 		if p.cur_tok.has_escape && p.cur_tok.value == "await" && await_is_reserved_here(p) {
-			report_error(p, "'await' is not allowed as an identifier in this context")
+			report_semantic_error(p, "'await' is not allowed as an identifier in this context")
 		}
 		// Inline identifier parse + LHS tail. Pull only the fields we need
 		// out of p.cur_tok before eat() advances — a full Token copy is ~64
@@ -9595,7 +9584,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				// only be accessed via `this`, local variables, or computed
 				// member expressions, not through `super`.
 				if _, is_super := expr.(^Super); is_super {
-					report_error(p, "Private fields cannot be accessed through 'super'")
+					report_semantic_error(p, "Private fields cannot be accessed through 'super'")
 				}
 			} else {
 				// Create regular Identifier
@@ -9748,7 +9737,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// non-constructor method.
 			if _, is_super := expr^.(^Super); is_super {
 				if !p.in_derived_constructor {
-					report_error(p, "'super' call is only allowed in the constructor of a derived class")
+					report_semantic_error(p, "'super' call is only allowed in the constructor of a derived class")
 				}
 			}
 			// Save and clear pending_paren_start before parsing arguments.
@@ -10192,7 +10181,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// method/accessor). Nested arrow functions inherit; nested regular
 		// functions reset. Outside all of these, `super` is a SyntaxError.
 		if !p.in_method {
-			report_error(p, "'super' is only allowed in class methods or object-literal methods")
+			report_semantic_error(p, "'super' is only allowed in class methods or object-literal methods")
 		}
 		eat(p)
 		super := new_node(p, Super)
@@ -10230,7 +10219,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `0<digit>+` where the second char is a decimal digit (not
 		// `x`/`X`/`o`/`O`/`b`/`B`/`.`/`e`/`E`/`n`).
 		if p.strict_mode && is_legacy_zero_prefixed_integer(current.value) {
-			report_error(p, "Legacy octal literals are not allowed in strict mode")
+			report_semantic_error(p, "Legacy octal literals are not allowed in strict mode")
 		}
 		return num_e
 
@@ -10264,7 +10253,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// shape detector as numeric-literal strict-mode handling; the
 		// raw text still carries the trailing `n`, so we strip it first.
 		if is_legacy_zero_prefixed_integer(current.value) {
-			report_error(p, "Legacy octal literals cannot be BigInt")
+			report_semantic_error(p, "Legacy octal literals cannot be BigInt")
 		}
 		big.loc.span.end = prev_end_offset(p)
 		return expression_from(p, big)
@@ -10547,7 +10536,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// §16.2 — `await` in module/async/static-block context is a keyword,
 		// not a valid IdentifierReference.
 		if (current.type == .Await || current.value == "await") && await_is_reserved_here(p) {
-			report_error(p, "'await' is not allowed as an identifier in this context")
+			report_semantic_error(p, "'await' is not allowed as an identifier in this context")
 		}
 		// Escaped `async` before `function` is SyntaxError. The lexer
 		// emits `.Identifier` (not `.Async`) for `\u0061sync`, so the
@@ -11206,7 +11195,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// of FormalParameters is false." Same rule as for class methods and
 		// top-level functions; also fires for object-literal accessors.
 		if body_strict && !params_are_simple(params[:]) {
-			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_semantic_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 
 		// Strict-mode param names (eval / arguments / let / yield / static
@@ -11326,7 +11315,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// method body whose params aren't all simple is a SyntaxError.
 		// Same rule as for class methods and top-level functions.
 		if body_strict && !params_are_simple(params[:]) {
-			report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_semantic_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 
 		// Strict-mode param-name reservation. See accessor case above.
@@ -11433,7 +11422,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				}
 				// Contextually reserved: `yield` in generators, `await` in async/static blocks.
 				if k != nil && k.name == "yield" && yield_is_reserved_here(p) {
-					report_error(p, "'yield' is reserved as a binding name inside a generator")
+					report_semantic_error(p, "'yield' is reserved as a binding name inside a generator")
 				}
 				if k != nil && k.name == "await" && await_is_reserved_here(p) {
 					report_error(p, "'await' is not allowed as a shorthand property identifier")
@@ -11562,7 +11551,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
 			report_error(p, msg)
 		} else if current.value == "await" && await_is_reserved_here(p) {
-			report_error(p, "'await' cannot be used as a class name in module / async context")
+			report_semantic_error(p, "'await' cannot be used as a class name in module / async context")
 		}
 		// §12.7.2 escaped-ReservedWord in BindingIdentifier position.
 		// Class names are strict-mode-only (§15.7.1), so the strict-only
@@ -11667,7 +11656,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			// script top-level has no new.target either. Test262:
 			// language/global-code/new.target-arrow.js.
 			if !p.in_non_arrow_function {
-				report_error(p, "'new.target' is only allowed inside functions")
+				report_semantic_error(p, "'new.target' is only allowed inside functions")
 			}
 			meta := new_node(p, MetaProperty)
 			meta.loc = start
@@ -11870,7 +11859,7 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	// parent parser to mark this window with `in_generator_params`; the
 	// yield-expression constructor here consults it.
 	if p.in_generator_params {
-		report_error(p, "'yield' expression is not allowed in formal parameters of a generator")
+		report_semantic_error(p, "'yield' expression is not allowed in formal parameters of a generator")
 	}
 	// Note: `yield :` as a LabelledStatement head can't reach this
 	// function in a generator. parse_expression_statement only forms
@@ -12318,10 +12307,10 @@ scan_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression) {
 	saw_await := false
 	arrow_cover_walk_expr(expr, &saw_yield, &saw_await)
 	if saw_yield {
-		report_error(p, "Yield expression is not allowed in arrow function parameters")
+		report_semantic_error(p, "Yield expression is not allowed in arrow function parameters")
 	}
 	if saw_await {
-		report_error(p, "Await expression is not allowed in arrow function parameters")
+		report_semantic_error(p, "Await expression is not allowed in arrow function parameters")
 	}
 }
 
@@ -12349,7 +12338,7 @@ scan_arrow_params_for_yield_only :: proc(p: ^Parser, params: []FunctionParameter
 		}
 	}
 	if saw_yield {
-		report_error(p, "Yield expression is not allowed in arrow function parameters")
+		report_semantic_error(p, "Yield expression is not allowed in arrow function parameters")
 	}
 }
 
@@ -12605,7 +12594,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				report_error(p, "'enum' is a reserved identifier")
 			}
 			if e.name == "await" && await_is_reserved_here(p) {
-				report_error(p, "'await' cannot be used as an arrow parameter in module / async context")
+				report_semantic_error(p, "'await' cannot be used as an arrow parameter in module / async context")
 			}
 			if e.name == "yield" && yield_is_reserved_here(p) {
 				report_error(p, "'yield' cannot be used as an arrow parameter in generator / strict context")
@@ -12845,7 +12834,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			if es, eok := bs.body[0]^.(^ExpressionStatement); eok && es != nil {
 				if str, sok := es.expression.(^StringLiteral); sok && str != nil {
 					if str.value == "use strict" && !params_are_simple(params[:]) {
-						report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+						report_semantic_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
 					}
 				}
 			}
@@ -13314,7 +13303,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 			if es, eok := bs.body[0]^.(^ExpressionStatement); eok && es != nil {
 				if str, sok := es.expression.(^StringLiteral); sok && str != nil {
 					if str.value == "use strict" && !params_are_simple(params[:]) {
-						report_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
+						report_semantic_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
 					}
 				}
 			}

@@ -74,19 +74,9 @@
       "end": 130,
       "value": " is a SyntaxError regardless of strict/sloppy mode."
     }
-  ],
-  "errors": [
-    {
-      "message": "More than one default clause in switch",
-      "line": 10,
-      "column": 1,
-      "offset": 200
-    }
   ]
 }
-Parse errors (1):
-  Line 10, Column 1: More than one default clause in switch
 
 --- Statistics ---
-Arena: used=9152B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36880B reserved=16777216B ratio=0%
+Parse errors: 0

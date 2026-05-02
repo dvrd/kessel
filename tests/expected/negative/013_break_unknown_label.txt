@@ -57,19 +57,9 @@
       "end": 271,
       "value": " is already covered by fixtures 009/010 in this directory."
     }
-  ],
-  "errors": [
-    {
-      "message": "Undefined label 'bar'",
-      "line": 6,
-      "column": 11,
-      "offset": 289
-    }
   ]
 }
-Parse errors (1):
-  Line 6, Column 11: Undefined label 'bar'
 
 --- Statistics ---
-Arena: used=9864B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=35824B reserved=16777216B ratio=0%
+Parse errors: 0

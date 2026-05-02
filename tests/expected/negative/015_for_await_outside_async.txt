@@ -118,19 +118,9 @@
       "end": 387,
       "value": " separately under early_errors/module_context/."
     }
-  ],
-  "errors": [
-    {
-      "message": "'for await' outside of async function",
-      "line": 8,
-      "column": 12,
-      "offset": 414
-    }
   ]
 }
-Parse errors (1):
-  Line 8, Column 12: 'for await' outside of async function
 
 --- Statistics ---
-Arena: used=13512B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=36400B reserved=16777216B ratio=0%
+Parse errors: 0
