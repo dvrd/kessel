@@ -6107,8 +6107,13 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				eat(p)
 
 				// Check for default value: { key: value = defaultValue }
+				// Same no_in restore as parse_array_pattern: `for (let
+				// {x = 'a' in {}} in ...)` needs `in` as a binary op
+				// inside the default expression, not the for-in separator.
 				if match_token(p, .Assign) {
+					prev_no_in := p.no_in; p.no_in = false
 					default_val := parse_assignment_expression(p)
+					p.no_in = prev_no_in
 					assign := new_node(p, AssignmentPattern)
 					// AssignmentPattern.start is the start of the LHS pattern,
 					// NOT the enclosing property key. For `{ key: value = 1 }`
@@ -6150,7 +6155,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				}
 				val: Pattern = nested
 				if match_token(p, .Assign) {
+					prev_no_in := p.no_in; p.no_in = false
 					default_val := parse_assignment_expression(p)
+					p.no_in = prev_no_in
 					assign := new_node(p, AssignmentPattern)
 					// Same LHS-start rule as the identifier case above - the
 					// nested pattern's own span is the start of the
@@ -6178,7 +6185,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				}
 				val: Pattern = nested
 				if match_token(p, .Assign) {
+					prev_no_in := p.no_in; p.no_in = false
 					default_val := parse_assignment_expression(p)
+					p.no_in = prev_no_in
 					assign := new_node(p, AssignmentPattern)
 					// Same LHS-start rule - see nested-object case above.
 					assign.loc = get_pattern_loc(nested)
@@ -6202,7 +6211,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 		} else if match_token(p, .Assign) {
 			// { key = defaultValue } - shorthand with default
+			prev_no_in := p.no_in; p.no_in = false
 			default_val := parse_assignment_expression(p)
+			p.no_in = prev_no_in
 			// Create AssignmentPattern with key as left
 			if k := key; k != nil {
 				val := k.?  // unwrap Maybe
@@ -6392,8 +6403,13 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			ident.name = ein
 
 			// Check for default value: [x = defaultValue]
+			// Restore no_in=false inside the default expression so that
+			// `for (let [x = 'a' in {}] in ...)` parses the `in` as
+			// a binary operator in the default, not the for-in separator.
 			if match_token(p, .Assign) {
+				prev_no_in := p.no_in; p.no_in = false
 				default_val := parse_assignment_expression(p)
+				p.no_in = prev_no_in
 				assign := new_node(p, AssignmentPattern)
 				assign.loc = eil
 				assign.left = ident
@@ -6415,7 +6431,9 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 			val: Pattern = nested
 			if match_token(p, .Assign) {
+				prev_no_in := p.no_in; p.no_in = false
 				default_val := parse_assignment_expression(p)
+				p.no_in = prev_no_in
 				assign := new_node(p, AssignmentPattern)
 				assign.loc = get_pattern_loc(nested)
 				assign.left = nested
@@ -6436,7 +6454,9 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 			val: Pattern = nested
 			if match_token(p, .Assign) {
+				prev_no_in := p.no_in; p.no_in = false
 				default_val := parse_assignment_expression(p)
+				p.no_in = prev_no_in
 				assign := new_node(p, AssignmentPattern)
 				assign.loc = get_pattern_loc(nested)
 				assign.left = nested
