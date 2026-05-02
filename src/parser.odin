@@ -14759,13 +14759,21 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
 	case .Unique:
-		// `unique symbol`. The lexer emits `.Unique` for the keyword
-		// (unlike `readonly` which lexes as .Identifier and is handled
-		// in parse_ts_identifier_type below). Only treat as a type
-		// operator when followed by `symbol`; otherwise fall through to
-		// a plain TypeReference for the rare case of `unique` used as
-		// an identifier.
-		if is_next_identifier_value(p, "symbol") {
+		// `unique <type>`. The TS spec only defines `unique symbol`, but
+		// OXC/Babel parse `unique <any-type>` syntactically and defer the
+		// restriction to the type checker. Match that: accept `unique` as
+		// a type operator whenever the next token can start a type (symbol,
+		// number, object, etc.). Falls through to TypeReference for the
+		// rare case of `unique` used as a plain identifier.
+		nxt_kind := p.lexer.nxt.kind
+		if nxt_kind == .Identifier || nxt_kind == .LParen || nxt_kind == .LBrace ||
+		   nxt_kind == .LBracket || nxt_kind == .Typeof || nxt_kind == .Keyof ||
+		   nxt_kind == .Unique || nxt_kind == .Infer || nxt_kind == .Import ||
+		   nxt_kind == .Void || nxt_kind == .True || nxt_kind == .False ||
+		   nxt_kind == .Null || nxt_kind == .This || nxt_kind == .Never ||
+		   nxt_kind == .String || nxt_kind == .Number || nxt_kind == .BigInt ||
+		   nxt_kind == .Readonly || nxt_kind == .Abstract || nxt_kind == .Asserts ||
+		   nxt_kind == .New {
 			eat(p) // consume `unique`
 			operand := parse_ts_primary_type(p)
 			node := new_node(p, TSTypeOperator); node.loc = start
