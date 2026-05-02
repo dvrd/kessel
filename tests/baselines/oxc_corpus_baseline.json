@@ -1,34 +1,34 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15335,
+    "ok-vs-oxc": 15348,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 1138,
-    "kessel-only-rejects": 83,
+    "oxc-only-rejects": 1135,
+    "kessel-only-rejects": 60,
     "should-reject-passed": 33,
-    "pass-both": 3029,
-    "should-pass-rejected": 1496,
+    "pass-both": 3039,
+    "should-pass-rejected": 1499,
     "reject-both": 507
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15335,
+        "ok-vs-oxc": 15348,
         "skip-multi-file": 3519,
         "oxc-only-rejects": 321,
-        "kessel-only-rejects": 34
+        "kessel-only-rejects": 21
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 33,
-        "pass-both": 2991,
-        "should-pass-rejected": 1496,
-        "oxc-only-rejects": 817,
+        "pass-both": 3001,
+        "should-pass-rejected": 1499,
+        "oxc-only-rejects": 814,
         "reject-both": 507,
-        "kessel-only-rejects": 48
+        "kessel-only-rejects": 38
       }
     },
     "estree": {
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 96,
-      "kessel-only-rejects": 16
+      "kessel-only-rejects": 12
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10,
@@ -90,7 +90,7 @@
     },
     "typescript/conformance/es6": {
       "oxc-only-rejects": 38,
-      "kessel-only-rejects": 6,
+      "kessel-only-rejects": 1,
       "skip-multi-file": 49
     },
     "typescript/conformance/es7": {
@@ -152,7 +152,7 @@
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
       "oxc-only-rejects": 77,
-      "kessel-only-rejects": 6
+      "kessel-only-rejects": 3
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -170,9 +170,9 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/types": {
-      "kessel-only-rejects": 2,
       "skip-multi-file": 10,
-      "oxc-only-rejects": 13
+      "oxc-only-rejects": 13,
+      "kessel-only-rejects": 1
     },
     "typescript/conformance/typings": {
       "skip-multi-file": 9
@@ -277,7 +277,6 @@
     },
     "babel/es2015/modules": {
       "oxc-only-rejects": 29,
-      "kessel-only-rejects": 1,
       "should-reject-passed": 1
     },
     "babel/es2015/object": {
@@ -299,7 +298,6 @@
     "babel/es2015/uncategorised": {
       "should-pass-rejected": 44,
       "oxc-only-rejects": 27,
-      "kessel-only-rejects": 1,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {
@@ -475,9 +473,6 @@
     "babel/esprima/statement-expression": {
       "should-pass-rejected": 4
     },
-    "babel/esprima/statement-iteration": {
-      "kessel-only-rejects": 1
-    },
     "babel/esprima/statement-variable": {
       "oxc-only-rejects": 1
     },
@@ -516,7 +511,6 @@
       "should-reject-passed": 1
     },
     "babel/experimental/decorators": {
-      "kessel-only-rejects": 2,
       "oxc-only-rejects": 2,
       "should-reject-passed": 4,
       "should-pass-rejected": 4
@@ -747,8 +741,8 @@
       "oxc-only-rejects": 8
     },
     "babel/flow/typeapp-call": {
-      "should-pass-rejected": 16,
-      "oxc-only-rejects": 7
+      "should-pass-rejected": 19,
+      "oxc-only-rejects": 4
     },
     "babel/flow/typecasts": {
       "should-pass-rejected": 19
@@ -876,13 +870,12 @@
       "should-pass-rejected": 3
     },
     "babel/typescript/type-alias": {
-      "oxc-only-rejects": 1,
-      "kessel-only-rejects": 1
+      "oxc-only-rejects": 1
     },
     "babel/typescript/type-arguments": {
       "oxc-only-rejects": 8,
       "should-pass-rejected": 3,
-      "kessel-only-rejects": 2
+      "kessel-only-rejects": 1
     },
     "babel/typescript/type-arguments-bit-shift-left-like": {
       "kessel-only-rejects": 7
@@ -894,7 +887,6 @@
     },
     "babel/typescript/types": {
       "oxc-only-rejects": 16,
-      "kessel-only-rejects": 3,
       "should-pass-rejected": 5
     },
     "babel/v8intrinsic/expression": {
