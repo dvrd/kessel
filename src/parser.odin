@@ -3544,9 +3544,12 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			cur := p.cur_type
 			nxt := p.lexer.nxt.kind
 			// Only treat as modifier when followed by a plausible param-start
-			// (identifier, `...`, destructuring opener). Otherwise the keyword
-			// IS the param name (e.g. `(public) => ...`, rare but legal).
-			is_param_start := nxt == .Identifier || nxt == .Dot3 ||
+			// (identifier, contextual keyword as name, `...`, destructuring
+			// opener). Otherwise the keyword IS the param name (e.g.
+			// `(public) => ...`, rare but legal). Use
+			// can_be_binding_identifier so contextual keywords like `is`,
+			// `as`, `from` etc. are recognised after `readonly`.
+			is_param_start := can_be_binding_identifier(nxt) || nxt == .Dot3 ||
 			                  nxt == .LBrace || nxt == .LBracket
 			if !is_param_start { break }
 			consumed := false
@@ -13699,10 +13702,19 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 			bump_append(&opening.attributes, spread)
 		} else if is_jsx_identifier_token(p) {
 			attr_start := cur_loc(p)
+			// Enable JSX string mode before scanning the attribute name.
+			// The attribute value string (if any) gets scanned as `nxt`
+			// during eat() inside parse_jsx_attribute_name, so the flag
+			// must be active before that call. JSX §2.2: attribute values
+			// in quotes can span multiple lines (unlike JS strings).
+			p.lexer.jsx_string_mode = true
 			attr_name := parse_jsx_attribute_name(p)
 			attr_value: Maybe(^Expression)
 			if is_token(p, .Assign) {
 				eat(p)
+				// Clear JSX string mode after consuming `=` — the string
+				// (if any) is already tokenized as `cur` at this point.
+				p.lexer.jsx_string_mode = false
 				if is_token(p, .String) {
 					str := parse_string_literal(p)
 					str_expr := new_node(p, StringLiteral); str_expr^ = str
@@ -13717,6 +13729,9 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 				} else if is_token(p, .LAngle) {
 					attr_value = parse_jsx_element_or_fragment(p)
 				}
+			} else {
+				// Boolean attribute (no `=`) — clear the JSX string flag.
+				p.lexer.jsx_string_mode = false
 			}
 			attr: JSXAttribute
 			attr.loc = attr_start; attr.name = attr_name; attr.value = attr_value
@@ -13881,7 +13896,8 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		asserts = true
 		eat(p) // consume `asserts`
 		is_predicate = true
-	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is {
+	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+		// Line break before `is` triggers ASI — `I\nis()` is two members, not a type predicate.
 		is_predicate = true
 	}
 
@@ -13949,7 +13965,8 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		asserts = true
 		eat(p)
 		is_predicate = true
-	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is {
+	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+		// Line break before `is` triggers ASI — not a type predicate.
 		is_predicate = true
 	}
 	if is_predicate {
@@ -14012,7 +14029,8 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		asserts = true
 		eat(p)
 		is_predicate = true
-	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is {
+	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+		// Line break before `is` triggers ASI — not a type predicate.
 		is_predicate = true
 	}
 	if is_predicate {

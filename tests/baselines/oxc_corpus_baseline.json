@@ -1,41 +1,41 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15159,
+    "ok-vs-oxc": 15163,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 903,
-    "kessel-only-rejects": 787,
+    "oxc-only-rejects": 897,
+    "kessel-only-rejects": 784,
     "should-reject-passed": 26,
-    "pass-both": 2576,
-    "should-pass-rejected": 1658,
+    "pass-both": 2592,
+    "should-pass-rejected": 1647,
     "reject-both": 512
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15159,
+        "ok-vs-oxc": 15163,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 235,
-        "kessel-only-rejects": 296
+        "oxc-only-rejects": 236,
+        "kessel-only-rejects": 291
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 26,
-        "pass-both": 2539,
-        "kessel-only-rejects": 489,
-        "should-pass-rejected": 1658,
-        "oxc-only-rejects": 668,
+        "pass-both": 2554,
+        "kessel-only-rejects": 492,
+        "should-pass-rejected": 1647,
+        "oxc-only-rejects": 661,
         "reject-both": 512
       }
     },
     "estree": {
       "total": 39,
       "verdicts": {
-        "pass-both": 37,
-        "kessel-only-rejects": 2
+        "pass-both": 38,
+        "kessel-only-rejects": 1
       }
     }
   },
@@ -43,7 +43,7 @@
     "typescript/compiler": {
       "skip-multi-file": 1188,
       "oxc-only-rejects": 78,
-      "kessel-only-rejects": 119
+      "kessel-only-rejects": 115
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10,
@@ -102,7 +102,7 @@
     },
     "typescript/conformance/expressions": {
       "skip-multi-file": 4,
-      "kessel-only-rejects": 2,
+      "kessel-only-rejects": 1,
       "oxc-only-rejects": 1
     },
     "typescript/conformance/externalModules": {
@@ -152,7 +152,7 @@
       "skip-multi-file": 5
     },
     "typescript/conformance/override": {
-      "oxc-only-rejects": 2
+      "oxc-only-rejects": 3
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
@@ -546,10 +546,11 @@
       "oxc-only-rejects": 1
     },
     "babel/estree/class-method": {
-      "should-pass-rejected": 4
+      "should-pass-rejected": 1,
+      "kessel-only-rejects": 3
     },
     "babel/estree/class-private-property": {
-      "should-pass-rejected": 2
+      "should-pass-rejected": 1
     },
     "babel/estree/flow": {
       "oxc-only-rejects": 1
@@ -558,8 +559,8 @@
       "should-pass-rejected": 2
     },
     "babel/estree/typescript": {
-      "oxc-only-rejects": 6,
-      "should-pass-rejected": 4
+      "should-pass-rejected": 1,
+      "oxc-only-rejects": 1
     },
     "babel/experimental/_no-plugin": {
       "should-reject-passed": 1,
@@ -603,8 +604,7 @@
       "should-pass-rejected": 3
     },
     "babel/experimental/export-extensions": {
-      "should-pass-rejected": 6,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 6
     },
     "babel/experimental/function-sent": {
       "should-pass-rejected": 7
@@ -827,15 +827,14 @@
     "babel/jsx/errors": {
       "oxc-only-rejects": 10,
       "kessel-only-rejects": 1,
-      "should-pass-rejected": 6,
+      "should-pass-rejected": 5,
       "should-reject-passed": 1
     },
     "babel/jsx/html-entities": {
       "oxc-only-rejects": 4
     },
     "babel/jsx/regression": {
-      "oxc-only-rejects": 11,
-      "should-pass-rejected": 1
+      "oxc-only-rejects": 12
     },
     "babel/placeholders/_errors": {
       "should-pass-rejected": 2
@@ -896,9 +895,9 @@
       "oxc-only-rejects": 1
     },
     "babel/typescript/class": {
-      "oxc-only-rejects": 32,
-      "should-pass-rejected": 5,
-      "kessel-only-rejects": 5
+      "oxc-only-rejects": 33,
+      "kessel-only-rejects": 5,
+      "should-pass-rejected": 3
     },
     "babel/typescript/conditional": {
       "should-reject-passed": 3,
@@ -922,9 +921,6 @@
     "babel/typescript/expect-plugin": {
       "oxc-only-rejects": 3
     },
-    "babel/typescript/explicit-resource-management": {
-      "oxc-only-rejects": 1
-    },
     "babel/typescript/exponentiation": {
       "oxc-only-rejects": 1,
       "should-pass-rejected": 1
@@ -947,8 +943,7 @@
       "should-pass-rejected": 1
     },
     "babel/typescript/scope": {
-      "kessel-only-rejects": 8,
-      "oxc-only-rejects": 2
+      "kessel-only-rejects": 8
     },
     "babel/typescript/static-blocks": {
       "should-pass-rejected": 9
@@ -984,7 +979,7 @@
       "oxc-only-rejects": 1
     },
     "estree/": {
-      "kessel-only-rejects": 2
+      "kessel-only-rejects": 1
     }
   }
 }

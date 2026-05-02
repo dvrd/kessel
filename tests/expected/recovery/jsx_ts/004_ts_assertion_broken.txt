@@ -50,7 +50,7 @@
               "type": "JSXClosingElement",
               "start": 95,
               "end": 95,
-              "name": 
+              "name": null
             }
           }        }
       ]    }
@@ -89,6 +89,3 @@ Parse errors (3):
   Line 4, Column 1: Expected /, got EOF
   Line 4, Column 1: Expected >, got EOF
 
---- Statistics ---
-Arena: used=8280B reserved=16777216B ratio=0%
-Parse errors: 3

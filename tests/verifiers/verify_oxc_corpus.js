@@ -146,6 +146,47 @@ function discoverTypescript() {
   return out;
 }
 
+// Walk up to 3 ancestor directories from `dir`, merge options.json at each
+// level. Mirrors OXC's BabelOptions::from_test_path: closest plugins win,
+// suite-level (level 1) options.json suppresses category-level (level 2)
+// plugins. Returns the merged { plugins: string[], throws: string|undefined,
+// sourceType: string|undefined }.
+function readBabelOptionsChain(dir) {
+  let plugins = null;
+  let throws;
+  let sourceType;
+  let suiteHasOptions = false;
+  let cur = dir;
+  for (let level = 0; level < 3; level++) {
+    const file = path.join(cur, 'options.json');
+    if (fs.existsSync(file)) {
+      try {
+        const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+        if (level === 1) suiteHasOptions = true;
+        // Closest plugins win; skip category (level 2) if suite has options.
+        if (plugins === null && !(level === 2 && suiteHasOptions)) {
+          if (Array.isArray(raw.plugins)) plugins = raw.plugins;
+        }
+        if (throws === undefined && typeof raw.throws === 'string') throws = raw.throws;
+        if (sourceType === undefined && typeof raw.sourceType === 'string') sourceType = raw.sourceType;
+      } catch {/* malformed → skip */}
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) break;  // hit filesystem root
+    cur = parent;
+  }
+  return { plugins: plugins || [], throws, sourceType };
+}
+
+// Check if a babel plugins array contains a given plugin name.
+// Plugins can be plain strings ("typescript") or tuples (["typescript", {...}]).
+function babelPluginsHas(plugins, name) {
+  return plugins.some(p =>
+    (typeof p === 'string' && p === name) ||
+    (Array.isArray(p) && p[0] === name)
+  );
+}
+
 function discoverBabel() {
   const root = path.join(VENDOR, 'babel/packages/babel-parser/test/fixtures');
   if (!fs.existsSync(root)) return [];
@@ -158,20 +199,19 @@ function discoverBabel() {
       out.push({ suite:'babel', abs, rel: path.relative(root, abs), lang:'', expected:'unknown', skipReason:'unsupported-ext' });
       return;
     }
-    // options.json sibling — `throws` field flags must-fail.
-    const optionsPath = path.join(path.dirname(abs), 'options.json');
-    let expected = 'pass';
-    if (fs.existsSync(optionsPath)) {
-      try {
-        const opts = JSON.parse(fs.readFileSync(optionsPath, 'utf8'));
-        if (typeof opts.throws === 'string') expected = 'fail';
-      } catch {/* malformed options.json → assume pass */}
-    }
+    // Walk ancestor options.json chain (mirrors OXC's BabelOptions::from_test_path).
+    const babelOpts = readBabelOptionsChain(path.dirname(abs));
+    const expected = typeof babelOpts.throws === 'string' ? 'fail' : 'pass';
+    const hasTS = babelPluginsHas(babelOpts.plugins, 'typescript');
+    const hasJSX = babelPluginsHas(babelOpts.plugins, 'jsx');
+    // Determine lang: extension takes priority for .ts/.tsx, but for .js/.jsx
+    // files the options.json plugins override — matching OXC's behavior.
     let lang = '';
     if (ext === 'tsx') lang = 'tsx';
     else if (ext === 'ts') lang = 'ts';
-    else if (ext === 'jsx') lang = 'jsx';
-    // .js / .mjs: kessel auto-detects from extension; .mjs implies module.
+    else if (ext === 'jsx') lang = hasTS ? 'tsx' : 'jsx';
+    else if (hasTS) lang = hasJSX ? 'tsx' : 'ts';  // .js/.mjs with TS plugin
+    // .js / .mjs without TS plugin: lang stays empty → detect_lang_from_path.
     out.push({ suite:'babel', abs, rel: path.relative(root, abs), lang, expected, skipReason:null, ext });
   });
   return out;

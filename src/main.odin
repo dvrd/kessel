@@ -4909,6 +4909,10 @@ emit_jsx_member_object :: proc(obj: JSXMemberObject, indent: int) {
 
 emit_jsx_element_name :: proc(name: JSXElementName, indent: int) {
 	switch n in name {
+	case:
+		// Nil union variant (error-recovery produced a closing element
+		// with no name). Emit null so the JSON stays valid.
+		out_s("null")
 	case JSXIdentifier:
 		emit_jsx_identifier(n, indent)
 	case ^JSXMemberExpression:

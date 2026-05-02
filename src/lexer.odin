@@ -122,6 +122,12 @@ Lexer :: struct {
 	strict_mode: bool,
 	at_start_of_file: bool,
 
+	// JSX attribute string mode: when true, lex_string allows raw newlines
+	// inside quoted strings (JSX §2.2: attribute values are NOT JS strings;
+	// they can span multiple lines). Set by the parser before scanning tokens
+	// in JSX attribute position, cleared after.
+	jsx_string_mode: bool,
+
 	// Comment collection — populated during lexing
 	comments: [dynamic]Comment,
 	collect_comments: bool,
@@ -1629,17 +1635,28 @@ lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 	if found_quote {
 		// No escape — direct string. Check for unescaped line
 		// terminators (§12.9.4.1): bare LF / CR inside a string
-		// literal is a SyntaxError.
+		// literal is a SyntaxError. In JSX attribute string mode
+		// (jsx_string_mode), raw newlines are allowed per JSX §2.2.
 		span := remaining[:pos]
-		for bi := 0; bi < len(span); bi += 1 {
-			b := span[bi]
-			if b == '\n' || b == '\r' {
-				bump_append(&l.lexer_errors, LexerError{
-					offset = u32(int(start) + 1 + bi),
-					message = "Unterminated string literal",
-				})
-				l.had_line_terminator = true
-				break
+		if !l.jsx_string_mode {
+			for bi := 0; bi < len(span); bi += 1 {
+				b := span[bi]
+				if b == '\n' || b == '\r' {
+					bump_append(&l.lexer_errors, LexerError{
+						offset = u32(int(start) + 1 + bi),
+						message = "Unterminated string literal",
+					})
+					l.had_line_terminator = true
+					break
+				}
+			}
+		} else {
+			// JSX strings: still track had_line_terminator for ASI.
+			for b in span {
+				if b == '\n' || b == '\r' {
+					l.had_line_terminator = true
+					break
+				}
 			}
 		}
 		l.offset += pos + 1 // skip content + closing quote
@@ -1738,10 +1755,12 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 				if b == '\n' || b == '\r' {
 					// §12.9.4.1 — unescaped LineTerminator in string.
 					l.had_line_terminator = true
-					bump_append(&l.lexer_errors, LexerError{
-						offset = u32(l.offset + bi),
-						message = "Unterminated string literal",
-					})
+					if !l.jsx_string_mode {
+						bump_append(&l.lexer_errors, LexerError{
+							offset = u32(l.offset + bi),
+							message = "Unterminated string literal",
+						})
+					}
 					break
 				}
 			}
