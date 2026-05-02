@@ -15174,6 +15174,17 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// with dedicated type-level semantics (.Void, .Null, .This,
 		// .Typeof, .Keyof, .Unique, .Infer, .Import, .New, .Never).
 		return parse_ts_type_reference(p)
+	case .Break, .Continue, .Return, .If, .Else, .For, .While, .Do,
+	     .Switch, .Case, .Default, .Throw, .Try, .Catch, .Finally,
+	     .With, .Debugger, .Delete, .In, .Instanceof, .Var,
+	     .Class, .Function, .Extends, .Super, .Enum, .Export:
+		// Hard-reserved JS keywords. OXC accepts them in type position
+		// permissively (e.g. `x: break`). The semantic checker owns the
+		// error; the parser just builds a TSTypeReference.
+		if allow_ts_mode(p) {
+			return parse_ts_type_reference(p)
+		}
+		return nil
 	}
 	return nil
 }
