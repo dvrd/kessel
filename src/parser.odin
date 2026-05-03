@@ -1714,19 +1714,22 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		val := p.cur_tok.value
 		if val == "declare" {
 			// Only treat as a declare declaration if the next token can start
-			// a declaration. Otherwise `declare` is just an identifier
-			// (e.g. `declare instanceof C;` where `declare` is a variable).
+			// a declaration AND is on the same line. A newline after `declare`
+			// triggers ASI: `declare\nconst x = 1` is two statements, not
+			// `declare const x = 1`. OXC and TSC both apply this rule.
 			nxt := peek_token(p)
 			is_decl_start := false
-			#partial switch nxt.type {
-			case .Function, .Class, .Abstract, .Import, .Const, .Let, .Var, .Async:
-				is_decl_start = true
-			case .Identifier:
-				if nxt.value == "interface" || nxt.value == "type" ||
+			if !nxt.had_line_terminator {
+				#partial switch nxt.type {
+				case .Function, .Class, .Abstract, .Import, .Const, .Let, .Var, .Async:
+					is_decl_start = true
+				case .Identifier:
+					if nxt.value == "interface" || nxt.value == "type" ||
 				   nxt.value == "enum" || nxt.value == "namespace" ||
 				   nxt.value == "module" || nxt.value == "abstract" ||
 				   nxt.value == "global" {
-					is_decl_start = true
+						is_decl_start = true
+					}
 				}
 			}
 			if is_decl_start {
@@ -5574,7 +5577,9 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	// binding node's `end` over the annotation — mirror that here for
 	// span parity (S26 W4d: 2 baseline divergences on tsx/002 and
 	// typescript/015).
+	has_type_ann := false
 	if is_token(p, .Colon) {
+		has_type_ann = true
 		ann := parse_ts_type_annotation(p)
 		#partial switch t in pattern {
 		case ^Identifier:
@@ -5612,8 +5617,18 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 
 	init: Maybe(^Expression)
 	if match_token(p, .Assign) {
-		if (p.in_ambient || is_declare) && kind != .Const {
-			report_error(p, "Initializers are not allowed in ambient contexts.")
+		// OXC rule: `declare const x: T = v` is an error (type ann + init),
+		// but `declare const x = v` without type annotation is OK (TS infers).
+		// .d.ts files are fully ambient — never error on const init there.
+		// Inherited ambient (namespace) only errors for non-const kinds.
+		if !p.source_is_dts {
+			if is_declare && has_type_ann {
+				report_error(p, "Initializers are not allowed in ambient contexts.")
+			} else if is_declare && kind != .Const {
+				report_error(p, "Initializers are not allowed in ambient contexts.")
+			} else if p.in_ambient && kind != .Const {
+				report_error(p, "Initializers are not allowed in ambient contexts.")
+			}
 		}
 		init_expr := parse_assignment_expression(p)
 		if init_expr == nil {
@@ -16478,6 +16493,10 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 		lexer_restore(p, snap)
 		p.pending_paren_start = prev_pending_paren
 		return nil
+	}
+	// §15.3 — ArrowParameters [no LineTerminator here] =>
+	if p.cur_tok.had_line_terminator {
+		report_error(p, "Line terminator not permitted before '=>'")
 	}
 	eat(p) // consume `=>`
 
