@@ -52,7 +52,7 @@
   "tests/fixtures/negative/013_break_unknown_label.js": "accepted",
   "tests/fixtures/negative/012_duplicate_label.js": "accepted",
   "tests/fixtures/negative/011_duplicate_default_in_switch.js": "accepted",
-  "tests/fixtures/negative/010_reserved_word_as_var.js": "accepted",
+  "tests/fixtures/negative/010_reserved_word_as_var.js": "rejected",
   "tests/fixtures/negative/009_unexpected_token_after_return.js": "rejected",
   "tests/fixtures/negative/008_bare_function_expression.js": "rejected",
   "tests/fixtures/negative/007_unterminated_regex.js": "rejected",

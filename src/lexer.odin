@@ -1376,6 +1376,11 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 				// Trailing `_` in exponent (`1e10_`).
 				bump_append(&l.lexer_errors, LexerError{offset = u32(off - 1), message = "Numeric separator not allowed here"})
 			}
+			// §12.9.3 — ExponentPart requires at least one DecimalDigit.
+			// `1e`, `1e+`, `1e-` are all malformed numeric literals.
+			if exp_digits == 0 {
+				bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Missing exponent digits"})
+			}
 		}
 	}
 	l.offset = off

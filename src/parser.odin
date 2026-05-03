@@ -6128,7 +6128,8 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// because they lex as `.Identifier`; only hard-reserved keyword
 	// tokens trip this branch.
 	if is_reserved_word_for_binding(p.cur_type) {
-		report_semantic_error(p, "Reserved word cannot be used as a binding name")
+		msg := fmt.tprintf("'%s' is a reserved word and cannot be used as a binding name", cur_value(p))
+		report_error(p, msg)
 		// Consume the keyword and return a placeholder identifier so the
 		// rest of the declarator (init expression) still parses, keeping
 		// error recovery tight. The identifier's name carries the raw
@@ -8584,6 +8585,17 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		msg := fmt.tprintf("'%s' cannot be used as an import binding name", local.name)
 		report_semantic_error_at(p, LexerLoc(local.loc.span.start), msg)
 	}
+	// §16.2.2 — When no `as` clause, the ImportedBinding is the same
+	// identifier as the ModuleExportName.  Reserved words are valid
+	// ModuleExportNames (`import { default as x }`) but NOT valid
+	// BindingIdentifiers (`import { default }`).  The check only fires
+	// when local == imported (no `as`).
+	if local.loc.span.start == imported.loc.span.start && !is_string_import {
+		if is_always_reserved_word_name(local.name) {
+			msg := fmt.tprintf("'%s' is a reserved word and cannot be used as an import binding", local.name)
+			report_error(p, msg)
+		}
+	}
 
 	return spec
 }
@@ -9404,7 +9416,9 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// `**` form). Detect by inspecting the raw source span of the
 		// left operand - a leading `(` means paren-wrapped.
 		if cur_type == .Pow && left != nil {
-			if _, is_unary := left.(^UnaryExpression); is_unary {
+			_, is_unary := left.(^UnaryExpression)
+			_, is_await := left.(^AwaitExpression)
+			if is_unary || is_await {
 				lhs_loc := loc_from_expr(left)
 				lhs_start := lhs_loc.span.start
 				lhs_end   := lhs_loc.span.end

@@ -35,9 +35,19 @@
       "end": 49,
       "value": " Expected error: reserved word as variable name"
     }
+  ],
+  "errors": [
+    {
+      "message": "'class' is a reserved word and cannot be used as a binding name",
+      "line": 2,
+      "column": 5,
+      "offset": 54
+    }
   ]
 }
+Parse errors (1):
+  Line 2, Column 5: 'class' is a reserved word and cannot be used as a binding name
 
 --- Statistics ---
-Arena: used=35952B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37168B reserved=16777216B ratio=0%
+Parse errors: 1
