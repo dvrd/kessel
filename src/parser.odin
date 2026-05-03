@@ -529,6 +529,12 @@ Parser :: struct {
 	// initializer parse time so it does NOT depend on this walker.
 	private_id_count: u32,
 
+	// True while parsing the declaration of `export default function …`
+	// or `export default class …`. Used to suppress OXC-parity checks
+	// that OXC doesn't enforce in the default-export position (e.g.
+	// `export default function *yield() {}` is accepted by OXC).
+	in_export_default: bool,
+
 	// Inside an ambient TS module / namespace body: every declaration is
 	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
 	// semantics and also the string-named `module "x" { ... }` shortcut
@@ -1044,6 +1050,11 @@ report_error :: proc(p: ^Parser, message: string) {
 report_semantic_error :: #force_inline proc(p: ^Parser, message: string) {
 	if !p.check_semantics { return }
 	report_error(p, message)
+}
+
+// report_error_at is like report_error but at an explicit source offset.
+report_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
+	bump_append(&p.errors, ParseError{loc = loc, message = message})
 }
 
 // report_semantic_error_at is like report_semantic_error but at a specific
@@ -2019,15 +2030,22 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			if labeled.body != nil {
 				#partial switch v in labeled.body^ {
 				case ^VariableDeclaration:
-					if v != nil && (v.kind == .Let || v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing) {
-						report_semantic_error(p, "Lexical declaration cannot be a labeled item")
+					if v != nil {
+						// OXC's parser catches const / using / await-using
+						// as labeled items; `let` is handled differently by
+						// OXC (ASI) so stays gated.
+						if v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing {
+							report_error(p, "Lexical declaration cannot appear in a single-statement context")
+						} else if v.kind == .Let {
+							report_semantic_error(p, "Lexical declaration cannot be a labeled item")
+						}
 					}
 				case ^ClassDeclaration:
-					report_semantic_error(p, "Class declaration cannot be a labeled item")
+					report_error(p, "Class declaration cannot appear in a single-statement context")
 				case ^FunctionDeclaration:
 					if v != nil {
 						if v.async || v.generator {
-							report_semantic_error(p, "Async / generator function declaration cannot be a labeled item")
+							report_error(p, "Async / generator function declaration cannot be a labeled item")
 						} else if p.strict_mode {
 							report_semantic_error(p, "Function declaration cannot be a labeled item in strict mode")
 						}
@@ -2102,11 +2120,11 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 			report_error(p, msg)
 		}
 	case ^ClassDeclaration:
-		report_semantic_error(p, "Class declaration cannot appear in a single-statement context")
+		report_error(p, "Class declaration cannot appear in a single-statement context")
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if v.async || v.generator {
-			report_semantic_error(p, "Async / generator function declaration cannot appear in a single-statement context")
+			report_error(p, "Async / generator function declaration cannot appear in a single-statement context")
 		} else if !allow_plain_function {
 			report_semantic_error(p, "Function declaration cannot appear in a single-statement context")
 		}
@@ -2320,6 +2338,12 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .Await) && peek_dispatch(p).type == .Using {
 		await_using_for_decl = await_using_starts_decl(p)
 	}
+	// A using/await-using declaration in a for-init is NOT directly
+	// inside the case clause, so clear the flag before parsing.
+	prev_case_clause := p.in_case_clause
+	p.in_case_clause = false
+	defer p.in_case_clause = prev_case_clause
+
 	if is_token(p, .Var) || (is_token(p, .Let) && let_starts_decl) || is_token(p, .Const) ||
 	   (is_token(p, .Using) && using_starts_decl) || await_using_for_decl {
 		// Variable declaration - parse it. parse_variable_declaration returns a
@@ -3299,10 +3323,18 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// expression position. The Declaration form's binding is in the
 			// enclosing context.
 			if is_expr && async && current.value == "await" {
-				report_semantic_error(p, "'await' cannot be used as the name of an async function expression")
+				report_error(p, "'await' cannot be used as the name of an async function expression")
 			}
+			// OXC catches `(function*yield(){})` and
+			// `var x = function*yield(){}` etc. as parser-level errors,
+			// but NOT `export default function *yield() {}`. Match OXC:
+			// promote to report_error unless in export-default context.
 			if is_expr && generator && current.value == "yield" {
-				report_semantic_error(p, "'yield' cannot be used as the name of a generator function expression")
+				if p.in_export_default {
+					report_semantic_error(p, "'yield' cannot be used as the name of a generator function expression")
+				} else {
+					report_error(p, "'yield' cannot be used as the name of a generator function expression")
+				}
 			}
 			// In strict mode, `yield` is a reserved word and cannot be used
 			// as a FunctionExpression BindingIdentifier (§15.7.1).
@@ -3324,10 +3356,18 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// generator) drive the FunctionExpression-name check above.
 			if !is_expr {
 				if current.value == "await" && await_is_reserved_here(p) {
-					report_semantic_error(p, "'await' cannot be used as a function name in module / async context")
+					report_error(p, "'await' cannot be used as a function name in module / async context")
 				}
-				if current.value == "yield" && yield_is_reserved_here(p) {
-					report_semantic_error(p, "'yield' cannot be used as a function name in generator / strict context")
+				// In generator context `yield` as a declaration name is a
+				// parser-level error (OXC catches it). In strict-mode-only
+				// context (no generator) OXC defers to oxc_semantic, so keep
+				// that path gated.
+				if current.value == "yield" {
+					if p.in_generator || p.in_generator_params {
+						report_error(p, "'yield' cannot be used as a function name in generator context")
+					} else if p.strict_mode {
+						report_semantic_error(p, "'yield' cannot be used as a function name in strict mode")
+					}
 				}
 			}
 			eat(p)
@@ -3384,21 +3424,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.in_generator = prev_in_generator_param_outer
 	p.in_async = prev_in_async_param_outer
 
-	// TS: parameter property modifiers (public/private/protected/readonly)
-	// are only allowed in class constructors. Reject them on standalone
-	// function declarations. The class-method check lives in
-	// parse_class_element; this covers `function f(public x) {}`.
-	if allow_ts_mode(p) {
-		for fp in params {
-			if fp.accessibility != .None || fp.readonly || fp.override_ {
-				name := "public"
-				if fp.accessibility == .Private { name = "private" }
-				if fp.accessibility == .Protected { name = "protected" }
-				if fp.readonly && fp.accessibility == .None { name = "readonly" }
-				report_error(p, fmt.tprintf("'%s' modifier cannot appear on a parameter.", name))
-			}
-		}
-	}
+	report_parameter_modifiers_disallowed(p, params[:])
 
 	if !expect_token(p, .RParen) {
 		// Error recovery: skip forward to the next `{` (start of the body)
@@ -3585,6 +3611,20 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	return stmt
 }
 
+report_parameter_modifiers_disallowed :: proc(p: ^Parser, params: []FunctionParameter) {
+	if !allow_ts_mode(p) { return }
+	for fp in params {
+		if fp.accessibility != .None || fp.readonly || fp.override_ {
+			name := "public"
+			if fp.accessibility == .Private { name = "private" }
+			if fp.accessibility == .Protected { name = "protected" }
+			if fp.readonly && fp.accessibility == .None { name = "readonly" }
+			if fp.override_ && fp.accessibility == .None && !fp.readonly { name = "override" }
+			report_error(p, fmt.tprintf("'%s' modifier cannot appear on a parameter.", name))
+		}
+	}
+}
+
 parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 	// Lazy alloc - zero-parameter functions are very common (callbacks,
 	// arrows like `() => x`, getters / setters, etc.). Defer the bump
@@ -3625,8 +3665,8 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 					nxt := p.lexer.nxt.kind
 					if nxt != .RParen && nxt != .EOF {
 						report_error(p, "A rest parameter must be last in a parameter list")
-					} else {
-						report_semantic_error(p, "Rest element may not have a trailing comma")
+					} else if !p.in_ambient && !p.source_is_dts {
+						report_error(p, "A rest parameter or binding pattern may not have a trailing comma.")
 					}
 				}
 			}
@@ -4272,7 +4312,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		if !is_private || pid == nil { continue }
 		name := pid.name
 		if name == "constructor" {
-			report_semantic_error(p, "Class private member name cannot be '#constructor'")
+			report_error(p, "Class private member name cannot be '#constructor'")
 			continue
 		}
 		prev, _ := seen[name]
@@ -4630,18 +4670,27 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			snap := lexer_snapshot(p)
 			eat(p)  // consume `[`
 			eat(p)  // consume identifier
-			is_index_sig := is_token(p, .Colon)
+			is_index_sig := is_token(p, .Colon) ||
+			                (is_token(p, .Question) && p.lexer.nxt.kind == .Colon)
 			lexer_restore(p, snap)
 			if is_index_sig {
 				// Confirmed: parse and discard the index signature. Same shape
 				// as parse_ts_object_member's index-signature arm.
+				if accessibility != .None {
+					report_error(p, fmt.tprintf("'%s' modifier cannot appear on an index signature.", access_name))
+				}
 				eat(p)            // `[`
 				eat(p)            // identifier
-				eat(p)            // `:`
+				if match_token(p, .Question) {
+					report_error(p, "An index signature parameter cannot have a question mark.")
+				}
+				expect_token(p, .Colon)
 				_ = parse_ts_type(p)
 				expect_token(p, .RBracket)
 				if is_token(p, .Colon) {
 					_ = parse_ts_type_annotation(p)
+				} else {
+					report_error(p, "An index signature must have a type annotation.")
 				}
 				match_semicolon_or_asi(p)
 				// Return nil so the class-body loop swallows the element
@@ -4774,6 +4823,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				if (is_declare || p.in_ambient) && !is_readonly {
 					report_error(p, "Initializers are not allowed in ambient contexts.")
 				}
+				if is_abstract {
+					report_error(p, "Abstract property cannot have an initializer.")
+				}
 				// §15.7.5 - ClassFieldInitializer must not Contain
 				// `arguments`. Hoisted out of pn_visit_class so files
 				// with no PrivateIdentifier can skip the full
@@ -4901,6 +4953,17 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	method_return_type: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) {
 		method_return_type = parse_ts_return_type_annotation(p)
+	}
+	if kind == .Constructor {
+		if method_type_parameters != nil {
+			report_error(p, "Type parameters cannot appear on a constructor declaration")
+		}
+		if _, has_return_type := method_return_type.?; has_return_type {
+			report_error(p, "Type annotation cannot appear on a constructor declaration.")
+		}
+		if is_declare {
+			report_error(p, "'declare' modifier cannot appear on a constructor declaration.")
+		}
 	}
 
 	// For abstract methods and for TS overload signatures there's no body
@@ -5272,7 +5335,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			kn := "using"
 			if kind == .AwaitUsing { kn = "await using" }
 			msg := fmt.tprintf("'%s' declaration is not allowed directly inside a switch case clause", kn)
-			report_semantic_error(p, msg)
+			report_error(p, msg)
 		}
 	}
 
@@ -5301,6 +5364,17 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 					msg := fmt.tprintf("Missing initializer in '%s' declaration", kind_name)
 					report_error(p, msg)
 				}
+			}
+		}
+	}
+
+	// A destructuring declaration needs an initializer unless the binding is
+	// supplied by a for-in/of head.
+	if !is_declare && !p.in_ambient && !p.source_is_dts && !in_for {
+		for d in decl.declarations {
+			if _, have := d.init.(^Expression); have { continue }
+			if _, is_ident := d.id.(^Identifier); !is_ident {
+				report_error(p, "Missing initializer in destructuring declaration")
 			}
 		}
 	}
@@ -6958,7 +7032,13 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					off := decl_offs[i]
 					if _, exists := scope_map_get(&exported, name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", name)
-						report_semantic_error_at(p, LexerLoc(off), msg)
+						// OXC's parser catches this in JS mode; in TS mode it
+						// defers to oxc_semantic (overloads, type/value merging).
+						if allow_ts_mode(p) {
+							report_semantic_error_at(p, LexerLoc(off), msg)
+						} else {
+							report_error_at(p, LexerLoc(off), msg)
+						}
 					} else {
 						scope_map_set(&exported, name, off)
 					}
@@ -6980,7 +7060,11 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				if var_name != "" {
 					if _, exists := scope_map_get(&exported, var_name); exists {
 						msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
-						report_semantic_error_at(p, LexerLoc(var_off), msg)
+						if allow_ts_mode(p) {
+							report_semantic_error_at(p, LexerLoc(var_off), msg)
+						} else {
+							report_error_at(p, LexerLoc(var_off), msg)
+						}
 					} else {
 						scope_map_set(&exported, var_name, var_off)
 					}
@@ -7004,7 +7088,11 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
 				if _, exists := scope_map_get(&exported, ns_name.name); exists {
 					msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
-					report_semantic_error_at(p, LexerLoc(ns_name.loc.span.start), msg)
+					if allow_ts_mode(p) {
+						report_semantic_error_at(p, LexerLoc(ns_name.loc.span.start), msg)
+					} else {
+						report_error_at(p, LexerLoc(ns_name.loc.span.start), msg)
+					}
 				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.span.start) }
 			}
 		}
@@ -8123,8 +8211,11 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// named "type"): after `type`, the next token must be `{`, `*`, or an
 	// identifier followed by `,`/`from` (but NOT `from` directly).
 	if p.cur_type == .Identifier && p.cur_tok.value == "type" {
+		// §12.7.2 — contextual keyword `type` must not use Unicode escapes.
+		has_esc := p.cur_tok.has_escape
 		nxt := p.lexer.nxt.kind
 		if nxt == .LBrace || nxt == .Mul {
+			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 			decl.import_kind = .Type
 			eat(p) // consume `type`
 		} else if nxt == .Identifier {
@@ -8133,6 +8224,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			// type-only when the identifier after `type` is NOT `from`.
 			nxt_val := p.lexer.source[p.lexer.nxt.start:p.lexer.nxt.end]
 			if nxt_val != "from" {
+				if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 				decl.import_kind = .Type
 				eat(p) // consume `type`
 			}
@@ -8504,6 +8596,11 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		report_semantic_error(p, "'export' is only valid in module code")
 	}
 
+	if is_token(p, .Export) {
+		report_error(p, "'export' modifier already seen.")
+		eat(p)
+	}
+
 	if match_token(p, .Default) {
 		return parse_export_default(p, start)
 	}
@@ -8565,12 +8662,15 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// `export type Identifier =` falls through to the declaration path,
 	// which already handles type aliases via parse_statement_or_declaration.
 	if p.cur_type == .Identifier && p.cur_tok.value == "type" {
+		has_esc := p.cur_tok.has_escape
 		nxt := peek_token(p)
 		if nxt.type == .LBrace {
+			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 			eat(p) // consume `type`
 			return parse_export_named(p, start, .Type)
 		}
 		if nxt.type == .Mul {
+			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 			eat(p) // consume `type`
 			eat(p) // consume `*`
 			return parse_export_all(p, start, .Type)
@@ -8668,7 +8768,9 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		// export default [async] function() {}  - parsed as expression form.
 		// parse_function_declaration(is_expr=true) returns a ^Statement union
 		// wrapping a ^ExpressionStatement whose .expression is the FunctionExpression.
+		p.in_export_default = true
 		fn_stmt := parse_function_declaration(p, true)
+		p.in_export_default = false
 		if fn_stmt != nil {
 			if expr_stmt, ok := fn_stmt^.(^ExpressionStatement); ok {
 				def^ = expr_stmt.expression
@@ -9303,7 +9405,9 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// left operand - a leading `(` means paren-wrapped.
 		if cur_type == .Pow && left != nil {
 			if _, is_unary := left.(^UnaryExpression); is_unary {
-				lhs_start := loc_from_expr(left).span.start
+				lhs_loc := loc_from_expr(left)
+				lhs_start := lhs_loc.span.start
+				lhs_end   := lhs_loc.span.end
 				paren_wrapped := false
 				if p.lexer != nil && int(lhs_start) < len(p.lexer.source_bytes) {
 					// Without --preserve-parens the UnaryExpression's span
@@ -9316,6 +9420,27 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 						if ch == '(' { paren_wrapped = true; break }
 						if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
 						break
+					}
+					// Found a '(' before the unary. Verify it closes
+					// *before* the '**' — i.e. the ')' sits between the
+					// UnaryExpression's end and the '**' token. If the ')'
+					// is missing (or after '**') the '(' wraps the whole
+					// binary expression, not just the unary operand:
+					//   (-5) ** 6   → ')' at 3, before '**' at 5 → wrapped
+					//   (-5 ** 6)   → ')' at 8, after  '**' at 4 → NOT
+					if paren_wrapped {
+						// Walk forward from lhs_end over whitespace looking
+						// for ')'. Must appear before cur_tok (the '**').
+						closing := false
+						j := int(lhs_end)
+						pow_off := int(cur_offset(p))
+						for j < pow_off {
+							ch := p.lexer.source_bytes[j]
+							if ch == ')' { closing = true; break }
+							if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
+							break
+						}
+						if !closing { paren_wrapped = false }
 					}
 				}
 				if !paren_wrapped {
@@ -9820,6 +9945,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 	for {
 		#partial switch p.cur_type {
 		case .Dot:
+			if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
+				report_error(p, "An instantiation expression cannot be followed by a property access.")
+			}
 			eat(p)
 			// §13.3.1 — MemberExpression `.` IdentifierName | PrivateIdentifier.
 			// String / Number / template literals after `.` are SyntaxErrors.
@@ -9895,9 +10023,18 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if !is_chain {
 				chain_start = loc_from_expr(expr)
 				is_chain = true
+				// ECMA-262 §13.3.10 — OptionalExpression only chains from
+				// MemberExpression or CallExpression.  NewExpression is
+				// not listed, so `new Foo?.()` is a SyntaxError.
+				if _, is_new := expr^.(^NewExpression); is_new {
+					report_error(p, "Invalid optional chain from new expression")
+				}
 			}
 			eat(p)
 			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) || is_token(p, .PrivateIdentifier) {
+				if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
+					report_error(p, "An instantiation expression cannot be followed by a property access.")
+				}
 				is_private_chain := is_token(p, .PrivateIdentifier)
 				prop := parse_identifier_name(p)
 				member := new_node(p, MemberExpression)
@@ -9925,6 +10062,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				member.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, member)
 			} else if is_token(p, .LBracket) {
+				if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
+					report_error(p, "An instantiation expression cannot be followed by a property access.")
+				}
 				eat(p)
 				// Same Expression-not-AssignmentExpression rule as the
 				// non-optional `[...]` case above. Optional-chain subscript
@@ -9977,6 +10117,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				return expr
 			}
 		case .LBracket:
+			if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
+				report_error(p, "An instantiation expression cannot be followed by a property access.")
+			}
 			eat(p)
 			// Consume pending_paren_start the same way the `.Dot` case
 			// above does. When the object was parenthesized (`(expr)[0]`),
@@ -10150,6 +10293,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			expr = expression_from(p, nn)
 			continue
 		case .LAngle, .LShift:
+			if _, is_super := expr^.(^Super); is_super {
+				report_error(p, "'super' can only be used with function calls or in property accesses")
+			}
 			// TS generic call / instantiation expression: `foo<T>(args)` or
 			// `foo<T>` as a stand-alone TSInstantiationExpression. Only in
 			// TS / TSX mode, and only via trial-parse because `<` is also
@@ -10482,6 +10628,10 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// functions reset. Outside all of these, `super` is a SyntaxError.
 		if !p.in_method {
 			report_semantic_error(p, "'super' is only allowed in class methods or object-literal methods")
+		}
+		if p.lexer.nxt.kind != .Dot && p.lexer.nxt.kind != .LBracket &&
+		   p.lexer.nxt.kind != .LParen {
+			report_error(p, "'super' can only be used with function calls or in property accesses")
 		}
 		eat(p)
 		super := new_node(p, Super)
@@ -12027,6 +12177,9 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	if callee == nil {
 		return nil
 	}
+	if _, is_super := callee^.(^Super); is_super {
+		report_error(p, "'new super()' is not allowed")
+	}
 
 	// TS generic type arguments: `new Foo<string>()`.
 	// Ambiguity: `new Date<A;` is `(new Date) < A;` (relational), NOT
@@ -13396,12 +13549,7 @@ is_valid_assignment_target :: proc(expr: ^Expression, is_destructure: bool) -> b
 	     ^TSTypeAssertion:
 		return true
 	case ^CallExpression:
-		// §13.15 - CallExpression's AssignmentTargetType is INVALID by
-		// default. Annex B.3.4 extends it to SIMPLE only in sloppy mode.
-		// Caller (parse_assignment_expr) reports the strict-mode error
-		// separately so this helper just returns true and lets sloppy
-		// pass; strict-mode callers gate on p.strict_mode at the call site.
-		return true
+		return false
 	case ^ParenthesizedExpression:
 		return is_valid_assignment_target(e.expression, is_destructure)
 	case ^ArrayExpression, ^ObjectExpression:
@@ -13507,12 +13655,6 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 		} else {
 			report_error(p, "Invalid left-hand side in assignment")
 		}
-	}
-	// CallExpression as an assignment target is a strict-mode error
-	// (Annex B.3.4 only relaxes it in sloppy script). is_valid_assignment_target
-	// accepts CallExpression unconditionally so the strict gate fires here.
-	if p.strict_mode && is_call_expression_target(left) {
-		report_semantic_error(p, "Invalid left-hand side in assignment")
 	}
 	// §13.15.1 - logical assignment operators (&&=, ||=, ??=) require a
 	// SIMPLE assignment target. CallExpressions are NOT simple targets even
@@ -13660,6 +13802,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	prev_in_async_params := p.in_async_params
 	p.in_async_params = true
 	params := parse_function_params(p)
+	report_parameter_modifiers_disallowed(p, params[:])
 	p.in_async_params = prev_in_async_params
 
 	if !expect_token(p, .RParen) {
@@ -15650,11 +15793,24 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 		     .True, .False, .String, .Number, .LBrace:
 			eat(p)
 			operand := parse_ts_primary_type(p)
+			// Apply postfix (T[]) BEFORE wrapping in readonly, so
+			// `readonly string[]` is readonly(string[]) not
+			// (readonly string)[].
+			operand = parse_ts_postfix(p, operand, start)
+			// Validate: `readonly` is only legal on array types
+			// (`T[]`) and tuple literal types (`[T, U]`).
+			if operand != nil {
+				_, is_arr := operand^.(^TSArrayType)
+				_, is_tup := operand^.(^TSTupleType)
+				if !is_arr && !is_tup {
+					report_error(p, "'readonly' type modifier is only permitted on array and tuple literal types")
+				}
+			}
 			node := new_node(p, TSTypeOperator); node.loc = start
 			node.operator = "readonly"; node.type_annotation = operand
 			node.loc.span.end = prev_end_offset(p)
 			r := new_node(p, TSType); r^ = node
-			return parse_ts_postfix(p, r, start)
+			return r
 		}
 	}
 	return parse_ts_type_reference(p)
@@ -16280,6 +16436,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	// parse_function_params already handles: rest (`...x`), optional (`x?`),
 	// type annotation (`x: T`), default value (`x = 1`), and destructuring.
 	params := parse_function_params(p)
+	report_parameter_modifiers_disallowed(p, params[:])
 
 	if !is_token(p, .RParen) {
 		lexer_restore(p, snap)
@@ -16499,7 +16656,11 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		key_type_end := prev_end_offset(p)
 		expect_token(p, .RBracket)
 		val_ann: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) { val_ann = parse_ts_type_annotation(p) }
+		if is_token(p, .Colon) {
+			val_ann = parse_ts_type_annotation(p)
+		} else {
+			report_error(p, "An index signature must have a type annotation.")
+		}
 		param_name_ident := new_node(p, Identifier)
 		param_name_ident.loc = loc_from_token(&param_name_tok)
 		param_name_ident.name = param_name_tok.value
@@ -16601,7 +16762,11 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			key_type_end := prev_end_offset(p)
 			expect_token(p, .RBracket)
 			val_ann: Maybe(^TSTypeAnnotation)
-			if is_token(p, .Colon) { val_ann = parse_ts_type_annotation(p) }
+			if is_token(p, .Colon) {
+				val_ann = parse_ts_type_annotation(p)
+			} else {
+				report_error(p, "An index signature must have a type annotation.")
+			}
 			param_name_ident := new_node(p, Identifier)
 			param_name_ident.loc = param_name.loc
 			param_name_ident.name = param_name.name
@@ -16720,6 +16885,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 	params := make([dynamic]TSFunctionParam, 0, 4, p.allocator)
 	for !is_token(p, .RParen) && !is_token(p, .EOF) {
 		param_start := cur_loc(p)
+		param_is_rest := false
 		// Allow `this:` as the first parameter (TS-only — binds the
 		// callee receiver type). Treat `this` here as an Identifier-
 		// shaped param pattern so the rest of the signature parses
@@ -16736,6 +16902,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 			this_id.name = this_tok.value
 			pattern = this_id
 		} else if is_token(p, .Dot3) {
+			param_is_rest = true
 			// TS rest parameter in function-type signature: `(...args: T) => U`.
 			// parse_function_parameter (the JS-side analogue) handles this with
 			// a Dot3 → RestElement-wrapping branch; parse_ts_sig_params shipped
@@ -16760,6 +16927,9 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 			if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen {
 				eat(p); param_optional = true
 			}
+		}
+		if param_is_rest && param_optional {
+			report_error(p, "A rest parameter cannot be optional")
 		}
 		param_ann: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Colon) { param_ann = parse_ts_type_annotation(p) }
@@ -16812,6 +16982,15 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 		fp := TSFunctionParam{loc = param_start, pattern = pattern, type_annotation = param_ann, optional = param_optional}
 		fp.loc.span.end = prev_end_offset(p)
 		bump_append(&params, fp)
+		if param_is_rest && is_token(p, .Comma) {
+			if p.lexer.nxt.kind == .RParen {
+				if !p.in_ambient && !p.source_is_dts {
+					report_error(p, "A rest parameter or binding pattern may not have a trailing comma.")
+				}
+			} else {
+				report_error(p, "A rest parameter must be last in a parameter list")
+			}
+		}
 		if !match_token(p, .Comma) { break }
 	}
 	expect_token(p, .RParen)
@@ -16843,6 +17022,32 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	start := cur_loc(p)
 	readonly := false
 	idx_readonly := false  // Special handling for readonly index signature
+
+	// TS type members permit `readonly` but not class/parameter modifiers.
+	// Consume the invalid prefix anyway so the following member shape is still
+	// parsed and the corpus smoke gate sees the parser-level error.
+	for i := 0; i < 4; i += 1 {
+		modifier_name := ""
+		if is_token(p, .Static) {
+			modifier_name = "static"
+		} else if is_token(p, .Override) {
+			modifier_name = "override"
+		} else if is_token(p, .Identifier) {
+			switch p.cur_tok.value {
+			case "public", "private", "protected", "declare":
+				modifier_name = p.cur_tok.value
+			}
+		}
+		if modifier_name == "" { break }
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 { break }
+		nxt := p.lexer.nxt.kind
+		if nxt == .Colon || nxt == .Question || nxt == .LParen || nxt == .Semi ||
+		   nxt == .Comma || nxt == .RBrace {
+			break
+		}
+		report_error(p, fmt.tprintf("'%s' modifier cannot appear on a type member.", modifier_name))
+		eat(p)
+	}
 
 	// --- NEW: detect call signature `(...): T` or generic `<T>(...): T` ----------
 	//   The generic call signature form is used in TS overload sets like
@@ -16893,8 +17098,20 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 
 	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Identifier {
 		// Check if this is an index signature by peeking for `:` after the identifier.
-		eat(p) // consume `[`
-		if is_token(p, .Identifier) && p.lexer.nxt.kind == .Colon {
+		eat(p) // consume `[`.
+		is_index_sig := false
+		if is_token(p, .Identifier) {
+			if p.lexer.nxt.kind == .Colon {
+				is_index_sig = true
+			} else if p.lexer.nxt.kind == .Question {
+				snap := lexer_snapshot(p)
+				eat(p) // identifier.
+				eat(p) // question mark.
+				is_index_sig = is_token(p, .Colon)
+				lexer_restore(p, snap)
+			}
+		}
+		if is_index_sig {
 			// Confirmed: index signature.
 			param_start := cur_loc(p)
 			param_name_tok := get_current(p)
@@ -16902,13 +17119,20 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			param_name_ident.loc = loc_from_token(&param_name_tok)
 			param_name_ident.name = param_name_tok.value
 			eat(p) // consume identifier
-			colon_start := cur_loc(p)  // position of `:` before key type
-			eat(p) // consume colon
+			if match_token(p, .Question) {
+				report_error(p, "An index signature parameter cannot have a question mark.")
+			}
+			colon_start := cur_loc(p)  // position of `:` before key type.
+			expect_token(p, .Colon)
 			idx_ann := parse_ts_type(p)
-			key_type_end := prev_end_offset(p)  // end of key type, before `]`
+			key_type_end := prev_end_offset(p)  // end of key type, before `]`.
 			expect_token(p, .RBracket)
 			val_ann: Maybe(^TSTypeAnnotation)
-			if is_token(p, .Colon) { val_ann = parse_ts_type_annotation(p) }
+			if is_token(p, .Colon) {
+				val_ann = parse_ts_type_annotation(p)
+			} else {
+				report_error(p, "An index signature must have a type annotation.")
+			}
 
 			idx_sig := TSIndexSignature{
 				loc = start,

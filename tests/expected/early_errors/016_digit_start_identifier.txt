@@ -95,6 +95,12 @@
       "offset": 204
     },
     {
+      "message": "Missing initializer in destructuring declaration",
+      "line": 4,
+      "column": 7,
+      "offset": 204
+    },
+    {
       "message": "Expected semicolon",
       "line": 4,
       "column": 8,
@@ -108,14 +114,15 @@
     }
   ]
 }
-Parse errors (6):
+Parse errors (7):
   Line 4, Column 7: Expected binding pattern
   Line 4, Column 7: Expected '=', ',', or ';' after variable binding
   Line 4, Column 7: Expected semicolon
   Line 4, Column 7: Missing initializer in 'const' declaration
+  Line 4, Column 7: Missing initializer in destructuring declaration
   Line 4, Column 8: Expected semicolon
   Line 4, Column 8: Identifier directly after number
 
 --- Statistics ---
-Arena: used=37328B reserved=16777216B ratio=0%
-Parse errors: 6
+Arena: used=37360B reserved=16777216B ratio=0%
+Parse errors: 7
