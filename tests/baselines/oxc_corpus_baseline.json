@@ -5,10 +5,9 @@
     "skip-multi-file": 3519,
     "oxc-only-rejects": 1081,
     "should-reject-passed": 34,
-    "pass-both": 3076,
+    "pass-both": 3077,
     "should-pass-rejected": 1552,
-    "reject-both": 512,
-    "kessel-only-rejects": 1
+    "reject-both": 512
   },
   "bySuite": {
     "typescript": {
@@ -23,11 +22,10 @@
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 34,
-        "pass-both": 3037,
+        "pass-both": 3038,
         "should-pass-rejected": 1552,
         "oxc-only-rejects": 756,
-        "reject-both": 512,
-        "kessel-only-rejects": 1
+        "reject-both": 512
       }
     },
     "estree": {
@@ -257,8 +255,7 @@
       "should-pass-rejected": 6
     },
     "babel/es2015/let": {
-      "should-pass-rejected": 2,
-      "kessel-only-rejects": 1
+      "should-pass-rejected": 2
     },
     "babel/es2015/meta-properties": {
       "should-pass-rejected": 3
