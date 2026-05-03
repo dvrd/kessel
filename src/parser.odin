@@ -1712,7 +1712,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// so that `var type = 1` and similar JS code parses correctly.
 		// We check string value here at the statement level.
 		val := p.cur_tok.value
-		if val == "declare" {
+		if val == "declare" && allow_ts_mode(p) {
 			// Only treat as a declare declaration if the next token can start
 			// a declaration AND is on the same line. A newline after `declare`
 			// triggers ASI: `declare\nconst x = 1` is two statements, not
@@ -1737,7 +1737,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 			return parse_expression_or_labeled_statement(p)
 		}
-		if val == "interface" {
+		if val == "interface" && allow_ts_mode(p) {
 			// `interface Foo { ... }` — next token must be an identifier
 			// (the interface name). In sloppy script, `interface` is a
 			// contextual keyword and can be used as an identifier:
@@ -1748,7 +1748,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 			return parse_expression_or_labeled_statement(p)
 		}
-		if val == "type" {
+		if val == "type" && allow_ts_mode(p) {
 			// `type Foo = ...` - next token must be an identifier (the alias
 			// name). TS allows contextual keywords like `abstract`, `module`,
 			// `namespace`, etc. as type alias names.
@@ -1758,17 +1758,17 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 			return parse_expression_or_labeled_statement(p)
 		}
-		if val == "enum" {
+		if val == "enum" && allow_ts_mode(p) {
 			return parse_ts_enum_declaration(p)
 		}
-		if val == "namespace" {
+		if val == "namespace" && allow_ts_mode(p) {
 			// `namespace Foo { ... }` or `namespace A.B { ... }`
 			if is_next_token(p, .Identifier) {
 				return parse_ts_module_declaration(p, .Namespace)
 			}
 			return parse_expression_or_labeled_statement(p)
 		}
-		if val == "module" {
+		if val == "module" && allow_ts_mode(p) {
 			// `module "external-name" { ... }` (quoted-name module) or
 			// `module M { ... }` (bare-identifier module, equivalent to
 			// namespace). TS allows both forms; the identifier form is the
@@ -1780,7 +1780,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// `global { ... }` — TS global augmentation without `declare` prefix.
 		// Appears at top level, inside namespaces, or inside ambient modules.
-		if val == "global" && is_next_token(p, .LBrace) {
+		if val == "global" && allow_ts_mode(p) && is_next_token(p, .LBrace) {
 			stmt := parse_ts_global_declaration(p)
 			if stmt != nil {
 				if mod, ok := stmt^.(^TSModuleDeclaration); ok {

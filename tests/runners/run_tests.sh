@@ -100,6 +100,7 @@ while IFS= read -r fixture; do
         # from the filename marker: `_jsx_` -> JSX, `_ts_` -> TS.
         spec/interactions/*_jsx_*) lang_flag="--lang=jsx" ;;
         spec/interactions/*_ts_*)  lang_flag="--lang=ts"  ;;
+        es2025/*ts_interface*|es2025/*ts_type*|es2025/*ts_enum*) lang_flag="--lang=ts" ;;
         # JSX/TSX fixtures outside the dialect dirs need explicit mode.
         recovery/jsx_ts/*)        lang_flag="--lang=tsx" ;;
         negative/truncation/*jsx*) lang_flag="--lang=jsx" ;;

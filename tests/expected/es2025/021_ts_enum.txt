@@ -13,7 +13,9 @@
         "type": "Identifier",
         "start": 5,
         "end": 10,
-        "name": "Color"
+        "name": "Color",
+        "typeAnnotation": null,
+        "optional": false
       },
       "body": {
         "type": "TSEnumBody",
@@ -28,7 +30,9 @@
               "type": "Identifier",
               "start": 13,
               "end": 16,
-              "name": "Red"
+              "name": "Red",
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": null
@@ -41,7 +45,9 @@
               "type": "Identifier",
               "start": 18,
               "end": 23,
-              "name": "Green"
+              "name": "Green",
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": null
@@ -54,7 +60,9 @@
               "type": "Identifier",
               "start": 25,
               "end": 29,
-              "name": "Blue"
+              "name": "Blue",
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": null
@@ -71,7 +79,9 @@
         "type": "Identifier",
         "start": 43,
         "end": 52,
-        "name": "Direction"
+        "name": "Direction",
+        "typeAnnotation": null,
+        "optional": false
       },
       "body": {
         "type": "TSEnumBody",
@@ -86,7 +96,9 @@
               "type": "Identifier",
               "start": 55,
               "end": 57,
-              "name": "Up"
+              "name": "Up",
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -105,7 +117,9 @@
               "type": "Identifier",
               "start": 63,
               "end": 67,
-              "name": "Down"
+              "name": "Down",
+              "typeAnnotation": null,
+              "optional": false
             },
             "computed": false,
             "initializer": {
@@ -124,5 +138,5 @@
 }
 
 --- Statistics ---
-Arena: used=7016B reserved=16777216B ratio=0%
+Arena: used=36272B reserved=16777216B ratio=0%
 Parse errors: 0

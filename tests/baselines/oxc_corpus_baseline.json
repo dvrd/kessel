@@ -3,13 +3,13 @@
   "verdicts": {
     "ok-vs-oxc": 15590,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 487,
+    "oxc-only-rejects": 356,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 1901,
-    "reject-both": 530,
-    "kessel-crash": 1
+    "should-pass-rejected": 2018,
+    "reject-both": 542,
+    "kessel-crash": 3
   },
   "bySuite": {
     "typescript": {
@@ -26,10 +26,10 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 1901,
-        "reject-both": 530,
-        "oxc-only-rejects": 388,
-        "kessel-crash": 1
+        "should-pass-rejected": 2018,
+        "reject-both": 542,
+        "oxc-only-rejects": 257,
+        "kessel-crash": 3
       }
     },
     "estree": {
@@ -271,8 +271,8 @@
       "should-pass-rejected": 1
     },
     "babel/es2015/uncategorised": {
-      "should-pass-rejected": 54,
-      "oxc-only-rejects": 15,
+      "should-pass-rejected": 52,
+      "oxc-only-rejects": 17,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {
@@ -535,12 +535,11 @@
       "should-pass-rejected": 1
     },
     "babel/flow/anonymous-function-no-parens-types": {
-      "should-pass-rejected": 14,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 15
     },
     "babel/flow/anonymous-function-types": {
-      "should-pass-rejected": 10,
-      "oxc-only-rejects": 3
+      "should-pass-rejected": 12,
+      "kessel-crash": 1
     },
     "babel/flow/array-types": {
       "should-pass-rejected": 9
@@ -555,8 +554,7 @@
       "should-pass-rejected": 2
     },
     "babel/flow/call-properties": {
-      "should-pass-rejected": 4,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 5
     },
     "babel/flow/class-private-property": {
       "should-pass-rejected": 4,
@@ -581,22 +579,20 @@
       "should-pass-rejected": 19
     },
     "babel/flow/declare-module": {
-      "oxc-only-rejects": 5,
-      "should-pass-rejected": 9
+      "should-pass-rejected": 14
     },
     "babel/flow/declare-statements": {
-      "oxc-only-rejects": 9,
-      "should-pass-rejected": 12
+      "should-pass-rejected": 21
     },
     "babel/flow/def-site-variance": {
       "should-pass-rejected": 1
     },
     "babel/flow/enum-declaration": {
-      "should-pass-rejected": 17,
-      "oxc-only-rejects": 18
+      "should-pass-rejected": 32,
+      "oxc-only-rejects": 1
     },
     "babel/flow/expect-plugin": {
-      "oxc-only-rejects": 3
+      "oxc-only-rejects": 1
     },
     "babel/flow/explicit-inexact-object": {
       "should-pass-rejected": 14
@@ -605,20 +601,16 @@
       "should-pass-rejected": 1
     },
     "babel/flow/indexed-access-types": {
-      "oxc-only-rejects": 1,
-      "should-pass-rejected": 1
+      "should-pass-rejected": 2
     },
     "babel/flow/interface-types": {
-      "oxc-only-rejects": 6,
-      "should-pass-rejected": 3
+      "should-pass-rejected": 9
     },
     "babel/flow/interfaces-module-and-script": {
-      "oxc-only-rejects": 11,
-      "should-pass-rejected": 7
+      "should-pass-rejected": 18
     },
     "babel/flow/internal-slot": {
-      "should-pass-rejected": 2,
-      "oxc-only-rejects": 7
+      "should-pass-rejected": 7
     },
     "babel/flow/iterator": {
       "should-pass-rejected": 15
@@ -627,11 +619,10 @@
       "should-pass-rejected": 16
     },
     "babel/flow/multiple-declarations": {
-      "oxc-only-rejects": 6
+      "should-pass-rejected": 6
     },
     "babel/flow/object-types": {
-      "should-pass-rejected": 1,
-      "oxc-only-rejects": 5
+      "should-pass-rejected": 6
     },
     "babel/flow/opaque-type-alias": {
       "should-pass-rejected": 13
@@ -644,28 +635,25 @@
       "should-pass-rejected": 6
     },
     "babel/flow/proto-props": {
-      "should-pass-rejected": 1,
-      "oxc-only-rejects": 2
+      "should-pass-rejected": 1
     },
     "babel/flow/qualified-generic-type": {
       "should-pass-rejected": 4
     },
     "babel/flow/regression": {
-      "should-pass-rejected": 7,
-      "oxc-only-rejects": 4,
+      "should-pass-rejected": 9,
+      "oxc-only-rejects": 2,
       "kessel-crash": 1
     },
     "babel/flow/scope": {
-      "oxc-only-rejects": 25,
-      "should-pass-rejected": 12
+      "should-pass-rejected": 37
     },
     "babel/flow/sourcetype-script": {
       "should-pass-rejected": 2,
       "oxc-only-rejects": 1
     },
     "babel/flow/this-annotation": {
-      "should-pass-rejected": 17,
-      "oxc-only-rejects": 7
+      "should-pass-rejected": 24
     },
     "babel/flow/trailing-function-commas-type": {
       "should-pass-rejected": 1
@@ -674,15 +662,16 @@
       "should-pass-rejected": 4
     },
     "babel/flow/type-alias": {
-      "oxc-only-rejects": 5,
-      "should-pass-rejected": 1
+      "should-pass-rejected": 5,
+      "kessel-crash": 1
     },
     "babel/flow/type-annotations": {
-      "should-pass-rejected": 108,
-      "oxc-only-rejects": 25
+      "should-pass-rejected": 114,
+      "oxc-only-rejects": 19
     },
     "babel/flow/type-exports": {
-      "oxc-only-rejects": 6
+      "should-pass-rejected": 2,
+      "oxc-only-rejects": 4
     },
     "babel/flow/type-generics": {
       "should-pass-rejected": 9,
@@ -696,12 +685,12 @@
       "oxc-only-rejects": 4
     },
     "babel/flow/type-parameter-declaration": {
-      "should-pass-rejected": 7,
-      "oxc-only-rejects": 7
+      "should-pass-rejected": 11,
+      "oxc-only-rejects": 1
     },
     "babel/flow/typeapp-call": {
-      "should-pass-rejected": 20,
-      "oxc-only-rejects": 3
+      "should-pass-rejected": 22,
+      "oxc-only-rejects": 1
     },
     "babel/flow/typecasts": {
       "should-pass-rejected": 19
@@ -798,7 +787,7 @@
       "should-pass-rejected": 2
     },
     "babel/typescript/expect-plugin": {
-      "oxc-only-rejects": 3
+      "oxc-only-rejects": 1
     },
     "babel/typescript/exponentiation": {
       "should-pass-rejected": 2
