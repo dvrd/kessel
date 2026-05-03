@@ -1,7 +1,7 @@
 # Kessel — Handoff Document
 
 **Date:** 2026-05-03
-**Last commit:** gate TS declarations on allow_ts_mode
+**Last commit:** declare on methods, ambient function body, double comma
 
 ---
 
@@ -13,67 +13,59 @@
 | `task test:negative` | ✅ 68 rejected |
 | `task test:oxc-corpus` | ✅ baseline OK |
 | `verify_multifile.js` | ✅ 0 kessel-only |
-| **oxc-only-rejects** | **356** (was 776 at session start) |
+| **oxc-only-rejects** | **319** (was 776 at session start) |
 | **kessel-only-rejects** | **1** (same .d.ts edge) |
 
----
-
-## What Was Done (This Session): 776 → 356 (↓420)
-
-### Phase 1: Early error promotions (776→613, ↓163)
-Promoted ~30 checks from `report_semantic_error` to `report_error` matching OXC parser behavior:
-- `(-5 ** 6)`, `await ** y`, duplicate exports, `new?.()`, yield/await names
-- using/labeled/single-stmt checks, readonly types, type escapes
-- ambient init, declare ASI, arrow LT, import.meta property
-- for-await-in, export using, empty parens, abstract methods
-- #private accessibility, modifier order, import type string, declare accessor
-
-### Phase 2: TS mode gating (613→356, ↓257)
-Gated TS-specific syntax on `allow_ts_mode(p)` so JS mode correctly rejects it:
-- Variable declarator `: Type` annotations
-- Function parameter and rest-parameter `: Type` annotations
-- Class field `: Type` annotations
-- Index signature `: Type` annotations
-- `type X = ...` alias declarations
-- `interface X { ... }` declarations
-- `enum X { ... }` declarations
-- `declare ...` statements
-- `namespace` / `module` / `global` declarations
+Total reduction this session: **776 → 319 (↓457, 59%)**
 
 ---
 
-## Next Work: oxc-only-rejects (356 remaining)
+## What Was Done (This Session)
+
+### Commits (12 fix commits)
+
+| # | Technique | Δ |
+|---|---|---|
+| 1 | 13 early error promotions | ↓76 |
+| 2 | await **, reserved binding, exponent, readonly | ↓47 |
+| 3 | ambient init, arrow LT, declare ASI, .d.ts | ↓3 |
+| 4 | import.meta, for-await-in, empty parens, abstract body, etc. | ↓26 |
+| 5 | modifier order, import type, declare accessor, etc. | ↓11 |
+| 6 | Gate variable type annotations on TS mode | ↓84 |
+| 7 | Gate param/field/index annotations on TS mode | ↓42 |
+| 8 | Gate type/interface/enum/declare/namespace on TS mode | ↓131 |
+| 9 | Gate remaining TS syntax (return types, type params, etc.) | ↓29 |
+| 10 | Gate export/import type, double comma | ↓1 |
+| 11 | Declare on methods, ambient function body | ↓7 |
+
+### Key architectural changes
+- **TS mode gating**: Added `allow_ts_mode(p)` checks to ~20 call sites that previously parsed TypeScript-specific syntax in JS mode
+- **Early error promotion**: Promoted ~40 checks from `report_semantic_error` (gated) to `report_error` (always-on), matching OXC's parser behavior
+- **New utilities**: `report_error_at`, `in_export_default` flag
+
+---
+
+## Next Work: 319 remaining
 
 ### Breakdown
-
-| Cluster | Count | Nature |
+| Cluster | ~Count | Nature |
 |---|---:|---|
-| Unexpected token (diverse) | ~137 | Per-case: double comma, `get *iter`, `new <T>`, etc. |
-| Expected semicolon | ~52 | Arrow edge cases, remaining Flow, octal float |
-| Expected X but found X | ~42 | Reserved words in contexts, parser leniency |
-| Cannot assign to expression | 9 | Parenthesized destructuring pattern validation |
-| Expected X or X but found X | 8 | Async arrow in binary, accessor generator |
-| Expected function body (Flow) | 8 | Flow function types in JS mode |
-| await outside async | 7 | Top-level await in script mode |
-| Invalid rest argument | 6 | Rest with non-simple pattern |
-| void as identifier | 6 | `discard-binding` experimental plugin |
-| Keywords with escapes | 5 | `\u{61}wait` etc. |
-| declare on class element | 5 | `declare` on methods in Flow/estree |
-| Small clusters (1-4 each) | ~70 | Diverse individual checks |
+| Unexpected token (diverse) | ~120 | Arrow edge cases, double commas, TS-specific |
+| Expected semicolon (remaining) | ~40 | Arrow-in-binary, remaining Flow |
+| Expected X but found X | ~35 | Reserved words, parser leniency |
+| Cannot assign to expression | 9 | Parenthesized destructuring |
+| Flow not supported | 8 | OXC-specific (unfixable) |
+| Small clusters (1-5 each) | ~100 | Per-case fixes needed |
 
-### What's needed to reach 0
-
-1. **Arrow function edge cases (~20)**: parenthesized inner patterns, arrow-in-binary (`() => {} || true`), arrow-in-ternary
-2. **Remaining Flow files (~30)**: function return types, this-annotations, call properties still parsed in JS mode
-3. **Per-case "Unexpected token" (~137)**: each needs individual diagnosis (double commas, invalid accessor patterns, `new <T>`, etc.)
-4. **Reserved words in more contexts (~15)**: `this` as parameter, `while`/`if` in destructuring, `void` as binding
-5. **Decorator validation (~6)**: overload decoration, export-before/after-decorator
-6. **Misc validation (~50)**: import attribute values, set accessor rest, using initializer, ambient function body, etc.
+### What's blocking reaching 0
+1. **Arrow function edge cases (~30)**: `((a)) => {}`, `() => {} || true`, `() => {} ? 1 : 2` — complex arrow-vs-expression disambiguation
+2. **Flow-specific rejections (~8)**: `Flow is not supported` — OXC explicitly rejects these; kessel happens to accept because syntax overlaps TS
+3. **Destructuring pattern validation (~9)**: `[({a: [b=2]})] = t` — parenthesized patterns in destructuring
+4. **Diverse "Unexpected token" (~120)**: Each needs individual diagnosis; includes experimental plugins (discard-binding, throw-expression, etc.) that kessel doesn't support
 
 ### Commands
 ```bash
 task build && task test:unit && task test:negative
 node tests/verifiers/verify_oxc_corpus.js --baseline
 node tests/verifiers/verify_oxc_corpus.js --update
-cd bench && node -e "console.log(require('oxc-parser').parseSync('t.ts','code').errors)"
 ```
