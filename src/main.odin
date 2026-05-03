@@ -1297,9 +1297,9 @@ worker_proc :: proc(data: rawptr) {
 //   .ts / .mts / .cts / .d.ts → Lang.TS   (no JSX)
 //   .tsx                      → Lang.TSX  (TS + JSX)
 //   .jsx                      → Lang.JSX
-//   .js / .mjs / .cjs / other → Lang.JSX  (legacy: JSX permitted in .js
-//                                         for backward compatibility with
-//                                         existing consumers)
+//   .js / .mjs / .cjs / other → Lang.JS   (no JSX — matches OXC;
+//                                         callers needing JSX pass
+//                                         --lang=jsx explicitly)
 detect_lang_from_path :: proc(path: string) -> Lang {
 	// Longest suffixes first - check .d.ts before .ts.
 	if strings.has_suffix(path, ".d.ts") { return .TS }
@@ -1308,7 +1308,7 @@ detect_lang_from_path :: proc(path: string) -> Lang {
 	if strings.has_suffix(path, ".ts")   { return .TS }
 	if strings.has_suffix(path, ".mts")  { return .TS }
 	if strings.has_suffix(path, ".cts")  { return .TS }
-	return .JSX
+	return .JS
 }
 
 // Parse a --lang=<mode> CLI value into a Lang. Returns (lang, ok). `ok=false`

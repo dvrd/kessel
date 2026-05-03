@@ -1,6 +1,6 @@
 {
   "type": "Program",
-  "start": 0,
+  "start": 53,
   "end": 123,
   "sourceType": "script",
   "hashbang": null,
@@ -19,7 +19,9 @@
             "type": "Identifier",
             "start": 59,
             "end": 63,
-            "name": "view"          },
+            "name": "view",
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "JSXElement",
             "start": 66,
@@ -58,7 +60,8 @@
                     }                  }
                 }
               ],
-              "selfClosing": false
+              "selfClosing": false,
+              "typeArguments": null
             },
             "children": [
               {
@@ -96,7 +99,9 @@
             "type": "Identifier",
             "start": 99,
             "end": 117,
-            "name": "anchor_after_error"          },
+            "name": "anchor_after_error",
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "Literal",
             "start": 120,
@@ -140,5 +145,5 @@ Parse errors (3):
   Line 2, Column 28: Expected >, got *
 
 --- Statistics ---
-Arena: used=8360B reserved=16777216B ratio=0%
+Arena: used=38096B reserved=16777216B ratio=0%
 Parse errors: 3

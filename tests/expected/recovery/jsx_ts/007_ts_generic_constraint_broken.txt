@@ -1,6 +1,6 @@
 {
   "type": "Program",
-  "start": 0,
+  "start": 54,
   "end": 131,
   "sourceType": "script",
   "hashbang": null,
@@ -13,7 +13,9 @@
         "type": "Identifier",
         "start": 63,
         "end": 65,
-        "name": "id"
+        "name": "id",
+        "typeAnnotation": null,
+        "optional": false
       },
       "typeParameters": {
         "type": "TSTypeParameterDeclaration",
@@ -28,7 +30,9 @@
               "type": "Identifier",
               "start": 66,
               "end": 67,
-              "name": "T"
+              "name": "T",
+              "typeAnnotation": null,
+              "optional": false
             },
             "constraint": null,
             "default": null,
@@ -59,11 +63,14 @@
                 "type": "Identifier",
                 "start": 81,
                 "end": 82,
-                "name": "T"
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
               },
               "typeArguments": null
             }
-          }
+          },
+          "optional": false
         }
       ],
       "returnType": {
@@ -78,7 +85,9 @@
             "type": "Identifier",
             "start": 85,
             "end": 86,
-            "name": "T"
+            "name": "T",
+            "typeAnnotation": null,
+            "optional": false
           },
           "typeArguments": null
         }
@@ -96,9 +105,12 @@
               "type": "Identifier",
               "start": 96,
               "end": 97,
-              "name": "x"            }          }
+              "name": "x",
+              "typeAnnotation": null,
+              "optional": false            }          }
         ]
-      }    },
+      },
+      "declare": false    },
     {
       "type": "VariableDeclaration",
       "start": 101,
@@ -113,7 +125,9 @@
             "type": "Identifier",
             "start": 107,
             "end": 125,
-            "name": "anchor_after_error"          },
+            "name": "anchor_after_error",
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "Literal",
             "start": 128,
@@ -143,5 +157,5 @@ Parse errors (1):
   Line 2, Column 23: Expected type after 'extends'
 
 --- Statistics ---
-Arena: used=8864B reserved=16777216B ratio=0%
+Arena: used=38160B reserved=16777216B ratio=0%
 Parse errors: 1

@@ -1188,7 +1188,8 @@ string_literal_can_be_directive :: #force_inline proc(p: ^Parser) -> bool {
 	}
 	if (nxt.flags & FLAG_NEW_LINE) != 0 {
 		#partial switch nxt.kind {
-		case .LBracket, .LParen, .Template, .TemplateHead, .Plus, .Minus, .Div, .Dot:
+		case .LBracket, .LParen, .Template, .TemplateHead, .Plus, .Minus, .Div, .Dot,
+		     .LAngle:  // `<` continues as relational binary (OXC matches)
 			return false
 		}
 		return true
@@ -9892,6 +9893,17 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if !allow_call {
 				return expr
 			}
+			// ASI guard: `(` on a new line after an ArrowFunctionExpression
+			// with a block body should NOT continue as a call expression.
+			// In TS mode, try_parse_ts_arrow_params builds the full arrow
+			// inside parse_primary_expr; without this guard the `(` would
+			// chain as `(() => { ... })(nextArrow)` instead of ASI-separating
+			// into two statements. Matches OXC/V8 behavior.
+			if p.cur_tok.had_line_terminator {
+				if _, is_arrow := expr^.(^ArrowFunctionExpression); is_arrow {
+					return expr
+				}
+			}
 			// SuperCall early-error (ECMA-262 §15.7.3 / §13.3.7): `super(...)`
 			// is a SyntaxError outside the instance constructor of a class
 			// with `extends`. The bare-super check in parse_primary already
@@ -12793,6 +12805,44 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		p.in_function = true
 		body = parse_assignment_expression(p)
 		p.in_function = prev_in_function
+		// TS arrow-in-conditional: when the concise body is a parenthesised
+		// expression inside a ternary consequent and `:` follows, the `:`
+		// might be a return-type annotation (not the ternary colon).
+		// Pattern: `cond ? v => (params) : RetType => body : alt`.
+		// Speculatively try `(params) : Type => body` as a nested arrow.
+		if allow_ts_mode(p) && p.conditional_depth > 0 && is_token(p, .Colon) {
+			snap := lexer_snapshot(p)
+			snap_errs := len(p.errors)
+			eat(p) // consume `:`
+			ret_type := parse_ts_type(p)
+			committed := false
+			if ret_type != nil && is_token(p, .Arrow) {
+				// Try: build inner arrow `(params): RetType => body`.
+				body_expr, _ := body.(^Expression)
+				p.pending_paren_start = loc_from_expr(body_expr).span.start
+				inner_arrow := parse_arrow_function(p, body_expr)
+				// Only commit if the parse succeeded AND a `:` for the
+				// ternary alternate still follows.  Without this guard,
+				// `0 ? v => (sum = v) : v => 0;` mis-parses the ternary
+				// colon as a return-type annotation, consuming the alternate.
+				if inner_arrow != nil && len(p.errors) == snap_errs &&
+				   is_token(p, .Colon) {
+					if ia, ok := inner_arrow^.(^ArrowFunctionExpression); ok {
+						ann := new_node(p, TSTypeAnnotation)
+						ann.type_annotation = ret_type
+						ia.return_type = ann
+					}
+					body = inner_arrow
+					committed = true
+				}
+			}
+			if !committed {
+				lexer_restore(p, snap)
+				if len(p.errors) > snap_errs {
+					resize(&p.errors, snap_errs)
+				}
+			}
+		}
 	}
 
 	p.in_async = prev_async
@@ -14737,6 +14787,28 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	for {
 		t := parse_ts_type(p)
 		if t != nil { bump_append(&node.types, t) }
+		// After `>>` split inside type arguments, lex_template_resume
+		// may have already fired (decrementing template_depth) during
+		// the advance_token that produced `nxt`.  But the TemplateTail
+		// was stored as `nxt`, then a subsequent `eat` consumed the
+		// second `>` (making TemplateTail the new `cur`), then the outer
+		// expect_close_angle consumed THAT and advanced again — leaving
+		// `}` as the current token with template_depth already 0.
+		// Fix: when cur is `}` (RBrace), re-lex it as a template
+		// continuation regardless of template_depth.
+		if is_token(p, .RBrace) {
+			l := p.lexer
+			l.offset = int(l.cur.start)
+			l.template_depth += 1  // compensate for the premature decrement
+			l.cur = lex_template_resume(l, l.cur.start, l.cur.flags)
+			l.nxt = lex_token(l)
+			p.cur_type = l.cur.kind
+			p.cur_tok.type = l.cur.kind
+			p.cur_tok.loc = LexerLoc(l.cur.start)
+			if l.cur.start < l.cur.end {
+				p.cur_tok.value = l.source[l.cur.start:l.cur.end]
+			}
+		}
 		tok := get_current(p)
 		if tok.type == .TemplateMiddle {
 			mid_elem := TemplateElement{loc = loc_from_token(&tok), tail = false, raw = tok.value}
@@ -15508,7 +15580,25 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 		id_expr = expression_from(p, mem)
 	}
 	targs: Maybe(^TSTypeParameterInstantiation)
-	if is_open_angle_or_lshift(p) { targs = parse_ts_type_arguments(p) }
+	if is_open_angle_or_lshift(p) {
+		// When `<` sits on a new line, speculatively try type arguments.
+		// If the parse produces errors, roll back — the `<` likely starts
+		// a new generic call signature in an overloaded object/interface
+		// type (e.g. `T\n<U extends V>(…): W`).  Same-line `<` commits
+		// unconditionally — `Map<string, number>` must never roll back.
+		if p.cur_tok.had_line_terminator {
+			snap := lexer_snapshot(p)
+			snap_errs := len(p.errors)
+			targs = parse_ts_type_arguments(p)
+			if len(p.errors) > snap_errs {
+				lexer_restore(p, snap)
+				resize(&p.errors, snap_errs)
+				targs = nil
+			}
+		} else {
+			targs = parse_ts_type_arguments(p)
+		}
+	}
 	ref := new_node(p, TSTypeReference); ref.loc = start; ref.type_name = id_expr; ref.type_parameters = targs
 	ref.loc.span.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = ref

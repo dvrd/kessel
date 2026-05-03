@@ -1,6 +1,6 @@
 {
   "type": "Program",
-  "start": 0,
+  "start": 40,
   "end": 101,
   "sourceType": "script",
   "hashbang": null,
@@ -29,7 +29,8 @@
                 "start": 53,
                 "end": 59
               }
-            }          },
+            },
+            "optional": false          },
           "init": {
             "type": "Literal",
             "start": 62,
@@ -61,7 +62,9 @@
             "type": "Identifier",
             "start": 77,
             "end": 95,
-            "name": "anchor_after_error"          },
+            "name": "anchor_after_error",
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "Literal",
             "start": 98,
@@ -98,5 +101,5 @@ Parse errors (2):
   Line 2, Column 27: Expected semicolon
 
 --- Statistics ---
-Arena: used=37680B reserved=16777216B ratio=0%
+Arena: used=37744B reserved=16777216B ratio=0%
 Parse errors: 2

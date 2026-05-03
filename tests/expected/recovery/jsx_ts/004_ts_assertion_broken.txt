@@ -1,6 +1,6 @@
 {
   "type": "Program",
-  "start": 0,
+  "start": 41,
   "end": 95,
   "sourceType": "script",
   "hashbang": null,
@@ -19,7 +19,9 @@
             "type": "Identifier",
             "start": 47,
             "end": 52,
-            "name": "value"          },
+            "name": "value",
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "JSXElement",
             "start": 55,
@@ -35,7 +37,8 @@
                 "name": "string"
               },
               "attributes": [],
-              "selfClosing": false
+              "selfClosing": false,
+              "typeArguments": null
             },
             "children": [
               {
@@ -89,3 +92,6 @@ Parse errors (3):
   Line 4, Column 1: Expected /, got EOF
   Line 4, Column 1: Expected >, got EOF
 
+--- Statistics ---
+Arena: used=37712B reserved=16777216B ratio=0%
+Parse errors: 3
