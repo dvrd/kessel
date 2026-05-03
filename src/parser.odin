@@ -3784,7 +3784,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		// TS: type annotation on a rest parameter - `...args: T[]`.
 		// Store on the inner Identifier so the emitter surfaces it;
 		// extend the RestElement span to cover the annotation.
-		if is_token(p, .Colon) {
+		if is_token(p, .Colon) && allow_ts_mode(p) {
 			ann := parse_ts_type_annotation(p)
 			if ident, ok := arg_pattern.(^Identifier); ok {
 				ident.type_annotation = ann
@@ -3837,7 +3837,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	// its inner left pattern. OXC also extends the pattern's span to
 	// include the annotation; mirror that for parity with `id.end =
 	// ann.end` on Identifier.
-	if is_token(p, .Colon) {
+	if is_token(p, .Colon) && allow_ts_mode(p) {
 		ann := parse_ts_type_annotation(p)
 		#partial switch t in pattern {
 		case ^Identifier:
@@ -4718,9 +4718,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				expect_token(p, .Colon)
 				_ = parse_ts_type(p)
 				expect_token(p, .RBracket)
-				if is_token(p, .Colon) {
+				if is_token(p, .Colon) && allow_ts_mode(p) {
 					_ = parse_ts_type_annotation(p)
-				} else {
+				} else if allow_ts_mode(p) {
 					report_error(p, "An index signature must have a type annotation.")
 				}
 				match_semicolon_or_asi(p)
@@ -4790,7 +4790,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	// TS class field type annotation: `foo: T`. Parsed before the field/method split.
 	field_type_ann: Maybe(^TSTypeAnnotation)
-	if is_token(p, .Colon) {
+	if is_token(p, .Colon) && allow_ts_mode(p) {
 		field_type_ann = parse_ts_type_annotation(p)
 	}
 
