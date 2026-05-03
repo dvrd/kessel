@@ -1607,8 +1607,14 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			// (§ExprStmt), and `let {` has no expression-statement reading
 			// (V8 and OXC both parse `let\n{ a } = …` as a declaration).
 			// In strict mode, `let` is a keyword, so always a declaration.
+			// In single-statement contexts (if/while/for/with consequent),
+			// `let\n{` must also trigger ASI — lexical declarations are
+			// forbidden there, so `let` is an identifier. block_depth > 0
+			// signals we're inside such a context (set by parse_if_statement
+			// et al. before calling parse_statement_or_declaration).
 			is_let_asi := nxt_let.had_line_terminator && !p.strict_mode &&
-			              nxt_let.type == .Identifier
+			              (nxt_let.type == .Identifier ||
+			               (nxt_let.type == .LBrace && p.block_depth > 0))
 			if !is_let_asi {
 				let_is_decl = true
 			}
