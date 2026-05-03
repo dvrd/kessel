@@ -73,9 +73,19 @@
       "end": 305,
       "value": " legal; this fixture pins the non-starred case."
     }
+  ],
+  "errors": [
+    {
+      "message": "'yield' expression is only allowed in a generator body",
+      "line": 7,
+      "column": 10,
+      "offset": 330
+    }
   ]
 }
+Parse errors (1):
+  Line 7, Column 10: 'yield' expression is only allowed in a generator body
 
 --- Statistics ---
-Arena: used=35888B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37104B reserved=16777216B ratio=0%
+Parse errors: 1

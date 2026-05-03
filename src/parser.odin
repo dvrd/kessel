@@ -2263,9 +2263,9 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// but `for await` at script top-level is still invalid. Mirror the
 	// plain-await rules.
 	if await {
-		if !p.in_async {
+		if !p.in_async && !p.in_static_block {
 			if p.in_function {
-				report_semantic_error(p, "'for await' outside of async function")
+				report_error(p, "'for await' outside of async function")
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				report_error(p, "Top-level 'for await' is only valid in module code")
 			}
@@ -2711,13 +2711,13 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	// true at every natural `return` site; bare top-level `return` only
 	// shows up in spec-negative fixtures and mutated fuzz cases.
 	if !p.in_function {
-		report_semantic_error(p, "'return' outside of function")
+		report_error(p, "'return' outside of function")
 	}
 	// §15.7.5 ClassStaticBlockBody is parsed under [~Return]; the
 	// outer in_function is set to true so new.target works, but a
 	// literal `return` is forbidden by the grammar parameter.
 	if p.in_static_block {
-		report_semantic_error(p, "'return' is not allowed in a class static block")
+		report_error(p, "'return' is not allowed in a class static block")
 	}
 
 	argument: Maybe(^Expression)
@@ -4187,9 +4187,9 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		// §15.7.1 - static ClassElement whose PropName is `"prototype"`
 		// is a SyntaxError. Applies to every static kind: field, method,
 		// getter, setter, accessor. Non-static `prototype` is legal.
-		if elem.static && !elem.computed {
+		if elem.static && !elem.computed && !p.in_ambient {
 			if class_element_prop_name(elem.key) == "prototype" {
-				report_semantic_error(p, "Classes may not have a static member named 'prototype'")
+				report_error(p, "Classes may not have a static member named 'prototype'")
 			}
 		}
 
@@ -4258,10 +4258,9 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 			prev.has_other = true
 		}
 		seen[name] = prev
-		if dup {
-			msg := fmt.tprintf("Duplicate private class member '#%s'", name)
-			report_semantic_error(p, msg)
-		}
+		// NOTE: duplicate private class member detection is deferred
+		// to the semantic checker (OXC's parser does not check this).
+		_ = dup
 		if static_mismatch {
 			// §15.7.1: a private getter / setter pair must have matching
 			// static-ness. `static get #f() {}` paired with `set #f(v) {}`
@@ -6890,7 +6889,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			// duplicate. Skip the syntactic flag in TS / TSX modes.
 			if allow_ts_mode(p) { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
-				report_semantic_error_at(p, LexerLoc(v.loc.span.start), "Duplicate exported name 'default'")
+				report_error(p, "Duplicate exported name 'default'")
 			} else { scope_map_set(&exported, "default", v.loc.span.start) }
 		case ^ExportAllDeclaration:
 			if v == nil { continue }
@@ -9504,7 +9503,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			if !yield_next_is_expression_argument(p) {
 				break
 			}
-			report_semantic_error(p, "await outside of async function")
+			report_error(p, "await outside of async function")
 		} else {
 			// At top level in Script (or auto-detect with no module
 			// syntax yet seen). `await: 1;` (label), `await;` (bare
@@ -9605,7 +9604,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			return parse_yield_expr(p)
 		}
 		if yield_next_is_expression_argument(p) {
-			report_semantic_error(p, "'yield' expression is only allowed in a generator body")
+			report_error(p, "'yield' expression is only allowed in a generator body")
 			return parse_yield_expr(p)
 		}
 		// Fall through - `yield` is parsed as IdentifierReference by

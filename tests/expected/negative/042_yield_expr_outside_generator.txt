@@ -64,9 +64,19 @@
       "end": 458,
       "value": " operator / call / member continuation)."
     }
+  ],
+  "errors": [
+    {
+      "message": "'yield' expression is only allowed in a generator body",
+      "line": 8,
+      "column": 1,
+      "offset": 459
+    }
   ]
 }
+Parse errors (1):
+  Line 8, Column 1: 'yield' expression is only allowed in a generator body
 
 --- Statistics ---
-Arena: used=35760B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=36976B reserved=16777216B ratio=0%
+Parse errors: 1

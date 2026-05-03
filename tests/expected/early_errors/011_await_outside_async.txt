@@ -60,9 +60,19 @@
       "end": 209,
       "value": " it in a non-async function body as an operator — SyntaxError."
     }
+  ],
+  "errors": [
+    {
+      "message": "await outside of async function",
+      "line": 4,
+      "column": 23,
+      "offset": 232
+    }
   ]
 }
+Parse errors (1):
+  Line 4, Column 23: await outside of async function
 
 --- Statistics ---
-Arena: used=35888B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37104B reserved=16777216B ratio=0%
+Parse errors: 1
