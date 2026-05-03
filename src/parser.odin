@@ -3385,7 +3385,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	// TypeScript generic type parameters: `function foo<T, U>(...)`
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
-	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+	if is_token(p, .LAngle) && allow_ts_mode(p) { type_parameters = parse_ts_type_parameters(p) }
 
 	if !expect_token(p, .LParen) {
 		return nil
@@ -3447,7 +3447,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	// TypeScript return type annotation
 	return_type: Maybe(^TSTypeAnnotation)
-	if is_token(p, .Colon) {
+	if is_token(p, .Colon) && allow_ts_mode(p) {
 		return_type = parse_ts_return_type_annotation(p)
 	}
 
@@ -4089,7 +4089,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 
 	// TypeScript generic type parameters: `class Box<T> { ... }`
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
-	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+	if is_token(p, .LAngle) && allow_ts_mode(p) { type_parameters = parse_ts_type_parameters(p) }
 
 	super_class: Maybe(^Expression)
 	// §15.7 - ClassDeclaration / ClassExpression are always strict mode code.
@@ -4982,7 +4982,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	// TypeScript return type annotation on method - stored on FunctionExpression.
 	method_return_type: Maybe(^TSTypeAnnotation)
-	if is_token(p, .Colon) {
+	if is_token(p, .Colon) && allow_ts_mode(p) {
 		method_return_type = parse_ts_return_type_annotation(p)
 	}
 	if kind == .Constructor {
@@ -8267,7 +8267,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Disambiguate from `import type from "m"` (value import of default binding
 	// named "type"): after `type`, the next token must be `{`, `*`, or an
 	// identifier followed by `,`/`from` (but NOT `from` directly).
-	if p.cur_type == .Identifier && p.cur_tok.value == "type" {
+	if p.cur_type == .Identifier && p.cur_tok.value == "type" && allow_ts_mode(p) {
 		// §12.7.2 — contextual keyword `type` must not use Unicode escapes.
 		has_esc := p.cur_tok.has_escape
 		nxt := p.lexer.nxt.kind
@@ -8295,7 +8295,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// cluster, all reporting "Expected from, got =" pre-fix.
 	// Check for TS import-equals: `import X = ...`. Also handles
 	// `import await = ...` (await as binding name in non-module).
-	if (p.cur_type == .Identifier || p.cur_type == .Await || p.cur_type == .Yield) &&
+	if allow_ts_mode(p) && (p.cur_type == .Identifier || p.cur_type == .Await || p.cur_type == .Yield) &&
 	   p.lexer != nil && p.lexer.nxt.kind == .Assign {
 		return parse_ts_import_equals(p, start, decl.import_kind)
 	}
@@ -8701,7 +8701,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// here is a contextual keyword; it lexes as a regular identifier in JS
 	// mode but parse_export_declaration is only entered for `export`, so
 	// the identifier `as` followed by identifier `namespace` is the cue.
-	if p.cur_type == .As {
+	if p.cur_type == .As && allow_ts_mode(p) {
 		nxt := peek_token(p)
 		if nxt.type == .Identifier && nxt.value == "namespace" {
 			eat(p) // consume `as`
@@ -8729,7 +8729,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Detect the `{` / `*` lookahead and dispatch with export_kind=.Type.
 	// `export type Identifier =` falls through to the declaration path,
 	// which already handles type aliases via parse_statement_or_declaration.
-	if p.cur_type == .Identifier && p.cur_tok.value == "type" {
+	if p.cur_type == .Identifier && p.cur_tok.value == "type" && allow_ts_mode(p) {
 		has_esc := p.cur_tok.has_escape
 		nxt := peek_token(p)
 		if nxt.type == .LBrace {
@@ -11727,7 +11727,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 		// TypeScript return type annotation on object-literal accessor.
 		accessor_return_type: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) {
+		if is_token(p, .Colon) && allow_ts_mode(p) {
 			accessor_return_type = parse_ts_return_type_annotation(p)
 		}
 		body := parse_function_body(p)
@@ -11852,7 +11852,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// {`. Closes ~22 OXC corpus rejects in the "Expected {, got :"
 		// cluster.
 		method_return_type: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) {
+		if is_token(p, .Colon) && allow_ts_mode(p) {
 			method_return_type = parse_ts_return_type_annotation(p)
 		}
 		body := parse_function_body(p)
