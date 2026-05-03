@@ -1,7 +1,7 @@
 # Kessel — Handoff Document
 
-**Date:** 2026-05-02
-**Last commit:** `fb83dd6 fix: enable 7 parser-level early errors`
+**Date:** 2026-05-03
+**Last commit:** `e83bbab fix: promote 13 early errors to parser-level, oxc-only-rejects 776→700 (↓76)`
 
 ---
 
@@ -12,23 +12,23 @@
 ```bash
 task build                    # ✅ Compiles clean
 task test:unit                # ✅ 415/415 pass
-task test:negative            # ✅ Baseline match (3 improvements pending relock)
+task test:negative            # ✅ Baseline match
 task test:estree              # ✅ Binary-buffer matches JSON
-task test:oxc-corpus          # ✅ 0 kessel-only-rejects
+task test:oxc-corpus          # ✅ Baseline OK
 ```
 
 ### OXC Corpus Numbers (25,140 single-file + 11,180 multi-file = 36,320 total)
 
 | Verdict | Count | Meaning |
 |---|---:|---|
-| ok-vs-oxc | 15,394 | Both agree (TS suite) |
+| ok-vs-oxc | 15,569 | Both agree (TS suite) |
 | pass-both | 3,077 | Both accept, expected pass |
-| reject-both | 513 | Both reject |
+| reject-both | 518 | Both reject |
 | skip-multi-file | 3,519 | Multi-file fixtures (tested separately) |
-| should-pass-rejected | 1,581 | Both reject, babel expects pass (out-of-scope plugins) |
-| **oxc-only-rejects** | **1,022** | **Kessel accepts, OXC rejects ← NEXT WORK** |
+| should-pass-rejected | 1,722 | Both reject, babel expects pass (out-of-scope plugins) |
+| **oxc-only-rejects** | **700** | **Kessel accepts, OXC rejects ← NEXT WORK** |
 | should-reject-passed | 34 | Both accept, babel expects fail (shared leniency) |
-| kessel-only-rejects | **0** | OXC accepts, kessel rejects ← **CLEARED** |
+| kessel-only-rejects | **1** | OXC accepts, kessel rejects (known .d.ts edge) |
 
 Multi-file corpus: 0 kessel-only-rejects across 11,180 virtual files.
 
@@ -36,128 +36,70 @@ Multi-file corpus: 0 kessel-only-rejects across 11,180 virtual files.
 
 ## What Was Done (This Session)
 
-### Parser Parity: kessel-only-rejects 18 → 0
+### Early Error Promotion: oxc-only-rejects 776 → 700 (↓76)
 
-Fixed 15 parser bugs across three commits. Every file OXC's parser accepts, kessel now also accepts.
+Promoted 13 parser-level early errors that OXC's parser (not `oxc_semantic`) enforces:
 
-| # | Bug | Fix Location | Technique |
-|---|---|---|---|
-| 1 | `let\n{ a } = …` rejected in sloppy | `parse_statement_or_declaration` | Removed `.LBrace` from `is_let_asi` |
-| 2 | JSX attr `\"` treated as JS escape | `lex_string_scalar` | `!l.jsx_string_mode` gate on escape handler |
-| 3 | JSX `attr={expr}` nxt lexed in wrong mode | `parse_jsx_opening_element` | Re-lex nxt String token after `{` in JSX attr |
-| 4 | JSX text `7x` → "Identifier after number" | `parse_jsx_text` | Clear `lexer_errors` in re-scanned text region |
-| 5 | `export { type as as if }` | `parse_export_named` | 4-token lookahead past second `as` |
-| 6 | `import { type as as as }` | `parse_import_specifier` | Same 4-token lookahead (mirrored) |
-| 7 | Arrow in ternary `0 ? v => (sum=v) : v => 0 : v => 0` | `parse_arrow_function` + `parse_conditional_expr` | Speculative `: Type => body` parse; commit only if ternary `:` still follows |
-| 8 | TS arrow ASI `() => {…}\n() => {…}` | `parse_lhs_tail` | `(` on new line after ArrowFunctionExpression exits tail loop |
-| 9 | Template literal types `\`${A<B<C>>}\`` | `parse_ts_template_literal_type` | Re-lex `}` as `lex_template_resume` when `>>` split consumed template_depth |
-| 10 | Overloaded call sigs `T\n<U extends V>` | `parse_ts_type_reference` | Speculative `parse_ts_type_arguments` when `<` on new line; rollback on error |
-| 11 | `.js` → no JSX (no-plugin-no-jsx) | `detect_lang_from_path` | `.js` → `Lang.JS` (was `.JSX`); `LAngle` added to directive exclusion |
-| 12 | `let\n{}` in single-stmt context | `parse_statement_or_declaration` | `is_let_asi` includes `.LBrace` when `block_depth > 0` |
-| 13 | `export default @dec abstract class` | `parse_export_default` | Handle `@` and `abstract` before `class` |
-| 14 | `import await from "m"` | `parse_import_declaration` | Accept `can_be_binding_identifier` for default import binding |
-| 15 | `false ? (param): string => param : null` | `parse_conditional_expr` | Speculative arrow with return type in conditional consequent |
+| # | Error class | Count | Technique |
+|---|---|---:|---|
+| 1 | Unparenthesized unary before `**` (e.g. `(-5 ** 6)`) | 6 | Forward-walk for matching `)` between UnaryExpr end and `**` |
+| 2 | Duplicate named export (JS mode only) | 20 | `report_semantic_error_at` → `report_error_at` with `allow_ts_mode` gate |
+| 3 | Invalid optional chain from new (`new Foo?.()`) | 7 | NewExpression check at OptionalChain entry |
+| 4 | yield/await as generator/async expression name | 7 | `report_semantic_error` → `report_error` |
+| 5 | yield/await as declaration name in generator/async context | 6 | Split: gen-context → `report_error`; strict-only → stays gated |
+| 6 | Using/await-using in bare case clause | 6 | `report_semantic_error` → `report_error` |
+| 7 | const/using/class/gen in labeled statement | 6 | Promoted labeled-item checks |
+| 8 | Gen/async/class in single-statement context | 5 | `report_semantic_error` → `report_error` |
+| 9 | `type` keyword with Unicode escapes in import/export | 4 | `has_escape` check at `type` dispatch |
+| 10 | `readonly` on non-array/tuple types | 5 | Post-parse operand type check |
+| 11 | Using in for-init inside case clause | 2 | Clear `in_case_clause` in for-head |
+| 12 | `report_error_at` helper proc | — | New utility |
+| 13 | `in_export_default` flag | — | OXC accepts `export default function *yield(){}` |
 
-### Early Error Promotion: oxc-only-rejects 1082 → 1022
+### Key Fixes
 
-Converted 7 checks from gated `report_semantic_error` to always-on `report_error`, matching OXC's parser (not `oxc_semantic`) behavior:
+**`(-5 ** 6)` false negative**: The paren-walk backward from the UnaryExpression found `(` at byte 0 and assumed paren-wrapped. But this `(` wraps the entire binary expression, not just the unary. Fixed by also walking forward from the UnaryExpression's end to verify a `)` appears before the `**` token.
 
-- `return` outside function / in static block
-- `yield` in non-generator
-- `await` outside async (`for await` too, with static-block exception)
-- Duplicate default export
-- Static member named `prototype` (with ambient-context exception)
-- Rest parameter not last (new check)
+**`export default function *yield() {}`**: OXC specifically accepts `yield` as a generator name in export-default position but rejects it everywhere else (`(function*yield(){})`, `var x = function*yield(){}`, `function*g() { function*yield(){} }`). Added `in_export_default` parser flag to match OXC's behavior.
 
-### Infrastructure
-
-- `tests/verifiers/verify_multifile.js` — new verifier that splits multi-file TS fixtures at `// @filename:` directives and tests each virtual file
-- `tests/runners/run_tests.sh` — added `--lang=` overrides for `recovery/jsx_ts/`, `es2025/*jsx*`, `negative/truncation/*jsx*`
-- `src/main.odin` — `detect_lang_from_path` returns `.JS` for `.js` files (was `.JSX`)
+**Using in for-init inside switch case**: `switch(1) { case 1: for(using x = bar();;); }` was incorrectly rejected because `in_case_clause` wasn't cleared when entering the for-statement head. Added save/restore of `in_case_clause` before the for-init.
 
 ---
 
-## Next Work: oxc-only-rejects (1,022 remaining)
+## Next Work: oxc-only-rejects (700 remaining)
 
-These are files OXC's parser rejects but kessel accepts. Kessel is too lenient — it needs to add these validation checks.
+### Top remaining clusters (by OXC error message)
 
-### Architecture
-
-Kessel has a `check_semantics` flag (default `false`) that gates ~200 existing `report_semantic_error` checks. **Do NOT enable this globally** — it introduces 641 false positives because:
-
-1. Many gated checks are for `oxc_semantic`-level errors (strict-mode violations, scope analysis, duplicate private members) that OXC's **parser** doesn't check
-2. Some checks have correctness bugs (over-rejection)
-
-The right approach:
-1. Identify which errors OXC's **parser** (not `oxc_semantic`) reports
-2. For each: if kessel already has it as `report_semantic_error`, convert to `report_error`
-3. If missing, add as `report_error`
-4. Test with `cd bench && node -e "console.log(require('oxc-parser').parseSync('t.js', '...').errors)"` to verify OXC's parser actually reports each error
-
-### How to verify OXC parser vs semantic behavior
-
-```javascript
-// In bench/ directory (has oxc-parser installed):
-const oxc = require('oxc-parser');
-const r = oxc.parseSync('test.js', 'const x;');
-console.log(r.errors); // Parser errors only — oxc_semantic is NOT run
-```
-
-### Top error clusters (by OXC parser error message)
-
-Run this to get the current triage:
-
-```bash
-node -e "..." # (see the inline triage scripts used in this session)
-```
-
-Or use the verifier:
-
-```bash
-node tests/verifiers/verify_oxc_corpus.js          # single-file corpus
-node tests/verifiers/verify_multifile.js            # multi-file corpus
-```
-
-### Known remaining parser-level errors (OXC parser catches, kessel doesn't)
-
-| OXC Error | Count | Where to fix |
+| OXC Error | Count | Fixability |
 |---|---:|---|
-| Expected semicolon (ASI edge cases) | ~220 | Various parser recovery paths |
-| Unexpected token | ~100 | Parser too lenient on malformed syntax |
-| Identifier expected / reserved word | ~40 | Keyword-as-identifier checks |
-| Modifier ordering (public static vs static public) | ~12 | `parse_class_element` |
-| Implementation in ambient context | ~11 | `parse_function_declaration` needs ambient check |
-| Initializer in ambient context | ~9 | Variable/class field init in `declare` |
-| Empty type argument list `Foo<>` | ~7 | `parse_ts_type_arguments` |
-| Missing const initializer | ~14 | Already fixed (always-on via `report_error`) |
-| Parameter property with binding pattern | ~8 | Constructor param validation |
-| Modifier on index signature | ~7 | `parse_ts_object_member` |
+| Expected semicolon (Flow type annotations in JS mode) | ~200 | HARD — kessel parses TS type annotations in JS mode; needs lang gating |
+| Unexpected token (diverse) | ~160 | MIXED — need per-case analysis |
+| Expected X but found X | ~50 | MIXED — some are Flow, some are parser leniency |
+| Expected X or X but found X | ~36 | MIXED — Flow + real parser gaps |
+| Flow is not supported | ~18 | EASY — but these are OXC-specific rejections |
+| Identifier expected, 'X' reserved | ~30 | MODERATE — reserved word checks in various contexts |
+| Cannot assign to this expression | ~9 | HARD — complex destructuring pattern validation |
+| Await only in async | ~7 | Already partially done |
+| Invalid rest operator's argument | ~6 | MODERATE |
+| Decorators not valid here | ~5 | MODERATE |
+| Abstract method with implementation | ~2 | Already checked (gated) |
+
+### Architecture Notes
+
+The largest remaining cluster (~200 files) is **Flow type annotations parsed as TS in JS mode**. These are `.js` files in `babel/flow/` subdirs that use Flow-style type annotations. OXC rejects them (no Flow support in JS mode), but kessel accepts them because it parses TS type annotations even when `lang=JS`. Fixing this would require gating all TS type annotation parsing on `allow_ts_mode(p)`, which is a significant change affecting many call sites.
 
 ### Checks that should stay gated (oxc_semantic, not parser)
 
-These are correctly behind `report_semantic_error` / `check_semantics`:
-
-- Strict-mode reserved identifiers (~79 files)
-- Duplicate parameter names in strict mode (~47)
-- Binding name restrictions in strict mode (~39+39)
-- eval/arguments assignment in strict mode (~31)
-- Scope analysis (duplicate declarations) (~54)
-- Duplicate private class members (~113)
-- Legacy octal in strict mode (~19)
-- Undeclared exports (~19)
-- __proto__ redefinition (~25)
-
----
-
-## File Layout Reference
-
-| File | Lines | What changed |
-|---|---:|---|
-| `src/parser.odin` | ~17.5K | 15 bug fixes + 7 early-error promotions |
-| `src/lexer.odin` | ~3.4K | JSX string escape fix |
-| `src/main.odin` | ~8K | `.js` → `Lang.JS` |
-| `tests/verifiers/verify_multifile.js` | ~230 | New multi-file verifier |
-| `tests/runners/run_tests.sh` | ~230 | `--lang=` overrides for JSX fixtures |
+- Strict-mode reserved identifiers
+- Duplicate parameter names in strict mode
+- Binding name restrictions in strict mode
+- eval/arguments assignment in strict mode
+- Scope analysis (duplicate declarations)
+- Duplicate private class members
+- Legacy octal in strict mode
+- Undeclared exports
+- __proto__ redefinition
+- `yield` as function name in strict-only context (not generator)
 
 ---
 
@@ -168,10 +110,14 @@ task build                                    # Build release binary
 task test:unit                                # 415 golden-output fixtures
 task test:negative                            # Early-error baseline
 task test:estree                              # ESTree conformance
-node tests/verifiers/verify_oxc_corpus.js     # Full 25K corpus (15s)
-node tests/verifiers/verify_multifile.js      # Multi-file corpus (35s)
-node tests/verifiers/triage_kessel_only_rejects.js  # Cluster rejects by error
+node tests/verifiers/verify_oxc_corpus.js     # Full 25K corpus (~15s)
+node tests/verifiers/verify_oxc_corpus.js --baseline  # Gate check
+node tests/verifiers/verify_oxc_corpus.js --update    # Re-baseline
+node tests/verifiers/verify_multifile.js      # Multi-file corpus (~35s)
 
-# Test a single file against OXC:
-cd bench && node -e "const r = require('oxc-parser').parseSync('t.ts', 'const x;'); console.log(r.errors)"
+# Test OXC parser behavior:
+cd bench && node -e "const r = require('oxc-parser').parseSync('t.js', 'const x;'); console.log(r.errors)"
+
+# Full triage with error clusters:
+node tests/verifiers/verify_oxc_corpus.js --json-out tmp/oxc_corpus_run.json
 ```
