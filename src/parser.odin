@@ -2722,6 +2722,12 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
+	// `for await (;;)` / `for await (let i=0;;)` — await is only valid
+	// with for-of, not regular for-statements.
+	if await {
+		report_error(p, "'await' can only be used in conjunction with 'for...of' statements")
+	}
+
 	for_ := new_node(p, ForStatement)
 	for_.loc = start
 	for_.init_decl = init_decl
