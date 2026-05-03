@@ -11515,6 +11515,11 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 				break
 			}
 		}
+		// Double comma: `{x: 0,,}` — object literals don't allow elisions.
+		for is_token(p, .Comma) {
+			report_error(p, "Property assignment expected")
+			eat(p)
+		}
 		// Also skip stray semicolons after comma
 		for is_token(p, .Semi) {
 			eat(p)
