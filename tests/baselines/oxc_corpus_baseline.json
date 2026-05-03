@@ -1,22 +1,22 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15578,
+    "ok-vs-oxc": 15585,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 650,
+    "oxc-only-rejects": 624,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 1762,
-    "reject-both": 519
+    "should-pass-rejected": 1775,
+    "reject-both": 525
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15578,
+        "ok-vs-oxc": 15585,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 111,
+        "oxc-only-rejects": 104,
         "kessel-only-rejects": 1
       }
     },
@@ -25,9 +25,9 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 1762,
-        "reject-both": 519,
-        "oxc-only-rejects": 539
+        "should-pass-rejected": 1775,
+        "reject-both": 525,
+        "oxc-only-rejects": 520
       }
     },
     "estree": {
@@ -50,8 +50,8 @@
       "skip-multi-file": 5
     },
     "typescript/conformance/classes": {
-      "oxc-only-rejects": 5,
-      "skip-multi-file": 11
+      "skip-multi-file": 11,
+      "oxc-only-rejects": 3
     },
     "typescript/conformance/constEnums": {
       "skip-multi-file": 1
@@ -107,8 +107,7 @@
       "skip-multi-file": 8
     },
     "typescript/conformance/importDefer": {
-      "skip-multi-file": 15,
-      "oxc-only-rejects": 2
+      "skip-multi-file": 15
     },
     "typescript/conformance/interfaces": {
       "oxc-only-rejects": 1
@@ -137,7 +136,7 @@
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
-      "oxc-only-rejects": 33
+      "oxc-only-rejects": 32
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -150,7 +149,7 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/statements": {
-      "oxc-only-rejects": 6,
+      "oxc-only-rejects": 4,
       "skip-multi-file": 1
     },
     "typescript/conformance/types": {
@@ -274,7 +273,7 @@
     },
     "babel/es2015/uncategorised": {
       "should-pass-rejected": 54,
-      "oxc-only-rejects": 16,
+      "oxc-only-rejects": 15,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {
@@ -304,7 +303,7 @@
     },
     "babel/es2018/async-generators": {
       "should-pass-rejected": 1,
-      "oxc-only-rejects": 5
+      "oxc-only-rejects": 4
     },
     "babel/es2018/object-rest-spread": {
       "should-pass-rejected": 10,
@@ -315,16 +314,13 @@
       "oxc-only-rejects": 2
     },
     "babel/es2020/dynamic-import": {
-      "oxc-only-rejects": 1,
-      "should-pass-rejected": 3
+      "should-pass-rejected": 4
     },
     "babel/es2020/dynamic-import-createImportExpression-false": {
-      "oxc-only-rejects": 1,
-      "should-pass-rejected": 5
+      "should-pass-rejected": 6
     },
     "babel/es2020/import-meta": {
-      "oxc-only-rejects": 1,
-      "should-pass-rejected": 1
+      "should-pass-rejected": 2
     },
     "babel/es2020/nullish-coalescing-operator": {
       "should-pass-rejected": 1
@@ -373,12 +369,12 @@
       "oxc-only-rejects": 3
     },
     "babel/es2026/async-explicit-resource-management": {
-      "oxc-only-rejects": 4,
-      "should-pass-rejected": 11
+      "should-pass-rejected": 12,
+      "oxc-only-rejects": 3
     },
     "babel/es2026/explicit-resource-management": {
-      "should-pass-rejected": 8,
-      "oxc-only-rejects": 10
+      "should-pass-rejected": 10,
+      "oxc-only-rejects": 7
     },
     "babel/esprima/es2015-array-binding-pattern": {
       "should-pass-rejected": 1
@@ -434,7 +430,7 @@
     },
     "babel/esprima/invalid-syntax": {
       "should-pass-rejected": 79,
-      "oxc-only-rejects": 21,
+      "oxc-only-rejects": 18,
       "should-reject-passed": 1
     },
     "babel/esprima/rest-parameter": {
@@ -781,8 +777,8 @@
       "oxc-only-rejects": 1
     },
     "babel/typescript/class": {
-      "oxc-only-rejects": 19,
-      "should-pass-rejected": 17
+      "should-pass-rejected": 24,
+      "oxc-only-rejects": 12
     },
     "babel/typescript/conditional": {
       "should-reject-passed": 3

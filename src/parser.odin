@@ -2402,6 +2402,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .In) || is_token(p, .Of) {
 		// for-in or for-of
 		is_in := is_token(p, .In)
+		// §15.8.2 — `for await` is only legal with `of`, never `in`.
+		if is_in && await {
+			report_error(p, "'await' can only be used in conjunction with 'for...of' statements")
+		}
 		eat(p) // consume in/of
 		// `for (x of /re/) {}` — after consuming the `of` keyword the next
 		// token is the iterator expression. A leading `/` is the start of
@@ -2545,7 +2549,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				kn := "using"
 				if left_decl.kind == .AwaitUsing { kn = "await using" }
 				msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
-				report_semantic_error(p, msg)
+				report_error(p, msg)
 			}
 			for_in_init_ok := is_in &&
 			                  !p.strict_mode &&
@@ -4572,6 +4576,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// Private field or method: #field, #method
 		current := get_current(p)
 		is_private = true
+		// Accessibility modifiers are not allowed on private (#) fields.
+		if accessibility != .None {
+			report_error(p, fmt.tprintf("An accessibility modifier cannot be used with a private identifier."))
+		}
 
 		// Create PrivateIdentifier (strip the # prefix)
 		name := current.value
@@ -5001,6 +5009,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	} else {
 		if p.in_ambient {
 			report_error(p, "An implementation cannot be declared in ambient contexts")
+		}
+		// OXC reports abstract-with-body for non-constructor methods;
+		// abstract constructors are accepted by OXC at parser level.
+		if is_abstract && kind != .Constructor {
+			name := class_element_prop_name(key)
+			if name != "" {
+				report_error(p, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract.", name))
+			} else {
+				report_error(p, "Method cannot have an implementation because it is marked abstract.")
+			}
 		}
 		// Parse body - set context flags
 		prev_in_function := p.in_function
@@ -8748,6 +8766,12 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	case ^VariableDeclaration:
 		decl_union^ = v
 		if v.declare { export_kind = .Type }
+		// §Explicit Resource Management — `export using x = ...` and
+		// `export await using x = ...` are SyntaxErrors. Using
+		// declarations must use the named-export form: `export { x }`.
+		if v != nil && (v.kind == .Using || v.kind == .AwaitUsing) {
+			report_error(p, "Using declarations cannot be exported directly")
+		}
 	case ^ClassDeclaration:
 		decl_union^ = v
 		if v.declare { export_kind = .Type }
@@ -10582,6 +10606,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 					}
 				}
 			}
+			// §13.3.12 — The only valid meta property for `import` is
+			// `import.meta`.  `import.then`, `import.foo`, etc. are
+			// SyntaxErrors.
+			if meta_name.name != "meta" {
+				msg := fmt.tprintf("The only valid meta property for import is import.meta (got 'import.%s')", meta_name.name)
+				report_error(p, msg)
+			}
 			meta_prop := new_node(p, MetaProperty)
 			meta_prop.loc = loc_from_token(&current)
 			meta_prop.meta = Identifier{
@@ -11079,6 +11110,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				return expression_from(p, seq)
 			}
 			// Not an arrow, return nil (empty parens not valid expression)
+			report_error(p, "Empty parenthesized expression")
 			return nil
 		}
 
