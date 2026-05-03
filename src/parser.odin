@@ -5047,6 +5047,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	} else if is_ambient_method {
 		// ASI / before-RBrace ambient method — don't consume any token,
 		// the outer parse_class_element loop picks up where we left off.
+		if len(decorators) > 0 {
+			report_error(p, "A decorator can only decorate a method implementation, not an overload.")
+		}
 		// Body stays empty.
 	} else {
 		if p.in_ambient {
@@ -17641,6 +17644,13 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .Const) { is_const = true; eat(p) }
 	eat(p)
 	cur := get_current(p)
+	if !can_be_binding_identifier(p.cur_type) {
+		msg := fmt.tprintf(
+			"Identifier expected. '%s' is a reserved word that cannot be used here.",
+			cur.value,
+		)
+		report_error(p, msg)
+	}
 	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}; eat(p)
 	body_start := cur_loc(p); expect_token(p, .LBrace)
 	members := make([dynamic]TSEnumMember, 0, 8, p.allocator)

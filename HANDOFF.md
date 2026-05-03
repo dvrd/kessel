@@ -1,7 +1,7 @@
 # Kessel — Handoff Document
 
 **Date:** 2026-05-03
-**Last commit:** for-await on regular for
+**Last commit:** decorated overload + enum reserved names
 
 ---
 
@@ -13,10 +13,10 @@
 | `task test:negative` | ✅ 68 rejected |
 | `task test:oxc-corpus` | ✅ baseline OK |
 | `verify_multifile.js` | ✅ 0 kessel-only |
-| **oxc-only-rejects** | **309** (was 776) |
+| **oxc-only-rejects** | **307** (was 776) |
 | **kessel-only-rejects** | **1** (same .d.ts edge) |
 
-**Total reduction: 776 → 309 (↓467, 60%)**
+**Total reduction: 776 → 307 (↓469, 60%)**
 
 ---
 
@@ -28,12 +28,12 @@
 ### Phase 2: TS mode gating (↓287)
 ~25 call sites gated on `allow_ts_mode(p)`: variable/param/field/index type annotations, function/class/method/accessor return types, function/class type params, type/interface/enum/declare/namespace/module/global declarations, export type, import type, import-equals, export-as-namespace
 
-### Phase 3: Targeted fixes (↓17)
-Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for
+### Phase 3: Targeted fixes (↓19)
+Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names
 
 ---
 
-## Remaining: 309
+## Remaining: 307
 
 | Cluster | ~Count |
 |---|---:|
