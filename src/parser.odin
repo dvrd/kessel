@@ -5619,7 +5619,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	// span parity (S26 W4d: 2 baseline divergences on tsx/002 and
 	// typescript/015).
 	has_type_ann := false
-	if is_token(p, .Colon) {
+	if is_token(p, .Colon) && allow_ts_mode(p) {
 		has_type_ann = true
 		ann := parse_ts_type_annotation(p)
 		#partial switch t in pattern {
