@@ -3510,6 +3510,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			directives = make([dynamic]Directive, 0, 0, p.allocator),
 		}
 	} else {
+		// §14.1 — an explicit `declare function f() {}` is a SyntaxError
+		// (the body contradicts declare). But a function inside
+		// `declare module "m" { function f() {} }` IS allowed by OXC.
+		if allow_no_body {
+			report_error(p, "An implementation cannot be declared in ambient contexts")
+		}
 		body = parse_function_body(p)
 		body_strict = p.last_body_strict
 	}
@@ -4996,7 +5002,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			report_error(p, "'declare' modifier cannot appear on a constructor declaration.")
 		}
 	}
-	if is_declare && (kind == .Get || kind == .Set) {
+	if is_declare && (kind == .Get || kind == .Set || kind == .Method) {
 		report_error(p, "'declare' modifier cannot be used here.")
 	}
 
