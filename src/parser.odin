@@ -536,6 +536,11 @@ Parser :: struct {
 	// nested modules. Saved/restored around the body scan.
 	in_ambient:      bool,
 
+	// True for `.d.ts` declaration files. They parse as TS, but ambient
+	// declaration-file relaxations (for example `const x;`) must not leak
+	// into normal `.ts` / `.tsx` source.
+	source_is_dts:   bool,
+
 	// Track if module syntax was detected (import/export or import.meta)
 	has_module_syntax: bool,
 
@@ -731,7 +736,7 @@ allow_ts_mode :: #force_inline proc(p: ^Parser) -> bool {
 	return p.lang == .TS || p.lang == .TSX
 }
 
-init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang = .JSX) {
+init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang = .JSX, source_is_dts := false) {
 	p.allocator = alloc
 	p.source_len = len(lexer.source)
 	p.errors = make([dynamic]ParseError, alloc)
@@ -792,6 +797,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.label_is_iteration = make([dynamic]bool, 0, 4, alloc)
 	p.label_floor = 0
 	p.lang = lang
+	p.source_is_dts = source_is_dts
 	p.has_module_syntax = false
 	p.private_id_count = 0
 	p.pending_paren_start = max(u32) // sentinel: "no `(` pending"
@@ -3726,9 +3732,11 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 
 	// TypeScript: optional parameter marker `?` comes AFTER the name.
 	// Only consume if followed by `:`, `,`, `)`, or `=` - not a ternary.
+	param_is_optional := false
 	if is_token(p, .Question) {
 		nxt := peek_token(p)
 		if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen || nxt.type == .Assign {
+			param_is_optional = true
 			eat(p) // consume `?`
 		}
 	}
@@ -3777,6 +3785,11 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		} else {
 			param.default_val = default_expr
 		}
+	}
+
+	// TS: a parameter cannot have both `?` and a default initializer.
+	if param_is_optional && param.default_val != nil {
+		report_error(p, "A parameter cannot have a question mark and an initializer.")
 	}
 
 	param.loc.span.end = prev_end_offset(p)
@@ -4008,7 +4021,8 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// in this position), so we have to parse the args here. Closes 95+
 		// OXC corpus rejects in the "Expected {, got <" cluster (S26 W6
 		// phase 3 bug class #8). Same fix at the ClassExpression call site.
-		if (p.lang == .TS || p.lang == .TSX) && is_open_angle_or_lshift(p) {
+		// OXC also accepts this Flow-shaped heritage in `.js` TS fixtures.
+		if is_open_angle_or_lshift(p) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
 		// §15.7.1 - ClassHeritage uses LeftHandSideExpression. Unparenthesised
@@ -4299,9 +4313,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	static_ := false
 	is_abstract := false
 	accessibility := ClassAccessibility.None
+	access_name := ""
 	is_readonly := false
 	is_override := false
 	is_declare := false
+
+	// Track modifier order for validation.
+	mod_order_idx := 0
+	access_order := -1
+	static_order := -1
+	readonly_order := -1
 
 	// Bounded scan. A modifier token is only a modifier if the NEXT token
 	// is a plausible continuation of the member signature - not `(`, `=`,
@@ -4334,7 +4355,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		consumed := false
 		#partial switch cur {
 		case .Static:
-			if !static_       { static_       = true; eat(p); consumed = true }
+			if !static_       { static_       = true; static_order = mod_order_idx; eat(p); consumed = true }
 		case .Abstract:
 			if !is_abstract   { is_abstract   = true; eat(p); consumed = true }
 		case .Override:
@@ -4344,19 +4365,28 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			switch val {
 			case "public":
 				if accessibility == .None {
-					accessibility = .Public;    eat(p); consumed = true
+					accessibility = .Public; access_name = "public"; access_order = mod_order_idx; eat(p); consumed = true
+				} else {
+					report_error(p, "Accessibility modifier already seen.")
+					eat(p); consumed = true
 				}
 			case "private":
 				if accessibility == .None {
-					accessibility = .Private;   eat(p); consumed = true
+					accessibility = .Private; access_name = "private"; access_order = mod_order_idx; eat(p); consumed = true
+				} else {
+					report_error(p, "Accessibility modifier already seen.")
+					eat(p); consumed = true
 				}
 			case "protected":
 				if accessibility == .None {
-					accessibility = .Protected; eat(p); consumed = true
+					accessibility = .Protected; access_name = "protected"; access_order = mod_order_idx; eat(p); consumed = true
+				} else {
+					report_error(p, "Accessibility modifier already seen.")
+					eat(p); consumed = true
 				}
 			case "readonly":
 				if !is_readonly {
-					is_readonly = true;         eat(p); consumed = true
+					is_readonly = true; readonly_order = mod_order_idx; eat(p); consumed = true
 				}
 			// TS §3.1 ambient class members - `declare prop: T;` /
 			// `declare static x: T;` etc. Lexed as a plain Identifier
@@ -4369,7 +4399,21 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				}
 			}
 		}
+		if consumed { mod_order_idx += 1 }
 		if !consumed { break }
+	}
+
+	// Modifier ordering validation (OXC parser-level).
+	if allow_ts_mode(p) {
+		if access_order >= 0 && static_order >= 0 && access_order > static_order {
+			report_error(p, fmt.tprintf("'%s' modifier must precede 'static' modifier.", access_name))
+		}
+		if access_order >= 0 && readonly_order >= 0 && access_order > readonly_order {
+			report_error(p, fmt.tprintf("'%s' modifier must precede 'readonly' modifier.", access_name))
+		}
+		if static_order >= 0 && readonly_order >= 0 && static_order > readonly_order {
+			report_error(p, "'static' modifier must precede 'readonly' modifier.")
+		}
 	}
 
 	kind := ClassElementKind.Method
@@ -4443,6 +4487,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				kind = .Get
 			} else {
 				kind = .Set
+			}
+			if is_async {
+				report_error(p, "'async' modifier cannot be used here.")
 			}
 			eat(p) // consume get/set keyword
 		}
@@ -4532,10 +4579,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if !static_ && !is_private && !computed &&
 		   (current.type == .Constructor || (current.type == .Identifier && current.value == "constructor")) {
 			if is_async {
-				report_semantic_error(p, "Class constructor cannot be an async method")
+				report_error(p, "Constructor can't be an async method")
 			}
 			if is_generator {
-				report_semantic_error(p, "Class constructor cannot be a generator method")
+				report_error(p, "Class constructor cannot be a generator method")
 			}
 			if kind == .Get {
 				report_error(p, "Class constructor cannot be a getter")
@@ -4699,6 +4746,12 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			p.in_derived_constructor = prev_in_derived_ctor
 			if init_expr != nil {
 				value = init_expr
+				// TS: `declare` fields must not have initializers,
+				// UNLESS both `declare` and `readonly` are present
+				// (OXC allows `declare readonly x = 1;`).
+				if (is_declare || p.in_ambient) && !is_readonly {
+					report_error(p, "Initializers are not allowed in ambient contexts.")
+				}
 				// §15.7.5 - ClassFieldInitializer must not Contain
 				// `arguments`. Hoisted out of pn_visit_class so files
 				// with no PrivateIdentifier can skip the full
@@ -4798,6 +4851,20 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	prev_method_in_method := p.in_method
 	p.in_method = true
 	params := parse_function_params(p)
+	if allow_ts_mode(p) {
+		for param in params {
+			has_modifier := param.accessibility != .None || param.readonly || param.override_
+			if has_modifier {
+				if kind != .Constructor {
+					report_error(p, "Parameter property modifiers are only allowed in constructors")
+				} else {
+					if _, is_ident := param.pattern.(^Identifier); !is_ident {
+						report_error(p, "A parameter property may not be declared using a binding pattern")
+					}
+				}
+			}
+		}
+	}
 	p.in_method = prev_method_in_method
 	p.strict_mode = prev_strict_params
 	p.in_generator_params = prev_method_gen_params
@@ -4844,6 +4911,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// the outer parse_class_element loop picks up where we left off.
 		// Body stays empty.
 	} else {
+		if p.in_ambient {
+			report_error(p, "An implementation cannot be declared in ambient contexts")
+		}
 		// Parse body - set context flags
 		prev_in_function := p.in_function
 		prev_in_generator := p.in_generator
@@ -4914,7 +4984,21 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 					if _, is_rest := pp.(^RestElement); is_rest {
 						report_error(p, "Setter parameter cannot be a rest element")
 					}
+					// A 'set' accessor parameter cannot have a default value.
+					if _, has_default := params[real_idx].default_val.(^Expression); has_default {
+						report_error(p, "A 'set' accessor cannot have an initializer.")
+					}
 				}
+			}
+		}
+
+		// TS: abstract method must not have an implementation body.
+		if is_abstract && len(body.body) > 0 {
+			name := class_element_prop_name(key)
+			if name != "" {
+				report_error(p, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract.", name))
+			} else {
+				report_error(p, "Method cannot have an implementation because it is marked abstract.")
 			}
 		}
 	}
@@ -5178,14 +5262,10 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// keeps working. `is_declare` for ambient TS (`declare const x;`)
 	// also skips per TS rules. `let` allows no initializer.
 	//
-	// In TS/TSX mode, ALSO skip the missing-initializer error: a .d.ts
-	// file is implicitly all-ambient, and `.ts` files often contain
-	// type-system-driven uninitialised consts that the TS type checker
-	// validates separately. OXC, babel-parser, and tsserver all permit
-	// this at the parser level. Test ts-conformance: the bench-vendored
-	// .d.ts files (oxc-parser, acorn) all rely on this relaxation.
-	in_ts_mode := p.lang == .TS || p.lang == .TSX
-	if !is_declare && !in_for && !in_ts_mode && (kind == .Const || kind == .Using || kind == .AwaitUsing) {
+	// OXC's parser rejects missing initializers in normal TS/TSX files too.
+	// Ambient forms (`declare const x;`, `.d.ts` sources) and for-of/in
+	// declaration heads still skip because the value is supplied externally.
+	if !is_declare && !p.in_ambient && !p.source_is_dts && !in_for && (kind == .Const || kind == .Using || kind == .AwaitUsing) {
 		kind_name: string
 		switch kind {
 		case .Const:       kind_name = "const"
@@ -5436,6 +5516,9 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 
 	init: Maybe(^Expression)
 	if match_token(p, .Assign) {
+		if p.in_ambient && !is_declare && kind != .Const {
+			report_error(p, "Initializers are not allowed in ambient contexts")
+		}
 		init_expr := parse_assignment_expression(p)
 		if init_expr == nil {
 			// `var x = ;` / `let x = ;` etc. The `=` committed us to an
@@ -11801,7 +11884,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
-		if (p.lang == .TS || p.lang == .TSX) && is_open_angle_or_lshift(p) {
+		if is_open_angle_or_lshift(p) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
 		// Unparenthesised arrow functions are AssignmentExpressions, not
@@ -15680,12 +15763,16 @@ ensure_open_angle :: proc(p: ^Parser) {
 parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 	ensure_open_angle(p)
 	start := cur_loc(p); eat(p)
+	empty_at_start := is_close_angle_token(p)
 	// Re-allow conditional types inside angle brackets.
 	saved_disallow_ct := p.ts_disallow_conditional_types
 	p.ts_disallow_conditional_types = 0
 	params := make([dynamic]^TSType, 0, 4, p.allocator)
 	for !is_close_angle_token(p) && !is_token(p, .EOF) {
 		t := parse_ts_type(p); if t != nil { bump_append(&params, t) }; if !match_token(p, .Comma) { break }
+	}
+	if empty_at_start && len(params) == 0 {
+		report_error(p, "Type argument list cannot be empty")
 	}
 	expect_close_angle(p)
 	p.ts_disallow_conditional_types = saved_disallow_ct
@@ -16236,6 +16323,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	if !is_token(p, .LAngle) { return nil }
 	start := cur_loc(p); eat(p) // consume `<`
+	empty_at_start := is_close_angle_token(p)
 	// Re-allow conditional types inside angle brackets.
 	saved_disallow_ct := p.ts_disallow_conditional_types
 	p.ts_disallow_conditional_types = 0
@@ -16295,6 +16383,9 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		param.loc.span.end = prev_end_offset(p)
 		bump_append(&params, param)
 		if !match_token(p, .Comma) { break }
+	}
+	if empty_at_start && len(params) == 0 {
+		report_error(p, "Type parameter list cannot be empty")
 	}
 	// Use expect_close_angle so `>=` splits into `>` + `=`.
 	// Fixes: `type T<U>=U` where `>=` should close the type params.
@@ -17186,6 +17277,10 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		ms := cur_loc(p); member_id: ^Expression; mc := get_current(p)
 		if is_token(p, .String) {
 			str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
+		} else if is_token(p, .Number) {
+			report_error(p, "An enum member cannot have a numeric name.")
+			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
+			member_id = expression_from(p, mid)
 		} else {
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
 			member_id = expression_from(p, mid)

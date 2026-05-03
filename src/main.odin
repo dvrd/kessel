@@ -920,9 +920,19 @@ parse_file :: proc(file_path: string) {
 	init_lexer(&lex, string(source), arena_alloc, lex_source_type)
 
 	// Initialize parser with optimized lexer. Language mode is CLI override
-	// when set, else detected from the file extension.
+	// when set, else detected from the file extension. `.d.ts` needs its
+	// own bit because it shares TS grammar but has declaration-file
+	// ambient relaxations.
 	p: Parser
-	init_parser(&p, &lex, arena_alloc, resolve_lang(file_path))
+	init_parser(
+		&p,
+		&lex,
+		arena_alloc,
+		resolve_lang(file_path),
+		strings.has_suffix(file_path, ".d.ts") ||
+		strings.has_suffix(file_path, ".d.mts") ||
+		strings.has_suffix(file_path, ".d.cts"),
+	)
 	// TS-shape emitter toggle - mirror OXC's behaviour of emitting unconditional
 	// TS-ESTree fields (typeAnnotation: null, optional: false, etc.) only when
 	// parsing TypeScript. Keeps JS output unchanged. OPT-5 `--ast-type=` pins

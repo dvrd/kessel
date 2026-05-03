@@ -69,12 +69,19 @@ function splitMultiFile(source) {
   return units;
 }
 
+function isDeclarationFilename(filename) {
+  const lower = filename.toLowerCase();
+  return lower.endsWith('.d.ts') || lower.endsWith('.d.mts') ||
+         lower.endsWith('.d.cts') || /\.d\.[^.]+\.ts$/.test(lower);
+}
+
 function langFromFilename(filename) {
-  const ext = path.extname(filename).toLowerCase();
+  const lower = filename.toLowerCase();
+  if (isDeclarationFilename(lower)) return 'ts';
+  const ext = path.extname(lower);
   if (ext === '.tsx') return 'tsx';
   if (ext === '.jsx') return 'jsx';
   if (ext === '.ts' || ext === '.mts' || ext === '.cts') return 'ts';
-  if (ext === '.d.ts') return 'ts';
   return '';  // .js / .mjs / .cjs → auto-detect
 }
 
@@ -116,6 +123,7 @@ function discoverMultiFile() {
 // ---------------------------------------------------------------------------
 
 function runKesselOnSource(source, lang, tmpFile) {
+  fs.mkdirSync(path.dirname(tmpFile), { recursive: true });
   fs.writeFileSync(tmpFile, source, 'utf8');
   const args = ['parse', tmpFile, '--compact'];
   if (lang) args.push(`--lang=${lang}`);
@@ -123,6 +131,13 @@ function runKesselOnSource(source, lang, tmpFile) {
   const stderr = (r.stderr || '').toString();
   const m = stderr.match(/Parse errors:\s*(\d+)/);
   return { errs: m ? parseInt(m[1], 10) : 0, crashed: r.status !== 0 && r.status !== 1 };
+}
+
+function tmpFilenameForUnit(filename, index) {
+  const lower = filename.toLowerCase();
+  if (isDeclarationFilename(lower)) return path.join(tmpDir, `unit-${index}.d.ts`);
+  const ext = path.extname(lower) || '.ts';
+  return path.join(tmpDir, `unit-${index}${ext}`);
 }
 
 function runOxcOnSource(source, filename) {
@@ -142,7 +157,6 @@ const fixtures = discoverMultiFile();
 console.log(`Found ${fixtures.length} multi-file fixtures.`);
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-multifile-'));
-const tmpFile = path.join(tmpDir, 'unit.ts');
 
 let totalUnits = 0;
 let agreeUnits = 0;
@@ -162,6 +176,7 @@ for (let fi = 0; fi < fixtures.length; fi++) {
   for (const unit of units) {
     const lang = langFromFilename(unit.filename);
     const synthName = unit.filename;
+    const tmpFile = tmpFilenameForUnit(unit.filename, totalUnits);
 
     const k = runKesselOnSource(unit.source, lang, tmpFile);
     const o = runOxcOnSource(unit.source, synthName);
@@ -193,7 +208,7 @@ for (let fi = 0; fi < fixtures.length; fi++) {
 }
 
 // Cleanup
-try { fs.unlinkSync(tmpFile); fs.rmdirSync(tmpDir); } catch {}
+try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
 
 // Report
 console.log(`\nMulti-file corpus results:`);
@@ -219,21 +234,20 @@ if (kesselOnlyFiles.length > 0) {
   for (const [rel, files] of sorted.slice(0, verbose ? 100 : 20)) {
     console.log(`  ${rel}:`);
     for (const f of files.slice(0, 3)) {
-      // Get the first error message
+      // Re-run to capture the first error message. Preserve the virtual
+      // filename suffix so `.d.ts` declaration-file relaxations still apply.
       const lang = langFromFilename(f.filename);
-      const args = ['parse', tmpFile, '--compact'];
-      if (lang) args.push('--lang=' + lang);
-      // Re-run to capture error (tmpFile was overwritten, write again)
       const unit = splitMultiFile(fixtures.find(fx => fx.rel === rel).source).find(u => u.filename === f.filename);
       if (unit) {
-        const tmpF2 = path.join(os.tmpdir(), 'kessel-mf-err.ts');
+        const errTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-mf-err-'));
+        const tmpF2 = path.join(errTmpDir, path.basename(tmpFilenameForUnit(f.filename, `err`)));
         fs.writeFileSync(tmpF2, unit.source, 'utf8');
         const r = spawnSync(KESSEL, ['parse', tmpF2, '--compact', ...(lang ? ['--lang='+lang] : [])],
           { timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] });
         const stderr = (r.stderr || '').toString();
         const errLine = stderr.match(/Line \d+.*?:\s*(.*)/);
         console.log(`    ${f.filename} (${f.kErrs} errs)${errLine ? ': ' + errLine[1] : ''}`);
-        try { fs.unlinkSync(tmpF2); } catch {}
+        try { fs.rmSync(errTmpDir, { recursive: true, force: true }); } catch {}
       } else {
         console.log(`    ${f.filename} (${f.kErrs} errs)`);
       }
