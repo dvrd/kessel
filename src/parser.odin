@@ -2669,6 +2669,19 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		init_expr = left_expr
 	}
 
+	if init_decl != nil && allow_ts_mode(p) {
+		id, have_init := init_decl.(^VariableDeclaration)
+		if have_init && id != nil {
+			if id.kind == .Using || id.kind == .AwaitUsing {
+				for decl in id.declarations {
+					if _, have := decl.init.(^Expression); !have {
+						report_error(p, "Missing initializer in for-loop declaration")
+					}
+				}
+			}
+		}
+	}
+
 	if !expect_token(p, .Semi) {
 		return nil
 	}
@@ -3710,8 +3723,10 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	// "Expected binding pattern" cluster (the immediate symptom is
 	// parse_binding_pattern hitting `@`). Proper round-trip ATTACH is a
 	// follow-on AST extension.
+	decorators_seen := false
 	if allow_ts_mode(p) {
 		for is_token(p, .At) {
+			decorators_seen = true
 			eat(p) // consume `@`
 			// Decorator expression: identifier (optionally member-chained / called).
 			// parse_left_hand_side_expr handles `dec`, `a.b`, `dec(args)`.
@@ -3819,6 +3834,9 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 
 	pattern: Pattern
 	if p.cur_type == .This && allow_ts_mode(p) {
+		if decorators_seen {
+			report_error(p, "Decorators cannot be applied to 'this' parameters.")
+		}
 		// TS `this` parameter: `function(this: T) {}` — specifies the
 		// type of `this` inside the function. Not a real runtime param.
 		ident := new_node(p, Identifier)
@@ -6483,6 +6501,13 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 
 			// Parse value as pattern (identifiers and contextual keywords)
 			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+				if allow_ts_mode(p) && is_reserved_word_for_binding(p.cur_type) {
+					msg := fmt.tprintf(
+						"Identifier expected. '%s' is a reserved word that cannot be used here.",
+						cur_value(p),
+					)
+					report_error(p, msg)
+				}
 				vl := cur_loc(p); vn := cur_value(p)
 				value_ident := new_node(p, Identifier)
 				value_ident.loc = vl
@@ -8427,6 +8452,8 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 
 		decl.source = parse_string_literal(p)
+	} else if allow_ts_mode(p) {
+		report_error(p, "Expected import source or specifier")
 	}
 
 	decl.attributes = parse_import_attributes(p)
@@ -17658,7 +17685,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		ms := cur_loc(p); member_id: ^Expression; mc := get_current(p)
 		if is_token(p, .String) {
 			str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
-		} else if is_token(p, .Number) {
+		} else if is_token(p, .Number) || is_token(p, .BigInt) {
 			report_error(p, "An enum member cannot have a numeric name.")
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
 			member_id = expression_from(p, mid)
@@ -17667,7 +17694,15 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			member_id = expression_from(p, mid)
 		}
 		init: Maybe(^Expression)
-		if match_token(p, .Assign) { init = parse_assignment_expression(p) }
+		if match_token(p, .Assign) {
+			prev_in_async := p.in_async
+			prev_in_generator := p.in_generator
+			p.in_async = false
+			p.in_generator = false
+			init = parse_assignment_expression(p)
+			p.in_generator = prev_in_generator
+			p.in_async = prev_in_async
+		}
 		m := TSEnumMember{loc = ms, id = member_id, initializer = init}; m.loc.span.end = prev_end_offset(p)
 		bump_append(&members, m)
 		if !match_token(p, .Comma) { break }
