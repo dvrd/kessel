@@ -8095,8 +8095,9 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 
 		decl.source = parse_string_literal(p)
-	} else if is_token(p, .Identifier) {
+	} else if is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type) {
 		// Default import: import name from "module" or import name, { x } from "module"
+		// `await`, `yield`, `let` etc. are valid binding names in import context.
 		local := parse_identifier(p)
 		spec := new_node(p, ImportDefaultSpecifier)
 		spec.loc = local.loc
@@ -8318,18 +8319,26 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		if nxt_is_name && nxt != .As {
 			eat(p) // consume `type`
 		} else if nxt == .As {
-			// `import { type as }` / `import { type as as foo }` — the
-			// `type` modifier is followed by the imported name `as`. We
-			// need 2-token lookahead to distinguish:
-			//   `type as ,` / `type as }` / `type as from` → imported=as,
-			//                                                modifier on
-			//   `type as foo`           → rename: imported=type, local=foo
+			// `import { type as }` / `import { type as as as }` — 4-token
+			// lookahead (mirrors parse_export_named’s identical pattern).
 			snap := lexer_snapshot(p)
-			eat(p)            // consume `type`
-			eat(p)            // consume `as`
+			eat(p) // consume `type`
+			eat(p) // consume first `as`
 			after := p.cur_type
-			lexer_restore(p, snap)
+			consume_type := false
 			if after == .Comma || after == .RBrace || after == .From {
+				consume_type = true
+			} else if after == .As {
+				// `type as as X` — peek past the second `as`.
+				eat(p)
+				after_as := p.cur_type
+				if after_as == .Identifier || after_as == .String ||
+				   is_keyword_usable_as_property_name(after_as) {
+					consume_type = true
+				}
+			}
+			lexer_restore(p, snap)
+			if consume_type {
 				eat(p) // commit: consume `type` modifier
 			}
 		}
@@ -8580,11 +8589,14 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 				report_error(p, "Unexpected token after 'export default function' declaration")
 			}
 		}
-	} else if is_token(p, .Class) {
+	} else if is_token(p, .Class) ||
+	          is_token(p, .At) ||
+	          (is_token(p, .Abstract) && p.lexer.nxt.kind == .Class) {
+		// `export default class {}` / `export default @dec class {}`
+		// / `export default @dec abstract class {}`.
 		cls_stmt := parse_statement_or_declaration(p)
 		if cls_stmt != nil {
 			if cls_decl, ok := cls_stmt^.(^ClassDeclaration); ok {
-				// ^ClassDeclaration assigns into the ^Declaration variant.
 				decl_union := new_node(p, Declaration)
 				decl_union^ = cls_decl
 				def^ = decl_union
@@ -13155,6 +13167,45 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	p.no_in = prev_no_in
 	if consequent == nil {
 		return nil
+	}
+
+	// TS arrow-in-conditional: `cond ? (params): RetType => body : alt`.
+	// The `:` that the conditional expects may actually be a return-type
+	// annotation on an arrow in the consequent position. Speculatively
+	// try `(consequent): Type => body`; commit only if a ternary `:`
+	// still follows. Only attempt when the consequent could plausibly be
+	// arrow parameters (parenthesised expression, identifier, etc.).
+	conseq_could_be_arrow := false
+	if consequent != nil {
+		#partial switch _ in consequent {
+		case ^Identifier, ^AssignmentExpression, ^SequenceExpression,
+		     ^ObjectExpression, ^ArrayExpression: conseq_could_be_arrow = true
+		case: // ConditionalExpression, Literal, etc. — never arrow params
+		}
+	}
+	if allow_ts_mode(p) && is_token(p, .Colon) && conseq_could_be_arrow {
+		snap := lexer_snapshot(p)
+		snap_errs := len(p.errors)
+		eat(p) // consume `:`
+		ret_type := parse_ts_type(p)
+		committed := false
+		if ret_type != nil && is_token(p, .Arrow) {
+			p.pending_paren_start = start.span.start
+			inner := parse_arrow_function(p, consequent)
+			if inner != nil && len(p.errors) == snap_errs && is_token(p, .Colon) {
+				if ia, ok := inner^.(^ArrowFunctionExpression); ok {
+					ann := new_node(p, TSTypeAnnotation)
+					ann.type_annotation = ret_type
+					ia.return_type = ann
+				}
+				consequent = inner
+				committed = true
+			}
+		}
+		if !committed {
+			lexer_restore(p, snap)
+			if len(p.errors) > snap_errs { resize(&p.errors, snap_errs) }
+		}
 	}
 
 	if !expect_token(p, .Colon) {
