@@ -3744,13 +3744,16 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 				val := p.cur_tok.value
 				switch val {
 				case "public":
-					if param.accessibility == .None { param.accessibility = .Public }
+					if param.accessibility != .None { report_error(p, "Accessibility modifier already seen.") }
+					param.accessibility = .Public
 					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "private":
-					if param.accessibility == .None { param.accessibility = .Private }
+					if param.accessibility != .None { report_error(p, "Accessibility modifier already seen.") }
+					param.accessibility = .Private
 					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "protected":
-					if param.accessibility == .None { param.accessibility = .Protected }
+					if param.accessibility != .None { report_error(p, "Accessibility modifier already seen.") }
+					param.accessibility = .Protected
 					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "readonly":
 					param.readonly = true; param_readonly_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
@@ -5029,6 +5032,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	is_ambient_method := allow_ts_mode(p) && !is_token(p, .LBrace) &&
 	                     (p.cur_tok.had_line_terminator || is_token(p, .RBrace))
 	if (is_abstract || is_overload_sig) && is_token(p, .Semi) {
+		// Decorators cannot appear on overload signatures.
+		if len(decorators) > 0 && is_overload_sig && !is_abstract {
+			report_error(p, "A decorator can only decorate a method implementation, not an overload.")
+		}
 		match_semicolon_or_asi(p)
 		// Leave body empty
 	} else if is_ambient_method {
@@ -14140,6 +14147,10 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 			key = IdentifierName{loc = id.loc, name = id.name}
 		}
 		if !expect_token(p, .Colon) { break }
+		// §16.2.2 — attribute values must be string literals.
+		if !is_token(p, .String) {
+			report_error(p, "Only string literals are allowed as import attribute values")
+		}
 		value := parse_string_literal(p)
 		// Span end must cover the value literal - `attr_start` captured only
 		// the key's token span at entry (cur_loc), and was never extended
