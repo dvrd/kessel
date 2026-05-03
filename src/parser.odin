@@ -3714,6 +3714,10 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	if allow_ts_mode(p) {
 		mod_start := cur_loc(p).span.start  // position of first modifier (or binding if none)
 		found_modifier := false
+		param_access_order := -1
+		param_readonly_order := -1
+		param_override_order := -1
+		param_mod_idx := 0
 		for i := 0; i < 6; i += 1 {
 			cur := p.cur_type
 			nxt := p.lexer.nxt.kind
@@ -3729,27 +3733,40 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			consumed := false
 			#partial switch cur {
 			case .Override:
-				param.override_ = true; eat(p); consumed = true; found_modifier = true
+				param.override_ = true; param_override_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 			case .Identifier:
 				val := p.cur_tok.value
 				switch val {
 				case "public":
 					if param.accessibility == .None { param.accessibility = .Public }
-					eat(p); consumed = true; found_modifier = true
+					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "private":
 					if param.accessibility == .None { param.accessibility = .Private }
-					eat(p); consumed = true; found_modifier = true
+					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "protected":
 					if param.accessibility == .None { param.accessibility = .Protected }
-					eat(p); consumed = true; found_modifier = true
+					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "readonly":
-					param.readonly = true; eat(p); consumed = true; found_modifier = true
+					param.readonly = true; param_readonly_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				}
 			}
 			if !consumed { break }
 		}
 		if found_modifier {
 			param.modifier_start = mod_start
+		}
+		// Modifier ordering: accessibility must precede readonly/override.
+		if param_access_order >= 0 && param_readonly_order >= 0 && param_access_order > param_readonly_order {
+			acc_name := "public"
+			if param.accessibility == .Private { acc_name = "private" }
+			if param.accessibility == .Protected { acc_name = "protected" }
+			report_error(p, fmt.tprintf("'%s' modifier must precede 'readonly' modifier.", acc_name))
+		}
+		if param_access_order >= 0 && param_override_order >= 0 && param_access_order > param_override_order {
+			acc_name := "public"
+			if param.accessibility == .Private { acc_name = "private" }
+			if param.accessibility == .Protected { acc_name = "protected" }
+			report_error(p, fmt.tprintf("'%s' modifier must precede 'override' modifier.", acc_name))
 		}
 		param.loc = cur_loc(p)
 	}
@@ -4362,6 +4379,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	// Check for static block: static { ... }
 	if is_token(p, .Static) && is_next_token(p, .LBrace) {
+		if len(decorators) > 0 {
+			report_error(p, "Decorators are not valid here.")
+		}
 		elem := parse_static_block(p, start)
 		if elem != nil { elem.decorators = decorators }
 		return elem
@@ -4975,6 +4995,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if is_declare {
 			report_error(p, "'declare' modifier cannot appear on a constructor declaration.")
 		}
+	}
+	if is_declare && (kind == .Get || kind == .Set) {
+		report_error(p, "'declare' modifier cannot be used here.")
 	}
 
 	// For abstract methods and for TS overload signatures there's no body
@@ -15702,6 +15725,13 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		eat(p) // consume `import`
 		if !expect_token(p, .LParen) { return nil }
 		arg_type := parse_ts_type(p)
+		// The argument must be a string literal type.  `import(foo)` with
+		// a non-string argument is a SyntaxError.
+		if arg_type != nil {
+			if _, is_lit := arg_type^.(^TSLiteralType); !is_lit {
+				report_error(p, "String literal expected in import type")
+			}
+		}
 		// `with { ... }` import-type attributes — stage-3 since TS 5.3.
 		// Eat permissively without strict shape validation; the type
 		// checker handles semantics.
