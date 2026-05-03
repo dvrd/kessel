@@ -86,6 +86,12 @@
   ],
   "errors": [
     {
+      "message": "'await' is reserved as a binding name in this context",
+      "line": 6,
+      "column": 6,
+      "offset": 264
+    },
+    {
       "message": "'await' expression requires an operand",
       "line": 7,
       "column": 14,
@@ -93,9 +99,10 @@
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
+  Line 6, Column 6: 'await' is reserved as a binding name in this context
   Line 7, Column 14: 'await' expression requires an operand
 
 --- Statistics ---
 Arena: used=37296B reserved=16777216B ratio=0%
-Parse errors: 1
+Parse errors: 2

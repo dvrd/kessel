@@ -1,21 +1,23 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15482,
+    "ok-vs-oxc": 15507,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 903,
+    "oxc-only-rejects": 859,
+    "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 1610,
+    "should-pass-rejected": 1628,
     "reject-both": 515
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15482,
+        "ok-vs-oxc": 15507,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 208
+        "oxc-only-rejects": 182,
+        "kessel-only-rejects": 1
       }
     },
     "babel": {
@@ -23,8 +25,8 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 1610,
-        "oxc-only-rejects": 695,
+        "should-pass-rejected": 1628,
+        "oxc-only-rejects": 677,
         "reject-both": 515
       }
     },
@@ -38,17 +40,17 @@
   "bySubdir": {
     "typescript/compiler": {
       "skip-multi-file": 1188,
-      "oxc-only-rejects": 52
+      "oxc-only-rejects": 48
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10
     },
     "typescript/conformance/async": {
-      "oxc-only-rejects": 16,
+      "oxc-only-rejects": 9,
       "skip-multi-file": 5
     },
     "typescript/conformance/classes": {
-      "oxc-only-rejects": 13,
+      "oxc-only-rejects": 12,
       "skip-multi-file": 11
     },
     "typescript/conformance/constEnums": {
@@ -83,7 +85,7 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/es6": {
-      "oxc-only-rejects": 17,
+      "oxc-only-rejects": 16,
       "skip-multi-file": 49
     },
     "typescript/conformance/es7": {
@@ -99,10 +101,7 @@
     },
     "typescript/conformance/externalModules": {
       "skip-multi-file": 151,
-      "oxc-only-rejects": 4
-    },
-    "typescript/conformance/functions": {
-      "oxc-only-rejects": 1
+      "kessel-only-rejects": 1
     },
     "typescript/conformance/importAssertion": {
       "skip-multi-file": 3
@@ -141,14 +140,13 @@
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
-      "oxc-only-rejects": 55
+      "oxc-only-rejects": 52
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
     },
     "typescript/conformance/salsa": {
-      "skip-multi-file": 83,
-      "oxc-only-rejects": 1
+      "skip-multi-file": 83
     },
     "typescript/conformance/scanner": {
       "oxc-only-rejects": 6,
@@ -160,7 +158,7 @@
     },
     "typescript/conformance/types": {
       "skip-multi-file": 10,
-      "oxc-only-rejects": 12
+      "oxc-only-rejects": 8
     },
     "typescript/conformance/typings": {
       "skip-multi-file": 9
@@ -222,8 +220,8 @@
       "oxc-only-rejects": 1
     },
     "babel/core/uncategorised": {
-      "should-pass-rejected": 27,
-      "oxc-only-rejects": 33,
+      "should-pass-rejected": 29,
+      "oxc-only-rejects": 31,
       "should-reject-passed": 1
     },
     "babel/es2015/array-rest-spread": {
@@ -282,13 +280,13 @@
       "should-pass-rejected": 1
     },
     "babel/es2015/uncategorised": {
-      "should-pass-rejected": 46,
-      "oxc-only-rejects": 25,
+      "should-pass-rejected": 48,
+      "oxc-only-rejects": 23,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {
-      "oxc-only-rejects": 4,
-      "should-pass-rejected": 6
+      "oxc-only-rejects": 2,
+      "should-pass-rejected": 8
     },
     "babel/es2016/exponentiation-operator": {
       "should-pass-rejected": 3,
@@ -361,8 +359,8 @@
       "should-pass-rejected": 6
     },
     "babel/es2022/class-static-block": {
-      "oxc-only-rejects": 4,
-      "should-pass-rejected": 2
+      "should-pass-rejected": 3,
+      "oxc-only-rejects": 3
     },
     "babel/es2022/module-string-names": {
       "oxc-only-rejects": 1,
@@ -387,8 +385,8 @@
       "oxc-only-rejects": 3
     },
     "babel/es2026/async-explicit-resource-management": {
-      "oxc-only-rejects": 9,
-      "should-pass-rejected": 6
+      "oxc-only-rejects": 7,
+      "should-pass-rejected": 8
     },
     "babel/es2026/explicit-resource-management": {
       "should-pass-rejected": 4,
@@ -414,8 +412,8 @@
       "should-pass-rejected": 2
     },
     "babel/esprima/es2015-generator": {
-      "should-pass-rejected": 1,
-      "oxc-only-rejects": 3
+      "should-pass-rejected": 2,
+      "oxc-only-rejects": 2
     },
     "babel/esprima/es2015-identifier": {
       "should-pass-rejected": 1,
@@ -441,15 +439,15 @@
       "should-pass-rejected": 3
     },
     "babel/esprima/es2015-yield": {
-      "should-pass-rejected": 4,
-      "oxc-only-rejects": 10
+      "should-pass-rejected": 11,
+      "oxc-only-rejects": 3
     },
     "babel/esprima/expression-primary-array": {
       "should-pass-rejected": 1
     },
     "babel/esprima/invalid-syntax": {
-      "should-pass-rejected": 73,
-      "oxc-only-rejects": 27,
+      "should-pass-rejected": 74,
+      "oxc-only-rejects": 26,
       "should-reject-passed": 1
     },
     "babel/esprima/rest-parameter": {

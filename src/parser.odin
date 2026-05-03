@@ -3384,6 +3384,22 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.in_generator = prev_in_generator_param_outer
 	p.in_async = prev_in_async_param_outer
 
+	// TS: parameter property modifiers (public/private/protected/readonly)
+	// are only allowed in class constructors. Reject them on standalone
+	// function declarations. The class-method check lives in
+	// parse_class_element; this covers `function f(public x) {}`.
+	if allow_ts_mode(p) {
+		for fp in params {
+			if fp.accessibility != .None || fp.readonly || fp.override_ {
+				name := "public"
+				if fp.accessibility == .Private { name = "private" }
+				if fp.accessibility == .Protected { name = "protected" }
+				if fp.readonly && fp.accessibility == .None { name = "readonly" }
+				report_error(p, fmt.tprintf("'%s' modifier cannot appear on a parameter.", name))
+			}
+		}
+	}
+
 	if !expect_token(p, .RParen) {
 		// Error recovery: skip forward to the next `{` (start of the body)
 		// or a clear statement terminator so we can still build a function
@@ -3603,9 +3619,15 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 		if param != nil {
 			if _, is_rest := param.pattern.(^RestElement); is_rest {
 				if is_token(p, .Comma) {
-					// In TS ambient / declare contexts, trailing commas after
-					// rest params are tolerated (type-level only). OXC accepts.
-					report_semantic_error(p, "Rest element may not have a trailing comma")
+					// A rest parameter must be last. If followed by `,` and
+					// then another param, it's a hard error. If followed by
+					// `,` then `)`, it's a trailing-comma error.
+					nxt := p.lexer.nxt.kind
+					if nxt != .RParen && nxt != .EOF {
+						report_error(p, "A rest parameter must be last in a parameter list")
+					} else {
+						report_semantic_error(p, "Rest element may not have a trailing comma")
+					}
 				}
 			}
 		}
@@ -5516,8 +5538,8 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 
 	init: Maybe(^Expression)
 	if match_token(p, .Assign) {
-		if p.in_ambient && !is_declare && kind != .Const {
-			report_error(p, "Initializers are not allowed in ambient contexts")
+		if (p.in_ambient || is_declare) && kind != .Const {
+			report_error(p, "Initializers are not allowed in ambient contexts.")
 		}
 		init_expr := parse_assignment_expression(p)
 		if init_expr == nil {
@@ -5677,6 +5699,8 @@ is_eval_or_arguments :: #force_inline proc(name: string) -> bool {
 // currently inside such a context, so `await` cannot be used as a
 // BindingIdentifier / IdentifierReference / LabelIdentifier.
 await_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
+	// .d.ts declaration files allow `await` as an identifier everywhere.
+	if p.source_is_dts { return false }
 	if p.in_async || p.in_async_params { return true }
 	// §15.7.5 - class static blocks run under [~Await]; `await` is
 	// a reserved word within ClassStaticBlockBody.
@@ -6071,7 +6095,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// Both tokens already have dedicated TokenTypes in Kessel's lexer,
 	// so the check is a simple kind comparison.
 	if (p.in_generator || p.in_generator_params) && p.cur_type == .Yield {
-		report_semantic_error(p, "'yield' is reserved as a binding name inside a generator")
+		report_error(p, "'yield' is reserved as a binding name inside a generator")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -6085,7 +6109,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// the string compare on has_escape so it stays off the hot path for
 	// every ordinary identifier in a binding position.
 	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) && await_is_reserved_here(p) {
-		report_semantic_error(p, "'await' is reserved as a binding name in this context")
+		report_error(p, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -6473,10 +6497,10 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					}
 					// `yield` is reserved in generator bodies; `await` in async.
 					if v.name == "yield" && yield_is_reserved_here(p) {
-						report_semantic_error(p, "'yield' is reserved as a binding name inside a generator")
+						report_error(p, "'yield' is reserved as a binding name inside a generator")
 					}
 					if v.name == "await" && await_is_reserved_here(p) {
-						report_semantic_error(p, "'await' is reserved as a binding name inside an async function")
+						report_error(p, "'await' is reserved as a binding name inside an async function")
 					}
 					left_ident := new_node(p, Identifier)
 					left_ident.loc = v.loc
@@ -6596,11 +6620,11 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			// in a destructuring binding.
 			if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) &&
 			   await_is_reserved_here(p) {
-				report_semantic_error(p, "'await' is reserved as a binding name in this context")
+				report_error(p, "'await' is reserved as a binding name in this context")
 			}
 			if (p.cur_type == .Yield || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "yield")) &&
 			   yield_is_reserved_here(p) {
-				report_semantic_error(p, "'yield' is reserved as a binding name in this context")
+				report_error(p, "'yield' is reserved as a binding name in this context")
 			}
 			eil := cur_loc(p); ein := cur_value(p)
 			eat(p)
@@ -11721,7 +11745,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				}
 				// Contextually reserved: `yield` in generators, `await` in async/static blocks.
 				if k != nil && k.name == "yield" && yield_is_reserved_here(p) {
-					report_semantic_error(p, "'yield' is reserved as a binding name inside a generator")
+					report_error(p, "'yield' is reserved as a binding name inside a generator")
 				}
 				if k != nil && k.name == "await" && await_is_reserved_here(p) {
 					report_error(p, "'await' is not allowed as a shorthand property identifier")
