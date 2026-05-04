@@ -942,6 +942,20 @@ statement_from :: proc(p: ^Parser, stmt_ptr: ^$T) -> ^Statement {
 }
 
 // Helper to convert any expression node to ^Expression union
+// Check if an expression (or SequenceExpression) contains a SpreadElement.
+// Used to reject `(b, ...a)` without `=>` — rest/spread in parens is only
+// valid as arrow parameter cover grammar.
+expr_contains_spread :: proc(expr: ^Expression) -> bool {
+	if expr == nil { return false }
+	if _, ok := expr^.(^SpreadElement); ok { return true }
+	if seq, ok := expr^.(^SequenceExpression); ok {
+		for e in seq.expressions {
+			if _, s := e^.(^SpreadElement); s { return true }
+		}
+	}
+	return false
+}
+
 expression_from :: #force_inline proc(p: ^Parser, expr_ptr: ^$T) -> ^Expression {
 	if expr_ptr == nil {
 		return nil
@@ -9216,6 +9230,9 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 		return nil
 	}
 
+	if !is_token(p, .String) {
+		report_error(p, "Expected string literal module specifier after 'from'")
+	}
 	source := parse_string_literal(p)
 
 	decl := new_node(p, ExportAllDeclaration)
@@ -11564,6 +11581,12 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// list, not to a value-grouping parenthesisation.
 		if !is_token(p, .Arrow) {
 			p.last_paren_expr = expr
+			// SpreadElement/RestElement inside `(...)` without `=>`
+			// is invalid — rest/spread in parens is only the
+			// cover grammar for arrow function parameters.
+			if expr_contains_spread(expr) {
+				report_error(p, "Unexpected spread/rest element outside of arrow parameters")
+			}
 		}
 		return expr
 
@@ -16025,6 +16048,12 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			tq_expr = expression_from(p, tq_id)
 			for is_token(p, .Dot) {
 				eat(p)
+				// `typeof A.` (trailing dot without property) is a
+				// SyntaxError. Check that an identifier follows.
+				if !is_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.cur_type) {
+					report_error(p, "Expected property name after '.'")
+					break
+				}
 				tq_prop := parse_identifier_name(p)
 				tq_mem := new_node(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
 				tq_pid := new_node(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
@@ -17119,6 +17148,12 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	p.ts_disallow_conditional_types = 0
 	params := make([dynamic]TSTypeParameter, 0, 4, p.allocator)
 	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
+		// Reject empty type parameter positions: `<,T>` or `<,>`.
+		if is_token(p, .Comma) {
+			report_error(p, "Expected type parameter name, got ','")
+			eat(p)
+			continue
+		}
 		param_start := cur_loc(p)
 		// TS type-parameter modifiers - may appear in any order before the
 		// name. `const` (TS 5.0+) lexes as the .Const keyword; `in` lexes
@@ -17141,6 +17176,13 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 				out_mod = true; eat(p); continue
 			}
 			break
+		}
+		// After modifiers, the current token must be a valid type parameter
+		// name (identifier). Reserved words like `in` are NOT valid names:
+		// `type T<in in>` — the second `in` is a keyword, not a name.
+		if is_reserved_word_for_binding(p.cur_type) {
+			msg := fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here.", cur_value(p))
+			report_error(p, msg)
 		}
 		cur := get_current(p)
 		name := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
