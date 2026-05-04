@@ -1,0 +1,67 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 32,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 31,
+      "expression": {
+        "type": "ArrowFunctionExpression",
+        "start": 0,
+        "end": 31,
+        "id": null,
+        "expression": false,
+        "generator": false,
+        "async": false,
+        "params": [
+          {
+            "type": "Identifier",
+            "start": 1,
+            "end": 6,
+            "name": "first"
+          },
+          {
+            "type": "RestElement",
+            "start": 8,
+            "end": 17,
+            "argument": {
+              "type": "Identifier",
+              "start": 11,
+              "end": 17,
+              "name": "second"
+            }
+          },
+          {
+            "type": "Identifier",
+            "start": 19,
+            "end": 24,
+            "name": "third"
+          }
+        ],
+        "body": {
+          "type": "BlockStatement",
+          "start": 29,
+          "end": 31,
+          "body": [
+          ]
+        }      }    }
+  ],
+  "errors": [
+    {
+      "message": "Rest parameter must be last in arrow function parameters",
+      "line": 2,
+      "column": 1,
+      "offset": 32
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 1: Rest parameter must be last in arrow function parameters
+
+--- Statistics ---
+Arena: used=37296B reserved=16777216B ratio=0%
+Parse errors: 1

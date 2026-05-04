@@ -9502,6 +9502,9 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 	}
 
 	for {
+		if left == nil {
+			return nil
+		}
 		cur_type := p.cur_type
 
 		// Skip 'in' as binary op when parsing for-loop init
@@ -9542,6 +9545,17 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				}
 				left = parse_assignment_expr(p, left)
 				continue
+			}
+		}
+
+		if _, is_arrow := left.(^ArrowFunctionExpression); is_arrow {
+			// ArrowFunction is an AssignmentExpression, but the ES grammar only
+			// admits it where an AssignmentExpression is expected. It cannot be
+			// used directly as the head of `?:` or a binary/logical expression;
+			// callers must write `(() => {}) || x` to promote it through a
+			// ParenthesizedExpression. Parameter parens in `() => {}` do not count.
+			if left != p.last_paren_expr && int(op_prec) >= int(Precedence.Conditional) {
+				report_error(p, "Arrow function cannot be used as an unparenthesized operand")
 			}
 		}
 
@@ -13468,7 +13482,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			} else {
 				// Multiple parameters: (a, b) => ...
 				// Each element in the sequence should be an identifier (or pattern)
-				for expr_ptr in e.expressions {
+				for expr_ptr, param_index in e.expressions {
 					// Nil entries arise during error recovery when a cover-expression
 					// element fails to parse. Concrete shape: `([]?, {}) => {}` parses
 					// `[]?` as ConditionalExpression whose consequent is missing
@@ -13489,6 +13503,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						bump_append(&params, param)
 					case ^SpreadElement:
 						// Rest parameter: (a, b, ...rest) => ... (multi-param case).
+						if param_index != len(e.expressions) - 1 {
+							report_error(p, "Rest parameter must be last in arrow function parameters")
+						}
 						// The SpreadElement was built during the earlier
 						// parse_unary_expr pass over the paren-group; its span
 						// ALREADY covers `...<ident>` exactly. By the time we get

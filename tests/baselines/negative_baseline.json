@@ -1,4 +1,6 @@
 {
+  "tests/fixtures/negative/066_arrow_rest_not_last.js": "rejected",
+  "tests/fixtures/negative/064_unparenthesized_arrow_operand.js": "rejected",
   "tests/fixtures/negative/063_semantic_import_shadow.js": "accepted",
   "tests/fixtures/negative/062_semantic_let_var_clash.js": "accepted",
   "tests/fixtures/negative/061_semantic_duplicate_lexical.js": "accepted",

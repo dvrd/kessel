@@ -1,23 +1,22 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15611,
+    "ok-vs-oxc": 15613,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 252,
+    "oxc-only-rejects": 244,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 2048,
-    "reject-both": 595,
-    "kessel-crash": 3
+    "should-pass-rejected": 2054,
+    "reject-both": 598
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15611,
+        "ok-vs-oxc": 15613,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 78,
+        "oxc-only-rejects": 76,
         "kessel-only-rejects": 1
       }
     },
@@ -26,10 +25,9 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 2048,
-        "reject-both": 595,
-        "oxc-only-rejects": 174,
-        "kessel-crash": 3
+        "should-pass-rejected": 2054,
+        "reject-both": 598,
+        "oxc-only-rejects": 168
       }
     },
     "estree": {
@@ -131,7 +129,7 @@
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
-      "oxc-only-rejects": 26
+      "oxc-only-rejects": 24
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -217,8 +215,8 @@
       "should-pass-rejected": 4
     },
     "babel/es2015/arrow-functions": {
-      "should-pass-rejected": 1,
-      "oxc-only-rejects": 10
+      "should-pass-rejected": 2,
+      "oxc-only-rejects": 6
     },
     "babel/es2015/class-methods": {
       "should-pass-rejected": 5
@@ -267,8 +265,8 @@
       "should-pass-rejected": 1
     },
     "babel/es2015/uncategorised": {
-      "should-pass-rejected": 52,
-      "oxc-only-rejects": 16,
+      "should-pass-rejected": 53,
+      "oxc-only-rejects": 15,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {
@@ -372,8 +370,8 @@
       "should-pass-rejected": 1
     },
     "babel/esprima/es2015-arrow-function": {
-      "oxc-only-rejects": 6,
-      "should-pass-rejected": 1
+      "should-pass-rejected": 2,
+      "oxc-only-rejects": 5
     },
     "babel/esprima/es2015-destructuring-assignment": {
       "should-pass-rejected": 2
@@ -527,8 +525,7 @@
       "should-pass-rejected": 15
     },
     "babel/flow/anonymous-function-types": {
-      "should-pass-rejected": 12,
-      "kessel-crash": 1
+      "should-pass-rejected": 13
     },
     "babel/flow/array-types": {
       "should-pass-rejected": 9
@@ -625,8 +622,7 @@
       "should-pass-rejected": 4
     },
     "babel/flow/regression": {
-      "should-pass-rejected": 11,
-      "kessel-crash": 1
+      "should-pass-rejected": 12
     },
     "babel/flow/scope": {
       "should-pass-rejected": 37
@@ -644,8 +640,7 @@
       "should-pass-rejected": 4
     },
     "babel/flow/type-alias": {
-      "should-pass-rejected": 5,
-      "kessel-crash": 1
+      "should-pass-rejected": 6
     },
     "babel/flow/type-annotations": {
       "should-pass-rejected": 130,

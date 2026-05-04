@@ -1,0 +1,54 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 17,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 16,
+      "expression": {
+        "type": "LogicalExpression",
+        "start": 0,
+        "end": 16,
+        "operator": "||",
+        "left": {
+          "type": "ArrowFunctionExpression",
+          "start": 0,
+          "end": 8,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 6,
+            "end": 8,
+            "body": [
+            ]
+          }        },
+        "right": {
+          "type": "Literal",
+          "start": 12,
+          "end": 16,
+          "value": true,
+          "raw": "true"        }      }    }
+  ],
+  "errors": [
+    {
+      "message": "Arrow function cannot be used as an unparenthesized operand",
+      "line": 1,
+      "column": 10,
+      "offset": 9
+    }
+  ]
+}
+Parse errors (1):
+  Line 1, Column 10: Arrow function cannot be used as an unparenthesized operand
+
+--- Statistics ---
+Arena: used=37200B reserved=16777216B ratio=0%
+Parse errors: 1

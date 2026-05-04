@@ -1,7 +1,7 @@
 # Kessel — Handoff Document
 
-**Date:** 2026-05-03
-**Last commit:** TS missing rejection sweep
+**Date:** 2026-05-04
+**Last commit:** invalid module specifier sweep + arrow/rest follow-up
 
 ---
 
@@ -9,14 +9,15 @@
 
 | Metric | Value |
 |---|---|
-| `task test:unit` | ✅ 415/415 |
-| `task test:negative` | ✅ 68 rejected |
+| `task test:unit` | ✅ 417/417 |
+| `task test:negative` | ✅ 70 rejected |
 | `task test:oxc-corpus` | ✅ baseline OK |
 | `verify_multifile.js` | ✅ 0 kessel-only |
-| **oxc-only-rejects** | **252** (was 776) |
+| **oxc-only-rejects** | **244** (was 776) |
 | **kessel-only-rejects** | **1** (same .d.ts edge) |
+| **kessel-crash** | **0** (was 3) |
 
-**Total reduction: 776 → 252 (↓524, 68%)**
+**Total reduction: 776 → 244 (↓532, 69%)**
 
 ---
 
@@ -29,11 +30,11 @@
 ~25 call sites gated on `allow_ts_mode(p)`: variable/param/field/index type annotations, function/class/method/accessor return types, function/class type params, type/interface/enum/declare/namespace/module/global declarations, export type, import type, import-equals, export-as-namespace
 
 ### Phase 3: Targeted fixes (↓74)
-Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names, TS for-using initializer, BigInt enum member names, decorated `this` params, reserved object binding values, malformed TS import, await/yield in enum initializers, missing TS arrow expression bodies, ambient using declarations, async arrow line terminators, parenthesized trailing commas, parenthesized rest without arrow, await-using line terminators, non-const initializers in `.d.ts` files, missing statement bodies, stray `]` statement tokens, empty catch bindings, invalid import/export module specifiers, nested spread arguments
+Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names, TS for-using initializer, BigInt enum member names, decorated `this` params, reserved object binding values, malformed TS import, await/yield in enum initializers, missing TS arrow expression bodies, ambient using declarations, async arrow line terminators, parenthesized trailing commas, parenthesized rest without arrow, await-using line terminators, non-const initializers in `.d.ts` files, missing statement bodies, stray `]` statement tokens, empty catch bindings, invalid import/export module specifiers, nested spread arguments, unparenthesized arrow operands, rest parameters followed by more parameters, nil-LHS recovery in precedence loop
 
 ---
 
-## Remaining: 252
+## Remaining: 244
 
 | Cluster | ~Count |
 |---|---:|
