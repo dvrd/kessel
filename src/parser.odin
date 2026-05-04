@@ -362,6 +362,10 @@ Parser :: struct {
 	// arguments / SuperCall` early error).
 	in_static_block: bool,
 
+	// True when parsing inside a TS namespace/module body. `await` is
+	// not a keyword here even in module-mode files.
+	in_ts_namespace: bool,
+
 	// True when parsing a Statement directly inside a CaseClause /
 	// DefaultClause StatementList. §Explicit Resource Management
 	// forbids `using` / `await using` declarations in this position.
@@ -1678,6 +1682,12 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		if let_is_decl {
 			return parse_variable_declaration(p, nil, true)
 		}
+		// In TS mode, bare `let` without a binding is always an error because
+		// TS treats `let` as a keyword. OXC also rejects this.
+		if allow_ts_mode(p) && (nxt_let.type == .EOF || nxt_let.type == .Semi ||
+		   nxt_let.type == .RBrace) {
+			report_error(p, "'let' declaration requires a binding name")
+		}
 		return parse_expression_or_labeled_statement(p)
 	case .Using:
 		// `using x = ...` is a declaration; `using(...)` or `using.foo` or
@@ -2212,6 +2222,10 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	test := parse_expression(p)
 	if test == nil {
 		return nil
+	}
+	// Spread/rest is not valid in the if-condition expression.
+	if expr_contains_spread(test) {
+		report_error(p, "Unexpected spread/rest element in expression")
 	}
 
 	if !expect_token(p, .RParen) {
@@ -6041,6 +6055,9 @@ await_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
 	// §15.7.5 - class static blocks run under [~Await]; `await` is
 	// a reserved word within ClassStaticBlockBody.
 	if p.in_static_block { return true }
+	// TS namespace / module body is NOT an async context. `await` is
+	// an identifier there, even if the file is a module.
+	if p.in_ts_namespace { return false }
 	// ModuleBody. Use the same source-type heuristic as parse_unary_expr's
 	// .Await case: explicit --source-type=module or auto-detect when
 	// module syntax has been seen.
@@ -8752,6 +8769,20 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 
 	// Module reference. `require` is a contextual keyword here - lex as
 	// Identifier, distinguish by the token value + a `(` follow-up.
+	// Legacy TS `import X = module("mod")` form (TS 0.x). Not supported
+	// by modern TypeScript or OXC. Reject with a clear error.
+	if p.cur_type == .Identifier && p.cur_tok.value == "module" &&
+	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
+		report_error(p, "'module(...)' in import-equals is not supported; use 'require(...)' instead")
+		// Consume `module("...")` for recovery.
+		eat(p) // module
+		eat(p) // (
+		if is_token(p, .String) { eat(p) } // "..."
+		if is_token(p, .RParen) { eat(p) } // )
+		match_semicolon_or_asi(p)
+		decl.loc.span.end = prev_end_offset(p)
+		return statement_from(p, decl)
+	}
 	if p.cur_type == .Identifier && p.cur_tok.value == "require" &&
 	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
 		req_start := cur_loc(p)
@@ -10178,6 +10209,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// §15.7.5 - ClassStaticBlockBody Contains await is a
 			// SyntaxError. Treat as keyword and report.
 			report_semantic_error(p, "'await' is not allowed in a class static block")
+		} else if p.in_ts_namespace {
+			// TS namespace body is not an async context. `await` is
+			// an identifier, not a keyword, even in module-mode files.
+			if yield_next_is_expression_argument(p) {
+				report_error(p, "'await' is only allowed within async functions and at the top levels of modules")
+			}
+			break
 		} else if at_module_top && in_module_file {
 			// TLA - fall through to AwaitExpression parse below.
 		} else if !at_module_top {
@@ -12705,10 +12743,20 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 
 	callee := parse_member_expr(p)
 	if callee == nil {
+		report_error(p, "Expected expression after 'new'")
 		return nil
 	}
 	if _, is_super := callee^.(^Super); is_super {
 		report_error(p, "'new super()' is not allowed")
+	}
+	// `new <T>Foo()` — legacy TS type assertion after `new` is ambiguous
+	// with type parameters. OXC rejects this form. Only fire when the
+	// `<T>` is the direct callee (not parenthesized: `new (<T>x)` is OK).
+	if ta, is_ta := callee^.(^TSTypeAssertion); is_ta {
+		// Check if the assertion starts right after `new ` (no parens).
+		if p.lexer != nil && ta.loc.span.start == start.span.start + 4 {
+			report_error(p, "Type assertion is not allowed after 'new'")
+		}
 	}
 
 	// TS generic type arguments: `new Foo<string>()`.
@@ -16641,6 +16689,7 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 	case "unknown":   return parse_ts_kw(p, TSUnknownKeyword, start)
 	case "undefined": return parse_ts_kw(p, TSUndefinedKeyword, start)
 	case "never":     return parse_ts_kw(p, TSNeverKeyword, start)
+	case "intrinsic": return parse_ts_kw(p, TSIntrinsicKeyword, start)
 	case "readonly":
 		// TS type operator on tuple / array: `readonly T[]`,
 		// `readonly [A, B, C]`, `readonly unknown[]`, `readonly Foo[]`,
@@ -18720,6 +18769,10 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		prev_ambient := p.in_ambient
 		p.in_ambient = p.in_ambient || is_string_named
 		defer p.in_ambient = prev_ambient
+		// TS namespace body is not an async/module-level context for `await`.
+		prev_in_ts_namespace := p.in_ts_namespace
+		p.in_ts_namespace = true
+		defer p.in_ts_namespace = prev_in_ts_namespace
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			// Progress guard: when parse_statement_or_declaration hits an
