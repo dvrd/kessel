@@ -3861,6 +3861,9 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			if param.accessibility == .Protected { acc_name = "protected" }
 			report_error(p, fmt.tprintf("'%s' modifier must precede 'readonly' modifier.", acc_name))
 		}
+		if param_override_order >= 0 && param_readonly_order >= 0 && param_override_order > param_readonly_order {
+			report_error(p, "'override' modifier must precede 'readonly' modifier.")
+		}
 		if param_access_order >= 0 && param_override_order >= 0 && param_access_order > param_override_order {
 			acc_name := "public"
 			if param.accessibility == .Private { acc_name = "private" }
@@ -3920,8 +3923,9 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 
 	// TypeScript: optional parameter marker `?` comes AFTER the name.
 	// Only consume if followed by `:`, `,`, `)`, or `=` - not a ternary.
+	// Gate on TS mode — in plain JS, `?` after a param is a syntax error.
 	param_is_optional := false
-	if is_token(p, .Question) {
+	if allow_ts_mode(p) && is_token(p, .Question) {
 		nxt := peek_token(p)
 		if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen || nxt.type == .Assign {
 			param_is_optional = true
@@ -9085,10 +9089,12 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			}
 		}
 	} else if p.cur_type == .Identifier && p.cur_tok.value == "interface" &&
-	          is_next_token(p, .Identifier) {
-		// `export default interface X { ... }` - TS-only form. Babel and
-		// OXC accept it; spec-strict tools may not. Shape: ExportDefault
-		// Declaration whose declaration is a TSInterfaceDeclaration.
+	          allow_ts_mode(p) {
+		// `export default interface X { ... }` - TS-only form.
+		// `export default interface {}` - anonymous interface is rejected.
+		if !is_next_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
+			report_error(p, "Interface declaration must have a name")
+		}
 		iface_stmt := parse_ts_interface_declaration(p)
 		if iface_stmt != nil {
 			if iface, ok := iface_stmt^.(^TSInterfaceDeclaration); ok {
@@ -11927,6 +11933,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	if is_token(p, .Mul) {
 		eat(p)
 		is_generator = true
+		// After `*`, a property name must follow. `{ * }` is invalid.
+		if is_token(p, .RBrace) || is_token(p, .Comma) || is_token(p, .RParen) {
+			report_error(p, "Expected method name after '*'")
+			return nil
+		}
 	}
 
 	// Parse key
