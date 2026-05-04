@@ -1,22 +1,22 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15648,
+    "ok-vs-oxc": 15650,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 77,
+    "oxc-only-rejects": 74,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
     "should-pass-rejected": 2136,
-    "reject-both": 648
+    "reject-both": 649
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15648,
+        "ok-vs-oxc": 15650,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 41,
+        "oxc-only-rejects": 39,
         "kessel-only-rejects": 1
       }
     },
@@ -26,8 +26,8 @@
         "should-reject-passed": 34,
         "pass-both": 3038,
         "should-pass-rejected": 2136,
-        "reject-both": 648,
-        "oxc-only-rejects": 36
+        "reject-both": 649,
+        "oxc-only-rejects": 35
       }
     },
     "estree": {
@@ -49,8 +49,7 @@
       "skip-multi-file": 5
     },
     "typescript/conformance/classes": {
-      "skip-multi-file": 11,
-      "oxc-only-rejects": 1
+      "skip-multi-file": 11
     },
     "typescript/conformance/constEnums": {
       "skip-multi-file": 1
@@ -125,7 +124,7 @@
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
-      "oxc-only-rejects": 15
+      "oxc-only-rejects": 14
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -754,7 +753,7 @@
     },
     "babel/typescript/types": {
       "should-pass-rejected": 13,
-      "oxc-only-rejects": 6
+      "oxc-only-rejects": 5
     },
     "babel/v8intrinsic/expression": {
       "should-pass-rejected": 4,

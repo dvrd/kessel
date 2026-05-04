@@ -16266,6 +16266,11 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// checker handles semantics.
 		if is_token(p, .Comma) {
 			eat(p)
+			// After the comma, `{` must follow (import-type attributes).
+			// `import("foo", )` with trailing comma is a SyntaxError.
+			if is_token(p, .RParen) {
+				report_error(p, "Expected '{' after ',' in import type options")
+			}
 			// Skip a brace-delimited attribute object if present.
 			if is_token(p, .LBrace) {
 				depth := 1; eat(p)
@@ -18303,6 +18308,16 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	body_start := cur_loc(p); expect_token(p, .LBrace)
 	members := make([dynamic]TSEnumMember, 0, 8, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		// Reject empty enum member positions: `enum E { , }`.
+		if is_token(p, .Comma) {
+			report_error(p, "Expected enum member name")
+			eat(p)
+			continue
+		}
+		// Private names are not valid enum member names.
+		if is_token(p, .PrivateIdentifier) {
+			report_error(p, "An enum member cannot have a private name")
+		}
 		ms := cur_loc(p); member_id: ^Expression; mc := get_current(p)
 		if is_token(p, .String) {
 			str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
