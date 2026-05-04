@@ -13,10 +13,10 @@
 | `task test:negative` | ✅ 68 rejected |
 | `task test:oxc-corpus` | ✅ baseline OK |
 | `verify_multifile.js` | ✅ 0 kessel-only |
-| **oxc-only-rejects** | **292** (was 776) |
+| **oxc-only-rejects** | **290** (was 776) |
 | **kessel-only-rejects** | **1** (same .d.ts edge) |
 
-**Total reduction: 776 → 292 (↓484, 62%)**
+**Total reduction: 776 → 290 (↓486, 63%)**
 
 ---
 
@@ -28,12 +28,12 @@
 ### Phase 2: TS mode gating (↓287)
 ~25 call sites gated on `allow_ts_mode(p)`: variable/param/field/index type annotations, function/class/method/accessor return types, function/class type params, type/interface/enum/declare/namespace/module/global declarations, export type, import type, import-equals, export-as-namespace
 
-### Phase 3: Targeted fixes (↓34)
-Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names, TS for-using initializer, BigInt enum member names, decorated `this` params, reserved object binding values, malformed TS import, await/yield in enum initializers, missing TS arrow expression bodies, ambient using declarations, async arrow line terminators, parenthesized trailing commas, parenthesized rest without arrow, await-using line terminators
+### Phase 3: Targeted fixes (↓36)
+Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names, TS for-using initializer, BigInt enum member names, decorated `this` params, reserved object binding values, malformed TS import, await/yield in enum initializers, missing TS arrow expression bodies, ambient using declarations, async arrow line terminators, parenthesized trailing commas, parenthesized rest without arrow, await-using line terminators, non-const initializers in `.d.ts` files
 
 ---
 
-## Remaining: 292
+## Remaining: 290
 
 | Cluster | ~Count |
 |---|---:|

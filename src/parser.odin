@@ -5718,7 +5718,11 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 		// but `declare const x = v` without type annotation is OK (TS infers).
 		// .d.ts files are fully ambient — never error on const init there.
 		// Inherited ambient (namespace) only errors for non-const kinds.
-		if !p.source_is_dts {
+		if p.source_is_dts {
+			if kind != .Const {
+				report_error(p, "Initializers are not allowed in ambient contexts.")
+			}
+		} else {
 			if is_declare && has_type_ann {
 				report_error(p, "Initializers are not allowed in ambient contexts.")
 			} else if is_declare && kind != .Const {
