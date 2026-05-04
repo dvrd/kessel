@@ -6609,7 +6609,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 
 			// Parse value as pattern (identifiers and contextual keywords)
 			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-				if allow_ts_mode(p) && is_reserved_word_for_binding(p.cur_type) {
+				// Reserved words cannot appear as binding targets in
+				// destructuring patterns: `{ p: void }`, `{ p: null }` etc.
+				if is_reserved_word_for_binding(p.cur_type) {
 					msg := fmt.tprintf(
 						"Identifier expected. '%s' is a reserved word that cannot be used here.",
 						cur_value(p),

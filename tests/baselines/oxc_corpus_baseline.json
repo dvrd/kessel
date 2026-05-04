@@ -3,12 +3,12 @@
   "verdicts": {
     "ok-vs-oxc": 15631,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 100,
+    "oxc-only-rejects": 98,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
     "should-pass-rejected": 2136,
-    "reject-both": 642
+    "reject-both": 644
   },
   "bySuite": {
     "typescript": {
@@ -26,8 +26,8 @@
         "should-reject-passed": 34,
         "pass-both": 3038,
         "should-pass-rejected": 2136,
-        "reject-both": 642,
-        "oxc-only-rejects": 42
+        "reject-both": 644,
+        "oxc-only-rejects": 40
       }
     },
     "estree": {
@@ -423,8 +423,7 @@
       "should-pass-rejected": 2
     },
     "babel/experimental/_no-plugin": {
-      "should-reject-passed": 1,
-      "oxc-only-rejects": 2
+      "should-reject-passed": 1
     },
     "babel/experimental/_removed-plugins": {
       "should-reject-passed": 1
