@@ -2221,6 +2221,11 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	test := parse_expression(p)
 	if test == nil {
+		// If the condition expression failed to parse, report an error
+		// rather than silently dropping the entire if-statement.
+		if !is_token(p, .RParen) {
+			report_error(p, "Expected expression in 'if' condition")
+		}
 		return nil
 	}
 	// Spread/rest is not valid in the if-condition expression.
