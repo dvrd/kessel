@@ -1749,14 +1749,17 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			return parse_expression_or_labeled_statement(p)
 		}
 		if val == "interface" && allow_ts_mode(p) {
-			// `interface Foo { ... }` - next token must be an identifier
+			// `interface Foo { ... }` — next token must be an identifier
 			// (the interface name). In sloppy script, `interface` is a
 			// contextual keyword and can be used as an identifier:
 			// `interface = 1;`, `interface.foo`, `interface()`, etc.
 			// A newline before the name triggers ASI: `interface\nFoo`
 			// is two statements, not `interface Foo { }`. OXC / TSC agree.
+			// JS keywords like `void`, `null`, etc. are not valid as
+			// interface names — use can_be_binding_identifier (not
+			// is_keyword_usable_as_property_name). OXC agrees.
 			nxt_tok := peek_token(p)
-			if !nxt_tok.had_line_terminator && (can_be_binding_identifier(nxt_tok.type) || is_keyword_usable_as_property_name(nxt_tok.type)) {
+			if !nxt_tok.had_line_terminator && can_be_binding_identifier(nxt_tok.type) {
 				return parse_ts_interface_declaration(p)
 			}
 			return parse_expression_or_labeled_statement(p)
@@ -1767,8 +1770,9 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			// `namespace`, etc. as type alias names.
 			// A newline before the name triggers ASI: `type\nFoo = number`
 			// is two statements. OXC / TSC agree.
+			// JS keywords not valid as type alias names.
 			nxt_tok := peek_token(p)
-			if !nxt_tok.had_line_terminator && (can_be_binding_identifier(nxt_tok.type) || is_keyword_usable_as_property_name(nxt_tok.type)) {
+			if !nxt_tok.had_line_terminator && can_be_binding_identifier(nxt_tok.type) {
 				return parse_ts_type_alias_declaration(p)
 			}
 			return parse_expression_or_labeled_statement(p)
@@ -6539,6 +6543,11 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			str_lit.loc.span.end = cur_offset(p) + u32(len(current.value))
 			key = str_lit
 			eat(p)
+			// String-literal keys require `:` — they cannot be shorthand.
+			// `{ "while" }` is invalid; must be `{ "while": binding }`.
+			if !is_token(p, .Colon) {
+				report_error(p, "Expected ':' after string property key in destructuring pattern")
+			}
 		} else if is_token(p, .Number) {
 			// Numeric key: `{ 0: v, 1: w }` (§14.3.3 PropertyName :
 			// NumericLiteral path). Must be followed by `:` - numeric
@@ -8887,6 +8896,9 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .Assign) {
 		eat(p) // consume `=`
 		expr := parse_assignment_expression(p)
+		if expr == nil {
+			report_error(p, "Expected expression after 'export ='")
+		}
 		if !match_semicolon_or_asi(p) {
 			report_error(p, "Expected semicolon after export assignment")
 		}
