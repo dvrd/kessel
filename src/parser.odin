@@ -15855,6 +15855,12 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		types := make([dynamic]^TSType, 0, 4, p.allocator)
 		optional_seen := false
 		for !is_token(p, .RBracket) && !is_token(p, .EOF) {
+			// Reject empty tuple element positions: `[number,,]`.
+			if is_token(p, .Comma) {
+				report_error(p, "Expected tuple element type, got ','")
+				eat(p)
+				continue
+			}
 			elem_start := cur_loc(p)
 			elev: ^TSType
 			if is_token(p, .Dot3) {
@@ -16537,6 +16543,13 @@ parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 	p.ts_disallow_conditional_types = 0
 	params := make([dynamic]^TSType, 0, 4, p.allocator)
 	for !is_close_angle_token(p) && !is_token(p, .EOF) {
+		// Reject empty type argument positions: `Foo<a,,b>` — the `,`
+		// after `a` means a type must follow before the next `,` or `>`.
+		if is_token(p, .Comma) {
+			report_error(p, "Expected type argument, got ','")
+			eat(p)
+			continue
+		}
 		t := parse_ts_type(p); if t != nil { bump_append(&params, t) }; if !match_token(p, .Comma) { break }
 	}
 	if empty_at_start && len(params) == 0 {

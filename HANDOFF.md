@@ -13,11 +13,11 @@
 | `task test:negative` | ✅ 82 rejected |
 | `task test:oxc-corpus` | ✅ baseline OK |
 | `verify_multifile.js` | ✅ 0 kessel-only |
-| **oxc-only-rejects** | **106** (was 776) |
+| **oxc-only-rejects** | **85** (was 776) |
 | **kessel-only-rejects** | **1** (same .d.ts edge) |
 | **kessel-crash** | **0** (was 3) |
 
-**Total reduction: 776 → 106 (↓670, 86%)**
+**Total reduction: 776 → 85 (↓691, 89%)**
 
 ---
 
@@ -38,7 +38,7 @@ Missing unary operands (`void]` / discard-binding shapes), missing ternary conse
 ### Phase 5: More OXC early-error parity (↓28)
 Async arrow restricted productions (`async await =>`, line terminator before `=>`, unparenthesized arrow call), object `async a:` modifier misuse, dynamic `import()` spread in second arg, invalid `export default using` declarations, TS class heritage/implements empty lists, readonly methods, override constructors, type-only import/export specifier misuse, parenthesized binding elements inside patterns, and mapped type `as` without a type.
 
-### Phase 6: Newline / reserved-word / tuple sweep (↓38)
+### Phase 6: Newline / reserved-word / tuple / scope sweep (↓91)
 - **TS declaration newlines (8):** ASI between `interface`/`type`/`namespace`/`module` and their names — newline triggers ASI, rejecting `type\nFoo = number` and `declare interface\nI {}` etc.
 - **for-await context (4):** Top-level `for await` in non-module JS files correctly rejected; TS files exempt since they may contain later `export` that upgrades to module.
 - **Decorator on abstract (3):** `@dec abstract foo(): void` in class bodies now rejected — decorators require implementations.
@@ -47,20 +47,20 @@ Async arrow restricted productions (`async await =>`, line terminator before `=>
 
 ---
 
-## Remaining: 106
+## Remaining: 85
 
 | Cluster | ~Count |
 |---|---:|
-| Unexpected token (diverse) | ~56 |
-| Expected semicolon (paren arrows, TS edge) | ~16 |
-| Expected X but found X | ~13 |
-| Reserved word as identifier | ~5 |
+| Unexpected token (diverse) | ~47 |
+| Expected semicolon (paren arrows, TS edge) | ~12 |
+| Expected X but found X | ~9 |
+| Reserved word as identifier | ~2 |
 | Keyword escapes | ~2 |
-| Decorators not valid here | ~2 |
+| Decorators not valid here | ~1 |
 | Yield context | ~2 |
 | Import type options | ~2 |
-| Decorator/yield/export | ~6 |
-| Small (1 each) | ~9 |
+| Import type options | ~5 |
+| Small (1 each) | ~7 |
 
 ### Largest remaining sub-clusters
 - Parenthesized binding elements in arrow params (6): `(a, (b)) => 42`
