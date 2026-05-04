@@ -13,3 +13,4 @@ HANDOFF.md
 .firecrawl/
 .profile_runs/
 .research/
+node_modules

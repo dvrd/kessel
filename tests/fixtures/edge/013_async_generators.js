@@ -18,6 +18,10 @@ async function* streamLines(file) {
   }
 }
 
-for await (const chunk of fetchPages('/api/data')) {
-  process(chunk);
+// Wrap for-await in an async function — for-await is only valid
+// inside async functions or at module top level.
+async function main() {
+  for await (const chunk of fetchPages('/api/data')) {
+    process(chunk);
+  }
 }

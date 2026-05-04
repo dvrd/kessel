@@ -29,14 +29,14 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		// `last_lit_*` is only ever written by the lexer for tokens that
 		// carry a cooked value: numbers, strings, big ints, regex, the
 		// template family, and escape-bearing identifiers (plain plus
-		// PrivateIdentifier). For everything else — operators, punct,
-		// keywords, plain identifiers — last_lit_* still holds whatever the
+		// PrivateIdentifier). For everything else - operators, punct,
+		// keywords, plain identifiers - last_lit_* still holds whatever the
 		// last literal-bearing lex run left there. Reading is safe because
 		// every consumer below validates with `cur_lit_offset == ft.start`,
 		// but the WRITES are pure waste for the ~80 %% of real-world tokens
 		// that aren't literal-bearing. Gating saves three writes
 		// (offset 4 B + value union ~24 B + type 1 B → padded to ~32 B) on
-		// every non-literal advance — hundreds of thousands of skipped
+		// every non-literal advance - hundreds of thousands of skipped
 		// stores per parse on monaco-class files.
 		cur_kind := a.cur.kind
 		cur_flags := a.cur.flags
@@ -222,10 +222,10 @@ bump_alloc :: #force_inline proc(pool: ^BumpPool, size: int, align: int) -> rawp
 // Odin's runtime `_append_elem` is `#force_no_inline` and takes
 // `size_of_elem: int` as a runtime parameter. That means the
 // `mem_copy_non_overlapping(data, arg_ptr, size_of_elem)` call inside it
-// can't be specialised by LLVM — it falls through to a system `memmove`
+// can't be specialised by LLVM - it falls through to a system `memmove`
 // call even when copying a single 8-byte pointer. Profile evidence on
 // monaco.js: 86 % of `_append_elem` samples are inside `_platform_memmove`,
-// for elements that are typically 8–16 B.
+// for elements that are typically 8-16 B.
 //
 // `bump_append` is a generic, `#force_inline` replacement that lets the
 // compiler specialise the element copy per type T. For T = ^Statement
@@ -311,7 +311,7 @@ Parser :: struct {
 	// in the default --no-preserve-parens shape). Used by
 	// parse_assignment_expr to enforce §12.10 / §13.15:
 	// AssignmentTargetType(ParenthesizedExpression) = AssignmentTargetType
-	// of the inner expression — which means a paren-wrapped ObjectLiteral /
+	// of the inner expression - which means a paren-wrapped ObjectLiteral /
 	// ArrayLiteral / ArrowFunction / etc. is INVALID as the LHS of `=`,
 	// even when the bare inner form would be valid as an
 	// ObjectAssignmentPattern / ArrayAssignmentPattern. Test262
@@ -320,7 +320,7 @@ Parser :: struct {
 	// objectliteral}.js. Set by parse_primary_expr's LParen branch on
 	// successful `(...)` parse; the LHS-tail loop in parse_lhs_tail
 	// implicitly invalidates the marker by producing a NEW wrapping
-	// expression (MemberExpression / CallExpression / …), so a check via
+	// expression (MemberExpression / CallExpression / ...), so a check via
 	// pointer equality `left == p.last_paren_expr` distinguishes the bare
 	// paren-wrapped form from `({}.x)` etc.
 	last_paren_expr: ^Expression,
@@ -457,10 +457,15 @@ Parser :: struct {
 	conditional_depth: int,
 
 	// TS: depth counter for contexts where conditional types are suppressed.
-	// When > 0, parse_ts_type will NOT parse `extends … ? … : …` as a
+	// When > 0, parse_ts_type will NOT parse `extends ... ? ... : ...` as a
 	// conditional type. Used by the infer-with-constraints speculative
 	// parse (TS 4.7+) to match OXC / TypeScript behaviour.
 	ts_disallow_conditional_types: int,
+
+	// True while parsing elements of a TS tuple type `[T?, U, ...V]`.
+	// Suppresses the JSDoc-nullable `?` consumption in parse_ts_postfix
+	// so that postfix `?` is reserved for TSOptionalType instead.
+	ts_in_tuple_type: bool,
 
 	// Disallow 'in' as binary operator (for for-loop init parsing)
 	no_in:           bool,
@@ -518,7 +523,7 @@ Parser :: struct {
 	// checks (break/continue context, label scoping, super/new.target
 	// context, duplicate bindings, strict-mode parameter checks, etc.).
 	// These checks are deferred to the semantic checker pass. When true,
-	// the parser enforces them inline — matching the pre-refactor
+	// the parser enforces them inline - matching the pre-refactor
 	// behaviour for backwards compatibility and standalone CLI use.
 	check_semantics:   bool,
 
@@ -535,8 +540,8 @@ Parser :: struct {
 	// initializer parse time so it does NOT depend on this walker.
 	private_id_count: u32,
 
-	// True while parsing the declaration of `export default function …`
-	// or `export default class …`. Used to suppress OXC-parity checks
+	// True while parsing the declaration of `export default function ...`
+	// or `export default class ...`. Used to suppress OXC-parity checks
 	// that OXC doesn't enforce in the default-export position (e.g.
 	// `export default function *yield() {}` is accepted by OXC).
 	in_export_default: bool,
@@ -577,7 +582,7 @@ Parser :: struct {
 	// iterate post-parse. See ScopePending doc-comment above for the
 	// motivation. Sorted by start_offset before iteration so error messages
 	// surface in source order regardless of parse-exit push order (innermost-
-	// first — a child block exits before its parent).
+	// first - a child block exits before its parent).
 	scope_pending: [dynamic]ScopePending,
 
 	// Suppresses scope_pending pushes while true. Saved/restored around the
@@ -756,7 +761,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.pending_proto_dups = make([dynamic][2]u32, 0, 2, alloc)
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
-	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1–2 times.
+	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1-2 times.
 	scope_cap := 16
 	if p.source_len > 4096 {
 		scope_cap = p.source_len / 512
@@ -848,13 +853,13 @@ mark_last_scope_function_scope :: #force_inline proc(p: ^Parser) {
 // at the top level of a scope contributes work to scope_check_body's lex /
 // var / Annex-B clash detection. ExpressionStatement / ReturnStatement /
 // EmptyStatement / IfStatement / WhileStatement / ForStatement / etc. are
-// all NO-OPs from scope_process_statement's perspective — their union arms
-// fall through. Skipping the push for trivial bodies avoids ~5–10 % per-
+// all NO-OPs from scope_process_statement's perspective - their union arms
+// fall through. Skipping the push for trivial bodies avoids ~5-10 % per-
 // callback overhead on real-world bundles like antd.js where most arrow
 // bodies are `() => jsx` or `() => { return jsx }` and have nothing to
 // verify. The walk is O(N) over the body once at parse-exit, vs the
 // scope_check_body call's O(N) + ScopeMap allocations and per-stmt
-// switch dispatch — net positive for any body that's more than ~3 stmts.
+// switch dispatch - net positive for any body that's more than ~3 stmts.
 //
 // CORRECTNESS: BlockStatement is included because scope_process_statement's
 // BlockStatement arm calls scope_hoist_vars to extract `var` from nested
@@ -1019,8 +1024,8 @@ new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Statement) {
 // Uses a 3-token lookahead via lexer snapshot/restore: advances past
 // `await` and `using`, checks the third token, then rewinds.
 // Declaration if and only if the third token is a BindingIdentifier
-// with no preceding LineTerminator. Anything else — `[`, `.`, `(`,
-// `` ` ``, `?`, `;`, `in`, `instanceof`, `of`, operators — means
+// with no preceding LineTerminator. Anything else - `[`, `.`, `(`,
+// `` ` ``, `?`, `;`, `in`, `instanceof`, `of`, operators - means
 // `using` is an expression-position identifier.
 await_using_starts_decl :: proc(p: ^Parser) -> bool {
 	snap := lexer_snapshot(p)
@@ -1032,7 +1037,7 @@ await_using_starts_decl :: proc(p: ^Parser) -> bool {
 	// A LineTerminator between `using` and the binding breaks the
 	// restricted production.
 	if third_lt { return false }
-	// The token must be a BindingIdentifier — an Identifier or a
+	// The token must be a BindingIdentifier - an Identifier or a
 	// contextual keyword that can serve as one.
 	return third_type == .Identifier || can_be_binding_identifier(third_type)
 }
@@ -1158,7 +1163,7 @@ get_current :: #force_inline proc(p: ^Parser) -> Token {
 // can_insert_semicolon checks if ASI is allowed according to ECMAScript spec.
 // Matches OXC's implementation: any line terminator before the current token,
 // or current token is `}` or EOF, triggers ASI. Continuation tokens (`(`, `[`,
-// etc.) are NOT suppressed here — the expression parser's LHS-tail loop
+// etc.) are NOT suppressed here - the expression parser's LHS-tail loop
 // handles them by breaking on `had_line_terminator` before consuming call /
 // member-access / tagged-template continuations.
 can_insert_semicolon :: #force_inline proc(p: ^Parser) -> bool {
@@ -1184,9 +1189,9 @@ expect_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 	return false
 }
 
-// match_semicolon_or_asi_export — like match_semicolon_or_asi but with
+// match_semicolon_or_asi_export - like match_semicolon_or_asi but with
 // permissive ASI for export/import declarations. These are statements, not
-// expressions — `[` or `(` on the next line can't be a continuation.
+// expressions - `[` or `(` on the next line can't be a continuation.
 // Treats any line terminator as ASI, regardless of the next token.
 match_semicolon_or_asi_export :: #force_inline proc(p: ^Parser) -> bool {
 	if p.cur_type == .Semi { advance_token(p); return true }
@@ -1379,7 +1384,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// BOM-followed-by-hashbang is rejected by the lexer (it emits one
 	// `Invalid character `!`` diagnostic at the `!` position, then skips
 	// past the offending line so the rest of the source lexes cleanly).
-	// Previously the parser emitted a duplicate diagnostic here —
+	// Previously the parser emitted a duplicate diagnostic here -
 	// removed because the lexer is the canonical source.
 	_ = p.lexer
 	// Pre-size body based on source length: ~1 top-level statement per 50 bytes
@@ -1625,13 +1630,13 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			// §ASI restricted production: in sloppy mode, `let [LT] <identifier>`
 			// triggers ASI so `let` is treated as an IdentifierReference (not a
 			// declaration). e.g. `for (;;) let\nx = 1` is valid in sloppy mode.
-			// IMPORTANT: `let [` and `let {` are ALWAYS declarations —
+			// IMPORTANT: `let [` and `let {` are ALWAYS declarations -
 			// ExpressionStatement lookahead restriction prohibits `let [`
 			// (§ExprStmt), and `let {` has no expression-statement reading
-			// (V8 and OXC both parse `let\n{ a } = …` as a declaration).
+			// (V8 and OXC both parse `let\n{ a } = ...` as a declaration).
 			// In strict mode, `let` is a keyword, so always a declaration.
 			// In single-statement contexts (if/while/for/with consequent),
-			// `let\n{` must also trigger ASI — lexical declarations are
+			// `let\n{` must also trigger ASI - lexical declarations are
 			// forbidden there, so `let` is an identifier. block_depth > 0
 			// signals we're inside such a context (set by parse_if_statement
 			// et al. before calling parse_statement_or_declaration).
@@ -1647,7 +1652,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// downstream if the next token isn't valid.
 		// In strict mode, `let` is a keyword. If the next token can start
 		// a binding (Identifier, `[`, `{`), it's a declaration. Otherwise
-			// (`let + 1`, `let.x`), parse as expression — the semantic checker
+			// (`let + 1`, `let.x`), parse as expression - the semantic checker
 		// (or report_semantic_error) handles the strict-mode violation.
 		if p.strict_mode && !let_is_decl {
 			// Only force declaration if the next token looks like a binding.
@@ -1687,7 +1692,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		if is_next_token(p, .Using) {
 			// `await using` is the AwaitUsingDeclaration head, but ONLY if
 			// the token after `using` is a BindingIdentifier (no line break).
-			// Otherwise `using` is an identifier — the operand of `await`:
+			// Otherwise `using` is an identifier - the operand of `await`:
 			//   `await using[x]`    → await (using[x])
 			//   `await using.x`     → await (using.x)
 			//   `await using(x)`    → await (using(x))
@@ -1704,7 +1709,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 	case .Identifier:
 		// §Grammar Notation: terminal symbols must not have Unicode escapes.
 		// `\u0061sync function*` tries to write `async function*` with an
-		// escaped keyword — this is a SyntaxError.
+		// escaped keyword - this is a SyntaxError.
 		if p.cur_tok.has_escape && p.cur_tok.value == "async" {
 			// Peek ahead: if this looks like an async function / arrow, error.
 			nxt := peek_dispatch(p)
@@ -1744,12 +1749,14 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			return parse_expression_or_labeled_statement(p)
 		}
 		if val == "interface" && allow_ts_mode(p) {
-			// `interface Foo { ... }` — next token must be an identifier
+			// `interface Foo { ... }` - next token must be an identifier
 			// (the interface name). In sloppy script, `interface` is a
 			// contextual keyword and can be used as an identifier:
 			// `interface = 1;`, `interface.foo`, `interface()`, etc.
+			// A newline before the name triggers ASI: `interface\nFoo`
+			// is two statements, not `interface Foo { }`. OXC / TSC agree.
 			nxt_tok := peek_token(p)
-			if can_be_binding_identifier(nxt_tok.type) || is_keyword_usable_as_property_name(nxt_tok.type) {
+			if !nxt_tok.had_line_terminator && (can_be_binding_identifier(nxt_tok.type) || is_keyword_usable_as_property_name(nxt_tok.type)) {
 				return parse_ts_interface_declaration(p)
 			}
 			return parse_expression_or_labeled_statement(p)
@@ -1758,8 +1765,10 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			// `type Foo = ...` - next token must be an identifier (the alias
 			// name). TS allows contextual keywords like `abstract`, `module`,
 			// `namespace`, etc. as type alias names.
+			// A newline before the name triggers ASI: `type\nFoo = number`
+			// is two statements. OXC / TSC agree.
 			nxt_tok := peek_token(p)
-			if can_be_binding_identifier(nxt_tok.type) || is_keyword_usable_as_property_name(nxt_tok.type) {
+			if !nxt_tok.had_line_terminator && (can_be_binding_identifier(nxt_tok.type) || is_keyword_usable_as_property_name(nxt_tok.type)) {
 				return parse_ts_type_alias_declaration(p)
 			}
 			return parse_expression_or_labeled_statement(p)
@@ -1769,7 +1778,10 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		if val == "namespace" && allow_ts_mode(p) {
 			// `namespace Foo { ... }` or `namespace A.B { ... }`
-			if is_next_token(p, .Identifier) {
+			// Newline before the name triggers ASI: `namespace\nFoo { }`
+			// is two statements. OXC / TSC agree.
+			nxt_ns := peek_token(p)
+			if !nxt_ns.had_line_terminator && is_next_token(p, .Identifier) {
 				return parse_ts_module_declaration(p, .Namespace)
 			}
 			return parse_expression_or_labeled_statement(p)
@@ -1779,12 +1791,14 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			// `module M { ... }` (bare-identifier module, equivalent to
 			// namespace). TS allows both forms; the identifier form is the
 			// legacy spelling of `namespace M { ... }`.
-			if is_next_token(p, .String) || is_next_token(p, .Identifier) {
+			// Newline before the name triggers ASI.
+			nxt_mod := peek_token(p)
+			if !nxt_mod.had_line_terminator && (is_next_token(p, .String) || is_next_token(p, .Identifier)) {
 				return parse_ts_module_declaration(p, .Module)
 			}
 			return parse_expression_or_labeled_statement(p)
 		}
-		// `global { ... }` — TS global augmentation without `declare` prefix.
+		// `global { ... }` - TS global augmentation without `declare` prefix.
 		// Appears at top level, inside namespaces, or inside ambient modules.
 		if val == "global" && allow_ts_mode(p) && is_next_token(p, .LBrace) {
 			stmt := parse_ts_global_declaration(p)
@@ -2078,13 +2092,13 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	expr_stmt.loc = start
 	expr_stmt.expression = expr
 
-	// ECMA-262 §12.10 — ExpressionStatement requires a `;` (or ASI). When
+	// ECMA-262 §12.10 - ExpressionStatement requires a `;` (or ASI). When
 	// the next token isn't `;`, isn't preceded by a line terminator, and
 	// isn't `}` or EOF, the parser must report a SyntaxError. Test262
 	// negative fixtures rely on this:
-	//   {1 2} 3                        // S7.9_A10_T8 — missing ; in block
-	//   if (false) x = 1 else x = -1   // S7.9_A11_T4 — missing ; before else
-	//   //comment\n line comment      // line-terminators — missing ;
+	//   {1 2} 3                        // S7.9_A10_T8 - missing ; in block
+	//   if (false) x = 1 else x = -1   // S7.9_A11_T4 - missing ; before else
+	//   //comment\n line comment      // line-terminators - missing ;
 	//
 	// ASI for `yield\n/regex/` and similar: when the expression statement
 	// ends with a line terminator and the next token is `/` or `/=`, the
@@ -2168,7 +2182,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	// `if () ;` is a SyntaxError per §14.6 — the IfStatement grammar
+	// `if () ;` is a SyntaxError per §14.6 - the IfStatement grammar
 	// requires a non-empty Expression in the head. parse_expression
 	// returns nil for `)` without diagnosing, so we surface the error
 	// here. Test262: language/statements/if/S12.5_A8.js.
@@ -2317,6 +2331,14 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			if p.in_function {
 				report_error(p, "'for await' outside of async function")
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
+				// Explicitly forced Script mode - reject unconditionally.
+				report_error(p, "Top-level 'for await' is only valid in module code")
+			} else if !have && !allow_ts_mode(p) {
+				// Auto-detected JS file with no forced source type.
+				// `for await` at script top level triggers a module-only
+				// error. TS files are exempt because the TS compiler
+				// treats them as modules when they contain import/export,
+				// and we parse top-down before seeing those.
 				report_error(p, "Top-level 'for await' is only valid in module code")
 			}
 		}
@@ -2346,7 +2368,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// LexicalBinding after `let`. Anything else falls through to
 		// the expression-head path. is_identifier_like_token covers
 		// every contextual keyword that's also a valid binding name
-		// (`assert`, `abstract`, `declare`, … plus the JS contextuals).
+		// (`assert`, `abstract`, `declare`, ... plus the JS contextuals).
 		if nxt.type == .LBracket || nxt.type == .LBrace ||
 		   is_identifier_like_token(nxt.type) {
 			let_starts_decl = true
@@ -2406,7 +2428,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 		}
 	} else if !is_token(p, .Semi) {
-		// Special case: `for (await of ...)` in script mode — `await` is
+		// Special case: `for (await of ...)` in script mode - `await` is
 		// an IdentifierReference used as the for-of LHS, not an
 		// AwaitExpression. Detect by checking that next token is `of`.
 		if is_token(p, .Await) && !p.in_async && p.lexer != nil &&
@@ -2429,12 +2451,12 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .In) || is_token(p, .Of) {
 		// for-in or for-of
 		is_in := is_token(p, .In)
-		// §15.8.2 — `for await` is only legal with `of`, never `in`.
+		// §15.8.2 - `for await` is only legal with `of`, never `in`.
 		if is_in && await {
 			report_error(p, "'await' can only be used in conjunction with 'for...of' statements")
 		}
 		eat(p) // consume in/of
-		// `for (x of /re/) {}` — after consuming the `of` keyword the next
+		// `for (x of /re/) {}` - after consuming the `of` keyword the next
 		// token is the iterator expression. A leading `/` is the start of
 		// a RegularExpressionLiteral here, but the lexer already classified
 		// it as `.Div` because `.Of` is no longer in can_start_regex (would
@@ -2747,7 +2769,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	report_statement_only_position(p, body, false)
 
-	// §14.7.4.1 — It is a Syntax Error if any element of the BoundNames of
+	// §14.7.4.1 - It is a Syntax Error if any element of the BoundNames of
 	// the for-loop LexicalDeclaration also occurs in the VarDeclaredNames of
 	// Statement (e.g. `for (const x = 0; ...) { var x; }`).
 	if init_decl != nil && body != nil {
@@ -2768,7 +2790,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
-	// `for await (;;)` / `for await (let i=0;;)` — await is only valid
+	// `for await (;;)` / `for await (let i=0;;)` - await is only valid
 	// with for-of, not regular for-statements.
 	if await {
 		report_error(p, "'await' can only be used in conjunction with 'for...of' statements")
@@ -2912,7 +2934,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	// Early-error checks for break (label scope, loop/switch context)
 	// are deferred to the semantic checker pass.
 
-	// §14.9 — BreakStatement requires a `;` (or ASI).
+	// §14.9 - BreakStatement requires a `;` (or ASI).
 	expect_semicolon_or_asi(p)
 
 	break_ := new_node(p, BreakStatement)
@@ -2949,7 +2971,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	// Early-error checks for continue (loop context, label targets)
 	// are deferred to the semantic checker pass.
 
-	// §14.8 — ContinueStatement requires a `;` (or ASI).
+	// §14.8 - ContinueStatement requires a `;` (or ASI).
 	expect_semicolon_or_asi(p)
 
 	cont := new_node(p, ContinueStatement)
@@ -3018,7 +3040,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	switch_.loc.span.end = prev_end_offset(p)
-	// §14.12.1 — all SwitchCase consequents share a single block-scope
+	// §14.12.1 - all SwitchCase consequents share a single block-scope
 	// (the switch's StatementList). Flatten the per-case lists into one
 	// slice and queue it for post-parse verification. Probe relevance
 	// across all cases first; allocating the flat slice when nothing in
@@ -3310,7 +3332,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	// §13.11 WithStatement : with ( Expression ) Statement — Expression
+	// §13.11 WithStatement : with ( Expression ) Statement - Expression
 	// is the comma-operator production, so `with (a, b, c) ...` is
 	// legal. Use parse_expression (which calls parse_expr_with_prec at
 	// .Comma) rather than parse_assignment_expression. Test262
@@ -3370,7 +3392,10 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	id: Maybe(BindingIdentifier)
 
-	has_name := is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type)
+	// For function names, only binding-identifier-capable tokens qualify.
+	// Property-name keywords (null, true, false, if, enum, class, etc.)
+	// are NOT valid as FunctionDeclaration / FunctionExpression names.
+	has_name := is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type)
 	if !is_expr || has_name {
 		if has_name {
 			current := get_current(p)
@@ -3416,6 +3441,14 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// not a generator. Skip the contextual check for plain
 			// FunctionExpression names; the function-itself flags (async /
 			// generator) drive the FunctionExpression-name check above.
+			// §12.1.1 - `enum` is a FutureReservedWord that is always
+			// reserved (§12.1.3), regardless of strict mode. It may appear
+			// in can_be_binding_identifier for TS enum declarations, but it
+			// can never serve as a function or class name in JS. The lexer
+			// emits `enum` as .Identifier (contextual), so check by value.
+			if current.value == "enum" {
+				report_error(p, "'enum' is a reserved word and cannot be used as a function name")
+			}
 			if !is_expr {
 				if current.value == "await" && await_is_reserved_here(p) {
 					report_error(p, "'await' cannot be used as a function name in module / async context")
@@ -3466,7 +3499,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	prev_in_async_param_outer := p.in_async
 	if !generator { p.in_generator = false }
 	if !async    { p.in_async = false }
-	// §15.2.1 / §15.7 — set `in_function` before params so the
+	// §15.2.1 / §15.7 - set `in_function` before params so the
 	// AwaitExpression / YieldExpression checks in parse_unary_expr see
 	// that we are inside a function scope, preventing `await 1` in
 	// non-async function params from being misinterpreted as TLA.
@@ -3539,7 +3572,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	body_strict := false
 	allow_no_body_here := allow_no_body || p.in_ambient || allow_ts_mode(p)
 	// Ambient function: `declare function f(): T;` (with or without
-	// semicolon — ASI applies in .d.ts files where `export declare
+	// semicolon - ASI applies in .d.ts files where `export declare
 	// function parse(...): Promise<R>` is followed by a newline and the
 	// next top-level `export`). Three triggers for an empty body:
 	//   1. explicit Semi
@@ -3554,7 +3587,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		          (is_token(p, .RBrace) || is_token(p, .EOF) ||
 		           p.cur_tok.had_line_terminator) {
 			is_no_body = true
-			// Don't consume — the outer parse_statement_or_declaration
+			// Don't consume - the outer parse_statement_or_declaration
 			// loop expects to see the next-statement token unchanged.
 		}
 	}
@@ -3565,7 +3598,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			directives = make([dynamic]Directive, 0, 0, p.allocator),
 		}
 	} else {
-		// §14.1 — an explicit `declare function f() {}` is a SyntaxError
+		// §14.1 - an explicit `declare function f() {}` is a SyntaxError
 		// (the body contradicts declare). But a function inside
 		// `declare module "m" { function f() {} }` IS allowed by OXC.
 		if allow_no_body {
@@ -3625,7 +3658,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		report_duplicate_param_names(p, params[:], true)
 	}
 
-	// §15.2.1.1 / §15.5.1 — It is a Syntax Error if any element of the
+	// §15.2.1.1 / §15.5.1 - It is a Syntax Error if any element of the
 	// BoundNames of FormalParameters also occurs in the LexicallyDeclaredNames
 	// of FunctionBody. e.g. `function f(a) { const a = 1; }` is SyntaxError.
 	// Collect param names and check against body's lex declarations.
@@ -3873,7 +3906,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		if decorators_seen {
 			report_error(p, "Decorators cannot be applied to 'this' parameters.")
 		}
-		// TS `this` parameter: `function(this: T) {}` — specifies the
+		// TS `this` parameter: `function(this: T) {}` - specifies the
 		// type of `this` inside the function. Not a real runtime param.
 		ident := new_node(p, Identifier)
 		ident.loc = loc_from_token(&p.cur_tok)
@@ -3899,7 +3932,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	// TypeScript type annotation on parameter. Identifier patterns store
 	// the annotation on the Identifier itself (OXC convention). For
 	// destructuring patterns (ObjectPattern, ArrayPattern, RestElement)
-	// OXC stores it on the pattern node — S26 W4b added the corresponding
+	// OXC stores it on the pattern node - S26 W4b added the corresponding
 	// slots to ObjectPattern + ArrayPattern. Pre-W4b the annotation was
 	// parsed but silently dropped for these shapes; surfaced by 3
 	// divergences on tsx/001 + tsx/002. AssignmentPattern carries it on
@@ -4132,7 +4165,11 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// `class let`, `class implements`, `class yield`, `class eval`
 		// etc. are always SyntaxErrors, regardless of enclosing strict
 		// / sloppy setting.
-		if is_strict_reserved_word(name_tok_type) || is_strict_reserved_name(current.value) {
+		// §12.1.1 - `enum` is always reserved; never a valid class name.
+		// The lexer emits `enum` as .Identifier (contextual), check by value.
+		if current.value == "enum" {
+			report_error(p, "'enum' is a reserved word and cannot be a class name")
+		} else if is_strict_reserved_word(name_tok_type) || is_strict_reserved_name(current.value) {
 			msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value)
 			report_semantic_error(p, msg)
 		} else if is_eval_or_arguments(current.value) {
@@ -4171,7 +4208,10 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
-		// TS: optional type arguments on the super class — `extends Foo<T, U>`.
+		if super_class == nil {
+			report_error(p, "Expected expression after 'extends'")
+		}
+		// TS: optional type arguments on the super class - `extends Foo<T, U>`.
 		// parse_left_hand_side_expr stops at the `<` (it's not a JS infix op
 		// in this position), so we have to parse the args here. Closes 95+
 		// OXC corpus rejects in the "Expected {, got <" cluster (S26 W6
@@ -4229,6 +4269,9 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	   is_token(p, .Identifier) && p.cur_tok.value == "implements" {
 		eat(p)
 		implements_list = parse_ts_heritage_list(p)
+		if len(implements_list) == 0 {
+			report_error(p, "Expected interface name after 'implements'")
+		}
 	}
 
 	body := parse_class_body(p)
@@ -4365,7 +4408,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		// §15.7.1 - at most one constructor per class. Detect by name
 		// + kind (Method or Constructor) + non-static + non-computed.
 		//
-		// TS exception: overload signatures — multiple `constructor(...);`
+		// TS exception: overload signatures - multiple `constructor(...);`
 		// declarations with empty bodies followed by ONE implementation
 		// `constructor(...) { ... }`. Detect by the FunctionExpression's
 		// body being empty (overload sig) vs non-empty (implementation).
@@ -4391,7 +4434,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 					if has_body { constructor_implementation_seen = true }
 					constructor_seen = true
 				} else {
-					// Plain JS: §15.7.1 — only one constructor allowed.
+					// Plain JS: §15.7.1 - only one constructor allowed.
 					if constructor_seen {
 						report_semantic_error(p, "Duplicate constructor in class")
 					} else {
@@ -4491,9 +4534,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		nxt := p.lexer.nxt.kind
 		// When the NEXT token indicates the keyword is being used as
 		// the member NAME rather than as a modifier prefix, break:
-		//   ( = ; , }   — plain member-name-then-body/init/field
-		//   <           — TS generic method `declare<T>(){}` (TS only)
-		//   ! ? :       — TS definite/optional/annotation `abstract!:T`
+		//   ( = ; , }   - plain member-name-then-body/init/field
+		//   <           - TS generic method `declare<T>(){}` (TS only)
+		//   ! ? :       - TS definite/optional/annotation `abstract!:T`
 		is_member_start := nxt == .LParen || nxt == .Assign || nxt == .Semi ||
 		                   nxt == .Comma || nxt == .RBrace ||
 		                   (allow_ts_mode(p) && (nxt == .LAngle || nxt == .Not || nxt == .Question || nxt == .Colon))
@@ -4504,7 +4547,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// shaped identifier (`public\n private foo()`) is the FIELD NAME,
 		// not a modifier on the next member. The legal class-element
 		// production for `public` followed by a LineTerminator is the
-		// PropertyDefinition `public;` — same ASI rule that lets
+		// PropertyDefinition `public;` - same ASI rule that lets
 		// `accessor\n a;` parse as two fields. Test:
 		// typescript/compiler/asiPublicPrivateProtected.ts.
 		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
@@ -4583,7 +4626,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	// Check for `accessor` keyword (Stage-3 decorators auto-accessor):
 	//   accessor PropertyName Initializer_opt
-	// `accessor` is contextual — it's the auto-accessor keyword only when
+	// `accessor` is contextual - it's the auto-accessor keyword only when
 	// the NEXT token can start a class element name AND there's no
 	// LineTerminator between them. Otherwise it's a plain identifier name
 	// (field, method, or get/set accessor name). The exclusion list
@@ -4626,7 +4669,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// Check for get/set accessor keywords. `get` / `set` are contextual
-	// keywords — valid as plain class-member names too. The accessor
+	// keywords - valid as plain class-member names too. The accessor
 	// promotion fires only when the next token can begin a property name
 	// (identifier, string, computed-name `[`, generator `*`, or any
 	// keyword usable as a property name). Tokens like `=` (field init),
@@ -4761,7 +4804,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// `s` as a computed-property-key expression, then choked on `:` looking
 		// for `]`. Closes 130+ OXC corpus rejects in the "Expected ], got :"
 		// cluster (S26 W6 phase 3 bug class #10). Skipped at the AST level for
-		// now — the parser accepts the syntax, the corpus smoke gate passes,
+		// now - the parser accepts the syntax, the corpus smoke gate passes,
 		// and a proper TSIndexSignature class-element node can come in W7+
 		// when the deep walker starts comparing class bodies.
 		if allow_ts_mode(p) && p.lexer.nxt.kind == .Identifier {
@@ -4794,7 +4837,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				}
 				match_semicolon_or_asi(p)
 				// Return nil so the class-body loop swallows the element
-				// without erroring — mirrors the existing pattern for elements
+				// without erroring - mirrors the existing pattern for elements
 				// that the parser intentionally drops (TS overload signatures
 				// don't materialize either).
 				return nil
@@ -4819,7 +4862,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// (The generator `*` is parsed BEFORE the name above, around line
-	// 4354. There's no `name *` form in JS / TS — a stray `*` here
+	// 4354. There's no `name *` form in JS / TS - a stray `*` here
 	// belongs to the next class element, e.g. ASI-split
 	// `async\n *foo() {}` where `async` is a bare field and `*foo` is a
 	// generator method. Removing the post-name `*` consumption closes
@@ -4834,7 +4877,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// `=` / `;` / `,` / `}`) OR on an optional class method (`?(...)`
 		// or `?<T>(...)`). The TS optional class member surface form
 		// `class C { method?() {} }` previously left the `?` on the
-		// cursor and tripped "Expected (, got ?" — closes the
+		// cursor and tripped "Expected (, got ?" - closes the
 		// 14-file cluster of that exact error. Mirrors the `?:` field
 		// shape next to it.
 		nxt := p.lexer.nxt.kind
@@ -4984,7 +5027,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// It's a method - parse parameters and body. TS allows generic methods
-	// `foo<T>(x: T): T { ... }` — parse the optional <T,U,...> here, before
+	// `foo<T>(x: T): T { ... }` - parse the optional <T,U,...> here, before
 	// the `(`. Pre-fix the parser jumped straight to expect_token(.LParen)
 	// and reported `Expected (, got <` on every generic class method.
 	// Closes 100+ OXC corpus rejects in the cluster of that exact error
@@ -4994,6 +5037,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	method_type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) {
 		method_type_parameters = parse_ts_type_parameters(p)
+	}
+
+	if is_readonly {
+		report_error(p, "'readonly' modifier can only appear on a property declaration")
+	}
+	if kind == .Constructor && is_override {
+		report_error(p, "'override' modifier cannot appear on a constructor declaration")
 	}
 
 	// Capture paren position for FunctionExpression start
@@ -5082,7 +5132,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// TS-mode ambient method: no `{` body. Three ways to identify it:
 	//   1. explicit `;` terminator        (overload signature, declare class)
 	//   2. ASI: line-terminator before next class element start (.d.ts files)
-	//   3. immediately followed by `}` — last method in declare class.
+	//   3. immediately followed by `}` - last method in declare class.
 	// Each branch leaves `body` empty. Test ts-conformance:
 	//   bench/node_modules/oxc-parser/src-js/index.d.ts
 	//     class ParseResult { get program(): T  /* no semi */
@@ -5092,14 +5142,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	is_ambient_method := allow_ts_mode(p) && !is_token(p, .LBrace) &&
 	                     (p.cur_tok.had_line_terminator || is_token(p, .RBrace))
 	if (is_abstract || is_overload_sig) && is_token(p, .Semi) {
-		// Decorators cannot appear on overload signatures.
-		if len(decorators) > 0 && is_overload_sig && !is_abstract {
+		// Decorators cannot appear on overload signatures or abstract methods.
+		// §15.2.1 early error: it is a Syntax Error if ClassElementKind of
+		// ClassElement is not Property and the ClassElement has a decorator.
+		if len(decorators) > 0 && (is_overload_sig || is_abstract) {
 			report_error(p, "A decorator can only decorate a method implementation, not an overload.")
 		}
 		match_semicolon_or_asi(p)
 		// Leave body empty
 	} else if is_ambient_method {
-		// ASI / before-RBrace ambient method — don't consume any token,
+		// ASI / before-RBrace ambient method - don't consume any token,
 		// the outer parse_class_element loop picks up where we left off.
 		if len(decorators) > 0 {
 			report_error(p, "A decorator can only decorate a method implementation, not an overload.")
@@ -5208,7 +5260,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		}
 	}
 
-	// §15.2.1.1 — BoundNames of FormalParameters vs LexicallyDeclaredNames.
+	// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
 	check_params_vs_body_lex(p, params[:], body.body[:])
 
 	// Create the method as a FunctionExpression
@@ -5280,7 +5332,7 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	prev_in_static_block_sb := p.in_static_block
 	p.in_static_block = true
 	defer p.in_static_block = prev_in_static_block_sb
-	// §15.7.5 — `break`/`continue` from the enclosing loop/switch do not
+	// §15.7.5 - `break`/`continue` from the enclosing loop/switch do not
 	// propagate into a static block. Reset the flags.
 	prev_in_loop_sb := p.in_loop
 	p.in_loop = false
@@ -5392,7 +5444,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	}
 
 	if consume_semi {
-		// §14.3 — a VariableStatement / LexicalDeclaration ends with a
+		// §14.3 - a VariableStatement / LexicalDeclaration ends with a
 		// `;` (or ASI). `var x = ''''` (Test262 string/S8.4_A13_T3.js) and
 		// `var\nlet x = 1` previously slid through with the lenient
 		// match_*, leaving the parser to emit two valid statements when
@@ -5574,7 +5626,7 @@ params_are_simple :: proc(params: []FunctionParameter) -> bool {
 //   * class methods, object-literal methods, arrow functions - always
 //     UniqueFormalParameters.
 // is_this_param returns true if the given FunctionParameter has a
-// pattern of ^Identifier with name "this" — the TS-only `this`
+// pattern of ^Identifier with name "this" - the TS-only `this`
 // parameter that specifies the type of `this` inside the function.
 is_this_param :: #force_inline proc(fp: FunctionParameter) -> bool {
 	id, is_id := fp.pattern.(^Identifier)
@@ -5684,7 +5736,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	// The `!` appears between the binding pattern and the type annotation
 	// `:` (NOT after the annotation, NOT before the `=` initializer). Same
 	// `!:` syntax used on class fields, parsed identically there. Restricted
-	// to plain Identifier bindings — TS spec disallows `!` on object/array
+	// to plain Identifier bindings - TS spec disallows `!` on object/array
 	// destructuring patterns. Closes ~50 OXC corpus rejects in the
 	// "Expected '=', ',', or ';' after variable binding" cluster (S26 W6
 	// phase 3 bug class #15).
@@ -5703,7 +5755,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	// annotation directly; ObjectPattern / ArrayPattern carry it on the
 	// pattern slot (S26 W4b) so `const {a}: Props = ...` and
 	// `const [x]: T[] = ...` round-trip correctly. OXC also extends the
-	// binding node's `end` over the annotation — mirror that here for
+	// binding node's `end` over the annotation - mirror that here for
 	// span parity (S26 W4d: 2 baseline divergences on tsx/002 and
 	// typescript/015).
 	has_type_ann := false
@@ -5748,7 +5800,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	if match_token(p, .Assign) {
 		// OXC rule: `declare const x: T = v` is an error (type ann + init),
 		// but `declare const x = v` without type annotation is OK (TS infers).
-		// .d.ts files are fully ambient — never error on const init there.
+		// .d.ts files are fully ambient - never error on const init there.
 		// Inherited ambient (namespace) only errors for non-const kinds.
 		if p.source_is_dts {
 			if kind != .Const {
@@ -6015,7 +6067,7 @@ report_escaped_reserved_word_slow :: proc(p: ^Parser) {
 	}
 }
 
-// ECMA-262 §13.4.1 — in strict mode, the operand of an UpdateExpression
+// ECMA-262 §13.4.1 - in strict mode, the operand of an UpdateExpression
 // must not be an IdentifierReference named `eval` or `arguments`.
 // Helper shared by both prefix and postfix paths. No-op in sloppy mode
 // or when the operand isn't a bare Identifier (member / call / etc.
@@ -6356,7 +6408,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// previous version called `is_always_reserved_word_name(id_name)`
 		// here (a 36-way string switch on every binding identifier), but
 		// kessel's lexer emits dedicated tokens for 35 of those 36 reserved
-		// words — they're caught by `is_reserved_word_for_binding` at the
+		// words - they're caught by `is_reserved_word_for_binding` at the
 		// top of this function before we ever reach the identifier branch.
 		// The only word from that list that arrives as `.Identifier` (with
 		// `has_escape == false`) is `enum`, which kessel lexes as a TS
@@ -7095,7 +7147,7 @@ collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string]bo
 //   • It is a Syntax Error if ReferencedBindings of NamedExports contains
 //     any StringLiterals (i.e. `export { "foo" }` with no `from` clause).
 // Called once from parse_program after the full body is known.
-// §16.2.3 — IsStringWellFormedUnicode: a ModuleExportName string must
+// §16.2.3 - IsStringWellFormedUnicode: a ModuleExportName string must
 // not contain unpaired surrogates (U+D800..U+DFFF not in a valid pair).
 // The decoded value is stored as UTF-8; surrogates are encoded as 3-byte
 // sequences ed_a0_80..ed_bf_bf.
@@ -7130,7 +7182,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 	// from containing `export` via the module-syntax-in-script check.
 	if program.type != .Module { return }
 
-	// §16.2.1 — ExportedNames of ModuleItemList must not contain duplicates.
+	// §16.2.1 - ExportedNames of ModuleItemList must not contain duplicates.
 	// Walk all export declarations and collect exported names, reporting
 	// duplicates.
 	exported := scope_map_make(16)
@@ -7139,7 +7191,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 		#partial switch v in stmt^ {
 		case ^ExportNamedDeclaration:
 			if v == nil { continue }
-			// `export <Decl>` (no specifiers, no `from`) — ExportedNames
+			// `export <Decl>` (no specifiers, no `from`) - ExportedNames
 			// of the declaration are derived from its BoundNames. We need
 			// this branch separately so `export var a, a;` and
 			// `export var [a, a] = [];` and `export function a() {}` /
@@ -7232,7 +7284,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			// In TS mode, `export default` is allowed multiple times because
 			// (1) `export default interface I {}` is type-space and doesn't
 			// shadow a value default, and (2) TS surfaces this as a semantic
-			// rather than a syntax error — OXC and Babel both accept the
+			// rather than a syntax error - OXC and Babel both accept the
 			// duplicate. Skip the syntactic flag in TS / TSX modes.
 			if allow_ts_mode(p) { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
@@ -7313,15 +7365,15 @@ ScopeBindingKind :: enum {
 	FunctionAnnexB,
 }
 
-// ScopeMap — small-vector + spill-to-hashmap structure used in place of
+// ScopeMap - small-vector + spill-to-hashmap structure used in place of
 // `map[string]u32` for per-scope binding tracking. Real-world JS/TS
 // bench files have tiny per-scope binding counts (median <8 per
 // function body, top-level UMD wrappers have 1-30 entries) where the
 // hashmap path's allocator + hasher + bucket-probe overhead dwarfs a
 // flat linear scan. A flat array hits L1 in one or two lines and has
-// zero allocator overhead per lookup. But large scopes do exist — the
+// zero allocator overhead per lookup. But large scopes do exist - the
 // TypeScript compiler bundle has function bodies with hundreds of
-// `var` declarations, where O(N²) linear scan is catastrophic. Above
+// `var` declarations, where O(N2) linear scan is catastrophic. Above
 // SCOPE_MAP_LINEAR_MAX we lazily promote to a `map[string]u32` and
 // use it for all subsequent ops, keeping the items array as the
 // source-of-truth for iteration so the cheaper data-locality scan is
@@ -7622,7 +7674,7 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 				for n in names { scope_add(p, lex, vars, n, inner.loc.span.start, kind) }
 			case ^FunctionDeclaration:
 				if inner == nil { break }
-				// TS overload signature / `declare function` — see
+				// TS overload signature / `declare function` - see
 				// scope_process_statement's plain-FunctionDeclaration arm
 				// for the rationale.
 				if allow_ts_mode(p) && (inner.no_body || inner.declare) {
@@ -7706,7 +7758,7 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 // Takes pre-allocated ScopeMap pointers so the caller (verify_scopes) can
 // pool a single pair across all bodies. Clearing two dynamic-array headers
 // (resize to 0, cap retained) and a possibly-allocated spill map per body
-// is far cheaper than allocating fresh maps for every entry — on real
+// is far cheaper than allocating fresh maps for every entry - on real
 // bundles like antd.js that's 3,994 × 2 saved allocations.
 scope_check_body :: #force_inline proc(p: ^Parser, body: []^Statement, is_block_scope: bool, lex, vars: ^ScopeMap) {
 	for stmt in body {
@@ -7757,7 +7809,7 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 //
 // Each scope is verified independently with a fresh ScopeMap pair, so the
 // iteration order doesn't affect correctness. We sort by start_offset
-// before iterating so error messages surface in source order — parse-exit
+// before iterating so error messages surface in source order - parse-exit
 // push order is innermost-first within a parent, which matches source
 // only for left-to-right siblings, not for nested-vs-following-sibling.
 verify_scopes :: proc(p: ^Parser, program: ^Program) {
@@ -8375,7 +8427,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// named "type"): after `type`, the next token must be `{`, `*`, or an
 	// identifier followed by `,`/`from` (but NOT `from` directly).
 	if p.cur_type == .Identifier && p.cur_tok.value == "type" && allow_ts_mode(p) {
-		// §12.7.2 — contextual keyword `type` must not use Unicode escapes.
+		// §12.7.2 - contextual keyword `type` must not use Unicode escapes.
 		has_esc := p.cur_tok.has_escape
 		nxt := p.lexer.nxt.kind
 		if nxt == .LBrace || nxt == .Mul {
@@ -8398,7 +8450,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// TS `import X = ...` / `import type X = ...` (TSImportEqualsDeclaration).
 	// Detect by `Identifier` followed by `=`. The `import type X = ...` form is
 	// also legal (type-only import-equals). Closes 291 kessel-only-rejects in
-	// the OXC corpus (S26 W6 phase 3 bug class #4) — the largest single bug
+	// the OXC corpus (S26 W6 phase 3 bug class #4) - the largest single bug
 	// cluster, all reporting "Expected from, got =" pre-fix.
 	// Check for TS import-equals: `import X = ...`. Also handles
 	// `import await = ...` (await as binding name in non-module).
@@ -8415,6 +8467,10 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		eat(p) // consume {
 
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+			if decl.import_kind == .Type && allow_ts_mode(p) &&
+			   p.cur_type == .Identifier && p.cur_tok.value == "type" {
+				report_error(p, "The 'type' modifier cannot be used in a type-only import")
+			}
 			spec := parse_import_specifier(p)
 			if spec != nil {
 				append_import_spec(&decl.specifiers, spec, p.allocator)
@@ -8478,12 +8534,19 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 
 		// Check for comma followed by named imports
 		if match_token(p, .Comma) {
+			if decl.import_kind == .Type {
+				report_error(p, "A type-only import cannot combine default and named bindings")
+			}
 			if is_token(p, .From) {
 				report_error(p, "Expected import specifier after comma")
 			} else if is_token(p, .LBrace) {
 				eat(p) // consume {
 
 				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+					if decl.import_kind == .Type && allow_ts_mode(p) &&
+					   p.cur_type == .Identifier && p.cur_tok.value == "type" {
+						report_error(p, "The 'type' modifier cannot be used in a type-only import")
+					}
 					spec2 := parse_import_specifier(p)
 					if spec2 != nil {
 						append_import_spec(&decl.specifiers, spec2, p.allocator)
@@ -8585,13 +8648,13 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 // Identifier (verified by caller; `next` is `.Assign`).
 //
 // Module reference shapes (TypeScript 5 grammar):
-//   * `Identifier`              — simple alias               (id)
-//   * `Identifier (`.` Identifier)+` — qualified entity name (member chain)
-//   * `require ( StringLiteral )` — external module reference
+//   * `Identifier`              - simple alias               (id)
+//   * `Identifier (`.` Identifier)+` - qualified entity name (member chain)
+//   * `require ( StringLiteral )` - external module reference
 //
 // We store the entity-name forms as a plain ^Expression (Identifier or
 // MemberExpression chain) and let the emitter fold member chains into the
-// ESTree TSQualifiedName shape — same trick parse_ts_module_declaration
+// ESTree TSQualifiedName shape - same trick parse_ts_module_declaration
 // uses for `namespace A.B.C { ... }` ids.
 parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExportKind) -> ^Statement {
 	decl := new_node(p, TSImportEqualsDeclaration)
@@ -8609,7 +8672,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		return nil
 	}
 
-	// Module reference. `require` is a contextual keyword here — lex as
+	// Module reference. `require` is a contextual keyword here - lex as
 	// Identifier, distinguish by the token value + a `(` follow-up.
 	if p.cur_type == .Identifier && p.cur_tok.value == "require" &&
 	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
@@ -8688,14 +8751,17 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// (typescript fixtures: arbitraryModuleNamespaceIdentifiers,
 	// exportSpecifiers_js, etc.).
 	if allow_ts_mode(p) && p.cur_type == .Identifier && p.cur_tok.value == "type" {
+		if p.cur_tok.has_escape && p.lexer.nxt.kind == .As {
+			report_error(p, "Keyword 'type' must not contain escaped characters")
+		}
 		nxt := p.lexer.nxt.kind
 		nxt_is_name := nxt == .Identifier || nxt == .String ||
 		               is_keyword_usable_as_property_name(nxt)
 		if nxt_is_name && nxt != .As {
 			eat(p) // consume `type`
 		} else if nxt == .As {
-			// `import { type as }` / `import { type as as as }` — 4-token
-			// lookahead (mirrors parse_export_named’s identical pattern).
+			// `import { type as }` / `import { type as as as }` - 4-token
+			// lookahead (mirrors parse_export_named's identical pattern).
 			snap := lexer_snapshot(p)
 			eat(p) // consume `type`
 			eat(p) // consume first `as`
@@ -8704,7 +8770,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 			if after == .Comma || after == .RBrace || after == .From {
 				consume_type = true
 			} else if after == .As {
-				// `type as as X` — peek past the second `as`.
+				// `type as as X` - peek past the second `as`.
 				eat(p)
 				after_as := p.cur_type
 				if after_as == .Identifier || after_as == .String ||
@@ -8722,7 +8788,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	imported: Identifier
 	is_string_import := false
 	if is_token(p, .String) {
-		// `import { "str" as local } from "m"` — ModuleExportName string form.
+		// `import { "str" as local } from "m"` - ModuleExportName string form.
 		current := get_current(p)
 		val := current.literal.(string) or_else ""
 		if string_has_unpaired_surrogate(val) {
@@ -8737,6 +8803,9 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 
 	local := imported
 	if match_token(p, .As) {
+		if is_token(p, .String) {
+			report_error(p, "Import binding name cannot be a string literal")
+		}
 		local = parse_identifier(p)
 	} else if is_string_import {
 		// String import names MUST have `as local`.
@@ -8755,13 +8824,17 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	}
 	spec.loc.span.end = prev_end_offset(p)
 
-	// §16.2.2 — ImportedBinding is a BindingIdentifier in strict mode
+	// §16.2.2 - ImportedBinding is a BindingIdentifier in strict mode
 	// (module code). `eval` and `arguments` are forbidden.
 	if is_eval_or_arguments(local.name) {
 		msg := fmt.tprintf("'%s' cannot be used as an import binding name", local.name)
 		report_semantic_error_at(p, LexerLoc(local.loc.span.start), msg)
 	}
-	// §16.2.2 — When no `as` clause, the ImportedBinding is the same
+	if is_always_reserved_word_name(local.name) {
+		msg := fmt.tprintf("'%s' is a reserved word and cannot be used as an import binding", local.name)
+		report_error(p, msg)
+	}
+	// §16.2.2 - When no `as` clause, the ImportedBinding is the same
 	// identifier as the ModuleExportName.  Reserved words are valid
 	// ModuleExportNames (`import { default as x }`) but NOT valid
 	// BindingIdentifiers (`import { default }`).  The check only fires
@@ -8801,7 +8874,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_export_named(p, start, .Value)
 	}
 
-	// `export = <expr>;` — TS legacy CommonJS-style export assignment.
+	// `export = <expr>;` - TS legacy CommonJS-style export assignment.
 	// `=` here is NOT a binding-init; it's a sentinel that introduces a
 	// single expression-form export. The trailing semicolon (or ASI) is
 	// part of the declaration; the span includes it.
@@ -8817,7 +8890,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		stmt := new_node(p, Statement); stmt^ = decl; return stmt
 	}
 
-	// `export as namespace <Identifier>;` — TS UMD-style declaration. `as`
+	// `export as namespace <Identifier>;` - TS UMD-style declaration. `as`
 	// here is a contextual keyword; it lexes as a regular identifier in JS
 	// mode but parse_export_declaration is only entered for `export`, so
 	// the identifier `as` followed by identifier `namespace` is the cue.
@@ -8839,13 +8912,13 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
-	// `export type ...` — TS type-only export. Three forms:
-	//   export type { A, B };          — named, no source
-	//   export type { A } from "m";    — named, with source
-	//   export type * from "m";        — export-all
-	//   export type * as N from "m";   — export-all with namespace alias
-	//   export type X = ...;           — type alias (handled by fall-through)
-	//   export type X from ...;        — not valid; fall through to declaration parse
+	// `export type ...` - TS type-only export. Three forms:
+	//   export type { A, B };          - named, no source
+	//   export type { A } from "m";    - named, with source
+	//   export type * from "m";        - export-all
+	//   export type * as N from "m";   - export-all with namespace alias
+	//   export type X = ...;           - type alias (handled by fall-through)
+	//   export type X from ...;        - not valid; fall through to declaration parse
 	// Detect the `{` / `*` lookahead and dispatch with export_kind=.Type.
 	// `export type Identifier =` falls through to the declaration path,
 	// which already handles type aliases via parse_statement_or_declaration.
@@ -8909,7 +8982,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	case ^VariableDeclaration:
 		decl_union^ = v
 		if v.declare { export_kind = .Type }
-		// §Explicit Resource Management — `export using x = ...` and
+		// §Explicit Resource Management - `export using x = ...` and
 		// `export await using x = ...` are SyntaxErrors. Using
 		// declarations must use the named-export form: `export { x }`.
 		if v != nil && (v.kind == .Using || v.kind == .AwaitUsing) {
@@ -8977,13 +9050,13 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 				def^ = expr_stmt.expression
 			}
 		}
-		// §16.2.3 — `export default function() {}` is the
+		// §16.2.3 - `export default function() {}` is the
 		// HoistableDeclaration form, NOT an AssignmentExpression. So the
 		// FunctionDeclaration ends at `}`; LHS-tail tokens that would
 		// extend it as an expression (`()` call, `[x]` index, `.x`
 		// member, `` `tag` ``, `=>` arrow, postfix `++`/`--`) make the
 		// production fail. Whitespace / `;` / new statement starts (e.g.
-		// `if`) are fine — the function-decl `}` already terminates the
+		// `if`) are fine - the function-decl `}` already terminates the
 		// declaration. Test262: language/module-code/parse-err-invoke-
 		// anon-{fun,gen}-decl.js (`function() {}()`).
 		// Only flag a continuation token as an error if it's on the
@@ -9013,7 +9086,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		}
 	} else if p.cur_type == .Identifier && p.cur_tok.value == "interface" &&
 	          is_next_token(p, .Identifier) {
-		// `export default interface X { ... }` — TS-only form. Babel and
+		// `export default interface X { ... }` - TS-only form. Babel and
 		// OXC accept it; spec-strict tools may not. Shape: ExportDefault
 		// Declaration whose declaration is a TSInterfaceDeclaration.
 		iface_stmt := parse_ts_interface_declaration(p)
@@ -9032,6 +9105,13 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		if p.cur_type == .Const || p.cur_type == .Var ||
 		   (p.cur_type == .Let && !p.cur_tok.had_line_terminator) {
 			report_error(p, "'export default' cannot be followed by a variable declaration")
+		}
+		if is_token(p, .Using) && p.lexer.nxt.kind != .Semi && p.lexer.nxt.kind != .EOF {
+			report_error(p, "'export default' cannot be followed by a using declaration")
+		}
+		if is_token(p, .Await) && p.lexer.nxt.kind == .Using &&
+		   (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+			report_error(p, "'export default' cannot be followed by a using declaration")
 		}
 		expr := parse_assignment_expression(p)
 		if expr != nil {
@@ -9084,7 +9164,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 
 	if match_token(p, .As) {
 		if is_token(p, .String) {
-			// `export * as "str" from "m"` — ModuleExportName string form.
+			// `export * as "str" from "m"` - ModuleExportName string form.
 			current := get_current(p)
 			val := current.literal.(string) or_else ""
 			if string_has_unpaired_surrogate(val) {
@@ -9117,7 +9197,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 
 	// Consume the trailing semicolon BEFORE stamping the span end so the
 	// ExportAllDeclaration includes its own `;` - matches ESTree/OXC/Acorn
-	// semantics. Export declarations are statements, not expressions —
+	// semantics. Export declarations are statements, not expressions -
 	// they can't have member-access continuations. Use a permissive ASI:
 	// any line terminator terminates the declaration (even before `[`).
 	if !match_semicolon_or_asi_export(p) {
@@ -9182,6 +9262,12 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		// `type` when the following token can start a name AND isn't `as` /
 		// `}` / `,` (which would mean "type" is the local name itself).
 		if allow_ts_mode(p) && p.cur_type == .Identifier && p.cur_tok.value == "type" {
+			if p.cur_tok.has_escape && p.lexer.nxt.kind == .As {
+				report_error(p, "Keyword 'type' must not contain escaped characters")
+			}
+			if export_kind == .Type {
+				report_error(p, "The 'type' modifier cannot be used in a type-only export")
+			}
 			nxt := p.lexer.nxt.kind
 			nxt_is_name := nxt == .Identifier || nxt == .String ||
 			               is_keyword_usable_as_property_name(nxt)
@@ -9203,7 +9289,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 				if after == .Comma || after == .RBrace || after == .From {
 					consume_type = true
 				} else if after == .As {
-					// `type as as X` — peek past the second `as`.
+					// `type as as X` - peek past the second `as`.
 					eat(p) // consume second `as`
 					after_as := p.cur_type
 					if after_as == .Identifier || after_as == .String ||
@@ -9227,7 +9313,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 				str_lit.loc = loc_from_token(&current)
 				str_lit.value = current.literal.(string) or_else ""
 				str_lit.raw = current.value
-				// §16.2.3 — ModuleExportName : StringLiteral must be well-formed Unicode.
+				// §16.2.3 - ModuleExportName : StringLiteral must be well-formed Unicode.
 				if string_has_unpaired_surrogate(str_lit.value) {
 					report_error(p, "Export name string must not contain unpaired surrogates")
 				}
@@ -9280,7 +9366,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 	}
 
 	if !match_semicolon_or_asi_export(p) {
-		// `export {} null;` — unexpected token follows export clause on same line.
+		// `export {} null;` - unexpected token follows export clause on same line.
 		report_error(p, "Expected semicolon after export declaration")
 	}
 
@@ -9410,7 +9496,7 @@ precedence_for_token :: #force_inline proc(t: TokenType) -> Precedence {
 // plain Identifier plus the contextual keywords whose lex tokens always
 // resolve to an IdentifierReference here (Get / Set / From / Of / As / Let /
 // Static / Constructor / Using). The previous 10-clause OR chain compiled to
-// 10 token-type compares per parse_unary_expr call — hit on every Identifier
+// 10 token-type compares per parse_unary_expr call - hit on every Identifier
 // expression in the program. A single table load + nz-test replaces it.
 is_id_like_for_unary_table: [len(TokenType)]bool
 
@@ -9586,7 +9672,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 
 		// Trailing comma in parenthesized expression: don't consume comma before )
 		if cur_type == .Comma && is_next_token(p, .RParen) {
-			// §15.3.1 — A trailing comma after a rest element `...x` in
+			// §15.3.1 - A trailing comma after a rest element `...x` in
 			// `(...x, ) => body` is a SyntaxError. Check before eating.
 			if _, is_spread := left.(^SpreadElement); is_spread {
 				report_error(p, "Rest element may not have a trailing comma")
@@ -9645,7 +9731,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 						break
 					}
 					// Found a '(' before the unary. Verify it closes
-					// *before* the '**' — i.e. the ')' sits between the
+					// *before* the '**' - i.e. the ')' sits between the
 					// UnaryExpression's end and the '**' token. If the ')'
 					// is missing (or after '**') the '(' wraps the whole
 					// binary expression, not just the unary operand:
@@ -9852,7 +9938,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		current := p.cur_tok
 		eat(p)
 		argument := parse_unary_expr(p)
-		if argument == nil { return nil }
+		if argument == nil {
+			report_error(p, "Expected expression after unary operator")
+			return nil
+		}
 		// §13.5 UnaryExpression : <op> UnaryExpression. YieldExpression
 		// is at AssignmentExpression precedence - the spec disallows it as
 		// the operand of a unary operator. Catches `void yield`, `!yield`,
@@ -9930,7 +10019,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		argument := parse_unary_expr(p)
 		if argument == nil {
-			// ECMA-262 §12.4.1 — prefix UpdateExpression requires a
+			// ECMA-262 §12.4.1 - prefix UpdateExpression requires a
 			// UnaryExpression operand. `++;` / `--;` (no operand) and
 			// `x\n++;` / `x\n--;` (line terminator splits postfix into
 			// `x;` + bare `++;`) must be rejected. Test262 fixtures:
@@ -10140,7 +10229,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `await` as IdentifierReference in module/async/static context.
 		// Plain (non-escaped) `await` always lexes as TokenType.Await, never
 		// .Identifier, so the only way this branch is reached with the cooked
-		// name "await" is via an escaped form like `\u0061wait` — a vanishingly
+		// name "await" is via an escaped form like `\u0061wait` - a vanishingly
 		// rare path on the bench corpus. Gating the string compare on
 		// has_escape keeps `cur_tok.value == "await"` off the hot path for
 		// every ordinary identifier.
@@ -10148,7 +10237,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_semantic_error(p, "'await' is not allowed as an identifier in this context")
 		}
 		// Inline identifier parse + LHS tail. Pull only the fields we need
-		// out of p.cur_tok before eat() advances — a full Token copy is ~64
+		// out of p.cur_tok before eat() advances - a full Token copy is ~64
 		// bytes and was showing up in the parse_unary_expr profile when this
 		// fast path runs once per identifier in the program.
 		//
@@ -10157,7 +10246,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// offsets; line / column are computed lazily by `report_error` via
 		// `offset_to_line_col` when an error is actually emitted. Reading
 		// them here returned permanent 0, then we'd write 0 back into
-		// `id.loc.{line,column}` — four wasted memory ops per identifier on
+		// `id.loc.{line,column}` - four wasted memory ops per identifier on
 		// the hot path. Skip the loads, leave the Loc fields zero-initialised.
 		id_offset := u32(p.cur_tok.loc)
 		id_value  := p.cur_tok.value
@@ -10208,7 +10297,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				report_error(p, "An instantiation expression cannot be followed by a property access.")
 			}
 			eat(p)
-			// §13.3.1 — MemberExpression `.` IdentifierName | PrivateIdentifier.
+			// §13.3.1 - MemberExpression `.` IdentifierName | PrivateIdentifier.
 			// String / Number / template literals after `.` are SyntaxErrors.
 			// Test262: language/expressions/property-accessors/non-identifier-name.js.
 			if !is_identifier_like_token(p.cur_type) && p.cur_type != .PrivateIdentifier &&
@@ -10252,13 +10341,13 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				pid.name = prop.name[1:]
 				p.private_id_count += 1
 				member.property = pid_e
-				// Grammar: `PrivateName :: # IdentifierName` — there must be no
+				// Grammar: `PrivateName :: # IdentifierName` - there must be no
 				// whitespace between `#` and the identifier. If `pid.name == ""`
 				// the lexer saw only `#` with no following IdentifierName.
 				if pid.name == "" {
 					report_error(p, "Private identifier must not have whitespace after '#'")
 				}
-				// §15.7.3 — `super.#name` is a SyntaxError: private names can
+				// §15.7.3 - `super.#name` is a SyntaxError: private names can
 				// only be accessed via `this`, local variables, or computed
 				// member expressions, not through `super`.
 				if _, is_super := expr.(^Super); is_super {
@@ -10282,7 +10371,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if !is_chain {
 				chain_start = loc_from_expr(expr)
 				is_chain = true
-				// ECMA-262 §13.3.10 — OptionalExpression only chains from
+				// ECMA-262 §13.3.10 - OptionalExpression only chains from
 				// MemberExpression or CallExpression.  NewExpression is
 				// not listed, so `new Foo?.()` is a SyntaxError.
 				if _, is_new := expr^.(^NewExpression); is_new {
@@ -10352,7 +10441,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else if is_open_angle_or_lshift(p) && (p.lang == .TS || p.lang == .TSX) {
-				// `f?.<T>()` — optional-chain call with TS type arguments.
+				// `f?.<T>()` - optional-chain call with TS type arguments.
 				// The type-arg list MUST be followed by `(args)` per babel /
 				// OXC; otherwise it's a parse error. Build a CallExpression
 				// with type_parameters inside the chain. Test:
@@ -10428,6 +10517,11 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if p.cur_tok.had_line_terminator {
 				if _, is_arrow := expr^.(^ArrowFunctionExpression); is_arrow {
 					return expr
+				}
+			}
+			if _, is_arrow_call := expr^.(^ArrowFunctionExpression); is_arrow_call {
+				if p.pending_paren_start == max(u32) {
+					report_error(p, "Arrow function must be parenthesized before call")
 				}
 			}
 			// SuperCall early-error (ECMA-262 §15.7.3 / §13.3.7): `super(...)`
@@ -10517,7 +10611,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				allow = true
 			}
 			// ASI follower: if the next token is on a new line, consuming
-			// `!` here is safe — the next token will trigger ASI in the
+			// `!` here is safe - the next token will trigger ASI in the
 			// caller's statement-end check. Without this, `null!\nlet x =
 			// 2` reported "Expected semicolon" because the `!` lookahead
 			// saw `let` (an Identifier-like) and refused to consume.
@@ -10578,13 +10672,13 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// followable token? If not, rollback.
 			//
 			// Two follow sets:
-			//   * `call_follow` — `(` / template head: this is a generic call
+			//   * `call_follow` - `(` / template head: this is a generic call
 			//     (CallExpression with type_parameters) or tagged template.
-			//   * `inst_follow` — anything that can follow a complete
+			//   * `inst_follow` - anything that can follow a complete
 			//     expression but not start one (binary / postfix / chain
 			//     terminators / etc.). Commits to TSInstantiationExpression.
 			// Tokens that can plausibly start a NEW expression on the RHS
-			// (Identifier, Number, String, `[`, `{`, …) are deliberately NOT
+			// (Identifier, Number, String, `[`, `{`, ...) are deliberately NOT
 			// followers, so `f<x> y` rolls back and is reported as a binary-
 			// expression error rather than mis-committed as instantiation.
 			call_follow := false
@@ -10608,7 +10702,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				     .BitAnd, .BitOr, .BitXor,
 				     .LShift, .RShift, .URShift,
 				     // Compound assignment lands on whatever target shape
-				     // the outer parser permits — `a<b> += c` is invalid in
+				     // the outer parser permits - `a<b> += c` is invalid in
 				     // the spec (instantiation expr isn't an assignment
 				     // target) but we still want to commit so the error fires
 				     // at the outer level rather than mis-rolling back to a
@@ -10757,7 +10851,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	current := get_current(p)
 
 	// Statement-only keywords that should never start a primary
-	// expression (`(debugger)`, `(else)`, `(extends)`, …). Without
+	// expression (`(debugger)`, `(else)`, `(extends)`, ...). Without
 	// this gate the LParen handler silently swallows the `(` and the
 	// remainder is parsed as a lone DebuggerStatement, dropping the
 	// inner expression on the floor and emitting no diagnostic.
@@ -10812,7 +10906,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 					}
 				}
 			}
-			// §13.3.12 — The only valid meta property for `import` is
+			// §13.3.12 - The only valid meta property for `import` is
 			// `import.meta`.  `import.then`, `import.foo`, etc. are
 			// SyntaxErrors.
 			if meta_name.name != "meta" {
@@ -10995,9 +11089,9 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			eat(p)
 			ident := new_node(p, Identifier)
 			ident.loc = loc_from_token(&current)
-			// S26 W5b — use the SOURCE-SLICE name, not a string literal.
+			// S26 W5b - use the SOURCE-SLICE name, not a string literal.
 			// `"async"` is a compile-time literal whose `raw_data` lives in the
-			// binary's RODATA segment — outside both the source-bytes range and
+			// binary's RODATA segment - outside both the source-bytes range and
 			// the parser arena range. raw_transfer's rewrite_string then writes
 			// a garbage offset for the field, and the binary buffer surfaces
 			// the Identifier with `name=""`. JSON path is correct (it just
@@ -11167,7 +11261,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 								case '>', ')', ']', '}':
 									if t_depth == 0 {
 										// Hit a closer outside any nested
-										// group — type ended without `=>`,
+										// group - type ended without `=>`,
 										// not an arrow head.
 										break ts_scan
 									}
@@ -11267,7 +11361,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_semantic_error(p, msg)
 			}
 		}
-		// §16.2 — `await` in module/async/static-block context is a keyword,
+		// §16.2 - `await` in module/async/static-block context is a keyword,
 		// not a valid IdentifierReference.
 		if (current.type == .Await || current.value == "await") && await_is_reserved_here(p) {
 			report_semantic_error(p, "'await' is not allowed as an identifier in this context")
@@ -11718,7 +11812,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 				break
 			}
 		}
-		// Double comma: `{x: 0,,}` — object literals don't allow elisions.
+		// Double comma: `{x: 0,,}` - object literals don't allow elisions.
 		for is_token(p, .Comma) {
 			report_error(p, "Property assignment expected")
 			eat(p)
@@ -11895,6 +11989,9 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	if is_getter || is_setter {
 		// Getter or setter: get x() { } or set x(v) { }
 		// After parsing key, expect ( for method body
+		if is_generator {
+			report_error(p, "An accessor cannot be a generator")
+		}
 		if is_getter {
 			kind = .Get
 		} else {
@@ -12088,7 +12185,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			report_strict_param_names(p, params[:])
 		}
 
-		// §15.2.1.1 — BoundNames of FormalParameters vs LexicallyDeclaredNames.
+		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
 		check_params_vs_body_lex(p, params[:], body.body[:])
 
 		fn := new_node(p, FunctionExpression)
@@ -12102,7 +12199,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.loc.span.end = prev_end_offset(p)
 		value = expression_from(p, fn)
 	} else if match_token(p, .Colon) {
-		// Regular property with value
+		// Regular property with value. `async a: v` / `*a: v` are not valid
+		// data properties; `async` and `*` only modify method definitions.
+		if is_async || is_generator {
+			report_error(p, "Object property modifier requires a method definition")
+		}
 		// Use Assignment precedence - comma separates properties, not expressions
 		value = parse_expr_with_prec(p, .Assignment)
 	} else if match_token(p, .Assign) {
@@ -12117,17 +12218,17 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		assign := new_node(p, AssignmentExpression)
 		assign.loc = start
 		assign.operator = .Assign
-		// S26 W5b — don't alias `key`. Previously assign.left = key
+		// S26 W5b - don't alias `key`. Previously assign.left = key
 		// shared the same ^Expression pointer with prop.key; raw_transfer
 		// then walked that Expression union TWICE (once via prop.key, once
 		// via assign.left), and the second walk dereferenced an
 		// already-rewritten inner pointer (now an arena offset, not a real
-		// pointer) and segfaulted. Surfaced via S26 W5b on yup.js —
+		// pointer) and segfaulted. Surfaced via S26 W5b on yup.js -
 		// `({excludeEmptyString = false, message, name} = options)` triggers
 		// the alias inside a destructuring cover.
 		//
 		// Clone the inner Identifier into a fresh Expression union so each
-		// AST slot owns its own node (matches ESTree shape — the JSON path
+		// AST slot owns its own node (matches ESTree shape - the JSON path
 		// already emits two distinct Identifier objects at these positions).
 		if key != nil {
 			#partial switch k in key^ {
@@ -12145,7 +12246,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				// legally be the LHS of CoverInitializedName, but the parse
 				// is permissive here and expr_to_pattern / parse-program
 				// emits the SyntaxError later. Keep the alias for those
-				// shapes — they don't hit the raw-transfer crash because the
+				// shapes - they don't hit the raw-transfer crash because the
 				// node never round-trips successfully anyway.
 				assign.left = key
 			}
@@ -12293,7 +12394,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	eat(p) // consume class
 
 	id: Maybe(BindingIdentifier)
-	// In TS mode, `class implements Foo {}` has no name — `implements` is
+	// In TS mode, `class implements Foo {}` has no name - `implements` is
 	// the heritage clause keyword, not a class name. Don't consume it as
 	// the identifier when the next token is a plausible interface name or
 	// `{`. Same for `class extends Expr {}` which is already handled by
@@ -12350,6 +12451,9 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
+		if super_class == nil {
+			report_error(p, "Expected expression after 'extends'")
+		}
 		if is_open_angle_or_lshift(p) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
@@ -12375,13 +12479,16 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		}
 	}
 
-	// TS: `class C extends Base implements I, J<T>` — same grammar as
+	// TS: `class C extends Base implements I, J<T>` - same grammar as
 	// parse_class_declaration. `implements` is a contextual keyword.
 	implements_list: [dynamic]TSInterfaceHeritage
 	if (p.lang == .TS || p.lang == .TSX) &&
 	   is_token(p, .Identifier) && p.cur_tok.value == "implements" {
 		eat(p)
 		implements_list = parse_ts_heritage_list(p)
+		if len(implements_list) == 0 {
+			report_error(p, "Expected interface name after 'implements'")
+		}
 	}
 
 	// See parse_class_declaration for the rationale - same save/restore.
@@ -12438,7 +12545,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	// so the diagnostic points at `import`, not somewhere downstream.
 	// Same rule applies to phase-import call forms (§Phase Imports):
 	//   `new import.defer(x)` / `new import.source(x)` are SyntaxErrors.
-	// BUT `new import.meta()` is VALID syntax — it calls the MetaProperty
+	// BUT `new import.meta()` is VALID syntax - it calls the MetaProperty
 	// as a constructor (throws at runtime). Test262: language/expressions/
 	// import.meta/import-meta-is-an-ordinary-object.js.
 	if is_token(p, .Import) && p.lexer != nil {
@@ -12482,11 +12589,11 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		snap := lexer_snapshot(p)
 		ta := parse_ts_type_arguments(p)
 		// On success the current token is past the `>`. If the parse
-		// failed (error was pushed), backtrack — the `<` is the less-than
+		// failed (error was pushed), backtrack - the `<` is the less-than
 		// operator and this is a relational expression.
 		// Also backtrack when type args parsed OK but the next token
-		// can’t follow `new Expr<T>` — only `(` (call) and `.` / `[`
-		// (member) are valid. Anything else (identifier, `;`, EOF, …)
+		// can't follow `new Expr<T>` - only `(` (call) and `.` / `[`
+		// (member) are valid. Anything else (identifier, `;`, EOF, ...)
 		// means `<` was relational. Fixes `new A < B > C`.
 		parse_failed := len(p.errors) > snap.errors_len
 		next_valid := p.cur_type == .LParen || p.cur_type == .Dot ||
@@ -12556,7 +12663,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 		// React.createElement(type, props, ...children) or fmt.Printf-style).
 		args = make([dynamic]^Expression, 0, 8, p.allocator)
 		for {
-			// `(,)` and `(a,,b)` — elision is not allowed in Arguments
+			// `(,)` and `(a,,b)` - elision is not allowed in Arguments
 			// per §13.3.5. The grammar is `Arguments :: ( ArgumentList )`
 			// with no holes. Test262: language/expressions/call/
 			// S11.2.4_A1.3_T1.js (`f_arg(1,,2)`).
@@ -13078,10 +13185,11 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// ESTree allows MemberExpression as a destructure target.
 		return e, true
 	case ^ParenthesizedExpression:
-		// Paren-wrapped destructure target - unwrap. `(x)` stays a legal
-		// target, but `(x, y)` (SequenceExpression inside) reaches the
-		// default arm below and errors.
+		// Parenthesized binding elements are not valid inside patterns:
+		// `([(a)]) => {}` / `({ a: (b) }) => {}`. Assignment-target
+		// validation still unwraps so recovery can continue.
 		if e == nil { return nil, false }
+		report_error(p, "Binding element cannot be parenthesized")
 		return expr_to_pattern(p, e.expression)
 	case ^TSNonNullExpression:
 		// `x!` as a destructure target in TS mode - unwrap.
@@ -13622,7 +13730,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						if ident_expr != nil {
 							// Rest element argument can be a BindingIdentifier OR a
 							// nested BindingPattern (ObjectPattern / ArrayPattern) per
-							// §15.2.1 / §15.3.1 — BindingRestElement[Yield, Await]:
+							// §15.2.1 / §15.3.1 - BindingRestElement[Yield, Await]:
 							//   ... BindingIdentifier
 							//   ... BindingPattern
 							// Route through expr_to_pattern so destructuring rest
@@ -13745,7 +13853,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				}
 			}
 		}
-		// §15.3.1 / §15.9.1 — BoundNames(FormalParameters) ∩
+		// §15.3.1 / §15.9.1 - BoundNames(FormalParameters) ∩
 		// LexicallyDeclaredNames(ArrowConciseBody) must be empty.
 		// `(bar) => { let bar; }` and `async(bar) => { let bar; }`
 		// are SyntaxErrors. Test262 language/expressions/{,async-}
@@ -13777,6 +13885,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	p.conditional_depth -= 1
 	p.no_in = prev_no_in
 	if consequent == nil {
+		report_error(p, "Expected expression after '?' in conditional expression")
 		return nil
 	}
 
@@ -13791,7 +13900,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 		#partial switch _ in consequent {
 		case ^Identifier, ^AssignmentExpression, ^SequenceExpression,
 		     ^ObjectExpression, ^ArrayExpression: conseq_could_be_arrow = true
-		case: // ConditionalExpression, Literal, etc. — never arrow params
+		case: // ConditionalExpression, Literal, etc. - never arrow params
 		}
 	}
 	if allow_ts_mode(p) && is_token(p, .Colon) && conseq_could_be_arrow {
@@ -13825,6 +13934,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 
 	alternate := parse_assignment_expression(p)
 	if alternate == nil {
+		report_error(p, "Expected expression after ':' in conditional expression")
 		return nil
 	}
 
@@ -13965,7 +14075,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 		}
 	}
 	// Clear the marker so it doesn't bleed into the RHS or the next
-	// AssignmentExpression (e.g. `(a) = (b) = c` — the second `(b)`
+	// AssignmentExpression (e.g. `(a) = (b) = c` - the second `(b)`
 	// re-stamps it before the second `=` runs).
 	p.last_paren_expr = nil
 
@@ -13991,7 +14101,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// downstream consumers (emit, walker).
 	if !is_valid_assignment_target(left, op == .Assign) {
 		// ArrayExpression / ObjectExpression with compound operators
-		// (+=, -=, etc.) are semantic errors, not structural ones —
+		// (+=, -=, etc.) are semantic errors, not structural ones -
 		// OXC defers the check. All other invalid LHS patterns (e.g.
 		// BinaryExpression `1 + 2 = 3`) are structural parse errors.
 		is_semantic := false
@@ -14070,6 +14180,12 @@ parse_string_literal :: proc(p: ^Parser) -> StringLiteral {
 parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression {
 	start := param.loc
 
+	if param.name == "await" {
+		report_error(p, "'await' cannot be used as an async arrow parameter")
+	}
+	if p.cur_tok.had_line_terminator {
+		report_error(p, "Line terminator not permitted before '=>'")
+	}
 	eat(p) // consume =>
 
 	prev_async := p.in_async
@@ -14128,7 +14244,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	// UniqueFormalParameters.
 	report_duplicate_param_names(p, params[:], true, true)
 
-	// §15.9.1 — BoundNames(params) ∩ LexicallyDeclaredNames(body)
+	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async bar => { let bar; }` is a SyntaxError.
 	if is_block_body {
 		if bs, ok := body.(^BlockStatement); ok && bs != nil {
@@ -14246,7 +14362,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// Pass strict_override=true per §15.9.1.
 	report_duplicate_param_names(p, params[:], true, true)
 
-	// §15.9.1 — BoundNames(params) ∩ LexicallyDeclaredNames(body)
+	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async(bar) => { let bar; }` is the canonical
 	// case. Test262 language/expressions/async-arrow-function/
 	// early-errors-arrow-formals-body-duplicate.js.
@@ -14337,6 +14453,10 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	options: ^Expression = nil
 	if match_token(p, .Comma) {
 		if !is_token(p, .RParen) {
+			if is_token(p, .Dot3) {
+				report_error(p, "'...' is not allowed in 'import()' call")
+				eat(p)
+			}
 			options = parse_assignment_expression(p)
 			match_token(p, .Comma)
 		}
@@ -14388,7 +14508,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 	attributes := make([dynamic]ImportAttribute, 0, 4, p.allocator)
 	if !is_token(p, .With) && !is_token(p, .Assert) { return attributes }
-	// §16.2.2 — `assert` has a [no LineTerminator here] restriction.
+	// §16.2.2 - `assert` has a [no LineTerminator here] restriction.
 	// A newline before `assert` triggers ASI and the token belongs to the
 	// next statement. `with` does NOT have this restriction.
 	if is_token(p, .Assert) && p.cur_tok.had_line_terminator { return attributes }
@@ -14406,7 +14526,7 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 			key = IdentifierName{loc = id.loc, name = id.name}
 		}
 		if !expect_token(p, .Colon) { break }
-		// §16.2.2 — attribute values must be string literals.
+		// §16.2.2 - attribute values must be string literals.
 		if !is_token(p, .String) {
 			report_error(p, "Only string literals are allowed as import attribute values")
 		}
@@ -14459,7 +14579,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		current := get_current(p)
 		expr = expression_from(p, new_identifier(p, current))
 		eat(p)
-		// Dotted chain — allows identifiers, keywords-as-property, AND
+		// Dotted chain - allows identifiers, keywords-as-property, AND
 		// private identifiers (`@C.#dec`, `@C.#self.#dec`). Reject
 		// computed access by stopping at non-`.`.
 		for is_token(p, .Dot) {
@@ -14597,7 +14717,7 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 		}
 		return stmt
 	}
-	// `abstract class` after decorator — consume `abstract` and set the
+	// `abstract class` after decorator - consume `abstract` and set the
 	// flag, mirroring the statement-level `.Abstract` → `.Class` path.
 	is_abstract_class := false
 	if is_token(p, .Abstract) {
@@ -14731,7 +14851,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 	opening := new_node(p, JSXOpeningElement)
 	opening.loc = start; opening.name = name
 
-	// TSX: type arguments on the opening element — `<Foo<string> />`.
+	// TSX: type arguments on the opening element - `<Foo<string> />`.
 	// Must come after the element name, before attributes. The `<` here
 	// starts a type argument list, not a nested JSX element, because the
 	// element name just consumed the identifier and the next `<` cannot
@@ -14766,7 +14886,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 				// Clear JSX string mode. For `attr="str"`, `cur` is the
 				// already-lexed String token (correct). For `attr={expr}`,
 				// `nxt` was lexed with jsx_string_mode still true during the
-				// eat above — that token is inside a JS expression where
+				// eat above - that token is inside a JS expression where
 				// escapes MUST be honoured. Re-lex nxt so `\"` is processed
 				// as a JS escape, not as a literal backslash + closing quote.
 				p.lexer.jsx_string_mode = false
@@ -14799,7 +14919,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					attr_value = parse_jsx_element_or_fragment(p)
 				}
 			} else {
-				// Boolean attribute (no `=`) — clear the JSX string flag.
+				// Boolean attribute (no `=`) - clear the JSX string flag.
 				p.lexer.jsx_string_mode = false
 			}
 			attr: JSXAttribute
@@ -14988,7 +15108,7 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		eat(p) // consume `asserts`
 		is_predicate = true
 	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-		// Line break before `is` triggers ASI — `I\nis()` is two members, not a type predicate.
+		// Line break before `is` triggers ASI - `I\nis()` is two members, not a type predicate.
 		is_predicate = true
 	}
 
@@ -15057,7 +15177,7 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		eat(p)
 		is_predicate = true
 	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-		// Line break before `is` triggers ASI — not a type predicate.
+		// Line break before `is` triggers ASI - not a type predicate.
 		is_predicate = true
 	}
 	if is_predicate {
@@ -15108,11 +15228,11 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 //     x is T          - TSTypePredicate { parameter_name, type_annotation, asserts:false }
 //     asserts x is T  - TSTypePredicate { parameter_name, type_annotation, asserts:true  }
 //     asserts x       - TSTypePredicate { parameter_name, type_annotation:nil, asserts:true }
-// `(node: T) => node is U` is the canonical use — the inner function-type's
+// `(node: T) => node is U` is the canonical use - the inner function-type's
 // return slot can be a type predicate.
 parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	start := cur_loc(p)
-	// Function return types re-allow conditional types — the `=>`
+	// Function return types re-allow conditional types - the `=>`
 	// boundary acts like a grouping construct.
 	saved_disallow_ct := p.ts_disallow_conditional_types
 	p.ts_disallow_conditional_types = 0
@@ -15126,7 +15246,7 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		eat(p)
 		is_predicate = true
 	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-		// Line break before `is` triggers ASI — not a type predicate.
+		// Line break before `is` triggers ASI - not a type predicate.
 		is_predicate = true
 	}
 	if is_predicate {
@@ -15176,7 +15296,7 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 	nxt := p.lexer.nxt.kind
 	if nxt == .RParen { return true }
 	if nxt == .Dot3  { return true }
-	// `this:` parameter — TS function types can declare an explicit
+	// `this:` parameter - TS function types can declare an explicit
 	// `this` parameter to type-check the callee's receiver:
 	//   type Handler = (this: Element, ev: Event) => void;
 	// `this` lexes as the .This keyword, not .Identifier, so the
@@ -15190,7 +15310,7 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 		lexer_restore(p, snap)
 		return after == .Colon
 	}
-	// Destructured parameter — `({ name }: T) => U` or `([x]: T) => U`.
+	// Destructured parameter - `({ name }: T) => U` or `([x]: T) => U`.
 	// Skip the balanced `{...}` / `[...]` and check if `:`, `?`, `,` or
 	// `)`+`=>` follows. Closes ~16 OXC corpus rejects in the
 	// "Expected ), got :" cluster (typescript fixtures with shapes like
@@ -15224,7 +15344,7 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 		if depth == 0 && p.cur_type == close_kind {
 			eat(p) // consume the matching close `}` / `]`
 			after_close = p.cur_type
-			// `({a})=>R` — capture the token after the outer `)` BEFORE
+			// `({a})=>R` - capture the token after the outer `)` BEFORE
 			// restoring, since lexer_restore rewinds the cur/nxt cache.
 			if after_close == .RParen {
 				eat(p) // consume `)`
@@ -15251,7 +15371,7 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 		return false
 	}
 	// Accept any token that can stand in for a BindingIdentifier in
-	// parameter position — plain `.Identifier` plus every contextual
+	// parameter position - plain `.Identifier` plus every contextual
 	// keyword (`from`, `of`, `as`, `async`, `let`, `static`, ...). Pre-fix
 	// the check only allowed `.Identifier`, so a TS function type whose
 	// inner param happened to be named `from` (`(from: T) => U`) failed
@@ -15265,11 +15385,11 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 	eat(p) // consume Identifier
 	after := p.cur_type
 	lexer_restore(p, snap)
-	// `:` / `?` — parameter type annotation or optional marker.
-	// `,` — multiple parameters `(a, b) => R`.
-	// `=` — parameter default value `(a = 3) => R`.
+	// `:` / `?` - parameter type annotation or optional marker.
+	// `,` - multiple parameters `(a, b) => R`.
+	// `=` - parameter default value `(a = 3) => R`.
 	if after == .Colon || after == .Question || after == .Comma || after == .Assign { return true }
-	// Single untyped parameter `(item) =>` — if `)` is immediately
+	// Single untyped parameter `(item) =>` - if `)` is immediately
 	// followed by `=>`, this is a function type with an untyped param.
 	// Without this check, `(item) => item is A` is mis-parsed as a
 	// parenthesised type reference.
@@ -15292,7 +15412,7 @@ parse_ts_type :: proc(p: ^Parser) -> ^TSType {
 	// Suppressed when ts_disallow_conditional_types > 0 (e.g. inside
 	// the constraint of an `infer T extends C` during speculative parse).
 	// ASI guard: `extends` on a new line is NOT a conditional type
-	// continuation — it’s the start of the next member in an interface
+	// continuation - it's the start of the next member in an interface
 	// or type literal. e.g. `a?: number\nextends?: string`.
 	if is_token(p, .Extends) && p.ts_disallow_conditional_types == 0 && !p.cur_tok.had_line_terminator {
 		eat(p)
@@ -15325,7 +15445,7 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 	//     | A
 	//     | B
 	//     | C;
-	// The leading pipe is purely cosmetic — the union semantics are
+	// The leading pipe is purely cosmetic - the union semantics are
 	// unchanged. Same allowance applies to `&` for intersections (handled
 	// in parse_ts_intersection_type below).
 	leading_pipe_start := cur_loc(p).span.start
@@ -15463,7 +15583,7 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		// the advance_token that produced `nxt`.  But the TemplateTail
 		// was stored as `nxt`, then a subsequent `eat` consumed the
 		// second `>` (making TemplateTail the new `cur`), then the outer
-		// expect_close_angle consumed THAT and advanced again — leaving
+		// expect_close_angle consumed THAT and advanced again - leaving
 		// `}` as the current token with template_depth already 0.
 		// Fix: when cur is `}` (RBrace), re-lex it as a template
 		// continuation regardless of template_depth.
@@ -15505,12 +15625,12 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 
 parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
-	// `abstract new(...) => T` — TS abstract constructor type. `abstract`
+	// `abstract new(...) => T` - TS abstract constructor type. `abstract`
 	// lexes as .Identifier (contextual keyword); we require the next token
 	// to be .New so the lookahead has zero false positives. Treated here
 	// rather than inside the .New case so the `start` Loc captures the
 	// `abstract` token (not the `new` after it).
-	// `abstract new(...) => T` — the lexer emits `.Abstract` for the
+	// `abstract new(...) => T` - the lexer emits `.Abstract` for the
 	// keyword (see lexer.odin keyword-table). When followed by `new` it's
 	// an abstract-constructor type prefix; otherwise it falls through and
 	// is parsed as a TSTypeReference whose typeName is Identifier("abstract")
@@ -15533,7 +15653,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		return parse_ts_constructor_type(p, start, false)
 	case .LAngle:
 		// TS generic function type: `<T>(x: T) => U`. The `<` in type
-		// position has only one possible meaning — the start of TSFunctionType
+		// position has only one possible meaning - the start of TSFunctionType
 		// with type parameters. Pre-fix kessel didn't recognize this, so
 		// type annotations like `declare const f: <T>(x: T) => T` choked at
 		// the `<` and the parser fell back to default-binding logic that
@@ -15654,7 +15774,12 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// Re-allow conditional types inside brackets (tuple elements).
 		saved_disallow_ct := p.ts_disallow_conditional_types
 		p.ts_disallow_conditional_types = 0
+		// Suppress JSDoc nullable `?` consumption in parse_ts_postfix
+		// so that postfix `?` on tuple elements produces TSOptionalType.
+		saved_in_tuple := p.ts_in_tuple_type
+		p.ts_in_tuple_type = true
 		types := make([dynamic]^TSType, 0, 4, p.allocator)
+		optional_seen := false
 		for !is_token(p, .RBracket) && !is_token(p, .EOF) {
 			elem_start := cur_loc(p)
 			elev: ^TSType
@@ -15694,7 +15819,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					elev = new_node(p, TSType); elev^ = rest
 				}
 			} else {
-				// Named tuple element `name: T` or `name?: T` — detected
+				// Named tuple element `name: T` or `name?: T` - detected
 				// via 1-2 token lookahead. TS allows keywords as tuple
 				// labels: `[function: T, string: U, void?: V]`. Accept
 				// any identifier-like or keyword token that's followed by
@@ -15718,6 +15843,16 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					if is_token(p, .Question) { optional = true; eat(p) }
 					expect_token(p, .Colon)
 					inner := parse_ts_type(p)
+					if inner != nil {
+						if _, is_opt_type := inner^.(^TSOptionalType); is_opt_type {
+							report_error(p, "A labeled tuple element cannot use postfix optional type syntax")
+						}
+					}
+					if optional {
+						optional_seen = true
+					} else if optional_seen {
+						report_error(p, "A required tuple element cannot follow an optional element")
+					}
 					named_member := new_node(p, TSNamedTupleMember)
 					named_member.loc = elem_start
 					named_member.label = BindingIdentifier{loc = loc_from_token(&label_tok), name = label_tok.value}
@@ -15727,7 +15862,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					elev = new_node(p, TSType); elev^ = named_member
 				} else {
 					elev = parse_ts_type(p)
-					// Postfix `?` on a tuple element — TSOptionalType.
+					// Postfix `?` on a tuple element - TSOptionalType.
 					if elev != nil && is_token(p, .Question) {
 						eat(p)
 						opt := new_node(p, TSOptionalType)
@@ -15735,6 +15870,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 						opt.type_annotation = elev
 						opt.loc.span.end = prev_end_offset(p)
 						elev = new_node(p, TSType); elev^ = opt
+						optional_seen = true
+					} else if optional_seen {
+						report_error(p, "A required tuple element cannot follow an optional element")
 					}
 				}
 			}
@@ -15743,9 +15881,10 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		}
 		expect_token(p, .RBracket)
 		p.ts_disallow_conditional_types = saved_disallow_ct
+		p.ts_in_tuple_type = saved_in_tuple
 		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = tup
-		// Same chain as the LBrace branch above — `[T, U][]` (array of tuples)
+		// Same chain as the LBrace branch above - `[T, U][]` (array of tuples)
 		// and `[T, U][N]` (indexed access into a tuple) need parse_ts_postfix.
 		return parse_ts_postfix(p, r, start)
 	case .Void:   return parse_ts_kw(p, TSVoidKeyword, start)
@@ -15758,7 +15897,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// models the assertion's type as TSTypeReference whose typeName is
 		// Identifier("const"). Pre-fix the parser fell through to
 		// parse_ts_type_reference's `cur := get_current(p); id.name = cur.value`
-		// which expects an Identifier kind — .Const failed and the as-arm
+		// which expects an Identifier kind - .Const failed and the as-arm
 		// reported "Expected semicolon" / "Expected binding pattern". Closes
 		// 50+ OXC corpus rejects in the "Expected semicolon" cluster (S26 W6
 		// phase 3 bug class #13).
@@ -15954,7 +16093,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		return parse_ts_postfix(p, r, start)
 	case .TemplateHead:
 		// TS template-literal type with substitutions: `\`a${T}b\``. Each
-		// `${...}` slot holds a TYPE, not an expression — so we can't reuse
+		// `${...}` slot holds a TYPE, not an expression - so we can't reuse
 		// parse_template_literal (which calls parse_assignment_expression).
 		// Build TSTemplateLiteralType directly: alternating quasis and types.
 		return parse_ts_template_literal_type(p, start)
@@ -16000,7 +16139,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		//   ImportType: typeof? import ( StringLiteral ImportTypeAttributes? )
 		//                 ( . QualifiedName )? TypeArguments?
 		// Used to reference types from other modules without a top-level
-		// `import` statement — the canonical form in `.d.ts` libraries
+		// `import` statement - the canonical form in `.d.ts` libraries
 		// (oxc-parser/src-js/index.d.ts: `get program(): import("@oxc-
 		// project/types").Program`).
 		eat(p) // consume `import`
@@ -16013,7 +16152,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				report_error(p, "String literal expected in import type")
 			}
 		}
-		// `with { ... }` import-type attributes — stage-3 since TS 5.3.
+		// `with { ... }` import-type attributes - stage-3 since TS 5.3.
 		// Eat permissively without strict shape validation; the type
 		// checker handles semantics.
 		if is_token(p, .Comma) {
@@ -16157,7 +16296,7 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 		// the keyword tokens that begin a type (.This, .Void, .Null,
 		// .Never, .Typeof, .Keyof, .Unique, .Infer, .Import, .True,
 		// .False, .String, .Number). Bare `readonly` standing alone (very
-		// rare — `Foo.readonly` IdentifierName) falls through to
+		// rare - `Foo.readonly` IdentifierName) falls through to
 		// TypeReference.
 		#partial switch p.lexer.nxt.kind {
 		case .LBracket, .LParen, .Identifier, .This, .Void, .Null,
@@ -16239,7 +16378,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 		}
 	}
 	// TS / JSDoc non-nullable postfix: `T!`. OXC produces
-	// TSJSDocNonNullableType. Accept permissively — just consume the `!`
+	// TSJSDocNonNullableType. Accept permissively - just consume the `!`
 	// and return the inner type. Same-line only (ASI guard).
 	if is_token(p, .Not) && !p.cur_tok.had_line_terminator {
 		eat(p) // consume `!`
@@ -16248,7 +16387,10 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	// TSJSDocNullableType. Accept permissively. Only consume when `?`
 	// is NOT followed by `:` or another type-continuation (to avoid
 	// eating the `?` of a conditional type or an optional param `?:`).
-	if is_token(p, .Question) && !p.cur_tok.had_line_terminator {
+	// EXCEPTION: inside a tuple type, the postfix `?` is reserved for
+	// TSOptionalType syntax (`[T?, U]`), not JSDoc nullable. The tuple
+	// parser handles it after parse_ts_type returns.
+	if is_token(p, .Question) && !p.cur_tok.had_line_terminator && !p.ts_in_tuple_type {
 		nxt := p.lexer.nxt.kind
 		if nxt == .RParen || nxt == .Comma || nxt == .Semi || nxt == .RBrace ||
 		   nxt == .RBracket || nxt == .RAngle || nxt == .Assign || nxt == .EOF {
@@ -16273,10 +16415,10 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 	targs: Maybe(^TSTypeParameterInstantiation)
 	if is_open_angle_or_lshift(p) {
 		// When `<` sits on a new line, speculatively try type arguments.
-		// If the parse produces errors, roll back — the `<` likely starts
+		// If the parse produces errors, roll back - the `<` likely starts
 		// a new generic call signature in an overloaded object/interface
-		// type (e.g. `T\n<U extends V>(…): W`).  Same-line `<` commits
-		// unconditionally — `Map<string, number>` must never roll back.
+		// type (e.g. `T\n<U extends V>(...): W`).  Same-line `<` commits
+		// unconditionally - `Map<string, number>` must never roll back.
 		if p.cur_tok.had_line_terminator {
 			snap := lexer_snapshot(p)
 			snap_errs := len(p.errors)
@@ -16350,7 +16492,7 @@ is_close_angle_token :: #force_inline proc(p: ^Parser) -> bool {
 // AssignURShift), split it via try_split_close_angle so the leading `>`
 // is consumed and the rest stays in the token stream for the next
 // expression-level parser. Falls back to expect_token(.RAngle) when
-// none of the above matches — this preserves the diagnostic for
+// none of the above matches - this preserves the diagnostic for
 // genuinely malformed code.
 expect_close_angle :: proc(p: ^Parser) -> bool {
 	#partial switch p.cur_type {
@@ -16361,7 +16503,7 @@ expect_close_angle :: proc(p: ^Parser) -> bool {
 		if try_split_close_angle(p.lexer) {
 			// After split, p.cur_type is RAngle. Sync the parser's mirror
 			// of cur_type by consuming via eat (which calls advance_token
-			// — reads the new fast cur into the parser's slow token).
+			// - reads the new fast cur into the parser's slow token).
 			// First we need the parser to re-read the lexer's cur; eat(p)
 			// advances PAST the current token, so we need to manually
 			// resync. The cleanest path: drop into advance_token directly,
@@ -16435,8 +16577,8 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	// `<Identifier ...` path below catches `<out T>`.
 	if nxt_kind == .Const || nxt_kind == .In {
 		// `<const T>` / `<in T>` are type-parameter modifier syntax
-		// for generic arrows. `<const>X` is also a TS 3.4-era “const
-		// assertion” (TSTypeAssertion with `const` as the type name).
+		// for generic arrows. `<const>X` is also a TS 3.4-era "const
+		// assertion" (TSTypeAssertion with `const` as the type name).
 		// Try generic arrow first; on failure, fall through to the
 		// assertion path so `<const>10` parses as TSTypeAssertion.
 		snap := lexer_snapshot(p)
@@ -16677,7 +16819,7 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 	//   - destructured `({a}): T => ...`
 	//   - rest-only is already caught by the .Dot3 fast path above.
 	// The trial parser try_parse_ts_arrow_params rolls back on failure, so
-	// over-broad detection here is safe — the cost of a false-positive is
+	// over-broad detection here is safe - the cost of a false-positive is
 	// one rollback. Closes ~30 OXC corpus rejects in the
 	// "Expected ), got :" cluster (S26 W6 phase 3 bug class #18).
 	//
@@ -16735,11 +16877,11 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 			}
 			break
 		}
-		// Direct `=>` — plain arrow without return type, but the regular
+		// Direct `=>` - plain arrow without return type, but the regular
 		// non-TS path handles those. Returning true is harmless: the trial
 		// parser will succeed and build the same arrow.
 		if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' { return true }
-		// `:` here means a return-type annotation — walk past it tracking
+		// `:` here means a return-type annotation - walk past it tracking
 		// balanced groups, looking for top-level `=>`.
 		if j < src_len && src[j] == ':' {
 			j += 1
@@ -16755,7 +16897,7 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 				case '=':
 					// `=>` arrow detection. At top-level it terminates the
 					// scan with success. Inside a balanced group, the `>` is
-					// PART of the arrow token — we must skip BOTH bytes so
+					// PART of the arrow token - we must skip BOTH bytes so
 					// the `>` isn't later mis-consumed as a group closer.
 					// Test: `<T>(): (() => T) => null as any` (the inner
 					// `=>` of the parenthesised function type).
@@ -16821,7 +16963,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	// parse_ts_return_type_annotation rather than parse_ts_type_annotation
 	// so type-predicate forms `(x): x is T => ...`, `(x): asserts x => ...`,
 	// and `(x): asserts x is T => ...` parse as TSTypePredicate (closes
-	// ~25 OXC corpus rejects in the "Expected ), got :" cluster — S26 W6
+	// ~25 OXC corpus rejects in the "Expected ), got :" cluster - S26 W6
 	// phase 3 bug class #18). Pre-fix the plain parse_ts_type_annotation
 	// path called parse_ts_type which doesn't recognise the predicate's
 	// `is` / `asserts` keywords; the trial bailed at `is` and the outer
@@ -16837,7 +16979,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 		p.pending_paren_start = prev_pending_paren
 		return nil
 	}
-	// §15.3 — ArrowParameters [no LineTerminator here] =>
+	// §15.3 - ArrowParameters [no LineTerminator here] =>
 	if p.cur_tok.had_line_terminator {
 		report_error(p, "Line terminator not permitted before '=>'")
 	}
@@ -16891,7 +17033,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	params := make([dynamic]TSTypeParameter, 0, 4, p.allocator)
 	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
 		param_start := cur_loc(p)
-		// TS type-parameter modifiers — may appear in any order before the
+		// TS type-parameter modifiers - may appear in any order before the
 		// name. `const` (TS 5.0+) lexes as the .Const keyword; `in` lexes
 		// as the .In keyword; `out` is a contextual identifier. They are
 		// only modifiers if followed by something that can legitimately
@@ -17196,7 +17338,13 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		eat(p) // consume `in`
 		constraint := parse_ts_type(p)
 		name_type: Maybe(^TSType)
-		if is_token(p, .As) { eat(p); name_type = parse_ts_type(p) }
+		if is_token(p, .As) {
+			eat(p)
+			name_type = parse_ts_type(p)
+			if name_type == nil {
+				report_error(p, "Expected type after 'as' in mapped type")
+			}
+		}
 		expect_token(p, .RBracket)
 		// Optional modifier: `?`, `+?`, `-?`.
 		optional_mod := TSMappedTypeModifier.None
@@ -17239,7 +17387,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		}
 		// Defensive: parse_ts_object_member can return nil without consuming
 		// (e.g. when cur is `.RBracket` left over from a malformed inner
-		// type). Without this guard the loop spins forever — reproduced by
+		// type). Without this guard the loop spins forever - reproduced by
 		// `let X: { o: readonly ["a", "b"] };` where the `readonly` token
 		// isn't recognised as a type-operator-on-tuple, so parse_ts_type
 		// returns nil leaving readonly + `["a", "b"]` unconsumed in the
@@ -17266,7 +17414,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 	for !is_token(p, .RParen) && !is_token(p, .EOF) {
 		param_start := cur_loc(p)
 		param_is_rest := false
-		// Allow `this:` as the first parameter (TS-only — binds the
+		// Allow `this:` as the first parameter (TS-only - binds the
 		// callee receiver type). Treat `this` here as an Identifier-
 		// shaped param pattern so the rest of the signature parses
 		// uniformly. Position-checking (must be FIRST param) is the
@@ -17277,7 +17425,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 			eat(p)
 			this_id := new_node(p, Identifier)
 			this_id.loc = loc_from_token(&this_tok)
-			// S26 W5b: source-slice (this_tok.value), not literal — same
+			// S26 W5b: source-slice (this_tok.value), not literal - same
 			// RODATA bug as the .Async paths.
 			this_id.name = this_tok.value
 			pattern = this_id
@@ -17571,6 +17719,100 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		readonly = true
 	}
 
+	// Parse contextual get/set accessor signatures. `get` / `set` are also
+	// valid property names, so only treat them as accessors when another
+	// property key follows on the same member.
+	nxt_allows_accessor := false
+	if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+		#partial switch p.lexer.nxt.kind {
+		case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
+			// `get()`, `get?: T`, `set;` are members named get/set.
+		case:
+			nxt_allows_accessor = true
+		}
+	}
+	if ((is_token(p, .Get) || is_token(p, .Set)) ||
+	    (is_token(p, .Identifier) && (p.cur_tok.value == "get" || p.cur_tok.value == "set"))) &&
+	   nxt_allows_accessor {
+		accessor_kind := TSMethodSignatureKind.Get
+		if is_token(p, .Set) || (is_token(p, .Identifier) && p.cur_tok.value == "set") {
+			accessor_kind = .Set
+		}
+		eat(p) // consume get/set modifier.
+
+		accessor_key: ^Expression
+		accessor_computed := false
+		if is_token(p, .LBracket) {
+			accessor_computed = true
+			eat(p)
+			accessor_key = parse_assignment_expression(p)
+			expect_token(p, .RBracket)
+		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+			cur := get_current(p)
+			id := new_node(p, Identifier)
+			id.loc = loc_from_token(&cur)
+			id.name = cur.value
+			accessor_key = expression_from(p, id)
+			eat(p)
+		} else if is_token(p, .String) {
+			str := parse_string_literal(p)
+			sn := new_node(p, StringLiteral)
+			sn^ = str
+			accessor_key = expression_from(p, sn)
+		} else if is_token(p, .Number) {
+			cur := get_current(p)
+			nm := new_node(p, NumericLiteral)
+			nm.loc = loc_from_token(&cur)
+			nm.raw = cur.value
+			if v, ok := cur.literal.(f64); ok { nm.value = v }
+			accessor_key = expression_from(p, nm)
+			eat(p)
+		} else {
+			return nil
+		}
+
+		if is_token(p, .LAngle) {
+			report_error(p, "An accessor cannot have type parameters")
+			_ = parse_ts_type_parameters(p)
+		}
+		params := parse_ts_sig_params(p)
+		if accessor_kind == .Get {
+			if len(params) != 0 {
+				report_error(p, "A get accessor cannot have parameters")
+			}
+		} else {
+			if len(params) != 1 {
+				report_error(p, "A set accessor must have exactly one parameter")
+			}
+			if len(params) == 1 {
+				if params[0].optional {
+					report_error(p, "A set accessor parameter cannot be optional")
+				}
+				if _, is_rest := params[0].pattern.(^RestElement); is_rest {
+					report_error(p, "A set accessor parameter cannot be a rest parameter")
+				}
+				if id, is_id := params[0].pattern.(^Identifier); is_id && id.name == "this" {
+					report_error(p, "A set accessor cannot have a this parameter")
+				}
+			}
+		}
+		ret: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Colon) {
+			ret = parse_ts_type_annotation(p)
+			if accessor_kind == .Set {
+				report_error(p, "A set accessor cannot have a return type annotation")
+			}
+		}
+		method := TSMethodSignature{
+			loc = start, key = accessor_key, computed = accessor_computed,
+			optional = false, kind = accessor_kind, params = params, return_type = ret,
+		}
+		method.loc.span.end = prev_end_offset(p)
+		sig := new_node(p, TSSignature)
+		sig^ = method
+		return sig
+	}
+
 	// Parse key for method or property signature.
 	key: ^Expression; computed := false
 	if is_token(p, .LBracket) {
@@ -17685,7 +17927,10 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			if cls, ok := stmt^.(^ClassDeclaration); ok { cls.declare = true }
 		}
 	case .Abstract:
-		if is_next_token(p, .Class) {
+		if p.lexer.nxt.kind == .Class {
+			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+				report_error(p, "Line terminator not permitted between 'abstract' and 'class'")
+			}
 			eat(p) // consume `abstract`
 			stmt = parse_class_declaration(p)
 			if stmt != nil {
@@ -17696,7 +17941,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 		}
 	case .Import:
-		// `declare import X = N` — ambient import-equals. TSImportEqualsDeclaration
+		// `declare import X = N` - ambient import-equals. TSImportEqualsDeclaration
 		// has no declare flag in ESTree; just parse it normally.
 		import_start := cur_loc(p)
 		eat(p) // consume `import`
@@ -17724,11 +17969,20 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		val := p.cur_tok.value
 		switch val {
 		case "interface":
+			// Newline between `interface` and its name triggers ASI.
+			// `declare interface\nFoo {}` → error. OXC / TSC agree.
+			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+				report_error(p, "Line terminator not permitted after 'interface'")
+			}
 			stmt = parse_ts_interface_declaration(p)
 			if stmt != nil {
 				if id, ok := stmt^.(^TSInterfaceDeclaration); ok { id.declare = true }
 			}
 		case "type":
+			// Newline between `type` and its name triggers ASI.
+			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+				report_error(p, "Line terminator not permitted after 'type'")
+			}
 			if is_next_token(p, .Identifier) {
 				stmt = parse_ts_type_alias_declaration(p)
 				if stmt != nil {
@@ -17743,6 +17997,10 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		// `declare` span widening for this branch handled at the bottom
 		// alongside the other cases (see end of proc).
 		case "namespace":
+			// Newline between `namespace` and its name triggers ASI.
+			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+				report_error(p, "Line terminator not permitted after 'namespace'")
+			}
 			if is_next_token(p, .Identifier) {
 				stmt = parse_ts_module_declaration(p, .Namespace)
 				if stmt != nil {
@@ -17752,6 +18010,10 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		case "module":
 			// `declare module "name" {}` (string literal) or
 			// `declare module Identifier {}` (ambient namespace).
+			// Newline between `module` and its name triggers ASI.
+			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+				report_error(p, "Line terminator not permitted after 'module'")
+			}
 			if is_next_token(p, .String) || is_next_token(p, .Identifier) || is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
 				stmt = parse_ts_module_declaration(p, .Module)
 				if stmt != nil {
@@ -17759,7 +18021,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 				}
 			}
 		case "global":
-			// `declare global { ... }` — TS global augmentation. Unlike
+			// `declare global { ... }` - TS global augmentation. Unlike
 			// `namespace X` / `module "x"`, the keyword IS the id (always
 			// the literal identifier `global`) and there's no dotted form,
 			// so we build the TSModuleDeclaration inline rather than
@@ -17847,6 +18109,9 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	extends_list: [dynamic]TSInterfaceHeritage
 	if match_token(p, .Extends) {
 		extends_list = parse_ts_heritage_list(p)
+		if len(extends_list) == 0 {
+			report_error(p, "Expected interface name after 'extends'")
+		}
 	}
 	body_start := cur_loc(p)  // position of `{`
 	expect_token(p, .LBrace)
@@ -18089,7 +18354,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		defer p.in_ambient = prev_ambient
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-			// Same progress guard as parse_ts_module_declaration's body loop —
+			// Same progress guard as parse_ts_module_declaration's body loop -
 			// nested namespaces (`namespace A.B.C { ... }` / `module M.N { ... }`)
 			// hit the same hang shape on unsupported TS forms.
 			prev_offset := int(cur_offset(p))
@@ -18181,9 +18446,9 @@ loc_from_token :: #force_inline proc(t: ^Token) -> Loc {
 	// safe for synthetic Tokens constructed outside the lexer pipeline.
 	//
 	// `t.loc.line` / `t.loc.column` are NEVER written by the lexer or
-	// parser — they're computed lazily by `report_error` from `offset` via
+	// parser - they're computed lazily by `report_error` from `offset` via
 	// `offset_to_line_col`. Reading them here returned permanent 0, then
-	// we'd write 0 into `Loc.{line,column}` — four wasted memory ops per
+	// we'd write 0 into `Loc.{line,column}` - four wasted memory ops per
 	// `loc_from_token` call (called on every AST node from a current-token
 	// span). Leave the Loc's line / column zero-initialised.
 	end := u32(int(t.loc) + len(t.value))
