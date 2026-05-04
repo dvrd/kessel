@@ -1,7 +1,7 @@
 # Kessel — Handoff Document
 
 **Date:** 2026-05-04
-**Last commit:** TS newlines, for-await, decorator, tuple, enum/reserved-word sweep
+**Last commit:** Phase 6 comprehensive rejection-parity sweep
 
 ---
 
@@ -13,11 +13,11 @@
 | `task test:negative` | ✅ 82 rejected |
 | `task test:oxc-corpus` | ✅ baseline OK |
 | `verify_multifile.js` | ✅ 0 kessel-only |
-| **oxc-only-rejects** | **85** (was 776) |
+| **oxc-only-rejects** | **71** (was 776) |
 | **kessel-only-rejects** | **1** (same .d.ts edge) |
 | **kessel-crash** | **0** (was 3) |
 
-**Total reduction: 776 → 85 (↓691, 89%)**
+**Total reduction: 776 → 71 (↓705, 91%)**
 
 ---
 
@@ -38,35 +38,52 @@ Missing unary operands (`void]` / discard-binding shapes), missing ternary conse
 ### Phase 5: More OXC early-error parity (↓28)
 Async arrow restricted productions (`async await =>`, line terminator before `=>`, unparenthesized arrow call), object `async a:` modifier misuse, dynamic `import()` spread in second arg, invalid `export default using` declarations, TS class heritage/implements empty lists, readonly methods, override constructors, type-only import/export specifier misuse, parenthesized binding elements inside patterns, and mapped type `as` without a type.
 
-### Phase 6: Newline / reserved-word / tuple / scope sweep (↓91)
-- **TS declaration newlines (8):** ASI between `interface`/`type`/`namespace`/`module` and their names — newline triggers ASI, rejecting `type\nFoo = number` and `declare interface\nI {}` etc.
-- **for-await context (4):** Top-level `for await` in non-module JS files correctly rejected; TS files exempt since they may contain later `export` that upgrades to module.
-- **Decorator on abstract (3):** `@dec abstract foo(): void` in class bodies now rejected — decorators require implementations.
-- **Tuple postfix ? (3):** Fixed `parse_ts_postfix` silently consuming postfix `?` inside tuples. Added `ts_in_tuple_type` flag so `?` correctly produces `TSOptionalType` and enables `required-after-optional` validation.
-- **Reserved words as names (14):** `function enum()`, `class enum {}` rejected via value check (lexer emits `.Identifier`). `function null/true/false/if/default()` rejected by narrowing `has_name` from `is_keyword_usable_as_property_name` to `can_be_binding_identifier`.
+### Phase 6: Comprehensive rejection-parity sweep (↓113)
+Across 12 commits:
+- **TS declaration newlines (8):** ASI between `interface`/`type`/`namespace`/`module` and names
+- **for-await context (4):** Top-level `for await` in non-module JS rejected
+- **Decorator on abstract (3):** `@dec abstract foo()` rejected
+- **Tuple postfix ? (3):** `ts_in_tuple_type` flag for TSOptionalType
+- **Reserved words as names (14+):** function/class enum, null/true/false/if/default
+- **Decorator on export default (2):** `@foo export default 0;` rejected
+- **`export {default}` (1):** Reserved word without `as` rejected
+- **`yield*` without operand (3):** Delegate yield requires expression
+- **Optional param TS gate (2):** `?` on params gated on TS mode
+- **Generator no name (2):** `({ * })` rejected
+- **Override modifier order (1):** override must precede readonly
+- **Export default interface (1):** Anonymous interface rejected
+- **void in destructuring (3):** `{ p: void }`, `[ ...void ]` rejected
+- **String destructuring (1):** `{ "while" }` requires `:` value
+- **`export =` without expr (2):** Empty export assignment rejected
+- **Interface/type name narrowing (2+):** `interface void {}` triggers ASI
+- **await-in-async-params (6):** Bare `await` in params requires operand
+- **Scope isolation (1):** Nested function resets `in_async_params`
+- **Double-comma (2):** Type args `<a,,b>` and tuples `[T,,]` rejected
+- **Type-param empty comma (2):** `<,>` rejected
+- **Spread without arrow (2):** `(b, ...a)` without `=>` rejected
+- **Variance keyword name (1):** `<in in>` reserved-word check
+- **typeof trailing dot (2):** `typeof A.` rejected
+- **Export-star non-string (1):** `export * from Aaa` rejected
+- **Import-type trailing comma (1):** `import("foo", )` rejected
+- **Enum empty/private (2):** `{ , }` and `{ #x }` rejected
+- **Empty type annotation (2+):** `(a: )` reports error
 
 ---
 
-## Remaining: 85
+## Remaining: 71
 
-| Cluster | ~Count |
-|---|---:|
-| Unexpected token (diverse) | ~47 |
-| Expected semicolon (paren arrows, TS edge) | ~12 |
-| Expected X but found X | ~9 |
-| Reserved word as identifier | ~2 |
-| Keyword escapes | ~2 |
-| Decorators not valid here | ~1 |
-| Yield context | ~2 |
-| Import type options | ~2 |
-| Import type options | ~5 |
-| Small (1 each) | ~7 |
-
-### Largest remaining sub-clusters
-- Parenthesized binding elements in arrow params (6): `(a, (b)) => 42`
-- `await` as default param value in async (6): `async function(a = await)`
-- Bare `let` in strict mode (4): `"use strict"; let\n`
-- `new <T>Foo()` type assertion (4): TS-specific error recovery
+| Category | ~Count | Difficulty |
+|---|---:|---|
+| TS error recovery (malformed syntax) | ~30 | HARD |
+| Parenthesized binding in arrows | ~7 | HARD |
+| Bare `let` in strict/TS | ~4 | MEDIUM |
+| JSX edge cases | ~4 | HARD |
+| Import type options (escape/spread/computed) | ~4 | HARD |
+| `enum` as identifier in JS | ~3 | MEDIUM |
+| Keyword escapes in for-of | ~2 | MEDIUM |
+| Unparenthesized fn/ctor type in union | ~2 | HARD |
+| for-of/using disambiguation | ~4 | HARD |
+| Other (1 each) | ~11 | MIXED |
 
 ### Commands
 ```bash
