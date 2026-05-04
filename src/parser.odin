@@ -8758,7 +8758,12 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 
 	// Binding identifier.
 	id_loc := cur_loc(p)
-	decl.id = Identifier{loc = id_loc, name = cur_value(p)}
+	id_name := cur_value(p)
+	decl.id = Identifier{loc = id_loc, name = id_name}
+	// `await` as binding in import-equals is forbidden in module code.
+	if (p.cur_type == .Await || id_name == "await") && await_is_reserved_here(p) {
+		report_error(p, "Cannot use 'await' as an identifier in module code")
+	}
 	eat(p)  // consume id
 
 	// `=`. The caller's `next == .Assign` check guarantees we hit it; using
@@ -13218,6 +13223,28 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 					if _, is_object := spread.argument.(^ObjectExpression); is_object {
 						report_error(p, "Rest property may not be a binding pattern")
 					}
+					// TS `as T` on a rest argument: `{ ...{} as T}` is invalid
+					// because the inner expression `{}` is not a valid assignment
+					// target. But `{ ...a as T}` is valid (unwraps to `a`).
+					// Only check when there IS a TS assertion wrapping a literal.
+					if spread.argument != nil {
+						has_ts_wrap := false
+						unwrapped := spread.argument
+						if ae, is_as := unwrapped^.(^TSAsExpression); is_as {
+							unwrapped = ae.expression; has_ts_wrap = true
+						}
+						if ta, is_ta := unwrapped^.(^TSTypeAssertion); is_ta {
+							unwrapped = ta.expression; has_ts_wrap = true
+						}
+						if has_ts_wrap && unwrapped != nil {
+							if _, is_obj := unwrapped^.(^ObjectExpression); is_obj {
+								report_error(p, "Invalid rest operator's argument")
+							}
+							if _, is_arr := unwrapped^.(^ArrayExpression); is_arr {
+								report_error(p, "Invalid rest operator's argument")
+							}
+						}
+					}
 					inner, inner_ok := expr_to_pattern(p, spread.argument)
 					if inner_ok {
 						rest := new_node(p, RestElement)
@@ -16689,7 +16716,18 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 	case "unknown":   return parse_ts_kw(p, TSUnknownKeyword, start)
 	case "undefined": return parse_ts_kw(p, TSUndefinedKeyword, start)
 	case "never":     return parse_ts_kw(p, TSNeverKeyword, start)
-	case "intrinsic": return parse_ts_kw(p, TSIntrinsicKeyword, start)
+	case "intrinsic":
+		// `intrinsic` is a TS keyword type. Parse it, then check for
+		// disallowed postfix operators. `intrinsic["foo"]` is not valid.
+		eat(p)
+		node := new_node(p, TSIntrinsicKeyword); node.loc = start
+		node.loc.span.end = prev_end_offset(p)
+		result := new_node(p, TSType); result^ = node
+		// Reject indexed access on intrinsic keyword.
+		if is_token(p, .LBracket) {
+			report_error(p, "Indexed access is not allowed on 'intrinsic' keyword type")
+		}
+		return parse_ts_postfix(p, result, start)
 	case "readonly":
 		// TS type operator on tuple / array: `readonly T[]`,
 		// `readonly [A, B, C]`, `readonly unknown[]`, `readonly Foo[]`,
