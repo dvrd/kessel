@@ -15150,6 +15150,10 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					// JSX attribute expression: `{expr}`. Use parse_expression
 					// (not parse_assignment_expression) to allow the comma
 					// operator: `{class1, class2}` is a SequenceExpression.
+					// `attr={}` — empty expression container is invalid.
+					if is_next_token(p, .RBrace) {
+						report_error(p, "JSX attributes must only be assigned a non-empty expression")
+					}
 					eat(p); expr := parse_expression(p); expect_token(p, .RBrace)
 					container := new_node(p, JSXExpressionContainer)
 					container.loc = start; container.expression = expr
@@ -15410,7 +15414,8 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	// also allowed in non-return positions like `var x: this is string`
 	// or `let p: y is U`. The TS parser accepts them syntactically and
 	// defers the "only-valid-on-functions" check to the type checker;
-	// kessel matches that. Test:
+	// kessel matches that. OXC's parser also accepts them in most
+	// positions. Test:
 	// typescript/conformance/expressions/typeGuards/
 	// typePredicateOnVariableDeclaration01.ts.
 	asserts := false
