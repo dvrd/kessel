@@ -5111,8 +5111,21 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// parse_function_declaration does at line 3810. Stored on the
 	// FunctionExpression's type_parameters slot below.
 	method_type_parameters: Maybe(^TSTypeParameterDeclaration)
-	if is_token(p, .LAngle) {
+	if is_token(p, .LAngle) && allow_ts_mode(p) {
 		method_type_parameters = parse_ts_type_parameters(p)
+	} else if is_token(p, .LAngle) && !allow_ts_mode(p) {
+		// In JS mode, `<T>` after a method name is a comparison, not
+		// type parameters. Report error and skip the angle-bracketed
+		// content for recovery.
+		report_error(p, "Type parameters are only allowed in TypeScript files")
+		eat(p) // consume `<`
+		depth := 1
+		for depth > 0 && !is_token(p, .EOF) {
+			if is_token(p, .LAngle) { depth += 1 }
+			else if is_token(p, .RAngle) { depth -= 1 }
+			if depth > 0 { eat(p) }
+		}
+		if is_token(p, .RAngle) { eat(p) }
 	}
 
 	if is_readonly {
