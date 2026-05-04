@@ -3,12 +3,12 @@
   "verdicts": {
     "ok-vs-oxc": 15608,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 296,
+    "oxc-only-rejects": 292,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
     "should-pass-rejected": 2048,
-    "reject-both": 554,
+    "reject-both": 558,
     "kessel-crash": 3
   },
   "bySuite": {
@@ -27,8 +27,8 @@
         "should-reject-passed": 34,
         "pass-both": 3038,
         "should-pass-rejected": 2048,
-        "reject-both": 554,
-        "oxc-only-rejects": 215,
+        "reject-both": 558,
+        "oxc-only-rejects": 211,
         "kessel-crash": 3
       }
     },
@@ -290,11 +290,10 @@
     },
     "babel/es2017/async-functions": {
       "should-pass-rejected": 21,
-      "oxc-only-rejects": 8
+      "oxc-only-rejects": 7
     },
     "babel/es2017/trailing-function-commas": {
-      "should-pass-rejected": 1,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 1
     },
     "babel/es2018/async-generators": {
       "should-pass-rejected": 1
@@ -363,7 +362,7 @@
     },
     "babel/es2026/async-explicit-resource-management": {
       "should-pass-rejected": 12,
-      "oxc-only-rejects": 3
+      "oxc-only-rejects": 2
     },
     "babel/es2026/explicit-resource-management": {
       "should-pass-rejected": 10,
@@ -373,7 +372,7 @@
       "should-pass-rejected": 1
     },
     "babel/esprima/es2015-arrow-function": {
-      "oxc-only-rejects": 7,
+      "oxc-only-rejects": 6,
       "should-pass-rejected": 1
     },
     "babel/esprima/es2015-destructuring-assignment": {

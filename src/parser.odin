@@ -2339,6 +2339,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	await_using_for_decl := false
 	if is_token(p, .Await) && peek_dispatch(p).type == .Using {
+		using_after_await := peek_token(p)
+		if using_after_await.had_line_terminator {
+			report_error(p, "Line terminator not permitted between 'await' and 'using'")
+		}
 		await_using_for_decl = await_using_starts_decl(p)
 	}
 	// A using/await-using declaration in a for-init is NOT directly
@@ -11237,8 +11241,28 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if expr == nil {
 			return nil
 		}
+		paren_expr_had_trailing_comma := false
+		if p.lexer != nil && is_token(p, .RParen) {
+			src := p.lexer.source_bytes
+			k := int(cur_offset(p)) - 1
+			for k >= 0 {
+				c := src[k]
+				if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+					k -= 1
+					continue
+				}
+				paren_expr_had_trailing_comma = c == ','
+				break
+			}
+		}
 		if !expect_token(p, .RParen) {
 			return nil
+		}
+		if paren_expr_had_trailing_comma && !is_token(p, .Arrow) {
+			report_error(p, "Parenthesized expressions may not have a trailing comma.")
+		}
+		if _, is_spread_expr := expr.(^SpreadElement); is_spread_expr && !is_token(p, .Arrow) {
+			report_error(p, "Expected `=>` after parenthesized rest parameter")
 		}
 		// Note: OXC/Acorn do NOT adjust the inner expression span to
 		// include the parentheses in most cases. The parentheses are
@@ -13986,9 +14010,14 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		async_return_type = parse_ts_return_type_annotation(p)
 	}
 
-	if !expect_token(p, .Arrow) {
+	if !is_token(p, .Arrow) {
+		expect_token(p, .Arrow)
 		return nil
 	}
+	if p.cur_tok.had_line_terminator {
+		report_error(p, "Line terminator not permitted before '=>'")
+	}
+	eat(p)
 
 	prev_async := p.in_async
 	p.in_async = true
