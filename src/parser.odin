@@ -2548,6 +2548,36 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					}
 				}
 			}
+			// §14.7.5.1 - the LHS of a for-of head cannot start with
+			// `let` (avoids ambiguity with `for (let x of ...)` which is
+			// a for-of with a LetDeclaration). `for (let.foo of [])`,
+			// `for (let().bar of [])` etc. are all SyntaxErrors.
+			if !is_in {
+				let_lhs := false
+				if id, ok := left_expr.(^Identifier); ok && id != nil && id.name == "let" {
+					let_lhs = true
+				} else if mem, ok2 := left_expr.(^MemberExpression); ok2 && mem != nil {
+					// `let.foo` or `let().bar` — check if the root is `let`.
+					root := left_expr
+					for {
+						if m, ok3 := root.(^MemberExpression); ok3 && m != nil {
+							root = m.object
+						} else if c, ok4 := root.(^CallExpression); ok4 && c != nil {
+							root = c.callee
+						} else if t, ok5 := root.(^TaggedTemplateExpression); ok5 && t != nil {
+							root = t.tag
+						} else {
+							break
+						}
+					}
+					if rid, ok3 := root.(^Identifier); ok3 && rid != nil && rid.name == "let" {
+						let_lhs = true
+					}
+				}
+				if let_lhs {
+					report_error(p, "The left-hand side of a for-of loop may not start with 'let'")
+				}
+			}
 			// §14.7.5.1 - the LHS expression must have a valid
 			// AssignmentTargetType. `for (this of [])`, `for (1 of [])`,
 			// `for ((a + b) of [])` are all SyntaxErrors. is_destructure
@@ -2739,13 +2769,13 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		init_expr = left_expr
 	}
 
-	if init_decl != nil && allow_ts_mode(p) {
+	if init_decl != nil {
 		id, have_init := init_decl.(^VariableDeclaration)
 		if have_init && id != nil {
 			if id.kind == .Using || id.kind == .AwaitUsing {
 				for decl in id.declarations {
 					if _, have := decl.init.(^Expression); !have {
-						report_error(p, "Missing initializer in for-loop declaration")
+						report_error(p, "Using declarations must have an initializer")
 					}
 				}
 			}
@@ -4953,7 +4983,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	                    // In TS mode, `<` on the next line can start type
 	                    // parameters for a method: `method\n<T>() {}`.
 	                    !(allow_ts_mode(p) && is_open_angle_or_lshift(p))
-	if field_type_ann != nil || is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) || is_field_by_asi {
+	if !is_generator && (field_type_ann != nil || is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) || is_field_by_asi) {
 		// Class field with initializer or just declaration
 		value: Maybe(^Expression)
 
@@ -10313,6 +10343,12 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.cur_tok.has_escape && p.cur_tok.value == "await" && await_is_reserved_here(p) {
 			report_semantic_error(p, "'await' is not allowed as an identifier in this context")
 		}
+		// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
+		// reserved. The lexer emits it as .Identifier (contextual for
+		// TS enum decls). Mirrors the check in parse_primary_expr.
+		if !p.cur_tok.has_escape && p.cur_tok.value == "enum" {
+			report_error(p, "'enum' is a reserved word")
+		}
 		// Inline identifier parse + LHS tail. Pull only the fields we need
 		// out of p.cur_tok before eat() advances - a full Token copy is ~64
 		// bytes and was showing up in the parse_unary_expr profile when this
@@ -11424,6 +11460,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// its cooked StringValue matches a ReservedWord, IdentifierReference
 		// is a Syntax Error (check runs before eat so loc is correct).
 		report_escaped_reserved_word(p)
+		// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
+		// reserved (all modes, strict and sloppy). The lexer emits
+		// `enum` as .Identifier (contextual for TS enum decls), so
+		// we must check by value here in expression position.
+		if current.value == "enum" {
+			report_error(p, "'enum' is a reserved word")
+		}
 		// §12.6.1.1 - strict-mode IdentifierReference cannot be "let" /
 		// "yield" / "implements" / "interface" / "package" /
 		// "private" / "protected" / "public" / "static". The lexer emits
@@ -14798,6 +14841,23 @@ parse_decorators :: proc(p: ^Parser) -> [dynamic]Decorator {
 parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 	decorators := parse_decorators(p)
 	if is_token(p, .Export) {
+		// Peek ahead: if there are decorators AFTER `export` or
+		// `export default` too, it's a SyntaxError - decorators may
+		// appear either before `export` or after, not both.
+		// Check by peeking for `@` after `export [default]`.
+		nxt := p.lexer.nxt
+		has_post_export_dec := nxt.kind == .At
+		if !has_post_export_dec && nxt.kind == .Default {
+			// Need to look 2 tokens ahead: `export default @`.
+			snap := lexer_snapshot(p)
+			eat(p) // export
+			eat(p) // default
+			has_post_export_dec = is_token(p, .At)
+			lexer_restore(p, snap)
+		}
+		if has_post_export_dec {
+			report_error(p, "Decorators may not appear after 'export' or 'export default' if they also appear before 'export'")
+		}
 		stmt := parse_export_declaration(p)
 		if stmt != nil {
 			decorators_attached := false
@@ -15584,7 +15644,16 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 	}
 	types := make([dynamic]^TSType, 0, 4, p.allocator)
 	bump_append(&types, first)
-	for is_token(p, .BitOr) { eat(p); t := parse_ts_intersection_type(p); if t != nil { bump_append(&types, t) } }
+	for is_token(p, .BitOr) {
+		eat(p)
+		t := parse_ts_intersection_type(p)
+		if t != nil {
+			report_unparenthesized_function_type(p, t)
+			bump_append(&types, t)
+		}
+	}
+	// Check the first constituent too (only matters when there are >1).
+	report_unparenthesized_function_type(p, first)
 	u := new_node(p, TSUnionType); u.types = types
 	if has_leading_pipe {
 		u.loc.span.start = leading_pipe_start
@@ -15618,7 +15687,16 @@ parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
 	}
 	types := make([dynamic]^TSType, 0, 4, p.allocator)
 	bump_append(&types, first)
-	for is_token(p, .BitAnd) { eat(p); t := parse_ts_primary_type(p); if t != nil { bump_append(&types, t) } }
+	for is_token(p, .BitAnd) {
+		eat(p)
+		t := parse_ts_primary_type(p)
+		if t != nil {
+			report_unparenthesized_function_type(p, t)
+			bump_append(&types, t)
+		}
+	}
+	// Check the first constituent too.
+	report_unparenthesized_function_type(p, first)
 	i := new_node(p, TSIntersectionType); i.types = types
 	if has_leading_amp {
 		i.loc.span.start = leading_amp_start
@@ -15627,6 +15705,21 @@ parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
 	}
 	i.loc.span.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = i; return r
+}
+
+// §A.5 - TS grammar requires function / constructor types to be
+// parenthesized when they appear as direct constituents of a union
+// or intersection type. `string | () => void` is invalid — must be
+// `string | (() => void)`. Report the error but keep the type so
+// downstream processing continues.
+report_unparenthesized_function_type :: proc(p: ^Parser, t: ^TSType) {
+	if t == nil { return }
+	#partial switch _ in t^ {
+	case ^TSFunctionType:
+		report_error(p, "Function type must be parenthesized in union or intersection")
+	case ^TSConstructorType:
+		report_error(p, "Constructor type must be parenthesized in union or intersection")
+	}
 }
 
 parse_ts_kw :: proc(p: ^Parser, $T: typeid, start: Loc) -> ^TSType {
@@ -16286,15 +16379,70 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			if is_token(p, .RParen) {
 				report_error(p, "Expected '{' after ',' in import type options")
 			}
-			// Skip a brace-delimited attribute object if present.
+			// Parse import-type options object: `{ with: { key: "value" } }`.
+			// Validate structural constraints that OXC/TSC enforce:
+			//   - The key must be the bare identifier `with` (no escapes,
+			//     not a string literal, not computed).
+			//   - Inner attribute keys must be plain identifiers or string
+			//     literals (no computed properties).
+			//   - No spread elements in the inner object.
 			if is_token(p, .LBrace) {
-				depth := 1; eat(p)
-				for depth > 0 && !is_token(p, .EOF) {
-					if is_token(p, .LBrace) { depth += 1 }
-					else if is_token(p, .RBrace) { depth -= 1 }
-					if depth > 0 { eat(p) }
+				eat(p) // consume outer {
+				// Validate the `with` key.
+				if is_token(p, .With) {
+					// Good: bare `with` keyword.
+				} else if is_token(p, .Identifier) && p.cur_tok.value == "with" {
+					// `w\u0069th` — escaped form of `with`.
+					if p.cur_tok.has_escape {
+						report_error(p, "Expected 'with' in import type options")
+					}
+				} else if is_token(p, .String) {
+					// `"with"` as string literal key.
+					report_error(p, "Expected 'with' in import type options")
 				}
-				if is_token(p, .RBrace) { eat(p) }
+				eat(p) // consume key (with / identifier / string)
+				if is_token(p, .Colon) { eat(p) } // consume :
+				// Inner value: `{ type: "json" }`. Validate contents.
+				if is_token(p, .LBrace) {
+					eat(p) // consume inner {
+					for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+						if is_token(p, .Dot3) {
+							report_error(p, "Spread elements are not allowed in import type options")
+						}
+						if is_token(p, .LBracket) {
+							report_error(p, "Import attributes keys must be identifier or string literal")
+						}
+						// Skip tokens until comma or closing brace.
+						inner_depth := 0
+						for !is_token(p, .EOF) {
+							if is_token(p, .LBrace) || is_token(p, .LBracket) { inner_depth += 1 }
+							else if is_token(p, .RBrace) || is_token(p, .RBracket) {
+								if inner_depth == 0 { break }
+								inner_depth -= 1
+							}
+							else if is_token(p, .Comma) && inner_depth == 0 {
+								eat(p) // consume comma
+								break
+							}
+							eat(p)
+						}
+					}
+					if is_token(p, .RBrace) { eat(p) } // consume inner }
+				} else {
+					// Non-object value — skip balanced.
+					depth := 0
+					for !is_token(p, .EOF) {
+						if is_token(p, .LBrace) { depth += 1 }
+						else if is_token(p, .RBrace) {
+							if depth == 0 { break }
+							depth -= 1
+						}
+						eat(p)
+					}
+				}
+				// Trailing comma before outer `}`.
+				match_token(p, .Comma)
+				if is_token(p, .RBrace) { eat(p) } // consume outer }
 			}
 		}
 		if !expect_token(p, .RParen) { return nil }
@@ -17122,6 +17270,12 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	eat(p) // consume `=>`
 
 	// Body - block or expression. Mirror parse_arrow_function's treatment.
+	// §15.3.4: Arrow body is parsed with [~Yield, ~Await] (unless async).
+	// Reset in_generator so `yield` inside the arrow body is an identifier.
+	prev_in_generator := p.in_generator
+	p.in_generator = false
+	prev_static_block_ts := p.in_static_block
+	p.in_static_block = false
 	is_block_body := is_token(p, .LBrace)
 	body: ArrowFunctionBody
 	if is_block_body {
@@ -17143,6 +17297,9 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 		}
 		body = parse_assignment_expression(p)
 	}
+
+	p.in_generator = prev_in_generator
+	p.in_static_block = prev_static_block_ts
 
 	arrow := new_node(p, ArrowFunctionExpression)
 	arrow.loc = start_loc
@@ -17773,6 +17930,31 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		eat(p) // consume `readonly`
 	}
 
+	// §A.5 - Invalid index signature forms: `[]`, `[...x]`, etc.
+	// in type members. Detect and report before falling through.
+	if is_token(p, .LBracket) && p.lexer.nxt.kind == .RBracket {
+		// `[]: T` - empty index signature.
+		report_error(p, "An index signature must have a parameter")
+		eat(p) // `[`
+		eat(p) // `]`
+		if is_token(p, .Colon) { eat(p); _ = parse_ts_type(p) }
+		call_decl := TSCallSignatureDeclaration{loc = start}
+		call_decl.loc.span.end = prev_end_offset(p)
+		sig := new_node(p, TSSignature); sig^ = call_decl
+		return sig
+	}
+	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Dot3 {
+		// `[...x]: T` - spread in index signature.
+		report_error(p, "An index signature parameter cannot use a rest pattern")
+		eat(p) // `[`
+		for !is_token(p, .RBracket) && !is_token(p, .EOF) { eat(p) }
+		if is_token(p, .RBracket) { eat(p) }
+		if is_token(p, .Colon) { eat(p); _ = parse_ts_type(p) }
+		call_decl2 := TSCallSignatureDeclaration{loc = start}
+		call_decl2.loc.span.end = prev_end_offset(p)
+		sig := new_node(p, TSSignature); sig^ = call_decl2
+		return sig
+	}
 	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Identifier {
 		// Check if this is an index signature by peeking for `:` after the identifier.
 		eat(p) // consume `[`.
