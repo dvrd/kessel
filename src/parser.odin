@@ -2457,6 +2457,21 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		if decl_stmt != nil {
 			if vd, ok := decl_stmt^.(^VariableDeclaration); ok {
 				left_decl = vd
+				// `for (var of of)` — `var of` as a declaration + `of` as
+				// for-of keyword is ambiguous. `for (var of of of)` is OK
+				// (3 `of`s: binding, keyword, iterator). Detect: single
+				// declarator `of` with no init, `of` keyword, `)` iterator.
+				if vd.kind == .Var && len(vd.declarations) == 1 && is_token(p, .Of) {
+					d0 := vd.declarations[0]
+					if ident, id_ok := d0.id.(^Identifier); id_ok && ident.name == "of" {
+						if _, has_init := d0.init.(^Expression); !has_init {
+							// Peek past the for-of `of` to see if `)` follows.
+							if p.lexer != nil && p.lexer.nxt.kind == .RParen {
+								report_error(p, "'for (var of of)' is ambiguous")
+							}
+						}
+					}
+				}
 			}
 		}
 	} else if !is_token(p, .Semi) {
@@ -11308,13 +11323,24 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// This might be an async arrow function: async x => x or async () => {}
 			if next.type == .Identifier || async_arrow_ctx_kw {
 				// async x => ...
+				// Snapshot before consuming both tokens. If `=>` doesn't
+				// follow the param identifier, roll back so only `async`
+				// is consumed as a bare IdentifierReference. Without this,
+				// `async functionX ()` loses `functionX` entirely.
+				snap_async := lexer_snapshot(p)
+				snap_errs := len(p.errors)
 				eat(p) // consume async
 				param_ident := parse_identifier(p)
 				if is_token(p, .Arrow) {
 					return parse_async_arrow_function(p, param_ident)
 				}
-				// Not an arrow, return the identifier as expression (async becomes identifier).
-				// S26 W5b: source-slice name (see above for why a literal breaks raw_transfer).
+				// Not an arrow — roll back to just after `async`, let the
+				// LHS-tail / expression parser handle the next tokens.
+				lexer_restore(p, snap_async)
+				if len(p.errors) > snap_errs {
+					resize(&p.errors, snap_errs)
+				}
+				eat(p) // re-consume only `async`
 				ident := new_node(p, Identifier)
 				ident.loc = loc_from_token(&current)
 				ident.name = current.value
@@ -17437,7 +17463,20 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	// reporting "Expected ), got :" on the now-illegal type colon.
 	return_type: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) {
+		snap_errs := len(p.errors)
 		return_type = parse_ts_return_type_annotation(p)
+		// `(a): => {}` — colon with no type before `=>`.
+		if rt, ok := return_type.?; ok && rt != nil && rt.type_annotation == nil {
+			report_error(p, "Expected type after ':' in arrow return type annotation")
+		}
+		// If the return type parse produced errors, bail out and let
+		// the outer parser try a different interpretation.
+		if len(p.errors) > snap_errs {
+			lexer_restore(p, snap)
+			p.pending_paren_start = prev_pending_paren
+			resize(&p.errors, snap_errs)
+			return nil
+		}
 	}
 
 	if !is_token(p, .Arrow) {
