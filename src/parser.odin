@@ -15320,6 +15320,9 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		return ann
 	}
 	ts_type := parse_ts_type(p)
+	if ts_type == nil {
+		report_error(p, "Expected type after ':'")
+	}
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
 	ann.loc.span.end = prev_end_offset(p)

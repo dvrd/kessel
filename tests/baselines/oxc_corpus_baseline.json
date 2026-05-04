@@ -1,9 +1,9 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15650,
+    "ok-vs-oxc": 15652,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 73,
+    "oxc-only-rejects": 71,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
@@ -14,9 +14,9 @@
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15650,
+        "ok-vs-oxc": 15652,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 39,
+        "oxc-only-rejects": 37,
         "kessel-only-rejects": 1
       }
     },
@@ -124,7 +124,7 @@
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
-      "oxc-only-rejects": 14
+      "oxc-only-rejects": 12
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
