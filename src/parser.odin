@@ -471,6 +471,12 @@ Parser :: struct {
 	// stays legal.
 	in_in_rhs:       bool,
 
+	// True when the current expression precedence can still consume `in`.
+	// `#x` is only a valid primary expression as the left operand of that
+	// `in`; in `1 + #x in obj`, the additive RHS is parsed above relational
+	// precedence, so the following `in` belongs outside and `#x` is invalid.
+	private_in_allowed: bool,
+
 	// CLI `--source-type` override. When set, disables the auto-upgrade
 	// from Script to Module that parse_program normally performs when it
 	// sees top-level import / export / import.meta. The caller passes the
@@ -9431,7 +9437,10 @@ parse_assignment_expression :: proc(p: ^Parser) -> ^Expression {
 }
 
 parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
+	prev_private_in_allowed := p.private_in_allowed
+	p.private_in_allowed = int(min_prec) <= int(Precedence.Relational)
 	left := parse_unary_expr(p)
+	p.private_in_allowed = prev_private_in_allowed
 	if left == nil {
 		return nil
 	}
@@ -10006,7 +10015,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 		current := p.cur_tok
 		eat(p)
+		prev_private_in_allowed := p.private_in_allowed
+		p.private_in_allowed = false
 		argument := parse_unary_expr(p)
+		p.private_in_allowed = prev_private_in_allowed
 		if argument == nil {
 			// `await` without an operand. Legal only as an
 			// IdentifierReference, which is forbidden in async context
@@ -10845,7 +10857,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// must reject the second `#y`: even though nxt.kind == .In here
 		// (the OUTER `in` of `#x in #y in z`), this slot is the RHS of
 		// the inner `in`, not its LHS. `in_in_rhs` distinguishes them.
-		invalid_position := p.in_in_rhs ||
+		invalid_position := p.in_in_rhs || p.no_in || !p.private_in_allowed ||
 		                    (p.lexer != nil && p.lexer.nxt.kind != .In)
 		if invalid_position {
 			report_error(p, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
@@ -13123,6 +13135,31 @@ scan_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression) {
 // 1) => x; }`). Per §15.9.1 the "all early errors of
 // ArrowFormalParameters apply" clause folds in the §15.3.1
 // yield-in-arrow-params ban.
+pattern_contains_member_expression :: proc(pat: Pattern) -> bool {
+	if pat == nil { return false }
+	switch pp in pat {
+	case ^MemberExpression:
+		return true
+	case ^AssignmentPattern:
+		return pattern_contains_member_expression(pp.left)
+	case ^ObjectPattern:
+		for prop in pp.properties {
+			if pattern_contains_member_expression(prop.value) { return true }
+		}
+	case ^ArrayPattern:
+		for elem in pp.elements {
+			if inner, have := elem.(Pattern); have {
+				if pattern_contains_member_expression(inner) { return true }
+			}
+		}
+	case ^RestElement:
+		return pattern_contains_member_expression(pp.argument)
+	case ^Identifier:
+		return false
+	}
+	return false
+}
+
 scan_arrow_params_for_yield_only :: proc(p: ^Parser, params: []FunctionParameter) {
 	// Yield-only variant - AwaitExpression is reported eagerly by the
 	// in_async_params fast-path in parse_unary_expr, so reusing the
@@ -13669,6 +13706,12 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	arrow.expression = !is_block_body
 	arrow.async = false
 	arrow.loc.span.end = prev_end_offset(p)
+
+	for param in params {
+		if pattern_contains_member_expression(param.pattern) {
+			report_error(p, "Member expression cannot be used as a binding target")
+		}
+	}
 
 	// ArrowFunction params are always UniqueFormalParameters
 	// (ECMA-262 §15.3.1). No sloppy-mode escape hatch - pass

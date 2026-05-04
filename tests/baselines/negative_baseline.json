@@ -1,4 +1,8 @@
 {
+  "tests/fixtures/negative/075_arrow_member_binding_target.js": "rejected",
+  "tests/fixtures/negative/074_private_in_await_operand.js": "rejected",
+  "tests/fixtures/negative/073_private_in_no_in_context.js": "rejected",
+  "tests/fixtures/negative/072_private_in_additive_rhs.js": "rejected",
   "tests/fixtures/negative/071_label_let_declaration.js": "rejected",
   "tests/fixtures/negative/070_unparenthesized_arrow_unary_operand.js": "rejected",
   "tests/fixtures/negative/069_unparenthesized_arrow_rhs.js": "rejected",

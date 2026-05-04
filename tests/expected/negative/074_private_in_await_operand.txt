@@ -1,0 +1,108 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 60,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 59,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 7,
+        "name": "C"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 8,
+        "end": 59,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+                        "start": 12,
+            "end": 15,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 12,
+              "end": 14,
+              "name": "x"
+            },
+            "value": null,
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+                        "start": 18,
+            "end": 57,
+                        "key": {
+              "type": "Identifier",
+              "start": 24,
+              "end": 28,
+              "name": "test"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 28,
+              "end": 57,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": true,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 31,
+                "end": 57,
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 37,
+                    "end": 53,
+                    "expression": {
+                      "type": "BinaryExpression",
+                      "start": 37,
+                      "end": 53,
+                      "operator": "in",
+                      "left": {
+                        "type": "AwaitExpression",
+                        "start": 37,
+                        "end": 45,
+                        "argument": {
+                          "type": "PrivateIdentifier",
+                          "start": 43,
+                          "end": 45,
+                          "name": "x"                        }                      },
+                      "right": {
+                        "type": "ThisExpression",
+                        "start": 49,
+                        "end": 53                      }                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ],
+  "errors": [
+    {
+      "message": "Private identifier can only appear as the LHS of an 'in' expression or as a class member",
+      "line": 4,
+      "column": 11,
+      "offset": 43
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 11: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+
+--- Statistics ---
+Arena: used=39304B reserved=16777216B ratio=0%
+Parse errors: 1

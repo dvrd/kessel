@@ -1,0 +1,121 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 64,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 63,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 9,
+        "name": "Foo"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 10,
+        "end": 63,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+                        "start": 14,
+            "end": 17,
+                        "key": {
+              "type": "PrivateIdentifier",
+              "start": 14,
+              "end": 16,
+              "name": "a"
+            },
+            "value": null,
+            "computed": false,
+            "static": false
+          },
+          {
+            "type": "MethodDefinition",
+                        "start": 20,
+            "end": 61,
+                        "key": {
+              "type": "Identifier",
+              "start": 20,
+              "end": 26,
+              "name": "method"
+            },
+            "value": {
+              "type": "FunctionExpression",
+              "start": 26,
+              "end": 61,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 29,
+                "end": 61,
+                "body": [
+                  {
+                    "type": "ForInStatement",
+                    "start": 35,
+                    "end": 57,
+                    "left": {
+                      "type": "VariableDeclaration",
+                      "start": 40,
+                      "end": 50,
+                      "kind": "var",
+                      "declarations": [
+                        {
+                          "type": "VariableDeclarator",
+                          "start": 44,
+                          "end": 50,
+                          "id": {
+                            "type": "Identifier",
+                            "start": 44,
+                            "end": 45,
+                            "name": "x"                          },
+                          "init": {
+                            "type": "PrivateIdentifier",
+                            "start": 48,
+                            "end": 50,
+                            "name": "a"                          }                        }
+                      ]
+                    },
+                    "right": {
+                      "type": "Identifier",
+                      "start": 54,
+                      "end": 55,
+                      "name": "y"                    },
+                    "body": {
+                      "type": "EmptyStatement",
+                      "start": 56,
+                      "end": 57                    }                  }
+                ]
+              }
+            },
+            "kind": "method",
+            "computed": false,
+            "static": false
+          }
+        ]
+      }    }
+  ],
+  "errors": [
+    {
+      "message": "Private identifier can only appear as the LHS of an 'in' expression or as a class member",
+      "line": 4,
+      "column": 18,
+      "offset": 48
+    }
+  ]
+}
+Parse errors (1):
+  Line 4, Column 18: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+
+--- Statistics ---
+Arena: used=39496B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -1,7 +1,7 @@
 # Kessel — Handoff Document
 
 **Date:** 2026-05-04
-**Last commit:** arrow/rest/numeric rejection sweep
+**Last commit:** private-in and binding-target rejection sweep
 
 ---
 
@@ -9,15 +9,15 @@
 
 | Metric | Value |
 |---|---|
-| `task test:unit` | ✅ 424/424 |
-| `task test:negative` | ✅ 78 rejected |
+| `task test:unit` | ✅ 428/428 |
+| `task test:negative` | ✅ 82 rejected |
 | `task test:oxc-corpus` | ✅ baseline OK |
 | `verify_multifile.js` | ✅ 0 kessel-only |
-| **oxc-only-rejects** | **220** (was 776) |
+| **oxc-only-rejects** | **212** (was 776) |
 | **kessel-only-rejects** | **1** (same .d.ts edge) |
 | **kessel-crash** | **0** (was 3) |
 
-**Total reduction: 776 → 220 (↓556, 72%)**
+**Total reduction: 776 → 212 (↓564, 73%)**
 
 ---
 
@@ -30,11 +30,11 @@
 ~25 call sites gated on `allow_ts_mode(p)`: variable/param/field/index type annotations, function/class/method/accessor return types, function/class type params, type/interface/enum/declare/namespace/module/global declarations, export type, import type, import-equals, export-as-namespace
 
 ### Phase 3: Targeted fixes (↓74)
-Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names, TS for-using initializer, BigInt enum member names, decorated `this` params, reserved object binding values, malformed TS import, await/yield in enum initializers, missing TS arrow expression bodies, ambient using declarations, async arrow line terminators, parenthesized trailing commas, parenthesized rest without arrow, await-using line terminators, non-const initializers in `.d.ts` files, missing statement bodies, stray `]` statement tokens, empty catch bindings, invalid import/export module specifiers, nested spread arguments, unparenthesized arrow operands, rest parameters followed by more parameters, nil-LHS recovery in precedence loop, object rest trailing comma/patterns, labeled `let` declarations, legacy BigInt/octal-float forms
+Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names, TS for-using initializer, BigInt enum member names, decorated `this` params, reserved object binding values, malformed TS import, await/yield in enum initializers, missing TS arrow expression bodies, ambient using declarations, async arrow line terminators, parenthesized trailing commas, parenthesized rest without arrow, await-using line terminators, non-const initializers in `.d.ts` files, missing statement bodies, stray `]` statement tokens, empty catch bindings, invalid import/export module specifiers, nested spread arguments, unparenthesized arrow operands, rest parameters followed by more parameters, nil-LHS recovery in precedence loop, object rest trailing comma/patterns, labeled `let` declarations, legacy BigInt/octal-float forms, private identifiers blocked where `in` cannot bind them, member expressions rejected in arrow binding patterns
 
 ---
 
-## Remaining: 220
+## Remaining: 212
 
 | Cluster | ~Count |
 |---|---:|
