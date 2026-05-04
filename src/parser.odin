@@ -14989,6 +14989,13 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			}
 		} else if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 			type_arguments = parse_ts_type_arguments(p)
+			// Type arguments must be followed by `(` for a call. If not,
+			// they're dangling — e.g. `@g<number> class C {}` (same line).
+			// But `@dec<T>\nclass` (newline) is accepted by OXC.
+			if !is_token(p, .LParen) && !is_token(p, .Dot) && !p.cur_tok.had_line_terminator {
+				report_error(p, "Type arguments in decorator must be followed by a call")
+				break
+			}
 		} else if allow_ts_mode(p) && is_token(p, .Not) && !p.cur_tok.had_line_terminator {
 			// TS non-null assertion postfix: `@x!`, `@x.y!`.
 			eat(p)
