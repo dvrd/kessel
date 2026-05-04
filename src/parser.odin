@@ -5397,6 +5397,18 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		report_let_as_lexical_name(p, decl.declarations[:])
 	}
 
+	// §Explicit Resource Management - `using` / `await using` create
+	// runtime disposal state, so TS forbids them in ambient contexts
+	// (`declare namespace`, `declare module`, and `.d.ts`).
+	if kind == .Using || kind == .AwaitUsing {
+		if is_declare || p.in_ambient || p.source_is_dts {
+			kn := "using"
+			if kind == .AwaitUsing { kn = "await using" }
+			msg := fmt.tprintf("'%s' declarations are not allowed in ambient contexts.", kn)
+			report_error(p, msg)
+		}
+	}
+
 	// §Explicit Resource Management - the bindings of a `using` /
 	// `await using` declaration must each be a BindingIdentifier; array /
 	// object destructuring patterns are not allowed (`using [] = null;`,
@@ -13209,6 +13221,10 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			}
 		}
 	} else {
+		#partial switch p.cur_type {
+		case .Semi, .Comma, .RParen, .RBracket, .RBrace, .EOF:
+			report_error(p, "Unexpected token")
+		}
 		// Expression body - also set in_function so nested `await` / `yield`
 		// / `return` within the expression are recognised as being inside
 		// this arrow, not at module top level. Previously only the block-body
@@ -13997,6 +14013,10 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 			}
 		}
 	} else {
+		#partial switch p.cur_type {
+		case .Semi, .Comma, .RParen, .RBracket, .RBrace, .EOF:
+			report_error(p, "Unexpected token")
+		}
 		// Same in_function fix as parse_arrow_function's expression arm:
 		// without this, a nested `await` inside an async arrow's expression
 		// body (e.g. `async () => (<x title={await f()}/>)`) falls into the
@@ -16636,6 +16656,10 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 			}
 		}
 	} else {
+		#partial switch p.cur_type {
+		case .Semi, .Comma, .RParen, .RBracket, .RBrace, .EOF:
+			report_error(p, "Unexpected token")
+		}
 		body = parse_assignment_expression(p)
 	}
 

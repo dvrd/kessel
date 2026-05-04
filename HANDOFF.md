@@ -13,10 +13,10 @@
 | `task test:negative` | ✅ 68 rejected |
 | `task test:oxc-corpus` | ✅ baseline OK |
 | `verify_multifile.js` | ✅ 0 kessel-only |
-| **oxc-only-rejects** | **299** (was 776) |
+| **oxc-only-rejects** | **296** (was 776) |
 | **kessel-only-rejects** | **1** (same .d.ts edge) |
 
-**Total reduction: 776 → 299 (↓477, 61%)**
+**Total reduction: 776 → 296 (↓480, 62%)**
 
 ---
 
@@ -28,12 +28,12 @@
 ### Phase 2: TS mode gating (↓287)
 ~25 call sites gated on `allow_ts_mode(p)`: variable/param/field/index type annotations, function/class/method/accessor return types, function/class type params, type/interface/enum/declare/namespace/module/global declarations, export type, import type, import-equals, export-as-namespace
 
-### Phase 3: Targeted fixes (↓27)
-Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names, TS for-using initializer, BigInt enum member names, decorated `this` params, reserved object binding values, malformed TS import, await/yield in enum initializers
+### Phase 3: Targeted fixes (↓30)
+Double comma in objects, declare on methods, ambient function body, import attribute values, decorator on overload, dup accessibility params, for-await on regular for, ASI decorated overload, enum reserved names, TS for-using initializer, BigInt enum member names, decorated `this` params, reserved object binding values, malformed TS import, await/yield in enum initializers, missing TS arrow expression bodies, ambient using declarations
 
 ---
 
-## Remaining: 299
+## Remaining: 296
 
 | Cluster | ~Count |
 |---|---:|
