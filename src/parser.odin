@@ -3162,7 +3162,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 	if is_token(p, .LParen) {
 		eat(p)
 		if is_token(p, .RParen) {
-			report_semantic_error(p, "Catch parameter is missing")
+			report_error(p, "Catch parameter is missing")
 		} else {
 			param = parse_binding_pattern(p)
 			// TS § catch-clause-types - the catch parameter may carry a
@@ -8349,6 +8349,14 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		if p.lexer != nil && p.lexer.nxt.kind == .Identifier {
 			decl.phase = "source"
 			eat(p) // consume `source`
+		} else if p.lexer != nil && p.lexer.nxt.kind == .From {
+			snap := lexer_snapshot(p)
+			eat(p) // consume `source`
+			if p.lexer.nxt.kind == .From {
+				decl.phase = "source"
+			} else {
+				lexer_restore(p, snap)
+			}
 		}
 	}
 
@@ -8415,6 +8423,9 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			return nil
 		}
 
+		if !is_token(p, .String) {
+			report_error(p, "Expected string literal module specifier")
+		}
 		decl.source = parse_string_literal(p)
 	} else if is_token(p, .Mul) {
 		// Namespace import: import * as name from "module". Spec.start must
@@ -8438,6 +8449,9 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			return nil
 		}
 
+		if !is_token(p, .String) {
+			report_error(p, "Expected string literal module specifier")
+		}
 		decl.source = parse_string_literal(p)
 	} else if is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type) {
 		// Default import: import name from "module" or import name, { x } from "module"
@@ -8454,7 +8468,9 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 
 		// Check for comma followed by named imports
 		if match_token(p, .Comma) {
-			if is_token(p, .LBrace) {
+			if is_token(p, .From) {
+				report_error(p, "Expected import specifier after comma")
+			} else if is_token(p, .LBrace) {
 				eat(p) // consume {
 
 				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
@@ -8493,6 +8509,9 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			return nil
 		}
 
+		if !is_token(p, .String) {
+			report_error(p, "Expected string literal module specifier")
+		}
 		decl.source = parse_string_literal(p)
 	} else if allow_ts_mode(p) {
 		report_error(p, "Expected import source or specifier")
@@ -9236,6 +9255,9 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		p.cur_tok.type = .From
 	}
 	if match_token(p, .From) {
+		if !is_token(p, .String) {
+			report_error(p, "Expected string literal module specifier")
+		}
 		decl.source = parse_string_literal(p)
 		decl.attributes = parse_import_attributes(p)
 	}
@@ -12478,6 +12500,9 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 				eat(p)
 				arg := parse_assignment_expression(p)
 				if arg != nil {
+					if _, nested_spread := arg.(^SpreadElement); nested_spread {
+						report_error(p, "Spread argument cannot contain another spread element")
+					}
 					spread := new_node(p, SpreadElement)
 					spread.loc = spread_start // Use location of ... token, not the argument
 					spread.argument = arg

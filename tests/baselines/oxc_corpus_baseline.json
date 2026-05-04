@@ -3,12 +3,12 @@
   "verdicts": {
     "ok-vs-oxc": 15611,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 259,
+    "oxc-only-rejects": 252,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
     "should-pass-rejected": 2048,
-    "reject-both": 588,
+    "reject-both": 595,
     "kessel-crash": 3
   },
   "bySuite": {
@@ -27,8 +27,8 @@
         "should-reject-passed": 34,
         "pass-both": 3038,
         "should-pass-rejected": 2048,
-        "reject-both": 588,
-        "oxc-only-rejects": 181,
+        "reject-both": 595,
+        "oxc-only-rejects": 174,
         "kessel-crash": 3
       }
     },
@@ -268,7 +268,7 @@
     },
     "babel/es2015/uncategorised": {
       "should-pass-rejected": 52,
-      "oxc-only-rejects": 17,
+      "oxc-only-rejects": 16,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {
@@ -396,17 +396,13 @@
       "oxc-only-rejects": 1
     },
     "babel/esprima/es2015-import-declaration": {
-      "should-pass-rejected": 1,
-      "oxc-only-rejects": 3
+      "should-pass-rejected": 1
     },
     "babel/esprima/es2015-lexical-declaration": {
       "should-pass-rejected": 1
     },
     "babel/esprima/es2015-meta-property": {
       "should-pass-rejected": 1
-    },
-    "babel/esprima/es2015-spread-element": {
-      "oxc-only-rejects": 2
     },
     "babel/esprima/es2015-super-property": {
       "should-pass-rejected": 2
@@ -422,7 +418,7 @@
     },
     "babel/esprima/invalid-syntax": {
       "should-pass-rejected": 79,
-      "oxc-only-rejects": 2,
+      "oxc-only-rejects": 1,
       "should-reject-passed": 1
     },
     "babel/esprima/rest-parameter": {
