@@ -6903,6 +6903,15 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				if nested == nil { return nil }
 				rest.argument = nested
 			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+				// Reserved words cannot be rest binding targets:
+				// `[ ...void ]`, `[ ...null ]` etc.
+				if is_reserved_word_for_binding(p.cur_type) {
+					msg := fmt.tprintf(
+						"Identifier expected. '%s' is a reserved word that cannot be used here.",
+						cur_value(p),
+					)
+					report_error(p, msg)
+				}
 				arl := cur_loc(p); arn := cur_value(p)
 				eat(p)
 				rest_ident := new_node(p, Identifier)

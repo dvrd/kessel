@@ -3,11 +3,11 @@
   "verdicts": {
     "ok-vs-oxc": 15650,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 74,
+    "oxc-only-rejects": 73,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 2136,
+    "should-pass-rejected": 2137,
     "reject-both": 649
   },
   "bySuite": {
@@ -25,9 +25,9 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 2136,
+        "should-pass-rejected": 2137,
         "reject-both": 649,
-        "oxc-only-rejects": 35
+        "oxc-only-rejects": 34
       }
     },
     "estree": {
@@ -447,9 +447,8 @@
       "should-pass-rejected": 11
     },
     "babel/experimental/discard-binding": {
-      "should-pass-rejected": 15,
-      "should-reject-passed": 1,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 16,
+      "should-reject-passed": 1
     },
     "babel/experimental/do-expressions": {
       "should-pass-rejected": 3
