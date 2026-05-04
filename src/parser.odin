@@ -9326,7 +9326,8 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 
 		local := parse_spec_name(p)
 		exported := local
-		if match_token(p, .As) {
+		has_as := match_token(p, .As)
+		if has_as {
 			exported = parse_spec_name(p)
 		}
 
@@ -9368,6 +9369,26 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 	if !match_semicolon_or_asi_export(p) {
 		// `export {} null;` - unexpected token follows export clause on same line.
 		report_error(p, "Expected semicolon after export declaration")
+	}
+
+	// §16.2.3 ExportClause: `export { default }` without `as` is a
+	// SyntaxError when the local name is a ReservedWord and there's no
+	// `from` clause. With `from`, the local name is a ModuleExportName
+	// string that doesn't bind locally, so re-exports are fine.
+	if decl.source == nil {
+		for spec in decl.specifiers {
+			local_name: string
+			#partial switch n in spec.local {
+			case IdentifierName: local_name = n.name
+			}
+			exported_name: string
+			#partial switch n in spec.exported {
+			case IdentifierName: exported_name = n.name
+			}
+			if local_name == exported_name && local_name == "default" {
+				report_error(p, "A reserved word 'default' cannot be used as a local exported binding without 'as'")
+			}
+		}
 	}
 
 	decl.loc.span.end = prev_end_offset(p)
@@ -12811,6 +12832,12 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 		argument = parse_assignment_expression(p)
 	}
 
+	// §15.5.5 - `yield*` (YieldExpression with delegate=true) requires
+	// an AssignmentExpression operand. `yield*` without one is a SyntaxError.
+	if delegate && argument == nil {
+		report_error(p, "'yield*' requires an operand")
+	}
+
 	yield := new_node(p, YieldExpression)
 	yield.loc = start
 	yield.argument = argument
@@ -14706,13 +14733,25 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .Export) {
 		stmt := parse_export_declaration(p)
 		if stmt != nil {
+			decorators_attached := false
 			#partial switch s in stmt^ {
 			case ^ExportNamedDeclaration:
 				if decl, ok := s.declaration.(^Declaration); ok && decl != nil {
 					if cd, ok2 := decl^.(^ClassDeclaration); ok2 {
 						cd.expr.decorators = decorators
+						decorators_attached = true
 					}
 				}
+			case ^ExportDefaultDeclaration:
+				if decl, ok := s.declaration.(^Declaration); ok && decl != nil {
+					if cd, ok2 := decl^.(^ClassDeclaration); ok2 {
+						cd.expr.decorators = decorators
+						decorators_attached = true
+					}
+				}
+			}
+			if !decorators_attached && len(decorators) > 0 {
+				report_error(p, "Decorators are not valid here.")
 			}
 		}
 		return stmt
