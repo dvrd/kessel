@@ -13567,6 +13567,68 @@ arrow_cover_walk_expr :: proc(expr: ^Expression, saw_yield, saw_await: ^bool) {
 	}
 }
 
+// check_parenthesized_binding detects inner `(...)` wrapping a binding
+// element inside an arrow parameter list. Works by walking each pattern
+// recursively: for every leaf Identifier, check if the byte before its
+// span start (skipping whitespace) is `(` and the byte after its span
+// end is `)`, and those parens are not the outer arrow parens.
+check_parenthesized_binding :: proc(p: ^Parser, params: []FunctionParameter, src: []u8, outer_paren: int) {
+	for param in params {
+		check_pattern_parens(p, param.pattern, src, outer_paren)
+		// Default values: `(x = (y)) =>` — the (y) is a grouping
+		// paren in expression context, not a binding paren. Skip.
+	}
+}
+
+@(private="file")
+check_pattern_parens :: proc(p: ^Parser, pat: Pattern, src: []u8, outer_paren: int) {
+	if pat == nil { return }
+	switch pp in pat {
+	case ^Identifier:
+		check_span_for_inner_parens(p, int(pp.loc.span.start), int(pp.loc.span.end), src, outer_paren)
+	case ^AssignmentPattern:
+		// `(a) = []` — check the LHS pattern.
+		check_pattern_parens(p, pp.left, src, outer_paren)
+	case ^ArrayPattern:
+		for elem in pp.elements {
+			if inner, have := elem.(Pattern); have {
+				check_pattern_parens(p, inner, src, outer_paren)
+			}
+		}
+	case ^ObjectPattern:
+		for prop in pp.properties {
+			check_pattern_parens(p, prop.value, src, outer_paren)
+		}
+	case ^RestElement:
+		check_pattern_parens(p, pp.argument, src, outer_paren)
+	case ^MemberExpression:
+		// Skip — MemberExpression as target is caught elsewhere.
+	}
+}
+
+@(private="file")
+check_span_for_inner_parens :: proc(p: ^Parser, span_start, span_end: int, src: []u8, outer_paren: int) {
+	// Walk backwards from span_start to find `(`.
+	i := span_start - 1
+	for i >= 0 {
+		c := src[i]
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' { i -= 1; continue }
+		if c == '(' && i != outer_paren {
+			// Found an inner `(`. Now check for matching `)` after span_end.
+			j := span_end
+			for j < len(src) {
+				d := src[j]
+				if d == ' ' || d == '\t' || d == '\n' || d == '\r' { j += 1; continue }
+				if d == ')' {
+					report_error(p, "Binding element cannot be parenthesized")
+				}
+				break
+			}
+		}
+		break
+	}
+}
+
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
 	start: Loc
 	if left != nil {
@@ -13967,6 +14029,18 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		if pattern_contains_member_expression(param.pattern) {
 			report_error(p, "Member expression cannot be used as a binding target")
 		}
+	}
+
+	// §14.1.2 - CoverParenthesizedExpressionAndArrowFormalParameters.
+	// Parenthesized binding elements are not valid in arrow params:
+	// `(a, (b)) => 42`, `([(a)]) => {}`, `([...(a)]) => {}`, etc.
+	// Detect by scanning source bytes for inner `(...)` wrapping any
+	// parameter's pattern span. The outer arrow parens at `start.span.start`
+	// are excluded.
+	if p.lexer != nil && len(params) > 0 {
+		src := p.lexer.source_bytes
+		outer_paren := int(start.span.start)
+		check_parenthesized_binding(p, params[:], src, outer_paren)
 	}
 
 	// ArrowFunction params are always UniqueFormalParameters
@@ -15083,6 +15157,9 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					attr_value = expression_from(p, container)
 				} else if is_token(p, .LAngle) {
 					attr_value = parse_jsx_element_or_fragment(p)
+				} else {
+					// JSX attribute has `=` but no value expression.
+					report_error(p, "JSX attributes must only be assigned a non-empty expression")
 				}
 			} else {
 				// Boolean attribute (no `=`) - clear the JSX string flag.
