@@ -1828,6 +1828,10 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Unexpected closing token")
 		eat(p)
 		return nil
+	case .RParen:
+		report_error(p, "Unexpected closing token")
+		eat(p)
+		return nil
 	case .Import:
 		// Check if this is a dynamic import / import.meta. ImportCall
 		// (`import(...)`) and MetaProperty (`import.meta`) are expression
@@ -8931,6 +8935,13 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		decl_union^ = v
 		if v.declare { export_kind = .Type }
 	case ^TSImportEqualsDeclaration:  decl_union^ = v
+	case:
+		// After `export` (non-default), only declarations are valid.
+		// Expression statements, empty statements, and other non-declaration
+		// statement types are SyntaxErrors. `export default <expr>` is handled
+		// by parse_export_default above.
+		report_error(p, "Unexpected token")
+		return nil
 	}
 
 	export_decl := new_node(p, ExportNamedDeclaration)

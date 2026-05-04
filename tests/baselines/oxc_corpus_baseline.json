@@ -1,22 +1,22 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15618,
+    "ok-vs-oxc": 15619,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 212,
+    "oxc-only-rejects": 199,
     "kessel-only-rejects": 1,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 2075,
-    "reject-both": 604
+    "should-pass-rejected": 2077,
+    "reject-both": 614
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15618,
+        "ok-vs-oxc": 15619,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 71,
+        "oxc-only-rejects": 70,
         "kessel-only-rejects": 1
       }
     },
@@ -25,9 +25,9 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 2075,
-        "reject-both": 604,
-        "oxc-only-rejects": 141
+        "should-pass-rejected": 2077,
+        "reject-both": 614,
+        "oxc-only-rejects": 129
       }
     },
     "estree": {
@@ -129,7 +129,7 @@
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
-      "oxc-only-rejects": 24
+      "oxc-only-rejects": 23
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -207,7 +207,7 @@
     },
     "babel/core/uncategorised": {
       "should-pass-rejected": 39,
-      "oxc-only-rejects": 5,
+      "oxc-only-rejects": 4,
       "should-reject-passed": 1
     },
     "babel/es2015/array-rest-spread": {
@@ -264,7 +264,7 @@
     },
     "babel/es2015/uncategorised": {
       "should-pass-rejected": 55,
-      "oxc-only-rejects": 13,
+      "oxc-only-rejects": 9,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {
@@ -282,7 +282,7 @@
     },
     "babel/es2017/async-functions": {
       "should-pass-rejected": 21,
-      "oxc-only-rejects": 7
+      "oxc-only-rejects": 6
     },
     "babel/es2017/trailing-function-commas": {
       "should-pass-rejected": 1
@@ -407,7 +407,6 @@
     },
     "babel/esprima/invalid-syntax": {
       "should-pass-rejected": 79,
-      "oxc-only-rejects": 1,
       "should-reject-passed": 1
     },
     "babel/esprima/rest-parameter": {
@@ -436,7 +435,7 @@
     },
     "babel/experimental/_no-plugin": {
       "should-reject-passed": 1,
-      "oxc-only-rejects": 5
+      "oxc-only-rejects": 4
     },
     "babel/experimental/_removed-plugins": {
       "should-reject-passed": 1
@@ -506,8 +505,7 @@
       "should-pass-rejected": 68
     },
     "babel/experimental/throw-expression": {
-      "oxc-only-rejects": 3,
-      "should-pass-rejected": 1
+      "should-pass-rejected": 3
     },
     "babel/experimental/uncategorised": {
       "should-pass-rejected": 1
@@ -601,7 +599,7 @@
     },
     "babel/flow/optional-type": {
       "should-pass-rejected": 3,
-      "oxc-only-rejects": 2
+      "oxc-only-rejects": 1
     },
     "babel/flow/predicates": {
       "should-pass-rejected": 6
