@@ -1818,6 +1818,10 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_with_statement(p)
 	case .Semi:
 		return parse_empty_statement(p)
+	case .RBracket:
+		report_error(p, "Unexpected closing token")
+		eat(p)
+		return nil
 	case .Import:
 		// Check if this is a dynamic import / import.meta. ImportCall
 		// (`import(...)`) and MetaProperty (`import.meta`) are expression
@@ -2175,6 +2179,9 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	p.block_depth += 1
 	consequent := parse_statement_or_declaration(p)
 	p.block_depth -= 1
+	if consequent == nil {
+		report_error(p, "Expected statement after 'if' condition")
+	}
 	report_statement_only_position(p, consequent, !p.strict_mode)
 
 	if_ := new_node(p, IfStatement)
@@ -2186,6 +2193,9 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		p.block_depth += 1
 		alt := parse_statement_or_declaration(p)
 		p.block_depth -= 1
+		if alt == nil {
+			report_error(p, "Expected statement after 'else'")
+		}
 		report_statement_only_position(p, alt, !p.strict_mode)
 		if_.alternate = alt
 	}
@@ -2224,6 +2234,9 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 	body := parse_statement_or_declaration(p)
 	p.block_depth -= 1
 	p.in_loop = prev_in_loop
+	if body == nil {
+		report_error(p, "Expected statement after 'while' condition")
+	}
 	report_statement_only_position(p, body, false)
 
 	while_ := new_node(p, WhileStatement)
@@ -2610,6 +2623,9 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		body := parse_statement_or_declaration(p)
 		p.block_depth -= 1
 		p.in_loop = prev_in_loop
+		if body == nil {
+			report_error(p, "Expected statement after for-in/of head")
+		}
 		report_statement_only_position(p, body, false)
 
 		// §14.7.5.1 - It is a Syntax Error if any element of the BoundNames
@@ -2716,6 +2732,9 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	body := parse_statement_or_declaration(p)
 	p.block_depth -= 1
 	p.in_loop = prev_in_loop
+	if body == nil {
+		report_error(p, "Expected statement after for head")
+	}
 	report_statement_only_position(p, body, false)
 
 	// §14.7.4.1 — It is a Syntax Error if any element of the BoundNames of
@@ -3297,6 +3316,9 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	body := parse_statement_or_declaration(p)
+	if body == nil {
+		report_error(p, "Expected statement after 'with' object")
+	}
 	// ECMA-262 §14.11.1 - WithStatement : with ( Expression ) Statement.
 	// Statement excludes hoistable declarations (LexicalDeclaration,
 	// ClassDeclaration, AsyncFunctionDeclaration, GeneratorDeclaration,
