@@ -1,22 +1,22 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15652,
+    "ok-vs-oxc": 15662,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 71,
-    "kessel-only-rejects": 1,
+    "oxc-only-rejects": 43,
+    "kessel-only-rejects": 3,
     "should-reject-passed": 34,
-    "pass-both": 3077,
-    "should-pass-rejected": 2137,
-    "reject-both": 649
+    "pass-both": 3075,
+    "should-pass-rejected": 2150,
+    "reject-both": 654
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15652,
+        "ok-vs-oxc": 15662,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 37,
+        "oxc-only-rejects": 27,
         "kessel-only-rejects": 1
       }
     },
@@ -24,10 +24,11 @@
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 34,
-        "pass-both": 3038,
-        "should-pass-rejected": 2137,
-        "reject-both": 649,
-        "oxc-only-rejects": 34
+        "pass-both": 3036,
+        "should-pass-rejected": 2150,
+        "reject-both": 654,
+        "kessel-only-rejects": 2,
+        "oxc-only-rejects": 16
       }
     },
     "estree": {
@@ -40,7 +41,7 @@
   "bySubdir": {
     "typescript/compiler": {
       "skip-multi-file": 1188,
-      "oxc-only-rejects": 12
+      "oxc-only-rejects": 6
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10
@@ -79,7 +80,7 @@
       "skip-multi-file": 1
     },
     "typescript/conformance/es6": {
-      "oxc-only-rejects": 6,
+      "oxc-only-rejects": 4,
       "skip-multi-file": 49
     },
     "typescript/conformance/esDecorators": {
@@ -124,7 +125,7 @@
     },
     "typescript/conformance/parser": {
       "skip-multi-file": 20,
-      "oxc-only-rejects": 12
+      "oxc-only-rejects": 10
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -172,8 +173,7 @@
       "should-reject-passed": 3
     },
     "babel/core/create-parenthesized-expressions": {
-      "should-pass-rejected": 4,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 5
     },
     "babel/core/escape-keyword": {
       "should-pass-rejected": 1
@@ -206,8 +206,8 @@
       "should-pass-rejected": 4
     },
     "babel/es2015/arrow-functions": {
-      "should-pass-rejected": 3,
-      "oxc-only-rejects": 5
+      "should-pass-rejected": 8,
+      "kessel-only-rejects": 1
     },
     "babel/es2015/class-methods": {
       "should-pass-rejected": 5
@@ -219,8 +219,7 @@
       "should-pass-rejected": 1
     },
     "babel/es2015/for-of": {
-      "should-pass-rejected": 2,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 3
     },
     "babel/es2015/generators": {
       "should-pass-rejected": 3
@@ -254,8 +253,8 @@
       "should-pass-rejected": 1
     },
     "babel/es2015/uncategorised": {
-      "should-pass-rejected": 60,
-      "oxc-only-rejects": 3,
+      "should-pass-rejected": 62,
+      "oxc-only-rejects": 1,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {
@@ -338,15 +337,16 @@
       "should-pass-rejected": 13
     },
     "babel/es2026/explicit-resource-management": {
-      "should-pass-rejected": 12,
-      "oxc-only-rejects": 3
+      "should-pass-rejected": 13,
+      "oxc-only-rejects": 2
     },
     "babel/esprima/es2015-array-binding-pattern": {
       "should-pass-rejected": 1
     },
     "babel/esprima/es2015-arrow-function": {
-      "should-pass-rejected": 4,
-      "oxc-only-rejects": 2
+      "should-pass-rejected": 5,
+      "kessel-only-rejects": 1,
+      "oxc-only-rejects": 1
     },
     "babel/esprima/es2015-destructuring-assignment": {
       "should-pass-rejected": 2
@@ -433,9 +433,8 @@
       "should-reject-passed": 1
     },
     "babel/experimental/decorators": {
-      "oxc-only-rejects": 1,
-      "should-reject-passed": 4,
-      "should-pass-rejected": 5
+      "should-pass-rejected": 6,
+      "should-reject-passed": 4
     },
     "babel/experimental/decorators-legacy": {
       "should-pass-rejected": 8
@@ -537,8 +536,7 @@
       "should-pass-rejected": 1
     },
     "babel/flow/enum-declaration": {
-      "should-pass-rejected": 32,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 32
     },
     "babel/flow/explicit-inexact-object": {
       "should-pass-rejected": 14
@@ -707,8 +705,7 @@
       "should-reject-passed": 3
     },
     "babel/typescript/const": {
-      "oxc-only-rejects": 1,
-      "should-pass-rejected": 1
+      "should-pass-rejected": 2
     },
     "babel/typescript/declare": {
       "should-pass-rejected": 12
@@ -752,7 +749,7 @@
     },
     "babel/typescript/types": {
       "should-pass-rejected": 13,
-      "oxc-only-rejects": 5
+      "oxc-only-rejects": 1
     },
     "babel/v8intrinsic/expression": {
       "should-pass-rejected": 4,
