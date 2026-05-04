@@ -1285,6 +1285,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	// the literal starts with `0` AND the next char is a digit OR `_`,
 	// any separator inside is a SyntaxError.
 	legacy_zero_prefix := false
+	legacy_zero_prefix_has_89 := false
 	if off < src_len && src[off] == '0' && off + 1 < src_len {
 		n := src[off + 1]
 		if (n >= '0' && n <= '9') || n == '_' {
@@ -1294,6 +1295,9 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	for off < src_len {
 		ch := src[off]
 		if ch >= '0' && ch <= '9' {
+			if legacy_zero_prefix && (ch == '8' || ch == '9') {
+				legacy_zero_prefix_has_89 = true
+			}
 			acc = acc * 10 + u64(ch - '0')
 			prev_was_sep = false
 			off += 1
@@ -1391,6 +1395,9 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	// after a decimal point and NOT after an exponent. `1.0n` and `1e1n`
 	// are SyntaxErrors.
 	if off < src_len && src[off] == 'n' {
+		if legacy_zero_prefix {
+			bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "BigInt literal cannot use legacy octal / non-octal-decimal form"})
+		}
 		if had_dot {
 			bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "BigInt literal cannot contain a decimal point"})
 		}
@@ -1400,6 +1407,10 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		l.offset += 1
 		end = u32(l.offset)
 		return FastToken{start = start, end = end, kind = .BigInt, flags = flags}
+	}
+
+	if legacy_zero_prefix && had_dot && !legacy_zero_prefix_has_89 {
+		bump_append(&l.lexer_errors, LexerError{offset = u32(off), message = "Legacy octal / non-octal-decimal literal cannot contain a decimal point"})
 	}
 
 	// Fast path: simple integer (no dot, no exponent, no underscore, fits in u64)

@@ -2044,7 +2044,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 						if v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing {
 							report_error(p, "Lexical declaration cannot appear in a single-statement context")
 						} else if v.kind == .Let {
-							report_semantic_error(p, "Lexical declaration cannot be a labeled item")
+							report_error(p, "Lexical declaration cannot be a labeled item")
 						}
 					}
 				case ^ClassDeclaration:
@@ -9676,6 +9676,23 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			return left
 		}
 
+		if _, is_arrow := right.(^ArrowFunctionExpression); is_arrow {
+			paren_wrapped := false
+			if p.lexer != nil {
+				start := int(loc_from_expr(right).span.start)
+				i := start - 1
+				for i >= 0 {
+					ch := p.lexer.source_bytes[i]
+					if ch == '(' { paren_wrapped = true; break }
+					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+					break
+				}
+			}
+			if !paren_wrapped {
+				report_error(p, "Arrow function cannot be used as an unparenthesized operand")
+			}
+		}
+
 		// §14.4 - YieldExpression cannot be the right-hand operand of any
 		// binary or logical operator (it has assignment-expression precedence).
 		// Exception: a parenthesised `(yield n)` promotes the expression to
@@ -9828,6 +9845,22 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// that gate until we have reliable paren-wrapping info.
 		if _, is_yield := argument.(^YieldExpression); is_yield {
 			report_semantic_error(p, "'yield' expression cannot be the operand of a unary operator")
+		}
+		if _, is_arrow := argument.(^ArrowFunctionExpression); is_arrow {
+			paren_wrapped := false
+			if p.lexer != nil {
+				start := int(loc_from_expr(argument).span.start)
+				i := start - 1
+				for i >= 0 {
+					ch := p.lexer.source_bytes[i]
+					if ch == '(' { paren_wrapped = true; break }
+					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+					break
+				}
+			}
+			if !paren_wrapped {
+				report_error(p, "Arrow function cannot be used as an unparenthesized operand")
+			}
 		}
 		unary := new_node(p, UnaryExpression)
 		unary.loc = loc_from_token(&current)
@@ -12850,6 +12883,25 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 					// `for ({...rest, b} of ...)` is a SyntaxError.
 					if idx != prop_count - 1 {
 						report_error(p, "Rest element must be last in object pattern")
+					} else if p.lexer != nil {
+						src := p.lexer.source_bytes
+						search_start := int(spread.loc.span.end)
+						search_end := int(e.loc.span.end)
+						if search_end > len(src) { search_end = len(src) }
+						for k := search_start; k < search_end; k += 1 {
+							c := src[k]
+							if c == '}' { break }
+							if c == ',' {
+								report_error(p, "Rest property may not have a trailing comma")
+								break
+							}
+						}
+					}
+					if _, is_array := spread.argument.(^ArrayExpression); is_array {
+						report_error(p, "Rest property may not be a binding pattern")
+					}
+					if _, is_object := spread.argument.(^ObjectExpression); is_object {
+						report_error(p, "Rest property may not be a binding pattern")
 					}
 					inner, inner_ok := expr_to_pattern(p, spread.argument)
 					if inner_ok {

@@ -1,0 +1,50 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 14,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "LabeledStatement",
+      "start": 0,
+      "end": 13,
+      "label": {
+        "type": "Identifier",
+        "start": 0,
+        "end": 3,
+        "name": "foo"
+      },
+      "body": {
+        "type": "VariableDeclaration",
+        "start": 5,
+        "end": 13,
+        "kind": "let",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 9,
+            "end": 12,
+            "id": {
+              "type": "Identifier",
+              "start": 9,
+              "end": 12,
+              "name": "bar"            },
+            "init": null          }
+        ]      }    }
+  ],
+  "errors": [
+    {
+      "message": "Lexical declaration cannot be a labeled item",
+      "line": 2,
+      "column": 1,
+      "offset": 14
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 1: Lexical declaration cannot be a labeled item
+
+--- Statistics ---
+Arena: used=37360B reserved=16777216B ratio=0%
+Parse errors: 1

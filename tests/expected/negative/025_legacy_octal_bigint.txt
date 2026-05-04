@@ -60,9 +60,19 @@
       "end": 324,
       "value": " Always a SyntaxError, not strict-gated."
     }
+  ],
+  "errors": [
+    {
+      "message": "BigInt literal cannot use legacy octal / non-octal-decimal form",
+      "line": 6,
+      "column": 13,
+      "offset": 337
+    }
   ]
 }
+Parse errors (1):
+  Line 6, Column 13: BigInt literal cannot use legacy octal / non-octal-decimal form
 
 --- Statistics ---
-Arena: used=35952B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37168B reserved=16777216B ratio=0%
+Parse errors: 1
