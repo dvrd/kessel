@@ -3547,6 +3547,14 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.in_async = async
 	prev_gen := p.in_generator
 	p.in_generator = generator
+	// A nested function body starts a new scope that does NOT inherit
+	// the enclosing async-param/generator-param flags. `function f()
+	// { await }` inside an async arrow's parameter default is legal
+	// because the nested function is NOT async.
+	prev_in_async_params_body := p.in_async_params
+	p.in_async_params = false
+	prev_in_gen_params_body := p.in_generator_params
+	p.in_generator_params = false
 	// Regular (non-arrow) function declarations / expressions reset
 	// `in_method` - they introduce their own (absent) [[HomeObject]], so
 	// a nested `function foo() { super.x; }` inside a class method body
@@ -3620,6 +3628,8 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	p.in_async = prev_async
 	p.in_generator = prev_gen
+	p.in_async_params = prev_in_async_params_body
+	p.in_generator_params = prev_in_gen_params_body
 	p.in_method = prev_in_method
 	p.in_derived_constructor = prev_in_derived_ctor
 
@@ -10167,7 +10177,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// tree stays structurally valid; the earlier
 			// "await outside of async function" check at the top of
 			// this branch already covers non-async contexts.
-			if p.in_async || !p.in_function {
+			if p.in_async || p.in_async_params || !p.in_function {
 				report_error(p, "'await' expression requires an operand")
 			}
 			id := new_node(p, Identifier)
