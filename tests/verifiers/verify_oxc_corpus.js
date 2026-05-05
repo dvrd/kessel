@@ -421,13 +421,72 @@ function summarize(results) {
 }
 
 function printSummary(summary) {
+  const v = summary.verdicts;
+  const total = summary.totalFiles;
+  const skip = (v['skip-multi-file'] || 0) + (v['skip-other'] || 0);
+  const actionable = total - skip;
+  const agree = (v['ok-vs-oxc'] || 0) + (v['pass-both'] || 0) + (v['reject-both'] || 0);
+  const kesselBugs = v['kessel-only-rejects'] || 0;
+  const oxcQuirks = v['oxc-only-rejects'] || 0;
+  const sharedGap = v['should-pass-rejected'] || 0;
+  const sharedLenient = v['should-reject-passed'] || 0;
+
+  // --- OXC conformance headline ---
+  const conformPct = actionable > 0 ? ((agree + oxcQuirks) / actionable * 100).toFixed(1) : '0.0';
+  const agreePct = actionable > 0 ? (agree / actionable * 100).toFixed(1) : '0.0';
   console.log('');
-  console.log(`OXC corpus smoke results: ${summary.totalFiles} fixtures`);
+  console.log('╔══════════════════════════════════════════════════════════╗');
+  console.log(`║  KESSEL vs OXC — ${total.toLocaleString()} fixtures${' '.repeat(Math.max(0, 26 - total.toLocaleString().length))}║`);
+  console.log('╠══════════════════════════════════════════════════════════╣');
+  console.log(`║  Actionable (excl. multi-file skips): ${String(actionable.toLocaleString()).padStart(7)}           ║`);
+  console.log(`║  Both agree (accept or reject):       ${String(agree.toLocaleString()).padStart(7)} (${agreePct}%)${' '.repeat(Math.max(0, 5 - agreePct.length))}  ║`);
+  console.log(`║  Kessel rejects, OXC accepts:         ${String(kesselBugs).padStart(7)} ← BUGS    ║`);
+  console.log(`║  OXC rejects, Kessel accepts:         ${String(oxcQuirks).padStart(7)}           ║`);
+  console.log(`║                                                          ║`);
+  console.log(`║  OXC CONFORMANCE: ${conformPct}%${' '.repeat(Math.max(0, 35 - conformPct.length))}║`);
+  console.log('╠══════════════════════════════════════════════════════════╣');
+  console.log(`║  Shared gaps (both reject, Babel wants pass): ${String(sharedGap).padStart(5)}     ║`);
+  console.log(`║  Shared lenience (both accept, Babel wants fail): ${String(sharedLenient).padStart(3)}   ║`);
+  console.log('╚══════════════════════════════════════════════════════════╝');
+  console.log('');
+
+  // --- Shared-gap breakdown ---
+  // Classify should-pass-rejected into intentional (Flow/experimental) vs real.
+  const UNSUPPORTED_DIRS = new Set([
+    'pipeline-operator-hack','pipeline-operator-fsharp','pipeline-operator-misc',
+    'module-blocks','discard-binding','optional-chaining-assign',
+    'destructuring-private','decorators-legacy','async-do-expressions',
+    'do-expressions','partial-application','function-sent','export-extensions',
+    'throw-expression','bind-operator','source-phase-imports',
+    'deferred-import-evaluation','decorator-auto-accessors',
+    'import-attributes-createImportExpression-false','uncategorised',
+    'decorators',  // babel-specific decorator fixtures
+  ]);
+  let gapFlow = 0, gapPlugin = 0, gapNumSep = 0, gapOther = 0;
+  for (const [subdir, counts] of Object.entries(summary.bySubdir)) {
+    const spr = counts['should-pass-rejected'] || 0;
+    if (spr === 0) continue;
+    if (subdir.includes('/flow/'))                                          gapFlow += spr;
+    else if (subdir.includes('/placeholders/'))                             gapPlugin += spr;
+    else if (subdir.includes('/v8intrinsic/'))                              gapPlugin += spr;
+    else if (subdir.includes('/experimental/')) {
+      const leaf = subdir.split('/').pop();
+      if (UNSUPPORTED_DIRS.has(leaf))                                       gapPlugin += spr;
+      else                                                                  gapOther += spr;
+    }
+    else if (subdir.includes('numeric-separator'))                          gapNumSep += spr;
+    else                                                                    gapOther += spr;
+  }
+  console.log(`Shared-gap breakdown (${sharedGap} should-pass-rejected):`);
+  console.log(`  Flow (not in scope):              ${String(gapFlow).padStart(5)}`);
+  console.log(`  Babel-only plugins:               ${String(gapPlugin).padStart(5)}`);
+  console.log(`  Numeric separator (mis-expected):  ${String(gapNumSep).padStart(5)}`);
+  console.log(`  Other (both parsers reject):       ${String(gapOther).padStart(5)}`);
   console.log('');
 
   console.log('Overall verdicts:');
-  for (const [v, c] of Object.entries(summary.verdicts).sort((a,b)=>b[1]-a[1])) {
-    console.log(`  ${v.padEnd(24)} ${String(c).padStart(7)}`);
+  for (const [vk, c] of Object.entries(summary.verdicts).sort((a,b)=>b[1]-a[1])) {
+    console.log(`  ${vk.padEnd(24)} ${String(c).padStart(7)}`);
   }
   console.log('');
 
@@ -436,9 +495,9 @@ function printSummary(summary) {
     const passed = (s.verdicts['pass-both'] || 0) + (s.verdicts['reject-both'] || 0) + (s.verdicts['ok-vs-oxc'] || 0);
     const rate = s.total > 0 ? ((passed / s.total) * 100).toFixed(1) : '0.0';
     console.log(`  ${suite.padEnd(12)} ${passed}/${s.total} agree-with-OXC (${rate}%)`);
-    for (const [v, c] of Object.entries(s.verdicts).sort((a,b)=>b[1]-a[1])) {
-      if (v === 'pass-both' || v === 'reject-both' || v === 'ok-vs-oxc') continue;
-      console.log(`     ${v.padEnd(22)} ${String(c).padStart(6)}`);
+    for (const [vk, c] of Object.entries(s.verdicts).sort((a,b)=>b[1]-a[1])) {
+      if (vk === 'pass-both' || vk === 'reject-both' || vk === 'ok-vs-oxc') continue;
+      console.log(`     ${vk.padEnd(22)} ${String(c).padStart(6)}`);
     }
   }
   console.log('');
