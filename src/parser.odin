@@ -555,6 +555,13 @@ Parser :: struct {
 	// `export default function *yield() {}` is accepted by OXC).
 	in_export_default: bool,
 
+	// True while expr_to_pattern recurses into nested array/object elements.
+	// Parenthesized binding elements (`(a)`) are rejected inside destructuring
+	// patterns but allowed at the top level of arrow params (matching OXC
+	// preserveParens=false semantics). Set before recursing into
+	// ArrayExpression / ObjectExpression element conversions.
+	in_nested_pattern_convert: bool,
+
 	// Inside an ambient TS module / namespace body: every declaration is
 	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
 	// semantics and also the string-named `module "x" { ... }` shortcut
@@ -13295,6 +13302,9 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		op := new_node(p, ObjectPattern)
 		op.loc = e.loc
 		op.properties = make([dynamic]ObjectPatternProperty, 0, len(e.properties), p.allocator)
+		prev_nested := p.in_nested_pattern_convert
+		p.in_nested_pattern_convert = true
+		defer p.in_nested_pattern_convert = prev_nested
 		prop_count := len(e.properties)
 		for prop, idx in e.properties {
 			// Spread element in object expression -> RestElement in pattern.
@@ -13431,6 +13441,9 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		ap := new_node(p, ArrayPattern)
 		ap.loc = e.loc
 		elems := make([]Maybe(Pattern), len(e.elements), p.allocator)
+		prev_nested := p.in_nested_pattern_convert
+		p.in_nested_pattern_convert = true
+		defer p.in_nested_pattern_convert = prev_nested
 		for i := 0; i < len(e.elements); i += 1 {
 			elem, has_elem := e.elements[i].(^Expression)
 			if !has_elem || elem == nil {
@@ -13501,12 +13514,18 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// ESTree allows MemberExpression as a destructure target.
 		return e, true
 	case ^ParenthesizedExpression:
-		// Parenthesized binding elements in arrow params. OXC (with
-		// preserveParens=false, which is the corpus oracle mode) strips
-		// the paren wrapper during parse so `((a)) => 0` is accepted.
-		// We match by silently unwrapping here. The semantic checker can
-		// enforce stricter validation (V8 rejects these) when enabled.
+		// Parenthesized binding element. OXC with preserveParens=false
+		// (our oracle mode) strips paren wrappers, so `((a)) => 0` is
+		// accepted (the inner `(a)` becomes plain `a`). But nested cases
+		// like `([(a)]) => {}` or `({ a: (b) }) => {}` are still rejected
+		// because the paren wraps a binding INSIDE a destructuring pattern.
+		// Gate: reject when we're inside a recursive array/object pattern
+		// conversion (in_nested_pattern_convert is set by the Array/Object
+		// cases above). Top-level paren-around-identifier is OK.
 		if e == nil { return nil, false }
+		if p.in_nested_pattern_convert {
+			report_error(p, "Binding element cannot be parenthesized")
+		}
 		return expr_to_pattern(p, e.expression)
 	case ^TSNonNullExpression:
 		// `x!` as a destructure target in TS mode - unwrap.
@@ -14213,11 +14232,22 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 
 	// §14.1.2 - CoverParenthesizedExpressionAndArrowFormalParameters.
 	// Parenthesized binding elements in arrow params (`(a, (b)) => 42`,
-	// `([(a)]) => {}`, etc.) are rejected by V8 but accepted by OXC
-	// (preserveParens=false strips the wrapper). Since OXC is our
-	// conformance oracle, skip the byte-level paren check at parse time.
-	// The semantic checker can enforce this when stricter validation is
-	// desired.
+	// `([(a)]) => {}`, etc.) are rejected by both V8 and OXC.
+	// Exception: `((a)) => 0` — OXC with preserveParens=false strips
+	// the inner parens so a single-identifier param works. Skip the
+	// byte-level paren check only when the param list is a single
+	// plain identifier (the paren is just extra grouping).
+	is_single_ident_param := len(params) == 1
+	if is_single_ident_param {
+		if _, ok := params[0].pattern.(^Identifier); !ok {
+			is_single_ident_param = false
+		}
+	}
+	if !is_single_ident_param && p.lexer != nil && len(params) > 0 {
+		src := p.lexer.source_bytes
+		outer_paren := int(start.span.start)
+		check_parenthesized_binding(p, params[:], src, outer_paren)
+	}
 
 	// ArrowFunction params are always UniqueFormalParameters
 	// (ECMA-262 §15.3.1). No sloppy-mode escape hatch - pass

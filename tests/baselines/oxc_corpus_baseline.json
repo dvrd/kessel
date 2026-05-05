@@ -3,10 +3,10 @@
   "verdicts": {
     "ok-vs-oxc": 15683,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 19,
+    "oxc-only-rejects": 12,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 2151,
+    "should-pass-rejected": 2158,
     "reject-both": 657
   },
   "bySuite": {
@@ -23,9 +23,9 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 2151,
+        "should-pass-rejected": 2158,
         "reject-both": 657,
-        "oxc-only-rejects": 12
+        "oxc-only-rejects": 5
       }
     },
     "estree": {
@@ -162,8 +162,7 @@
       "should-reject-passed": 3
     },
     "babel/core/create-parenthesized-expressions": {
-      "should-pass-rejected": 4,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 5
     },
     "babel/core/escape-keyword": {
       "should-pass-rejected": 1
@@ -196,8 +195,7 @@
       "should-pass-rejected": 4
     },
     "babel/es2015/arrow-functions": {
-      "should-pass-rejected": 3,
-      "oxc-only-rejects": 5
+      "should-pass-rejected": 8
     },
     "babel/es2015/class-methods": {
       "should-pass-rejected": 5
@@ -333,8 +331,7 @@
       "should-pass-rejected": 1
     },
     "babel/esprima/es2015-arrow-function": {
-      "should-pass-rejected": 4,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 5
     },
     "babel/esprima/es2015-destructuring-assignment": {
       "should-pass-rejected": 2

@@ -484,6 +484,32 @@ function printSummary(summary) {
   console.log(`  Other (both parsers reject):       ${String(gapOther).padStart(5)}`);
   console.log('');
 
+  // --- Will-not-implement classification ---
+  // oxc-only-rejects breakdown: Flow (will-not-implement) vs real lenience.
+  let oxcFlow = 0, oxcOtherLenient = 0;
+  for (const [subdir, counts] of Object.entries(summary.bySubdir)) {
+    const oor = counts['oxc-only-rejects'] || 0;
+    if (oor === 0) continue;
+    if (subdir.includes('/flow/'))  oxcFlow += oor;
+    else                           oxcOtherLenient += oor;
+  }
+  if (oxcQuirks > 0) {
+    console.log(`Kessel-more-lenient breakdown (${oxcQuirks} oxc-only-rejects):`);
+    console.log(`  Flow (will not implement):        ${String(oxcFlow).padStart(5)}`);
+    console.log(`  Kessel lenient / OXC stricter:    ${String(oxcOtherLenient).padStart(5)}`);
+    console.log('');
+  }
+
+  // --- Adjusted conformance ---
+  const willNotImpl = gapFlow + gapPlugin + oxcFlow;
+  const adjustedActionable = actionable - (gapFlow + gapPlugin + gapNumSep) - oxcFlow;
+  const adjustedAgree = agree + oxcOtherLenient;
+  const adjustedPct = adjustedActionable > 0
+    ? ((adjustedAgree / adjustedActionable) * 100).toFixed(1) : '0.0';
+  console.log(`Adjusted conformance (excl. Flow + Babel-only + numeric-sep):`);
+  console.log(`  ${adjustedAgree.toLocaleString()} / ${adjustedActionable.toLocaleString()} = ${adjustedPct}%`);
+  console.log('');
+
   console.log('Overall verdicts:');
   for (const [vk, c] of Object.entries(summary.verdicts).sort((a,b)=>b[1]-a[1])) {
     console.log(`  ${vk.padEnd(24)} ${String(c).padStart(7)}`);
