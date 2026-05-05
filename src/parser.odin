@@ -2499,6 +2499,12 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
+	// Escaped `of` keyword: `o\u0066` → .Identifier with cooked value
+	// "of" and has_escape=true. OXC rejects as "Keywords cannot contain
+	// escape characters".
+	if p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "of" {
+		report_error(p, "Keywords cannot contain escape characters")
+	}
 	// Now check if this is for-in, for-of, or regular for
 	if is_token(p, .In) || is_token(p, .Of) {
 		// for-in or for-of
@@ -8999,6 +9005,8 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume export
+
+
 
 	if st, have := p.force_source_type.(SourceType); have && st == .Script {
 		report_semantic_error(p, "'export' is only valid in module code")
@@ -15536,22 +15544,18 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 
 parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	start := cur_loc(p); eat(p)
-	// TS type predicates (`x is T`, `this is T`, `asserts x is T`) are
-	// also allowed in non-return positions like `var x: this is string`
-	// or `let p: y is U`. The TS parser accepts them syntactically and
-	// defers the "only-valid-on-functions" check to the type checker;
-	// kessel matches that. OXC's parser also accepts them in most
-	// positions. Test:
-	// typescript/conformance/expressions/typeGuards/
-	// typePredicateOnVariableDeclaration01.ts.
+	// TS type predicates in non-return positions: OXC only accepts
+	// `this is T` and `asserts x [is T]` in variable annotations.
+	// `identifier is T` (e.g. `var y: z is number`) is rejected by OXC
+	// at parse time — only parse_ts_return_type_annotation handles that.
 	asserts := false
 	is_predicate := false
 	if is_token(p, .Asserts) && (p.lexer.nxt.kind == .Identifier || p.lexer.nxt.kind == .This) {
 		asserts = true
 		eat(p)
 		is_predicate = true
-	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-		// Line break before `is` triggers ASI - not a type predicate.
+	} else if is_token(p, .This) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+		// `this is T` is unambiguous — allow in non-return positions.
 		is_predicate = true
 	}
 	if is_predicate {
@@ -18132,7 +18136,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		}
 		params := parse_ts_sig_params(p)
 		ret: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) { ret = parse_ts_type_annotation(p) }
+		if is_token(p, .Colon) { ret = parse_ts_return_type_annotation(p) }
 		call_sig := TSCallSignatureDeclaration{
 			loc = start, type_parameters = type_params, params = params, return_type = ret,
 		}
@@ -18149,7 +18153,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		}
 		params := parse_ts_sig_params(p)
 		ret: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) { ret = parse_ts_type_annotation(p) }
+		if is_token(p, .Colon) { ret = parse_ts_return_type_annotation(p) }
 		ctor_sig := TSConstructSignatureDeclaration{
 			loc = start, type_parameters = ctor_type_params, params = params, return_type = ret,
 		}
@@ -18265,7 +18269,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			sig := new_node(p, TSSignature)
 			method := TSMethodSignature{loc = start, key = key, computed = true, optional = optional, kind = .Method}
 			method.params = parse_ts_sig_params(p)
-			if is_token(p, .Colon) { method.return_type = parse_ts_type_annotation(p) }
+			if is_token(p, .Colon) { method.return_type = parse_ts_return_type_annotation(p) }
 			method.loc.span.end = prev_end_offset(p)
 			sig^ = method; return sig
 		}
@@ -18362,7 +18366,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		}
 		ret: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Colon) {
-			ret = parse_ts_type_annotation(p)
+			ret = parse_ts_return_type_annotation(p)
 			if accessor_kind == .Set {
 				report_error(p, "A set accessor cannot have a return type annotation")
 			}
@@ -18397,7 +18401,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		sig := new_node(p, TSSignature)
 		method := TSMethodSignature{loc = start, key = key, computed = computed, optional = optional, kind = .Method}
 		method.params = parse_ts_sig_params(p)
-		if is_token(p, .Colon) { method.return_type = parse_ts_type_annotation(p) }
+		if is_token(p, .Colon) { method.return_type = parse_ts_return_type_annotation(p) }
 		method.loc.span.end = prev_end_offset(p)
 		sig^ = method; return sig
 	}
