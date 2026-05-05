@@ -1,34 +1,8 @@
 # Kessel
 
-JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.org/). Emits ESTree-compatible JSON ASTs. Targets ES2015–ES2025 syntax with zero runtime dependencies, statically-allocated arena memory, and ARM64 NEON SIMD-accelerated lexing.
-
-Building toward a full web toolchain — the parser is the first piece of the pipeline.
-
-## Architecture
-
-Three-pass pipeline, each pass independent and composable:
-
-```
-Source (.js / .ts / .jsx / .tsx)
-    │
-    ▼
- 1. Lexer ───── SIMD string/identifier scanning (ARM64 NEON)
-    │            Two-token lookahead (cur + nxt)
-    │            16-byte FastToken, cache-line-tuned hot fields
-    │
-    ▼
- 2. Parser ──── Pratt precedence climbing, hand-written recursive descent
-    │            Arena-only allocation (256× source, lazy-committed)
-    │            Bump pool for AST nodes (zero allocator dispatch)
-    │            Permissive — builds the tree, does not enforce early errors
-    │
-    ▼
- 3. Checker ─── Semantic validation (ECMA-262 early errors)
-                 Walks the finished AST, reports spec violations
-                 Opt-in — off by default (matches OXC's parseSync behavior)
-```
-
-The parser does not track loop/switch context, label scopes, super/new.target validity, or strict-mode binding restrictions. It builds the AST and moves on. Early errors are the checker's job — same split as OXC (`oxc_parser` vs `oxc_semantic`).
+* JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.org/)
+* Emits ESTree-compatible JSON ASTs
+* Targets ES2015–ES2025 syntax
 
 ## Language Support
 
@@ -42,38 +16,6 @@ The parser does not track loop/switch context, label scopes, super/new.target va
 | Import attributes (`with`) | ✅ |
 | `using` / `await using` | ✅ |
 
-## Performance
-
-Benchmarked against OXC (Rust) on 10 headline files, 30 iterations each, Apple Silicon ARM64:
-
-```
-File                        Kessel (µs)  OXC (µs)  Ratio
-snabbdom.js        (1 KB)        3.4        3.1    1.10x
-preact.js         (11 KB)      138.7      131.2    1.06x
-lodash.js        (531 KB)    1,746.2    1,685.0    1.04x
-jquery.js        (279 KB)    1,824.4    1,798.0    1.01x
-d3.js            (573 KB)    6,091.2    6,020.0    1.01x
-react.dev.js     (206 KB)      554.7      540.0    1.03x
-react-dom.dev.js   (1 MB)    5,327.2    5,100.0    1.04x
-antd.js            (4 MB)   25,638.5   24,800.0    1.03x
-monaco.js          (3 MB)   38,317.4   37,500.0    1.02x
-typescript.js      (9 MB)   54,126.5   53,000.0    1.02x
-```
-
-Geo-mean ratio: ~1.03x (within 3% of OXC). Kessel's `pin_to_p_core()` biases to Apple Silicon performance cores for consistent bench numbers.
-
-## Conformance
-
-Tracked against three corpora:
-
-| Corpus | Coverage |
-|---|---|
-| Unit fixtures | 415 / 415 (100%) |
-| Real-world JS | 467 / 467 (100%) |
-| OXC corpus (25,140 fixtures) | 15,335 agree with OXC; 83 kessel-only-rejects (genuine parser gaps) |
-| Test262 curated subset | 63 / 66 (95.5%) |
-
-The 83 remaining kessel-only-rejects are genuine parser gaps — mostly `<<` token splitting for generic type arguments (~9), `new A<B>` relational disambiguation (~4), regex validator edge cases (~5), Flow syntax (~10, won't fix), and a tail of 1-file edge cases.
 
 ## Getting Started
 
@@ -124,16 +66,16 @@ task test:bench:regression    # Performance regression gate
 ```
 kessel/
 ├── src/
-│   ├── main.odin            CLI + JSON emitter (7,813 lines)
-│   ├── parser.odin          Pratt parser, 190+ parsing procs (17,022 lines)
-│   ├── lexer.odin           SIMD-accelerated tokenizer (3,420 lines)
-│   ├── ast.odin             ESTree AST struct/union definitions (1,611 lines)
+│   ├── main.odin            CLI + JSON emitter
+│   ├── parser.odin          Pratt parser
+│   ├── lexer.odin
+│   ├── ast.odin             ESTree AST struct/union definitions
 │   ├── checker.odin         Semantic checker — pass 3 (skeleton)
-│   ├── regex.odin           ES2025 §22.2.1 regex pattern validator (1,768 lines)
-│   ├── raw_transfer.odin    Zero-copy binary AST buffer (1,261 lines)
-│   ├── simd.odin            ARM64 NEON intrinsics (521 lines)
-│   ├── token.odin           TokenType enum, FastToken, LiteralValue (383 lines)
-│   ├── unicode_tables.odin  ID_Start / ID_Continue ranges (329 lines)
+│   ├── regex.odin           ES2025 §22.2.1 regex pattern validator
+│   ├── raw_transfer.odin    Zero-copy binary AST buffer
+│   ├── simd.odin            ARM64 NEON intrinsics
+│   ├── token.odin           TokenType enum, FastToken, LiteralValue
+│   ├── unicode_tables.odin  ID_Start / ID_Continue ranges
 │   ├── source_io.odin       Cross-platform source reader (mmap on POSIX)
 │   └── qos_darwin.odin      Apple Silicon P-core pinning
 ├── tests/
@@ -146,23 +88,8 @@ kessel/
 ├── bench/
 │   ├── real_world/           467 production JS files
 │   └── oxc_compare/          OXC microbench comparator (Rust)
-├── vendor/                   (gitignored) Test262, TypeScript, Babel corpora
-├── HANDOFF.md                Full technical context for development
 └── Taskfile.yml              All build/test/bench tasks
 ```
-
-## Key Design Decisions
-
-1. **Odin, not Rust or Zig.** Structs map naturally to ESTree shapes. No async/Send/Sync ceremony. Single-source simplicity.
-
-2. **Arena-only memory.** Single virtual-memory arena, destroyed in one syscall. No malloc/free during parsing. Deterministic teardown.
-
-3. **Pratt parser, not generated.** Hand-written recursive descent with precedence climbing. Surgical control over error recovery, ASI, regex-vs-division, JSX-in-expression.
-
-4. **OXC as conformance oracle.** Every gate compares kessel to OXC's `parseSync` for both accept/reject agreement and AST shape.
-
-5. **Permissive parser + separate checker.** The parser builds the tree without enforcing early errors (like OXC). The semantic checker is a separate pass that walks the AST and validates. This keeps the parser fast and simple.
-
 ## License
 
 MIT
