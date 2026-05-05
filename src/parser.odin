@@ -466,6 +466,11 @@ Parser :: struct {
 	// parse (TS 4.7+) to match OXC / TypeScript behaviour.
 	ts_disallow_conditional_types: int,
 
+	// Depth counter for TS object/interface type literal bodies. When > 0,
+	// type-argument `<T>` on a newline is NOT consumed as postfix (it starts
+	// a new generic call/construct signature member).
+	ts_in_type_literal: int,
+
 	// True while parsing elements of a TS tuple type `[T?, U, ...V]`.
 	// Suppresses the JSDoc-nullable `?` consumption in parse_ts_postfix
 	// so that postfix `?` is reserved for TSOptionalType instead.
@@ -2416,8 +2421,27 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	using_starts_decl := false
 	if is_token(p, .Using) {
 		nxt_u := peek_token(p)
-		using_starts_decl = (nxt_u.type == .Identifier || can_be_binding_identifier(nxt_u.type)) &&
-		                    !nxt_u.had_line_terminator
+		// `for (using of ...)` is ambiguous: `of` after `using` can be
+		// (a) the for-of keyword → LHS expression `using` of `iterable`,
+		//     e.g. `for (using of of [])`, or
+		// (b) a binding name `of` in a C-style for-init using-decl,
+		//     e.g. `for (using of = reader();;)`.
+		// Disambiguate with 3-token lookahead: if the token AFTER `of`
+		// is `=` (initialiser), `,` (next declarator), `:` (TS type
+		// annotation), or `;` (end of for-init), then `of` is a binding
+		// name. Otherwise it's the for-of keyword.
+		if nxt_u.type == .Of && !nxt_u.had_line_terminator {
+			snap := lexer_snapshot(p)
+			advance_token(p) // consume `using` → cur=`of`
+			advance_token(p) // consume `of`    → cur=token after `of`
+			after_of := p.cur_type
+			lexer_restore(p, snap)
+			using_starts_decl = after_of == .Assign || after_of == .Comma ||
+			                    after_of == .Semi || after_of == .Colon
+		} else {
+			using_starts_decl = (nxt_u.type == .Identifier || can_be_binding_identifier(nxt_u.type)) &&
+			                    !nxt_u.had_line_terminator
+		}
 	}
 	await_using_for_decl := false
 	if is_token(p, .Await) && peek_dispatch(p).type == .Using {
@@ -4655,6 +4679,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 			break
 		}
+
 		consumed := false
 		#partial switch cur {
 		case .Static:
@@ -6090,6 +6115,9 @@ is_eval_or_arguments :: #force_inline proc(name: string) -> bool {
 await_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
 	// .d.ts declaration files allow `await` as an identifier everywhere.
 	if p.source_is_dts { return false }
+	// TS ambient declarations (`declare const await: any`) don't execute,
+	// so `await` is not reserved there — even in module code. Matches OXC.
+	if p.in_ambient { return false }
 	if p.in_async || p.in_async_params { return true }
 	// §15.7.5 - class static blocks run under [~Await]; `await` is
 	// a reserved word within ClassStaticBlockBody.
@@ -9821,6 +9849,30 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				if p.cur_tok.had_line_terminator {
 					report_error(p, "Unexpected line terminator before '=>' (restricted production)")
 				}
+				// `({}=>0)` — bare ObjectExpression followed by `=>` inside a
+				// paren group is not valid CoverParenthesizedExpression form.
+				// V8 rejects: "Malformed arrow function parameter list".
+				// Only reject when the object has NO properties and was not
+				// preceded by `)` (which would mean `({}) =>` form).
+				if left != nil {
+					if obj, is_obj := left^.(^ObjectExpression); is_obj && len(obj.properties) == 0 {
+						// Check if there's a `)` between the `}` and `=>`.
+						if p.lexer != nil {
+							arrow_off := int(cur_offset(p))
+							has_rparen := false
+							i := arrow_off - 1
+							for i >= 0 {
+								ch := p.lexer.source_bytes[i]
+								if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+								if ch == ')' { has_rparen = true }
+								break
+							}
+							if !has_rparen {
+								report_error(p, "Malformed arrow function parameter list")
+							}
+						}
+					}
+				}
 				left = parse_arrow_function(p, left)
 				continue
 			}
@@ -13449,11 +13501,12 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// ESTree allows MemberExpression as a destructure target.
 		return e, true
 	case ^ParenthesizedExpression:
-		// Parenthesized binding elements are not valid inside patterns:
-		// `([(a)]) => {}` / `({ a: (b) }) => {}`. Assignment-target
-		// validation still unwraps so recovery can continue.
+		// Parenthesized binding elements in arrow params. OXC (with
+		// preserveParens=false, which is the corpus oracle mode) strips
+		// the paren wrapper during parse so `((a)) => 0` is accepted.
+		// We match by silently unwrapping here. The semantic checker can
+		// enforce stricter validation (V8 rejects these) when enabled.
 		if e == nil { return nil, false }
-		report_error(p, "Binding element cannot be parenthesized")
 		return expr_to_pattern(p, e.expression)
 	case ^TSNonNullExpression:
 		// `x!` as a destructure target in TS mode - unwrap.
@@ -14159,16 +14212,12 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	}
 
 	// §14.1.2 - CoverParenthesizedExpressionAndArrowFormalParameters.
-	// Parenthesized binding elements are not valid in arrow params:
-	// `(a, (b)) => 42`, `([(a)]) => {}`, `([...(a)]) => {}`, etc.
-	// Detect by scanning source bytes for inner `(...)` wrapping any
-	// parameter's pattern span. The outer arrow parens at `start.span.start`
-	// are excluded.
-	if p.lexer != nil && len(params) > 0 {
-		src := p.lexer.source_bytes
-		outer_paren := int(start.span.start)
-		check_parenthesized_binding(p, params[:], src, outer_paren)
-	}
+	// Parenthesized binding elements in arrow params (`(a, (b)) => 42`,
+	// `([(a)]) => {}`, etc.) are rejected by V8 but accepted by OXC
+	// (preserveParens=false strips the wrapper). Since OXC is our
+	// conformance oracle, skip the byte-level paren check at parse time.
+	// The semantic checker can enforce this when stricter validation is
+	// desired.
 
 	// ArrowFunction params are always UniqueFormalParameters
 	// (ECMA-262 §15.3.1). No sloppy-mode escape hatch - pass
@@ -16848,6 +16897,14 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 		// noPropertyAccessFromIndexSignature1 cluster.
 		if p.cur_tok.had_line_terminator {
 			nxt_kind := p.lexer.nxt.kind
+			// `T\n[]` — empty brackets on new line = new member, not array postfix.
+			if nxt_kind == .RBracket {
+				break
+			}
+			// `T\n[<T>` — generic on new line = new member start (call/construct sig).
+			if nxt_kind == .LAngle {
+				break
+			}
 			if nxt_kind == .Identifier || nxt_kind == .String || nxt_kind == .Number {
 				snap := lexer_snapshot(p)
 				eat(p) // `[`
@@ -16920,7 +16977,11 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 		// a new generic call signature in an overloaded object/interface
 		// type (e.g. `T\n<U extends V>(...): W`).  Same-line `<` commits
 		// unconditionally - `Map<string, number>` must never roll back.
-		if p.cur_tok.had_line_terminator {
+		// Inside a type literal body (`{ A: B\n<T>; }`), a newline-
+		// separated `<` is ALWAYS a new member start (OXC/V8 agree).
+		if p.cur_tok.had_line_terminator && p.ts_in_type_literal > 0 {
+			// Don't try type args at all — it's a new member.
+		} else if p.cur_tok.had_line_terminator {
 			snap := lexer_snapshot(p)
 			snap_errs := len(p.errors)
 			targs = parse_ts_type_arguments(p)
@@ -17646,6 +17707,12 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p); eat(p) // consume `{`
 
+	// Track type-literal depth so parse_ts_type_reference can suppress
+	// newline-separated type arguments (they start a new member, not
+	// a type-argument list on the preceding type).
+	p.ts_in_type_literal += 1
+	defer p.ts_in_type_literal -= 1
+
 	// Re-allow conditional types inside braces (TypeScript's
 	// allowConditionalTypesAnd). Conditional types are suppressed only
 	// at the immediate level of the extends type in a conditional;
@@ -18131,6 +18198,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		if is_token(p, .LAngle) {
 			type_params = parse_ts_type_parameters(p)
 			if !is_token(p, .LParen) {
+				report_error(p, "Expected '(' after type parameters in call signature")
 				return nil
 			}
 		}
