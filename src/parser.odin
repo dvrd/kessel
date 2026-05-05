@@ -2448,6 +2448,24 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		} else {
 			using_starts_decl = (nxt_u.type == .Identifier || can_be_binding_identifier(nxt_u.type)) &&
 			                    !nxt_u.had_line_terminator
+			// Escaped `of` identifier (`o\u0066`): ECMA-262 §12.7.2 says
+			// keywords must not contain Unicode escapes. When the binding
+			// name is an escaped-identifier whose cooked value is "of",
+			// reject it — matches OXC / V8 behaviour.
+			// Check by decoding the raw source span: if the nxt token has
+			// an escape and its span is 2 chars wide when decoded to "of",
+			// the identifier is an escaped keyword.
+			if using_starts_decl && nxt_u.type == .Identifier &&
+			   (p.lexer.nxt.flags & FLAG_HAS_ESCAPE) != 0 {
+				// Read cooked value: advance into the token, check, restore.
+				snap_u := lexer_snapshot(p)
+				advance_token(p) // consume `using` → cur = escaped ident
+				cooked_is_of := p.cur_tok.value == "of"
+				lexer_restore(p, snap_u)
+				if cooked_is_of {
+					report_error(p, "Keywords cannot contain escape characters")
+				}
+			}
 		}
 	}
 	await_using_for_decl := false
@@ -2514,8 +2532,20 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// Special case: `for (await of ...)` in script mode - `await` is
 		// an IdentifierReference used as the for-of LHS, not an
 		// AwaitExpression. Detect by checking that next token is `of`.
-		if is_token(p, .Await) && !p.in_async && p.lexer != nil &&
-		   p.lexer.nxt.kind == .Of {
+		// Also match escaped `o\u0066` (lexed as .Identifier with cooked
+		// value "of") — ECMA-262 §13.7.5.1 uses the StringValue of
+		// the token, which resolves the escape. OXC and V8 agree.
+		nxt_is_of := p.lexer != nil && p.lexer.nxt.kind == .Of
+		// Also match escaped `o\u0066`: lexed as .Identifier, cooked to "of".
+		if !nxt_is_of && p.lexer != nil &&
+		   p.lexer.nxt.kind == .Identifier &&
+		   (p.lexer.nxt.flags & FLAG_HAS_ESCAPE) != 0 {
+			snap := lexer_snapshot(p)
+			advance_token(p) // consume `await` → cur = escaped-of
+			nxt_is_of = p.cur_tok.value == "of"
+			lexer_restore(p, snap)
+		}
+		if is_token(p, .Await) && !p.in_async && nxt_is_of {
 			cur := get_current(p)
 			id := new_node(p, Identifier)
 			id.loc = loc_from_token(&cur); id.name = cur.value

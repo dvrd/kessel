@@ -3,10 +3,10 @@
   "verdicts": {
     "ok-vs-oxc": 15683,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 12,
+    "oxc-only-rejects": 10,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 2158,
+    "should-pass-rejected": 2160,
     "reject-both": 657
   },
   "bySuite": {
@@ -23,9 +23,9 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 2158,
+        "should-pass-rejected": 2160,
         "reject-both": 657,
-        "oxc-only-rejects": 5
+        "oxc-only-rejects": 3
       }
     },
     "estree": {
@@ -257,8 +257,7 @@
       "should-pass-rejected": 1
     },
     "babel/es2017/async-functions": {
-      "should-pass-rejected": 24,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 25
     },
     "babel/es2017/trailing-function-commas": {
       "should-pass-rejected": 1
@@ -324,8 +323,7 @@
       "should-pass-rejected": 13
     },
     "babel/es2026/explicit-resource-management": {
-      "should-pass-rejected": 13,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 14
     },
     "babel/esprima/es2015-array-binding-pattern": {
       "should-pass-rejected": 1
