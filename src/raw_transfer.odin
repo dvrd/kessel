@@ -132,7 +132,7 @@ rewrite_string :: #force_inline proc(field: ^string, source_base: uintptr) {
 
 // Helper: rewrite a Maybe(string) — same layout as string, nil = empty
 rewrite_maybe_string :: #force_inline proc(field: ^Maybe(string), source_base: uintptr) {
-	if s, ok := field^.(string); ok {
+	if _, ok := field^.(string); ok {
 		str_field := (^string)(field)
 		rewrite_string(str_field, source_base)
 	} else {
@@ -405,15 +405,17 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 		rewrite_stmt_field(v.body, &v.body, base, source_base)
 		rewrite_expr_field(v.test, &v.test, base, source_base)
 	case ^ForStatement:
-		// init_decl/init_expr are transmuted ^Statement pointers (parser quirk)
-		// Treat as ^Statement for rewriting
+		// init_decl/init_expr hold pointers stored as the union variant the
+		// parser chose (^VariableDeclaration vs ^Expression). Reinterpret
+		// each as the right pointer kind via cast — vet prefers cast over
+		// transmute for pointer-like types.
 		if init_ptr := (^rawptr)(&v.init_decl)^; init_ptr != nil {
-			rewrite_statement(transmute(^Statement)init_ptr, base, source_base)
+			rewrite_statement(cast(^Statement)init_ptr, base, source_base)
 			(^u32)(&v.init_decl)^ = ptr_to_offset(base, init_ptr)
 		}
 		if init_ptr := (^rawptr)(&v.init_expr)^; init_ptr != nil {
-			rewrite_expression(transmute(^Expression)init_ptr, base, source_base)
-			rewrite_union_ptr(transmute(^Expression)init_ptr, base)
+			rewrite_expression(cast(^Expression)init_ptr, base, source_base)
+			rewrite_union_ptr(cast(^Expression)init_ptr, base)
 			(^u32)(&v.init_expr)^ = ptr_to_offset(base, init_ptr)
 		}
 		rewrite_maybe_expr(&v.test, base, source_base)
@@ -421,24 +423,24 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 		rewrite_stmt_field(v.body, &v.body, base, source_base)
 	case ^ForInStatement:
 		if ptr := (^rawptr)(&v.left_decl)^; ptr != nil {
-			rewrite_statement(transmute(^Statement)ptr, base, source_base)
+			rewrite_statement(cast(^Statement)ptr, base, source_base)
 			(^u32)(&v.left_decl)^ = ptr_to_offset(base, ptr)
 		}
 		if ptr := (^rawptr)(&v.left_expr)^; ptr != nil {
-			rewrite_expression(transmute(^Expression)ptr, base, source_base)
-			rewrite_union_ptr(transmute(^Expression)ptr, base)
+			rewrite_expression(cast(^Expression)ptr, base, source_base)
+			rewrite_union_ptr(cast(^Expression)ptr, base)
 			(^u32)(&v.left_expr)^ = ptr_to_offset(base, ptr)
 		}
 		rewrite_expr_field(v.right, &v.right, base, source_base)
 		rewrite_stmt_field(v.body, &v.body, base, source_base)
 	case ^ForOfStatement:
 		if ptr := (^rawptr)(&v.left_decl)^; ptr != nil {
-			rewrite_statement(transmute(^Statement)ptr, base, source_base)
+			rewrite_statement(cast(^Statement)ptr, base, source_base)
 			(^u32)(&v.left_decl)^ = ptr_to_offset(base, ptr)
 		}
 		if ptr := (^rawptr)(&v.left_expr)^; ptr != nil {
-			rewrite_expression(transmute(^Expression)ptr, base, source_base)
-			rewrite_union_ptr(transmute(^Expression)ptr, base)
+			rewrite_expression(cast(^Expression)ptr, base, source_base)
+			rewrite_union_ptr(cast(^Expression)ptr, base)
 			(^u32)(&v.left_expr)^ = ptr_to_offset(base, ptr)
 		}
 		rewrite_expr_field(v.right, &v.right, base, source_base)
@@ -1180,7 +1182,7 @@ rewrite_import_declaration :: proc(d: ^ImportDeclaration, base: uintptr, source_
 }
 
 rewrite_export_named :: proc(d: ^ExportNamedDeclaration, base: uintptr, source_base: uintptr) {
-	if decl, ok := d.declaration.(^Declaration); ok {
+	if _, ok := d.declaration.(^Declaration); ok {
 		rewrite_ptr((^rawptr)(&d.declaration), base)
 	}
 	rewrite_dynamic_header(&d.specifiers, base, len(d.specifiers))

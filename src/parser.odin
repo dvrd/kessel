@@ -3607,7 +3607,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 				scope_process_statement(p, inner, &body_lex, &body_lex_vars, true)
 			}
 			for n in param_names {
-				if off, have := scope_map_get(&body_lex, n); have {
+				if off, ok := scope_map_get(&body_lex, n); ok {
 					msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
 					report_semantic_error_at(p, LexerLoc(off), msg)
 				}
@@ -5638,20 +5638,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			report_semantic_error(p, "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 
-		// §15.4.3 / §15.4.4 - class accessor arity (same rule as
-		// object-literal accessors; see parse_property for the parallel
-		// check). In TS mode, a leading `this` parameter is a type-only
-		// declaration (not a runtime param), so exclude it from arity.
-		real_params := count_real_params(p, params[:])
 		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
 		// parameter shape (rest / initializer). These are Static Semantic
 		// Errors (Early Errors), owned by pass 3 (src/checker.odin
 		// ck_check_accessor). Migrated out of the parser in slice 3 — the
 		// parser stays a pure syntax recognizer, the checker walks the
 		// finished class body and emits the diagnostics with anchored
-		// locations. real_params / count_real_params remain only for the
-		// remaining inline checks below (abstract method, etc.) that have
-		// not yet been migrated.
+		// locations.
 
 		// TS: abstract method must not have an implementation body.
 		if is_abstract && len(body.body) > 0 {
@@ -6732,8 +6725,9 @@ string_raw_has_forbidden_escape :: proc(raw: string) -> bool {
 }
 
 parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
-	start := cur_loc(p)
-
+	// `start` was used by an earlier diagnostic path that no longer
+	// exists; the leaf paths below all carry their own loc. Drop the
+	// dead local; vet flags it as unused.
 	if is_token(p, .LBrace) {
 		return parse_object_pattern(p)
 	}
@@ -13573,27 +13567,27 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 			// Expect TemplateMiddle or TemplateTail
 			tok := get_current(p)
 			if tok.type == .TemplateMiddle {
-				elem := TemplateElement{
+				mid := TemplateElement{
 					loc  = loc_from_token(&tok),
 					tail = false,
 					raw  = tok.value,
 				}
 				if cooked, ok := tok.literal.(string); ok {
-					elem.cooked = cooked
+					mid.cooked = cooked
 				}
-				bump_append(&tmpl.quasis, elem)
+				bump_append(&tmpl.quasis, mid)
 				eat(p)
 				// Continue to parse next expression
 			} else if tok.type == .TemplateTail {
-				elem := TemplateElement{
+				tail := TemplateElement{
 					loc  = loc_from_token(&tok),
 					tail = true,
 					raw  = tok.value,
 				}
 				if cooked, ok := tok.literal.(string); ok {
-					elem.cooked = cooked
+					tail.cooked = cooked
 				}
-				bump_append(&tmpl.quasis, elem)
+				bump_append(&tmpl.quasis, tail)
 				eat(p)
 				break
 			} else {
@@ -15731,12 +15725,12 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 	opening.attributes = make([dynamic]JSXAttributeItem, 0, 4, p.allocator)
 	for !is_token(p, .RAngle) && !is_token(p, .Div) && !is_token(p, .EOF) {
 		if is_token(p, .LBrace) {
-			start := cur_loc(p)
+			spread_start := cur_loc(p)
 			eat(p); expect_token(p, .Dot3)
 			expr := parse_assignment_expression(p)
 			expect_token(p, .RBrace)
 			spread := new_node(p, JSXSpreadAttribute)
-			spread.loc = start; spread.argument = expr
+			spread.loc = spread_start; spread.argument = expr
 			spread.loc.span.end = prev_end_offset(p)
 			bump_append(&opening.attributes, spread)
 		} else if is_jsx_identifier_token(p) {
@@ -15774,7 +15768,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					str_expr := new_node(p, StringLiteral); str_expr^ = str
 					attr_value = expression_from(p, str_expr)
 				} else if is_token(p, .LBrace) {
-					start := cur_loc(p)
+					container_start := cur_loc(p)
 					// JSX attribute expression: `{expr}`. Use parse_expression
 					// (not parse_assignment_expression) to allow the comma
 					// operator: `{class1, class2}` is a SequenceExpression.
@@ -15784,7 +15778,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					}
 					eat(p); expr := parse_expression(p); expect_token(p, .RBrace)
 					container := new_node(p, JSXExpressionContainer)
-					container.loc = start; container.expression = expr
+					container.loc = container_start; container.expression = expr
 					container.loc.span.end = prev_end_offset(p)
 					attr_value = expression_from(p, container)
 				} else if is_token(p, .LAngle) {
@@ -15999,8 +15993,8 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	}
 
 	if is_predicate {
-		// Parse parameter name: Identifier or `this`.
-		name_loc := cur_loc(p)
+		// Parse parameter name: Identifier or `this`. Each leaf carries
+		// its own location; the previously-bound `name_loc` was unused.
 		name_cur := get_current(p)
 		name_ident := new_node(p, Identifier)
 		name_ident.loc = loc_from_token(&name_cur)

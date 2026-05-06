@@ -1,5 +1,8 @@
 bin/
 tmp/
+# Odin's default `-out:` location when no path is given (e.g. `odin build src`).
+src.bin
+src.bin.dSYM/
 _archive/
 bench/
 vendor/

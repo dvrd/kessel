@@ -3,8 +3,6 @@ package main
 import "core:bufio"
 import "core:fmt"
 import "core:io"
-import "core:math"
-import "core:mem"
 import mvirtual "core:mem/virtual"
 import "core:os"
 import "core:slice"
@@ -916,7 +914,7 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli:
 	// it inside the timer was apples-to-oranges. Excluding it here gives
 	// a fair Parser::new() + parse() vs init_lexer + init_parser +
 	// parse_program comparison.
-	for i in 0..<iterations {
+	for _ in 0..<iterations {
 		// Excluded from timing: arena teardown (mirrors OXC's drop-after-
 		// elapsed). Real-world parse-once-and-exit doesn't pay this either.
 		parse_job_reset_arena(&job)
@@ -1125,7 +1123,9 @@ profile_parser_file :: proc(file_path: string, iterations: int) {
 		if i == 0 {
 			enable_profiling(&p)
 		}
-		program := parse_program(&p, .Script)
+		// Discard the parsed Program — the profile bench only times the
+		// parse, doesn't consume the AST.
+		_ = parse_program(&p, .Script)
 
 		full_dur := f64(time.duration_microseconds(time.tick_since(full_start)))
 		append(&full_us, full_dur)

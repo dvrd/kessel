@@ -1805,7 +1805,8 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 		// bulk-copy — cheaper than having SIMD stop on `\n` because real-world
 		// strings rarely contain literal newlines.
 		remaining := src[l.offset:]
-		pos, found_quote := simd_find_string_end(remaining, quote)
+		// `found_quote` is unused here — we re-check src[l.offset] below.
+		pos, _ := simd_find_string_end(remaining, quote)
 		if pos > 0 {
 			span := src[l.offset : l.offset + pos]
 			for bi := 0; bi < len(span); bi += 1 {
@@ -2804,12 +2805,12 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	for l.offset < src_len {
 		// SIMD bulk skip: 16 bytes at a time, vectors already initialized
 		for l.offset + 16 <= src_len {
-			chunk := (transmute(^Vec16)&src[l.offset])^
-			combined := transmute(Vec16)(
-				transmute(simd.u8x16)simd.lanes_eq(chunk, tick_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, dollar_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, bs_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, nl_v))
+			chunk := (cast(^Vec16)&src[l.offset])^
+			combined :=
+				simd.lanes_eq(chunk, tick_v)   |
+				simd.lanes_eq(chunk, dollar_v) |
+				simd.lanes_eq(chunk, bs_v)     |
+				simd.lanes_eq(chunk, nl_v)
 			mask := simd.extract_msbs(combined)
 			if card(mask) > 0 {
 				for lane in mask { l.offset += int(lane); break }
@@ -2885,12 +2886,12 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	for l.offset < src_len {
 		for l.offset + 16 <= src_len {
-			chunk := (transmute(^Vec16)&src[l.offset])^
-			combined := transmute(Vec16)(
-				transmute(simd.u8x16)simd.lanes_eq(chunk, tick_v2) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, dollar_v2) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, bs_v2) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, nl_v2))
+			chunk := (cast(^Vec16)&src[l.offset])^
+			combined :=
+				simd.lanes_eq(chunk, tick_v2)   |
+				simd.lanes_eq(chunk, dollar_v2) |
+				simd.lanes_eq(chunk, bs_v2)     |
+				simd.lanes_eq(chunk, nl_v2)
 			mask := simd.extract_msbs(combined)
 			if card(mask) > 0 {
 				for lane in mask { l.offset += int(lane); break }

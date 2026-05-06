@@ -440,7 +440,7 @@ emit_printf :: proc(e: ^Emitter, format: string, args: ..any) {
 emit_indent :: #force_inline proc(e: ^Emitter, depth: int) {
 	if e.cfg.compact { return }
 	emit_reserve(e, depth * 2)
-	for i in 0..<depth {
+	for _ in 0..<depth {
 		e.buf[e.pos]   = ' '
 		e.buf[e.pos+1] = ' '
 		e.pos += 2
@@ -2122,7 +2122,7 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_raw(e, "\n")
 			emit_indent(e, indent)
 			emit_println(e, "},")
-		} else if expr, ok := s.init_expr.(^Expression); ok {
+		} else if expr, ok2 := s.init_expr.(^Expression); ok2 {
 			emit_println(e, "{")
 			print_expression_ast(e, expr, indent + 1)
 			emit_indent(e, indent)
@@ -2543,7 +2543,7 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_raw(e, "\n")
 			emit_indent(e, indent)
 			emit_println(e, "},")
-		} else if expr, ok := s.left_expr.(^Expression); ok {
+		} else if expr, ok2 := s.left_expr.(^Expression); ok2 {
 			// `for (LHS in RHS)` — LHS is a destructuring target. Route through
 			// print_expression_as_pattern so array/object literals become
 			// ArrayPattern/ObjectPattern and inner `a = default` defaults
@@ -2581,7 +2581,7 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_raw(e, "\n")
 			emit_indent(e, indent)
 			emit_println(e, "},")
-		} else if expr, ok := s.left_expr.(^Expression); ok {
+		} else if expr, ok2 := s.left_expr.(^Expression); ok2 {
 			// `for (LHS of RHS)` — LHS is a destructuring target. See the
 			// ForInStatement case above for the rationale; same conversion.
 			emit_println(e, "{")
@@ -4422,11 +4422,11 @@ emit_ts_type_parameter_declaration :: proc(e: ^Emitter, decl_opt: Maybe(^TSTypeP
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 3)
 			emit_raw(e, "\"constraint\": ")
-			if c, ok := param.constraint.(^TSType); ok { emit_ts_type(e, c, indent + 3) } else { emit_raw(e, "null") }
+			if c, c_ok := param.constraint.(^TSType); c_ok { emit_ts_type(e, c, indent + 3) } else { emit_raw(e, "null") }
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 3)
 			emit_raw(e, "\"default\": ")
-			if d, ok := param.default_.(^TSType); ok { emit_ts_type(e, d, indent + 3) } else { emit_raw(e, "null") }
+			if d, d_ok := param.default_.(^TSType); d_ok { emit_ts_type(e, d, indent + 3) } else { emit_raw(e, "null") }
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 3)
 			emit_raw(e, "\"in\": ")
@@ -4893,11 +4893,11 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"nameType\": ")
-		if t, ok := v.name_type.(^TSType); ok { emit_ts_type(e, t, indent + 1) } else { emit_raw(e, "null") }
+		if nt, ok := v.name_type.(^TSType); ok { emit_ts_type(e, nt, indent + 1) } else { emit_raw(e, "null") }
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"typeAnnotation\": ")
-		if t, ok := v.type_annotation.(^TSType); ok { emit_ts_type(e, t, indent + 1) } else { emit_raw(e, "null") }
+		if ta, ok := v.type_annotation.(^TSType); ok { emit_ts_type(e, ta, indent + 1) } else { emit_raw(e, "null") }
 		emit_raw(e, ",\n")
 		// optional modifier: false | true | "+" | "-"
 		emit_indent(e, indent + 1)

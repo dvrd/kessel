@@ -21,10 +21,10 @@ simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: b
 		b_vec: Vec16 = '\\'
 		ptr := 0
 		for ptr + 16 <= len(data) {
-			chunk := (transmute(^Vec16)&data[ptr])^
+			chunk := (cast(^Vec16)&data[ptr])^
 			is_q := simd.lanes_eq(chunk, q_vec)
 			is_b := simd.lanes_eq(chunk, b_vec)
-			combined := transmute(Vec16)(transmute(simd.u8x16)is_q | transmute(simd.u8x16)is_b)
+			combined := is_q | is_b
 			mask := simd.extract_msbs(combined)
 			if card(mask) > 0 {
 				// Find first set lane
@@ -121,18 +121,21 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 		back:  Vec16 = '\\'
 		ones:  simd.u8x16 = 0xFF
 		for off + 16 <= src_len {
-			chunk := (transmute(^Vec16)&src[off])^
-			is_lo := transmute(simd.u8x16)simd.lanes_ge(chunk, lo_a) & transmute(simd.u8x16)simd.lanes_le(chunk, lo_z)
-			is_up := transmute(simd.u8x16)simd.lanes_ge(chunk, up_a) & transmute(simd.u8x16)simd.lanes_le(chunk, up_z)
-			is_di := transmute(simd.u8x16)simd.lanes_ge(chunk, dg_0) & transmute(simd.u8x16)simd.lanes_le(chunk, dg_9)
-			is_un := transmute(simd.u8x16)simd.lanes_eq(chunk, under) | transmute(simd.u8x16)simd.lanes_eq(chunk, dollr)
-			is_hi := transmute(simd.u8x16)simd.lanes_ge(chunk, high)
-			is_bk := transmute(simd.u8x16)simd.lanes_eq(chunk, back)
+			chunk := (cast(^Vec16)&src[off])^
+			// simd.lanes_* return #simd[16]u8 (= Vec16) directly in current
+			// Odin; older versions needed a transmute. odin -vet flags the
+			// no-op transmute, so we drop them.
+			is_lo := simd.lanes_ge(chunk, lo_a) & simd.lanes_le(chunk, lo_z)
+			is_up := simd.lanes_ge(chunk, up_a) & simd.lanes_le(chunk, up_z)
+			is_di := simd.lanes_ge(chunk, dg_0) & simd.lanes_le(chunk, dg_9)
+			is_un := simd.lanes_eq(chunk, under) | simd.lanes_eq(chunk, dollr)
+			is_hi := simd.lanes_ge(chunk, high)
+			is_bk := simd.lanes_eq(chunk, back)
 			// One reduce_or per chunk records whether ANY byte was >= 0x80,
 			// so the caller can skip the spec validator entirely for chunks
 			// that consumed only ASCII. Cheap (single SIMD op per 16 bytes)
 			// and avoids a per-identifier scalar scan in the hot path.
-			if intrinsics.simd_reduce_or(transmute(Vec16)is_hi) != 0 {
+			if intrinsics.simd_reduce_or(is_hi) != 0 {
 				has_non_ascii = true
 			}
 			// is_id includes is_hi: high bytes flow through SIMD as id-cont.
@@ -141,7 +144,7 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 			// break_lane = ~is_id | is_bk — every byte that's neither id-cont
 			// nor backslash gets msb cleared; backslash flips it back on so
 			// the caller can take the escape slow path.
-			break_v := transmute(Vec16)((is_id ~ ones) | is_bk)
+			break_v := (is_id ~ ones) | is_bk
 			mask := simd.extract_msbs(break_v)
 			if card(mask) > 0 {
 				for lane in mask {
@@ -200,14 +203,14 @@ simd_skip_ascii_ws_run :: #force_inline proc(src: []u8, start: int) -> int {
 		tab_vec: Vec16 = 0x09
 		ones:    simd.u8x16 = 0xFF
 		for off + 16 <= src_len {
-			chunk := (transmute(^Vec16)&src[off])^
+			chunk := (cast(^Vec16)&src[off])^
 			is_sp := simd.lanes_eq(chunk, sp_vec)
 			is_tb := simd.lanes_eq(chunk, tab_vec)
-			is_ws := transmute(simd.u8x16)is_sp | transmute(simd.u8x16)is_tb
+			is_ws := is_sp | is_tb
 			// `non_ws` flips the MSB of every byte that is NOT space/tab.
 			// `extract_msbs` then yields the lane indices of those bytes;
 			// the first one is the answer (and we return immediately).
-			non_ws := transmute(Vec16)(is_ws ~ ones)
+			non_ws := is_ws ~ ones
 			mask := simd.extract_msbs(non_ws)
 			if card(mask) > 0 {
 				for lane in mask {
@@ -250,9 +253,9 @@ simd_skip_line_comment :: #force_inline proc(src: []u8, start: int) -> (end: int
 	ctrl_thresh: Vec16 = 0x20
 
 	for off + 16 <= src_len {
-		chunk := (transmute(^Vec16)&src[off])^
+		chunk := (cast(^Vec16)&src[off])^
 		cmp := simd.lanes_lt(chunk, ctrl_thresh)
-		any_ctrl := intrinsics.simd_reduce_or(transmute(Vec16)cmp)
+		any_ctrl := intrinsics.simd_reduce_or(cmp)
 		if any_ctrl != 0 {
 			// One control byte was found; walk this chunk scalar for the
 			// real terminators. Almost always a one-iteration exit — the
@@ -270,7 +273,7 @@ simd_skip_line_comment :: #force_inline proc(src: []u8, start: int) -> (end: int
 		// SIMD compare per chunk is the cost of spec correctness.
 		e2_vec: Vec16 = 0xE2
 		e2_cmp := simd.lanes_eq(chunk, e2_vec)
-		if intrinsics.simd_reduce_or(transmute(Vec16)e2_cmp) != 0 {
+		if intrinsics.simd_reduce_or(e2_cmp) != 0 {
 			end_chunk := off + 16
 			for i := off; i < end_chunk; i += 1 {
 				if src[i] == 0xE2 && i + 2 < src_len &&
@@ -325,12 +328,12 @@ simd_skip_block_comment :: #force_inline proc(src: []u8, start: int) -> (end: in
 
 	// Process 15 bytes at a time (need 1 byte lookahead for */)
 	for off + 16 < src_len {
-		chunk := (transmute(^Vec16)&src[off])^
-		next_chunk := (transmute(^Vec16)&src[off + 1])^
+		chunk := (cast(^Vec16)&src[off])^
+		next_chunk := (cast(^Vec16)&src[off + 1])^
 
 		star_cmp  := simd.lanes_eq(chunk, star_vec)
 		slash_cmp := simd.lanes_eq(next_chunk, slash_vec)
-		pair_match := transmute(Vec16)(transmute(simd.u8x16)star_cmp & transmute(simd.u8x16)slash_cmp)
+		pair_match := star_cmp & slash_cmp
 		any_pair := intrinsics.simd_reduce_or(pair_match)
 
 		// Detect comment-body line terminators. `lanes_lt(chunk, 0x20)`
@@ -343,8 +346,8 @@ simd_skip_block_comment :: #force_inline proc(src: []u8, start: int) -> (end: in
 
 		if any_pair != 0 {
 			pair_bits := simd.extract_msbs(pair_match)
-			ctrl_bits := simd.extract_msbs(transmute(Vec16)ctrl_cmp)
-			e2_bits   := simd.extract_msbs(transmute(Vec16)e2_cmp)
+			ctrl_bits := simd.extract_msbs(ctrl_cmp)
+			e2_bits   := simd.extract_msbs(e2_cmp)
 			for lane in pair_bits {
 				end_pos := off + int(lane) + 2
 				// LF / CR before the `*/`.
@@ -372,14 +375,14 @@ simd_skip_block_comment :: #force_inline proc(src: []u8, start: int) -> (end: in
 		}
 		// No `*/` in this chunk — any LT is inside the comment body.
 		if !had_newline {
-			if intrinsics.simd_reduce_or(transmute(Vec16)ctrl_cmp) != 0 {
+			if intrinsics.simd_reduce_or(ctrl_cmp) != 0 {
 				end_chunk := off + 16
 				for i := off; i < end_chunk; i += 1 {
 					b := src[i]
 					if b == '\n' || b == '\r' { had_newline = true; break }
 				}
 			}
-			if !had_newline && intrinsics.simd_reduce_or(transmute(Vec16)e2_cmp) != 0 {
+			if !had_newline && intrinsics.simd_reduce_or(e2_cmp) != 0 {
 				end_chunk := off + 16
 				for i := off; i < end_chunk; i += 1 {
 					if src[i] == 0xE2 && i + 2 < src_len &&
@@ -456,17 +459,17 @@ simd_find_module_pre_scan_candidate :: #force_inline proc(src: []u8, start: int)
 		i_v:     Vec16 = 'i'
 		e_v:     Vec16 = 'e'
 		for off + 16 <= n {
-			chunk := (transmute(^Vec16)&src[off])^
+			chunk := (cast(^Vec16)&src[off])^
 			hits :=
-				transmute(simd.u8x16)simd.lanes_eq(chunk, slash_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, sq_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, dq_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, bt_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, lb_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, rb_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, i_v) |
-				transmute(simd.u8x16)simd.lanes_eq(chunk, e_v)
-			mask := simd.extract_msbs(transmute(Vec16)hits)
+				simd.lanes_eq(chunk, slash_v) |
+				simd.lanes_eq(chunk, sq_v)    |
+				simd.lanes_eq(chunk, dq_v)    |
+				simd.lanes_eq(chunk, bt_v)    |
+				simd.lanes_eq(chunk, lb_v)    |
+				simd.lanes_eq(chunk, rb_v)    |
+				simd.lanes_eq(chunk, i_v)     |
+				simd.lanes_eq(chunk, e_v)
+			mask := simd.extract_msbs(hits)
 			if card(mask) > 0 {
 				for lane in mask { return off + int(lane) }
 			}
@@ -504,9 +507,9 @@ simd_has_multibyte :: proc(source: []u8) -> bool {
 	high_bit: Vec16 = 0x80
 	off := 0
 	for off + 16 <= len(source) {
-		chunk := (transmute(^Vec16)&source[off])^
+		chunk := (cast(^Vec16)&source[off])^
 		test := simd.lanes_ge(chunk, high_bit)
-		if intrinsics.simd_reduce_or(transmute(Vec16)test) != 0 {
+		if intrinsics.simd_reduce_or(test) != 0 {
 			return true
 		}
 		off += 16
@@ -545,9 +548,9 @@ simd_build_utf16_offsets :: proc(source: []u8, alloc: mem.Allocator) -> []u32 {
 	// linear fill. Only multi-byte chunks fall back to character-stepping.
 	v_high: Vec16 = 0x80
 	for i + 16 <= len(source) {
-		chunk := (transmute(^Vec16)&source[i])^
+		chunk := (cast(^Vec16)&source[i])^
 		test := simd.lanes_ge(chunk, v_high)
-		if intrinsics.simd_reduce_or(transmute(Vec16)test) == 0 {
+		if intrinsics.simd_reduce_or(test) == 0 {
 			// All ASCII: fast fill — table[i+k] = utf16_pos + k.
 			for k in 0..<16 { table[i + k] = utf16_pos + u32(k) }
 			utf16_pos += 16
