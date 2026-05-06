@@ -63,9 +63,19 @@
       "end": 329,
       "value": " `foo` to be declared somewhere in the module."
     }
+  ],
+  "errors": [
+    {
+      "message": "Export 'foo' is not defined in the module",
+      "line": 6,
+      "column": 10,
+      "offset": 339
+    }
   ]
 }
+Parse errors (1):
+  Line 6, Column 10: Export 'foo' is not defined in the module
 
 --- Statistics ---
-Arena: used=37192B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=38696B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -109,9 +109,19 @@
       "end": 305,
       "value": " async method's environment."
     }
+  ],
+  "errors": [
+    {
+      "message": "'await' expression is not allowed in formal parameters of an async function",
+      "line": 7,
+      "column": 15,
+      "offset": 330
+    }
   ]
 }
+Parse errors (1):
+  Line 7, Column 15: 'await' expression is not allowed in formal parameters of an async function
 
 --- Statistics ---
-Arena: used=38984B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=40488B reserved=16777216B ratio=0%
+Parse errors: 1

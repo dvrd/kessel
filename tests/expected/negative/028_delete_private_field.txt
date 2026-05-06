@@ -124,9 +124,19 @@
       "end": 239,
       "value": " `delete this.#y` are rejected."
     }
+  ],
+  "errors": [
+    {
+      "message": "Private fields cannot be deleted",
+      "line": 8,
+      "column": 17,
+      "offset": 282
+    }
   ]
 }
+Parse errors (1):
+  Line 8, Column 17: Private fields cannot be deleted
 
 --- Statistics ---
-Arena: used=38088B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=39592B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -57,9 +57,19 @@
       "end": 186,
       "value": " (outside any function) it's a SyntaxError."
     }
+  ],
+  "errors": [
+    {
+      "message": "'new.target' is only allowed inside functions",
+      "line": 4,
+      "column": 21,
+      "offset": 207
+    }
   ]
 }
+Parse errors (1):
+  Line 4, Column 21: 'new.target' is only allowed inside functions
 
 --- Statistics ---
-Arena: used=36144B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37648B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -1,21 +1,22 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15690,
+    "ok-vs-oxc": 15680,
     "skip-multi-file": 3519,
+    "oxc-only-rejects": 15,
     "should-reject-passed": 34,
     "pass-both": 3076,
-    "should-pass-rejected": 2161,
+    "should-pass-rejected": 2157,
     "reject-both": 658,
-    "oxc-only-rejects": 1,
     "kessel-only-rejects": 1
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15690,
-        "skip-multi-file": 3519
+        "ok-vs-oxc": 15680,
+        "skip-multi-file": 3519,
+        "oxc-only-rejects": 10
       }
     },
     "babel": {
@@ -23,9 +24,9 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3037,
-        "should-pass-rejected": 2161,
+        "should-pass-rejected": 2157,
         "reject-both": 658,
-        "oxc-only-rejects": 1,
+        "oxc-only-rejects": 5,
         "kessel-only-rejects": 1
       }
     },
@@ -38,7 +39,8 @@
   },
   "bySubdir": {
     "typescript/compiler": {
-      "skip-multi-file": 1188
+      "skip-multi-file": 1188,
+      "oxc-only-rejects": 4
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10
@@ -116,7 +118,8 @@
       "skip-multi-file": 5
     },
     "typescript/conformance/parser": {
-      "skip-multi-file": 20
+      "skip-multi-file": 20,
+      "oxc-only-rejects": 6
     },
     "typescript/conformance/references": {
       "skip-multi-file": 15
@@ -196,7 +199,8 @@
       "should-pass-rejected": 8
     },
     "babel/es2015/class-methods": {
-      "should-pass-rejected": 5
+      "should-pass-rejected": 4,
+      "oxc-only-rejects": 1
     },
     "babel/es2015/destructuring": {
       "should-pass-rejected": 4
@@ -239,7 +243,8 @@
       "should-pass-rejected": 1
     },
     "babel/es2015/uncategorised": {
-      "should-pass-rejected": 62,
+      "should-pass-rejected": 59,
+      "oxc-only-rejects": 3,
       "should-reject-passed": 1
     },
     "babel/es2015/yield": {

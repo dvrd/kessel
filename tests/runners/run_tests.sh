@@ -107,16 +107,25 @@ while IFS= read -r fixture; do
         es2025/*jsx*|es2025/*fragment*) lang_flag="--lang=jsx" ;;
     esac
 
-    # --show-semantic-errors opts into pass 3 (the AST-walker checker in
-    # src/checker.odin). Default `kessel parse` is parser-only to match
-    # OXC's parseSync, but the unit runner verifies whole-program validity
-    # so we always exercise the checker. Fixtures that violate ECMA-262
-    # Early Errors (early_errors/*, negative/*) get their rejections; valid
-    # fixtures are unaffected (checker emits no false positives).
-    if [[ -n "$lang_flag" ]]; then
-        cmd=(timeout 10 "$KESSEL_BIN" parse "$lang_flag" --show-semantic-errors "$fixture")
+    # --show-semantic-errors opts into pass 3 (the inline parser-side
+    # report_semantic_error checks AND the AST-walker in src/checker.odin).
+    # Default `kessel parse` is parser-only to match OXC's parseSync.
+    # Apply the flag only to fixtures whose purpose is to verify rejection
+    # under spec Early Errors (early_errors/*, negative/*); other fixtures
+    # (recovery/*, regression/*, spec/*) verify parser-only behaviour and
+    # would see spurious failures from semantic-only diagnostics.
+    semantic_flag=""
+    case "$rel_path" in
+        early_errors/*|negative/*) semantic_flag="--show-semantic-errors" ;;
+    esac
+    if [[ -n "$lang_flag" && -n "$semantic_flag" ]]; then
+        cmd=(timeout 10 "$KESSEL_BIN" parse "$lang_flag" "$semantic_flag" "$fixture")
+    elif [[ -n "$lang_flag" ]]; then
+        cmd=(timeout 10 "$KESSEL_BIN" parse "$lang_flag" "$fixture")
+    elif [[ -n "$semantic_flag" ]]; then
+        cmd=(timeout 10 "$KESSEL_BIN" parse "$semantic_flag" "$fixture")
     else
-        cmd=(timeout 10 "$KESSEL_BIN" parse --show-semantic-errors "$fixture")
+        cmd=(timeout 10 "$KESSEL_BIN" parse "$fixture")
     fi
     if ! "${cmd[@]}" >"$output_file" 2>&1; then
         exit_code=$?

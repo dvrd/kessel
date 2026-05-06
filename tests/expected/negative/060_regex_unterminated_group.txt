@@ -45,9 +45,19 @@
       "end": 142,
       "value": " The lexer reports \"Unterminated group\" anchored at the pattern start."
     }
+  ],
+  "errors": [
+    {
+      "message": "Unterminated group in regular expression",
+      "line": 3,
+      "column": 12,
+      "offset": 154
+    }
   ]
 }
+Parse errors (1):
+  Line 3, Column 12: Unterminated group in regular expression
 
 --- Statistics ---
-Arena: used=38864B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=40496B reserved=16777216B ratio=0%
+Parse errors: 1

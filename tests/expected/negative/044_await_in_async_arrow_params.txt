@@ -84,9 +84,19 @@
       "end": 396,
       "value": " target the arrow's own async body. Acorn and Babel both reject."
     }
+  ],
+  "errors": [
+    {
+      "message": "'await' expression is not allowed in formal parameters of an async function",
+      "line": 7,
+      "column": 12,
+      "offset": 408
+    }
   ]
 }
+Parse errors (1):
+  Line 7, Column 12: 'await' expression is not allowed in formal parameters of an async function
 
 --- Statistics ---
-Arena: used=37192B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=38696B reserved=16777216B ratio=0%
+Parse errors: 1

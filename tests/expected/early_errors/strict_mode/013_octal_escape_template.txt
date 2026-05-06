@@ -147,16 +147,34 @@
   ],
   "errors": [
     {
-      "message": "Invalid escape sequence in template literal",
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
       "line": 8,
       "column": 20,
       "offset": 426
     },
     {
       "message": "Invalid escape sequence in template literal",
+      "line": 8,
+      "column": 20,
+      "offset": 426
+    },
+    {
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
       "line": 9,
       "column": 18,
       "offset": 445
+    },
+    {
+      "message": "Invalid escape sequence in template literal",
+      "line": 9,
+      "column": 18,
+      "offset": 445
+    },
+    {
+      "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
+      "line": 10,
+      "column": 18,
+      "offset": 464
     },
     {
       "message": "Invalid escape sequence in template literal",
@@ -166,11 +184,14 @@
     }
   ]
 }
-Parse errors (3):
+Parse errors (6):
+  Line 8, Column 20: Octal or \8 / \9 escape sequences are not allowed in strict mode
   Line 8, Column 20: Invalid escape sequence in template literal
+  Line 9, Column 18: Octal or \8 / \9 escape sequences are not allowed in strict mode
   Line 9, Column 18: Invalid escape sequence in template literal
+  Line 10, Column 18: Octal or \8 / \9 escape sequences are not allowed in strict mode
   Line 10, Column 18: Invalid escape sequence in template literal
 
 --- Statistics ---
-Arena: used=38448B reserved=16777216B ratio=0%
-Parse errors: 3
+Arena: used=38736B reserved=16777216B ratio=0%
+Parse errors: 6

@@ -106,9 +106,19 @@
       "end": 387,
       "value": " at `=>` commit and rejects."
     }
+  ],
+  "errors": [
+    {
+      "message": "Yield expression is not allowed in arrow function parameters",
+      "line": 8,
+      "column": 27,
+      "offset": 434
+    }
   ]
 }
+Parse errors (1):
+  Line 8, Column 27: Yield expression is not allowed in arrow function parameters
 
 --- Statistics ---
-Arena: used=36144B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37648B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -43,9 +43,19 @@
       "end": 112,
       "value": " method / constructor are SyntaxErrors."
     }
+  ],
+  "errors": [
+    {
+      "message": "'super' is only allowed in class methods or object-literal methods",
+      "line": 3,
+      "column": 1,
+      "offset": 113
+    }
   ]
 }
+Parse errors (1):
+  Line 3, Column 1: 'super' is only allowed in class methods or object-literal methods
 
 --- Statistics ---
-Arena: used=35760B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37264B reserved=16777216B ratio=0%
+Parse errors: 1

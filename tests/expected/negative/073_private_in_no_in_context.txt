@@ -110,12 +110,19 @@
       "line": 4,
       "column": 18,
       "offset": 48
+    },
+    {
+      "message": "for-in loop variable declaration may not have an initializer",
+      "line": 4,
+      "column": 24,
+      "offset": 54
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
   Line 4, Column 18: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+  Line 4, Column 24: for-in loop variable declaration may not have an initializer
 
 --- Statistics ---
-Arena: used=39496B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=39784B reserved=16777216B ratio=0%
+Parse errors: 2

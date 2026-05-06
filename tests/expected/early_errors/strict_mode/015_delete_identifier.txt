@@ -73,9 +73,19 @@
       "end": 208,
       "value": " still legal; the rule only forbids the bare identifier form."
     }
+  ],
+  "errors": [
+    {
+      "message": "Deleting local variable 'x' is not allowed in strict mode",
+      "line": 6,
+      "column": 9,
+      "offset": 242
+    }
   ]
 }
+Parse errors (1):
+  Line 6, Column 9: Deleting local variable 'x' is not allowed in strict mode
 
 --- Statistics ---
-Arena: used=35952B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37456B reserved=16777216B ratio=0%
+Parse errors: 1

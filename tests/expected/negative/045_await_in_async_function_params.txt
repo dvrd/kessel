@@ -93,9 +93,19 @@
       "end": 453,
       "value": " `in_async_params` guard in parse_unary_expr."
     }
+  ],
+  "errors": [
+    {
+      "message": "'await' expression is not allowed in formal parameters of an async function",
+      "line": 8,
+      "column": 22,
+      "offset": 475
+    }
   ]
 }
+Parse errors (1):
+  Line 8, Column 22: 'await' expression is not allowed in formal parameters of an async function
 
 --- Statistics ---
-Arena: used=36208B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37712B reserved=16777216B ratio=0%
+Parse errors: 1

@@ -127,9 +127,19 @@
       "end": 398,
       "value": " it, which is not what this fixture tests)."
     }
+  ],
+  "errors": [
+    {
+      "message": "'super' call is only allowed in the constructor of a derived class",
+      "line": 10,
+      "column": 8,
+      "offset": 449
+    }
   ]
 }
+Parse errors (1):
+  Line 10, Column 8: 'super' call is only allowed in the constructor of a derived class
 
 --- Statistics ---
-Arena: used=37680B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=39184B reserved=16777216B ratio=0%
+Parse errors: 1

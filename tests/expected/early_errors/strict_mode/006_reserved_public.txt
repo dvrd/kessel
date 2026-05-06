@@ -38,9 +38,19 @@
             "value": 1,
             "raw": "1"          }        }
       ]    }
+  ],
+  "errors": [
+    {
+      "message": "'public' is a reserved identifier in strict mode",
+      "line": 2,
+      "column": 12,
+      "offset": 25
+    }
   ]
 }
+Parse errors (1):
+  Line 2, Column 12: 'public' is a reserved identifier in strict mode
 
 --- Statistics ---
-Arena: used=35952B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37456B reserved=16777216B ratio=0%
+Parse errors: 1

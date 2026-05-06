@@ -124,9 +124,12 @@ ParseConfig :: struct {
 // race on shared state.
 //
 // Pre-#6 this read 5 process globals; post-#6 it reads the explicit
-// `cli` argument. ast_only and check_semantics are intentionally NOT
-// surfaced from the CLI today - ast_only is set per-call by the bench
-// harness, check_semantics lights up in #3 (checker migration).
+// `cli` argument. ast_only is set per-call by the bench harness;
+// check_semantics is wired from cli.show_semantic_errors so that BOTH
+// the inline parser-side semantic checks (the gated report_semantic_error
+// call sites in parser.odin) AND the new AST-walker checker.odin pass
+// fire under the same flag. Default off keeps `kessel parse` parser-only
+// (matches OXC's parseSync); --show-semantic-errors lights up pass 3.
 parse_config_from_cli :: proc(cli: CliConfig) -> ParseConfig {
 	return ParseConfig{
 		lang_override          = cli.lang_override,
@@ -135,7 +138,7 @@ parse_config_from_cli :: proc(cli: CliConfig) -> ParseConfig {
 		force_strict           = cli.force_strict,
 		preserve_parens        = cli.preserve_parens,
 		ast_only               = false,
-		check_semantics        = false,
+		check_semantics        = cli.show_semantic_errors,
 		source_is_dts_override = nil,
 	}
 }

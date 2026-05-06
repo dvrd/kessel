@@ -69,9 +69,19 @@
       "end": 237,
       "value": " initializer in a for-in head."
     }
+  ],
+  "errors": [
+    {
+      "message": "for-in loop variable declaration may not have an initializer",
+      "line": 5,
+      "column": 19,
+      "offset": 256
+    }
   ]
 }
+Parse errors (1):
+  Line 5, Column 19: for-in loop variable declaration may not have an initializer
 
 --- Statistics ---
-Arena: used=36144B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37648B reserved=16777216B ratio=0%
+Parse errors: 1

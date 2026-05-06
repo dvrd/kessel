@@ -74,9 +74,19 @@
       "end": 255,
       "value": " carve-out only accepts ONE declarator."
     }
+  ],
+  "errors": [
+    {
+      "message": "Only a single declaration is allowed in a for-in loop",
+      "line": 5,
+      "column": 18,
+      "offset": 273
+    }
   ]
 }
+Parse errors (1):
+  Line 5, Column 18: Only a single declaration is allowed in a for-in loop
 
 --- Statistics ---
-Arena: used=35952B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37456B reserved=16777216B ratio=0%
+Parse errors: 1

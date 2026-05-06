@@ -87,9 +87,19 @@
       "end": 210,
       "value": " forms are allowed; these are literal identifier keys.)"
     }
+  ],
+  "errors": [
+    {
+      "message": "Redefinition of __proto__ property",
+      "line": 4,
+      "column": 29,
+      "offset": 239
+    }
   ]
 }
+Parse errors (1):
+  Line 4, Column 29: Redefinition of __proto__ property
 
 --- Statistics ---
-Arena: used=36528B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=38032B reserved=16777216B ratio=0%
+Parse errors: 1

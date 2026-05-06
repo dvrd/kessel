@@ -83,9 +83,26 @@
       "end": 436,
       "value": " in sloppy script stays legal."
     }
+  ],
+  "errors": [
+    {
+      "message": "'let' is a reserved identifier and cannot be a class name",
+      "line": 8,
+      "column": 7,
+      "offset": 443
+    },
+    {
+      "message": "'implements' is a reserved identifier and cannot be a class name",
+      "line": 9,
+      "column": 7,
+      "offset": 456
+    }
   ]
 }
+Parse errors (2):
+  Line 8, Column 7: 'let' is a reserved identifier and cannot be a class name
+  Line 9, Column 7: 'implements' is a reserved identifier and cannot be a class name
 
 --- Statistics ---
-Arena: used=35760B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37264B reserved=16777216B ratio=0%
+Parse errors: 2

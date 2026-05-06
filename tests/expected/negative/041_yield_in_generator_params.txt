@@ -106,9 +106,19 @@
       "end": 516,
       "value": " same `in_generator_params` guard in parse_yield_expr."
     }
+  ],
+  "errors": [
+    {
+      "message": "'yield' expression is not allowed in formal parameters of a generator",
+      "line": 10,
+      "column": 17,
+      "offset": 533
+    }
   ]
 }
+Parse errors (1):
+  Line 10, Column 17: 'yield' expression is not allowed in formal parameters of a generator
 
 --- Statistics ---
-Arena: used=36208B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37712B reserved=16777216B ratio=0%
+Parse errors: 1

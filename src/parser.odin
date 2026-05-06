@@ -5572,24 +5572,36 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// check). In TS mode, a leading `this` parameter is a type-only
 		// declaration (not a runtime param), so exclude it from arity.
 		real_params := count_real_params(p, params[:])
+		// §15.4.3 / §15.4.4 — getter / setter arity. These are Static
+		// Semantic Errors per ECMA-262 (Early Errors); OXC's parser accepts
+		// the syntax and oxc_semantic enforces them. Mirror that split:
+		// emit via report_semantic_error_at so kessel parse stays
+		// permissive (--show-semantic-errors lights up pass 3). The
+		// location is anchored at the offending span (key for arity errors,
+		// parameter for rest / initializer) so error lines point at the
+		// real construct — not at the next token, which by this point in
+		// the parse can be tens of lines past the method.
+		key_loc: u32 = 0
+		if key != nil { key_loc = u32(get_expression_loc(key).span.start) }
 		if kind == .Get && real_params != 0 {
-			report_error(p, "Getter must not have any formal parameters")
+			report_semantic_error_at(p, LexerLoc(key_loc), "Getter must not have any formal parameters")
 		}
 		if kind == .Set {
 			if real_params != 1 {
-				report_error(p, "Setter must have exactly one formal parameter")
+				report_semantic_error_at(p, LexerLoc(key_loc), "Setter must have exactly one formal parameter")
 			} else {
 				// Skip the this-param to find the actual setter param.
 				real_idx := 0
 				if allow_ts_mode(p) && is_this_param(params[0]) { real_idx = 1 }
 				if real_idx < len(params) {
 					pp := params[real_idx].pattern
+					param_loc := u32(params[real_idx].loc.span.start)
 					if _, is_rest := pp.(^RestElement); is_rest {
-						report_error(p, "Setter parameter cannot be a rest element")
+						report_semantic_error_at(p, LexerLoc(param_loc), "Setter parameter cannot be a rest element")
 					}
 					// A 'set' accessor parameter cannot have a default value.
 					if _, has_default := params[real_idx].default_val.(^Expression); has_default {
-						report_error(p, "A 'set' accessor cannot have an initializer.")
+						report_semantic_error_at(p, LexerLoc(param_loc), "A 'set' accessor cannot have an initializer.")
 					}
 				}
 			}

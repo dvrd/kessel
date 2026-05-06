@@ -19,6 +19,12 @@
   ],
   "errors": [
     {
+      "message": "Legacy octal literals cannot be BigInt",
+      "line": 2,
+      "column": 1,
+      "offset": 5
+    },
+    {
       "message": "BigInt literal cannot use legacy octal / non-octal-decimal form",
       "line": 1,
       "column": 4,
@@ -26,9 +32,10 @@
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
+  Line 2, Column 1: Legacy octal literals cannot be BigInt
   Line 1, Column 4: BigInt literal cannot use legacy octal / non-octal-decimal form
 
 --- Statistics ---
-Arena: used=36976B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=37264B reserved=16777216B ratio=0%
+Parse errors: 2
