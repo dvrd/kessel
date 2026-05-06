@@ -55,5 +55,5 @@ Parse errors (1):
   Line 3, Column 5: Dynamic 'import()' cannot be invoked with 'new'
 
 --- Statistics ---
-Arena: used=8032B reserved=16777216B ratio=0%
+Arena: used=36976B reserved=16777216B ratio=0%
 Parse errors: 1
