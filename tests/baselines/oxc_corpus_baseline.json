@@ -5,9 +5,9 @@
     "skip-multi-file": 3519,
     "should-reject-passed": 34,
     "pass-both": 3077,
-    "should-pass-rejected": 2160,
+    "should-pass-rejected": 2161,
     "reject-both": 658,
-    "oxc-only-rejects": 2
+    "oxc-only-rejects": 1
   },
   "bySuite": {
     "typescript": {
@@ -22,9 +22,9 @@
       "verdicts": {
         "should-reject-passed": 34,
         "pass-both": 3038,
-        "should-pass-rejected": 2160,
+        "should-pass-rejected": 2161,
         "reject-both": 658,
-        "oxc-only-rejects": 2
+        "oxc-only-rejects": 1
       }
     },
     "estree": {
@@ -602,8 +602,7 @@
       "should-pass-rejected": 12
     },
     "babel/flow/typeapp-call": {
-      "should-pass-rejected": 22,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 23
     },
     "babel/flow/typecasts": {
       "should-pass-rejected": 19

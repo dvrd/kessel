@@ -4379,8 +4379,9 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// in this position), so we have to parse the args here. Closes 95+
 		// OXC corpus rejects in the "Expected {, got <" cluster (S26 W6
 		// phase 3 bug class #8). Same fix at the ClassExpression call site.
-		// OXC also accepts this Flow-shaped heritage in `.js` TS fixtures.
-		if is_open_angle_or_lshift(p) {
+		// Only in TS/TSX mode — in JS/JSX mode `<` is a relational operator
+		// and `<<` is left-shift, not type arguments.
+		if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
 		// §15.7.1 - ClassHeritage uses LeftHandSideExpression. Unparenthesised
@@ -12800,7 +12801,9 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		if super_class == nil {
 			report_error(p, "Expected expression after 'extends'")
 		}
-		if is_open_angle_or_lshift(p) {
+		// Only parse type arguments in TS/TSX mode — in JS/JSX mode
+		// `<` is relational and `<<` is left-shift, not type arguments.
+		if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
 		// Unparenthesised arrow functions are AssignmentExpressions, not
