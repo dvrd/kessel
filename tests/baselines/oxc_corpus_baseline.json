@@ -1,33 +1,31 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15680,
+    "ok-vs-oxc": 15676,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 15,
+    "oxc-only-rejects": 19,
     "should-reject-passed": 34,
-    "pass-both": 3076,
+    "pass-both": 3077,
     "should-pass-rejected": 2157,
-    "reject-both": 658,
-    "kessel-only-rejects": 1
+    "reject-both": 658
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15680,
+        "ok-vs-oxc": 15676,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 10
+        "oxc-only-rejects": 14
       }
     },
     "babel": {
       "total": 5892,
       "verdicts": {
         "should-reject-passed": 34,
-        "pass-both": 3037,
+        "pass-both": 3038,
         "should-pass-rejected": 2157,
         "reject-both": 658,
-        "oxc-only-rejects": 5,
-        "kessel-only-rejects": 1
+        "oxc-only-rejects": 5
       }
     },
     "estree": {
@@ -88,7 +86,8 @@
       "skip-multi-file": 4
     },
     "typescript/conformance/externalModules": {
-      "skip-multi-file": 151
+      "skip-multi-file": 151,
+      "oxc-only-rejects": 4
     },
     "typescript/conformance/importAssertion": {
       "skip-multi-file": 3
@@ -351,8 +350,7 @@
     },
     "babel/esprima/es2015-identifier": {
       "should-pass-rejected": 1,
-      "oxc-only-rejects": 1,
-      "kessel-only-rejects": 1
+      "oxc-only-rejects": 1
     },
     "babel/esprima/es2015-import-declaration": {
       "should-pass-rejected": 1

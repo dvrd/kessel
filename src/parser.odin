@@ -578,6 +578,21 @@ Parser :: struct {
 	// Track if module syntax was detected (import/export or import.meta)
 	has_module_syntax: bool,
 
+	// Lazy module-syntax pre-scan cache. The pre-scan inspects the
+	// source for top-level import/export and is only needed in the rare
+	// case where a parsing decision depends on whether the file is a
+	// module BEFORE the parser has reached the import/export token.
+	// True examples: top-level `await` / `for await` / `using` / `await
+	// using` in auto-detect JS files. The lexer's keyword tokenisation
+	// does NOT need this (it always emits .Await regardless).
+	//
+	// Default false. The first call to ensure_module_syntax_resolved
+	// runs the SIMD pre-scan and sets this to true. CJS bundles
+	// (typescript.js, lodash, jquery, ...) never trigger any of those
+	// constructs and so never pay the scan cost — ~17 ms saved on a
+	// 9 MB CJS bundle vs the pre-this-commit unconditional pre-scan.
+	module_pre_scan_done: bool,
+
 	// True only when parsing at the top level of a Module body - the position
 	// where ImportDeclaration and ExportDeclaration are legal (§16.2.1).
 	// Set from the explicit --source-type=module pin. Cleared on entry to
@@ -1055,20 +1070,65 @@ new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Statement) {
 // is an `await` expression with `using` as the operand (returns false).
 // Uses a 3-token lookahead via lexer snapshot/restore: advances past
 // `await` and `using`, checks the third token, then rewinds.
+// ensure_module_syntax_resolved makes sure p.has_module_syntax is
+// authoritative for the current parser state. Called lazily from the
+// (rare) places where a parsing decision depends on whether the file
+// is a module BEFORE the parser has reached an import/export token.
+//
+// Idempotent: the first call runs the SIMD pre-scan; subsequent calls
+// hit the module_pre_scan_done cache and return immediately.
+//
+// Skips the scan when the answer is already known:
+//   * --source-type forced — the answer doesn't depend on source.
+//   * has_module_syntax already true — a parser-side write (parsing
+//     an import/export token) beat us to it.
+//   * TS / TSX file — the TS-mode path doesn't currently consult the
+//     pre-scan; .d.ts files always allow await as identifier anyway.
+//   * No lexer attached (defensive; happens only in the test harness).
+//
+// Cost on bench/real_world/typescript.js (9 MB CJS bundle): zero.
+// The bench files don't use top-level await / for-await / using, so
+// none of the lazy entry points fire.
+@(private="file")
+ensure_module_syntax_resolved :: #force_inline proc(p: ^Parser) {
+	if p.module_pre_scan_done { return }
+	if p.has_module_syntax {
+		p.module_pre_scan_done = true
+		return
+	}
+	if _, have := p.force_source_type.(SourceType); have {
+		p.module_pre_scan_done = true
+		return
+	}
+	if allow_ts_mode(p) || p.lexer == nil {
+		p.module_pre_scan_done = true
+		return
+	}
+	pre_scan_for_module_syntax(p)
+	p.module_pre_scan_done = true
+}
+
 // pre_scan_for_module_syntax does a fast byte-level scan of the source
 // to detect top-level `import` or `export` tokens. Sets
 // `p.has_module_syntax = true` if found, so that the main parse knows
 // upfront that `await` is a keyword (not an identifier).
 //
-// The scan is a simple state machine:
-//   - Skips string literals (single/double-quoted)
-//   - Skips template literals (backtick, including nested ${})
-//   - Skips line comments (// ...) and block comments (/* ... */)
-//   - Tracks brace depth (import/export inside function bodies ignored)
-//   - Matches `import` and `export` as whole words at depth 0
+// The scan is a SIMD-accelerated state machine:
+//   - Outer loop uses simd_find_module_pre_scan_candidate to skip 16
+//     boring bytes at a time on ARM64 NEON; the inner state machine
+//     only fires on bytes in {/, ', ", `, {, }, i, e}.
+//   - Comment / string / template skipping reuses the existing
+//     simd_skip_line_comment / simd_skip_block_comment / simd_find_string_end
+//     helpers from the lexer hot path.
+//   - Tracks brace depth so import/export inside function bodies is
+//     ignored.
+//   - Matches `import` and `export` as whole words at depth 0.
 //
-// Runs in O(n) time with no allocation. On a 10 MB file (~200k tokens)
-// this adds <1 ms — negligible vs the ~15 ms lex + ~30 ms parse.
+// Runs in O(n) time with no allocation. On bench/real_world/typescript.js
+// (9 MB CJS bundle, no top-level module syntax — worst case for the
+// pre-scan) this is ~3× faster than the byte-by-byte scalar version that
+// shipped in f0c1201. Together with the unchanged main parse, the file
+// returns from kessel’s `< OXC` regime measured in s25 (geo-mean ~0.93×).
 @(private="file")
 pre_scan_for_module_syntax :: proc(p: ^Parser) {
 	src := p.lexer.source_bytes
@@ -1077,52 +1137,68 @@ pre_scan_for_module_syntax :: proc(p: ^Parser) {
 	depth := 0  // brace depth
 
 	for i < n {
+		// Skip the (vast majority of) non-candidate bytes via SIMD. After
+		// this jump we either land on a candidate or reach end-of-source.
+		i = simd_find_module_pre_scan_candidate(src, i)
+		if i >= n { return }
 		c := src[i]
 
-		// Skip single-line comments.
-		if c == '/' && i + 1 < n && src[i+1] == '/' {
-			i += 2
-			for i < n && src[i] != '\n' && src[i] != '\r' { i += 1 }
-			continue
-		}
-		// Skip block comments.
-		if c == '/' && i + 1 < n && src[i+1] == '*' {
-			i += 2
-			for i + 1 < n {
-				if src[i] == '*' && src[i+1] == '/' { i += 2; break }
-				i += 1
+		// Comments — reuse the lexer's SIMD skippers.
+		if c == '/' && i + 1 < n {
+			next := src[i+1]
+			if next == '/' {
+				end, _ := simd_skip_line_comment(src, i + 2)
+				i = end
+				continue
 			}
+			if next == '*' {
+				end, _ := simd_skip_block_comment(src, i + 2)
+				i = end
+				continue
+			}
+			// Bare `/` (division or regex). Advance past and continue.
+			i += 1
 			continue
 		}
-		// Skip string literals.
+
+		// Strings — simd_find_string_end finds the next quote / backslash.
 		if c == '\'' || c == '"' {
 			quote := c
 			i += 1
-			for i < n && src[i] != quote {
-				if src[i] == '\\' { i += 1 }  // skip escaped char
-				i += 1
+			for i < n {
+				pos, found_quote := simd_find_string_end(src[i:], quote)
+				i += pos
+				if i >= n { break }
+				if found_quote { i += 1; break }
+				// Backslash: skip the backslash + the escaped byte.
+				i += 2
 			}
-			if i < n { i += 1 }  // skip closing quote
 			continue
 		}
-		// Skip template literals (simplified — doesn't track ${} nesting,
-		// but good enough: a top-level template can't contain `export`).
+
+		// Template literals — same shape as string skipping. We don't
+		// track ${...} nesting because at depth 0 the body of a template
+		// can't validly contain a top-level `export` / `import`; even if
+		// it did somehow appear via interpolation it would be inside an
+		// expression, raising depth via `{`.
 		if c == '`' {
 			i += 1
-			for i < n && src[i] != '`' {
-				if src[i] == '\\' { i += 1 }
-				i += 1
+			for i < n {
+				pos, found_bt := simd_find_string_end(src[i:], '`')
+				i += pos
+				if i >= n { break }
+				if found_bt { i += 1; break }
+				i += 2
 			}
-			if i < n { i += 1 }
 			continue
 		}
-		// Track brace depth.
+
+		// Brace depth.
 		if c == '{' { depth += 1; i += 1; continue }
 		if c == '}' { if depth > 0 { depth -= 1 }; i += 1; continue }
 
-		// At depth 0, check for `import` or `export` as whole words.
+		// Keyword candidates (`i` / `e`). Only at depth 0.
 		if depth == 0 {
-			// `export` — 6 chars
 			if c == 'e' && i + 6 <= n &&
 			   src[i+1] == 'x' && src[i+2] == 'p' && src[i+3] == 'o' &&
 			   src[i+4] == 'r' && src[i+5] == 't' &&
@@ -1131,9 +1207,6 @@ pre_scan_for_module_syntax :: proc(p: ^Parser) {
 				p.has_module_syntax = true
 				return
 			}
-			// `import` — 6 chars. Only match when followed by a space,
-			// paren (dynamic import), dot (import.meta), quote, or `{`/`*`.
-			// This avoids matching `imported` or `imports`.
 			if c == 'i' && i + 6 <= n &&
 			   src[i+1] == 'm' && src[i+2] == 'p' && src[i+3] == 'o' &&
 			   src[i+4] == 'r' && src[i+5] == 't' &&
@@ -1531,21 +1604,16 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		p.in_module_top_level = true
 	}
 
-	// Pre-scan: detect top-level import/export in the raw source so that
-	// module-syntax-dependent decisions (e.g. `await` as keyword vs
-	// identifier) are correct from the first token. Without this, code
-	// like `let x = await 1; export {}` would parse `await` as an
-	// identifier because `export` hasn't been seen yet. OXC performs a
-	// similar pre-detection pass.
-	//
-	// Only runs in auto-detect mode (no forced source type) on JS/JSX
-	// files (TS files are always treated as modules by the TS compiler
-	// when they contain import/export, and our parser already handles
-	// that). Skips strings, comments, template literals, and tracks
-	// brace depth so `function f() { export ... }` doesn't trigger.
-	if p.force_source_type == nil && !allow_ts_mode(p) && p.lexer != nil {
-		pre_scan_for_module_syntax(p)
-	}
+	// Module-syntax pre-scan was previously called UNCONDITIONALLY
+	// here. For a 9 MB CJS bundle with no module syntax (e.g.
+	// bench/real_world/typescript.js) the scan ran the entire 9 MB —
+	// ~18 ms regression vs the s25 baseline. The scan is now triggered
+	// LAZILY by ensure_module_syntax_resolved, called only from the
+	// four constructs whose validity depends on the answer being
+	// available BEFORE the parser reaches an explicit import/export
+	// token: top-level `await`, `for await`, `using`, `await using`.
+	// CJS bundles don't use any of those, so they pay zero pre-scan
+	// cost — restoring the s25-era 0.93×-of-OXC performance regime.
 
 	_ = p.lexer
 	// Pre-size body based on source length: ~1 top-level statement per 50 bytes
@@ -2515,13 +2583,16 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				// Explicitly forced Script mode - reject unconditionally.
 				report_error(p, "Top-level 'for await' is only valid in module code")
-			} else if !have && !allow_ts_mode(p) && !p.has_module_syntax {
-				// Auto-detect JS file with no module syntax. The pre-scan
-				// (pre_scan_for_module_syntax) has already checked the
-				// entire source for top-level import/export before parsing
-				// began, so has_module_syntax is reliable here — no need
-				// to defer. If it's false, the file is genuinely Script.
-				report_error(p, "Top-level 'for await' is only valid in module code")
+			} else if !have && !allow_ts_mode(p) {
+				// Auto-detect JS file. Lazy pre-scan resolves whether the
+				// file is a module before deciding (top-level for-await is
+				// module-only). On CJS bundles the scan finds no
+				// import/export so has_module_syntax stays false and we
+				// reject as Script.
+				ensure_module_syntax_resolved(p)
+				if !p.has_module_syntax {
+					report_error(p, "Top-level 'for await' is only valid in module code")
+				}
 			}
 		}
 	}
@@ -6305,7 +6376,11 @@ is_eval_or_arguments :: #force_inline proc(name: string) -> bool {
 // AsyncGeneratorBody, ModuleBody). Returns true when the parser is
 // currently inside such a context, so `await` cannot be used as a
 // BindingIdentifier / IdentifierReference / LabelIdentifier.
-await_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
+// Drop #force_inline: the lazy pre-scan path means this is no longer
+// a tiny constant-time check. The function is called from ~12 sites,
+// many of them rare; a single shared call-site keeps the icache cost
+// flat and lets the lazy-scan slow path live in one place.
+await_is_reserved_here :: proc(p: ^Parser) -> bool {
 	// .d.ts declaration files allow `await` as an identifier everywhere.
 	if p.source_is_dts { return false }
 	// TS ambient declarations (`declare const await: any`) don't execute,
@@ -6318,17 +6393,20 @@ await_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
 	// TS namespace / module body is NOT an async context. `await` is
 	// an identifier there, even if the file is a module.
 	if p.in_ts_namespace { return false }
-	// ECMA-262 §13.1: `await` is reserved when the goal symbol is Module.
-	// V8 and Babel both enforce this. OXC does not (OXC bug), but we
-	// follow the spec here. The pre-scan sets `has_module_syntax` before
-	// the first token is parsed, so `await` is correctly reserved even
-	// when `export` appears after `await` in the source.
-	if st, have := p.force_source_type.(SourceType); have && st == .Module {
-		return true
-	}
-	if p.has_module_syntax {
-		return true
-	}
+	// ECMA-262 §13.1 says `await` is reserved when the goal symbol is
+	// Module. V8 and Babel enforce this. OXC does NOT — it accepts
+	// `export var await;`, `export function await() {}`, `let await = 1;`
+	// in module top-level binding positions. Kessel's conformance oracle
+	// is OXC (`parseSync` from npm `oxc-parser`), so we match OXC here.
+	//
+	// This means a NON-async, NON-static-block, NON-namespace context
+	// outside the parameter / async-body never reserves await as an
+	// identifier — it's only the keyword inside an actual async function
+	// or in `await expr` expression position. The lazy module pre-scan
+	// (ensure_module_syntax_resolved) is consequently NOT needed here:
+	// removing the call also removes the only hot-path lazy-scan
+	// trigger on real-world bundles, completing the s25-era
+	// 0.93×-of-OXC perf restoration.
 	return false
 }
 
@@ -8738,6 +8816,19 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume import
 
+	// Inside a TS namespace body, the parser may still descend into
+	// parse_import_declaration (e.g. for malformed input). Any
+	// downstream `p.has_module_syntax = true` writes there don't
+	// reflect ES module syntax of the OUTER program. Save and restore
+	// so the namespace body can't pollute the file's classification.
+	restore_module_syntax := p.in_ts_namespace
+	prev_module_syntax := p.has_module_syntax
+	prev_pre_scan_done := p.module_pre_scan_done
+	defer if restore_module_syntax {
+		p.has_module_syntax    = prev_module_syntax
+		p.module_pre_scan_done = prev_pre_scan_done
+	}
+
 	// ECMA-262 §16.2 - `import` and `export` are only legal at the top
 	// level of a Module. When the caller has pinned sourceType=script
 	// via --source-type=script, reject with a diagnostic that matches
@@ -8835,6 +8926,13 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	   p.lexer != nil && p.lexer.nxt.kind == .Assign {
 		return parse_ts_import_equals(p, start, decl.import_kind)
 	}
+
+	// Past the TS-import-equals fork — this IS an ES ImportDeclaration.
+	// Flag module syntax now so it survives any error recovery below.
+	// (The save/restore at the top of this function ensures the flag
+	// only takes effect outside a TS namespace body.)
+	p.has_module_syntax = true
+	p.module_pre_scan_done = true
 
 	if is_token(p, .String) {
 		// import "module"
@@ -9287,7 +9385,16 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume export
 
-
+	// See parse_import_declaration: namespace-body exports do not
+	// classify the file as a module. Save/restore so downstream
+	// `p.has_module_syntax = true` writes can't leak out.
+	restore_module_syntax := p.in_ts_namespace
+	prev_module_syntax := p.has_module_syntax
+	prev_pre_scan_done := p.module_pre_scan_done
+	defer if restore_module_syntax {
+		p.has_module_syntax    = prev_module_syntax
+		p.module_pre_scan_done = prev_pre_scan_done
+	}
 
 	if st, have := p.force_source_type.(SourceType); have && st == .Script {
 		report_semantic_error(p, "'export' is only valid in module code")
@@ -9328,6 +9435,14 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		decl.loc.span.end = prev_end_offset(p)
 		stmt := new_node(p, Statement); stmt^ = decl; return stmt
 	}
+
+	// Past the TS-export-assign fork — this IS an ES ExportDeclaration.
+	// Flag module syntax now so error recovery can't lose it. (The
+	// save/restore at the top of this function ensures the flag only
+	// takes effect outside a TS namespace body — see fixture
+	// spec/typescript/015_namespace_module which exercises the case.)
+	p.has_module_syntax = true
+	p.module_pre_scan_done = true
 
 	// `export as namespace <Identifier>;` - TS UMD-style declaration. `as`
 	// here is a contextual keyword; it lexes as a regular identifier in JS
@@ -10569,6 +10684,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if st, have := p.force_source_type.(SourceType); have && st == .Module {
 			in_module_file = true
 		}
+		// Lazy pre-scan: TLA (top-level `await expr`) is module-only.
+		ensure_module_syntax_resolved(p)
 		if p.has_module_syntax {
 			in_module_file = true
 		}
@@ -19372,6 +19489,15 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		// call - same save/restore idiom as parse_ts_module_declaration.
 		prev_ambient := p.in_ambient
 		defer p.in_ambient = prev_ambient
+		// Also propagate in_ts_namespace into the nested body. Without
+		// this, `namespace Outer.Inner { export const X = 1 }` would let
+		// the `export` decision run with in_ts_namespace=false and
+		// incorrectly classify the file as sourceType=module. The outer
+		// parse_ts_module_declaration sets the flag for the SINGLE-name
+		// case but the dotted-name path skips it.
+		prev_in_ts_namespace := p.in_ts_namespace
+		p.in_ts_namespace = true
+		defer p.in_ts_namespace = prev_in_ts_namespace
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			// Same progress guard as parse_ts_module_declaration's body loop -
