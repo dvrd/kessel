@@ -17326,6 +17326,12 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	snap := lexer_snapshot(p)
 	eat(p) // consume `<`
 	type_ann := parse_ts_type(p)
+	// `<>expr` — empty type assertion is not valid TS syntax.
+	if type_ann == nil {
+		lexer_restore(p, snap)
+		report_error(p, "Unexpected token")
+		return nil
+	}
 	if !expect_token(p, .RAngle) {
 		lexer_restore(p, snap)
 		report_error(p, "Unexpected '<': not a valid TS type assertion or generic arrow")
