@@ -562,12 +562,6 @@ Parser :: struct {
 	// ArrayExpression / ObjectExpression element conversions.
 	in_nested_pattern_convert: bool,
 
-	// Pending top-level `for await` offsets. In auto-detect mode (no
-	// forced source type, non-TS), `for await` at the top level may or
-	// may not be valid depending on whether the file turns out to be a
-	// module. We record the offset here and only report the error at
-	// end-of-parse if the program is still Script.
-	pending_for_await_offsets: [dynamic]u32,
 
 	// Inside an ambient TS module / namespace body: every declaration is
 	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
@@ -782,7 +776,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
 	p.pending_proto_dups = make([dynamic][2]u32, 0, 2, alloc)
-	p.pending_for_await_offsets = make([dynamic]u32, 0, 2, alloc)
+
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
 	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1-2 times.
@@ -1698,18 +1692,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		report_semantic_error_at(p, LexerLoc(pair[1]), "Redefinition of __proto__ property")
 	}
 
-	// Deferred top-level `for await` errors. Only report if the program
-	// ended up as Script (module syntax was never detected). If module
-	// syntax appeared later (e.g. `for await(...){} \n export {}`), the
-	// file is a module and `for await` is valid.
-	if program.type == .Script && len(p.pending_for_await_offsets) > 0 {
-		for off in p.pending_for_await_offsets {
-			bump_append(&p.errors, ParseError{
-				loc     = LexerLoc(off),
-				message = "Top-level 'for await' is only valid in module code",
-			})
-		}
-	}
+
 
 	// §15.7.3 AllPrivateIdentifiersValid - every PrivateIdentifier
 	// reference (member access `.#x`, `#x in obj`) must resolve to a
@@ -2532,15 +2515,13 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				// Explicitly forced Script mode - reject unconditionally.
 				report_error(p, "Top-level 'for await' is only valid in module code")
-			} else if !have && !allow_ts_mode(p) {
-				// Auto-detect JS file: `for await` validity depends on
-				// whether the file is a module (import/export may appear
-				// AFTER this point). If module syntax is already seen,
-				// it's valid. Otherwise defer the check to end-of-parse
-				// so `for await(...){} \n export {}` isn't mis-rejected.
-				if !p.has_module_syntax {
-					bump_append(&p.pending_for_await_offsets, u32(cur_offset(p)))
-				}
+			} else if !have && !allow_ts_mode(p) && !p.has_module_syntax {
+				// Auto-detect JS file with no module syntax. The pre-scan
+				// (pre_scan_for_module_syntax) has already checked the
+				// entire source for top-level import/export before parsing
+				// began, so has_module_syntax is reliable here — no need
+				// to defer. If it's false, the file is genuinely Script.
+				report_error(p, "Top-level 'for await' is only valid in module code")
 			}
 		}
 	}
@@ -6350,12 +6331,17 @@ await_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
 	// TS namespace / module body is NOT an async context. `await` is
 	// an identifier there, even if the file is a module.
 	if p.in_ts_namespace { return false }
-	// NOTE: OXC does NOT treat `await` as reserved in binding positions
-	// (var/let/const/function names) at module top level. V8 does, but
-	// since OXC is our conformance oracle, we match OXC. The
-	// AwaitExpression keyword path in parse_unary_expr has its own
-	// inline module-detection logic that correctly promotes `await` to
-	// keyword for `await expr` syntax.
+	// ECMA-262 §13.1: `await` is reserved when the goal symbol is Module.
+	// V8 and Babel both enforce this. OXC does not (OXC bug), but we
+	// follow the spec here. The pre-scan sets `has_module_syntax` before
+	// the first token is parsed, so `await` is correctly reserved even
+	// when `export` appears after `await` in the source.
+	if st, have := p.force_source_type.(SourceType); have && st == .Module {
+		return true
+	}
+	if p.has_module_syntax {
+		return true
+	}
 	return false
 }
 
