@@ -38,6 +38,8 @@ const LANG_BY_FILE = {
   '003_ts_type_annotation_broken.js': 'ts',
   '004_ts_assertion_broken.js': 'ts',
   '005_generic_param_broken.js': 'ts',
+  '006_jsx_fragment_broken.js': 'jsx',
+  '007_ts_generic_constraint_broken.js': 'ts',
 };
 
 function listFixtures() {
