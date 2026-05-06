@@ -52,7 +52,7 @@ bin/kessel profile parse app.js
 
 ```bash
 task test                     # Full gate chain (~20 tests)
-task test:unit                # 415 golden-output fixtures
+task test:unit                # 430 golden-output fixtures
 task test:real                # 467 real-world JS files
 task test:negative            # Must-reject fixtures
 task test:estree              # ESTree shape conformance
@@ -66,9 +66,12 @@ task test:bench:regression    # Performance regression gate
 ```
 kessel/
 ├── src/
-│   ├── main.odin            CLI + JSON emitter
-│   ├── parser.odin          Pratt parser
-│   ├── lexer.odin
+│   ├── main.odin            CLI dispatch + worker pool
+│   ├── parser.odin          Pratt parser (permissive)
+│   ├── emitter.odin         ESTree JSON emitter
+│   ├── lexer.odin           SIMD lexer
+│   ├── parse_job.odin       Source → parsed Program deep module
+│   ├── cli_config.odin      CliConfig + flag parser
 │   ├── ast.odin             ESTree AST struct/union definitions
 │   ├── checker.odin         Semantic checker — pass 3 (skeleton)
 │   ├── regex.odin           ES2025 §22.2.1 regex pattern validator
