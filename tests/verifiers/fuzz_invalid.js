@@ -275,11 +275,15 @@ for (let i = 0; i < COUNT; i++) {
   const inputPath = path.join(TMP_DIR, 'case_' + h + '.js');
   fs.writeFileSync(inputPath, mutated);
 
-  // Run kessel. timeout is enforced by spawnSync(timeout); on hit it
-  // returns status=null, signal='SIGTERM'. Any non-{0,1} exit is a crash.
+  // Run kessel. We only care about the exit code/signal here, not the
+  // emitted AST — adversarial mutations can balloon JSON output to
+  // hundreds of MB and trip Node's `maxBuffer` cap, which manifests as
+  // a spurious SIGTERM that looks like a crash. Discard stdout (and
+  // stderr) so a buffer overrun cannot masquerade as a parser bug.
+  // Timeout is still enforced by spawnSync(timeout); on hit it returns
+  // status=null, signal='SIGTERM'. Any non-{0,1} exit is a real crash.
   const r = spawnSync(KESSEL, ['parse', inputPath], {
-    encoding: 'buffer',
-    maxBuffer: 32 * 1024 * 1024,
+    stdio:   ['ignore', 'ignore', 'ignore'],
     timeout: DEADLINE,
   });
 
