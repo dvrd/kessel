@@ -1,14 +1,73 @@
 package main
 
+import "core:mem"
+
 // ============================================================================
 // Regular expression pattern validator (ES2025 §22.2.1).
 //
-// Called by `lex_regex` *after* flags have been parsed, so the validator
-// can branch on `has_u` / `has_v`. The validator emits diagnostics into
-// `l.lexer_errors`; it does not mutate `l.offset` or any other lexer
-// cursor state. Bytes covered are exclusively `src[pat_start:pat_end]`,
-// the closed-open range of the pattern body (between the opening `/`
-// and the closing `/`).
+// Called via the public `regex_validate` entry below. The validator
+// returns its diagnostics to the caller, which routes them into
+// whatever error channel they prefer (the lexer appends to
+// `l.lexer_errors` today; a future semantic checker could call
+// `regex_validate` directly on RegExpLiteral nodes post-parse). Bytes
+// covered are exclusively `src[pat_start:pat_end]`, the closed-open
+// range of the pattern body (between the opening `/` and the closing
+// `/`). The validator never mutates lexer cursor state because it
+// never sees the lexer.
+//
+// The pre-#5 API took `l: ^Lexer` everywhere and reached into
+// `l.source_bytes` / `l.lexer_errors`. That coupling made regex
+// validation a lexer concern even though the brief calls it semantic.
+// Public API is now `regex_validate(source, span, flags, alloc)`; the
+// internal procs route through a small `RegexValidator` value that
+// holds the borrowed source bytes and the per-call diagnostics buffer.
+// ============================================================================
+
+// One validator-emitted diagnostic. Caller maps these onto whatever
+// error type its diagnostic channel uses (LexerError today).
+RegexDiagnostic :: struct {
+	offset:  u32,
+	message: string,
+}
+
+// Per-call validator state. Source is borrowed; errors and allocator
+// are owned. Constructed inside `regex_validate` and threaded into the
+// internal validator procs as their first argument. Not exported - the
+// caller never builds one directly.
+RegexValidator :: struct {
+	source:    []u8,                      // borrowed
+	errors:    [dynamic]RegexDiagnostic,  // owned, built per-call
+	allocator: mem.Allocator,
+}
+
+// regex_validate is the public entry point. Builds a RegexValidator,
+// runs the full pattern pipeline, and returns the populated diagnostic
+// list. The returned slice is backed by the validator's [dynamic] which
+// is allocated on `alloc` - typically the parse arena. Caller iterates
+// the returned slice and routes diagnostics into its own channel.
+//
+// Empty return = no diagnostics. The validator never panics or aborts;
+// every malformed regex surfaces as one or more diagnostics.
+regex_validate :: proc(
+	source:           []u8,
+	pat_start, pat_end: u32,
+	has_u, has_v:     bool,
+	alloc:            mem.Allocator,
+) -> []RegexDiagnostic {
+	v: RegexValidator
+	v.source    = source
+	v.errors    = make([dynamic]RegexDiagnostic, 0, 4, alloc)
+	v.allocator = alloc
+	regex_validate_pattern(&v, pat_start, pat_end, has_u, has_v)
+	return v.errors[:]
+}
+
+// ============================================================================
+// Internal pipeline. Every proc below takes `v: ^RegexValidator` as its
+// first argument and reads `v.source` for the source bytes;
+// `append(&v.errors, RegexDiagnostic{...})` is the only diagnostic
+// channel.
+// ============================================================================
 //
 // Scope today (Phase A — landing in waves):
 //   1a. Property-escape **structural** rules: `\p{…}` / `\P{…}` shape.
@@ -26,16 +85,16 @@ package main
 // from `regex_validate_pattern` too.
 // ============================================================================
 
-regex_validate_pattern :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v: bool) {
-	src := l.source_bytes
+regex_validate_pattern :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_u, has_v: bool) {
+	src := v.source
 	if int(pat_end) > len(src) { return }
 
 	// Wave 1a: property-escape structural rules. u/v-mode only —
 	// outside u/v, `\p`/`\P` are identity escapes per Annex B and
 	// the spec deliberately preserves backward compatibility.
 	if has_u || has_v {
-		regex_validate_property_escapes(l, pat_start, pat_end, has_v)
-		regex_validate_u_mode_atoms(l, pat_start, pat_end, has_v)
+		regex_validate_property_escapes(v, pat_start, pat_end, has_v)
+		regex_validate_u_mode_atoms(v, pat_start, pat_end, has_v)
 	}
 	// Class-range early errors run u-mode-only. In v-mode `[A--B]` is
 	// set difference (a ClassSetExpression operator), not a range with
@@ -43,29 +102,29 @@ regex_validate_pattern :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v:
 	// flag every set-difference fixture (`[\d--_]/v`, `[[0-9]--\d]/v`,
 	// …), so the validator only fires when u is set without v.
 	if has_u && !has_v {
-		regex_validate_class_ranges(l, pat_start, pat_end)
+		regex_validate_class_ranges(v, pat_start, pat_end)
 	}
 
 	// Arithmetic modifiers `(?ims-ims:body)` (ES2025 RegExp Modifier
 	// Sequence proposal). Always-on — the syntax is well-formed in
 	// non-u mode too.
-	regex_validate_modifiers(l, pat_start, pat_end)
+	regex_validate_modifiers(v, pat_start, pat_end)
 
 	// Leading-quantifier early errors. Always-on. `/?/`, `/*/`, `/+/`,
 	// `/{2}/`, `/{2,}/`, `/{2,5}/` are all SyntaxErrors because the
 	// quantifier has no preceding Atom; same after `(` or `|`.
-	regex_validate_leading_quantifier(l, pat_start, pat_end)
+	regex_validate_leading_quantifier(v, pat_start, pat_end)
 
 	// Lookbehind cannot be quantified in any mode (§22.2.1). Lookahead
 	// _can_ be quantified in non-u via Annex B, so the broader
 	// quantified-assertion rule lives in regex_validate_u_mode_atoms.
-	regex_validate_quantified_lookbehind(l, pat_start, pat_end)
+	regex_validate_quantified_lookbehind(v, pat_start, pat_end)
 
 	// v-mode character class restrictions (§22.2.1 ClassSetExpression).
 	// Certain characters and double-punctuator sequences that were
 	// valid inside `[…]/u` become SyntaxErrors inside `[…]/v`.
 	if has_v {
-		regex_validate_v_mode_class(l, pat_start, pat_end)
+		regex_validate_v_mode_class(v, pat_start, pat_end)
 	}
 
 	// Named-group declarations + `\k<name>` references. Strictness
@@ -73,7 +132,7 @@ regex_validate_pattern :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v:
 	// NamedBackreference and must resolve; in non-u mode Annex B
 	// keeps the legacy literal-characters fallback when no names
 	// are declared.
-	regex_validate_named_groups(l, pat_start, pat_end, has_u, has_v)
+	regex_validate_named_groups(v, pat_start, pat_end, has_u, has_v)
 }
 
 // ============================================================================
@@ -111,8 +170,8 @@ regex_validate_pattern :: proc(l: ^Lexer, pat_start, pat_end: u32, has_u, has_v:
 //   language/literals/regexp/early-err-modifiers-*.js
 // ============================================================================
 
-regex_validate_modifiers :: proc(l: ^Lexer, pat_start, pat_end: u32) {
-	src := l.source_bytes
+regex_validate_modifiers :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
+	src := v.source
 	pe := int(pat_end)
 	in_class := false
 	i := int(pat_start)
@@ -133,7 +192,7 @@ regex_validate_modifiers :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 		// Modifier production starts at i. Consume + emit one diagnostic
 		// at most per malformed modifier; skip past the closing `:` or
 		// `)` so we don't double-report.
-		end := regex_check_modifier_sequence(l, src, i, pe)
+		end := regex_check_modifier_sequence(v, src, i, pe)
 		if end > i + 2 {
 			i = end
 		} else {
@@ -146,7 +205,7 @@ regex_validate_modifiers :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 // (which points at the opening `(`). Emits one LexerError on failure
 // and returns the position just past the closing `:` (or wherever
 // the scan terminated) so the outer loop can resume.
-regex_check_modifier_sequence :: proc(l: ^Lexer, src: []u8, start, pe: int) -> int {
+regex_check_modifier_sequence :: proc(v: ^RegexValidator, src: []u8, start, pe: int) -> int {
 	// Two side-tracker bitmaps (ASCII letters only — indexed by
 	// `c & 0x7F`). The arithmetic modifier flags are spec-restricted
 	// to {i, m, s} so a 128-slot table is plenty.
@@ -262,7 +321,7 @@ regex_check_modifier_sequence :: proc(l: ^Lexer, src: []u8, start, pe: int) -> i
 	}
 
 	if bad {
-		append(&l.lexer_errors, LexerError{
+		append(&v.errors, RegexDiagnostic{
 			offset = u32(start),
 			message = "Invalid regular expression modifier sequence",
 		})
@@ -305,8 +364,8 @@ regex_check_modifier_sequence :: proc(l: ^Lexer, src: []u8, start, pe: int) -> i
 //   u-invalid-range-*               /.(?=.){2,3}/u          quantified assertion (range)
 // ============================================================================
 
-regex_validate_u_mode_atoms :: proc(l: ^Lexer, pat_start, pat_end: u32, has_v: bool) {
-	src := l.source_bytes
+regex_validate_u_mode_atoms :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_v: bool) {
+	src := v.source
 	pe := int(pat_end)
 
 	// Pass 1 — count capturing groups so we can validate `\N` decimal
@@ -369,7 +428,7 @@ regex_validate_u_mode_atoms :: proc(l: ^Lexer, pat_start, pat_end: u32, has_v: b
 			// Inside a class, validate escapes (same rules) but skip the
 			// group / quantifier tracking.
 			if c == '\\' {
-				i = regex_check_u_escape(l, src, i, pe, group_count, true, has_v)
+				i = regex_check_u_escape(v, src, i, pe, group_count, true, has_v)
 			} else {
 				i += 1
 			}
@@ -379,7 +438,7 @@ regex_validate_u_mode_atoms :: proc(l: ^Lexer, pat_start, pat_end: u32, has_v: b
 
 		// Quantifier following an assertion — reject in u/v mode.
 		if last_closed_was_assertion && (c == '?' || c == '*' || c == '+' || c == '{') {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = u32(i),
 				message = "Invalid quantifier on assertion in u-mode regular expression",
 			})
@@ -390,7 +449,7 @@ regex_validate_u_mode_atoms :: proc(l: ^Lexer, pat_start, pat_end: u32, has_v: b
 
 		switch c {
 		case '\\':
-			i = regex_check_u_escape(l, src, i, pe, group_count, false, has_v)
+			i = regex_check_u_escape(v, src, i, pe, group_count, false, has_v)
 			last_closed_was_assertion = false
 		case '(':
 			// Classify group kind. (?= (?! (?<= (?<! → assertion.
@@ -427,7 +486,7 @@ regex_validate_u_mode_atoms :: proc(l: ^Lexer, pat_start, pat_end: u32, has_v: b
 			// followed by a digit (so `{x}/u` rejects but `{2}/u` is
 			// left to the leading-quantifier pass).
 			if i + 1 >= pe || !(src[i + 1] >= '0' && src[i + 1] <= '9') {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = u32(i),
 					message = "Invalid extended pattern character '{' in u-mode",
 				})
@@ -458,10 +517,10 @@ regex_validate_u_mode_atoms :: proc(l: ^Lexer, pat_start, pat_end: u32, has_v: b
 // u/v mode and return the offset just past it. The `in_class` flag
 // loosens a couple of rules: `\b` is the backspace character inside
 // a class but a word-boundary assertion outside; both forms are valid.
-regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: int, in_class: bool, has_v: bool) -> int {
+regex_check_u_escape :: proc(v: ^RegexValidator, src: []u8, start, pe: int, group_count: int, in_class: bool, has_v: bool) -> int {
 	esc_off := u32(start)
 	if start + 1 >= pe {
-		append(&l.lexer_errors, LexerError{offset = esc_off, message = "Trailing backslash in regular expression"})
+		append(&v.errors, RegexDiagnostic{offset = esc_off, message = "Trailing backslash in regular expression"})
 		return pe
 	}
 	n := src[start + 1]
@@ -500,7 +559,7 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 		// (ES2024). Only legal under the v flag and only inside a
 		// character class. Outside v, `\q` is an invalid IdentityEscape.
 		if !has_v {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = esc_off,
 				message = "Invalid identity escape '\\q' (v-flag only)",
 			})
@@ -518,7 +577,7 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 		// `\0` is the NUL character only when NOT followed by a
 		// decimal digit — in u-mode `\01` (legacy octal) is rejected.
 		if start + 2 < pe && src[start + 2] >= '0' && src[start + 2] <= '9' {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = esc_off,
 				message = "Invalid escape: '\\0' followed by decimal digit",
 			})
@@ -535,7 +594,7 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 			j += 1
 		}
 		if n_val > group_count {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = esc_off,
 				message = "Invalid decimal escape: out-of-range back-reference",
 			})
@@ -545,12 +604,12 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 		// ControlEscape: `\cX` where X is [A-Za-z]. `\c0`, `\c\`, `\c`
 		// at end-of-pattern are all SyntaxErrors in u-mode.
 		if start + 2 >= pe {
-			append(&l.lexer_errors, LexerError{offset = esc_off, message = "Invalid '\\c' escape: missing control letter"})
+			append(&v.errors, RegexDiagnostic{offset = esc_off, message = "Invalid '\\c' escape: missing control letter"})
 			return start + 2
 		}
 		cl := src[start + 2]
 		if !((cl >= 'A' && cl <= 'Z') || (cl >= 'a' && cl <= 'z')) {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = esc_off,
 				message = "Invalid '\\c' escape: control letter must be ASCII letter",
 			})
@@ -559,7 +618,7 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 	case 'x':
 		// HexEscape: exactly 2 hex digits.
 		if start + 3 >= pe || hex_val(src[start + 2]) < 0 || hex_val(src[start + 3]) < 0 {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = esc_off,
 				message = "Invalid '\\x' escape: expected 2 hex digits",
 			})
@@ -587,12 +646,12 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 				j += 1
 			}
 			if j >= pe || src[j] != '}' || digits == 0 {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = esc_off,
 					message = "Invalid '\\u{…}' escape",
 				})
 			} else if overflow {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = esc_off,
 					message = "Invalid '\\u{…}' escape: code point out of range [0..0x10FFFF]",
 				})
@@ -604,7 +663,7 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 		if start + 5 >= pe ||
 		   hex_val(src[start + 2]) < 0 || hex_val(src[start + 3]) < 0 ||
 		   hex_val(src[start + 4]) < 0 || hex_val(src[start + 5]) < 0 {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = esc_off,
 				message = "Invalid '\\u' escape: expected 4 hex digits",
 			})
@@ -624,7 +683,7 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 		// not in the SyntaxCharacter set and is rejected. Test262 leans
 		// strict here — `\-` outside class in u-mode is a SyntaxError.
 		if !in_class {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = esc_off,
 				message = "Invalid identity escape in u-mode regular expression",
 			})
@@ -633,7 +692,7 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 	case:
 		// Anything else (`\M`, `\Q`, `\@`, `\!`, `\;`, …) is an
 		// invalid IdentityEscape in u-mode.
-		append(&l.lexer_errors, LexerError{
+		append(&v.errors, RegexDiagnostic{
 			offset = esc_off,
 			message = "Invalid identity escape in u-mode regular expression",
 		})
@@ -677,8 +736,8 @@ regex_check_u_escape :: proc(l: ^Lexer, src: []u8, start, pe: int, group_count: 
 // thus can be "leading".
 // ============================================================================
 
-regex_validate_leading_quantifier :: proc(l: ^Lexer, pat_start, pat_end: u32) {
-	src := l.source_bytes
+regex_validate_leading_quantifier :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
+	src := v.source
 	pe := int(pat_end)
 	if int(pat_start) >= pe { return }
 
@@ -697,7 +756,7 @@ regex_validate_leading_quantifier :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 
 		if expecting_atom {
 			if c == '?' || c == '*' || c == '+' {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = u32(i),
 					message = "Quantifier without preceding atom",
 				})
@@ -706,7 +765,7 @@ regex_validate_leading_quantifier :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 				continue
 			}
 			if c == '{' && regex_is_braced_quantifier(src, i, pe) {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = u32(i),
 					message = "Quantifier without preceding atom",
 				})
@@ -765,8 +824,8 @@ regex_validate_leading_quantifier :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 // and reject if it's a quantifier.
 // ============================================================================
 
-regex_validate_quantified_lookbehind :: proc(l: ^Lexer, pat_start, pat_end: u32) {
-	src := l.source_bytes
+regex_validate_quantified_lookbehind :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
+	src := v.source
 	pe := int(pat_end)
 
 	StackEntry :: struct { is_lookbehind: bool }
@@ -783,7 +842,7 @@ regex_validate_quantified_lookbehind :: proc(l: ^Lexer, pat_start, pat_end: u32)
 		if in_class { i += 1; continue }
 
 		if last_closed_was_lookbehind && (c == '?' || c == '*' || c == '+' || c == '{') {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = u32(i),
 				message = "Invalid quantifier on lookbehind assertion",
 			})
@@ -838,8 +897,8 @@ regex_is_braced_quantifier :: proc(src: []u8, off, pe: int) -> bool {
 	return j < pe && src[j] == '}'
 }
 
-regex_validate_class_ranges :: proc(l: ^Lexer, pat_start, pat_end: u32) {
-	src := l.source_bytes
+regex_validate_class_ranges :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
+	src := v.source
 	pe := int(pat_end)
 	i := int(pat_start)
 	for i < pe {
@@ -898,7 +957,7 @@ regex_validate_class_ranges :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 				// This atom is the RIGHT side of a range. The previous
 				// atom is the LEFT. Either being a class is an error.
 				if prev_is_class_escape || atom_is_class {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = u32(prev_atom_off if prev_atom_off >= 0 else atom_off),
 						message = "Invalid character class range: range endpoints must be single characters",
 					})
@@ -962,8 +1021,8 @@ regex_validate_class_ranges :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 // the structural body has been confirmed shape-valid.
 // ============================================================================
 
-regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_v: bool) {
-	src := l.source_bytes
+regex_validate_property_escapes :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_v: bool) {
+	src := v.source
 	in_class := false
 	i := int(pat_start)
 	pe := int(pat_end)
@@ -984,7 +1043,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 			negated := n == 'P'
 			if i + 2 >= pe || src[i + 2] != '{' {
 				// Rule 1: `\p` not followed by `{`.
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = esc_off,
 					message = "Invalid Unicode property escape: expected '{' after \\p",
 				})
@@ -1013,7 +1072,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 			}
 			if j >= pe || src[j] != '}' {
 				// Rule 3: unterminated `\p{…`.
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = esc_off,
 					message = "Invalid Unicode property escape: missing closing '}'",
 				})
@@ -1024,7 +1083,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 			body_end := j
 			// Rule 2: empty body.
 			if body_end == body_start {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = esc_off,
 					message = "Invalid Unicode property escape: empty body",
 				})
@@ -1033,7 +1092,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 			}
 			// Rule 4: more than one `=`.
 			if eq_count > 1 {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = esc_off,
 					message = "Invalid Unicode property escape: multiple '=' in body",
 				})
@@ -1042,7 +1101,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 			}
 			// Rule 7: bad chars in body (only emit once per escape).
 			if bad_char {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = esc_off,
 					message = "Invalid Unicode property escape: invalid character in body",
 				})
@@ -1057,7 +1116,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 				val_end := body_end
 				// Rule 5: empty name.
 				if name_end == name_start {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = esc_off,
 						message = "Invalid Unicode property escape: empty property name",
 					})
@@ -1066,7 +1125,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 				}
 				// Rule 6: empty value.
 				if val_end == val_start {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = esc_off,
 						message = "Invalid Unicode property escape: empty property value",
 					})
@@ -1080,7 +1139,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 				// the value would otherwise be acceptable.
 				name := string(src[name_start:name_end])
 				if is_binary_unicode_property_name(name) {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = esc_off,
 						message = "Invalid Unicode property escape: binary property cannot have a value",
 					})
@@ -1090,7 +1149,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 				// Wave 1b — non-binary name must be a recognised
 				// property name. Unknown name → SyntaxError.
 				if !is_nonbinary_unicode_property_name(name) {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = esc_off,
 						message = "Invalid Unicode property escape: unknown property name",
 					})
@@ -1106,7 +1165,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 				value := string(src[val_start:val_end])
 				if name == "General_Category" || name == "gc" {
 					if !is_valid_gc_property_value(value) {
-						append(&l.lexer_errors, LexerError{
+						append(&v.errors, RegexDiagnostic{
 							offset = esc_off,
 							message = "Invalid Unicode property escape: unknown General_Category value",
 						})
@@ -1127,7 +1186,7 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 						// only legal under the v flag. The matching
 						// Test262 fixture set lives in
 						// property-escapes/generated/strings/.
-						append(&l.lexer_errors, LexerError{
+						append(&v.errors, RegexDiagnostic{
 							offset = esc_off,
 							message = "Invalid Unicode property escape: 'of strings' property requires the 'v' flag",
 						})
@@ -1136,13 +1195,13 @@ regex_validate_property_escapes :: proc(l: ^Lexer, pat_start, pat_end: u32, has_
 						// not allowed for properties of strings
 						// because their match set contains
 						// length-≠2 strings; negation is undefined.
-						append(&l.lexer_errors, LexerError{
+						append(&v.errors, RegexDiagnostic{
 							offset = esc_off,
 							message = "Invalid Unicode property escape: '\\P{...}' cannot be a property of strings",
 						})
 					}
 				} else {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = esc_off,
 						message = "Invalid Unicode property escape: unknown lone property name",
 					})
@@ -1415,8 +1474,8 @@ is_property_of_strings :: proc(name: string) -> bool {
 //   built-ins/RegExp/property-escapes/generated/strings/*-negative-CharacterClass.js
 // ============================================================================
 
-regex_validate_v_mode_class :: proc(l: ^Lexer, pat_start, pat_end: u32) {
-	src := l.source_bytes
+regex_validate_v_mode_class :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
+	src := v.source
 	pe := int(pat_end)
 	in_class := false
 	class_is_negated := false
@@ -1504,7 +1563,7 @@ regex_validate_v_mode_class :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 			if nest_depth <= 0 {
 				// Class closes. Check negated-class + property-of-strings.
 				if class_is_negated && class_has_prop_of_strings {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = u32(class_open_off),
 						message = "Invalid negated character class containing property of strings in v-mode",
 					})
@@ -1551,7 +1610,7 @@ regex_validate_v_mode_class :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 			if next_off < pe && src[next_off] == '^' { next_off += 1 }
 			if next_off >= pe || src[next_off] == ']' {
 				// Empty nested class or unclosed — flag as syntax error.
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = u32(i),
 					message = "Invalid unescaped character in v-mode character class",
 				})
@@ -1588,7 +1647,7 @@ regex_validate_v_mode_class :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 				            (class_is_negated && i == class_open_off + 2)
 				is_end := (i + 2 >= pe) || (src[i + 2] == ']')
 				if is_start || is_end {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = u32(i),
 						message = "Invalid reserved double punctuator in v-mode character class",
 					})
@@ -1601,7 +1660,7 @@ regex_validate_v_mode_class :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 				             (class_is_negated && i == class_open_off + 2)
 				is_end2 := (i + 2 >= pe) || (src[i + 2] == ']')
 				if is_start2 || is_end2 {
-					append(&l.lexer_errors, LexerError{
+					append(&v.errors, RegexDiagnostic{
 						offset = u32(i),
 						message = "Invalid reserved double punctuator in v-mode character class",
 					})
@@ -1610,7 +1669,7 @@ regex_validate_v_mode_class :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 				continue
 			case '!', '#', '$', '%', '*', '+', ',', '.', ':', ';',
 			     '<', '=', '>', '?', '@', '^', '`', '~':
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = u32(i),
 					message = "Invalid reserved double punctuator in v-mode character class",
 				})
@@ -1635,7 +1694,7 @@ regex_validate_v_mode_class :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 		// class content (where it can't be a range hyphen), matching
 		// the Test262 fixture `/[-]/v`.
 		if c == '(' || c == ')' || c == '{' || c == '}' || c == '/' || c == '|' {
-			append(&l.lexer_errors, LexerError{
+			append(&v.errors, RegexDiagnostic{
 				offset = u32(i),
 				message = "Invalid unescaped character in v-mode character class",
 			})
@@ -1652,7 +1711,7 @@ regex_validate_v_mode_class :: proc(l: ^Lexer, pat_start, pat_end: u32) {
 			            (class_is_negated && i == class_open_off + 2)
 			is_end := (i + 1 >= pe) || (src[i + 1] == ']')
 			if is_start || is_end {
-				append(&l.lexer_errors, LexerError{
+				append(&v.errors, RegexDiagnostic{
 					offset = u32(i),
 					message = "Invalid unescaped character in v-mode character class",
 				})
@@ -1765,4 +1824,412 @@ SCRIPT_VALUES := [?]string{
 	"Zanb", "Zinh", "Zyyy", "Zzzz",
 	// Unicode 15.0+ short aliases
 	"Gara", "Gukh", "Krai", "Onao", "Sunu", "Todr", "Tutg",
+}
+
+// ============================================================================
+// Named-group validator (moved from lexer.odin during the #5 deepening)
+// ============================================================================
+
+// Scan the pattern body [pat_start, pat_end) for named-group issues:
+//   * Empty group name: `(?<>x)` — reject.
+//   * Unclosed group name: `(?<a` / `(?<a)` — reject.
+//   * Duplicate group name: `(?<a>x)(?<a>y)` — reject.
+//   * Dangling \k<name> reference: `(?<a>x)\k<b>` — reject.
+//
+// This is a surface-level syntactic check; the full RegExp grammar
+// (AtomEscape / CharacterEscape / CharacterClassEscape / lookbehind
+// restrictions / v-flag set notation / Unicode property escapes) is
+// deferred to a dedicated regex parser.
+regex_validate_named_groups :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_u, has_v: bool) {
+	src := v.source
+	if int(pat_end) > len(src) { return }
+
+	// Pass 1 — collect declared names + report duplicate / empty.
+	//
+	// Alternation tracking (ES2025 Duplicate Named Capturing Groups):
+	// Duplicate group names are allowed only when the duplicates
+	// appear in different alternatives of the same group. We track a
+	// stack of alternation indices: each `(` pushes 0, each `|`
+	// increments the top, each `)` pops. A name's "branch path" is
+	// the current stack snapshot; two names conflict if their paths
+	// are identical (meaning they're in the same alternative at every
+	// nesting level).
+	names := make(map[string]bool, 4, context.temp_allocator)
+
+	NameEntry :: struct {
+		path: [16]u16,
+		depth: int,
+	}
+
+	max_names :: 32
+	name_entries: [max_names]struct {
+		name: string,
+		entry: NameEntry,
+	}
+	name_count := 0
+
+	// Alternation stack: alt_stack[d] is the current alternative index at depth d.
+	// Start at depth 1 to represent the implicit top-level Disjunction —
+	// the entire pattern body is itself a Disjunction, so `|` at the top
+	// level creates alternatives that can hold duplicate names.
+	alt_stack: [64]u16
+	alt_depth := 1
+	alt_stack[0] = 0
+
+	in_class := false
+	for i := int(pat_start); i < int(pat_end); {
+		c := src[i]
+		if c == '\\' {
+			// Skip AtomEscape — two-char slot. Handled in pass 2.
+			i += 2
+			continue
+		}
+		if c == '[' && !in_class { in_class = true; i += 1; continue }
+		if c == ']' && in_class  { in_class = false; i += 1; continue }
+		if in_class { i += 1; continue }
+		// Track alternation: `|` increments alt at current depth.
+		if c == '|' {
+			if alt_depth > 0 && alt_depth <= len(alt_stack) {
+				alt_stack[alt_depth - 1] += 1
+			}
+			i += 1
+			continue
+		}
+		// Track group open/close for alternation depth.
+		if c == ')' {
+			if alt_depth > 0 { alt_depth -= 1 }
+			i += 1
+			continue
+		}
+		if c == '(' {
+			// Push new alternation frame for any group.
+			if alt_depth < len(alt_stack) {
+				alt_stack[alt_depth] = 0
+				alt_depth += 1
+			}
+			// Only process named groups `(?<name>…)` below.
+			if !(i + 2 < int(pat_end) && src[i+1] == '?' && src[i+2] == '<') {
+				i += 1
+				continue
+			}
+			// `(?<` — skip lookbehind forms `(?<=` / `(?<!`.
+			if i + 3 < int(pat_end) && (src[i+3] == '=' || src[i+3] == '!') {
+				i += 4
+				continue
+			}
+			name_start := i + 3
+			j := name_start
+			for j < int(pat_end) && src[j] != '>' && src[j] != ')' {
+				if src[j] == '\\' && j + 1 < int(pat_end) {
+					// Skip the backslash + the escape body. \uXXXX (4 hex)
+					// or \u{H+} (variable). Don't fully decode here — the
+					// outer name validator just needs to skip past.
+					if src[j+1] == 'u' && j + 2 < int(pat_end) && src[j+2] == '{' {
+						k := j + 3
+						for k < int(pat_end) && src[k] != '}' { k += 1 }
+						if k < int(pat_end) { j = k + 1 } else { j = k }
+					} else {
+						j += 2
+						// Skip 4 hex digits for \uHHHH (best-effort).
+						for k := 0; k < 4 && j < int(pat_end) && src[j] != '>'; k += 1 {
+							j += 1
+						}
+					}
+					continue
+				}
+				j += 1
+			}
+			if j >= int(pat_end) || src[j] != '>' {
+				append(&v.errors, RegexDiagnostic{offset = u32(name_start), message = "Unterminated named capture group"})
+				i = j + 1
+				continue
+			}
+			name := string(src[name_start:j])
+			if len(name) == 0 {
+				append(&v.errors, RegexDiagnostic{offset = u32(name_start), message = "Empty named capture group"})
+			} else {
+				// ES2025 §Duplicate Named Capturing Groups: duplicate
+				// group names are allowed only when the duplicates appear
+				// in different alternatives (`(?:(?<a>x)|(?<a>y))`).
+				// Check if this name conflicts with any existing entry
+				// by comparing alternation branch paths.
+				cur_path: NameEntry
+				cur_path.depth = alt_depth
+				for d := 0; d < alt_depth && d < len(cur_path.path); d += 1 {
+					cur_path.path[d] = alt_stack[d]
+				}
+				// Check for conflict: same name with same branch path.
+				has_conflict := false
+				for ni := 0; ni < name_count; ni += 1 {
+					if name_entries[ni].name == name {
+						// Same name found. Check if branch paths differ.
+						prev := name_entries[ni].entry
+						// Find common ancestor depth.
+						min_depth := prev.depth
+						if cur_path.depth < min_depth { min_depth = cur_path.depth }
+						same_path := true
+						for d := 0; d < min_depth; d += 1 {
+							if prev.path[d] != cur_path.path[d] {
+								same_path = false
+								break
+							}
+						}
+						if same_path {
+							has_conflict = true
+							break
+						}
+					}
+				}
+				if has_conflict {
+					append(&v.errors, RegexDiagnostic{
+						offset = u32(name_start),
+						message = "Duplicate named capture group",
+					})
+				}
+				if name_count < max_names {
+					name_entries[name_count].name = name
+					name_entries[name_count].entry = cur_path
+					name_count += 1
+				}
+				// Validate name characters — ASCII-only check that rejects
+				// obvious non-identifier punctuation (`-`, `,`, space, etc.).
+				// Non-ASCII bytes pass through as Unicode IdentifierPart
+				// (UTF-8 encoded). The validator must skip over `\u{H…H}` /
+				// `\uHHHH` escape bodies wholesale: those bodies legally
+				// contain `{`, `}`, hex digits in the leading position, etc.
+				// which would otherwise fail the character check. Without
+				// this skip, every `(?<\u{1d4d1}…>...)/u` named group with
+				// astral codepoints in its name is rejected (the
+				// unicode-property-names-valid Test262 corpus).
+				ok := true
+				k := name_start
+				for k < j {
+					ch := src[k]
+					// Non-ASCII byte — decode full UTF-8 codepoint
+					// and validate against Unicode ID_Start / ID_Continue.
+					if ch >= 0x80 {
+						cp: u32 = 0
+						bytes: int = 1
+						if ch < 0xC0 {
+							cp = u32(ch)
+						} else if ch < 0xE0 {
+							cp = u32(ch & 0x1F)
+							bytes = 2
+						} else if ch < 0xF0 {
+							cp = u32(ch & 0x0F)
+							bytes = 3
+						} else {
+							cp = u32(ch & 0x07)
+							bytes = 4
+						}
+						for bi := 1; bi < bytes && k + bi < j; bi += 1 {
+							cp = (cp << 6) | u32(src[k + bi] & 0x3F)
+						}
+						is_first := k == name_start
+						if is_first {
+							if !is_unicode_id_start(cp) {
+								ok = false
+								break
+							}
+						} else {
+							if !is_unicode_id_continue(cp) {
+								ok = false
+								break
+							}
+						}
+						k += bytes
+						continue
+					}
+					if ch == '\\' {
+						// Decode `\u…` escape and validate the resulting
+						// codepoint against ID_Start / ID_Continue.
+						esc_start := k
+						esc_cp: u32 = 0
+						esc_valid := false
+						k += 1
+						if k < j && src[k] == 'u' {
+							k += 1
+							if k < j && src[k] == '{' {
+								// `\u{H+}` form.
+								k += 1
+								for k < j && src[k] != '}' {
+									h := hex_val(src[k])
+									if h >= 0 {
+										esc_cp = esc_cp * 16 + u32(h)
+										esc_valid = true
+									}
+									k += 1
+								}
+								if k < j { k += 1 } // skip '}'
+							} else {
+								// `\uHHHH` form.
+								hex_digits := 0
+								for n := 0; n < 4 && k < j; n += 1 {
+									h := hex_val(src[k])
+									if h >= 0 {
+										esc_cp = esc_cp * 16 + u32(h)
+										hex_digits += 1
+									}
+									k += 1
+								}
+								if hex_digits == 4 { esc_valid = true }
+								// Surrogate pair: \uD800-\uDBFF followed by
+								// \uDC00-\uDFFF → combine into supplementary CP.
+								if esc_valid && esc_cp >= 0xD800 && esc_cp <= 0xDBFF {
+									if k + 5 < j && src[k] == '\\' && src[k+1] == 'u' {
+										low_cp: u32 = 0
+										low_ok := true
+										for n := 0; n < 4; n += 1 {
+											h := hex_val(src[k+2+n])
+											if h >= 0 {
+												low_cp = low_cp * 16 + u32(h)
+											} else {
+												low_ok = false
+											}
+										}
+										if low_ok && low_cp >= 0xDC00 && low_cp <= 0xDFFF {
+											// Combine surrogate pair.
+											esc_cp = 0x10000 + (esc_cp - 0xD800) * 0x400 + (low_cp - 0xDC00)
+											k += 6 // skip \uDCxx
+										}
+									}
+								}
+							}
+						}
+						if esc_valid {
+							// Validate the decoded codepoint against
+							// ID_Start (first char) or ID_Continue.
+							// For ASCII codepoints, use the ASCII checks;
+							// for non-ASCII, use strict Unicode tables.
+							is_first_char := esc_start == name_start
+							valid_id := false
+							if esc_cp < 0x80 {
+								// ASCII: $, _, a-z, A-Z are ID_Start;
+								// additionally 0-9 are ID_Continue.
+								ec := u8(esc_cp)
+								if ec == '$' || ec == '_' ||
+								   (ec >= 'a' && ec <= 'z') ||
+								   (ec >= 'A' && ec <= 'Z') {
+									valid_id = true
+								} else if !is_first_char && ec >= '0' && ec <= '9' {
+									valid_id = true
+								}
+							} else {
+								if is_first_char {
+									valid_id = is_unicode_id_start(esc_cp)
+								} else {
+									valid_id = is_unicode_id_start(esc_cp) ||
+									          is_unicode_id_continue(esc_cp)
+								}
+							}
+							if !valid_id {
+								ok = false
+								break
+							}
+						}
+						continue
+					}
+					is_start := k == name_start
+					if ch == '$' || ch == '_' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
+						k += 1
+						continue
+					}
+					if !is_start && ch >= '0' && ch <= '9' {
+						k += 1
+						continue
+					}
+					ok = false
+					break
+				}
+				if !ok {
+					append(&v.errors, RegexDiagnostic{offset = u32(name_start), message = "Invalid named capture group name"})
+				} else {
+					names[name] = true
+				}
+			}
+			i = j + 1
+			continue
+		}
+		i += 1
+	}
+
+	// Pass 2 — collect `\k<name>` references and verify each resolves.
+	// Resolution rules (§22.2.1.5):
+	//   * In u / v mode, a `\k` is ALWAYS a NamedBackreference. The
+	//     name MUST resolve to a declared group; otherwise SyntaxError.
+	//     `\k` not followed by `<` is also a SyntaxError.
+	//   * In non-u mode, Annex B keeps the legacy escape: when the
+	//     pattern has no named groups, `\k...` is literal characters.
+	//     When at least one named group exists, `\k<name>` must resolve.
+	has_any := len(names) > 0
+	strict := has_u || has_v
+	in_class = false
+	for i := int(pat_start); i < int(pat_end); {
+		c := src[i]
+		if c == '[' && !in_class { in_class = true; i += 1; continue }
+		if c == ']' && in_class  { in_class = false; i += 1; continue }
+		if c == '\\' && i + 1 < int(pat_end) && src[i+1] == 'k' {
+			// `\k` is a NamedBackreference. Only legal as `\k<name>`
+			// when EITHER:
+			//   (a) the pattern is u/v mode (always strict), OR
+			//   (b) the pattern has at least one named group declared
+			//       — then Annex B's literal-fallback no longer applies.
+			// `/(?<a>.)\k/` and `/\k(?<a>.)/` both reject under (b).
+			if i + 2 >= int(pat_end) || src[i+2] != '<' {
+				if strict || has_any {
+					append(&v.errors, RegexDiagnostic{offset = u32(i), message = "Invalid named back-reference: '\\k' must be followed by '<name>'"})
+				}
+				i += 2
+				continue
+			}
+			name_start := i + 3
+			j := name_start
+			has_escape := false
+			for j < int(pat_end) && src[j] != '>' && src[j] != ')' {
+				if src[j] == '\\' && j + 1 < int(pat_end) {
+					has_escape = true
+					if src[j+1] == 'u' && j + 2 < int(pat_end) && src[j+2] == '{' {
+						k := j + 3
+						for k < int(pat_end) && src[k] != '}' { k += 1 }
+						if k < int(pat_end) { j = k + 1 } else { j = k }
+					} else {
+						j += 2
+						for k := 0; k < 4 && j < int(pat_end) && src[j] != '>'; k += 1 {
+							j += 1
+						}
+					}
+					continue
+				}
+				j += 1
+			}
+			if j < int(pat_end) && src[j] == '>' {
+				// Skip name verification when the reference contains a
+				// \uXXXX escape — we'd need to decode to compare against
+				// the declaration set, which the lexer doesn't do.
+				if !has_escape {
+					name := string(src[name_start:j])
+					if has_any || strict {
+						if _, ok := names[name]; !ok {
+							append(&v.errors, RegexDiagnostic{offset = u32(name_start), message = "Invalid named capture reference"})
+						}
+					}
+				}
+				i = j + 1
+				continue
+			}
+			// Unterminated \k<…> — in non-u mode and with no declared
+			// names, Annex B keeps the legacy escape behaviour. In u / v
+			// mode and when names exist, this is a SyntaxError.
+			if has_any || strict {
+				append(&v.errors, RegexDiagnostic{offset = u32(name_start), message = "Unterminated named capture reference"})
+			}
+			i += 3
+			continue
+		}
+		if c == '\\' {
+			i += 2
+			continue
+		}
+		i += 1
+	}
 }
