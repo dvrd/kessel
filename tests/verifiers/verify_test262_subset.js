@@ -196,8 +196,14 @@ function expectsReject(frontMatter) {
 // Same rejection criterion used in `verify_negative.js`: exit != 0 OR a
 // `Parse errors: N` marker with N >= 1. Keeping this consistent means the two
 // gates agree on what "rejected" means.
+//
+// `--show-semantic-errors` opts into pass 3 (the semantic checker in
+// src/checker.odin). Test262 fixtures with `phase: parse` cover Early
+// Errors that ECMA-262 considers part of parsing but that kessel (like
+// OXC) implements in a separate post-parse walk. Without the flag,
+// `kessel parse` stays parser-only and matches OXC's parseSync API.
 function runKessel(abs) {
-  const r = spawnSync(KESSEL, ['parse', abs], {
+  const r = spawnSync(KESSEL, ['parse', abs, '--show-semantic-errors'], {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
     timeout: 10_000,

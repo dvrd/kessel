@@ -411,6 +411,14 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
+	// Pass 3 (semantic checker) is opt-in via --show-semantic-errors so
+	// `kessel parse` matches OXC's parser-only `parseSync` API by default.
+	// Today the checker enforces break / continue + label scoping (§13.9.1,
+	// §13.9.2, §14.13.1, §14.8.1); more checks migrate from parser.odin in
+	// subsequent slices. Errors are appended to job.parser.errors so the
+	// existing emitter and `Parse errors: N` diagnostic line don't need to
+	// know about pass 3.
+	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	// Construct a per-call Emitter. Owns its writer buffer, UTF-16 table,
 	// and line-offsets borrow. Each parse_file call is single-threaded
@@ -506,6 +514,7 @@ raw_transfer_file :: proc(file_path: string, out_path: string, cli: CliConfig) {
 	// time.tick_now() overhead it doesn't ask for.
 	start := time.tick_now()
 	parse_job_run(&job)
+	if cli.show_semantic_errors { checker_run_for_job(&job) }
 	result := produce_raw_buffer_from_job(&job)
 	elapsed := time.tick_since(start)
 
@@ -540,6 +549,7 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
 	defer parse_job_close(&job)
 	parse_job_run(&job)
+	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	// Each worker constructs its own Emitter - thread-safe by
 	// construction. The pre-#2 save / restore dance over a global
@@ -575,6 +585,7 @@ parse_file_raw_to_disk :: proc(file_path: string, out_path: string, cli: CliConf
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
 	defer parse_job_close(&job)
 	parse_job_run(&job)
+	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	result := produce_raw_buffer_from_job(&job)
 	if !write_raw_buffer(result, out_path) {

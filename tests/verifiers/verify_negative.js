@@ -102,15 +102,25 @@ function listNegativeFixtures() {
 // Pattern: negative/06*_semantic_*.js fixtures exercise OPT-6 scope
 // verification, which is off by default. Flip it on for that slice so
 // the verifier sees the expected diagnostic.
+//
+// early_errors/* and negative/* fixtures all exercise rejection paths
+// that ECMA-262 classifies as Static Semantic Errors / Early Errors.
+// Pass 3 (the AST checker in src/checker.odin) owns these post-parse;
+// `kessel parse` defaults to parser-only to match OXC's parseSync, so
+// we opt into pass 3 explicitly here.
 function extraArgsFor(rel) {
+  const args = [];
   if (rel.startsWith('tests/fixtures/early_errors/module_context/')) {
-    return ['--source-type=script'];
+    args.push('--source-type=script');
   }
-  const base = rel.split('/').pop();
-  if (/^\d+_semantic_/.test(base)) {
-    return ['--show-semantic-errors'];
+  if (rel.startsWith('tests/fixtures/early_errors/') ||
+      rel.startsWith('tests/fixtures/negative/')) {
+    args.push('--show-semantic-errors');
+  } else {
+    const base = rel.split('/').pop();
+    if (/^\d+_semantic_/.test(base)) args.push('--show-semantic-errors');
   }
-  return [];
+  return args;
 }
 
 // Run Kessel on `file` and decide whether it rejected the program.

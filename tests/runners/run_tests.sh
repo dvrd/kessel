@@ -107,10 +107,16 @@ while IFS= read -r fixture; do
         es2025/*jsx*|es2025/*fragment*) lang_flag="--lang=jsx" ;;
     esac
 
+    # --show-semantic-errors opts into pass 3 (the AST-walker checker in
+    # src/checker.odin). Default `kessel parse` is parser-only to match
+    # OXC's parseSync, but the unit runner verifies whole-program validity
+    # so we always exercise the checker. Fixtures that violate ECMA-262
+    # Early Errors (early_errors/*, negative/*) get their rejections; valid
+    # fixtures are unaffected (checker emits no false positives).
     if [[ -n "$lang_flag" ]]; then
-        cmd=(timeout 10 "$KESSEL_BIN" parse "$lang_flag" "$fixture")
+        cmd=(timeout 10 "$KESSEL_BIN" parse "$lang_flag" --show-semantic-errors "$fixture")
     else
-        cmd=(timeout 10 "$KESSEL_BIN" parse "$fixture")
+        cmd=(timeout 10 "$KESSEL_BIN" parse --show-semantic-errors "$fixture")
     fi
     if ! "${cmd[@]}" >"$output_file" 2>&1; then
         exit_code=$?

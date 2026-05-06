@@ -134,9 +134,14 @@ cli_try_parse_flag :: proc(cfg: ^CliConfig, args: []string, i: ^int) -> bool {
 		i^ += 1
 		return true
 	case arg == "--show-semantic-errors":
-		// Currently dead — #3 (checker) lights it up by plumbing
-		// it to parser.check_semantics. Documented here so the
-		// flag stays accepted across the transition.
+		// Opt-in pass 3 (semantic checker). When set, kessel runs
+		// the AST walker in src/checker.odin after parse_job_run
+		// and merges its findings into job.parser.errors. Without
+		// the flag, kessel parse stays parser-only — mirroring
+		// OXC's parseSync so the OXC corpus comparison stays
+		// apples-to-apples (oxc_semantic is also a separate pass).
+		// Today the checker enforces break / continue + label
+		// scoping; more checks migrate slice-by-slice (#3).
 		cfg.show_semantic_errors = true
 		i^ += 1
 		return true

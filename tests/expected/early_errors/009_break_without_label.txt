@@ -30,9 +30,19 @@
       "end": 186,
       "value": " LabelledStatement. Neither holds here → SyntaxError."
     }
+  ],
+  "errors": [
+    {
+      "message": "Illegal break statement: not in a loop or switch",
+      "line": 4,
+      "column": 1,
+      "offset": 187
+    }
   ]
 }
+Parse errors (1):
+  Line 4, Column 1: Illegal break statement: not in a loop or switch
 
 --- Statistics ---
-Arena: used=35760B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37264B reserved=16777216B ratio=0%
+Parse errors: 1

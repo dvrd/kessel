@@ -153,9 +153,19 @@
       "end": 611,
       "value": " `Identifier :` pairs at LabelledStatement push time."
     }
+  ],
+  "errors": [
+    {
+      "message": "Illegal continue statement: label does not target an iteration statement",
+      "line": 13,
+      "column": 3,
+      "offset": 653
+    }
   ]
 }
+Parse errors (1):
+  Line 13, Column 3: Illegal continue statement: label does not target an iteration statement
 
 --- Statistics ---
-Arena: used=36080B reserved=16777216B ratio=0%
-Parse errors: 0
+Arena: used=37584B reserved=16777216B ratio=0%
+Parse errors: 1
