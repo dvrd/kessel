@@ -115,15 +115,15 @@
   "errors": [
     {
       "message": "Duplicate constructor in class",
-      "line": 9,
-      "column": 1,
-      "offset": 308
+      "line": 7,
+      "column": 2,
+      "offset": 289
     }
   ]
 }
 Parse errors (1):
-  Line 9, Column 1: Duplicate constructor in class
+  Line 7, Column 2: Duplicate constructor in class
 
 --- Statistics ---
-Arena: used=39056B reserved=16777216B ratio=0%
+Arena: used=39040B reserved=16777216B ratio=0%
 Parse errors: 1

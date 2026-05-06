@@ -129,13 +129,13 @@
     {
       "message": "Private fields cannot be deleted",
       "line": 8,
-      "column": 17,
-      "offset": 282
+      "column": 3,
+      "offset": 268
     }
   ]
 }
 Parse errors (1):
-  Line 8, Column 17: Private fields cannot be deleted
+  Line 8, Column 3: Private fields cannot be deleted
 
 --- Statistics ---
 Arena: used=39592B reserved=16777216B ratio=0%

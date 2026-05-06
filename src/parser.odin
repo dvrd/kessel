@@ -513,14 +513,6 @@ Parser :: struct {
 	// form is only legal INSIDE a destructuring cover.
 	pending_cover_inits: [dynamic]u32,
 
-	// Pending __proto__ duplicate errors (Annex B.3.1). `{ __proto__: a,
-	// __proto__: b }` is a SyntaxError ONLY as an object literal, NOT as
-	// a destructuring pattern. Store as (object_span_start, error_offset)
-	// pairs; expr_to_pattern clears the entry for the promoted object so
-	// the error never fires for destructuring. Remaining entries fire at
-	// end of parse_program.
-	pending_proto_dups: [dynamic][2]u32,
-
 	// CLI `--preserve-parens`. When true, every genuine `(expr)` paren-
 	// grouping wraps its inner expression in a ParenthesizedExpression
 	// node. Off by default for byte-identical legacy output. Does NOT
@@ -790,8 +782,6 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.source_len = len(lexer.source)
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
-	p.pending_proto_dups = make([dynamic][2]u32, 0, 2, alloc)
-
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
 	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1-2 times.
@@ -1754,13 +1744,11 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			message = "Invalid shorthand property initializer",
 		})
 	}
-	// Annex B.3.1: pending __proto__ duplicate errors that were NOT cleared
-	// by expr_to_pattern (i.e., NOT used as a destructuring target).
-	for pair in p.pending_proto_dups {
-		report_semantic_error_at(p, LexerLoc(pair[1]), "Redefinition of __proto__ property")
-	}
-
-
+	// §13.2.5.1 duplicate __proto__ in object literal: migrated to
+	// the semantic checker (slice 4) — ck_check_object_proto_dups walks
+	// every ObjectExpression. The previous pending-list machinery is
+	// no longer needed because the AST already distinguishes
+	// ObjectExpression from ObjectPattern post-parse.
 
 	// §15.7.3 AllPrivateIdentifiersValid - every PrivateIdentifier
 	// reference (member access `.#x`, `#x in obj`) must resolve to a
@@ -3364,22 +3352,13 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	prev_in_switch := p.in_switch
 	p.in_switch = true
 
-	// ECMA-262 §14.12.1 - a SwitchStatement may have at most one
-	// DefaultClause. Track the first one we see; report (once) on every
-	// subsequent default. Always enforced, not strict-gated.
-	default_seen := false
+	// §14.12.1 "more than one default clause" early error: enforced by
+	// the semantic checker (ck_check_switch_default_dups). The parser
+	// stays permissive and just appends every case it sees.
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
-		is_default := is_token(p, .Default)
 		case_ := parse_switch_case(p)
 		if case_ != nil {
-			if is_default {
-				if default_seen {
-					report_semantic_error(p, "More than one default clause in switch")
-				} else {
-					default_seen = true
-				}
-			}
 			bump_append(&switch_.cases, case_^)
 		} else if int(cur_offset(p)) == prev_offset {
 			eat(p)
@@ -4758,12 +4737,11 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 	seen.allocator = p.allocator
 	defer delete(seen)
 
-	// §15.7.1 - at most one ClassElement whose PropName is
-	// `"constructor"` AND whose kind is Method (not a getter, setter,
-	// or static method). Instance constructors only; static methods
-	// named `constructor` don't count.
-	constructor_seen := false
-	constructor_implementation_seen := false
+	// §15.7.1 "at most one constructor" early error: enforced by the
+	// semantic checker (ck_check_class_constructors). The remaining
+	// loop body in this proc handles syntax-level concerns: the static
+	// `prototype` ban (§15.7.1) and the post-parse private-name
+	// duplicate map (Annex §15.7.6).
 
 	for elem in elems {
 		if elem.key == nil { continue }
@@ -4777,44 +4755,10 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 			}
 		}
 
-		// §15.7.1 - at most one constructor per class. Detect by name
-		// + kind (Method or Constructor) + non-static + non-computed.
-		//
-		// TS exception: overload signatures - multiple `constructor(...);`
-		// declarations with empty bodies followed by ONE implementation
-		// `constructor(...) { ... }`. Detect by the FunctionExpression's
-		// body being empty (overload sig) vs non-empty (implementation).
-		// Closes 64 OXC corpus rejects in the "Duplicate constructor in
-		// class" cluster (S26 W6 phase 3 bug class #12).
-		if !elem.static && !elem.computed && (elem.kind == .Method || elem.kind == .Constructor) {
-			if class_element_prop_name(elem.key) == "constructor" {
-				// FunctionBody is a struct (not a union pointer); detect
-				// implementation by either a non-empty body[] or a non-zero
-				// span. Overload sigs leave both at zero.
-				has_body := false
-				if val_expr, vok := elem.value.(^Expression); vok && val_expr != nil {
-					if fn, fok := val_expr^.(^FunctionExpression); fok && fn != nil {
-						has_body = len(fn.body.body) > 0 || fn.body.loc.span.end > fn.body.loc.span.start
-					}
-				}
-				if allow_ts_mode(p) {
-					// Only error when SECOND implementation appears (two ctors
-					// with bodies). Overload sigs (empty body) freely repeat.
-					if has_body && constructor_implementation_seen {
-						report_semantic_error(p, "Duplicate constructor implementation in class")
-					}
-					if has_body { constructor_implementation_seen = true }
-					constructor_seen = true
-				} else {
-					// Plain JS: §15.7.1 - only one constructor allowed.
-					if constructor_seen {
-						report_semantic_error(p, "Duplicate constructor in class")
-					} else {
-						constructor_seen = true
-					}
-				}
-			}
-		}
+		// §15.7.1 duplicate-constructor early error (with TS
+		// overload-signature exception) is enforced by the semantic
+		// checker — ck_check_class_constructors walks the same
+		// elements with the lang context the parser used to consult.
 
 		pid, is_private := elem.key.(^PrivateIdentifier)
 		if !is_private || pid == nil { continue }
@@ -10615,17 +10559,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 
-		// ECMA-262 §13.5.1 - `delete` of a PrivateFieldReference (
-		// `delete x.#y`, `delete this.#y`) is ALWAYS a SyntaxError,
-		// regardless of strict / sloppy mode. Private slots can't be
-		// removed.
-		if current.type == .Delete {
-			if me, is_member := argument.(^MemberExpression); is_member && me != nil {
-				if _, is_private := me.property.(^PrivateIdentifier); is_private {
-					report_semantic_error(p, "Private fields cannot be deleted")
-				}
-			}
-		}
+		// §13.5.1 "delete o.#priv" early error: enforced by the
+		// semantic checker (ck_check_unary_delete_private).
 		return expression_from(p, unary)
 
 	case .PlusPlus, .MinusMinus:
@@ -10976,12 +10911,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				if pid.name == "" {
 					report_error(p, "Private identifier must not have whitespace after '#'")
 				}
-				// §15.7.3 - `super.#name` is a SyntaxError: private names can
-				// only be accessed via `this`, local variables, or computed
-				// member expressions, not through `super`.
-				if _, is_super := expr.(^Super); is_super {
-					report_semantic_error(p, "Private fields cannot be accessed through 'super'")
-				}
+				// §15.7.3 "super.#name" early error: enforced by the
+				// semantic checker (ck_check_member_super_private).
 			} else {
 				// Create regular Identifier
 				id, id_e := new_expr(p, Identifier)
@@ -12418,13 +12349,10 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	p.scope_skip = true
 	defer p.scope_skip = prev_scope_skip
 
-	// ECMA-262 §13.2.5.1 - if an ObjectLiteral has more than one
-	// PropertyDefinition whose PropertyName is the literal identifier /
-	// string `__proto__` and whose kind is `init` (so neither a method
-	// shorthand nor a computed key), it is a SyntaxError. Track the
-	// first-seen location so the diagnostic can point at the
-	// duplicate, matching OXC / V8 / Acorn.
-	proto_seen := false
+	// §13.2.5.1 duplicate __proto__ early error: enforced by the
+	// semantic checker (ck_check_object_proto_dups). The parser is
+	// permissive on this; the AST distinguishes ObjectExpression from
+	// ObjectPattern, so the checker can decide cleanly post-parse.
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		// Skip stray semicolons (error recovery)
@@ -12437,19 +12365,8 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 
 		prop := parse_property(p)
 		if prop != nil {
-			if property_is_literal_proto_init(prop) {
-				if proto_seen {
-					// Annex B.3.1 - duplicate __proto__ is only an error in
-					// object literals, NOT in destructuring patterns. Store as
-					// pending; expr_to_pattern will clear it if this becomes
-					// a pattern.
-					obj_start := obj.loc.span.start
-					err_off := loc_from_expr(prop.key).span.start // point at the duplicate key
-					bump_append(&p.pending_proto_dups, [2]u32{obj_start, u32(int(err_off))})
-				} else {
-					proto_seen = true
-				}
-			}
+			// Duplicate-__proto__ early error (§13.2.5.1) is enforced by
+			// the semantic checker (slice 4) — see ck_check_object_proto_dups.
 			bump_append(&obj.properties, prop^)
 		}
 
@@ -13652,17 +13569,9 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// Clear any pending CoverInitializedName offsets that fall inside
 		// this object's span - once promoted to an ObjectPattern, the
 		// `{foo = init}` shorthand is legal (§13.2.5.1 / §13.15.5.2).
-		// Clear any pending __proto__ duplicate errors for this object.
-		// These are only errors in object literals, not patterns.
-		if len(p.pending_proto_dups) > 0 {
-			wpd := 0
-			for pair in p.pending_proto_dups {
-				if pair[0] == e.loc.span.start { continue } // this object
-				p.pending_proto_dups[wpd] = pair
-				wpd += 1
-			}
-			resize(&p.pending_proto_dups, wpd)
-		}
+		// (Duplicate-__proto__ is now enforced post-parse by the semantic
+		// checker on the resulting AST node type — ObjectExpression vs
+		// ObjectPattern — so no parse-time clearing is needed.)
 		if len(p.pending_cover_inits) > 0 {
 			write := 0
 			for off, read in p.pending_cover_inits {

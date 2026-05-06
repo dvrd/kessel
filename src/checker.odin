@@ -68,11 +68,15 @@ CheckerLabel :: struct {
 // `label_floor`: index into `labels` below which labels are not visible.
 //   Function entry pushes the floor to len(labels); function exit
 //   restores it AND truncates labels back to that point.
+// `lang`: the source language. Read by checks that branch on TS-mode
+//   semantics (e.g. duplicate constructor: TS allows overload sigs to
+//   repeat freely, only the SECOND implementation body is an error).
 CheckerContext :: struct {
 	iter_depth:   int,
 	switch_depth: int,
 	labels:       [dynamic]CheckerLabel,
 	label_floor:  int,
+	lang:         Lang,
 }
 
 Checker :: struct {
@@ -89,10 +93,11 @@ init_checker :: proc(alloc: mem.Allocator) -> Checker {
 
 // check_program is the entry point for the semantic checker.
 // Call after parse_program to validate early errors.
-check_program :: proc(c: ^Checker, program: ^Program) {
+check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	if program == nil { return }
 	ctx: CheckerContext
 	ctx.labels = make([dynamic]CheckerLabel, 0, 4, c.allocator)
+	ctx.lang   = lang
 	for stmt in program.body {
 		ck_walk_stmt(c, &ctx, stmt)
 	}
@@ -111,7 +116,7 @@ check_program :: proc(c: ^Checker, program: ^Program) {
 checker_run_for_job :: proc(job: ^ParseJob) {
 	if job == nil || job.program == nil { return }
 	c := init_checker(job.arena_alloc)
-	check_program(&c, job.program)
+	check_program(&c, job.program, job.lang)
 	if len(c.errors) == 0 { return }
 	for err in c.errors {
 		bump_append(&job.parser.errors, err)
@@ -314,6 +319,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	case ^SwitchStatement:
 		if v == nil { return }
 		ck_walk_expr(c, ctx, v.discriminant)
+		ck_check_switch_default_dups(c, v)
 		ctx.switch_depth += 1
 		for sc in v.cases {
 			if t, have := sc.test.(^Expression); have && t != nil { ck_walk_expr(c, ctx, t) }
@@ -435,6 +441,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^MemberExpression:
 		if e == nil { return }
+		ck_check_member_super_private(c, e)
 		ck_walk_expr(c, ctx, e.object)
 		if e.computed && e.property != nil { ck_walk_expr(c, ctx, e.property) }
 
@@ -480,6 +487,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^ObjectExpression:
 		if e == nil { return }
+		ck_check_object_proto_dups(c, e)
 		for prop in e.properties {
 			// Computed key contains an expression; non-computed key is
 			// an Identifier / literal — visit both so nested function
@@ -491,7 +499,10 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^SpreadElement:
 		if e != nil { ck_walk_expr(c, ctx, e.argument) }
 
-	case ^UnaryExpression:           if e != nil { ck_walk_expr(c, ctx, e.argument) }
+	case ^UnaryExpression:
+		if e == nil { return }
+		ck_check_unary_delete_private(c, e)
+		ck_walk_expr(c, ctx, e.argument)
 	case ^UpdateExpression:          if e != nil { ck_walk_expr(c, ctx, e.argument) }
 	case ^ParenthesizedExpression:   if e != nil { ck_walk_expr(c, ctx, e.expression) }
 	case ^AwaitExpression:           if e != nil { ck_walk_expr(c, ctx, e.argument) }
@@ -602,6 +613,10 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	if sc, have := cls.super_class.(^Expression); have && sc != nil {
 		ck_walk_expr(c, ctx, sc)
 	}
+	// Whole-class checks: §15.7.1 — at most one constructor (with TS
+	// overload-signature exception). Migrated from parser.odin in slice 4.
+	ck_check_class_constructors(c, ctx, cls)
+
 	for elem in cls.body.body {
 		// Per-element accessor early-error checks (§15.4.3 / §15.4.4 /
 		// §15.4.5). Migrated from parser.odin in slice 3 — keeps the
@@ -683,6 +698,144 @@ ck_check_accessor :: proc(c: ^Checker, elem: ClassElement) {
 		if _, has_default := param.default_val.(^Expression); has_default {
 			ck_report(c, param_loc, "A 'set' accessor cannot have an initializer.")
 		}
+	}
+}
+
+// ============================================================================
+// Slice 4 — local AST-only early-error checks.
+//
+// Each helper looks at a single AST node (no ancestor context required
+// beyond what the walker already tracks) and reports any §-conformance
+// violations it finds. These checks were previously inline
+// `report_semantic_error*` calls in src/parser.odin; the migration
+// honours the architectural rule
+//
+//   * parser  = syntax errors
+//   * checker = semantic / early errors
+//
+// so the parser stays a pure tree builder.
+// ============================================================================
+
+// §13.2.5.1 — an ObjectLiteral may not contain more than one
+// PropertyDefinition whose PropertyName is the literal identifier /
+// string `__proto__` and whose kind is `init`. Methods, getters,
+// setters, computed keys, and the `{ __proto__ }` shorthand do not
+// participate. The diagnostic anchors at the duplicate key (matching
+// V8 / Acorn / OXC).
+//
+// Note: this check used to live in parser.odin behind a
+// `pending_proto_dups` list because object literals could be promoted
+// to ObjectPatterns (where Annex B.3.1 makes the duplicate legal).
+// Post-parse the AST already distinguishes ObjectExpression from
+// ObjectPattern, so the pending machinery is unnecessary here.
+@(private="file")
+ck_check_object_proto_dups :: proc(c: ^Checker, obj: ^ObjectExpression) {
+	if obj == nil { return }
+	proto_seen := false
+	for i := 0; i < len(obj.properties); i += 1 {
+		prop := &obj.properties[i]
+		if !property_is_literal_proto_init(prop) { continue }
+		if proto_seen {
+			err_off := loc_from_expr(prop.key).span.start
+			ck_report(c, u32(err_off), "Redefinition of __proto__ property")
+		} else {
+			proto_seen = true
+		}
+	}
+}
+
+// §14.12.1 — a SwitchStatement may have at most one DefaultClause.
+// Locations anchor at the `default` keyword (which the parser stores
+// as the case's loc.span.start; SwitchCase.test == nil signals default).
+@(private="file")
+ck_check_switch_default_dups :: proc(c: ^Checker, sw: ^SwitchStatement) {
+	if sw == nil { return }
+	default_seen := false
+	for i := 0; i < len(sw.cases); i += 1 {
+		sc := &sw.cases[i]
+		if _, have := sc.test.(^Expression); have { continue } // not a default
+		if default_seen {
+			ck_report(c, u32(sc.loc.span.start), "More than one default clause in switch")
+		} else {
+			default_seen = true
+		}
+	}
+}
+
+// §15.7.1 — at most one constructor per class. Detect by name
+// ("constructor") + non-static + non-computed + (kind == .Method or
+// .Constructor). Static methods named "constructor" do NOT count.
+//
+// TS exception (handled when ctx.lang ∈ {.TS, .TSX}): TypeScript allows
+// any number of overload-signature constructor declarations (empty
+// body) preceding ONE implementation (non-empty body). Only a SECOND
+// implementation is an error. This is the same rule the parser used to
+// enforce inline; preserving it here matches OXC's typescript-eslint
+// behaviour and keeps the corpus's "Duplicate constructor" cluster at
+// zero kessel-only-rejects.
+@(private="file")
+ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
+	if cls == nil { return }
+	ts_mode := ctx.lang == .TS || ctx.lang == .TSX
+	constructor_seen := false
+	constructor_implementation_seen := false
+	for elem in cls.body.body {
+		if elem.key == nil { continue }
+		if elem.static || elem.computed { continue }
+		if elem.kind != .Method && elem.kind != .Constructor { continue }
+		if class_element_prop_name(elem.key) != "constructor" { continue }
+
+		has_body := false
+		if val_expr, vok := elem.value.(^Expression); vok && val_expr != nil {
+			if fn, fok := val_expr^.(^FunctionExpression); fok && fn != nil {
+				has_body = len(fn.body.body) > 0 || fn.body.loc.span.end > fn.body.loc.span.start
+			}
+		}
+
+		loc := u32(get_expression_loc(elem.key).span.start)
+		if ts_mode {
+			if has_body && constructor_implementation_seen {
+				ck_report(c, loc, "Duplicate constructor implementation in class")
+			}
+			if has_body { constructor_implementation_seen = true }
+			constructor_seen = true
+		} else {
+			if constructor_seen {
+				ck_report(c, loc, "Duplicate constructor in class")
+			} else {
+				constructor_seen = true
+			}
+		}
+	}
+}
+
+// §13.5.1 — `delete o.#priv` / `delete this.#priv` is ALWAYS a
+// SyntaxError, regardless of strict / sloppy mode. Private slots
+// cannot be removed. Diagnostic anchors at the unary operator.
+@(private="file")
+ck_check_unary_delete_private :: proc(c: ^Checker, e: ^UnaryExpression) {
+	if e == nil { return }
+	if e.operator != .Delete { return }
+	if e.argument == nil { return }
+	me, is_member := e.argument^.(^MemberExpression)
+	if !is_member || me == nil { return }
+	if me.property == nil { return }
+	if _, is_private := me.property^.(^PrivateIdentifier); is_private {
+		ck_report(c, u32(e.loc.span.start), "Private fields cannot be deleted")
+	}
+}
+
+// §15.7.3 — `super.#name` is a SyntaxError. PrivateNames may only be
+// accessed via `this`, a local variable, or a computed member
+// expression — never through `super`. The diagnostic anchors at the
+// member expression (matching the original parser-side anchor).
+@(private="file")
+ck_check_member_super_private :: proc(c: ^Checker, e: ^MemberExpression) {
+	if e == nil || e.object == nil || e.property == nil { return }
+	if e.computed { return }
+	if _, is_super := e.object^.(^Super); !is_super { return }
+	if _, is_private := e.property^.(^PrivateIdentifier); is_private {
+		ck_report(c, u32(e.loc.span.start), "Private fields cannot be accessed through 'super'")
 	}
 }
 
