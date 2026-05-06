@@ -886,53 +886,28 @@ run_server_mode :: proc() {
 }
 
 parse_file :: proc(file_path: string) {
-	// Read file (mmap on POSIX, fall back to read on Windows / failure;
-	// see src/source_io.odin).
-	src_buf, src_ok := source_read(file_path, context.allocator)
-	if !src_ok {
+	// Build a parse job. The job owns source + arena + lexer + parser
+	// and applies the snapshot of CLI flags taken via
+	// parse_config_from_globals. Previously this body inlined the read
+	// + arena + lexer + parser + flag-threading sequence; the same
+	// sequence existed in three other call sites with subtle drift.
+	// See src/parse_job.odin.
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_globals()) {
 		out_printf("Error: Could not read file: %s\n", file_path)
 		flush_stdout_writer()
 		os.exit(1)
 	}
-	defer source_release(src_buf, context.allocator)
-	source := src_buf.data
+	defer parse_job_close(&job)
+	parse_job_run(&job)
 
-	// Create virtual arena for allocations (lazy commit via virtual memory)
-	arena: mvirtual.Arena
-	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
-	err := mvirtual.arena_init_static(&arena, arena_size)
-	if err != nil {
-		fmt.eprintf("Error initializing arena: %v\n", err)
-		os.exit(1)
-	}
-	defer mvirtual.arena_destroy(&arena)
-	arena_alloc := mvirtual.arena_allocator(&arena)
+	// Local aliases keep the emit-side body below diff-readable.
+	source  := job.source.data
+	lex     := &job.lexer
+	p       := &job.parser
+	program := job.program
+	arena   := job.arena_ptr^
 
-	// Resolve source type up-front so the lexer can gate Annex B HTML-like
-	// comments correctly even on the very first prefetched token.
-	lex_source_type: SourceType = .Script
-	if st, ok := source_type_override.?; ok {
-		lex_source_type = st
-	}
-
-	// Initialize optimized lexer with compact tokens + SIMD
-	lex: Lexer
-	init_lexer(&lex, string(source), arena_alloc, lex_source_type)
-
-	// Initialize parser with optimized lexer. Language mode is CLI override
-	// when set, else detected from the file extension. `.d.ts` needs its
-	// own bit because it shares TS grammar but has declaration-file
-	// ambient relaxations.
-	p: Parser
-	init_parser(
-		&p,
-		&lex,
-		arena_alloc,
-		resolve_lang(file_path),
-		strings.has_suffix(file_path, ".d.ts") ||
-		strings.has_suffix(file_path, ".d.mts") ||
-		strings.has_suffix(file_path, ".d.cts"),
-	)
 	// TS-shape emitter toggle - mirror OXC's behaviour of emitting unconditional
 	// TS-ESTree fields (typeAnnotation: null, optional: false, etc.) only when
 	// parsing TypeScript. Keeps JS output unchanged. OPT-5 `--ast-type=` pins
@@ -940,36 +915,8 @@ parse_file :: proc(file_path: string) {
 	switch ast_type_override {
 	case .JS:   emit_ts_shape = false
 	case .TS:   emit_ts_shape = true
-	case .Auto: emit_ts_shape = p.lang == .TS || p.lang == .TSX
+	case .Auto: emit_ts_shape = job.lang == .TS || job.lang == .TSX
 	}
-
-	// `--source-type=` override: nil = unambiguous (auto-detect), else pin
-	// to Script or Module. The parser reads p.force_source_type to know
-	// whether to run the auto-upgrade pass after parsing the body.
-	//
-	// `--strict-source-type` (K13): when no explicit --source-type is
-	// given, promote the default to Script so implicit module-syntax
-	// (top-level import / export / import.meta / TLA) is rejected by
-	// the existing module-syntax-in-script gate instead of silently
-	// auto-upgrading. When --source-type=module is explicitly given,
-	// strict-mode is a no-op (caller opted in). When --source-type=script
-	// is explicit, strict-mode is already the behaviour.
-	initial_source_type: SourceType = .Script
-	if st, ok := source_type_override.?; ok {
-		initial_source_type = st
-		p.force_source_type = st
-	} else if strict_source_type_enabled {
-		initial_source_type = .Script
-		p.force_source_type = .Script
-	}
-	p.force_strict = force_strict_enabled
-
-	// `--preserve-parens`: thread to the parser so parse_primary_expr can
-	// wrap non-arrow `(expr)` forms in a ParenthesizedExpression node.
-	p.preserve_parens = preserve_parens_enabled
-
-	// Parse program
-	program := parse_program(&p, initial_source_type)
 
 	// Build byte→UTF-16 offset table for ESTree span emission.
 	build_utf16_table(source, context.allocator)
@@ -996,7 +943,7 @@ parse_file :: proc(file_path: string) {
 
 	// Emit ESM module record if flag is enabled
 	if emit_module_record {
-		print_module_record(&p, 1)
+		print_module_record(p, 1)
 	}
 
 	// Emit structured errors inside the JSON output
@@ -1136,26 +1083,23 @@ parse_file :: proc(file_path: string) {
 // ============================================================================
 
 raw_transfer_file :: proc(file_path: string, out_path: string) {
-	src_buf, src_ok := source_read(file_path, context.allocator)
-	if !src_ok {
+	// All flag threading (lang, source-type, strict, preserve-parens,
+	// .d.ts) flows through ParseJob now - matches the JSON path exactly.
+	// Previously this used the standalone produce_raw_buffer which only
+	// accepted `lang`, silently ignoring every other flag.
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_globals()) {
 		fmt.eprintf("Error: Could not read file: %s\n", file_path)
 		os.exit(1)
 	}
-	defer source_release(src_buf, context.allocator)
-	source := src_buf.data
+	defer parse_job_close(&job)
 
-	arena: mvirtual.Arena
-	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
-	err := mvirtual.arena_init_static(&arena, arena_size)
-	if err != nil {
-		fmt.eprintf("Error initializing arena: %v\n", err)
-		os.exit(1)
-	}
-	defer mvirtual.arena_destroy(&arena)
-	arena_alloc := mvirtual.arena_allocator(&arena)
-
+	// Time the parse + rewrite for the diagnostic banner. Measured at
+	// the call site (not inside parse_job_run) so the bench loop pays no
+	// time.tick_now() overhead it doesn't ask for.
 	start := time.tick_now()
-	result := produce_raw_buffer(string(source), &arena, arena_alloc, resolve_lang(file_path))
+	parse_job_run(&job)
+	result := produce_raw_buffer_from_job(&job)
 	elapsed := time.tick_since(start)
 
 	if out_path != "" {
@@ -1166,9 +1110,10 @@ raw_transfer_file :: proc(file_path: string, out_path: string) {
 		}
 	}
 
+	source_len := len(job.source.data)
 	fmt.eprintf("Raw transfer: %s\n", file_path)
-	fmt.eprintf("  Source:      %d bytes\n", len(source))
-	fmt.eprintf("  Buffer:      %d bytes (%.1fx source)\n", len(result.buffer), f64(len(result.buffer)) / f64(max(len(source), 1)))
+	fmt.eprintf("  Source:      %d bytes\n", source_len)
+	fmt.eprintf("  Buffer:      %d bytes (%.1fx source)\n", len(result.buffer), f64(len(result.buffer)) / f64(max(source_len, 1)))
 	fmt.eprintf("  Program at:  offset %d\n", result.header.program_offset)
 	fmt.eprintf("  Parse errors: %d\n", result.error_count)
 	fmt.eprintf("  Time:        %.3f ms\n", f64(time.duration_microseconds(elapsed)) / 1000.0)
@@ -1184,22 +1129,12 @@ raw_transfer_file :: proc(file_path: string, out_path: string) {
 // ============================================================================
 
 parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, file_size: int, error_count: int) {
-	src_buf, src_ok := source_read(file_path, context.allocator)
-	if !src_ok { return false, 0, 0 }
-	defer source_release(src_buf, context.allocator)
-	source := src_buf.data
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_globals()) { return false, 0, 0 }
+	defer parse_job_close(&job)
+	parse_job_run(&job)
 
-	arena: mvirtual.Arena
-	_ = mvirtual.arena_init_static(&arena, uint(max(len(source) * 256, 16 * 1024 * 1024)))
-	defer mvirtual.arena_destroy(&arena)
-	arena_alloc := mvirtual.arena_allocator(&arena)
-
-	lex: Lexer
-	init_lexer(&lex, string(source), arena_alloc)
-	p: Parser
-	init_parser(&p, &lex, arena_alloc)
-	program := parse_program(&p, .Script)
-
+	source := job.source.data
 	build_utf16_table(source, context.allocator)
 
 	// Render AST JSON into a thread-local buffer. `direct_reserve` may grow
@@ -1209,7 +1144,8 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 	// direct_buf points to at the end.
 	est_size := max(len(source) * 20, 4096)
 
-	// Save/restore globals (direct_buf is global - use local override)
+	// Save/restore globals (direct_buf is global - use local override).
+	// This dance shrinks once #2 (ESTree emitter de-globalisation) lands.
 	prev_buf := direct_buf
 	prev_pos := direct_pos
 	prev_use := use_direct_buf
@@ -1218,11 +1154,11 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 	use_direct_buf = true
 
 	out_s("{\n")
-	print_program_ast(program, 1)
+	print_program_ast(job.program, 1)
 
 	// Emit ESM module record if flag is enabled
 	if emit_module_record {
-		print_module_record(&p, 1)
+		print_module_record(&job.parser, 1)
 	}
 	out_s("}\n")
 
@@ -1234,7 +1170,7 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 	direct_pos = prev_pos
 	use_direct_buf = prev_use
 
-	return true, len(source), len(p.errors)
+	return true, len(source), len(job.parser.errors)
 }
 
 // ============================================================================
@@ -1242,23 +1178,16 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 // ============================================================================
 
 parse_file_raw_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, file_size: int, error_count: int) {
-	src_buf, src_ok := source_read(file_path, context.allocator)
-	if !src_ok { return false, 0, 0 }
-	defer source_release(src_buf, context.allocator)
-	source := src_buf.data
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_globals()) { return false, 0, 0 }
+	defer parse_job_close(&job)
+	parse_job_run(&job)
 
-	arena: mvirtual.Arena
-	arena_size := uint(max(len(source) * 256, 16 * 1024 * 1024))
-	init_err := mvirtual.arena_init_static(&arena, arena_size)
-	if init_err != nil { return false, 0, 0 }
-	defer mvirtual.arena_destroy(&arena)
-	arena_alloc := mvirtual.arena_allocator(&arena)
-
-	result := produce_raw_buffer(string(source), &arena, arena_alloc)
+	result := produce_raw_buffer_from_job(&job)
 	if !write_raw_buffer(result, out_path) {
 		return false, 0, 0
 	}
-	return true, len(source), result.error_count
+	return true, len(job.source.data), result.error_count
 }
 
 // ============================================================================
@@ -1517,19 +1446,19 @@ microbench_lex :: proc(file_path: string, iterations: int) {
 }
 
 microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = false) {
-	// Read file once. mmap path is taken on POSIX (Darwin / Linux / BSD);
-	// see src/source_io.odin. Bench-neutral because the read happens
-	// outside the timed loop.
-	src_buf, src_ok := source_read(file_path, context.allocator)
-	if !src_ok {
+	// Pre-read file size for the bench-tight arena formula. parse_job
+	// opens it again below (mmap on POSIX is cheap); doing it twice
+	// keeps the size-aware reservation logic in this file rather than
+	// pushing a bench-shaped knob into ParseJob's contract. The actual
+	// source bytes for parsing flow through job.source.
+	probe, probe_ok := source_read(file_path, context.allocator)
+	if !probe_ok {
 		out_printf("Error: Could not read file: %s\n", file_path)
 		flush_stdout_writer()
 		os.exit(1)
 	}
-	defer source_release(src_buf, context.allocator)
-	source := src_buf.data
-
-	file_size := len(source)
+	file_size := len(probe.data)
+	source_release(probe, context.allocator)
 
 	// Allocate array for timing measurements
 	durations := make([dynamic]time.Duration, context.allocator)
@@ -1538,7 +1467,7 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = fal
 	// Pre-compute arena reservation based on source size
 	// Small files: tight arena avoids mmap overhead for sub-microsecond parses
 	// Large files: 128× source for AST + dynamic arrays
-	arena_reserve := uint(len(source) * 128)
+	arena_reserve := uint(file_size * 128)
 	if arena_reserve < 256 * 1024 {
 		arena_reserve = 256 * 1024  // 256KB min (avoids 16MB mmap for tiny files)
 	}
@@ -1551,20 +1480,25 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = fal
 		os.exit(1)
 	}
 	defer mvirtual.arena_destroy(&arena)
-	arena_alloc := mvirtual.arena_allocator(&arena)
 
-	// Warm-up run (1 iteration, not counted)
-	{
-		lex: Lexer
-		init_lexer(&lex, string(source), arena_alloc)
+	// One job for the whole bench. Borrowed arena lets us reset between
+	// iterations without paying mmap/munmap; the job re-inits lexer +
+	// parser fresh on every parse_job_run. ast_only is bench-only and
+	// rides ParseConfig now.
+	cfg := parse_config_from_globals()
+	cfg.ast_only = ast_only
 
-		p: Parser
-		init_parser(&p, &lex, arena_alloc)
-		p.ast_only = ast_only
-
-		_ = parse_program(&p, .Script)
-		mvirtual.arena_free_all(&arena)
+	job: ParseJob
+	if !parse_job_open_borrowed_arena(&job, file_path, cfg, &arena) {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		os.exit(1)
 	}
+	defer parse_job_close(&job)
+
+	// Warm-up run (1 iteration, not counted). reset_arena drops the
+	// warm-up's allocations so the timed loop starts from a clean arena.
+	parse_job_run(&job)
+	parse_job_reset_arena(&job)
 
 	// Main benchmark loop. The arena reset is performed BEFORE the timer
 	// starts — in OXC's bench harness the arena (`Allocator`) is dropped
@@ -1577,19 +1511,10 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = fal
 	for i in 0..<iterations {
 		// Excluded from timing: arena teardown (mirrors OXC's drop-after-
 		// elapsed). Real-world parse-once-and-exit doesn't pay this either.
-		mvirtual.arena_free_all(&arena)
+		parse_job_reset_arena(&job)
 
 		start := time.tick_now()
-
-		lex: Lexer
-		init_lexer(&lex, string(source), arena_alloc)
-
-		p: Parser
-		init_parser(&p, &lex, arena_alloc)
-		p.ast_only = ast_only
-
-		_ = parse_program(&p, .Script)
-
+		parse_job_run(&job)
 		elapsed := time.tick_since(start)
 		append(&durations, elapsed)
 	}
