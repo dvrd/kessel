@@ -2382,12 +2382,14 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				// Explicitly forced Script mode - reject unconditionally.
 				report_error(p, "Top-level 'for await' is only valid in module code")
-			} else if !have && !allow_ts_mode(p) {
-				// Auto-detected JS file with no forced source type.
-				// `for await` at script top level triggers a module-only
-				// error. TS files are exempt because the TS compiler
-				// treats them as modules when they contain import/export,
-				// and we parse top-down before seeing those.
+			} else if !have && !allow_ts_mode(p) && !p.has_module_syntax {
+				// Auto-detected JS file with no forced source type and no
+				// module syntax seen yet. `for await` at script top level
+				// triggers a module-only error. If `has_module_syntax` is
+				// already true (import/export appeared before this point),
+				// the file is effectively a module and `for await` is valid.
+				// TS files are exempt because the TS compiler treats them
+				// as modules when they contain import/export.
 				report_error(p, "Top-level 'for await' is only valid in module code")
 			}
 		}
@@ -4379,9 +4381,13 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// in this position), so we have to parse the args here. Closes 95+
 		// OXC corpus rejects in the "Expected {, got <" cluster (S26 W6
 		// phase 3 bug class #8). Same fix at the ClassExpression call site.
-		// Only in TS/TSX mode — in JS/JSX mode `<` is a relational operator
-		// and `<<` is left-shift, not type arguments.
-		if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
+		// OXC parses type arguments on class heritage in all modes
+		// (JS + TS), matching checkJs / allowJs usage patterns.
+		// In TS mode, `<<` (left-shift) is re-lexed as two `<` tokens
+		// to support `Foo<<T>() => void>`. In JS mode, only plain `<`
+		// triggers type-arg parsing — `<<` stays as left-shift.
+		if (allow_ts_mode(p) && is_open_angle_or_lshift(p)) ||
+		   (!allow_ts_mode(p) && is_token(p, .LAngle)) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
 		// §15.7.1 - ClassHeritage uses LeftHandSideExpression. Unparenthesised
@@ -8665,15 +8671,34 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 			decl.import_kind = .Type
 			eat(p) // consume `type`
-		} else if nxt == .Identifier {
+		} else if nxt == .Identifier || nxt == .From {
 			// Could be `import type Foo from "m"` (type-only default) or
 			// `import type from "m"` (default import of "type"). Only flag as
 			// type-only when the identifier after `type` is NOT `from`.
+			// Exception: `import type from from "m"` — the first `from` is
+			// the binding name and `type` is the type-only keyword. Detect
+			// via 3-token lookahead: if nxt="from" and nxt+1="from", it's
+			// the type-only form. Matches OXC.
 			nxt_val := p.lexer.source[p.lexer.nxt.start:p.lexer.nxt.end]
 			if nxt_val != "from" {
 				if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 				decl.import_kind = .Type
 				eat(p) // consume `type`
+			} else {
+				// nxt is "from" — check if the token AFTER that is also "from".
+				snap_tf := lexer_snapshot(p)
+				advance_token(p) // consume `type` → cur="from" (binding)
+				advance_token(p) // consume "from" → cur=third token
+				// `import type from from "m"` or `import type from = require(...)`
+				third_is_from := p.cur_type == .From ||
+				                 (p.cur_type == .Identifier && p.cur_tok.value == "from") ||
+				                 p.cur_type == .Assign
+				lexer_restore(p, snap_tf)
+				if third_is_from {
+					if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
+					decl.import_kind = .Type
+					eat(p) // consume `type`
+				}
 			}
 		}
 	}
@@ -8685,7 +8710,8 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// cluster, all reporting "Expected from, got =" pre-fix.
 	// Check for TS import-equals: `import X = ...`. Also handles
 	// `import await = ...` (await as binding name in non-module).
-	if allow_ts_mode(p) && (p.cur_type == .Identifier || p.cur_type == .Await || p.cur_type == .Yield) &&
+	if allow_ts_mode(p) && (p.cur_type == .Identifier || p.cur_type == .Await ||
+	   p.cur_type == .Yield || p.cur_type == .From) &&
 	   p.lexer != nil && p.lexer.nxt.kind == .Assign {
 		return parse_ts_import_equals(p, start, decl.import_kind)
 	}
@@ -12801,9 +12827,10 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		if super_class == nil {
 			report_error(p, "Expected expression after 'extends'")
 		}
-		// Only parse type arguments in TS/TSX mode — in JS/JSX mode
-		// `<` is relational and `<<` is left-shift, not type arguments.
-		if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
+		// OXC parses type arguments on class heritage in all modes.
+		// In JS mode, only plain `<` — `<<` stays as left-shift.
+		if (allow_ts_mode(p) && is_open_angle_or_lshift(p)) ||
+		   (!allow_ts_mode(p) && is_token(p, .LAngle)) {
 			super_type_arguments = parse_ts_type_arguments(p)
 		}
 		// Unparenthesised arrow functions are AssignmentExpressions, not
