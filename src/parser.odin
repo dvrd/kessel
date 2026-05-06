@@ -562,6 +562,13 @@ Parser :: struct {
 	// ArrayExpression / ObjectExpression element conversions.
 	in_nested_pattern_convert: bool,
 
+	// Pending top-level `for await` offsets. In auto-detect mode (no
+	// forced source type, non-TS), `for await` at the top level may or
+	// may not be valid depending on whether the file turns out to be a
+	// module. We record the offset here and only report the error at
+	// end-of-parse if the program is still Script.
+	pending_for_await_offsets: [dynamic]u32,
+
 	// Inside an ambient TS module / namespace body: every declaration is
 	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
 	// semantics and also the string-named `module "x" { ... }` shortcut
@@ -775,6 +782,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
 	p.pending_proto_dups = make([dynamic][2]u32, 0, 2, alloc)
+	p.pending_for_await_offsets = make([dynamic]u32, 0, 2, alloc)
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
 	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1-2 times.
@@ -1559,6 +1567,19 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// by expr_to_pattern (i.e., NOT used as a destructuring target).
 	for pair in p.pending_proto_dups {
 		report_semantic_error_at(p, LexerLoc(pair[1]), "Redefinition of __proto__ property")
+	}
+
+	// Deferred top-level `for await` errors. Only report if the program
+	// ended up as Script (module syntax was never detected). If module
+	// syntax appeared later (e.g. `for await(...){} \n export {}`), the
+	// file is a module and `for await` is valid.
+	if program.type == .Script && len(p.pending_for_await_offsets) > 0 {
+		for off in p.pending_for_await_offsets {
+			bump_append(&p.errors, ParseError{
+				loc     = LexerLoc(off),
+				message = "Top-level 'for await' is only valid in module code",
+			})
+		}
 	}
 
 	// §15.7.3 AllPrivateIdentifiersValid - every PrivateIdentifier
@@ -2382,15 +2403,15 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				// Explicitly forced Script mode - reject unconditionally.
 				report_error(p, "Top-level 'for await' is only valid in module code")
-			} else if !have && !allow_ts_mode(p) && !p.has_module_syntax {
-				// Auto-detected JS file with no forced source type and no
-				// module syntax seen yet. `for await` at script top level
-				// triggers a module-only error. If `has_module_syntax` is
-				// already true (import/export appeared before this point),
-				// the file is effectively a module and `for await` is valid.
-				// TS files are exempt because the TS compiler treats them
-				// as modules when they contain import/export.
-				report_error(p, "Top-level 'for await' is only valid in module code")
+			} else if !have && !allow_ts_mode(p) {
+				// Auto-detect JS file: `for await` validity depends on
+				// whether the file is a module (import/export may appear
+				// AFTER this point). If module syntax is already seen,
+				// it's valid. Otherwise defer the check to end-of-parse
+				// so `for await(...){} \n export {}` isn't mis-rejected.
+				if !p.has_module_syntax {
+					bump_append(&p.pending_for_await_offsets, u32(cur_offset(p)))
+				}
 			}
 		}
 	}
