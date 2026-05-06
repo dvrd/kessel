@@ -5034,6 +5034,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// Computed property: [expr]
 		computed = true
 		eat(p)
+		// OXC rejects `[[` in computed class keys when the `[` is NOT
+		// preceded by `get` / `set` (accessor methods). `set [[0,1]](v)`
+		// is fine because `set` consumed the outer `[` in a different
+		// parse path; but `[[]]()` without accessor triggers an error.
+		if is_token(p, .LBracket) && kind != .Get && kind != .Set {
+			report_error(p, "Unexpected token")
+		}
 		// `[` opens a fresh expression context - the enclosing for-head
 		// no_in restriction does not apply inside computed property keys
 		// (`for (C = class { set ['x' in y](v) {} }; ; )` is legal).
@@ -15293,6 +15300,15 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	}
 	children := parse_jsx_children(p)
 	closing := parse_jsx_closing_element(p, name)
+	// Validate opening and closing tag names match. Only report when no
+	// prior errors exist — during error recovery / ambiguity resolution,
+	// tag names may be garbled and false positives are common.
+	opening_name := jsx_element_name_string(name)
+	closing_name := closing != nil ? jsx_element_name_string(closing.name) : ""
+	if closing != nil && opening_name != closing_name &&
+	   len(opening_name) > 0 && len(closing_name) > 0 && len(p.errors) == 0 {
+		report_error(p, fmt.tprintf("Expected corresponding JSX closing tag for '%s'.", opening_name))
+	}
 	elem := new_node(p, JSXElement)
 	elem.loc = start
 	elem.opening_element = opening
@@ -15300,6 +15316,21 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	elem.closing_element = closing
 	elem.loc.span.end = prev_end_offset(p)
 	return expression_from(p, elem)
+}
+
+// Extract a string representation of a JSXElementName for tag matching.
+jsx_element_name_string :: proc(name: JSXElementName) -> string {
+	switch n in name {
+	case JSXIdentifier:
+		return n.name
+	case ^JSXNamespacedName:
+		if n == nil { return "" }
+		return n.name.name  // simplified - ignores namespace
+	case ^JSXMemberExpression:
+		if n == nil { return "" }
+		return n.property.name  // simplified
+	}
+	return ""
 }
 
 parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
@@ -15333,6 +15364,15 @@ parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 	start_loc := cur_loc(p)
 	current := get_current(p)
 	name := current.value
+	// JSX spec: Unicode escapes are not allowed in JSX tag names or
+	// attribute names. `<\u0061>` is invalid — must write `<a>`.
+	// OXC keeps the raw source for tag comparison, so `<\u0061></a>`
+	// gets a "closing tag mismatch" error. Match by using the raw
+	// source span as the identifier name when escapes are present.
+	if current.has_escape && p.lexer != nil {
+		raw := p.lexer.source[int(current.loc):current.raw_end]
+		name = raw
+	}
 	eat(p)
 	if is_token(p, .Minus) {
 		parts := make([dynamic]string, 0, 4, p.allocator)
