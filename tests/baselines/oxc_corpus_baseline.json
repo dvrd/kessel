@@ -1,21 +1,21 @@
 {
   "totalFiles": 25140,
   "verdicts": {
-    "ok-vs-oxc": 15683,
+    "ok-vs-oxc": 15684,
     "skip-multi-file": 3519,
-    "oxc-only-rejects": 10,
+    "oxc-only-rejects": 8,
     "should-reject-passed": 34,
     "pass-both": 3077,
     "should-pass-rejected": 2160,
-    "reject-both": 657
+    "reject-both": 658
   },
   "bySuite": {
     "typescript": {
       "total": 19209,
       "verdicts": {
-        "ok-vs-oxc": 15683,
+        "ok-vs-oxc": 15684,
         "skip-multi-file": 3519,
-        "oxc-only-rejects": 7
+        "oxc-only-rejects": 6
       }
     },
     "babel": {
@@ -24,8 +24,8 @@
         "should-reject-passed": 34,
         "pass-both": 3038,
         "should-pass-rejected": 2160,
-        "reject-both": 657,
-        "oxc-only-rejects": 3
+        "reject-both": 658,
+        "oxc-only-rejects": 2
       }
     },
     "estree": {
@@ -38,7 +38,7 @@
   "bySubdir": {
     "typescript/compiler": {
       "skip-multi-file": 1188,
-      "oxc-only-rejects": 2
+      "oxc-only-rejects": 1
     },
     "typescript/conformance/ambient": {
       "skip-multi-file": 10
@@ -678,8 +678,7 @@
       "should-pass-rejected": 8
     },
     "babel/typescript/class": {
-      "should-pass-rejected": 35,
-      "oxc-only-rejects": 1
+      "should-pass-rejected": 35
     },
     "babel/typescript/conditional": {
       "should-reject-passed": 3

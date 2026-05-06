@@ -4768,6 +4768,30 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if !consumed { break }
 	}
 
+	// OXC rejects `static\nstatic <name>` when the second `static` and
+	// the name token are on the same line — OXC reads both `static`
+	// tokens as modifiers, producing a conflict. When the name is on a
+	// SEPARATE line (`static\nstatic\na()`), OXC does ASI and accepts.
+	// Match by peeking 2 tokens ahead: reject only when the token after
+	// the second `static` is on the same line (no FLAG_NEW_LINE).
+	if is_token(p, .Static) && p.lexer != nil && p.lexer.nxt.kind == .Static &&
+	   (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+		snap_ss := lexer_snapshot(p)
+		advance_token(p) // consume first `static`
+		advance_token(p) // consume second `static` → cur = third token
+		third_on_same_line := !p.cur_tok.had_line_terminator
+		third_type := p.cur_type
+		lexer_restore(p, snap_ss)
+		// Only reject when the third token is on the same line as the
+		// second `static` and is a plausible member-name start.
+		if third_on_same_line && third_type != .RBrace && third_type != .Semi &&
+		   third_type != .EOF {
+			eat(p)       // consume first `static` (field name)
+			eat(p)       // consume second `static` (would-be modifier)
+			report_error(p, fmt.tprintf("Expected `;` but found `%s`", cur_value(p)))
+		}
+	}
+
 	// Modifier ordering validation (OXC parser-level).
 	if allow_ts_mode(p) {
 		if access_order >= 0 && static_order >= 0 && access_order > static_order {
@@ -17279,6 +17303,31 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 		lexer_restore(p, snap)
 		report_error(p, "Unexpected '<': not a valid TS type assertion or generic arrow")
 		return nil
+	}
+	// OXC rejects `<T>yield 0` in generators: `yield` directly after
+	// `>` is treated as an identifier (§14.4.1), which is reserved.
+	// `<T>(yield 0)` is fine (parens open AssignmentExpression context).
+	// Distinguish by checking if the expression starts at the same
+	// offset as the `>` end (no intervening paren).
+	if p.in_generator {
+		if ye, ok := expr^.(^YieldExpression); ok {
+			// Check if `yield` directly follows `>` (bare form), or is
+			// inside parens. Walk backwards from yield's start offset.
+			ye_start := int(ye.loc.span.start)
+			bare_yield := false
+			if p.lexer != nil {
+				src_bytes := p.lexer.source_bytes
+				i := ye_start - 1
+				for i >= 0 && (src_bytes[i] == ' ' || src_bytes[i] == '\t' ||
+				               src_bytes[i] == '\n' || src_bytes[i] == '\r') {
+					i -= 1
+				}
+				if i >= 0 && src_bytes[i] == '>' { bare_yield = true }
+			}
+			if bare_yield {
+				report_error(p, "Cannot use `yield` as an identifier in a generator context")
+			}
+		}
 	}
 	node := new_node(p, TSTypeAssertion)
 	node.loc = start
