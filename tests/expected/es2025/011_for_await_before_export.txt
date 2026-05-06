@@ -1,0 +1,76 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 114,
+  "sourceType": "module",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ForOfStatement",
+      "start": 71,
+      "end": 103,
+      "left": {
+        "type": "VariableDeclaration",
+        "start": 82,
+        "end": 89,
+        "kind": "const",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 88,
+            "end": 89,
+            "id": {
+              "type": "Identifier",
+              "start": 88,
+              "end": 89,
+              "name": "x"            },
+            "init": null          }
+        ]
+      },
+      "right": {
+        "type": "ArrayExpression",
+        "start": 93,
+        "end": 99,
+        "elements": [
+          {
+            "type": "Literal",
+            "start": 94,
+            "end": 95,
+            "value": 1,
+            "raw": "1"          },
+          {
+            "type": "Literal",
+            "start": 97,
+            "end": 98,
+            "value": 2,
+            "raw": "2"          }
+        ]      },
+      "await": true,
+      "body": {
+        "type": "BlockStatement",
+        "start": 101,
+        "end": 103,
+        "body": [
+        ]      }    },
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 104,
+      "end": 113,
+      "declaration": null,
+      "specifiers": [],
+      "source": null,
+      "attributes": []    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 70,
+      "value": " for-await at top level is valid when export appears later (module)."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=37640B reserved=16777216B ratio=0%
+Parse errors: 0

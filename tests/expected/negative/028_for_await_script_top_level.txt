@@ -1,0 +1,78 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 92,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ForOfStatement",
+      "start": 59,
+      "end": 91,
+      "left": {
+        "type": "VariableDeclaration",
+        "start": 70,
+        "end": 77,
+        "kind": "const",
+        "declarations": [
+          {
+            "type": "VariableDeclarator",
+            "start": 76,
+            "end": 77,
+            "id": {
+              "type": "Identifier",
+              "start": 76,
+              "end": 77,
+              "name": "x"            },
+            "init": null          }
+        ]
+      },
+      "right": {
+        "type": "ArrayExpression",
+        "start": 81,
+        "end": 87,
+        "elements": [
+          {
+            "type": "Literal",
+            "start": 82,
+            "end": 83,
+            "value": 1,
+            "raw": "1"          },
+          {
+            "type": "Literal",
+            "start": 85,
+            "end": 86,
+            "value": 2,
+            "raw": "2"          }
+        ]      },
+      "await": true,
+      "body": {
+        "type": "BlockStatement",
+        "start": 89,
+        "end": 91,
+        "body": [
+        ]      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 58,
+      "value": " for-await at top level in script mode is a SyntaxError."
+    }
+  ],
+  "errors": [
+    {
+      "message": "Top-level 'for await' is only valid in module code",
+      "line": 2,
+      "column": 11,
+      "offset": 69
+    }
+  ]
+}
+Parse errors (1):
+  Line 2, Column 11: Top-level 'for await' is only valid in module code
+
+--- Statistics ---
+Arena: used=37488B reserved=16777216B ratio=0%
+Parse errors: 1

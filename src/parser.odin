@@ -8859,7 +8859,31 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			if decl.import_kind == .Type && allow_ts_mode(p) &&
 			   p.cur_type == .Identifier && p.cur_tok.value == "type" {
-				report_error(p, "The 'type' modifier cannot be used in a type-only import")
+				// `import type { type ... }` — distinguish `type` as the
+				// imported NAME from `type` as an inline-type MODIFIER.
+				// When followed by `as <ident>` or `,` or `}`, `type` is
+				// the name being imported (valid). When followed by another
+				// identifier (not `as`), `type` is a modifier (invalid in
+				// type-only imports). Matches OXC.
+				nxt_kind := p.lexer.nxt.kind
+				type_is_modifier := nxt_kind != .As && nxt_kind != .Comma &&
+				                    nxt_kind != .RBrace
+				// `type as }` — `as` is not followed by identifier, so
+				// `type` is a modifier on `as`. Check: `as` + non-ident.
+				if nxt_kind == .As {
+					snap_t := lexer_snapshot(p)
+					advance_token(p) // consume `type`
+					advance_token(p) // consume `as`
+					after_as := p.cur_type
+					lexer_restore(p, snap_t)
+					if after_as != .Identifier && !can_be_binding_identifier(after_as) &&
+					   after_as != .String {
+						type_is_modifier = true  // `type as }` → modifier
+					}
+				}
+				if type_is_modifier {
+					report_error(p, "The 'type' modifier cannot be used in a type-only import")
+				}
 			}
 			spec := parse_import_specifier(p)
 			if spec != nil {
@@ -8935,7 +8959,21 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 					if decl.import_kind == .Type && allow_ts_mode(p) &&
 					   p.cur_type == .Identifier && p.cur_tok.value == "type" {
-						report_error(p, "The 'type' modifier cannot be used in a type-only import")
+						// Same disambiguation as the primary named-import loop above.
+						nxt_k := p.lexer.nxt.kind
+						is_mod := nxt_k != .As && nxt_k != .Comma && nxt_k != .RBrace
+						if nxt_k == .As {
+							snap_c := lexer_snapshot(p)
+							advance_token(p); advance_token(p)
+							a_t := p.cur_type
+							lexer_restore(p, snap_c)
+							if a_t != .Identifier && !can_be_binding_identifier(a_t) && a_t != .String {
+								is_mod = true
+							}
+						}
+						if is_mod {
+							report_error(p, "The 'type' modifier cannot be used in a type-only import")
+						}
 					}
 					spec2 := parse_import_specifier(p)
 					if spec2 != nil {
@@ -9684,12 +9722,28 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 			if p.cur_tok.has_escape && p.lexer.nxt.kind == .As {
 				report_error(p, "Keyword 'type' must not contain escaped characters")
 			}
-			if export_kind == .Type {
-				report_error(p, "The 'type' modifier cannot be used in a type-only export")
-			}
 			nxt := p.lexer.nxt.kind
 			nxt_is_name := nxt == .Identifier || nxt == .String ||
 			               is_keyword_usable_as_property_name(nxt)
+			// Same disambiguation as import: `type` is a modifier only when
+			// followed by a name that isn't `as`/`,`/`}`. When it IS a
+			// modifier and the outer export is type-only, reject.
+			type_is_modifier_export := nxt_is_name && nxt != .As
+			if !type_is_modifier_export && nxt == .As {
+				// `type as }` → modifier on `as`. Check token after `as`.
+				snap_e := lexer_snapshot(p)
+				advance_token(p) // type
+				advance_token(p) // as
+				after_as := p.cur_type
+				lexer_restore(p, snap_e)
+				if after_as != .Identifier && !can_be_binding_identifier(after_as) &&
+				   after_as != .String {
+					type_is_modifier_export = true
+				}
+			}
+			if export_kind == .Type && type_is_modifier_export {
+				report_error(p, "The 'type' modifier cannot be used in a type-only export")
+			}
 			if nxt_is_name && nxt != .As {
 				eat(p) // consume `type`
 			} else if nxt == .As {
