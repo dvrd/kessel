@@ -15516,6 +15516,17 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 		// next `<` / `{`, so it naturally grabs the leading run when the
 		// current token is already one of those delimiters.
 		if text := parse_jsx_text(p); text != nil && text.value != "" {
+			// JSX spec: bare `>` is not allowed in text content — must
+			// use `{'>'}` or `&gt;`. Only report when the parse is clean
+			// (no prior errors) to avoid false positives during recovery.
+			if len(p.errors) == 0 {
+				for c in text.value {
+					if c == '>' {
+						report_error(p, "Unexpected token. Did you mean `{'>'}` or `&gt;`?")
+						break
+					}
+				}
+			}
 			bump_append(&children, text)
 		}
 		if is_token(p, .LAngle) {
