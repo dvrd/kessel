@@ -20,88 +20,16 @@ import "core:thread"
 
 stdout_writer_initialized := false
 stdout_writer: bufio.Writer
-stdout_writer_buf: [1 * 1024 * 1024]byte // Increased from 64KB to 1MB for JSON streaming
+stdout_writer_buf: [1 * 1024 * 1024]byte // 1MB for JSON streaming
 stdout_stream: io.Writer
 
-// Compact JSON output mode - skip indentation and newlines
-compact_json: bool
-
-// Error emission shape - "kessel" (default, { message, line, column, offset })
-// or "oxc" (OXC TS-ESTree shape: { severity, message, labels: [{ span: { start, end } }] }).
-// CLI flag: --errors=oxc. Default preserves backward compat with existing consumers.
-error_format: string = "kessel"
-
-// Language mode override from --lang=js|jsx|ts|tsx. When set, takes
-// precedence over extension detection. When nil, detect_lang_from_path
-// decides per file. Nil default preserves legacy JSX-everywhere for .js
-// files and only tightens .ts / .tsx / .mts / .cts / .d.ts.
-cli_lang_override: Maybe(Lang)
-
-// Emit ESTree loc field on every AST node (line/column positions).
-// CLI flag: --loc. Off by default for backward compat. When enabled,
-// run O(source_size) line-table build once, then O(log lines) binary search per node.
-emit_loc_enabled: bool
-
-// CLI flag: --range. Off by default for backward compat. When enabled,
-// every AST node emits `"range": [start, end]` in addition to the separate
-// "start" and "end" fields, for consumers that expect the ESLint-style
-// range tuple (e.g. ESLint custom rules, Acorn-based tooling).
-emit_range_enabled: bool
-
-// CLI flag: --source-type={script|module|unambiguous}. When set, overrides
-// the parser's default auto-detection. `unambiguous` is the traditional
-// Kessel/Acorn default (auto-upgrade Script→Module on a top-level import /
-// export / import.meta). Values:
-//   .Script   - force Script, disable the auto-upgrade to Module.
-//   .Module   - force Module regardless of body contents.
-//   nil       - unambiguous (auto-detect).
-source_type_override: Maybe(SourceType)
-
-// CLI flag: --strict-source-type. When set, the parser refuses to auto-
-// upgrade Script → Module on implicit module syntax (top-level import /
-// export / import.meta / top-level await). Without an explicit
-// --source-type, the default is promoted to Script so the module-syntax-
-// in-script gate fires; with --source-type=module the behaviour is
-// unchanged (explicit opt-in). Closes K13 — previously implicit module
-// syntax silently flipped sourceType even when the caller never asked.
-strict_source_type_enabled: bool
-
-// CLI flag: --show-semantic-errors (OPT-6). When set, the parser runs
-// the post-parse scope-verification pass: duplicate lexical / var
-// clashes across a body-scope (Program / FunctionBody / BlockStatement
-// / CatchClause / SwitchCase / TryBlock / class static blocks). Off by
-// default so consumers that already have their own semantic layer
-// (tsc, ESLint) don't get duplicate diagnostics.
-show_semantic_errors_enabled: bool
-
-// CLI flag: --force-strict. When set, the parser starts with strict
-// mode enabled regardless of the source text's directive prologue.
-// Used by the Test262 runner for `flags: [onlyStrict]` fixtures so
-// strict-mode early errors (LegacyOctalEscape, for-in initializer,
-// …) fire on corpus fixtures that don't contain `"use strict";`.
-force_strict_enabled: bool
-
-// CLI flag: --preserve-parens. When enabled, every genuine `(expr)`
-// paren-grouping is wrapped in a `ParenthesizedExpression` node (Acorn /
-// OXC extension; NOT in ESTree core). Off by default for byte-identical
-// legacy output.
-preserve_parens_enabled: bool
-
-// Emit ESM module record (hasModuleSyntax, staticImports, staticExports, etc.).
-// CLI flag: --module-record. Off by default for backward compat. Renamed
-// from `emit_module_record` to avoid clashing with the proc of the same
-// name in src/emitter.odin; emit_config_from_globals reads this global.
-cli_module_record_enabled: bool
-
-// OPT-5: explicit `--ast-type=js|ts` override for the TS-ESTree shape.
-// Mirrors oxc-parser's `astType` option, which lets callers pin the AST
-// dialect independent of the parse grammar: parse as TS but emit plain-JS
-// shape (or vice versa).
-//   .Auto - auto (emit_ts_shape resolved from lang in {TS, TSX})
+// AstType drives the --ast-type CLI flag and lives on CliConfig (see
+// src/cli_config.odin). Defined here as a tiny enum so cli_config.odin
+// doesn't have to forward-declare it.
+//   .Auto - emitter resolves ts_shape from parse Lang ({TS, TSX} -> true)
 //   .JS   - force EmitConfig.ts_shape = false
 //   .TS   - force EmitConfig.ts_shape = true
 AstType :: enum { Auto, JS, TS }
-ast_type_override: AstType = .Auto
 
 // HashbangInfo carries ES2023 hashbang metadata from the lexer to the emitter.
 HashbangInfo :: struct {
@@ -140,12 +68,14 @@ flush_stdout_writer :: proc() {
 // CLI-side stdout helpers. Used by banner / help / lex JSON output /
 // server framing / parse stats / error messages. They always write to
 // the stdout bufio writer; the AST emitter uses its own emit_* helpers
-// (src/emitter.odin) that write to e.buf. The pre-#2 code had these
-// helpers route between stdout and e.buf via a `use_direct_buf` global;
-// that ambient routing is gone now.
+// (src/emitter.odin) that write to e.buf.
 //
-// `compact_json` is still honoured so the lex JSON path can be compact
-// when the user passes --compact.
+// Pre-#6 out_println had a `compact_json` branch that stripped the
+// trailing newline. That branch was dead in practice — the AST emitter
+// no longer routes through these helpers (since #2), and no test or
+// downstream consumer relies on compact lex/banner output. Dropping
+// it removes the last reader of the compact_json global from the
+// stdout helpers.
 
 out_print :: proc(args: ..any) -> int {
 	init_stdout_writer()
@@ -154,9 +84,6 @@ out_print :: proc(args: ..any) -> int {
 
 out_println :: proc(args: ..any) -> int {
 	init_stdout_writer()
-	if compact_json {
-		return fmt.wprint(stdout_stream, ..args, flush=false)
-	}
 	return fmt.wprintln(stdout_stream, ..args, flush=false)
 }
 
@@ -192,83 +119,30 @@ main :: proc() {
 			flush_stdout_writer()
 			os.exit(1)
 		}
+		cli := cli_config_default()
 		parse_files := make([dynamic]string)
 		parse_workers := 0
 		parse_out_dir := ""
 		parse_raw := false
-		compact_json = false
-		error_format = "kessel"
-		cli_module_record_enabled = false
-		{
-			i := 2
-			for i < len(os.args) {
-				arg := os.args[i]
-				if arg == "--compact" {
-					compact_json = true
-				} else if arg == "--raw" {
-					parse_raw = true
-				} else if arg == "--workers" && i + 1 < len(os.args) {
-					n, _ := strconv.parse_int(os.args[i+1])
-					parse_workers = n
-					i += 1
-				} else if arg == "--out-dir" && i + 1 < len(os.args) {
-					parse_out_dir = os.args[i+1]
-					i += 1
-				} else if strings.has_prefix(arg, "--errors=") {
-					// Error shape: --errors=oxc emits OXC TS-ESTree shape;
-					// --errors=kessel (or omitted) keeps the legacy shape.
-					error_format = arg[9:]
-				} else if arg == "--loc" {
-					// Emit ESTree loc field (line/column positions) on every AST node.
-					emit_loc_enabled = true
-				} else if arg == "--range" {
-					// Emit ESLint-style `range: [start, end]` on every AST node.
-					emit_range_enabled = true
-				} else if strings.has_prefix(arg, "--source-type=") {
-					val := arg[14:]
-					switch val {
-					case "script":       source_type_override = .Script
-					case "module":       source_type_override = .Module
-					case "unambiguous":  source_type_override = nil
-					case:
-						fmt.eprintf("Error: unknown --source-type value '%s' (expected script|module|unambiguous)\n", val)
-						os.exit(2)
-					}
-				} else if arg == "--strict-source-type" {
-					strict_source_type_enabled = true
-				} else if arg == "--show-semantic-errors" {
-					show_semantic_errors_enabled = true
-				} else if arg == "--force-strict" {
-					force_strict_enabled = true
-				} else if arg == "--preserve-parens" {
-					preserve_parens_enabled = true
-				} else if strings.has_prefix(arg, "--ast-type=") {
-					// OPT-5: pin TS-ESTree shape independent of the parse lang.
-					// `js` forces plain-ESTree output (drops TS-only null-field
-					// padding); `ts` forces TS-ESTree output. `auto` (default)
-					// keeps the existing lang-driven detection.
-					val := arg[11:]
-					switch val {
-					case "js":   ast_type_override = .JS
-					case "ts":   ast_type_override = .TS
-					case "auto": ast_type_override = .Auto
-					case:
-						fmt.eprintf("Error: unknown --ast-type value '%s' (expected js|ts|auto)\n", val)
-						os.exit(2)
-					}
-			} else if arg == "--module-record" {
-				cli_module_record_enabled = true
-			} else if strings.has_prefix(arg, "--lang=") {
-				lang_val := arg[7:]
-				l, ok := parse_lang_flag(lang_val)
-				if !ok {
-					fmt.eprintf("Error: unknown --lang value '%s' (expected js|jsx|ts|tsx)\n", lang_val)
-					os.exit(2)
-				}
-				cli_lang_override = l
-			} else {
-					append(&parse_files, arg)
-				}
+		i := 2
+		for i < len(os.args) {
+			// Try CliConfig flags first; cli_try_parse_flag advances i.
+			if cli_try_parse_flag(&cli, os.args, &i) { continue }
+			// Parse-subcommand-specific flags
+			arg := os.args[i]
+			switch {
+			case arg == "--raw":
+				parse_raw = true
+				i += 1
+			case arg == "--workers" && i + 1 < len(os.args):
+				n, _ := strconv.parse_int(os.args[i+1])
+				parse_workers = n
+				i += 2
+			case arg == "--out-dir" && i + 1 < len(os.args):
+				parse_out_dir = os.args[i+1]
+				i += 2
+			case:
+				append(&parse_files, arg)
 				i += 1
 			}
 		}
@@ -277,12 +151,12 @@ main :: proc() {
 				if parse_out_dir != "" {
 					base := filepath_base(parse_files[0])
 					out_path := strings.concatenate({parse_out_dir, "/", base, ".bin"})
-					parse_file_raw_to_disk(parse_files[0], out_path)
+					parse_file_raw_to_disk(parse_files[0], out_path, cli)
 				} else {
-					raw_transfer_file(parse_files[0], "")
+					raw_transfer_file(parse_files[0], "", cli)
 				}
 			} else {
-				parse_file(parse_files[0])
+				parse_file(parse_files[0], cli)
 			}
 		} else if len(parse_files) > 1 {
 			if parse_workers == 0 {
@@ -290,7 +164,7 @@ main :: proc() {
 				if parse_workers < 1 { parse_workers = 1 }
 			}
 			if parse_out_dir == "" { parse_out_dir = parse_raw ? "tmp/raw" : "tmp/ast" }
-			parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw)
+			parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw, cli)
 		}
 		delete(parse_files)
 
@@ -301,31 +175,22 @@ main :: proc() {
 			flush_stdout_writer()
 			os.exit(1)
 		}
+		cli := cli_config_default()
 		raw_file := os.args[2]
 		raw_out := ""
-		// Walk remaining argv — order-insensitive so callers can interleave
-		// --out and --lang. Mirrors `kessel parse`'s flag handling.
 		i := 3
 		for i < len(os.args) {
+			if cli_try_parse_flag(&cli, os.args, &i) { continue }
 			arg := os.args[i]
 			if arg == "--out" && i + 1 < len(os.args) {
 				raw_out = os.args[i+1]
 				i += 2
-			} else if strings.has_prefix(arg, "--lang=") {
-				lang_val := arg[7:]
-				l, ok := parse_lang_flag(lang_val)
-				if !ok {
-					fmt.eprintf("Error: unknown --lang value '%s' (expected js|jsx|ts|tsx)\n", lang_val)
-					os.exit(2)
-				}
-				cli_lang_override = l
-				i += 1
 			} else {
 				fmt.eprintf("Error: unrecognised flag '%s' for `kessel raw`\n", arg)
 				os.exit(2)
 			}
 		}
-		raw_transfer_file(raw_file, raw_out)
+		raw_transfer_file(raw_file, raw_out, cli)
 
 	case "lex", "tokenize":
 		if len(os.args) < 3 {
@@ -344,16 +209,21 @@ main :: proc() {
 			flush_stdout_writer()
 			os.exit(1)
 		}
+		cli := cli_config_default()
 		mb_sub := os.args[2]
 		mb_file := os.args[3]
 		mb_iters := 100
 		mb_ast_only := false
 		// Scan optional flags after the file path. Order-independent.
-		for i := 4; i < len(os.args); i += 1 {
+		// CliConfig flags pass through cli_try_parse_flag; bench-specific
+		// flags (--iterations, --ast-only) are handled inline.
+		i := 4
+		for i < len(os.args) {
+			if cli_try_parse_flag(&cli, os.args, &i) { continue }
 			arg := os.args[i]
 			if arg == "--iterations" && i + 1 < len(os.args) {
 				if n, ok := strconv.parse_int(os.args[i+1]); ok { mb_iters = n }
-				i += 1
+				i += 2
 			} else if arg == "--ast-only" {
 				// Apples-to-apples comparison vs OXC's parser-only bench:
 				// disables verify_scopes / verify_export_locals / duplicate-
@@ -361,11 +231,14 @@ main :: proc() {
 				// checks. OXC defers all of these to oxc_semantic; the
 				// bench harness for OXC never invokes the semantic pass.
 				mb_ast_only = true
+				i += 1
+			} else {
+				i += 1
 			}
 		}
 		switch mb_sub {
 		case "parse":
-			microbench_file(mb_file, mb_iters, mb_ast_only)
+			microbench_file(mb_file, mb_iters, mb_ast_only, cli)
 		case "lex":
 			microbench_lex(mb_file, mb_iters)
 		case:
@@ -402,7 +275,19 @@ main :: proc() {
 		}
 
 	case "server":
-		run_server_mode()
+		// Server mode parses CLI flags ONCE at startup and applies the
+		// resulting CliConfig to every subsequent file in the request
+		// stream. Pre-#6 the server case had no flag parser despite the
+		// doc-comment claiming flags are sticky - `kessel server
+		// --compact` silently ignored every flag. Fixed for free here.
+		cli := cli_config_default()
+		i := 2
+		for i < len(os.args) {
+			if cli_try_parse_flag(&cli, os.args, &i) { continue }
+			fmt.eprintf("Error: unrecognised flag '%s' for `kessel server`\n", os.args[i])
+			os.exit(2)
+		}
+		run_server_mode(cli)
 
 	case "help", "-h", "--help":
 		print_usage()
@@ -481,7 +366,7 @@ print_usage :: proc() {
 //   ...
 SERVER_SENTINEL :: "@@KESSEL_END"
 
-run_server_mode :: proc() {
+run_server_mode :: proc(cli: CliConfig) {
 	buf := make([]byte, 65536, context.allocator)
 	defer delete(buf, context.allocator)
 	line_buf := make([dynamic]u8, 0, 1024, context.allocator)
@@ -508,18 +393,18 @@ run_server_mode :: proc() {
 		path := string(line_buf[:])
 		if len(path) == 0 { continue }
 
-		parse_file(path)
+		parse_file(path, cli)
 		out_printf("\n%s\n", SERVER_SENTINEL)
 		flush_stdout_writer()
 		if at_eof { return }
 	}
 }
 
-parse_file :: proc(file_path: string) {
+parse_file :: proc(file_path: string, cli: CliConfig) {
 	// Open the parse job (ParseJob owns source + arena + lexer + parser;
 	// see src/parse_job.odin).
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_globals()) {
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		out_printf("Error: Could not read file: %s\n", file_path)
 		flush_stdout_writer()
 		os.exit(1)
@@ -533,7 +418,7 @@ parse_file :: proc(file_path: string) {
 	// makes the state explicit so server mode and tests get the same
 	// shape without ambient globals. See src/emitter.odin.
 	e: Emitter
-	emitter_init(&e, emit_config_from_globals(job.lang), len(job.source.data), context.allocator)
+	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
 	defer emitter_destroy(&e, context.allocator)
 
 	emitter_build_utf16(&e, job.source.data, context.allocator)
@@ -604,13 +489,13 @@ parse_file :: proc(file_path: string) {
 // Raw transfer: parse and produce binary AST buffer
 // ============================================================================
 
-raw_transfer_file :: proc(file_path: string, out_path: string) {
+raw_transfer_file :: proc(file_path: string, out_path: string, cli: CliConfig) {
 	// All flag threading (lang, source-type, strict, preserve-parens,
 	// .d.ts) flows through ParseJob now - matches the JSON path exactly.
 	// Previously this used the standalone produce_raw_buffer which only
 	// accepted `lang`, silently ignoring every other flag.
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_globals()) {
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		fmt.eprintf("Error: Could not read file: %s\n", file_path)
 		os.exit(1)
 	}
@@ -650,9 +535,9 @@ raw_transfer_file :: proc(file_path: string, out_path: string) {
 // parse_file_to_disk: Parse and write AST JSON to a file. Thread-safe.
 // ============================================================================
 
-parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, file_size: int, error_count: int) {
+parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) -> (ok: bool, file_size: int, error_count: int) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_globals()) { return false, 0, 0 }
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 
@@ -660,7 +545,7 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 	// construction. The pre-#2 save / restore dance over a global
 	// `direct_buf` is gone.
 	e: Emitter
-	emitter_init(&e, emit_config_from_globals(job.lang), len(job.source.data), context.allocator)
+	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
 	defer emitter_destroy(&e, context.allocator)
 
 	emitter_build_utf16(&e, job.source.data, context.allocator)
@@ -685,9 +570,9 @@ parse_file_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, fi
 // parse_file_raw_to_disk: Parse and write raw binary buffer to a file. Thread-safe.
 // ============================================================================
 
-parse_file_raw_to_disk :: proc(file_path: string, out_path: string) -> (ok: bool, file_size: int, error_count: int) {
+parse_file_raw_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) -> (ok: bool, file_size: int, error_count: int) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_globals()) { return false, 0, 0 }
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 
@@ -711,6 +596,11 @@ ParseWorkerCtx :: struct {
 	error_count: int,
 	total_bytes: int,
 	write_raw: bool,
+	// Snapshot of CLI options taken at parse_many entry. Each worker
+	// reads its own copy; no shared mutable state. Pre-#6 workers read
+	// process globals, which made the multi-file path silently drop
+	// every per-call flag (--source-type, --force-strict, ...).
+	cli: CliConfig,
 }
 
 worker_proc :: proc(data: rawptr) {
@@ -724,9 +614,9 @@ worker_proc :: proc(data: rawptr) {
 		bytes: int
 		errs: int
 		if ctx.write_raw {
-			success, bytes, errs = parse_file_raw_to_disk(ctx.files[i], out_path)
+			success, bytes, errs = parse_file_raw_to_disk(ctx.files[i], out_path, ctx.cli)
 		} else {
-			success, bytes, errs = parse_file_to_disk(ctx.files[i], out_path)
+			success, bytes, errs = parse_file_to_disk(ctx.files[i], out_path, ctx.cli)
 		}
 		if success {
 			ctx.parsed_count += 1
@@ -770,11 +660,9 @@ parse_lang_flag :: proc(value: string) -> (Lang, bool) {
 	return .JSX, false
 }
 
-// Resolve the effective Lang for a file: CLI --lang flag wins, else extension.
-resolve_lang :: proc(path: string) -> Lang {
-	if l, ok := cli_lang_override.?; ok { return l }
-	return detect_lang_from_path(path)
-}
+// (resolve_lang dropped in #6: the only consumer was itself; lang
+// resolution now lives in src/parse_job.odin parse_job_resolve, which
+// uses ParseConfig.lang_override.)
 
 // Extract filename without directory from a path
 filepath_base :: proc(path: string) -> string {
@@ -796,7 +684,7 @@ mkdir_p :: proc(path: string) {
 	os.make_directory(path)
 }
 
-parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool) {
+parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool, cli: CliConfig) {
 	if len(files) == 0 {
 		out_println("No files to parse.")
 		return
@@ -835,6 +723,7 @@ parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: 
 			start_idx = start,
 			end_idx = end,
 			write_raw = write_raw,
+			cli = cli,
 		}
 		threads[i] = thread.create_and_start_with_data(&contexts[i], worker_proc)
 	}
@@ -953,7 +842,7 @@ microbench_lex :: proc(file_path: string, iterations: int) {
 	flush_stdout_writer()
 }
 
-microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = false) {
+microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli: CliConfig) {
 	// Pre-read file size for the bench-tight arena formula. parse_job
 	// opens it again below (mmap on POSIX is cheap); doing it twice
 	// keeps the size-aware reservation logic in this file rather than
@@ -993,7 +882,7 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool = fal
 	// iterations without paying mmap/munmap; the job re-inits lexer +
 	// parser fresh on every parse_job_run. ast_only is bench-only and
 	// rides ParseConfig now.
-	cfg := parse_config_from_globals()
+	cfg := parse_config_from_cli(cli)
 	cfg.ast_only = ast_only
 
 	job: ParseJob

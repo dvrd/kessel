@@ -89,18 +89,21 @@ EmitConfig :: struct {
 	error_format: string,
 }
 
-// Snapshot the per-process CLI flags into an EmitConfig. `lang` comes from
-// the parse job - it drives the auto-detection of ts_shape when the
-// --ast-type override is .Auto.
-emit_config_from_globals :: proc(lang: Lang) -> EmitConfig {
+// Snapshot a CliConfig into an EmitConfig. `lang` comes from the parse
+// job - it drives the auto-detection of ts_shape when the --ast-type
+// override is .Auto.
+//
+// Pre-#6 this read 6 process globals; post-#6 it reads the explicit
+// `cli` argument. Same resolution rules as before.
+emit_config_from_cli :: proc(cli: CliConfig, lang: Lang) -> EmitConfig {
 	cfg := EmitConfig{
-		compact       = compact_json,
-		loc           = emit_loc_enabled,
-		range         = emit_range_enabled,
-		module_record = cli_module_record_enabled,
-		error_format  = error_format,
+		compact       = cli.compact,
+		loc           = cli.emit_loc,
+		range         = cli.emit_range,
+		module_record = cli.emit_module_record,
+		error_format  = cli.error_format,
 	}
-	switch ast_type_override {
+	switch cli.ast_type {
 	case .JS:   cfg.ts_shape = false
 	case .TS:   cfg.ts_shape = true
 	case .Auto: cfg.ts_shape = lang == .TS || lang == .TSX

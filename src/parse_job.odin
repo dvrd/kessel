@@ -57,9 +57,9 @@
 //   * JSON emission, raw rewriting, error printing - these read the
 //     job's outputs but produce their own bytes (#2 ESTree emission,
 //     future deepening of raw_transfer).
-//   * Per-process CLI option globals - the job takes a snapshot via
-//     `parse_config_from_globals`; the globals themselves stay until
-//     #6 (CLI option grouping).
+//   * CLI option flow - the job takes a snapshot via
+//     `parse_config_from_cli` from a CliConfig built by the CLI flag
+//     parser (src/cli_config.odin).
 //   * Semantic checking - p.check_semantics still gates the inline
 //     scope/regex passes; the dedicated checker module is #3.
 //
@@ -79,9 +79,8 @@ import "core:strings"
 //
 // A snapshot of the CLI flags that affect parsing (NOT emission). Server
 // mode and worker threads hold one of these and reuse it per request,
-// guaranteeing stable behaviour even if the process globals were to
-// change mid-run. Built from the globals via `parse_config_from_globals`
-// or constructed directly by tests.
+// guaranteeing stable behaviour. Built from a CliConfig via
+// `parse_config_from_cli` or constructed directly by tests.
 ParseConfig :: struct {
 	// Lang override from --lang=js|jsx|ts|tsx. Wins over path detection.
 	lang_override: Maybe(Lang),
@@ -119,16 +118,22 @@ ParseConfig :: struct {
 	source_is_dts_override: Maybe(bool),
 }
 
-// Snapshot the per-process CLI flags into a config. Called once at
-// command dispatch (or once per request in server mode). Decouples the
-// parse path from ambient globals so worker threads see a stable view.
-parse_config_from_globals :: proc() -> ParseConfig {
+// Snapshot a CliConfig into a ParseConfig. Called once per parse job
+// (and once per request in server mode). Decouples the parse path from
+// CLI flag plumbing so worker threads see a stable view that can't
+// race on shared state.
+//
+// Pre-#6 this read 5 process globals; post-#6 it reads the explicit
+// `cli` argument. ast_only and check_semantics are intentionally NOT
+// surfaced from the CLI today - ast_only is set per-call by the bench
+// harness, check_semantics lights up in #3 (checker migration).
+parse_config_from_cli :: proc(cli: CliConfig) -> ParseConfig {
 	return ParseConfig{
-		lang_override          = cli_lang_override,
-		source_type_override   = source_type_override,
-		strict_source_type     = strict_source_type_enabled,
-		force_strict           = force_strict_enabled,
-		preserve_parens        = preserve_parens_enabled,
+		lang_override          = cli.lang_override,
+		source_type_override   = cli.source_type_override,
+		strict_source_type     = cli.strict_source_type,
+		force_strict           = cli.force_strict,
+		preserve_parens        = cli.preserve_parens,
 		ast_only               = false,
 		check_semantics        = false,
 		source_is_dts_override = nil,
