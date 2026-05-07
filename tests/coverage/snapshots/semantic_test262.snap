@@ -1,6 +1,6 @@
 semantic_test262 Summary:
-AST Parsed     : 47086/47090 (99.99%)
-Positive Passed: 47086/47090 (99.99%)
+AST Parsed     : 47088/47090 (100.00%)
+Positive Passed: 47088/47090 (100.00%)
 Negative Passed: 4294/4588 (93.59%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/strict-initializer.js
@@ -298,12 +298,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-script.js
 Expect to Parse: tasks/coverage/test262/test/language/expressions/assignment/destructuring/obj-prop-__proto__dup.js
 test262/test/language/expressions/assignment/destructuring/obj-prop-__proto__dup.js:19:26: Redefinition of __proto__ property
-
-Expect to Parse: tasks/coverage/test262/test/language/expressions/compound-assignment/div-whitespace.js
-test262/test/language/expressions/compound-assignment/div-whitespace.js:37:1: Expected ), got UNKNOWN
-
-Expect to Parse: tasks/coverage/test262/test/language/expressions/optional-chaining/member-expression.js
-test262/test/language/expressions/optional-chaining/member-expression.js:104:31: Invalid optional chain from new expression
 
 Expect to Parse: tasks/coverage/test262/test/language/function-code/S10.2.1_A4_T1.js
 test262/test/language/function-code/S10.2.1_A4_T1.js:19:12: Formal parameter 'x' cannot be redeclared with let/const in function body

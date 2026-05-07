@@ -1724,7 +1724,11 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 // ============================================================================
 
 parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
-	// At statement start, `/` must be regex (not division) - re-lex if needed
+	// At statement start, `/` or `/=` must be a regex literal (not
+	// division), because no LHS exists. Re-lex if the lexer's
+	// previous-token-class heuristic guessed wrong (typical case after
+	// `}` ends a block: lexer sees `}/.../` and would otherwise pick
+	// AssignDiv from `}` as a regex-starting context).
 	if p.cur_type == .Div || p.cur_type == .AssignDiv {
 		if p.lexer != nil {
 			relex_as_regex(p.lexer)
@@ -2259,10 +2263,16 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	//   //comment\n line comment      // line-terminators - missing ;
 	//
 	// ASI for `yield\n/regex/` and similar: when the expression statement
-	// ends with a line terminator and the next token is `/` or `/=`, the
-	// slash is meant to start a regex on a new line, not continue as
-	// division. Re-lex so the next statement parses as a regex literal.
-	if (p.cur_type == .Div || p.cur_type == .AssignDiv) && p.cur_tok.had_line_terminator {
+	// ends with a line terminator and the next token is `/`, the slash is
+	// meant to start a regex on a new line, not continue as division.
+	// Re-lex so the next statement parses as a regex literal.
+	//
+	// `/=` (AssignDiv) is excluded — a regex never starts with `/=`, so
+	// the lexer's original AssignDiv classification is always correct
+	// even after a line terminator. Re-lexing `x\n/=-1` would turn the
+	// AssignDiv into an unterminated regex (test262
+	// language/expressions/compound-assignment/div-whitespace.js).
+	if p.cur_type == .Div && p.cur_tok.had_line_terminator {
 		if p.lexer != nil {
 			relex_as_regex(p.lexer)
 			ft := p.lexer.cur
@@ -9411,8 +9421,16 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				// that cannot be valid assignment targets (YieldExpression,
 				// literals, etc.), treat the new-line `/=` as a statement
 				// boundary and break out of the infix loop so ASI fires.
+				//
+				// When the LHS IS a valid assignment target (e.g. an
+				// Identifier `x` followed by `\r/=-1`), `/=` is the legitimate
+				// AssignmentOperator and we must NOT break — ASI would split
+				// the statement into `x;` and a stranded `/= -1` (test262
+				// language/expressions/compound-assignment/div-whitespace.js).
 				if cur_type == .AssignDiv && p.cur_tok.had_line_terminator {
-					break
+					if !is_valid_assignment_target(left, false) {
+						break
+					}
 				}
 				left = parse_assignment_expr(p, left)
 				continue
@@ -10118,10 +10136,18 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if !is_chain {
 				chain_start = loc_from_expr(expr)
 				is_chain = true
-				// ECMA-262 §13.3.10 - OptionalExpression only chains from
-				// MemberExpression or CallExpression.  NewExpression is
-				// not listed, so `new Foo?.()` is a SyntaxError.
-				if _, is_new := expr^.(^NewExpression); is_new {
+				// ECMA-262 §13.3.10 — OptionalExpression chains only from
+				// MemberExpression or CallExpression. The bare `new X` form
+				// (no argument list) is a NewExpression and cannot be the
+				// head of an optional chain (`new Foo?.()` is a SyntaxError).
+				// However `new X(...)` IS a MemberExpression per the grammar:
+				//
+				//   MemberExpression : new MemberExpression Arguments
+				//
+				// so `new X(args)?.y` is legal and parses as `(new X(args))?.y`.
+				// Distinguish by whether the NewExpression captured argument
+				// tokens (arguments == nil ~= no `()` after the callee).
+				if new_expr_node, is_new := expr^.(^NewExpression); is_new && new_expr_node.arguments == nil {
 					report_error(p, "Invalid optional chain from new expression")
 				}
 			}

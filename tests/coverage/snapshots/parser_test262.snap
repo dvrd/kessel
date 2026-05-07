@@ -1,6 +1,6 @@
 parser_test262 Summary:
-AST Parsed     : 47088/47090 (100.00%)
-Positive Passed: 47088/47090 (100.00%)
+AST Parsed     : 47090/47090 (100.00%)
+Positive Passed: 47090/47090 (100.00%)
 Negative Passed: 2744/4588 (59.81%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
@@ -1846,12 +1846,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-fn-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-fn-method.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-script.js
-Expect to Parse: tasks/coverage/test262/test/language/expressions/compound-assignment/div-whitespace.js
-test262/test/language/expressions/compound-assignment/div-whitespace.js:37:1: Expected ), got UNKNOWN
-
-Expect to Parse: tasks/coverage/test262/test/language/expressions/optional-chaining/member-expression.js
-test262/test/language/expressions/optional-chaining/member-expression.js:104:31: Invalid optional chain from new expression
-
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
 test262/test/built-ins/RegExp/prototype/unicodeSets/uv-flags.js:17:4: Regular expression flags 'u' and 'v' are mutually exclusive
 test262/test/language/asi/S7.9.2_A1_T1.js:16:5: Expected semicolon
