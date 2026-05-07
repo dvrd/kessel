@@ -1,7 +1,7 @@
 parser_misc Summary:
-AST Parsed     : 58/64 (90.62%)
-Positive Passed: 58/64 (90.62%)
-Negative Passed: 83/135 (61.48%)
+AST Parsed     : 64/64 (100.00%)
+Positive Passed: 64/64 (100.00%)
+Negative Passed: 80/135 (59.26%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -47,6 +47,9 @@ Expect Syntax Error: tests/coverage/misc/fail/oxc-18231.mjs
 Expect Syntax Error: tests/coverage/misc/fail/oxc-1942-1.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-1942-2.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-1.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-2.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-4.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-5.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-5036.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-5177.ts
@@ -54,24 +57,6 @@ Expect Syntax Error: tests/coverage/misc/fail/oxc-5355.jsx
 Expect Syntax Error: tests/coverage/misc/fail/oxc-7582.js
 Expect Syntax Error: tests/coverage/misc/fail/script-top-level-using.js
 Expect Syntax Error: tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs
-Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-return.cjs
-tests/coverage/misc/pass/commonjs-top-level-return.cjs:2:8: 'return' outside of function
-
-Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-return.cts
-tests/coverage/misc/pass/commonjs-top-level-return.cts:2:8: 'return' outside of function
-
-Expect to Parse: tests/coverage/misc/pass/oxc-1289.ts
-tests/coverage/misc/pass/oxc-1289.ts:1:13: Expected from, got infer
-
-Expect to Parse: tests/coverage/misc/pass/oxc-3443.tsx
-tests/coverage/misc/pass/oxc-3443.tsx:1:36: Unexpected token. Did you mean `{'>'}` or `&gt;`?
-
-Expect to Parse: tests/coverage/misc/pass/oxc-4449.ts
-tests/coverage/misc/pass/oxc-4449.ts:1:11: Expected }, got string
-
-Expect to Parse: tests/coverage/misc/pass/swc-8243.tsx
-tests/coverage/misc/pass/swc-8243.tsx:4:10: Empty parenthesized expression
-
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
 tests/coverage/misc/fail/commonjs-top-level-await.cjs:2:1: Top-level 'await' is only valid in module code
 tests/coverage/misc/fail/diff-markers.js:10:1: Unexpected token '<<'
@@ -142,11 +127,8 @@ tests/coverage/misc/fail/oxc-3528.jsx:1:25: Expected corresponding JSX closing t
 tests/coverage/misc/fail/oxc-3948.ts:2:14: Expected }, got identifier
 tests/coverage/misc/fail/oxc-4111-1.js:1:44: Expected semicolon
 tests/coverage/misc/fail/oxc-4212-1.ts:1:17: Expected (, got identifier
-tests/coverage/misc/fail/oxc-4449-1.ts:1:11: Expected }, got identifier
-tests/coverage/misc/fail/oxc-4449-2.ts:1:11: Expected }, got number
 tests/coverage/misc/fail/oxc-4449-3.ts:1:10: An enum member cannot have a numeric name.
-tests/coverage/misc/fail/oxc-4449-4.ts:1:12: Expected }, got template_head
-tests/coverage/misc/fail/oxc-4449-6.ts:1:11: Expected }, got string
+tests/coverage/misc/fail/oxc-4449-6.ts:2:1: Expected }, got EOF
 tests/coverage/misc/fail/oxc-5955-1.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-5955-2.ts:3:8: Expected }, got ?
 tests/coverage/misc/fail/oxc-5955-3.ts:2:18: An index signature must have a type annotation.

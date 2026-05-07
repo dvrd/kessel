@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12690/12710 (99.84%)
 Positive Passed: 12690/12710 (99.84%)
-Negative Passed: 1330/3472 (38.31%)
+Negative Passed: 1326/3472 (38.19%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1868,6 +1868,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName4.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration3.d.ts
@@ -1987,6 +1988,9 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource8.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName16.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName26.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName34.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName36.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName37.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName38.ts
@@ -3179,7 +3183,6 @@ typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserCl
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration4.ts:1:32: Expected {, got extends
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration5.ts:1:32: Expected {, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration6.ts:1:18: Expected {, got ,
-typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:4: Expected }, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration10.ts:2:25: Type annotation cannot appear on a constructor declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration11.ts:2:15: Type parameter list cannot be empty
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration3.ts:2:10: Expected (, got identifier
@@ -3426,12 +3429,9 @@ typescript/tests/cases/conformance/parser/ecmascript5/parserS12.11_A3_T4.ts:16:9
 typescript/tests/cases/conformance/parser/ecmascript5/parserS7.9_A5.7_T1.ts:19:1: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/parser/ecmascript5/parservoidInQualifiedName1.ts:1:13: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName1.ts:1:15: Computed property name requires a value
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName16.ts:2:4: Expected }, got identifier
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName26.ts:3:6: Expected }, got identifier
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName27.ts:4:9: Expected semicolon or line terminator after class field
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName30.ts:3:6: Expected }, got identifier
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName30.ts:4:5: Expected }, got [
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName33.ts:4:12: Expected semicolon or line terminator after class field
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName34.ts:3:6: Expected }, got identifier
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName35.ts:2:7: Expected ], got ,
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName5.ts:1:18: Expected }, got UNKNOWN
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement2.ts:1:13: Expected '=', ',', or ';' after variable binding

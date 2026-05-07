@@ -116,6 +116,11 @@ ParseConfig :: struct {
 	// Override .d.ts detection for inline sources where the path is
 	// synthetic. nil = use path suffix (.d.ts / .d.mts / .d.cts).
 	source_is_dts_override: Maybe(bool),
+
+	// Override CommonJS detection for inline sources where the path is
+	// synthetic. nil = use path suffix (.cjs / .cts). CommonJS files are
+	// wrapped in a function at runtime, so top-level `return` is legal.
+	is_commonjs_override:   Maybe(bool),
 }
 
 // Snapshot a CliConfig into a ParseConfig. Called once per parse job
@@ -174,6 +179,7 @@ ParseJob :: struct {
 	// Resolved at open time (consumed by run)
 	lang:                Lang,
 	source_is_dts:       bool,
+	is_commonjs:         bool,
 	initial_source_type: SourceType,
 	lex_source_type:     SourceType,
 
@@ -199,6 +205,15 @@ resolve_dts_from_path :: proc(path: string) -> bool {
 	return strings.has_suffix(path, ".d.ts") ||
 	       strings.has_suffix(path, ".d.mts") ||
 	       strings.has_suffix(path, ".d.cts")
+}
+
+// CommonJS files are wrapped in a function at runtime; top-level `return`
+// is grammatically legal. The `.cjs` and `.cts` suffixes are the canonical
+// signals.
+@(private="file")
+resolve_commonjs_from_path :: proc(path: string) -> bool {
+	return strings.has_suffix(path, ".cjs") ||
+	       strings.has_suffix(path, ".cts")
 }
 
 // Pick the SourceType the lexer is initialised with. The lexer needs
@@ -344,6 +359,15 @@ parse_job_resolve :: proc(job: ^ParseJob) {
 		job.source_is_dts = resolve_dts_from_path(job.source_path)
 	}
 
+	// CommonJS detection mirrors the .d.ts path — explicit override wins,
+	// else file extension. .cjs/.cts files have a function wrapper at
+	// runtime so top-level `return` is grammatically legal.
+	if cjs, have := job.config.is_commonjs_override.?; have {
+		job.is_commonjs = cjs
+	} else {
+		job.is_commonjs = resolve_commonjs_from_path(job.source_path)
+	}
+
 	job.lex_source_type     = resolve_lex_source_type(job.config)
 	job.initial_source_type = resolve_initial_source_type(job.config)
 }
@@ -382,6 +406,7 @@ parse_job_run :: proc(job: ^ParseJob) {
 	job.parser.preserve_parens  = job.config.preserve_parens
 	job.parser.ast_only         = job.config.ast_only
 	job.parser.check_semantics  = job.config.check_semantics
+	job.parser.is_commonjs      = job.is_commonjs
 	// init_parser already propagated check_semantics to the lexer, but
 	// it did so BEFORE we updated p.check_semantics here. Re-propagate
 	// so regex-body validation and lexer-side semantic checks see the

@@ -1808,6 +1808,6 @@ babel/packages/babel-parser/test/fixtures/typescript/types/tuple-invalid-label-2
 babel/packages/babel-parser/test/fixtures/typescript/types/tuple-labeled-invalid-optional/input.ts:1:15: Expected ], got ?
 babel/packages/babel-parser/test/fixtures/typescript/types/tuple-optional-invalid/input.ts:1:24: A required tuple element cannot follow an optional element
 babel/packages/babel-parser/test/fixtures/typescript/types/tuple-required-after-labeled-optional/input.ts:1:22: A required tuple element cannot follow an optional element
-babel/packages/babel-parser/test/fixtures/typescript/types/variance-annotations-with-jsx/input.tsx:2:13: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+babel/packages/babel-parser/test/fixtures/typescript/types/variance-annotations-with-jsx/input.tsx:2:15: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/typescript/types/variance-annotations/input.ts:95:17: Expected >, got identifier
 babel/packages/babel-parser/test/fixtures/typescript/variable-declarator/definite-assignment-not-allowed/input.ts:1:7: Expected '=', ',', or ';' after variable binding

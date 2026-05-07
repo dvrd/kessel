@@ -554,6 +554,12 @@ Parser :: struct {
 	// into normal `.ts` / `.tsx` source.
 	source_is_dts:   bool,
 
+	// True for `.cjs` / `.cts` files (and inline sources tagged commonjs).
+	// CommonJS wraps the file in a `function(exports, require, ...)` body
+	// at runtime, so a top-level `return` is grammatically legal. Without
+	// this flag the parser would emit "'return' outside of function".
+	is_commonjs:     bool,
+
 	// Track if module syntax was detected (import/export or import.meta)
 	has_module_syntax: bool,
 
@@ -3019,7 +3025,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	// CommonJS-wrapped (`function(...){ return ... }`) so `in_function` is
 	// true at every natural `return` site; bare top-level `return` only
 	// shows up in spec-negative fixtures and mutated fuzz cases.
-	if !p.in_function {
+	if !p.in_function && !p.is_commonjs {
 		report_error(p, "'return' outside of function")
 	}
 	// §15.7.5 ClassStaticBlockBody is parsed under [~Return]; the
@@ -8004,7 +8010,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 			decl.import_kind = .Type
 			eat(p) // consume `type`
-		} else if nxt == .Identifier || nxt == .From {
+		} else if nxt == .From || can_be_binding_identifier(nxt) {
 			// Could be `import type Foo from "m"` (type-only default) or
 			// `import type from "m"` (default import of "type"). Only flag as
 			// type-only when the identifier after `type` is NOT `from`.
@@ -11341,6 +11347,20 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// to the first token; if it's an Identifier, peek again
 			// to see what follows.
 			nxt_kind := p.lexer.nxt.kind
+			// Type-parameter modifiers (`const`, `in`) lex as keyword tokens,
+			// not Identifier. `<const T ...>` and `<in T ...>` are
+			// unambiguously type-parameter lists (no JSX element name is a
+			// reserved word). `out` is contextual — still lexes as Identifier
+			// and falls through to the existing path. Closes oxc-3443.tsx.
+			if nxt_kind == .Const || nxt_kind == .In {
+				lt_start := cur_loc(p)
+				snap2 := lexer_snapshot(p)
+				result := parse_ts_generic_arrow(p, lt_start)
+				if result != nil && len(p.errors) == snap2.errors_len {
+					return result
+				}
+				lexer_restore(p, snap2)
+			}
 			if nxt_kind == .Identifier {
 				snap := lexer_snapshot(p)
 				eat(p)  // consume `<`
@@ -14711,8 +14731,16 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			// matching OXC. `{` is always 1 byte, so empty_start = start + 1.
 			empty_start := start.span.start + 1
 			eat(p)
+			// Reset ternary depth across the JSX expression-container
+			// boundary. Inside `{expr}` the surrounding ternary's `:` is
+			// not in scope; otherwise looks_like_ts_arrow_params would
+			// suppress its byte-scan and reject `{(): T => body}`-style
+			// arrow returns inside JSX (swc-8243.tsx).
+			prev_cond_depth := p.conditional_depth
+			p.conditional_depth = 0
 			expr: ^Expression = nil
 			if !is_token(p, .RBrace) { expr = parse_assignment_expression(p) }
+			p.conditional_depth = prev_cond_depth
 			rbrace_start := u32(cur_offset(p))
 			expect_token(p, .RBrace)
 			container := new_node(p, JSXExpressionContainer)
@@ -18158,6 +18186,24 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			report_error(p, "An enum member cannot have a numeric name.")
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
 			member_id = expression_from(p, mid)
+		} else if is_token(p, .LBracket) {
+			// Computed enum member name (TS extension, no spec): `enum A {
+			// ['baz'] }`. The value inside the brackets must be a constant
+			// string-coercible expression; the parser accepts any
+			// AssignmentExpression, leaving deeper checks to the type-checker.
+			eat(p) // consume `[`
+			inner := parse_assignment_expression(p)
+			expect_token(p, .RBracket)
+			if inner == nil {
+				mid := new_node(p, Identifier); mid.loc = ms; mid.name = ""
+				member_id = expression_from(p, mid)
+			} else {
+				member_id = inner
+			}
+		} else if is_token(p, .Template) || is_token(p, .TemplateHead) {
+			// Template-literal enum member name (TS extension): `enum A {
+			// `baz` }`. Parsed via the regular template-literal path.
+			member_id = parse_template_literal(p, false)
 		} else {
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
 			member_id = expression_from(p, mid)

@@ -1,7 +1,7 @@
 semantic_misc Summary:
-AST Parsed     : 54/64 (84.38%)
-Positive Passed: 54/64 (84.38%)
-Negative Passed: 97/135 (71.85%)
+AST Parsed     : 60/64 (93.75%)
+Positive Passed: 60/64 (93.75%)
+Negative Passed: 94/135 (69.63%)
 Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
 Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
@@ -36,6 +36,9 @@ Expect Syntax Error: tests/coverage/misc/fail/oxc-14944.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-1942-1.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-1942-2.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-1.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-2.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-4.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-5.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-5177.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-5355.jsx
@@ -46,29 +49,11 @@ tests/coverage/misc/pass/commonjs-top-level-new-target.cjs:2:1: 'new.target' is 
 Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-new-target.cts
 tests/coverage/misc/pass/commonjs-top-level-new-target.cts:2:1: 'new.target' is only allowed inside functions
 
-Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-return.cjs
-tests/coverage/misc/pass/commonjs-top-level-return.cjs:2:8: 'return' outside of function
-
-Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-return.cts
-tests/coverage/misc/pass/commonjs-top-level-return.cts:2:8: 'return' outside of function
-
 Expect to Parse: tests/coverage/misc/pass/declare-let-private.ts
 tests/coverage/misc/pass/declare-let-private.ts:1:13: 'private' is a reserved identifier in strict mode
 
-Expect to Parse: tests/coverage/misc/pass/oxc-1289.ts
-tests/coverage/misc/pass/oxc-1289.ts:1:13: Expected from, got infer
-
 Expect to Parse: tests/coverage/misc/pass/oxc-13284.js
 tests/coverage/misc/pass/oxc-13284.js:173:8: 'super' call is only allowed in the constructor of a derived class
-
-Expect to Parse: tests/coverage/misc/pass/oxc-3443.tsx
-tests/coverage/misc/pass/oxc-3443.tsx:1:36: Unexpected token. Did you mean `{'>'}` or `&gt;`?
-
-Expect to Parse: tests/coverage/misc/pass/oxc-4449.ts
-tests/coverage/misc/pass/oxc-4449.ts:1:11: Expected }, got string
-
-Expect to Parse: tests/coverage/misc/pass/swc-8243.tsx
-tests/coverage/misc/pass/swc-8243.tsx:4:10: Empty parenthesized expression
 
 tests/coverage/misc/fail/arguments-eval.ts:1:10: Function name 'arguments' is not allowed in strict mode
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
@@ -151,11 +136,8 @@ tests/coverage/misc/fail/oxc-3528.jsx:1:25: Expected corresponding JSX closing t
 tests/coverage/misc/fail/oxc-3948.ts:2:14: Expected }, got identifier
 tests/coverage/misc/fail/oxc-4111-1.js:1:44: Expected semicolon
 tests/coverage/misc/fail/oxc-4212-1.ts:1:17: Expected (, got identifier
-tests/coverage/misc/fail/oxc-4449-1.ts:1:11: Expected }, got identifier
-tests/coverage/misc/fail/oxc-4449-2.ts:1:11: Expected }, got number
 tests/coverage/misc/fail/oxc-4449-3.ts:1:10: An enum member cannot have a numeric name.
-tests/coverage/misc/fail/oxc-4449-4.ts:1:12: Expected }, got template_head
-tests/coverage/misc/fail/oxc-4449-6.ts:1:11: Expected }, got string
+tests/coverage/misc/fail/oxc-4449-6.ts:2:1: Expected }, got EOF
 tests/coverage/misc/fail/oxc-5036.js:2:5: Label 'Test' has already been declared
 tests/coverage/misc/fail/oxc-5955-1.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-5955-2.ts:3:8: Expected }, got ?
