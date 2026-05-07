@@ -171,7 +171,11 @@ cmd_test262_smoke :: proc() {
 	n_module, n_script := 0, 0
 	for f in fixtures {
 		if f.should_fail { n_neg += 1 } else { n_pos += 1 }
-		if f.source_type == .Module { n_module += 1 } else { n_script += 1 }
+		if st, ok := f.source_type.?; ok && st == .Module {
+			n_module += 1
+		} else {
+			n_script += 1
+		}
 	}
 
 	fmt.printfln("[test262] discovered %d fixtures in %v", len(fixtures), dt)

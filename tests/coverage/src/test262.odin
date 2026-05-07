@@ -232,13 +232,14 @@ load_test262 :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fix
 		lang := kessel.Lang.JS
 
 		append(&out, Fixture{
-			path        = f.abs,
-			rel         = f.rel,
-			code        = f.code,
-			source_type = st,
-			lang        = lang,
-			should_fail = should_fail,
-			suite       = .Test262,
+			path         = f.abs,
+			rel          = f.rel,
+			code         = f.code,
+			source_type  = st,
+			lang         = lang,
+			force_strict = .OnlyStrict in meta.flags,
+			should_fail  = should_fail,
+			suite        = .Test262,
 		})
 	}
 

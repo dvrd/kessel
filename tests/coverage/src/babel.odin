@@ -385,15 +385,14 @@ resolve_babel_lang :: proc(path: string, opts: BabelOptions) -> kessel.Lang {
 }
 
 @(private="file")
-resolve_babel_source_type :: proc(opts: BabelOptions) -> kessel.SourceType {
+resolve_babel_source_type :: proc(opts: BabelOptions) -> Maybe(kessel.SourceType) {
 	if st, has := opts.source_type.?; has {
 		switch st {
 		case "module":   return .Module
 		case "script":   return .Script
 		case "unambiguous":
-			// Kessel auto-detects via parser; pass Script and let the
-			// implicit-module promotion happen.
-			return .Script
+			// Kessel auto-detects via parser when no source type is pinned.
+			return nil
 		case "commonjs":
 			return .Script
 		}

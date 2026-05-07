@@ -23,7 +23,6 @@
 package coverage
 
 import "base:runtime"
-import "core:fmt"
 import "core:os"
 import "core:path/filepath"
 import "core:strings"
@@ -209,78 +208,68 @@ compiler_settings_from_map :: proc(m: map[string]string, allocator: runtime.Allo
 }
 
 // ============================================================================
-// Baseline file lookup — extract error codes from `<name>.errors.txt`
+// Baseline file lookup — index `<name>.errors.txt` once per suite load
 // ============================================================================
 //
-// Error codes look like `error TS1234:`. OXC builds a cartesian product of
-// `(module=X)`, `(target=Y)`, `(jsx=Z)` etc. variants when the fixture has
-// multiple values. Phase-3 only handles the bare `<name>.errors.txt` path —
-// variants are an enhancement we add when snap parity says it's worth it.
+// TSC names baselines as `<stem>.errors.txt` for the bare case and
+// `<stem>(<flag>=<value>).errors.txt` for compiler-option matrix variants
+// (target=es5, alwaysstrict=true, isolatedmodules=true, ...). The directive
+// surface is too wide to enumerate at fixture time, so we scan the baseline
+// directory once, group files by stem, and record whether any grouped error
+// code is parser-relevant.
 
-extract_error_codes :: proc(
-	fixture_path:    string,
-	baseline_root:   string,
-	settings:        CompilerSettings,
-	allocator:       runtime.Allocator,
-) -> []string {
-	stem := strings.trim_suffix(filepath.base(fixture_path), filepath.ext(fixture_path))
-	candidates := make([dynamic]string, 0, 4, allocator)
-	defer delete(candidates)
+TypeScriptBaselineIndex :: struct {
+	should_fail_by_stem: map[string]bool,
+}
 
-	// Bare baseline.
-	bare, _ := filepath.join({baseline_root, strings.concatenate({stem, ".errors.txt"}, allocator)}, allocator)
-	append(&candidates, bare)
-
-	// Variants: `(module=es2022).errors.txt`, etc. Only emit when a
-	// flag has 2+ values (matches OXC's `create_suffixes`).
-	add_variant_set :: proc(
-		stem:     string,
-		flag:     string,
-		values:   []string,
-		acc:      ^[dynamic]string,
-		allocator: runtime.Allocator,
-	) {
-		if len(values) < 2 { return }
-		for v in values {
-			parts := []string{
-				stem, "(", flag, "=", v, ")", ".errors.txt",
-			}
-			append(acc, strings.concatenate(parts, allocator))
-		}
-	}
-	variants := make([dynamic]string, 0, 8, allocator)
-	defer delete(variants)
-	add_variant_set(stem, "module",                  settings.modules,                       &variants, allocator)
-	add_variant_set(stem, "target",                  settings.targets,                       &variants, allocator)
-	add_variant_set(stem, "jsx",                     settings.jsx,                           &variants, allocator)
-	add_variant_set(stem, "preserveconstenums",      settings.preserve_const_enums,          &variants, allocator)
-	add_variant_set(stem, "usedefineforclassfields", settings.use_define_for_class_fields,   &variants, allocator)
-	add_variant_set(stem, "experimentaldecorators",  settings.experimental_decorators,       &variants, allocator)
-	for v in variants {
-		full, _ := filepath.join({baseline_root, v}, allocator)
-		append(&candidates, full)
+load_typescript_baseline_index :: proc(
+	baseline_root: string,
+	allocator:     runtime.Allocator,
+) -> TypeScriptBaselineIndex {
+	out := TypeScriptBaselineIndex{
+		should_fail_by_stem = make(map[string]bool, 4096, allocator),
 	}
 
-	codes_set := make(map[string]bool, 16, allocator)
-	defer delete(codes_set)
+	infos, infos_err := os.read_all_directory_by_path(baseline_root, allocator)
+	if infos_err != nil { return out }
+	defer os.file_info_slice_delete(infos, allocator)
 
-	for path in candidates {
-		if !os.exists(path) { continue }
-		bytes, read_err := os.read_entire_file_from_path(path, allocator)
+	for info in infos {
+		stem, ok := ts_errors_baseline_stem(info.name)
+		if !ok { continue }
+		if out.should_fail_by_stem[stem] { continue }
+
+		bytes, read_err := os.read_entire_file_from_path(info.fullpath, allocator)
 		if read_err != nil { continue }
 		text := string(bytes)
-		extract_codes_from_text(text, &codes_set)
+		if ts_text_has_supported_error_code(text) {
+			out.should_fail_by_stem[strings.clone(stem, allocator)] = true
+		}
+		delete(bytes, allocator)
 	}
 
-	out := make([dynamic]string, 0, len(codes_set), allocator)
-	for code in codes_set {
-		append(&out, code)
-	}
-	return out[:]
+	return out
 }
 
 @(private="file")
-extract_codes_from_text :: proc(text: string, out: ^map[string]bool) {
+ts_errors_baseline_stem :: proc(name: string) -> (string, bool) {
+	if !strings.has_suffix(name, ".errors.txt") { return "", false }
+	stem := name[:len(name) - len(".errors.txt")]
+	if paren := strings.index(stem, "("); paren >= 0 {
+		stem = stem[:paren]
+	}
+	if stem == "" { return "", false }
+	return stem, true
+}
+
+@(private="file")
+typescript_should_fail :: proc(index: TypeScriptBaselineIndex, fixture_path: string) -> bool {
+	stem := strings.trim_suffix(filepath.base(fixture_path), filepath.ext(fixture_path))
+	return index.should_fail_by_stem[stem]
+}
+
+@(private="file")
+ts_text_has_supported_error_code :: proc(text: string) -> bool {
 	// Look for the literal "error TS<digits>:" pattern. Hand-rolled matcher
 	// (no regex dep) — we just scan byte-by-byte.
 	src := text
@@ -288,16 +277,15 @@ extract_codes_from_text :: proc(text: string, out: ^map[string]bool) {
 		idx := strings.index(src, "error TS")
 		if idx < 0 { break }
 		src = src[idx + len("error TS"):]
-		// Read decimal digits.
 		end := 0
 		for end < len(src) && src[end] >= '0' && src[end] <= '9' { end += 1 }
 		if end >= 4 && end <= 5 && end < len(src) && src[end] == ':' {
-			code := strings.clone(src[:end])
-			out[code] = true
+			if !ts_error_code_is_excluded(src[:end]) { return true }
 		}
 		if end == len(src) { break }
 		src = src[end:]
 	}
+	return false
 }
 
 // ============================================================================
@@ -309,19 +297,13 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 
 	baseline_root, _ := filepath.join({vendor_root, TYPESCRIPT_BASELINE_SUBPATH}, allocator)
 	defer delete(baseline_root)
+	baseline_index := load_typescript_baseline_index(baseline_root, allocator)
 
 	out := make([dynamic]Fixture, 0, len(files), allocator)
 
 	for f in files {
 		content := scan_test_case(f.abs, f.code, allocator)
-		error_codes := extract_error_codes(f.abs, baseline_root, content.settings, allocator)
-
-		// should_fail iff at least one error code is NOT in the
-		// not-supported list. (Mirrors OXC's load_typescript.)
-		should_fail := false
-		for code in error_codes {
-			if !ts_error_code_is_excluded(code) { should_fail = true; break }
-		}
+		should_fail := typescript_should_fail(baseline_index, f.abs)
 
 		// Emit one Fixture per unit. Multi-file TSC fixtures expand into
 		// independent parser runs; the runner (phase 7) consumes them
@@ -330,6 +312,7 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 			if !unit_is_parseable(unit.name) { continue }
 			lang := resolve_ts_lang(unit.name, content.settings)
 			st   := resolve_ts_source_type(unit.name, content.settings)
+			dts  := resolve_ts_source_is_dts(unit.name)
 
 			rel_with_unit := f.rel
 			if len(content.units) > 1 {
@@ -337,13 +320,14 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 			}
 
 			append(&out, Fixture{
-				path        = f.abs,
-				rel         = rel_with_unit,
-				code        = unit.content,
-				source_type = st,
-				lang        = lang,
-				should_fail = should_fail,
-				suite       = .TypeScript,
+				path          = f.abs,
+				rel           = rel_with_unit,
+				code          = unit.content,
+				source_type   = st,
+				lang          = lang,
+				source_is_dts = dts,
+				should_fail   = should_fail,
+				suite         = .TypeScript,
 			})
 		}
 	}
@@ -366,7 +350,7 @@ unit_is_parseable :: proc(name: string) -> bool {
 	case ".ts", ".tsx", ".cts", ".mts", ".js", ".jsx", ".mjs", ".cjs":
 		return true
 	}
-	// package.json units, d.ts files where parser-mode would be wrong, etc.
+	// package.json units, baselines, and other non-source virtual files.
 	return false
 }
 
@@ -388,14 +372,26 @@ resolve_ts_lang :: proc(name: string, settings: CompilerSettings) -> kessel.Lang
 }
 
 @(private="file")
-resolve_ts_source_type :: proc(name: string, settings: CompilerSettings) -> kessel.SourceType {
-	// .d.ts variants are ambient declarations — kessel's parser treats them
-	// as scripts but recognizes `declare`, `import type`, etc. We emit
-	// Script and let the parser's source_is_dts path do the right thing.
+resolve_ts_source_type :: proc(
+	name:     string,
+	settings: CompilerSettings,
+) -> Maybe(kessel.SourceType) {
+	_ = settings
+	if strings.has_suffix(name, ".mts") || strings.has_suffix(name, ".mjs") {
+		return .Module
+	}
+	if strings.has_suffix(name, ".cts") || strings.has_suffix(name, ".cjs") {
+		return .Script
+	}
+	return nil
+}
+
+@(private="file")
+resolve_ts_source_is_dts :: proc(name: string) -> Maybe(bool) {
 	if strings.has_suffix(name, ".d.ts") ||
 	   strings.has_suffix(name, ".d.mts") ||
 	   strings.has_suffix(name, ".d.cts") {
-		return .Script
+		return true
 	}
-	return .Script
+	return nil
 }

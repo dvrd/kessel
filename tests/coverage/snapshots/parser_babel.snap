@@ -1,8 +1,8 @@
 commit: c543b031
 
 parser_babel Summary:
-AST Parsed     : 2233/2233 (100.00%)
-Positive Passed: 2224/2233 (99.60%)
+AST Parsed     : 2225/2233 (99.64%)
+Positive Passed: 2225/2233 (99.64%)
 Negative Passed: 1205/1711 (70.43%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
@@ -515,9 +515,6 @@ babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-ret
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-return/input.js
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-return/input.js:1:8: 'return' outside of function
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-unambiguous/import-meta/input.js
-babel/packages/babel-parser/test/fixtures/core/sourcetype-unambiguous/import-meta/input.js:1:24: 'import.meta' is only valid in module code
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/valid-export-default-await-expression-using/input.js
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/valid-export-default-await-expression-using/input.js:1:16: 'export default' cannot be followed by a using declaration

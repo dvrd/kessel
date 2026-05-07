@@ -104,19 +104,24 @@ snap_basename :: proc(t: Tool, s: Suite, allocator := context.allocator) -> stri
 //   * rel:         vendor-relative path ("babel/.../foo/input.js") used in
 //                  snap entries; matches OXC's `tasks/coverage/<rel>` line
 //   * code:        source bytes (UTF-8 with BOM stripped); owned
-//   * source_type: kessel SourceType for parse_job
+//   * source_type: optional kessel SourceType override for parse_job;
+//                  nil means unambiguous auto-detection.
 //   * lang:        kessel Lang (JS / JSX / TS / TSX)
+//   * force_strict: run the parser with strict mode enabled from byte 0
+//   * source_is_dts: optional .d.ts ambient-mode override for virtual files
 //   * should_fail: declared-by-fixture expectation
 //   * suite:       which suite this fixture belongs to (drives snap routing)
 
 Fixture :: struct {
-	path:        string,
-	rel:         string,
-	code:        string,
-	source_type: kessel.SourceType,
-	lang:        kessel.Lang,
-	should_fail: bool,
-	suite:       Suite,
+	path:          string,
+	rel:           string,
+	code:          string,
+	source_type:   Maybe(kessel.SourceType),
+	lang:          kessel.Lang,
+	force_strict:  bool,
+	source_is_dts: Maybe(bool),
+	should_fail:   bool,
+	suite:         Suite,
 }
 
 // ============================================================================
@@ -164,11 +169,12 @@ result_passed :: proc(r: TestResult) -> bool {
 }
 
 result_parsed :: proc(r: TestResult) -> bool {
+	if r.panicked { return false }
 	#partial switch r.tag {
-	case .ParseError, .CorrectError:
-		return !r.panicked
+	case .Passed, .IncorrectlyPassed:
+		return true
 	}
-	return true
+	return false
 }
 
 // ============================================================================

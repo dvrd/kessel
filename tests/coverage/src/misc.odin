@@ -80,14 +80,14 @@ resolve_misc_lang :: proc(path: string) -> kessel.Lang {
 }
 
 @(private="file")
-resolve_misc_source_type :: proc(path: string) -> kessel.SourceType {
+resolve_misc_source_type :: proc(path: string) -> Maybe(kessel.SourceType) {
 	if strings.has_suffix(path, ".mjs") || strings.has_suffix(path, ".mts") {
 		return .Module
 	}
 	if strings.has_suffix(path, ".cjs") || strings.has_suffix(path, ".cts") {
 		return .Script
 	}
-	// Default: Script. Kessel auto-promotes to Module on encountering
+	// Default: nil so Kessel auto-promotes to Module on encountering
 	// import/export per ECMA-262 §16.6 unambiguous-mode.
-	return .Script
+	return nil
 }

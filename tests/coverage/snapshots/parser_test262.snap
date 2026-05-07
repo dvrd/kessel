@@ -1,7 +1,7 @@
 parser_test262 Summary:
-AST Parsed     : 47090/47090 (100.00%)
+AST Parsed     : 47088/47090 (100.00%)
 Positive Passed: 47088/47090 (100.00%)
-Negative Passed: 2729/4588 (59.48%)
+Negative Passed: 2744/4588 (59.81%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
@@ -349,7 +349,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-rest-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-rest-nested-obj-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-rest-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-id-init-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-id-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js
@@ -359,8 +358,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-prop-nested-obj-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/id-arguments-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/id-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/direct-callexpression-in-postfix-update.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/direct-callexpression-in-prefix-update.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/direct-identifierreference-arguments-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/direct-identifierreference-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/parenthesized-identifierreference-arguments-strict.js
@@ -850,23 +847,14 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-dec
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-decrement/eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-increment/arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-increment/eval.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/implements-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/implements-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/interface-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/interface-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/let-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/let-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/package-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/package-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/private-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/private-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/protected-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/protected-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/public-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/public-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/static-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/static-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/yield-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/export.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/import.js
@@ -1604,7 +1592,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/array-rest-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/array-rest-nested-obj-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/array-rest-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-id-init-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-id-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-id-simple-strict.js
@@ -1641,7 +1628,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/const-obj-ptrn-init-err.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/let-ary-ptrn-init-err.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/let-obj-ptrn-init-err.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-id-init-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-id-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-id-simple-strict.js
@@ -1741,7 +1727,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/con
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/decl-fun-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/static-init-invalid-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-yield-strict-escaped.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/redeclaration-error-from-within-strict-mode-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/syntax/identifier-let-allowed-as-lefthandside-expression-strict.js
@@ -2009,6 +1994,7 @@ test262/test/language/expressions/assignment/dstr/array-rest-init.js:24:19: Rest
 test262/test/language/expressions/assignment/dstr/array-rest-nested-array-invalid.js:23:24: Invalid destructuring assignment target
 test262/test/language/expressions/assignment/dstr/array-rest-nested-obj-invalid.js:23:30: Invalid destructuring assignment target
 test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js:24:12: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid.js:23:12: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:56:19: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:59:10: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/obj-prop-nested-array-invalid.js:23:31: Invalid destructuring assignment target
@@ -2102,6 +2088,8 @@ test262/test/language/expressions/assignmenttargettype/direct-callexpression-as-
 test262/test/language/expressions/assignmenttargettype/direct-callexpression-as-for-of-lhs.js:24:13: Invalid left-hand side in for-of loop
 test262/test/language/expressions/assignmenttargettype/direct-callexpression-in-compound-assignment.js:24:9: Invalid left-hand side in assignment
 test262/test/language/expressions/assignmenttargettype/direct-callexpression-in-logical-assignment.js:24:10: Invalid left-hand side in assignment
+test262/test/language/expressions/assignmenttargettype/direct-callexpression-in-postfix-update.js:24:6: Invalid left-hand side expression in postfix operation
+test262/test/language/expressions/assignmenttargettype/direct-callexpression-in-prefix-update.js:24:6: Invalid left-hand side expression in prefix operation
 test262/test/language/expressions/assignmenttargettype/direct-callexpression-templateliteral.js:20:10: Invalid left-hand side in assignment
 test262/test/language/expressions/assignmenttargettype/direct-callexpression.js:24:8: Invalid left-hand side in assignment
 test262/test/language/expressions/assignmenttargettype/direct-coalesceexpressionhead-coalesce-bitwiseorexpression-0.js:20:11: Invalid left-hand side in assignment
@@ -3372,8 +3360,17 @@ test262/test/language/future-reserved-words/debugger.js:20:5: 'debugger' is a re
 test262/test/language/future-reserved-words/enum.js:20:5: 'enum' is a reserved word and cannot be used as a binding identifier
 test262/test/language/future-reserved-words/export.js:20:5: 'export' is a reserved word and cannot be used as a binding name
 test262/test/language/future-reserved-words/extends.js:20:5: 'extends' is a reserved word and cannot be used as a binding name
+test262/test/language/future-reserved-words/implements-strict-escaped.js:24:5: Keyword 'implements' must not contain escaped characters
 test262/test/language/future-reserved-words/import.js:20:5: 'import' is a reserved word and cannot be used as a binding name
+test262/test/language/future-reserved-words/interface-strict-escaped.js:24:5: Keyword 'interface' must not contain escaped characters
+test262/test/language/future-reserved-words/let-strict-escaped.js:24:5: Keyword 'let' must not contain escaped characters
+test262/test/language/future-reserved-words/package-strict-escaped.js:24:5: Keyword 'package' must not contain escaped characters
+test262/test/language/future-reserved-words/private-strict-escaped.js:24:5: Keyword 'private' must not contain escaped characters
+test262/test/language/future-reserved-words/protected-strict-escaped.js:25:5: Keyword 'protected' must not contain escaped characters
+test262/test/language/future-reserved-words/public-strict-escaped.js:24:5: Keyword 'public' must not contain escaped characters
+test262/test/language/future-reserved-words/static-strict-escaped.js:24:5: Keyword 'static' must not contain escaped characters
 test262/test/language/future-reserved-words/super.js:20:5: 'super' is a reserved word and cannot be used as a binding name
+test262/test/language/future-reserved-words/yield-strict-escaped.js:24:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/global-code/return.js:22:7: 'return' outside of function
 test262/test/language/identifiers/start-zwj-escaped.js:15:5: Expected binding pattern
 test262/test/language/identifiers/start-zwnj-escaped.js:15:5: Expected binding pattern
@@ -4277,6 +4274,7 @@ test262/test/language/statements/for-in/dstr/array-rest-init.js:33:20: Rest elem
 test262/test/language/statements/for-in/dstr/array-rest-nested-array-invalid.js:32:23: Invalid destructuring assignment target
 test262/test/language/statements/for-in/dstr/array-rest-nested-obj-invalid.js:32:29: Invalid destructuring assignment target
 test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/for-in/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:65:21: Invalid left-hand side in assignment
 test262/test/language/statements/for-in/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:68:10: Invalid left-hand side in assignment
 test262/test/language/statements/for-in/dstr/obj-prop-nested-array-invalid.js:32:25: Invalid destructuring assignment target
@@ -4317,6 +4315,7 @@ test262/test/language/statements/for-of/dstr/let-ary-ptrn-rest-not-final-ary.js:
 test262/test/language/statements/for-of/dstr/let-ary-ptrn-rest-not-final-id.js:51:15: Rest element must be last in array pattern
 test262/test/language/statements/for-of/dstr/let-ary-ptrn-rest-not-final-obj.js:51:19: Rest element must be last in array pattern
 test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/for-of/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:65:21: Invalid left-hand side in assignment
 test262/test/language/statements/for-of/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:68:10: Invalid left-hand side in assignment
 test262/test/language/statements/for-of/dstr/obj-prop-nested-array-invalid.js:32:25: Invalid destructuring assignment target
@@ -4461,6 +4460,7 @@ test262/test/language/statements/labeled/decl-gen.js:16:1: Async / generator fun
 test262/test/language/statements/labeled/decl-let.js:15:1: Lexical declaration cannot be a labeled item
 test262/test/language/statements/labeled/let-array-with-newline.js:24:1: Lexical declaration cannot be a labeled item
 test262/test/language/statements/labeled/value-await-module.js:20:6: 'await' expression requires an operand
+test262/test/language/statements/labeled/value-yield-strict-escaped.js:22:1: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-ary.js:30:15: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-id.js:30:11: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-obj.js:30:15: Rest element must be last in array pattern

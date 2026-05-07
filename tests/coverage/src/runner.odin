@@ -50,11 +50,11 @@ run_parser_one :: proc(
 		lang_override          = fix.lang,
 		source_type_override   = fix.source_type,
 		strict_source_type     = false,
-		force_strict           = false,
+		force_strict           = fix.force_strict,
 		preserve_parens        = false,
 		ast_only               = false,
 		check_semantics        = tool == .Semantic,
-		source_is_dts_override = nil,
+		source_is_dts_override = fix.source_is_dts,
 	}
 
 	job: kessel.ParseJob
@@ -69,6 +69,9 @@ run_parser_one :: proc(
 	}
 
 	kessel.parse_job_run(&job)
+	if tool == .Semantic {
+		kessel.checker_run_for_job(&job)
+	}
 
 	error_count := len(job.parser.errors)
 
