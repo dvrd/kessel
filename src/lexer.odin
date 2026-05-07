@@ -800,7 +800,9 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 						})
 					}
 					if l.collect_comments {
-						content_end := end - 2 if end >= 2 else end
+						content_end := end
+						if terminated { content_end = end - 2 }
+						if content_end < content_start { content_end = content_start }
 						bump_append(&l.comments, Comment{
 							type  = .Block,
 							start = u32(comment_start),

@@ -4945,13 +4945,11 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// Computed property: [expr]
 		computed = true
 		eat(p)
-		// OXC rejects `[[` in computed class keys when the `[` is NOT
-		// preceded by `get` / `set` (accessor methods). `set [[0,1]](v)`
-		// is fine because `set` consumed the outer `[` in a different
-		// parse path; but `[[]]()` without accessor triggers an error.
-		if is_token(p, .LBracket) && kind != .Get && kind != .Set {
-			report_error(p, "Unexpected token")
-		}
+		// `[[]]() {}` and `[[1,2]]() {}` (array literal as computed class
+		// key) are legal per the grammar. We previously rejected them to
+		// match OXC's old behavior; OXC fixed their false-reject in
+		// oxc-project/oxc@9fa2122 (`fix(parser): parse array computed class
+		// keys`) and we follow.
 		// `[` opens a fresh expression context - the enclosing for-head
 		// no_in restriction does not apply inside computed property keys
 		// (`for (C = class { set ['x' in y](v) {} }; ; )` is legal).
@@ -14481,15 +14479,41 @@ parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 		name = raw
 	}
 	eat(p)
-	if is_token(p, .Minus) {
+	if is_token(p, .Minus) || is_token(p, .MinusMinus) {
+		// JSXIdentifier per JSX spec: IdentifierStart IdentifierTail* where
+		// IdentifierTail ∈ { IdentifierStart, DecimalDigit, `-` }. Trailing
+		// hyphens (`<div->`, `<div-->`) and bare hyphen-terminated names
+		// (`<div-/>`) are legal — the `-` is part of the name and a `>` /
+		// `/>` / whitespace boundary closes the tag, not the identifier
+		// mid-character.
+		//
+		// `--` arrives from the JS lexer as a single MinusMinus token; we
+		// split it into two `-` parts here. The other `--` shape (post/pre
+		// decrement operator) cannot reach this code path — we're inside
+		// a JSX tag-name parse, where decrement is grammatically impossible.
 		parts := make([dynamic]string, 0, 4, p.allocator)
 		bump_append(&parts, name)
-		for is_token(p, .Minus) {
-			bump_append(&parts, "-")
-			eat(p)
-			c := get_current(p)
-			bump_append(&parts, c.value)
-			eat(p)
+		for is_token(p, .Minus) || is_token(p, .MinusMinus) {
+			if is_token(p, .MinusMinus) {
+				eat(p)
+				bump_append(&parts, "--")
+			} else {
+				eat(p)
+				bump_append(&parts, "-")
+			}
+			// After eating a hyphen, the lexer's prefetched cur was lexed
+			// with `can_start_regex(.Minus) = true`, so a `/` byte was
+			// classified as Regex (and likely emitted an Unterminated-regex
+			// error if the source has only `/>`). Inside a JSX tag name
+			// the `/` is a JSX self-close, never a regex — force-relex.
+			jsx_relex_div_after_hyphen(p)
+			if is_jsx_identifier_token(p) {
+				c := get_current(p)
+				bump_append(&parts, c.value)
+				eat(p)
+			}
+			// else: trailing hyphen(s) — next loop iter handles further `-`,
+			// fall through ends the name otherwise.
 		}
 		sb: strings.Builder
 		strings.builder_init(&sb, p.allocator)
@@ -14499,6 +14523,42 @@ parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 	result := JSXIdentifier{loc = start_loc, name = name}
 	result.loc.span.end = prev_end_offset(p)
 	return result
+}
+
+// jsx_relex_div_after_hyphen — fix-up helper called after eating a
+// hyphen inside a JSX tag-name parse. If the lexer's cur was prefetched
+// as Regex starting at the byte of `/`, drop the spurious lexer errors,
+// rewind, and re-lex the slash as Div. Mirrors the relex-as-div pattern
+// already used for `expr!.foo` (TS non-null) and tagged-template member
+// chains in this file.
+@(private="file")
+jsx_relex_div_after_hyphen :: proc(p: ^Parser) {
+	if p.lexer == nil { return }
+	if p.lexer.cur.kind != .RegularExpression { return }
+	start := p.lexer.cur.start
+	if int(start) >= len(p.lexer.source) { return }
+	if p.lexer.source[int(start)] != '/' { return }
+
+	// Drop any lexer errors recorded at or past this `/` — they're
+	// the unterminated-regex artifacts we're undoing.
+	for len(p.lexer.lexer_errors) > 0 {
+		last := p.lexer.lexer_errors[len(p.lexer.lexer_errors)-1]
+		if last.offset >= start { pop(&p.lexer.lexer_errors) } else { break }
+	}
+
+	p.lexer.offset = int(start)
+	p.lexer.cur = lex_slash_as_div(p.lexer)
+	// Re-prefetch nxt from the new offset.
+	p.lexer.nxt = lex_token(p.lexer)
+	// Refresh the parser's cached cur view.
+	p.cur_tok = Token{
+		type             = p.lexer.cur.kind,
+		loc              = LexerLoc(p.lexer.cur.start),
+		raw_end          = p.lexer.cur.end,
+		value            = p.lexer.source[int(p.lexer.cur.start):int(p.lexer.cur.end)],
+		had_line_terminator = (p.lexer.cur.flags & 1) != 0,
+	}
+	p.cur_type = p.cur_tok.type
 }
 
 parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) -> ^JSXOpeningElement {

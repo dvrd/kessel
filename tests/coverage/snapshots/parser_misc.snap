@@ -1,6 +1,6 @@
 parser_misc Summary:
-AST Parsed     : 56/64 (87.50%)
-Positive Passed: 56/64 (87.50%)
+AST Parsed     : 58/64 (90.62%)
+Positive Passed: 58/64 (90.62%)
 Negative Passed: 83/135 (61.48%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
@@ -62,12 +62,6 @@ tests/coverage/misc/pass/commonjs-top-level-return.cts:2:8: 'return' outside of 
 
 Expect to Parse: tests/coverage/misc/pass/oxc-1289.ts
 tests/coverage/misc/pass/oxc-1289.ts:1:13: Expected from, got infer
-
-Expect to Parse: tests/coverage/misc/pass/oxc-22157.js
-tests/coverage/misc/pass/oxc-22157.js:2:4: Unexpected token
-
-Expect to Parse: tests/coverage/misc/pass/oxc-2674.tsx
-tests/coverage/misc/pass/oxc-2674.tsx:9:5: Expected >, got --
 
 Expect to Parse: tests/coverage/misc/pass/oxc-3443.tsx
 tests/coverage/misc/pass/oxc-3443.tsx:1:36: Unexpected token. Did you mean `{'>'}` or `&gt;`?

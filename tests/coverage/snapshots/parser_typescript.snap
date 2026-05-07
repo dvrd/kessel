@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12690/12710 (99.84%)
 Positive Passed: 12690/12710 (99.84%)
-Negative Passed: 1332/3472 (38.36%)
+Negative Passed: 1330/3472 (38.31%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1155,6 +1155,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/class
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallFromClassThatHasNoBaseTypeButWithSameSymbolInterface.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames17_ES5.ts
@@ -2738,8 +2740,6 @@ typescript/tests/cases/conformance/es6/arrowFunction/disallowLineTerminatorBefor
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/binaryIntegerLiteralError.ts:2:17: Expected semicolon
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/invalidBinaryIntegerLiteralAndOctalIntegerLiteral.ts:2:16: Expected semicolon
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/octalIntegerLiteralError.ts:2:19: Expected semicolon
-typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts:5:6: Unexpected token
-typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES6.ts:5:6: Unexpected token
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES5.ts:9:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES6.ts:9:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames50_ES5.ts:11:10: Setter must have exactly one formal parameter

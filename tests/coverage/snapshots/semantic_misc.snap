@@ -1,6 +1,6 @@
 semantic_misc Summary:
-AST Parsed     : 52/64 (81.25%)
-Positive Passed: 52/64 (81.25%)
+AST Parsed     : 54/64 (84.38%)
+Positive Passed: 54/64 (84.38%)
 Negative Passed: 97/135 (71.85%)
 Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
 Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
@@ -60,12 +60,6 @@ tests/coverage/misc/pass/oxc-1289.ts:1:13: Expected from, got infer
 
 Expect to Parse: tests/coverage/misc/pass/oxc-13284.js
 tests/coverage/misc/pass/oxc-13284.js:173:8: 'super' call is only allowed in the constructor of a derived class
-
-Expect to Parse: tests/coverage/misc/pass/oxc-22157.js
-tests/coverage/misc/pass/oxc-22157.js:2:4: Unexpected token
-
-Expect to Parse: tests/coverage/misc/pass/oxc-2674.tsx
-tests/coverage/misc/pass/oxc-2674.tsx:9:5: Expected >, got --
 
 Expect to Parse: tests/coverage/misc/pass/oxc-3443.tsx
 tests/coverage/misc/pass/oxc-3443.tsx:1:36: Unexpected token. Did you mean `{'>'}` or `&gt;`?

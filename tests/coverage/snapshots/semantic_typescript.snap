@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12550/12710 (98.74%)
 Positive Passed: 12550/12710 (98.74%)
-Negative Passed: 1610/3472 (46.37%)
+Negative Passed: 1608/3472 (46.31%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1007,6 +1007,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/class
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing7.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames17_ES5.ts
@@ -3028,8 +3030,6 @@ typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/invalidBinar
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/octalIntegerLiteralError.ts:2:19: Expected semicolon
 typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts:4:16: Parameter name 'arguments' is not allowed in strict mode
 typescript/tests/cases/conformance/es6/classDeclaration/superCallFromClassThatHasNoBaseTypeButWithSameSymbolInterface.ts:5:9: 'super' call is only allowed in the constructor of a derived class
-typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts:5:6: Unexpected token
-typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES6.ts:5:6: Unexpected token
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES5.ts:7:6: 'super' is only allowed in class methods or object-literal methods
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES6.ts:9:6: 'super' is only allowed in class methods or object-literal methods
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames26_ES5.ts:8:12: 'super' is only allowed in class methods or object-literal methods
