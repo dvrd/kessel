@@ -17,6 +17,7 @@ package coverage
 import "core:fmt"
 import "core:os"
 import "core:path/filepath"
+import "core:strings"
 import "core:time"
 
 main :: proc() {
@@ -35,7 +36,9 @@ main :: proc() {
 	}
 	command := args[1]
 	switch command {
-	case "discover": cmd_discover()
+	case "discover":   cmd_discover()
+	case "babel":      cmd_babel_smoke()
+	case "typescript": cmd_typescript_smoke()
 	case "parser":   fmt.println("[parser]    not yet wired — phase 7 lands the runner")
 	case "semantic": fmt.println("[semantic]  not yet wired — phase 11 lands the runner")
 	case "all":      fmt.println("[all]       not yet wired — phase 7 / 11 land the runners")
@@ -68,6 +71,70 @@ cmd_discover :: proc() {
 	probe(vendor, "babel/packages/babel-parser/test/fixtures", "babel")
 	probe(vendor, "typescript/tests/cases",                    "typescript")
 	probe(vendor, "estree-conformance/tests/acorn-jsx",        "estree")
+}
+
+// cmd_babel_smoke — phase 2 smoke. Walks the babel corpus with the
+// real `babel_skip_path` predicate, applies plugin-level skips, runs
+// `determine_should_fail` for every survivor, and prints summary counts
+// without invoking the parser.
+cmd_babel_smoke :: proc() {
+	root := find_kessel_root()
+	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	defer delete(vendor)
+
+	t0 := time.now()
+	fixtures := load_babel(vendor, context.allocator)
+	dt := time.since(t0)
+
+	n_pos, n_neg := 0, 0
+	n_ts, n_tsx, n_js, n_jsx := 0, 0, 0, 0
+	for f in fixtures {
+		if f.should_fail { n_neg += 1 } else { n_pos += 1 }
+		switch f.lang {
+		case .TS:  n_ts  += 1
+		case .TSX: n_tsx += 1
+		case .JS:  n_js  += 1
+		case .JSX: n_jsx += 1
+		}
+	}
+
+	fmt.printfln("[babel] discovered %d fixtures in %v", len(fixtures), dt)
+	fmt.printfln("        positives (should-pass): %d", n_pos)
+	fmt.printfln("        negatives (should-fail): %d", n_neg)
+	fmt.printfln("        lang: TS=%d TSX=%d JS=%d JSX=%d", n_ts, n_tsx, n_js, n_jsx)
+}
+
+// cmd_typescript_smoke — phase 3 smoke. Walks the typescript corpus,
+// applies path skip + unit-splitting + error-code exclusion, prints
+// summary counts. No parser invocation yet.
+cmd_typescript_smoke :: proc() {
+	root := find_kessel_root()
+	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	defer delete(vendor)
+
+	t0 := time.now()
+	fixtures := load_typescript(vendor, context.allocator)
+	dt := time.since(t0)
+
+	n_pos, n_neg := 0, 0
+	n_ts, n_tsx, n_js, n_jsx := 0, 0, 0, 0
+	n_multi := 0
+	for f in fixtures {
+		if f.should_fail { n_neg += 1 } else { n_pos += 1 }
+		switch f.lang {
+		case .TS:  n_ts  += 1
+		case .TSX: n_tsx += 1
+		case .JS:  n_js  += 1
+		case .JSX: n_jsx += 1
+		}
+		if strings.contains(f.rel, "::") { n_multi += 1 }
+	}
+
+	fmt.printfln("[typescript] discovered %d units in %v", len(fixtures), dt)
+	fmt.printfln("             positives (should-pass): %d", n_pos)
+	fmt.printfln("             negatives (should-fail): %d", n_neg)
+	fmt.printfln("             lang: TS=%d TSX=%d JS=%d JSX=%d", n_ts, n_tsx, n_js, n_jsx)
+	fmt.printfln("             multi-file units: %d", n_multi)
 }
 
 // Walk parents of cwd looking for the kessel project marker (`Taskfile.yml`).

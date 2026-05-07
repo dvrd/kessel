@@ -120,15 +120,17 @@ echo "Fetching OXC conformance corpus → ${VENDOR_DIR}"
 echo
 
 if $fetch_typescript; then
-  # tests/cases/ contains both compiler/ and conformance/ subtrees, plus
-  # tests/baselines/reference/ which OXC's parser walker doesn't read but
-  # is small enough to ignore. We only sparse on tests/cases/ to drop the
-  # ~2 GB of `src/` and other infrastructure.
+  # tests/cases/ contains both compiler/ and conformance/ subtrees;
+  # tests/baselines/reference/ contains the *.errors.txt files used by
+  # the coverage harness's `should_fail` classifier (a fixture is
+  # negative iff its baseline lists at least one TS error code that's
+  # not in NOT_SUPPORTED_ERROR_CODES). Both are needed for OXC parity.
+  # Together they are still <100MB, vs 2GB+ for a full clone.
   clone_pinned \
     "${VENDOR_DIR}/typescript" \
     "https://github.com/microsoft/TypeScript.git" \
     "$TYPESCRIPT_SHA" \
-    "tests/cases/"
+    "$(printf 'tests/cases/\ntests/baselines/reference/\n')"
 fi
 
 if $fetch_babel; then
