@@ -3834,7 +3834,6 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// BoundNames of FormalParameters also occurs in the LexicallyDeclaredNames
 	// of FunctionBody. e.g. `function f(a) { const a = 1; }` is SyntaxError.
 	// Collect param names and check against body's lex declarations.
-	check_params_vs_body_lex(p, params[:], body.body[:])
 
 	if is_expr {
 		expr := new_node(p, FunctionExpression)
@@ -5377,7 +5376,6 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// strict (§15.7.1) and the outer p.strict_mode has already been
 		// restored above, so the strict-arm check needs the override to
 		// actually fire on `class C { foo(a, a) {} }`.
-		report_duplicate_param_names(p, params[:], true, true)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
 		// !IsSimpleParameterList" for class methods: enforced by the
@@ -5403,7 +5401,6 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
-	check_params_vs_body_lex(p, params[:], body.body[:])
 
 	// Create the method as a FunctionExpression
 	fn_expr := new_node(p, FunctionExpression)
@@ -5623,7 +5620,6 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// in both strict and sloppy. The binding check lives here, not in
 	// parse_binding_pattern, so `var let;` keeps working (B.3.4.4).
 	if !is_declare && (kind == .Let || kind == .Const || kind == .Using || kind == .AwaitUsing) {
-		report_duplicate_lexical_names(p, decl.declarations[:])
 		// §14.3.1.1 `let` as lexically bound name: enforced by the
 		// semantic checker (ck_check_var_decl_let_binding) for every
 		// VariableDeclaration the walker visits.
@@ -5787,34 +5783,13 @@ count_real_params :: #force_inline proc(p: ^Parser, params: []FunctionParameter)
 	return n
 }
 
-// ECMA-262 §15.2.1 StrictFormalParameters forbids dups whenever the
-// code is strict; §15.1.2 extends the ban to any non-simple param list
-// regardless of mode. The `force_when_non_simple` bool threads that
-// second rule through at the call site so we don't rescan the params.
-// `strict_override` lets a caller force-on the strict arm even when
-// `p.strict_mode` has already been restored from a nested body (eg.
-// parse_function_declaration reads body_strict after the body parse
-// but before the param check runs).
-//
-// Migrated to the semantic checker (ck_check_duplicate_param_names),
-// which runs the same O(n²) name comparison post-parse. This stub is
-// kept for call sites that reference it; the body is now a no-op.
-// Future cleanup will delete the call sites and the stub. The
-// parameters are kept on the signature so existing call sites compile.
-report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, force_when_non_simple: bool = false, strict_override: bool = false) {
-	_ = p
-	_ = params
-	_ = force_when_non_simple
-	_ = strict_override
-}
-
-// ECMA-262 §14.3.1.1 — per-LexicalDeclaration duplicate-name check.
-// Migrated to the semantic checker (ck_check_var_decl_lexical_dups).
-// Stub kept for existing call sites; body is a no-op.
-report_duplicate_lexical_names :: proc(p: ^Parser, decls: []VariableDeclarator) {
-	_ = p
-	_ = decls
-}
+// NOTE — §15.2.1 StrictFormalParameters duplicate-name check
+// (`report_duplicate_param_names`) and §14.3.1.1 per-LexicalDeclaration
+// duplicate-name check (`report_duplicate_lexical_names`) were
+// migrated to the semantic checker (ck_check_duplicate_param_names /
+// ck_check_var_decl_lexical_dups) in slice 11; the parser-side stubs
+// were deleted in the slice-13e cleanup once every call site was
+// purged.
 
 parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := false, is_declare := false) -> ^VariableDeclarator {
 	start := cur_loc(p)
@@ -6187,36 +6162,15 @@ report_escaped_reserved_word_slow :: proc(p: ^Parser) {
 // reserved word are SyntaxErrors. Used after parse_function_body when
 // the body's directive prologue contained `"use strict"` or the
 // enclosing context was strict.
-// report_strict_param_names / report_strict_param_pattern — §15.5.1 /
-// §15.6.1 / §15.8.1 strict-mode parameter BindingIdentifier checks.
-// Migrated to the semantic checker (ck_check_strict_param_pattern,
-// ck_check_strict_binding_pattern). Stubs preserved for existing call
-// sites; bodies are no-ops.
-report_strict_param_names :: proc(p: ^Parser, params: []FunctionParameter) {
-	_ = p
-	_ = params
-}
-
-report_strict_param_pattern :: proc(p: ^Parser, pat: Pattern) {
-	_ = p
-	_ = pat
-}
-
-// report_strict_eval_arguments_in_target — §13.15.1 strict-mode LHS
-// check. Migrated to ck_check_strict_eval_arguments_in_target. Stub
-// kept for existing call sites; body is a no-op.
-report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
-	_ = p
-	_ = expr
-}
-
-// report_strict_update_on_eval_or_arguments — §13.4.4 strict-mode
-// update target check. Migrated to ck_check_strict_update_eval_arguments.
-// Stub kept for existing call sites; body is a no-op.
-report_strict_update_on_eval_or_arguments :: proc(p: ^Parser, arg: ^Expression) {
-	_ = p
-	_ = arg
-}
+// NOTE — the strict-mode parameter / assignment-target / update-target
+// helper procs (`report_strict_param_names`, `report_strict_param_pattern`,
+// `report_strict_eval_arguments_in_target`,
+// `report_strict_update_on_eval_or_arguments`) were migrated to the
+// semantic checker in slice 11 (ck_check_strict_param_pattern /
+// ck_check_strict_binding_pattern / ck_check_strict_eval_arguments_in_target
+// / ck_check_strict_update_eval_arguments) and the parser-side stubs
+// were deleted in the slice-13e cleanup once every call site was
+// purged.
 
 // A numeric literal's raw source looks like a "0-prefixed integer" if
 // it starts with `0` and the next character is a decimal digit. This
@@ -7829,16 +7783,11 @@ scope_map_clear :: #force_inline proc(m: ^ScopeMap) {
 	}
 }
 
-// check_params_vs_body_lex — §15.2.1.1 / §15.5.1 — formal parameter
-// vs body let/const redeclaration check. Migrated to the semantic
-// checker (ck_check_params_vs_body_lex). Stub kept for existing call
-// sites (parse_function_body / parse_arrow_function bodies); body is
-// a no-op.
-check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: []^Statement) {
-	_ = p
-	_ = params
-	_ = body
-}
+// NOTE — §15.2.1.1 / §15.5.1 formal-parameter vs body let/const
+// redeclaration check (`check_params_vs_body_lex`) was migrated to
+// the semantic checker (ck_check_params_vs_body_lex) in slice 13c
+// and the parser-side stub was deleted in the slice-13e cleanup once
+// every call site was purged.
 
 // verify_scopes runs the lex/var clash check across every scope-bearing
 // body in the program. The Program-level body is processed first, then
@@ -9816,7 +9765,6 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.argument = argument
 		update.prefix = true
 		update.loc.span.end = prev_end_offset(p)
-		report_strict_update_on_eval_or_arguments(p, argument)
 		if !is_simple_assignment_target(argument, !p.strict_mode) {
 			report_error(p, "Invalid left-hand side expression in prefix operation")
 		}
@@ -10060,7 +10008,6 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.argument = expr
 		update.prefix = false
 		update.loc.span.end = prev_end_offset(p)
-		report_strict_update_on_eval_or_arguments(p, expr)
 		if !is_simple_assignment_target(expr, !p.strict_mode) {
 			report_error(p, "Invalid left-hand side expression in postfix operation")
 		}
@@ -11817,7 +11764,6 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// the same is a SyntaxError regardless of strict mode. strict_override
 		// = true forces the duplicate-name check independent of
 		// p.strict_mode (which has been restored above).
-		report_duplicate_param_names(p, params[:], true, true)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
 		// !IsSimpleParameterList" for object-literal accessors: enforced
@@ -11827,7 +11773,6 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// / FutureReservedWords). When the body opted in via "use strict",
 		// param names must satisfy strict-mode reservation rules.
 		if body_strict {
-			report_strict_param_names(p, params[:])
 		}
 
 		// §15.4.3 / §15.4.4 PropertySetParameterList / PropertyGetParameter
@@ -11939,7 +11884,6 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// (ECMA-262 §15.4.1 / §15.4.5) - duplicates are always a
 		// SyntaxError. strict_override = true forces the check even when
 		// the surrounding context is sloppy.
-		report_duplicate_param_names(p, params[:], true, true)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
 		// !IsSimpleParameterList" for object-literal methods: enforced by
@@ -11947,11 +11891,9 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 
 		// Strict-mode param-name reservation. See accessor case above.
 		if body_strict {
-			report_strict_param_names(p, params[:])
 		}
 
 		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
-		check_params_vs_body_lex(p, params[:], body.body[:])
 
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start
@@ -13514,7 +13456,6 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// (ECMA-262 §15.3.1). No sloppy-mode escape hatch - pass
 	// strict_override=true so the duplicate-check fires even when the
 	// outer function isn't strict.
-	report_duplicate_param_names(p, params[:], true, true)
 
 	// §15.3.1 / §15.9.1 "ContainsUseStrict + !IsSimpleParameterList"
 	// early error: enforced by the semantic checker
@@ -13526,7 +13467,6 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		// are SyntaxErrors. Test262 language/expressions/{,async-}
 		// arrow-function/early-errors-arrow-formals-body-duplicate.js.
 		if bs, ok := body.(^BlockStatement); ok && bs != nil {
-			check_params_vs_body_lex(p, params[:], bs.body[:])
 		}
 	}
 
@@ -13801,7 +13741,6 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// destructuring pattern too: `[eval] = []`, `({x: arguments} = {})`,
 	// and `[...eval] = []` are all SyntaxErrors.
 	if p.strict_mode {
-		report_strict_eval_arguments_in_target(p, left)
 	}
 
 	assign := new_node(p, AssignmentExpression)
@@ -13910,13 +13849,11 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	// to dedupe. Still run the helper for consistency / future-proof.
 	// Pass strict_override=true per §15.9.1 - async arrows always have
 	// UniqueFormalParameters.
-	report_duplicate_param_names(p, params[:], true, true)
 
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async bar => { let bar; }` is a SyntaxError.
 	if is_block_body {
 		if bs, ok := body.(^BlockStatement); ok && bs != nil {
-			check_params_vs_body_lex(p, params[:], bs.body[:])
 		}
 	}
 
@@ -14025,7 +13962,6 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 
 	// Async arrow with paren'd params: UniqueFormalParameters always.
 	// Pass strict_override=true per §15.9.1.
-	report_duplicate_param_names(p, params[:], true, true)
 
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async(bar) => { let bar; }` is the canonical
@@ -14033,7 +13969,6 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// early-errors-arrow-formals-body-duplicate.js.
 	if is_block_body {
 		if bs, ok := body.(^BlockStatement); ok && bs != nil {
-			check_params_vs_body_lex(p, params[:], bs.body[:])
 		}
 	}
 
@@ -16952,7 +16887,6 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	arrow.loc.span.end = prev_end_offset(p)
 
 	// TS generic arrow - same UniqueFormalParameters rule as plain arrow.
-	report_duplicate_param_names(p, params[:], true)
 
 	return expression_from(p, arrow)
 }
