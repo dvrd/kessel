@@ -35,7 +35,7 @@ package kessel
 //   • Errors are stored on the Checker (`c.errors`) and then appended to
 //     `job.parser.errors` by `checker_run_for_job` so the existing emitter
 //     and verifier infrastructure (`emit_errors`, the `Parse errors: N`
-//     diagnostic line read by verify_test262_subset.js / verify_negative.js
+//     diagnostic line read by tests/coverage/* snap renderer / verify_negative.js
 //     / etc.) just works without further plumbing.
 //   • Errors use ParseError so they share the existing diagnostic shape
 //     (loc + message). The locations point at the offending keyword
