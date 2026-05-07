@@ -132,14 +132,14 @@
     {
       "message": "'super' call is only allowed in the constructor of a derived class",
       "line": 10,
-      "column": 8,
-      "offset": 449
+      "column": 3,
+      "offset": 444
     }
   ]
 }
 Parse errors (1):
-  Line 10, Column 8: 'super' call is only allowed in the constructor of a derived class
+  Line 10, Column 3: 'super' call is only allowed in the constructor of a derived class
 
 --- Statistics ---
-Arena: used=39184B reserved=16777216B ratio=0%
+Arena: used=39168B reserved=16777216B ratio=0%
 Parse errors: 1

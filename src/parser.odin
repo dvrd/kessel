@@ -5303,13 +5303,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				if is_abstract {
 					report_error(p, "Abstract property cannot have an initializer.")
 				}
-				// §15.7.5 - ClassFieldInitializer must not Contain
-				// `arguments`. Hoisted out of pn_visit_class so files
-				// with no PrivateIdentifier can skip the full
-				// §15.7.3 walker. The scan is local to this initializer
-				// expression tree and stops at nested
-				// FunctionExpression / ClassExpression boundaries.
-				scan_field_init_arguments(p, init_expr)
+				// §15.7.10 "arguments in field initializer": enforced by
+				// the semantic checker (ck_check_identifier_arguments),
+				// which walks every ^Identifier reachable from the field
+				// initializer expression with in_field_init = true.
 			}
 		}
 
@@ -8277,120 +8274,6 @@ pn_visit_class :: proc(p: ^Parser, cls: ^ClassExpression, stack: ^PrivateNameSta
 	pop(stack)
 }
 
-// Walk a class-field initializer expression tree and report any bare
-// `arguments` IdentifierReference. Nested FunctionExpression /
-// FunctionDeclaration / ClassExpression boundaries bring their own
-// `arguments` / class-init scope - stop there. ArrowFunctionExpression
-// does NOT stop: arrows inherit the enclosing class-init scope's lack
-// of `arguments`, so §15.7.5 catches `x = () => arguments` too.
-scan_field_init_arguments :: proc(p: ^Parser, expr: ^Expression) {
-	if expr == nil { return }
-	#partial switch e in expr^ {
-	case ^Identifier:
-		if e != nil && e.name == "arguments" {
-			report_semantic_error(p, "'arguments' cannot appear in a class field initializer")
-		}
-	case ^FunctionExpression:
-		// Nested function - has its own arguments binding. Stop.
-		return
-	case ^ClassExpression:
-		// Nested class - its own field-init boundaries. Stop.
-		return
-	case ^ArrowFunctionExpression:
-		if e == nil { return }
-		for pr in e.params {
-			if d, have := pr.default_val.(^Expression); have && d != nil { scan_field_init_arguments(p, d) }
-		}
-		#partial switch body in e.body {
-		case ^Expression:     scan_field_init_arguments(p, body)
-		case ^BlockStatement: if body != nil { for s in body.body { scan_field_init_arguments_stmt(p, s) } }
-		}
-	case ^MemberExpression:
-		if e == nil { return }
-		scan_field_init_arguments(p, e.object)
-		if e.computed {
-			scan_field_init_arguments(p, e.property)
-		}
-	case ^BinaryExpression:
-		if e == nil { return }
-		scan_field_init_arguments(p, e.left)
-		scan_field_init_arguments(p, e.right)
-	case ^LogicalExpression:
-		if e == nil { return }
-		scan_field_init_arguments(p, e.left)
-		scan_field_init_arguments(p, e.right)
-	case ^AssignmentExpression:
-		if e == nil { return }
-		scan_field_init_arguments(p, e.left)
-		scan_field_init_arguments(p, e.right)
-	case ^ConditionalExpression:
-		if e == nil { return }
-		scan_field_init_arguments(p, e.test)
-		scan_field_init_arguments(p, e.consequent)
-		scan_field_init_arguments(p, e.alternate)
-	case ^CallExpression:
-		if e == nil { return }
-		scan_field_init_arguments(p, e.callee)
-		for a in e.arguments { scan_field_init_arguments(p, a) }
-	case ^NewExpression:
-		if e == nil { return }
-		scan_field_init_arguments(p, e.callee)
-		for a in e.arguments { scan_field_init_arguments(p, a) }
-	case ^ArrayExpression:
-		if e == nil { return }
-		for el in e.elements {
-			if inner, have := el.(^Expression); have && inner != nil { scan_field_init_arguments(p, inner) }
-		}
-	case ^ObjectExpression:
-		if e == nil { return }
-		for prop in e.properties {
-			// `arguments` as a property key is legal; only walk value.
-			scan_field_init_arguments(p, prop.value)
-		}
-	case ^SpreadElement:             if e != nil { scan_field_init_arguments(p, e.argument) }
-	case ^UnaryExpression:           if e != nil { scan_field_init_arguments(p, e.argument) }
-	case ^UpdateExpression:          if e != nil { scan_field_init_arguments(p, e.argument) }
-	case ^SequenceExpression:        if e != nil { for s in e.expressions { scan_field_init_arguments(p, s) } }
-	case ^TemplateLiteral:           if e != nil { for s in e.expressions { scan_field_init_arguments(p, s) } }
-	case ^TaggedTemplateExpression:  if e != nil { scan_field_init_arguments(p, e.tag); scan_field_init_arguments(p, e.quasi) }
-	case ^ParenthesizedExpression:   if e != nil { scan_field_init_arguments(p, e.expression) }
-	case ^AwaitExpression:           if e != nil { scan_field_init_arguments(p, e.argument) }
-	case ^YieldExpression:
-		if e == nil { return }
-		if a, have := e.argument.(^Expression); have && a != nil { scan_field_init_arguments(p, a) }
-	case ^ChainExpression:           if e != nil { scan_field_init_arguments(p, e.expression) }
-	case ^ImportExpression:
-		if e == nil { return }
-		scan_field_init_arguments(p, e.source)
-		scan_field_init_arguments(p, e.options)
-	}
-}
-
-scan_field_init_arguments_stmt :: proc(p: ^Parser, stmt: ^Statement) {
-	if stmt == nil { return }
-	#partial switch v in stmt^ {
-	case ^ExpressionStatement:
-		if v != nil { scan_field_init_arguments(p, v.expression) }
-	case ^BlockStatement:
-		if v != nil { for s in v.body { scan_field_init_arguments_stmt(p, s) } }
-	case ^ReturnStatement:
-		if v == nil { return }
-		if a, have := v.argument.(^Expression); have && a != nil { scan_field_init_arguments(p, a) }
-	case ^IfStatement:
-		if v == nil { return }
-		scan_field_init_arguments(p, v.test)
-		scan_field_init_arguments_stmt(p, v.consequent)
-		if a, have := v.alternate.(^Statement); have && a != nil { scan_field_init_arguments_stmt(p, a) }
-	case ^VariableDeclaration:
-		if v == nil { return }
-		for d in v.declarations {
-			if init, have := d.init.(^Expression); have && init != nil {
-				scan_field_init_arguments(p, init)
-			}
-		}
-	}
-}
-
 pn_walk_stmt :: proc(p: ^Parser, stmt: ^Statement, stack: ^PrivateNameStack) {
 	if stmt == nil { return }
 	switch v in stmt^ {
@@ -10591,9 +10474,9 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			in_module_file = true
 		}
 		if p.in_static_block {
-			// §15.7.5 - ClassStaticBlockBody Contains await is a
-			// SyntaxError. Treat as keyword and report.
-			report_semantic_error(p, "'await' is not allowed in a class static block")
+			// §15.7.5 await-in-class-static-block: enforced by the semantic
+			// checker (^AwaitExpression case in ck_walk_expr). Parser still
+			// treats this `await` as a keyword to keep the AST shape stable.
 		} else if p.in_ts_namespace {
 			// TS namespace body is not an async context. `await` is
 			// an identifier, not a keyword, even in module-mode files.
@@ -10753,9 +10636,9 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// escaped form `argument\u0073` since `cur_tok.value` is the
 		// cooked name. Test262: language/statements/class/static-init-
 		// invalid-arguments.js.
-		if p.in_static_block && p.cur_tok.value == "arguments" {
-			report_semantic_error(p, "'arguments' is not allowed in a class static block")
-		}
+		// §15.7.5 arguments-in-class-static-block: enforced by the
+		// semantic checker (ck_check_identifier_arguments). Parser stays
+		// permissive.
 		// `await` as IdentifierReference in module/async/static context.
 		// Plain (non-escaped) `await` always lexes as TokenType.Await, never
 		// .Identifier, so the only way this branch is reached with the cooked
@@ -11056,18 +10939,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					report_error(p, "Arrow function must be parenthesized before call")
 				}
 			}
-			// SuperCall early-error (ECMA-262 §15.7.3 / §13.3.7): `super(...)`
-			// is a SyntaxError outside the instance constructor of a class
-			// with `extends`. The bare-super check in parse_primary already
-			// guarded SuperProperty (`super.x` / `super[x]`) for any
-			// [[HomeObject]]-bearing context; this narrower check rejects the
-			// call form even inside a non-derived constructor or
-			// non-constructor method.
-			if _, is_super := expr^.(^Super); is_super {
-				if !p.in_derived_constructor {
-					report_semantic_error(p, "'super' call is only allowed in the constructor of a derived class")
-				}
-			}
+			// §15.7.6 SuperCall outside derived constructor: enforced by
+			// the semantic checker (ck_check_super_call) using its own
+			// in_derived_constructor tracker. Parser stays permissive.
 			// Save and clear pending_paren_start before parsing arguments.
 			// The paren-start from the callee must not propagate into argument
 			// sub-expressions (e.g. `(0,f)({prop: g(x)})` - g(x) must not
@@ -11513,14 +11387,9 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return expression_from(p, pid)
 
 	case .Super:
-		// ECMA-262 §13.3.7 - SuperProperty / SuperCall is only legal inside
-		// a [[HomeObject]]-bearing context (class method / constructor,
-		// class field initializer, class static block, object-literal
-		// method/accessor). Nested arrow functions inherit; nested regular
-		// functions reset. Outside all of these, `super` is a SyntaxError.
-		if !p.in_method {
-			report_semantic_error(p, "'super' is only allowed in class methods or object-literal methods")
-		}
+		// §13.3.7 SuperProperty outside [[HomeObject]] context: enforced
+		// by the semantic checker (^Super case in ck_walk_expr) using its
+		// own in_method tracker. Parser stays permissive.
 		if p.lexer.nxt.kind != .Dot && p.lexer.nxt.kind != .LBracket &&
 		   p.lexer.nxt.kind != .LParen {
 			report_error(p, "'super' can only be used with function calls or in property accesses")
@@ -13070,9 +12939,9 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			// [[NewTarget]] from their enclosing scope, so an arrow at
 			// script top-level has no new.target either. Test262:
 			// language/global-code/new.target-arrow.js.
-			if !p.in_non_arrow_function {
-				report_semantic_error(p, "'new.target' is only allowed inside functions")
-			}
+			// §13.3.12 / §15.2 new.target outside any function: enforced
+			// by the semantic checker (ck_check_new_target) using its own
+			// function_depth tracker. Parser stays permissive.
 			meta := new_node(p, MetaProperty)
 			meta.loc = start
 			meta.meta = Identifier{loc = start, name = "new"}

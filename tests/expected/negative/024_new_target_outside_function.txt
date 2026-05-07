@@ -62,14 +62,14 @@
     {
       "message": "'new.target' is only allowed inside functions",
       "line": 4,
-      "column": 21,
-      "offset": 207
+      "column": 11,
+      "offset": 197
     }
   ]
 }
 Parse errors (1):
-  Line 4, Column 21: 'new.target' is only allowed inside functions
+  Line 4, Column 11: 'new.target' is only allowed inside functions
 
 --- Statistics ---
-Arena: used=37648B reserved=16777216B ratio=0%
+Arena: used=37632B reserved=16777216B ratio=0%
 Parse errors: 1

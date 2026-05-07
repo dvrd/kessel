@@ -81,14 +81,36 @@ CheckerLabel :: struct {
 //   literals. Tagged templates are exempt from the octal-escape ban
 //   (§12.9.6) because the tag receives the raw spans verbatim. Set
 //   around the .quasi walk in the ^TaggedTemplateExpression case.
+// `function_depth`: number of enclosing non-arrow function bodies (§10.2.3).
+//   `new.target` is valid iff this is > 0. Arrow functions inherit
+//   [[NewTarget]] from their enclosing scope and do NOT increment.
+// `in_method`: do we have a [[HomeObject]] in scope? Set inside class
+//   methods (§15.7.3), class field initialisers (§15.7.10), class static
+//   blocks (§15.7.5), and object-literal methods / accessors (§13.2.5).
+//   Inherited by nested arrows; reset by nested non-arrow functions.
+// `in_derived_constructor`: are we in the instance constructor body of a
+//   class with `extends` (§15.7.6)? `super(...)` is valid only here.
+//   Inherited by nested arrows; reset by nested non-arrow functions.
+// `in_field_init`: are we evaluating a class field initialiser (§15.7.10)?
+//   `arguments` as IdentifierReference is forbidden here. Inherited by
+//   nested arrows; reset by nested non-arrow functions and by nested
+//   ClassExpressions (which start their own scope).
+// `in_class_static_block`: are we inside a class static block body
+//   (§15.7.5)? `arguments` and the `await` IdentifierReference are
+//   forbidden here. Inherited by arrows; reset by nested functions.
 CheckerContext :: struct {
-	iter_depth:         int,
-	switch_depth:       int,
-	labels:             [dynamic]CheckerLabel,
-	label_floor:        int,
-	lang:               Lang,
-	strict_mode:        bool,
-	in_tagged_template: bool,
+	iter_depth:            int,
+	switch_depth:          int,
+	labels:                [dynamic]CheckerLabel,
+	label_floor:           int,
+	lang:                  Lang,
+	strict_mode:           bool,
+	in_tagged_template:    bool,
+	function_depth:        int,
+	in_method:             bool,
+	in_derived_constructor: bool,
+	in_field_init:         bool,
+	in_class_static_block: bool,
 }
 
 Checker :: struct {
@@ -240,21 +262,29 @@ label_in_scope :: proc(ctx: ^CheckerContext, name: string) -> (CheckerLabel, boo
 // directive). The save/restore pattern naturally implements both rules.
 @(private="file")
 CheckerScopeSave :: struct {
-	iter_depth:   int,
-	switch_depth: int,
-	label_floor:  int,
-	label_len:    int,
-	strict_mode:  bool,
+	iter_depth:            int,
+	switch_depth:          int,
+	label_floor:           int,
+	label_len:             int,
+	strict_mode:           bool,
+	in_method:             bool,
+	in_derived_constructor: bool,
+	in_field_init:         bool,
+	in_class_static_block: bool,
 }
 
 @(private="file")
 ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 	saved := CheckerScopeSave{
-		iter_depth   = ctx.iter_depth,
-		switch_depth = ctx.switch_depth,
-		label_floor  = ctx.label_floor,
-		label_len    = len(ctx.labels),
-		strict_mode  = ctx.strict_mode,
+		iter_depth             = ctx.iter_depth,
+		switch_depth           = ctx.switch_depth,
+		label_floor            = ctx.label_floor,
+		label_len              = len(ctx.labels),
+		strict_mode            = ctx.strict_mode,
+		in_method              = ctx.in_method,
+		in_derived_constructor = ctx.in_derived_constructor,
+		in_field_init          = ctx.in_field_init,
+		in_class_static_block  = ctx.in_class_static_block,
 	}
 	ctx.iter_depth   = 0
 	ctx.switch_depth = 0
@@ -264,14 +294,31 @@ ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 
 @(private="file")
 ck_exit_function :: proc(ctx: ^CheckerContext, saved: CheckerScopeSave) {
-	ctx.iter_depth   = saved.iter_depth
-	ctx.switch_depth = saved.switch_depth
-	ctx.label_floor  = saved.label_floor
-	ctx.strict_mode  = saved.strict_mode
+	ctx.iter_depth             = saved.iter_depth
+	ctx.switch_depth           = saved.switch_depth
+	ctx.label_floor            = saved.label_floor
+	ctx.strict_mode            = saved.strict_mode
+	ctx.in_method              = saved.in_method
+	ctx.in_derived_constructor = saved.in_derived_constructor
+	ctx.in_field_init          = saved.in_field_init
+	ctx.in_class_static_block  = saved.in_class_static_block
 	// Truncate any labels pushed inside the function body that weren't
 	// popped (defensive — the LabeledStatement walker pops on exit, so
 	// this should already be a no-op).
 	resize(&ctx.labels, saved.label_len)
+}
+
+// CkFnKind — caller's classification of a non-arrow function body, so
+// ck_walk_function can set up the [[HomeObject]] / constructor / static-
+// block flags appropriately. Plain functions reset everything; class
+// methods / static blocks lift the relevant flag for their body and
+// rely on the save/restore to scrub it on exit (and on a nested plain
+// function entry).
+CkFnKind :: enum {
+	Plain,
+	Method,
+	Constructor,
+	StaticBlock,
 }
 
 // ============================================================================
@@ -531,6 +578,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^CallExpression:
 		if e == nil { return }
+		ck_check_super_call(c, ctx, e)
 		ck_walk_expr(c, ctx, e.callee)
 		for a in e.arguments { ck_walk_expr(c, ctx, a) }
 
@@ -573,11 +621,26 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if e == nil { return }
 		ck_check_object_proto_dups(c, e)
 		for prop in e.properties {
-			// Computed key contains an expression; non-computed key is
-			// an Identifier / literal — visit both so nested function
-			// expressions inside computed keys are still walked.
-			if prop.key != nil { ck_walk_expr(c, ctx, prop.key) }
-			if prop.value != nil { ck_walk_expr(c, ctx, prop.value) }
+			// Walk COMPUTED keys (their inner expression can reference
+			// arbitrary identifiers, including super/arguments/yield).
+			// Non-computed keys are name-bearing — the inner ^Identifier
+			// is a label, not an IdentifierReference, so walking it would
+			// false-fire the slice-6 `arguments` check on `{arguments: 1}`.
+			if prop.computed && prop.key != nil { ck_walk_expr(c, ctx, prop.key) }
+			if prop.value == nil { continue }
+			// §13.2.5.5 — object-literal methods / accessors carry an
+			// [[HomeObject]], so `super.x` is legal inside their bodies.
+			// Walk method-shaped values as `.Method` so in_method lifts;
+			// regular `kind = .Init` properties walk as plain expressions.
+			if prop.kind == .Init {
+				ck_walk_expr(c, ctx, prop.value)
+				continue
+			}
+			if fn, ok := prop.value^.(^FunctionExpression); ok && fn != nil {
+				ck_walk_function(c, ctx, fn, .Method, false)
+			} else {
+				ck_walk_expr(c, ctx, prop.value)
+			}
 		}
 
 	case ^SpreadElement:
@@ -589,7 +652,13 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		ck_walk_expr(c, ctx, e.argument)
 	case ^UpdateExpression:          if e != nil { ck_walk_expr(c, ctx, e.argument) }
 	case ^ParenthesizedExpression:   if e != nil { ck_walk_expr(c, ctx, e.expression) }
-	case ^AwaitExpression:           if e != nil { ck_walk_expr(c, ctx, e.argument) }
+	case ^AwaitExpression:
+		if e == nil { return }
+		// §15.7.5 — ClassStaticBlockBody Contains await is a SyntaxError.
+		if ctx.in_class_static_block {
+			ck_report(c, u32(e.loc.span.start), "'await' is not allowed in a class static block")
+		}
+		ck_walk_expr(c, ctx, e.argument)
 	case ^YieldExpression:
 		if e == nil { return }
 		if a, have := e.argument.(^Expression); have && a != nil { ck_walk_expr(c, ctx, a) }
@@ -651,11 +720,29 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^BigIntLiteral:
 		if e != nil { ck_check_legacy_octal_bigint(c, e) }
 
+	// Slice 6 — function-context-driven early errors:
+	case ^Super:
+		// §13.3.7 — SuperProperty / SuperCall is only legal in a
+		// [[HomeObject]]-bearing context (class method / constructor /
+		// field init / static block, or object-literal method).
+		// Computed-key positions and outside any class/object method are
+		// the rejected positions. The CallExpression case has already
+		// filtered the `super(...)` shape via ck_check_super_call; this
+		// case fires for the standalone `super` reference (i.e. when it
+		// appears outside a CallExpression's callee position OR inside a
+		// MemberExpression as object).
+		if e != nil && !ctx.in_method {
+			ck_report(c, u32(e.loc.span.start), "'super' is only allowed in class methods or object-literal methods")
+		}
+	case ^MetaProperty:
+		if e != nil { ck_check_new_target(c, ctx, e) }
+	case ^Identifier:
+		if e != nil { ck_check_identifier_arguments(c, ctx, e) }
+
 	// Leaf / literal-shape — nothing to walk for break/continue purposes:
-	//   NullLiteral, BooleanLiteral, RegExpLiteral, Identifier,
-	//   PrivateIdentifier, ThisExpression, Super, MetaProperty, JSXText,
-	//   JSXExpressionContainer (visited via JSXElement child walk),
-	//   JSXEmptyExpression, JSXSpreadChild.
+	//   NullLiteral, BooleanLiteral, RegExpLiteral, PrivateIdentifier,
+	//   ThisExpression, JSXText, JSXExpressionContainer (visited via
+	//   JSXElement child walk), JSXEmptyExpression, JSXSpreadChild.
 	}
 }
 
@@ -700,9 +787,35 @@ ck_walk_jsx_attr :: proc(c: ^Checker, ctx: ^CheckerContext, attr: JSXAttributeIt
 // ============================================================================
 
 @(private="file")
-ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression) {
+ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression,
+                        kind: CkFnKind = .Plain, derived_ctor: bool = false) {
 	if fn == nil { return }
 	saved := ck_enter_function(ctx)
+	// Reset the [[HomeObject]] / constructor / class-element flags. The
+	// caller's request below restores any that the new body should keep
+	// (e.g. a class method body sets in_method back to true). A nested
+	// plain function inside a method body sees them all reset and
+	// rejects `super.x` / `super(...)` / `arguments` / `await` correctly.
+	ctx.in_method              = false
+	ctx.in_derived_constructor = false
+	ctx.in_field_init          = false
+	ctx.in_class_static_block  = false
+	switch kind {
+	case .Plain:
+		// no flag lifts — a regular function body has no special context
+	case .Method:
+		ctx.in_method = true
+	case .Constructor:
+		ctx.in_method              = true
+		ctx.in_derived_constructor = derived_ctor
+	case .StaticBlock:
+		ctx.in_method             = true
+		ctx.in_class_static_block = true
+	}
+	// All non-arrow function bodies (including class static blocks)
+	// count for `new.target` purposes (§10.2.3). Arrow function entries
+	// in ck_walk_expr deliberately do NOT increment this.
+	ctx.function_depth += 1
 	// §10.2.1 — a function body's `"use strict"` directive lifts strict
 	// mode for the body's lexical scope. ck_exit_function restores the
 	// outer flag so the lift is local to this function.
@@ -715,22 +828,43 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	if !fn.no_body {
 		for s in fn.body.body { ck_walk_stmt(c, ctx, s) }
 	}
+	ctx.function_depth -= 1
 	ck_exit_function(ctx, saved)
 }
 
 @(private="file")
 ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	if cls == nil { return }
+	has_extends := false
 	// super_class is evaluated in the OUTER scope (no function boundary,
 	// no class-body strict lift).
 	if sc, have := cls.super_class.(^Expression); have && sc != nil {
+		has_extends = true
 		ck_walk_expr(c, ctx, sc)
 	}
 	// §15.7.1 — ClassBody is always strict-mode code (mirrors parser.odin
-	// `prev_strict_class := p.strict_mode; p.strict_mode = true`).
-	prev_strict := ctx.strict_mode
-	ctx.strict_mode = true
-	defer ctx.strict_mode = prev_strict
+	// `prev_strict_class := p.strict_mode; p.strict_mode = true`). The
+	// class body also opens a fresh class-element scope: `in_method`,
+	// `in_field_init`, `in_class_static_block`, `in_derived_constructor`
+	// from the enclosing context do NOT carry into class elements (the
+	// elements set their own).
+	prev_strict       := ctx.strict_mode
+	prev_in_method    := ctx.in_method
+	prev_in_dctor     := ctx.in_derived_constructor
+	prev_in_field     := ctx.in_field_init
+	prev_in_static_b  := ctx.in_class_static_block
+	ctx.strict_mode            = true
+	ctx.in_method              = false
+	ctx.in_derived_constructor = false
+	ctx.in_field_init          = false
+	ctx.in_class_static_block  = false
+	defer {
+		ctx.strict_mode            = prev_strict
+		ctx.in_method              = prev_in_method
+		ctx.in_derived_constructor = prev_in_dctor
+		ctx.in_field_init          = prev_in_field
+		ctx.in_class_static_block  = prev_in_static_b
+	}
 
 	// Whole-class checks: §15.7.1 — at most one constructor (with TS
 	// overload-signature exception). Migrated from parser.odin in slice 4.
@@ -742,20 +876,69 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 		// parser to syntax errors only.
 		ck_check_accessor(c, elem)
 
-		// Computed keys are evaluated in the outer scope (no function boundary).
+		// Computed keys are evaluated in the OUTER class-body scope:
+		// they don't see the about-to-be-pushed in_method / in_field_init,
+		// but they do see strict_mode = true (already set above).
 		if elem.computed && elem.key != nil {
 			ck_walk_expr(c, ctx, elem.key)
 		}
-		// Element value:
-		//   * Method body → ^FunctionExpression (boundary established by ck_walk_function).
-		//   * Static block → ^FunctionExpression with no params, kind=.StaticBlock.
-		//   * Field initializer → arbitrary expression. Break/continue
-		//     can only appear inside a nested function body, which itself
-		//     establishes a boundary, so an extra wrap here would be redundant.
-		if v, have := elem.value.(^Expression); have && v != nil {
-			ck_walk_expr(c, ctx, v)
-		}
+
+		ck_walk_class_element_value(c, ctx, elem, has_extends)
 	}
+}
+
+// ck_walk_class_element_value dispatches a ClassElement's value to the
+// right walker based on element kind and value shape:
+//
+//   * .StaticBlock: value is a FunctionExpression with no params. Walk
+//     as `.StaticBlock` so in_class_static_block + in_method are lifted
+//     for the body.
+//   * .Get / .Set: value is a FunctionExpression. Walk as `.Method`.
+//   * .Constructor: value is a FunctionExpression. Walk as `.Constructor`
+//     and pass `derived_ctor = has_extends` so super-call is permitted.
+//   * .Method WITH FunctionExpression value: an actual method (regular
+//     or shorthand). Walk as `.Method`.
+//   * .Method WITHOUT a FunctionExpression value: a class field with an
+//     initialiser expression (parser stores fields with kind=.Method and
+//     the expression in elem.value — see parser.odin line 5342). Walk
+//     the initialiser with in_field_init + in_method lifted, no function
+//     entry (the field init runs in a synthetic non-async non-generator
+//     function, but `new.target` and break/continue do not propagate so
+//     we don't need a function_depth bump).
+@(private="file")
+ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: ClassElement, has_extends: bool) {
+	val, have := elem.value.(^Expression)
+	if !have || val == nil { return }
+
+	if elem.kind == .StaticBlock {
+		if fn, ok := val^.(^FunctionExpression); ok && fn != nil {
+			ck_walk_function(c, ctx, fn, .StaticBlock, false)
+		}
+		return
+	}
+
+	if fn, ok := val^.(^FunctionExpression); ok && fn != nil {
+		switch elem.kind {
+		case .Constructor:
+			ck_walk_function(c, ctx, fn, .Constructor, has_extends)
+		case .Get, .Set, .Method:
+			ck_walk_function(c, ctx, fn, .Method, false)
+		case .StaticBlock:
+			unreachable() // handled above
+		}
+		return
+	}
+
+	// Field initialiser: value is a non-FunctionExpression Expression.
+	prev_method := ctx.in_method
+	prev_field  := ctx.in_field_init
+	ctx.in_method     = true
+	ctx.in_field_init = true
+	defer {
+		ctx.in_method     = prev_method
+		ctx.in_field_init = prev_field
+	}
+	ck_walk_expr(c, ctx, val)
 }
 
 // Validate getter / setter accessor arity + setter rest / initializer
@@ -1062,6 +1245,70 @@ ck_check_var_decl_let_binding :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 			ck_report(c, u32(decl.loc.span.start), "'let' is disallowed as a lexically bound name")
 			return // one diagnostic per declaration matches parser behaviour
 		}
+	}
+}
+
+// ============================================================================
+// Slice 6 — function-context-driven early errors.
+//
+// Context tracking lives on `CheckerContext.{function_depth, in_method,
+// in_derived_constructor, in_field_init, in_class_static_block}`. See the
+// CheckerContext field comments for who pushes/restores each flag.
+// ============================================================================
+
+// §15.7.6 / §13.3.7 — `super(...)` is only legal in the instance
+// constructor body of a class declared with `extends` (or descendants
+// thereof, via inherited [[ConstructorKind]]). Anywhere else (regular
+// methods, non-derived constructors, top-level code) it's a SyntaxError.
+// The diagnostic anchors at the call expression's open-paren-ish span
+// start (matching the parser's old anchor at the `super(` token).
+@(private="file")
+ck_check_super_call :: proc(c: ^Checker, ctx: ^CheckerContext, call: ^CallExpression) {
+	if call == nil || call.callee == nil { return }
+	if _, is_super := call.callee^.(^Super); !is_super { return }
+	if ctx.in_derived_constructor { return }
+	ck_report(c, u32(call.loc.span.start), "'super' call is only allowed in the constructor of a derived class")
+}
+
+// §13.3.12 / §15.2 — `new.target` is only valid inside a non-arrow
+// function body (arrow functions inherit [[NewTarget]] from the enclosing
+// scope; at script top-level there is no [[NewTarget]] to inherit, so
+// arrow-only nesting still rejects). The check fires when we encounter
+// a MetaProperty whose meta = `new` and property = `target` outside any
+// non-arrow function body (function_depth == 0).
+@(private="file")
+ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty) {
+	if mp == nil { return }
+	if mp.meta.name != "new" || mp.property.name != "target" { return }
+	if ctx.function_depth > 0 { return }
+	ck_report(c, u32(mp.loc.span.start), "'new.target' is only allowed inside functions")
+}
+
+// §15.7.5 / §15.7.10 — `arguments` as IdentifierReference is forbidden
+// in two class-element-shaped scopes:
+//
+//   * a class field initializer (§15.7.10) — the synthetic field-init
+//     function does NOT bind `arguments`. Diagnostic message reflects
+//     the field-init context.
+//   * a class static block body (§15.7.5 ContainsArguments) — same
+//     reasoning, different message to match the parser's anchor text.
+//
+// `arguments` inside a NESTED function body resets the context (the
+// nested function has its own `arguments` binding) — ck_walk_function
+// resets in_field_init / in_class_static_block on entry. Arrows inherit.
+//
+// The walker only reaches ^Identifier through expression positions (not
+// declaration `id` fields, which use Pattern), so the check fires for
+// IdentifierReferences only.
+@(private="file")
+ck_check_identifier_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
+	if id == nil || id.name != "arguments" { return }
+	if ctx.in_class_static_block {
+		ck_report(c, u32(id.loc.span.start), "'arguments' is not allowed in a class static block")
+		return
+	}
+	if ctx.in_field_init {
+		ck_report(c, u32(id.loc.span.start), "'arguments' cannot appear in a class field initializer")
 	}
 }
 
