@@ -146,6 +146,13 @@ CheckerContext :: struct {
 	at_top_level:          bool,
 	in_async:              bool,
 	in_generator:          bool,
+	// private_name_stack — stack of declared private-name sets, one
+	// per enclosing class. Pushed by ck_walk_class on entry, popped on
+	// exit. Used by ck_check_private_name_resolved to enforce §15.7.3
+	// "every PrivateName reference must be declared in an enclosing
+	// class". Mirrors parser.odin's `PrivateNameStack` machinery, now
+	// migrated post-parse.
+	private_name_stack: [dynamic]map[string]bool,
 }
 
 Checker :: struct {
@@ -166,6 +173,7 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	if program == nil { return }
 	ctx: CheckerContext
 	ctx.labels = make([dynamic]CheckerLabel, 0, 4, c.allocator)
+	ctx.private_name_stack = make([dynamic]map[string]bool, 0, 2, c.allocator)
 	ctx.lang   = lang
 	// §10.2.1 + §16.2.2 — strict-mode initialisation:
 	//   * Module code is always strict (§16.2.2).
@@ -188,6 +196,7 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	assert(ctx.switch_depth == 0)
 	assert(len(ctx.labels) == 0)
 	assert(ctx.label_floor == 0)
+	assert(len(ctx.private_name_stack) == 0)
 }
 
 // directives_have_use_strict scans a directive prologue (Program- or
@@ -743,6 +752,14 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^MemberExpression:
 		if e == nil { return }
 		ck_check_member_super_private(c, e)
+		// §15.7.3 — PrivateIdentifier on the property side must be
+		// declared in an enclosing class. Non-private property names are
+		// IdentifierName literals — not subject to scope resolution.
+		if !e.computed && e.property != nil {
+			if pid, ok := e.property^.(^PrivateIdentifier); ok {
+				ck_check_private_name_resolved(c, ctx, pid)
+			}
+		}
 		ck_walk_expr(c, ctx, e.object)
 		if e.computed && e.property != nil { ck_walk_expr(c, ctx, e.property) }
 
@@ -765,6 +782,16 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^BinaryExpression:
 		if e == nil { return }
+		// §15.7.3 — `#x in obj` is the only legal position for a bare
+		// PrivateIdentifier. The name must still be declared in an
+		// enclosing class. The general bare-PrivateIdentifier-as-expr
+		// case is rejected at parse-time; only the `in`-form reaches
+		// here as a valid AST shape.
+		if e.operator == .In && e.left != nil {
+			if pid, ok := e.left^.(^PrivateIdentifier); ok {
+				ck_check_private_name_resolved(c, ctx, pid)
+			}
+		}
 		ck_walk_expr(c, ctx, e.left)
 		ck_walk_expr(c, ctx, e.right)
 
@@ -948,8 +975,16 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			ck_check_identifier_await_reserved(c, ctx, e)
 		}
 
+	case ^PrivateIdentifier:
+		// §15.7.3 — a bare PrivateIdentifier reaching expression position
+		// is a parser-side structural error ("only the LHS of an 'in'
+		// expression"); fire the resolution error too so the AST-level
+		// diagnostic still reports. Mirrors parser.odin's `pn_walk_expr`
+		// fall-through case for stray PrivateIdentifiers.
+		if e != nil { ck_check_private_name_resolved(c, ctx, e) }
+
 	// Leaf / literal-shape — nothing to walk for break/continue purposes:
-	//   NullLiteral, BooleanLiteral, RegExpLiteral, PrivateIdentifier,
+	//   NullLiteral, BooleanLiteral, RegExpLiteral,
 	//   ThisExpression, JSXText, JSXExpressionContainer (visited via
 	//   JSXElement child walk), JSXEmptyExpression, JSXSpreadChild.
 	}
@@ -1165,11 +1200,20 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	if cls == nil { return }
 	has_extends := false
 	// super_class is evaluated in the OUTER scope (no function boundary,
-	// no class-body strict lift).
+	// no class-body strict lift, no private-name visibility from THIS
+	// class — the heritage clause cannot reference its own privates).
 	if sc, have := cls.super_class.(^Expression); have && sc != nil {
 		has_extends = true
 		ck_walk_expr(c, ctx, sc)
 	}
+	// Push this class's declared private names onto the resolution
+	// stack BEFORE walking the class body. Pop on exit. The push is
+	// O(elements) but only fires for classes that actually declare
+	// privates — the resulting set is small (~5–10 names per class on
+	// real-world code).
+	privates := ck_collect_class_private_names(cls.body, context.temp_allocator)
+	append(&ctx.private_name_stack, privates)
+	defer pop(&ctx.private_name_stack)
 	// §15.7.1 — BindingIdentifier of a class is checked under strict
 	// reservation rules (the class body is implicitly strict + the name
 	// is in the enclosing TDZ with strict-reservation rules applied), so
@@ -2069,6 +2113,48 @@ ck_check_catch_param_dups :: proc(c: ^Checker, h: CatchClause) {
 			}
 		}
 	}
+}
+
+// ck_collect_class_private_names — build the set of declared
+// PrivateIdentifier names for a class body. Used by ck_walk_class to
+// push the set onto the private-name stack before walking elements.
+// Mirrors parser.odin's `pn_collect_class_names`.
+@(private="file")
+ck_collect_class_private_names :: proc(body: ClassBody, alloc: mem.Allocator) -> map[string]bool {
+	names: map[string]bool
+	names.allocator = alloc
+	for elem in body.body {
+		if elem.key == nil { continue }
+		if pid, ok := elem.key^.(^PrivateIdentifier); ok && pid != nil && len(pid.name) > 0 {
+			names[pid.name] = true
+		}
+	}
+	return names
+}
+
+// ck_private_name_in_scope — walk the private-name stack top-down
+// (innermost class first) looking for `name`. Returns true if the
+// name is declared in an enclosing class body.
+@(private="file")
+ck_private_name_in_scope :: proc(ctx: ^CheckerContext, name: string) -> bool {
+	for i := len(ctx.private_name_stack) - 1; i >= 0; i -= 1 {
+		if _, ok := ctx.private_name_stack[i][name]; ok { return true }
+	}
+	return false
+}
+
+// ck_check_private_name_resolved — §15.7.3 — every PrivateName
+// reference (`obj.#x`, `#x in y`, bare `#x`) must be declared in an
+// enclosing ClassBody. Empty-name PrivateIdentifiers (lone `#` from a
+// malformed hashbang etc.) are skipped; the parser already reports a
+// structural error there and the resolution check would only emit a
+// duplicate diagnostic.
+@(private="file")
+ck_check_private_name_resolved :: proc(c: ^Checker, ctx: ^CheckerContext, pid: ^PrivateIdentifier) {
+	if pid == nil || len(pid.name) == 0 { return }
+	if ck_private_name_in_scope(ctx, pid.name) { return }
+	msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
+	ck_report(c, u32(pid.loc.span.start), msg)
 }
 
 // ck_check_class_private_static_mismatch — §15.7.1 — a private getter /
