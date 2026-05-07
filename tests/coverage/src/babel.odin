@@ -87,6 +87,7 @@ BABEL_PLUGIN_SKIP := [?]string{
 // Mirrors OXC's `BabelOptions` (the subset we actually consult).
 BabelOptions :: struct {
 	plugins:                              []string, // merged plugin names (closest-wins)
+	typescript_dts:                       bool,     // `["typescript", {"dts": true}]`
 	throws:                               Maybe(string),
 	source_type:                          Maybe(string), // "module" | "script" | "unambiguous" | "commonjs"
 	allow_await_outside_function:         bool,
@@ -224,6 +225,7 @@ apply_one_options_file :: proc(
 				for elem in arr {
 					name := plugin_head_name(elem, allocator)
 					if name != "" { append(plugins_acc, name) }
+					if plugin_is_typescript_dts(elem) { out.typescript_dts = true }
 				}
 				plugins_locked^ = true
 			}
@@ -277,6 +279,24 @@ plugin_head_name :: proc(v: json.Value, allocator: runtime.Allocator) -> string 
 		}
 	}
 	return ""
+}
+
+// Inspect a plugins[] entry for typescript-with-dts. Returns true when the
+// entry is the 2-tuple form `["typescript", {"dts": true}]`. Babel uses
+// this as the canonical signal that an `.ts` fixture should be parsed in
+// declaration-file mode.
+@(private="file")
+plugin_is_typescript_dts :: proc(v: json.Value) -> bool {
+	arr, is_arr := v.(json.Array)
+	if !is_arr || len(arr) < 2 { return false }
+	name, is_str := arr[0].(json.String)
+	if !is_str || string(name) != "typescript" { return false }
+	obj, is_obj := arr[1].(json.Object)
+	if !is_obj { return false }
+	if dts_v, has := obj["dts"]; has {
+		if b, is_b := dts_v.(json.Boolean); is_b { return bool(b) }
+	}
+	return false
 }
 
 // ============================================================================
@@ -345,16 +365,29 @@ load_babel :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fixtu
 		lang := resolve_babel_lang(f.abs, opts)
 		st   := resolve_babel_source_type(opts)
 
+		// Babel's `sourceType: commonjs` is the per-fixture analogue of
+		// our .cjs/.cts file-extension detection. Propagate so the parser
+		// allows top-level `return` etc.
+		cjs_override: Maybe(bool)
+		if sty, has := opts.source_type.?; has && sty == "commonjs" {
+			cjs_override = true
+		}
+
 		should_fail := determine_should_fail(f.abs, opts, allocator)
 
+		dts_override: Maybe(bool)
+		if opts.typescript_dts { dts_override = true }
+
 		append(&out, Fixture{
-			path        = f.abs,
-			rel         = f.rel,
-			code        = f.code,
-			source_type = st,
-			lang        = lang,
-			should_fail = should_fail,
-			suite       = .Babel,
+			path          = f.abs,
+			rel           = f.rel,
+			code          = f.code,
+			source_type   = st,
+			lang          = lang,
+			source_is_dts = dts_override,
+			is_commonjs   = cjs_override,
+			should_fail   = should_fail,
+			suite         = .Babel,
 		})
 	}
 

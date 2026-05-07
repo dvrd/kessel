@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 parser_typescript Summary:
-AST Parsed     : 12690/12710 (99.84%)
-Positive Passed: 12690/12710 (99.84%)
-Negative Passed: 1326/3472 (38.19%)
+AST Parsed     : 12692/12692 (100.00%)
+Positive Passed: 12692/12692 (100.00%)
+Negative Passed: 1324/3470 (38.16%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -2150,66 +2150,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uni
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsPropertyNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/witness/witness.ts
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/bom-utf16le.ts
-typescript/tests/cases/compiler/bom-utf16le.ts:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/collisionCodeGenModuleWithUnicodeNames.ts
-typescript/tests/cases/compiler/collisionCodeGenModuleWithUnicodeNames.ts:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/duplicatePackage.ts::/node_modules/b/node_modules/x/index.d.ts
-typescript/tests/cases/compiler/duplicatePackage.ts::/node_modules/b/node_modules/x/index.d.ts:1:9: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/extendsUntypedModule.ts::/node_modules/bar/index.js
-typescript/tests/cases/compiler/extendsUntypedModule.ts::/node_modules/bar/index.js:1:5: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/extendsUntypedModule.ts::/node_modules/foo/index.js
-typescript/tests/cases/compiler/extendsUntypedModule.ts::/node_modules/foo/index.js:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/instanceofOperator.ts
-typescript/tests/cases/compiler/instanceofOperator.ts:1:6: Expected expression after operator
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/moduleResolution_packageJson_yesAtPackageRoot.ts::/node_modules/foo/bar/index.js
-typescript/tests/cases/compiler/moduleResolution_packageJson_yesAtPackageRoot.ts::/node_modules/foo/bar/index.js:1:5: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/moduleResolution_packageJson_yesAtPackageRoot_fakeScopedPackage.ts::/node_modules/foo/@bar/index.js
-typescript/tests/cases/compiler/moduleResolution_packageJson_yesAtPackageRoot_fakeScopedPackage.ts::/node_modules/foo/@bar/index.js:1:5: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/promiseTest.ts
-typescript/tests/cases/compiler/promiseTest.ts:1:6: Expected expression after operator
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/targetTypeBaseCalls.ts
-typescript/tests/cases/compiler/targetTypeBaseCalls.ts:1:6: Expected expression after operator
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/unicodeIdentifierNames.ts
-typescript/tests/cases/compiler/unicodeIdentifierNames.ts:1:6: Expected expression after operator
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/untypedModuleImport_withAugmentation2.ts::/node_modules/js/index.js
-typescript/tests/cases/compiler/untypedModuleImport_withAugmentation2.ts::/node_modules/js/index.js:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/untypedModuleImport.ts::/node_modules/foo/index.js
-typescript/tests/cases/conformance/moduleResolution/untypedModuleImport.ts::/node_modules/foo/index.js:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_noImplicitAny.ts::/node_modules/foo/index.js
-typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_noImplicitAny.ts::/node_modules/foo/index.js:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_noImplicitAny_relativePath.ts::/node_modules/foo/index.js
-typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_noImplicitAny_relativePath.ts::/node_modules/foo/index.js:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_noImplicitAny_scoped.ts::/node_modules/@foo/bar/index.js
-typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_noImplicitAny_scoped.ts::/node_modules/@foo/bar/index.js:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_vsAmbient.ts::/node_modules/foo/index.js
-typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_vsAmbient.ts::/node_modules/foo/index.js:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_withAugmentation.ts::/node_modules/foo/index.js
-typescript/tests/cases/conformance/moduleResolution/untypedModuleImport_withAugmentation.ts::/node_modules/foo/index.js:1:6: Expected semicolon
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/nonjsExtensions/declarationFileForHtmlFileWithinDeclarationFile.ts::component.d.html.ts
-typescript/tests/cases/conformance/nonjsExtensions/declarationFileForHtmlFileWithinDeclarationFile.ts::component.d.html.ts:10:1: Missing initializer in 'const' declaration
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/nonjsExtensions/declarationFileForHtmlImport.ts::component.d.html.ts
-typescript/tests/cases/conformance/nonjsExtensions/declarationFileForHtmlImport.ts::component.d.html.ts:10:1: Missing initializer in 'const' declaration
-
 typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ClassDeclaration26.ts:2:18: Expected (, got var
 typescript/tests/cases/compiler/ClassDeclarationWithInvalidConstOnPropertyDeclaration.ts:2:16: Expected (, got identifier
@@ -2312,7 +2252,6 @@ typescript/tests/cases/compiler/downlevelLetConst1.ts:1:6: Expected binding patt
 typescript/tests/cases/compiler/downlevelLetConst11.ts:2:1: 'let' declaration requires a binding name
 typescript/tests/cases/compiler/downlevelLetConst2.ts:1:8: Missing initializer in 'const' declaration
 typescript/tests/cases/compiler/downlevelLetConst4.ts:1:16: Missing initializer in 'const' declaration
-typescript/tests/cases/compiler/duplicatePackage_withErrors.ts::/node_modules/b/node_modules/x/index.d.ts:1:9: Expected semicolon
 typescript/tests/cases/compiler/emptyGenericParamList.ts:2:10: Type argument list cannot be empty
 typescript/tests/cases/compiler/emptyMemberAccess.ts:3:6: Empty parenthesized expression
 typescript/tests/cases/compiler/emptyTypeArgumentList.ts:2:5: Expected expression after operator
@@ -2449,7 +2388,6 @@ typescript/tests/cases/compiler/modifiersOnInterfaceIndexSignature1.ts:2:3: 'pub
 typescript/tests/cases/compiler/moduleKeywordRepeatError.ts:3:15: Expected semicolon
 typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:2:11: Expected from, got =
 typescript/tests/cases/compiler/moduleProperty1.ts:9:13: Expected semicolon
-typescript/tests/cases/compiler/moduleResolutionWithExtensions_unexpected2.ts::/node_modules/foo/foo.js:1:6: Expected semicolon
 typescript/tests/cases/compiler/multiLinePropertyAccessAndArrowFunctionIndent1.ts:1:8: 'return' outside of function
 typescript/tests/cases/compiler/multipleClassPropertyModifiers.ts:3:19: 'public' modifier must precede 'static' modifier.
 typescript/tests/cases/compiler/multipleClassPropertyModifiersErrors.ts:2:9: Accessibility modifier already seen.

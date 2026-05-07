@@ -150,13 +150,45 @@ scan_test_case :: proc(path: string, code: string, allocator: runtime.Allocator)
 	}
 	flush(&units, &current_name, &current_content, allocator)
 
+	// Drop synthetic placeholder units that contain TSC's not-actually-source
+	// markers. TS conformance fixtures use these to materialize a fake
+	// `node_modules/<pkg>/index.js` whose body is the literal text
+	// "This file is not processed." — used by the TS module-resolution
+	// runner to verify that `package.json` redirects are respected without
+	// the parser ever touching the dummy file. Mirrors OXC's filter in
+	// tasks/coverage/src/typescript/meta.rs:make_units_from_test.
+	filtered := make([dynamic]TestUnit, 0, len(units), allocator)
+	for unit in units {
+		if unit_content_is_invalid(unit.content) { continue }
+		append(&filtered, unit)
+	}
+
 	settings := compiler_settings_from_map(options_map, allocator)
 
 	return TestCaseContent{
-		units       = units[:],
+		units       = filtered[:],
 		settings    = settings,
 		error_codes = nil,  // populated by caller via load_typescript
 	}
+}
+
+@(private="file")
+unit_content_is_invalid :: proc(content: string) -> bool {
+	INVALID_LINE_PREFIXES :: [?]string{
+		"This file is not read.",
+		"This file is not processed.",
+		"Nor is this one.",
+		"not read",
+		"content not parsed",
+	}
+	iter := content
+	for line in strings.split_lines_iterator(&iter) {
+		trimmed := strings.trim_left(line, " \t")
+		for pfx in INVALID_LINE_PREFIXES {
+			if strings.has_prefix(trimmed, pfx) { return true }
+		}
+	}
+	return false
 }
 
 // parse_meta_option returns (name, value, ok) for `// @name: value` lines.
@@ -387,11 +419,24 @@ resolve_ts_source_type :: proc(
 }
 
 @(private="file")
-resolve_ts_source_is_dts :: proc(name: string) -> Maybe(bool) {
+is_dts_path :: proc(name: string) -> bool {
+	// Standard `.d.ts` / `.d.mts` / `.d.cts`.
 	if strings.has_suffix(name, ".d.ts") ||
 	   strings.has_suffix(name, ".d.mts") ||
 	   strings.has_suffix(name, ".d.cts") {
 		return true
 	}
+	// Arbitrary-extension declaration: `.d.<ext>.ts` (TS 5.0+
+	// `allowArbitraryExtensions`). e.g. `component.d.html.ts`.
+	if strings.has_suffix(name, ".ts") {
+		stem := name[:len(name) - len(".ts")]
+		if idx := strings.last_index(stem, ".d."); idx >= 0 { return true }
+	}
+	return false
+}
+
+@(private="file")
+resolve_ts_source_is_dts :: proc(name: string) -> Maybe(bool) {
+	if is_dts_path(name) { return true }
 	return nil
 }

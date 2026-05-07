@@ -1,8 +1,8 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2202/2233 (98.61%)
-Positive Passed: 2202/2233 (98.61%)
+AST Parsed     : 2206/2233 (98.79%)
+Positive Passed: 2206/2233 (98.79%)
 Negative Passed: 1565/1711 (91.47%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
@@ -159,12 +159,6 @@ babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js:
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-new-target/input.js
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-new-target/input.js:1:1: 'new.target' is only allowed inside functions
 
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-return-asi/input.js
-babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-return-asi/input.js:2:1: 'return' outside of function
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-return/input.js
-babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-return/input.js:1:8: 'return' outside of function
-
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js:1:1: 'using' declaration is not allowed at the top level of a script
 
@@ -209,12 +203,6 @@ babel/packages/babel-parser/test/fixtures/typescript/declare/eval-dts/input.ts:9
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/declare/eval/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/declare/eval/input.ts:8:18: Function name 'eval' is not allowed in strict mode
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/dts/no-initializer/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/dts/no-initializer/input.ts:2:1: Missing initializer in 'const' declaration
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/dts/valid-trailing-comma-for-rest/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/dts/valid-trailing-comma-for-rest/input.ts:1:28: A rest parameter or binding pattern may not have a trailing comma.
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/export-named-import-require/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/import/export-named-import-require/input.ts:2:10: Export 'a' is not defined in the module

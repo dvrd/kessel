@@ -120,6 +120,7 @@ Fixture :: struct {
 	lang:          kessel.Lang,
 	force_strict:  bool,
 	source_is_dts: Maybe(bool),
+	is_commonjs:   Maybe(bool),  // override for inline sources whose path is synthetic
 	should_fail:   bool,
 	suite:         Suite,
 }

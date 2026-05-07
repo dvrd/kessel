@@ -90,6 +90,15 @@ walk_and_read :: proc(
 		if len(bytes) >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
 			code_start = 3
 		}
+		// Skip UTF-16 (LE/BE) sources. OXC's walker decodes them via
+		// encoding-rs; ours doesn't, and these fixtures would otherwise
+		// reach the parser as garbage. The TSC corpus has ~10 such files
+		// (instanceofOperator.ts, bom-utf16le.ts, ...) which exist to
+		// exercise TSC's BOM handling — not relevant to parser conformance.
+		if len(bytes) >= 2 {
+			if bytes[0] == 0xFF && bytes[1] == 0xFE { continue }
+			if bytes[0] == 0xFE && bytes[1] == 0xFF { continue }
+		}
 		code := string(bytes[code_start:])
 
 		// Compute path relative to `vendor_root`. Relative path = the part
