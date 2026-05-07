@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12552/12692 (98.90%)
 Positive Passed: 12552/12692 (98.90%)
-Negative Passed: 1602/3470 (46.17%)
+Negative Passed: 1603/3470 (46.20%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -902,7 +902,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/m
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNamesUnique-2.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNamesUnique-2.ts::b.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNamesUnique-2.ts::main.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNamesUnique-3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/mixinAccessModifiers.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/autoAccessor11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/autoAccessorExperimentalDecorators.ts
@@ -2870,7 +2869,7 @@ typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndPr
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadAssignment.ts:1:9: Private field '#nope' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadDeclaration.ts:3:3: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameConstructorReserved.ts:3:2: Class private member name cannot be '#constructor'
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameDuplicateField.ts:149:9: Private getter and setter for '#foo' must both be static or both be non-static
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameDuplicateField.ts:6:9: Duplicate private name '#foo' in class body
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameEnum.ts:2:5: An enum member cannot have a private name
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameFieldDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameHashCharName.ts:1:1: Private identifier can only appear as the LHS of an 'in' expression or as a class member
@@ -2902,6 +2901,7 @@ typescript/tests/cases/conformance/classes/members/privateNames/privateNamesInte
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesNoDelete.ts:4:9: Private fields cannot be deleted
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesNotAllowedAsParameters.ts:2:12: Expected binding pattern
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesNotAllowedInVariableDeclarations.ts:1:7: Expected binding pattern
+typescript/tests/cases/conformance/classes/members/privateNames/privateNamesUnique-3.ts:3:5: Duplicate private name '#foo' in class body
 typescript/tests/cases/conformance/classes/nestedClassDeclaration.ts:5:11: Expected (, got identifier
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/abstractPropertyInitializer.ts:3:1: Abstract property cannot have an initializer.
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/accessibilityModifiers.ts:21:20: 'private' modifier must precede 'static' modifier.

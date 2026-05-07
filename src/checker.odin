@@ -231,7 +231,14 @@ ck_run_scope_check :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement
 
 // check_program is the entry point for the semantic checker.
 // Call after parse_program to validate early errors.
-check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
+//
+// `force_strict` is the parser's --force-strict flag, threaded through
+// from the parse job. test262's `flags: [onlyStrict]` fixtures rely on
+// it: the source has no `"use strict"` prologue (the test262 harness
+// wraps it externally), so without honoring force_strict the checker
+// would skip every strict-mode-only early error (assignment to
+// `arguments`/`eval`, `var arguments` in strict functions, etc.).
+check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_strict: bool = false) {
 	if program == nil { return }
 	ctx: CheckerContext
 	ctx.labels = make([dynamic]CheckerLabel, 0, 4, c.allocator)
@@ -239,9 +246,12 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	ctx.lang   = lang
 	// §10.2.1 + §16.2.2 — strict-mode initialisation:
 	//   * Module code is always strict (§16.2.2).
+	//   * `--force-strict` (test262 onlyStrict) forces strict from byte 0.
 	//   * Otherwise, a `"use strict"` directive at the program
 	//     prologue puts the whole script in strict mode.
 	if program.type == .Module {
+		ctx.strict_mode = true
+	} else if force_strict {
 		ctx.strict_mode = true
 	} else if directives_have_use_strict(program.directives[:]) {
 		ctx.strict_mode = true
@@ -319,7 +329,7 @@ checker_run_for_job :: proc(job: ^ParseJob) {
 	// stale reference can't leak across jobs.
 	c.pending_parser = &job.parser
 	defer c.pending_parser = nil
-	check_program(&c, job.program, job.lang)
+	check_program(&c, job.program, job.lang, job.parser.force_strict)
 	if len(c.errors) == 0 { return }
 	for err in c.errors {
 		bump_append(&job.parser.errors, err)
@@ -1425,6 +1435,10 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	ck_check_class_constructors(c, ctx, cls)
 	// §15.7.1 — private getter/setter static-mismatch (slice 11).
 	ck_check_class_private_static_mismatch(c, cls)
+	// §15.7.1 — PrivateBoundNames must be unique except for one get + one
+	// set pair. Subsumes the static-mismatch helper for the get/set pair
+	// case but keeps it as the dedicated single-shape diagnostic.
+	ck_check_class_private_duplicates(c, cls)
 
 	for elem in cls.body.body {
 		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
@@ -2647,6 +2661,94 @@ ck_check_private_name_resolved :: proc(c: ^Checker, ctx: ^CheckerContext, pid: ^
 	if ck_private_name_in_scope(ctx, pid.name) { return }
 	msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
 	ck_report(c, u32(pid.loc.span.start), msg)
+}
+
+// ck_check_class_private_duplicates — §15.7.1 — PrivateBoundNames of
+// a class body must not contain any duplicate entries, EXCEPT one name
+// used exactly as a getter once and a setter once (no other entries).
+//
+// Examples that are SyntaxErrors:
+//   class C { #x; #x; }                  field + field
+//   class C { #m() {}; #m() {} }         method + method
+//   class C { get #g() {}; get #g() {} } getter + getter
+//   class C { set #s(v) {}; set #s(v) {} } setter + setter
+//   class C { #m() {}; get #m() {} }     method + getter
+//   class C { #x; #m() {} }              field + method (same name)
+//
+// Allowed:
+//   class C { get #m() {}; set #m(v) {} } get/set pair
+//
+// The static-mismatch sub-rule (`static get #f` paired with `set #f`) is
+// folded into this single walker rather than living separately — if a
+// name has both a getter and setter and they're the only entries, we
+// also verify their static-ness matches. All other shapes count as
+// outright duplicates.
+@(private="file")
+ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression) {
+	if cls == nil { return }
+	PrivateRecord :: struct {
+		kinds:     bit_set[ClassElementKind],
+		n_meth:    int,
+		n_get:     int,
+		n_set:     int,
+		n_field:   int,
+		get_static: bool,
+		set_static: bool,
+		last_dup_loc: u32,
+		reported:  bool,
+	}
+	seen: map[string]PrivateRecord
+	seen.allocator = context.temp_allocator
+	defer delete(seen)
+
+	for elem in cls.body.body {
+		if elem.key == nil { continue }
+		pid, is_priv := elem.key^.(^PrivateIdentifier)
+		if !is_priv || pid == nil { continue }
+		name := pid.name
+		prev, _ := seen[name]
+
+		is_field := false
+		if elem.kind == .Method {
+			if _, has_value := elem.value.(^Expression); !has_value {
+				is_field = true
+			}
+		}
+
+		switch {
+		case is_field:
+			prev.n_field += 1
+		case elem.kind == .Method:
+			prev.n_meth += 1
+		case elem.kind == .Get:
+			prev.n_get   += 1
+			prev.get_static = elem.static
+		case elem.kind == .Set:
+			prev.n_set   += 1
+			prev.set_static = elem.static
+		}
+		prev.last_dup_loc = u32(elem.loc.span.start)
+
+		seen[name] = prev
+	}
+
+	for name, rec in seen {
+		total := rec.n_field + rec.n_meth + rec.n_get + rec.n_set
+		if total <= 1 { continue }
+
+		// Allowed: exactly one getter + exactly one setter, nothing else.
+		if rec.n_get == 1 && rec.n_set == 1 && rec.n_field == 0 && rec.n_meth == 0 {
+			// Static-mismatch is the only failure mode for the get/set pair.
+			if rec.get_static != rec.set_static {
+				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
+				ck_report(c, rec.last_dup_loc, msg)
+			}
+			continue
+		}
+
+		msg := fmt.tprintf("Duplicate private name '#%s' in class body", name)
+		ck_report(c, rec.last_dup_loc, msg)
+	}
 }
 
 // ck_check_class_private_static_mismatch — §15.7.1 — a private getter /

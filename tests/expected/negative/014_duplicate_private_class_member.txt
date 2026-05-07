@@ -145,12 +145,19 @@
       "line": 13,
       "column": 1,
       "offset": 312
+    },
+    {
+      "message": "Duplicate private name '#x' in class body",
+      "line": 7,
+      "column": 2,
+      "offset": 270
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
   Line 13, Column 1: Class private member name cannot be '#constructor'
+  Line 7, Column 2: Duplicate private name '#x' in class body
 
 --- Statistics ---
-Arena: used=40968B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=41704B reserved=16777216B ratio=0%
+Parse errors: 2
