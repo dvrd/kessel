@@ -23,7 +23,7 @@
 // Real-world parsers (LSPs, build tools) almost always run alongside
 // other workload, so this is a "free" win for the common case.
 
-package main
+package kessel
 
 when ODIN_OS == .Darwin {
 	foreign import qos_lib "system:System"

@@ -47,7 +47,7 @@
 // an Emitter, call emit_program, and read e.buf[:e.pos] without going
 // through stdout, files, or any process global.
 
-package main
+package kessel
 
 import "core:fmt"
 import "core:math"

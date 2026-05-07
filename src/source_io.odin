@@ -54,7 +54,7 @@
 // platforms without posix mmap, the helper is the stub that returns
 // `(_, false, false)` and we fall through to `read_entire_file_from_path`.
 
-package main
+package kessel
 
 import "core:os"
 

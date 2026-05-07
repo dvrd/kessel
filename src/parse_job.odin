@@ -67,7 +67,7 @@
 // `parse_job_run` and assert against `job.program` / `job.parser.errors`
 // without going through a CLI shim or a temp file.
 
-package main
+package kessel
 
 import "core:mem"
 import mvirtual "core:mem/virtual"

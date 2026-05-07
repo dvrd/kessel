@@ -1,4 +1,4 @@
-package main
+package kessel
 
 // ============================================================================
 // Raw Transfer — zero-copy AST buffer for cross-language consumption

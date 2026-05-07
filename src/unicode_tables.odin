@@ -1,4 +1,4 @@
-package main
+package kessel
 
 // ============================================================================
 // Unicode ID_Start / ID_Continue range tables (§12.7 IdentifierName).

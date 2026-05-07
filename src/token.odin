@@ -1,4 +1,4 @@
-package main
+package kessel
 
 // TokenType represents all JavaScript token types
 TokenType :: enum {

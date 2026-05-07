@@ -8,7 +8,7 @@
 // on a CLI run) — not worth the platform code today. See source_io.odin
 // for the full rationale.
 
-package main
+package kessel
 
 source_try_mmap :: proc(path: string) -> (data: []u8, mapped: bool, ok: bool) {
 	return nil, false, false

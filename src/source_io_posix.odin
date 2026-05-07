@@ -11,7 +11,7 @@
 // SEGV; this is a feature, not a bug (it surfaces the violation
 // immediately).
 
-package main
+package kessel
 
 import "core:sys/posix"
 

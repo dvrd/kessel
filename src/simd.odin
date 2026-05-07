@@ -1,4 +1,4 @@
-package main
+package kessel
 
 // ============================================================================
 // ARM64 NEON SIMD - True SIMD Implementation

@@ -1,4 +1,4 @@
-package main
+package kessel
 
 
 // Span represents source location information (u32 = up to 4GB source)

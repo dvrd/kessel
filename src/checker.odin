@@ -1,4 +1,4 @@
-package main
+package kessel
 
 // ============================================================================
 // Semantic Checker — Pass 3 of the kessel pipeline.

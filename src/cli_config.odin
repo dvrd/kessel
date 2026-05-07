@@ -33,7 +33,7 @@
 // each subcommand owns its command-specific flags (--workers,
 // --out-dir, --raw, --iterations, etc.) outside the CliConfig.
 
-package main
+package kessel
 
 import "core:fmt"
 import "core:os"
