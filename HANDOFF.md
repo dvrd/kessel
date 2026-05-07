@@ -1,8 +1,8 @@
 # Handoff — Kessel
 
-**Date:** 2026-05-06 (third + final wave)
-**Tip:** `5459ea1 chore(vet): clean all odin -vet warnings (33 → 0)`
-**Branch:** `main`, ahead of `origin/main` by **6 commits** (this session's full output, not yet pushed).
+**Date:** 2026-05-06 (fourth wave — "finish the rest")
+**Tip:** `9b6f7e2 fix(fuzz): discard kessel stdout — stop misclassifying maxBuffer overruns as crashes`
+**Branch:** `main`, ahead of `origin/main` by **8 commits** (this session's full output, not yet pushed).
 
 ## What is Kessel
 
@@ -14,16 +14,18 @@ JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.o
 
 | Item | Start of session | End of session |
 |---|---|---|
-| **Architecture deepening chain** | 4/5 actionable | **5/5 actionable + 4 checker slices in flight** |
+| **Architecture deepening chain** | 4/5 actionable | **5/5 actionable + 4 checker slices live** |
 | **Bench geo-mean vs OXC** | 1.28× SLOWER | **0.93× — 9/10 files faster than OXC** |
 | **`task test` chain** | aborted at gate #8 (recovery) | **all 18 gates green** |
 | **`odin -vet` warnings** | 33 | **0** |
 | **`bench:regression` baseline** | 33.7% over tolerance (system drift) | **0.1% — relocked clean** |
 | **OXC corpus kessel-only-rejects** | 1 | **0** |
 | **Pre-existing failures listed in start-of-session HANDOFF** | 2 (three.module.js, jsx_fragment_broken) | **0** — both fixed |
-| `src/checker.odin` | 62-line stub | **697 lines, 3 active checks** |
+| **`fuzz:invalid` baselined crashes** | 8 (assumed real bugs) | **0** — all were verifier maxBuffer false positives |
+| **Inline `report_semantic_error*` calls in parser.odin** | 101 | **90** (slice 4 migrated 5 + tore out the `pending_proto_dups` machinery) |
+| `src/checker.odin` | 62-line stub | **850 lines, 8 active checks** |
 
-6 commits added this session (start `f0a7eff` → tip `5459ea1`):
+8 commits added this session (start `f0a7eff` → tip `9b6f7e2`):
 
 1. `9fabda0` — feat(checker): slice 3 — migrate accessor checks parser → checker
 2. `5ece470` — perf: restore <-OXC ratio via SIMD + lazy module pre-scan (slice 4)
@@ -31,6 +33,8 @@ JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.o
 4. `7b3d71f` — docs(handoff): refresh after slice 3 + slice 4 perf restoration
 5. `cec2358` — test(recovery): add missing lang entries — 006/007 jsx_ts fixtures
 6. `5459ea1` — chore(vet): clean all odin -vet warnings (33 → 0)
+7. `ea574d4` — feat(checker): slice 4 — migrate 5 local checks parser → checker
+8. `9b6f7e2` — fix(fuzz): discard kessel stdout — stop misclassifying maxBuffer overruns as crashes
 
 ---
 
@@ -65,10 +69,10 @@ JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.o
 | `task test:test262:subset` | ✅ **66/66** baseline | |
 | `task test:multi-parser` | ✅ deep JSON compare passes vs babel | |
 | `task test:fuzz` | ✅ 100/100 | seed=20260421 |
-| `task test:fuzz:invalid` | ⚠️ **8/8 baselined crashes still reproduce, 0 new** | 8 known input-validation gaps; reproducers in `tmp/fuzz_invalid_crashes/` |
+| `task test:fuzz:invalid` | ✅ **300/300 exited cleanly, 0 crashes** | Baseline relocked (`known_crashes: {}`). Cross-validated on 6 alt seeds (1 200 mutations, 0 crashes) and in strict mode. |
 | `task test:crashes-known` | ✅ 0 new | |
 | `task test:oxc-corpus` | ✅ baseline OK | **0 kessel-only-rejects** (down from 776 in 2025); 19 oxc-only-rejects (kessel more lenient than OXC on edge cases); 96.0% adjusted conformance excluding shared Babel/Flow gaps |
-| `task test:bench:regression` | ✅ **0.1% over tolerance** (relocked clean) | |
+| `task test:bench:regression` | ⚠️ environmentally invalid at handoff time | Machine load avg 29–38 (external `pi` + `zellij` consuming 6+ cores). Re-locked baseline at 0.1% earlier in session; current run reports a spurious 21% regression that persists even on a checkout of the previous tip, confirming it's noise. Re-run on a quiet machine before relying on it. |
 
 ### Performance — `task bench:quick`
 
@@ -95,14 +99,14 @@ Apples-to-apples (`kessel --ast-only` vs OXC parser-only) on Apple M1 Max:
 
 | File | Lines | Purpose |
 |---|---:|---|
-| `src/parser.odin` | 19 772 | Hand-written Pratt parser + lazy module pre-scan + **101 inline `report_semantic_error*` checks (gated on `p.check_semantics`, awaiting migration to checker)**. Permissive when flag is off. |
+| `src/parser.odin` | 19 681 | Hand-written Pratt parser + lazy module pre-scan + **90 inline `report_semantic_error*` checks (gated on `p.check_semantics`, awaiting migration to checker)**. Permissive when flag is off. |
 | `src/emitter.odin` | 6 381 | ESTree JSON emitter. |
 | `src/lexer.odin` | 3 097 | SIMD lexer. Two-token lookahead. |
 | `src/regex.odin` | 2 235 | ES2025 §22.2.1 regex pattern validator. |
 | `src/ast.odin` | 1 611 | AST struct/union definitions. |
 | `src/raw_transfer.odin` | 1 304 | Zero-copy binary AST buffer. |
 | `src/main.odin` | 1 295 | CLI dispatch + worker pool. |
-| **`src/checker.odin`** | **697** | **AST-walker semantic checker (pass 3).** 3 slices live: break/continue + label scoping; getter/setter accessor arity + setter rest/initializer. Public API: `check_program`, `checker_run_for_job`. |
+| **`src/checker.odin`** | **850** | **AST-walker semantic checker (pass 3).** 4 slices live (8 distinct checks): break/continue + label scoping (slice 1); accessor arity + setter shape (slice 3); duplicate `__proto__`, duplicate `default:`, duplicate constructor (TS-aware), `delete o.#priv`, `super.#name` (slice 4). Public API: `check_program`, `checker_run_for_job`. |
 | `src/simd.odin` | 601 | ARM64 NEON intrinsics. |
 | `src/parse_job.odin` | 419 | "Source-to-parsed-Program" deep module. |
 | `src/token.odin` | 383 | `TokenType` enum, `FastToken`, `LiteralValue`. |
@@ -123,7 +127,8 @@ Apples-to-apples (`kessel --ast-only` vs OXC parser-only) on Apple M1 Max:
 | **1** | `4b93e2a` | break / continue context + label scoping (§13.9.1, §13.9.2, §14.13.1, §14.8.1). New AST walker `check_program` + `checker_run_for_job`. Function/arrow/class-static-block boundaries. |
 | **2** | `86cd68b` | Wire `cli.show_semantic_errors → ParseConfig.check_semantics → p.check_semantics`. **101 inline `report_semantic_error*` calls in parser.odin now light up under the same flag.** Setter/getter check demoted from `report_error` to `report_semantic_error_at` with anchored locations (fixed three.module.js positional bug). |
 | **3** | `9fabda0` | **Migrate** the 4 accessor early-error checks parser → checker. New `ck_check_accessor` walks ClassElement nodes. Parser strictly drops these — no `report_semantic_error*` for accessors. |
-| _next_ | _slice 4+_ | **101 inline `report_semantic_error*` calls remain in parser.odin.** Migrate slice-by-slice. |
+| **4** | `ea574d4` | **5 local AST-only checks**: duplicate `__proto__` (§13.2.5.1), more than one default in switch (§14.12.1), duplicate constructor with TS overload-sig exception (§15.7.1), `delete o.#priv` (§13.5.1), `super.#name` (§15.7.3). Adds `lang: Lang` to `CheckerContext` (threaded from `job.lang` via `checker_run_for_job`). Tears out the `pending_proto_dups` field + post-parse loop + `expr_to_pattern` cleanup — the AST already separates ObjectExpression from ObjectPattern, so the pending machinery was redundant. |
+| _next_ | _slice 5+_ | **90 inline `report_semantic_error*` calls remain in parser.odin.** Migrate slice-by-slice. |
 
 ### Migration policy (rule established this session)
 
@@ -172,12 +177,14 @@ Result: 9/10 bench files below OXC, geo-mean 0.93×.
 
 | # | Issue | Severity | Scope |
 |---|---|---|---|
-| 1 | **101 inline `report_semantic_error*` calls in `parser.odin`** | architectural debt | Migration backlog. Each call should move to `src/checker.odin` per the policy above. ~10–15 categories. |
-| 2 | **8 baselined fuzz crashes** in `task test:fuzz:invalid` | real bugs hiding behind baseline | bit-flip × 2, byte-insert × 3, NUL-inject × 1, UTF-8-broken × 2. Reproducers in `tmp/fuzz_invalid_crashes/`. Some likely share a root cause (UTF-8 boundary handling). Each is a potential security issue. |
-| 3 | OXC corpus: **19 oxc-only-rejects** (kessel more lenient than OXC) | minor | These are edge cases where kessel accepts but OXC rejects (the inverse direction is 0). Not actionable by simply "matching OXC" — would require case-by-case judgement. |
-| 4 | OXC corpus: 2 157 babel "should-pass-rejected" | shared gap with Babel | Babel-specific syntax (Flow, pipeline-operator, experimental decorators). NOT kessel bugs — OXC drops them too. |
-| 5 | `AGENTS.md` is `.gitignore`d | local-only | By project convention `AGENTS.md` is local agent prose, not shared. The HANDOFF doc covers all material info for next-agent handoff. |
-| 6 | Branch is **6 commits ahead of `origin/main`** — not yet pushed | session deliverable | `git push origin main` to publish. |
+| 1 | **90 inline `report_semantic_error*` calls in `parser.odin`** | architectural debt | Migration backlog. Each call should move to `src/checker.odin` per the policy above. ~10–15 remaining categories — most need a context tracker (strict-mode flag, function-kind stack, class-element-position, formal-parameter scope) which is the natural shape of slices 5–7. |
+| 2 | OXC corpus: **19 oxc-only-rejects** (kessel more lenient than OXC) | minor | Edge cases where kessel accepts but OXC rejects (the inverse direction is 0). Not actionable by simply "matching OXC" — case-by-case judgement. |
+| 3 | OXC corpus: 2 157 babel "should-pass-rejected" | shared gap with Babel | Babel-specific syntax (Flow, pipeline-operator, experimental decorators). NOT kessel bugs — OXC drops them too. |
+| 4 | `AGENTS.md` is `.gitignore`d | local-only | By project convention `AGENTS.md` is local agent prose, not shared. The HANDOFF doc covers all material info for next-agent handoff. |
+| 5 | Branch is **8 commits ahead of `origin/main`** — not yet pushed | session deliverable | `git push origin main` to publish. |
+| 6 | `task test:bench:regression` reports a 21% geo-mean regression at handoff time | environmental, not real | Machine load avg 29–38 (external `pi` + `zellij` consuming 6 cores) since slice 4 commit. Verified noise: a temporary checkout of `5459ea1` (pre-slice-4 parser) reproduces the same regression magnitude on the same baseline. The locked baseline (`tests/baselines/bench_baseline.json`) is still the post-perf-restore floor; re-run on a quiet machine before treating it as real. |
+
+**✅ Closed since previous handoff:** the 8 baselined fuzz "crashes" were not real bugs — they were `spawnSync`'s 32 MB stdout buffer being exceeded by inflated AST output, which Node converts to SIGTERM. Verifier now ignores stdout entirely (it never read it anyway). Baseline relocked at `known_crashes: {}`. See `9b6f7e2`.
 
 ---
 
@@ -186,13 +193,13 @@ Result: 9/10 bench files below OXC, geo-mean 0.93×.
 | Item | State | What remains |
 |---|---|---|
 | **Architecture deepening chain (5/5 actionable + #4 deferred)** | ✅ **Complete** | #4 (shared AST traversal module) intentionally deferred — premature unless a third concrete walker pattern emerges. |
-| **#3 semantic checker migration** | ⚠️ **3 slices done, ~10–15 categories remain (101 sites)** | Slice-by-slice migration. Easiest next: duplicate `__proto__` in object literal (single ObjectExpression node, simple O(n²) within one object, rule is local). After that: `super` outside method, `with` statement in strict mode, duplicate parameter names, eval/arguments binding in strict, duplicate exported names, etc. |
+| **#3 semantic checker migration** | ⚠️ **4 slices done, ~10 categories remain (90 sites)** | Slice-by-slice migration. **Slice 5 candidate:** strict-mode tracker (covers `with` statement, legacy octal literals + escapes — ≈11 inline calls in one slice). **Slice 6 candidate:** function-kind tracker (covers `super` outside method, `super` outside derived ctor, `new.target` outside fn, `arguments` in static block / field initializer — ≈6 calls). **Slice 7 candidate:** formal-parameter scope (yield/await in params — ≈5 calls). The remaining ≈60 calls fall into long-tail one-offs. |
 | **Perf vs OXC** | ✅ **Restored to 0.93× geo-mean** (was 1.28×) | Future perf wins beyond s25 are exploratory. The W-cadence record (`docs/perf-session-22-final.md` … `perf-session-25-*.md`) documents what was tried and what worked. |
 | **`task test` chain end-to-end** | ✅ **All 18 gates green** | The recovery gate fix unblocked the full chain. |
 | **`odin -vet` cleanup** | ✅ **Complete** | All 33 warnings resolved. |
-| **Stale baselines (negative, test262:subset, oxc-corpus, bench)** | ✅ **All relocked** | Clean reference for future regression detection. |
-| **8 baselined fuzz crashes** | ❌ **Not started** | Reproducers in `tmp/fuzz_invalid_crashes/`. |
-| **Branch push** | ❌ Local only | `git push origin main` (6 commits). |
+| **Stale baselines (negative, test262:subset, oxc-corpus, bench, fuzz_invalid)** | ✅ **All relocked** | Clean reference for future regression detection. `fuzz_invalid_baseline.json` newly empty post slice-4 verifier fix. |
+| **8 "baselined fuzz crashes"** | ✅ **All cleared** — they were verifier maxBuffer false positives, not parser bugs. | — |
+| **Branch push** | ❌ Local only | `git push origin main` (8 commits). |
 
 `git stash list` empty. No WIP. No untracked files in `src/`.
 
@@ -202,18 +209,20 @@ Result: 9/10 bench files below OXC, geo-mean 0.93×.
 
 Prioritised:
 
-1. **Push the branch.** `git push origin main` — durably saves this session's 6 commits.
+1. **Push the branch.** `git push origin main` — durably saves this session's 8 commits.
 
-2. **Continue checker migration (slice 4+)** — the ~10–15 remaining inline categories.
-   - **Easiest first slice:** duplicate `__proto__` in object literal. One AST node type (ObjectExpression), one local rule (no ancestor context needed), one inline `report_semantic_error_at` call to delete from `parser.odin`.
-   - **Approach (proven by slices 1–3):**
-     1. Add the AST walk in `src/checker.odin` (extend `ck_walk_*` chain or add per-node helper like `ck_check_accessor`).
-     2. **Delete** the corresponding `report_semantic_error*` call in `parser.odin`. No flag-gating.
+2. **Continue checker migration (slice 5+)** — the remaining ≈10 categories (90 sites). Slice 4 took every check that was local on a single AST node; from here each slice needs a context tracker. Recommended order:
+   - **Slice 5: strict-mode tracker** — covers `with` statement (§14.11.1, 1 call), legacy octal literals (§12.9.3.5, 1 call), legacy octal escape sequences (§12.9.4.1, 4 calls), legacy octal `BigInt` (§12.9.3.5, 1 call), `'let'` as lexical name (§14.3.1, 1 call), `yield` as identifier in strict (3 calls), `'arguments'` / `'eval'` in strict bindings, etc. ≈11–12 calls. Approach: thread a `strict_mode: bool` through `CheckerContext`, set on entering a `"use strict"` directive scope, on entering a class body (always strict), or on a `Module` Program.
+   - **Slice 6: function-context tracker** — covers `super` outside method (§15.7.5, 1 call), `super(...)` outside derived constructor (§15.7.6, 1 call), `'new.target'` outside fn (§12.3.6.1, 1 call), `'arguments'` in static block (1 call) / field initializer (1 call), `'await'` in static block (1 call). ≈6 calls. Approach: a small enum stack on `CheckerContext` (`.None`, `.Method`, `.Constructor`, `.DerivedConstructor`, `.StaticBlock`, `.FieldInit`).
+   - **Slice 7: formal-parameter scope** — covers `yield`/`await` in formal parameters of generator/async fn (§15.5.1 / §15.6.1, 5 calls) and yield/await in arrow params. Approach: a `in_params: bool` flag flipped on `ck_walk_function`'s param walk.
+   - **Approach (proven by slices 1–4):**
+     1. Add the AST walk + context flag in `src/checker.odin`.
+     2. **Delete** the corresponding `report_semantic_error*` call(s) in `parser.odin`. No flag-gating.
      3. Run full gate chain. Relock baselines if negative fixtures earn rejections.
 
-3. **Fix the 8 baselined fuzz crashes.** Each is a real input-validation bug. Reproducers in `tmp/fuzz_invalid_crashes/`. Some may share a root cause — investigate UTF-8 boundary handling first.
+3. **Re-run `task test:bench:regression` on a quiet machine.** Current run reports a spurious 21% regression because of external load (`pi` + `zellij` saturating 6 cores during this session). The locked baseline is correct; the regression is environmental. If a quiet re-run still shows regression, bisect against `02b1661` (the post-perf-restore relock).
 
-4. **(Deferred — architecture review #4)** Shared AST traversal module. Revisit once slice 4+ surfaces a third concrete pattern that maps cleanly onto the emitter / raw-transfer / checker walkers.
+4. **(Deferred — architecture review #4)** Shared AST traversal module. Revisit once slice 5+ surfaces a third concrete pattern that maps cleanly onto the emitter / raw-transfer / checker walkers.
 
 ---
 
@@ -242,7 +251,7 @@ task test:spec-compliance
 task test:spec-fixtures   # 150/150
 task test:multi-parser
 task test:fuzz            # 100/100
-task test:fuzz:invalid    # ⚠️ 8/8 baselined
+task test:fuzz:invalid    # 300/300 clean, 0 known crashes
 task test:crashes-known
 task test:ambiguity
 task test:regression      # 11/11
@@ -256,7 +265,7 @@ task bench:quick          # 9/10 below OXC, geo-mean 0.93×
 # Default — parser only (matches OXC parseSync)
 ./bin/kessel parse foo.js
 
-# With pass 3 — break/continue/label + accessor + 101 gated inline checks
+# With pass 3 — break/continue/label + accessor + 5 slice-4 checks + 90 gated inline checks
 ./bin/kessel parse foo.js --show-semantic-errors
 
 # Test262 subset and verify_negative.js automatically pass the flag for
