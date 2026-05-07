@@ -30,6 +30,16 @@ tasks:
       - odin build {{.SRC}} -out:bin/kessel-debug -debug
       # dSYM kept for debug — lldb needs it for line-level stack traces
 
+  build:coverage:
+    desc: Build the OXC-style coverage harness binary (bin/kessel_coverage)
+    cmds:
+      - mkdir -p bin
+      - odin build tests/coverage/src -out:bin/kessel_coverage -o:speed -no-bounds-check
+      - rm -rf bin/kessel_coverage.dSYM
+    sources:
+      - tests/coverage/src/*.odin
+      - src/*.odin
+
   # ============================================================
   # Test
   # ============================================================
@@ -61,6 +71,29 @@ tasks:
       - task: test:fuzz
       - task: test:fuzz:invalid
       - task: test:crashes-known
+      - task: test:coverage
+
+  test:coverage:
+    desc: "OXC-style conformance harness — 10 snap files (parser + semantic for test262/babel/typescript/estree/misc). Mirrors oxc-project/oxc:tasks/coverage. The parser_test262.snap / semantic_test262.snap files are the ES2025 conformance proof."
+    deps: [build]
+    silent: true
+    cmds:
+      - odin test tests/coverage/src -no-bounds-check -o:speed -define:ODIN_TEST_TRACK_MEMORY=false
+
+  test:coverage:update:
+    desc: Regenerate every snap baseline. Run after a deliberate parser change.
+    deps: [build:coverage]
+    silent: true
+    cmds:
+      - ./bin/kessel_coverage run all --update
+      - ./bin/kessel_coverage run all --update --semantic
+
+  test:coverage:run:
+    desc: 'Run a single coverage suite via the standalone binary. Usage: task test:coverage:run -- <suite> [--semantic] [--update]. Suites: test262 / babel / typescript / estree / misc / all.'
+    deps: [build:coverage]
+    silent: true
+    cmds:
+      - ./bin/kessel_coverage run {{.CLI_ARGS}}
 
   test:unit:
     desc: Positive fixture golden-output tests
