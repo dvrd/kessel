@@ -562,6 +562,12 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^ArrowFunctionExpression:
 		if e == nil { return }
+		// §15.3.1 / §15.9.1 — ContainsUseStrict + !IsSimpleParameterList
+		// early error for arrow functions. Arrow block bodies don't carry
+		// a populated `directives` array (parse_block_statement skips the
+		// directive-prologue setup), so the helper checks the first body
+		// statement's StringLiteral expression directly.
+		ck_check_arrow_strict_directive_with_nonsimple_params(c, e)
 		// Arrow function = function boundary for break/continue/labels.
 		saved := ck_enter_function(ctx)
 		// Arrow block-body "use strict" prologue: parse_block_statement does
@@ -829,6 +835,11 @@ ck_walk_jsx_attr :: proc(c: ^Checker, ctx: ^CheckerContext, attr: JSXAttributeIt
 ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression,
                         kind: CkFnKind = .Plain, derived_ctor: bool = false) {
 	if fn == nil { return }
+	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
+	// !IsSimpleParameterList early error. Fires before the function-body
+	// walk so the diagnostic anchors at the function start, matching the
+	// parser's old anchor.
+	ck_check_strict_directive_with_nonsimple_params(c, fn)
 	saved := ck_enter_function(ctx)
 	// Reset the [[HomeObject]] / constructor / class-element flags. The
 	// caller's request below restores any that the new body should keep
@@ -1403,6 +1414,53 @@ ck_check_identifier_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Id
 	if ctx.in_field_init {
 		ck_report(c, u32(id.loc.span.start), "'arguments' cannot appear in a class field initializer")
 	}
+}
+
+// ============================================================================
+// Slice 8 — "use strict" directive in non-simple-param list (§15.1.1
+// / §15.3.1 / §15.5.1 / §15.6.1 / §15.8.1 / §15.9.1).
+//
+// All six function shapes (regular function declarations / expressions,
+// class methods, object-literal methods, plain arrow functions, async
+// arrow functions) shared the same parser-side check; the checker now
+// covers them via two helpers (one for FunctionExpression-shaped nodes
+// where the body's directive prologue is preserved, one for arrow
+// functions where parse_block_statement drops the prologue array but
+// the StringLiteral expression survives as body[0]).
+// ============================================================================
+
+// ck_check_strict_directive_with_nonsimple_params handles every non-arrow
+// function shape (regular function decl/expr, class method, getter/setter,
+// constructor, static block, object-literal method). Static blocks have
+// no params so they trivially short-circuit on params_are_simple.
+@(private="file")
+ck_check_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^FunctionExpression) {
+	if fn == nil || fn.no_body { return }
+	if !fn_body_lifts_strict(fn.body) { return }
+	if params_are_simple(fn.params[:]) { return }
+	ck_report(c, u32(fn.loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+}
+
+// ck_check_arrow_strict_directive_with_nonsimple_params handles arrow
+// function bodies. Arrow concise bodies (Expression bodies) cannot
+// contain a directive prologue, so the check only fires for block
+// bodies. parse_block_statement does NOT promote leading string-literal
+// statements to directives (only parse_program / parse_function_body
+// do), so we sniff body[0]'s ExpressionStatement.expression as a
+// StringLiteral with value == "use strict". Matches the parser's
+// post-hoc check shape (parse_arrow_function and parse_async_arrow_with_parens).
+@(private="file")
+ck_check_arrow_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^ArrowFunctionExpression) {
+	if fn == nil { return }
+	block, is_block := fn.body.(^BlockStatement)
+	if !is_block || block == nil || len(block.body) == 0 { return }
+	es, eok := block.body[0]^.(^ExpressionStatement)
+	if !eok || es == nil { return }
+	str, sok := es.expression.(^StringLiteral)
+	if !sok || str == nil { return }
+	if str.value != "use strict" { return }
+	if params_are_simple(fn.params[:]) { return }
+	ck_report(c, u32(fn.loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 }
 
 // ============================================================================
