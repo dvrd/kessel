@@ -188,6 +188,13 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	ctx.at_top_level = true
 	// §14.3 — `using` / `await using` at top of a Script.
 	ck_check_using_at_script_top(c, program)
+	// §16.2.1 — duplicate-export check (TS / TSX only; JS mode is
+	// reported by the parser-side `report_error_at` because the rule
+	// is a parse-time structural error there).
+	ck_check_export_dups(c, &ctx, program)
+	// §16.2.2 — every non-re-export ExportSpecifier.local must reference
+	// a name declared at module top level.
+	ck_check_export_local_defined(c, program)
 	for stmt in program.body {
 		ck_walk_stmt(c, &ctx, stmt)
 	}
@@ -1949,6 +1956,183 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 //     L10591/L11740/L12352).
 //   * §16.2.2 — `eval`/`arguments` as ImportedBinding (parser L9123).
 // ============================================================================
+
+// ck_check_export_dups — §16.2.1 — ExportedNames of ModuleItemList
+// must not contain duplicates. Walks Program.body once collecting
+// exported names from the three Export forms, reporting any duplicate.
+//
+// The parser still owns the JS-mode duplicate-export error (it fires
+// `report_error_at` so the diagnostic ALWAYS reports, regardless of
+// `--show-semantic-errors`). The checker fires only in TS / TSX modes
+// where the parser-side check was already gated semantic. This match
+// OXC's behaviour: oxc_parser drops duplicate-export errors in TS mode
+// because TS overload-signature / type-vs-value merging makes the
+// surface-syntax "duplicate" benign in many cases; oxc_semantic resolves
+// the rest. Kessel matches by deferring TS-mode reporting to pass 3.
+//
+// Module-only — Script-mode imports/exports are caught by
+// ck_check_import_export_position. Script programs short-circuit here.
+@(private="file")
+ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Program) {
+	if program == nil { return }
+	if program.type != .Module { return }
+	if !(ctx.lang == .TS || ctx.lang == .TSX) { return }
+	exported: map[string]u32
+	exported.allocator = context.temp_allocator
+	defer delete(exported)
+	record :: proc(c: ^Checker, exported: ^map[string]u32, name: string, off: u32) {
+		if name == "" { return }
+		if _, exists := exported^[name]; exists {
+			msg := fmt.tprintf("Duplicate exported name '%s'", name)
+			ck_report(c, off, msg)
+		} else {
+			exported^[name] = off
+		}
+	}
+	for stmt in program.body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^ExportNamedDeclaration:
+			if v == nil { continue }
+			if d, have := v.declaration.(^Declaration); have && d != nil {
+				#partial switch inner in d^ {
+				case ^VariableDeclaration:
+					if inner == nil { break }
+					for decl in inner.declarations {
+						names: [dynamic]string
+						names.allocator = context.temp_allocator
+						reserve(&names, 4)
+						collect_pattern_bound_names_list(decl.id, &names)
+						for n in names {
+							record(c, &exported, n, u32(decl.loc.span.start))
+						}
+					}
+				case ^FunctionDeclaration:
+					if inner == nil { break }
+					// TS overload signature (no body): same name across
+					// multiple declarations is the canonical TS overload
+					// pattern. Only the implementation contributes a binding.
+					if inner.no_body { break }
+					if id, ok := inner.id.(BindingIdentifier); ok {
+						record(c, &exported, id.name, u32(id.loc.span.start))
+					}
+				case ^ClassDeclaration:
+					if inner == nil { break }
+					if id, ok := inner.id.(BindingIdentifier); ok {
+						record(c, &exported, id.name, u32(id.loc.span.start))
+					}
+				}
+			}
+			for spec in v.specifiers {
+				switch en in spec.exported {
+				case IdentifierName:
+					record(c, &exported, en.name, u32(en.loc.span.start))
+				case ^StringLiteral:
+					if en != nil {
+						record(c, &exported, en.value, u32(en.loc.span.start))
+					}
+				}
+			}
+		case ^ExportAllDeclaration:
+			if v == nil { continue }
+			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
+				record(c, &exported, ns_name.name, u32(ns_name.loc.span.start))
+			}
+		}
+	}
+}
+
+// ck_collect_module_top_level_names — §16.2.2 helper. Collects every
+// VarDeclaredName / LexicallyDeclaredName at module top level (also
+// counts ImportSpecifier locals — those are bindings the module
+// exports can reference). Mirrors parser.odin's old
+// `collect_module_top_level_names` helper which lived alongside
+// `verify_export_locals` in the parser.
+@(private="file")
+ck_collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string]bool) {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^VariableDeclaration:
+			if v == nil { continue }
+			for decl in v.declarations { collect_pattern_bound_names(decl.id, names) }
+		case ^FunctionDeclaration:
+			if v == nil { continue }
+			if id, ok := v.id.(BindingIdentifier); ok { names[id.name] = true }
+		case ^ClassDeclaration:
+			if v == nil { continue }
+			if id, ok := v.id.(BindingIdentifier); ok { names[id.name] = true }
+		case ^ImportDeclaration:
+			if v == nil { continue }
+			for spec in v.specifiers {
+				if spec == nil { continue }
+				switch ss in spec^ {
+				case ImportSpecifier:          names[ss.local.name] = true
+				case ImportDefaultSpecifier:   names[ss.local.name] = true
+				case ImportNamespaceSpecifier: names[ss.local.name] = true
+				}
+			}
+		case ^ExportNamedDeclaration:
+			if v == nil { continue }
+			if d, have := v.declaration.(^Declaration); have && d != nil {
+				#partial switch inner in d^ {
+				case ^VariableDeclaration:
+					if inner == nil { break }
+					for decl in inner.declarations { collect_pattern_bound_names(decl.id, names) }
+				case ^FunctionDeclaration:
+					if inner == nil { break }
+					if id, ok := inner.id.(BindingIdentifier); ok { names[id.name] = true }
+				case ^ClassDeclaration:
+					if inner == nil { break }
+					if id, ok := inner.id.(BindingIdentifier); ok { names[id.name] = true }
+				}
+			}
+		case ^TSInterfaceDeclaration: if v != nil { names[v.id.name] = true }
+		case ^TSTypeAliasDeclaration: if v != nil { names[v.id.name] = true }
+		case ^TSEnumDeclaration:      if v != nil { names[v.id.name] = true }
+		case ^TSModuleDeclaration:
+			if v != nil && v.id != nil {
+				if ident, is_id := v.id.(^Identifier); is_id && ident != nil {
+					names[ident.name] = true
+				}
+			}
+		}
+	}
+}
+
+// ck_check_export_local_defined — §16.2.2 — every ExportedBinding
+// whose source is the module itself (i.e. NOT a `from "m"` re-export)
+// must reference a name declared at module top level. `export { foo };`
+// with no preceding declaration of `foo` is a SyntaxError.
+//
+// The parser still owns the structural sub-rule "a string literal
+// cannot be used as an exported binding without `from`" — that's a
+// shape error, not a name-resolution error.
+@(private="file")
+ck_check_export_local_defined :: proc(c: ^Checker, program: ^Program) {
+	if program == nil { return }
+	if program.type != .Module { return }
+	names: map[string]bool
+	names.allocator = context.temp_allocator
+	defer delete(names)
+	ck_collect_module_top_level_names(program.body[:], &names)
+	for stmt in program.body {
+		if stmt == nil { continue }
+		export, is_export := stmt^.(^ExportNamedDeclaration)
+		if !is_export || export == nil { continue }
+		// Re-exports (`export ... from "m"`) refer to the source module's
+		// table, not this module's local bindings.
+		if _, from_source := export.source.(StringLiteral); from_source { continue }
+		for spec in export.specifiers {
+			local_name, ok := spec.local.(IdentifierName)
+			if !ok { continue }
+			if !(local_name.name in names) {
+				msg := fmt.tprintf("Export '%s' is not defined in the module", local_name.name)
+				ck_report(c, u32(local_name.loc.span.start), msg)
+			}
+		}
+	}
+}
 
 // ck_check_using_at_script_top — §14.3 — `using` / `await using`
 // declarations are NOT allowed at the top level of a Script. The check

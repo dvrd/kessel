@@ -7350,12 +7350,13 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					if name == "" { continue }
 					off := decl_offs[i]
 					if _, exists := scope_map_get(&exported, name); exists {
-						msg := fmt.tprintf("Duplicate exported name '%s'", name)
-						// OXC's parser catches this in JS mode; in TS mode it
-						// defers to oxc_semantic (overloads, type/value merging).
-						if allow_ts_mode(p) {
-							report_semantic_error_at(p, LexerLoc(off), msg)
-						} else {
+						// JS mode — parser-side structural error.
+						// TS mode — semantic-checker-only
+						// (ck_check_export_dups). OXC's parser drops this
+						// in TS too because of overload / type-vs-value merge
+						// edge cases that oxc_semantic resolves later.
+						if !allow_ts_mode(p) {
+							msg := fmt.tprintf("Duplicate exported name '%s'", name)
 							report_error_at(p, LexerLoc(off), msg)
 						}
 					} else {
@@ -7378,10 +7379,8 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				}
 				if var_name != "" {
 					if _, exists := scope_map_get(&exported, var_name); exists {
-						msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
-						if allow_ts_mode(p) {
-							report_semantic_error_at(p, LexerLoc(var_off), msg)
-						} else {
+						if !allow_ts_mode(p) {
+							msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
 							report_error_at(p, LexerLoc(var_off), msg)
 						}
 					} else {
@@ -7406,40 +7405,30 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			// `export * as name from "m"` adds `name` to ExportedNames.
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
 				if _, exists := scope_map_get(&exported, ns_name.name); exists {
-					msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
-					if allow_ts_mode(p) {
-						report_semantic_error_at(p, LexerLoc(ns_name.loc.span.start), msg)
-					} else {
+					if !allow_ts_mode(p) {
+						msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
 						report_error_at(p, LexerLoc(ns_name.loc.span.start), msg)
 					}
 				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.span.start) }
 			}
 		}
 	}
-	names := make(map[string]bool, 32, p.allocator)
-	collect_module_top_level_names(program.body[:], &names)
+	// §16.2.2 "Export 'X' is not defined in the module" early error
+	// is now enforced by the semantic checker (ck_check_export_local_defined).
+	// The string-literal-without-from rule remains structural and is
+	// reported here.
 	for stmt in program.body {
 		if stmt == nil { continue }
 		export, is_export := stmt^.(^ExportNamedDeclaration)
 		if !is_export || export == nil { continue }
-		// `export ... from "m"` is a re-export; the local name refers to
-		// the source module's export table, not this module's bindings.
 		if _, from_source := export.source.(StringLiteral); from_source { continue }
 		for spec in export.specifiers {
-			switch local in spec.local {
-			case IdentifierName:
-				if !(local.name in names) {
-					msg := fmt.tprintf("Export '%s' is not defined in the module", local.name)
-					report_semantic_error_at(p, LexerLoc(local.loc.span.start), msg)
+			if strlit, is_str := spec.local.(^StringLiteral); is_str && strlit != nil {
+				err := ParseError{
+					loc = LexerLoc(strlit.loc.span.start),
+					message = "A string literal cannot be used as an exported binding without `from`",
 				}
-			case ^StringLiteral:
-				if local != nil {
-					err := ParseError{
-						loc = LexerLoc(local.loc.span.start),
-						message = "A string literal cannot be used as an exported binding without `from`",
-					}
-					bump_append(&p.errors, err)
-				}
+				bump_append(&p.errors, err)
 			}
 		}
 	}
