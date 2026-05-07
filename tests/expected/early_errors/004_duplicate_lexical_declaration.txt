@@ -59,13 +59,13 @@
   ],
   "errors": [
     {
-      "message": "Identifier 'x' has already been declared",
+      "message": "'x' has already been declared",
       "line": 3,
       "column": 1,
       "offset": 151
     },
     {
-      "message": "'x' has already been declared",
+      "message": "Identifier 'x' has already been declared",
       "line": 3,
       "column": 1,
       "offset": 151
@@ -73,9 +73,9 @@
   ]
 }
 Parse errors (2):
-  Line 3, Column 1: Identifier 'x' has already been declared
   Line 3, Column 1: 'x' has already been declared
+  Line 3, Column 1: Identifier 'x' has already been declared
 
 --- Statistics ---
-Arena: used=37568B reserved=16777216B ratio=0%
+Arena: used=37952B reserved=16777216B ratio=0%
 Parse errors: 2
