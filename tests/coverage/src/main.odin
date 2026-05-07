@@ -49,10 +49,14 @@ main :: proc() {
 			os.exit(1)
 		}
 		tool := Tool.Parser
+		update := false
 		for a in args[3:] {
-			if a == "--semantic" { tool = .Semantic }
+			switch a {
+			case "--semantic": tool = .Semantic
+			case "--update":   update = true
+			}
 		}
-		cmd_run(args[2], tool)
+		os.exit(cmd_run(args[2], tool, update))
 	case "parser":   fmt.println("[parser]    not yet wired — phase 7 lands the runner")
 	case "semantic": fmt.println("[semantic]  not yet wired — phase 11 lands the runner")
 	case "all":      fmt.println("[all]       not yet wired — phase 7 / 11 land the runners")
@@ -179,35 +183,83 @@ cmd_test262_smoke :: proc() {
 // cmd_run — phase 7+ end-to-end. Executes one suite (or all) through the
 // parser pipeline and prints OXC-style summary numbers. Snapshot file
 // I/O lands in phase 8.
-cmd_run :: proc(suite_arg: string, tool: Tool) {
+// cmd_run executes one suite (or `all`) through the parser/semantic
+// pipeline, prints the summary, and either:
+//   * `--update` set: writes the rendered snap to disk, returns 0;
+//   * snap exists on disk: diffs against it, returns 1 on drift, 0 clean;
+//   * snap absent on disk: writes it for the first time, returns 0
+//     (mirrors OXC's behavior — first run lands the baseline).
+cmd_run :: proc(suite_arg: string, tool: Tool, update: bool) -> int {
 	root := find_kessel_root()
 	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
 	defer delete(vendor)
 
-	run_one :: proc(suite: Suite, tool: Tool, vendor, project: string) {
+	drifted := 0
+
+	run_one :: proc(suite: Suite, tool: Tool, vendor, project: string, update: bool) -> bool {
 		run := run_one_suite(suite, tool, vendor, project, context.allocator)
 		fmt.printfln("")
 		fmt.printfln("%s_%s Summary:", tool_name(tool), suite_name(suite))
 		print_stats(run.stats)
 		fmt.printfln("   (%d records, %v)", len(run.records), run.elapsed)
+
+		actual := render_snap(run, context.allocator)
+		snap_path := snap_file_path(project, run, context.allocator)
+
+		if update {
+			if !write_snap(snap_path, actual) {
+				fmt.eprintfln("   FAILED to write %s", snap_path)
+				return false
+			}
+			fmt.printfln("   updated %s", snap_path)
+			return true
+		}
+
+		expected, exists := read_snap(snap_path, context.allocator)
+		if !exists {
+			// First run: land the baseline.
+			write_snap(snap_path, actual)
+			fmt.printfln("   wrote initial baseline %s", snap_path)
+			return true
+		}
+		if actual == expected {
+			fmt.printfln("   snap clean (%s)", snap_path)
+			return true
+		}
+
+		diff := snap_diff(actual, expected, context.allocator)
+		fmt.eprintfln("   SNAP DRIFT: %s", snap_path)
+		fmt.eprintln(diff)
+		return false
+	}
+
+	run_or_drift :: proc(drifted: ^int, suite: Suite, tool: Tool, vendor, project: string, update: bool) {
+		if !run_one(suite, tool, vendor, project, update) { drifted^ += 1 }
 	}
 
 	switch suite_arg {
-	case "test262":    run_one(.Test262,    tool, vendor, root)
-	case "babel":      run_one(.Babel,      tool, vendor, root)
-	case "typescript": run_one(.TypeScript, tool, vendor, root)
-	case "estree":     run_one(.Estree,     tool, vendor, root)
-	case "misc":       run_one(.Misc,       tool, vendor, root)
+	case "test262":    run_or_drift(&drifted, .Test262,    tool, vendor, root, update)
+	case "babel":      run_or_drift(&drifted, .Babel,      tool, vendor, root, update)
+	case "typescript": run_or_drift(&drifted, .TypeScript, tool, vendor, root, update)
+	case "estree":     run_or_drift(&drifted, .Estree,     tool, vendor, root, update)
+	case "misc":       run_or_drift(&drifted, .Misc,       tool, vendor, root, update)
 	case "all":
-		run_one(.Misc,       tool, vendor, root)
-		run_one(.Estree,     tool, vendor, root)
-		run_one(.Babel,      tool, vendor, root)
-		run_one(.TypeScript, tool, vendor, root)
-		run_one(.Test262,    tool, vendor, root)  // largest — last
+		run_or_drift(&drifted, .Misc,       tool, vendor, root, update)
+		run_or_drift(&drifted, .Estree,     tool, vendor, root, update)
+		run_or_drift(&drifted, .Babel,      tool, vendor, root, update)
+		run_or_drift(&drifted, .TypeScript, tool, vendor, root, update)
+		run_or_drift(&drifted, .Test262,    tool, vendor, root, update)
 	case:
 		fmt.printfln("unknown suite: %s", suite_arg)
-		os.exit(1)
+		return 1
 	}
+
+	if drifted > 0 {
+		fmt.eprintfln("")
+		fmt.eprintfln("%d snap(s) drifted. Run with --update to accept the new state.", drifted)
+		return 1
+	}
+	return 0
 }
 
 print_stats :: proc(s: CoverageStats) {

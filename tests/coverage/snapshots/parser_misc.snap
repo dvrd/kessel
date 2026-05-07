@@ -1,0 +1,172 @@
+parser_misc Summary:
+AST Parsed     : 64/64 (100.00%)
+Positive Passed: 53/64 (82.81%)
+Negative Passed: 84/135 (62.22%)
+Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
+Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
+Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
+Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
+Expect Syntax Error: tests/coverage/misc/fail/escape-00.js
+Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
+Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
+Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
+Expect Syntax Error: tests/coverage/misc/fail/let-member-expression.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-10159.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11453.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11485.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11592-3.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-1.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-10.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-11.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-12.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-13.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-14.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-17.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-18.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-19.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-20.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-21.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-22.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-23.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-5.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-6.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-7.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-8.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-9.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-12612-1.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-12612-2.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-12612-3.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-12612-4.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-13284-1.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-13284-2.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-13323.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-14944.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-18231.mjs
+Expect Syntax Error: tests/coverage/misc/fail/oxc-1942-1.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-1942-2.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-5.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-5036.js
+Expect Syntax Error: tests/coverage/misc/fail/oxc-5177.ts
+Expect Syntax Error: tests/coverage/misc/fail/oxc-5355.jsx
+Expect Syntax Error: tests/coverage/misc/fail/oxc-7582.js
+Expect Syntax Error: tests/coverage/misc/fail/script-top-level-using.js
+Expect Syntax Error: tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs
+Expect to Parse: tests/coverage/misc/pass/babel-16776-m.js
+tests/coverage/misc/pass/babel-16776-m.js:1:1: Top-level 'await' is only valid in module code
+
+Expect to Parse: tests/coverage/misc/pass/babel-16776-s.js
+tests/coverage/misc/pass/babel-16776-s.js:1:1: Top-level 'await' is only valid in module code
+
+Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-return.cjs
+tests/coverage/misc/pass/commonjs-top-level-return.cjs:2:8: 'return' outside of function
+
+Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-return.cts
+tests/coverage/misc/pass/commonjs-top-level-return.cts:2:8: 'return' outside of function
+
+Expect to Parse: tests/coverage/misc/pass/oxc-1289.ts
+tests/coverage/misc/pass/oxc-1289.ts:1:13: Expected from, got infer
+
+Expect to Parse: tests/coverage/misc/pass/oxc-22157.js
+tests/coverage/misc/pass/oxc-22157.js:2:4: Unexpected token
+
+Expect to Parse: tests/coverage/misc/pass/oxc-2674.tsx
+tests/coverage/misc/pass/oxc-2674.tsx:9:5: Expected >, got --
+
+Expect to Parse: tests/coverage/misc/pass/oxc-3443.tsx
+tests/coverage/misc/pass/oxc-3443.tsx:1:36: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+
+Expect to Parse: tests/coverage/misc/pass/oxc-4449.ts
+tests/coverage/misc/pass/oxc-4449.ts:1:11: Expected }, got string
+
+Expect to Parse: tests/coverage/misc/pass/swc-8243.tsx
+tests/coverage/misc/pass/swc-8243.tsx:4:10: Empty parenthesized expression
+
+Expect to Parse: tests/coverage/misc/pass/unambiguous-await-regex.js
+tests/coverage/misc/pass/unambiguous-await-regex.js:2:1: Top-level 'await' is only valid in module code
+
+tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
+tests/coverage/misc/fail/commonjs-top-level-await.cjs:2:1: Top-level 'await' is only valid in module code
+tests/coverage/misc/fail/diff-markers.js:10:1: Unexpected token '<<'
+tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected >, got !
+tests/coverage/misc/fail/imbalanced-array-expr.js:2:1: Expected ], got const
+tests/coverage/misc/fail/imbalanced-call-expr.js:2:1: Expected ), got const
+tests/coverage/misc/fail/imbalanced-enum-expr.ts:4:1: Expected }, got const
+tests/coverage/misc/fail/imbalanced-export-expr.js:3:1: Expected }, got const
+tests/coverage/misc/fail/imbalanced-import-decl-attr.js:1:44: Expected }, got ;
+tests/coverage/misc/fail/imbalanced-import-decl.js:1:15: Expected }, got string
+tests/coverage/misc/fail/imbalanced-index-signature-decl.ts:2:15: Expected ], got :
+tests/coverage/misc/fail/imbalanced-new-expr.js:2:1: Expected ), got const
+tests/coverage/misc/fail/imbalanced-object-expr.js:2:1: Expected }, got const
+tests/coverage/misc/fail/imbalanced-parenthesized-expr.js:1:30: Expected ), got ;
+tests/coverage/misc/fail/imbalanced-tuple-type.ts:3:1: Expected ], got const
+tests/coverage/misc/fail/import-defer-without-from.js:1:14: Expected from, got string
+tests/coverage/misc/fail/import-equals-this.ts:2:12: Expected identifier in import-equals module reference
+tests/coverage/misc/fail/import-from-str.js:1:13: Expected from, got string
+tests/coverage/misc/fail/import-source-non-from.js:1:19: Expected from, got identifier
+tests/coverage/misc/fail/import-source-without-from.js:1:15: Expected from, got string
+tests/coverage/misc/fail/import-type-mixed-empty.ts:3:18: A type-only import cannot combine default and named bindings
+tests/coverage/misc/fail/import-type-mixed-star.ts:3:16: A type-only import cannot combine default and named bindings
+tests/coverage/misc/fail/import-type-source-not-string.ts:3:25: String literal expected in import type
+tests/coverage/misc/fail/import-type-without-from.ts:1:13: Expected from, got string
+tests/coverage/misc/fail/import-without-from.js:1:16: Expected from, got string
+tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected >, got ;
+tests/coverage/misc/fail/minus-yield-100.js:1:37: 'yield' expression cannot be the operand of a unary operator
+tests/coverage/misc/fail/missing-conditional-alternative-type.ts:2:1: Expected :, got EOF
+tests/coverage/misc/fail/missing-conditional-alternative.js:2:1: Expected :, got EOF
+tests/coverage/misc/fail/oxc-10503.ts:4:1: Top-level 'await' is only valid in module code
+tests/coverage/misc/fail/oxc-10638.js:2:1: Unexpected reserved word 'in'
+tests/coverage/misc/fail/oxc-10639.js:1:1: Unexpected token '<<'
+tests/coverage/misc/fail/oxc-10977.ts:1:9: Expected type after ':'
+tests/coverage/misc/fail/oxc-11472.js:1:7: Decorators may not appear after 'export' or 'export default' if they also appear before 'export'
+tests/coverage/misc/fail/oxc-11484.ts:2:1: Expected from, got EOF
+tests/coverage/misc/fail/oxc-11485.js:2:10: Expected binding pattern
+tests/coverage/misc/fail/oxc-11487.cjs:1:13: 'await' cannot be used as an async arrow parameter
+tests/coverage/misc/fail/oxc-11487.mjs:1:13: 'await' cannot be used as an async arrow parameter
+tests/coverage/misc/fail/oxc-11532.js:1:15: Expected from, got {
+tests/coverage/misc/fail/oxc-11538.js:1:20: Expected template literal continuation
+tests/coverage/misc/fail/oxc-11592-1.ts:1:11: Expected semicolon
+tests/coverage/misc/fail/oxc-11592-2.ts:1:11: Expected semicolon
+tests/coverage/misc/fail/oxc-11713-15.ts:2:2: 'declare' modifier cannot appear on a type member.
+tests/coverage/misc/fail/oxc-11713-16.ts:2:2: 'declare' modifier cannot appear on a type member.
+tests/coverage/misc/fail/oxc-11713-2.ts:2:2: 'static' modifier cannot appear on a type member.
+tests/coverage/misc/fail/oxc-11713-24.ts:2:20: 'declare' modifier cannot be used here.
+tests/coverage/misc/fail/oxc-11713-25.ts:2:18: 'readonly' modifier can only appear on a property declaration
+tests/coverage/misc/fail/oxc-11713-26.ts:1:32: 'readonly' modifier cannot appear on a parameter.
+tests/coverage/misc/fail/oxc-11713-27.ts:1:38: Parameter property modifiers are only allowed in constructors
+tests/coverage/misc/fail/oxc-11713-3.ts:1:31: 'private' modifier cannot appear on a parameter.
+tests/coverage/misc/fail/oxc-11713-4.ts:2:23: 'declare' modifier cannot be used here.
+tests/coverage/misc/fail/oxc-11789-1.ts:1:13: Type parameter list cannot be empty
+tests/coverage/misc/fail/oxc-11789-2.ts:1:13: Type parameter list cannot be empty
+tests/coverage/misc/fail/oxc-12546-1.ts:1:25: Expected interface name after 'extends'
+tests/coverage/misc/fail/oxc-12546-2.ts:1:21: Expected expression after 'extends'
+tests/coverage/misc/fail/oxc-12816.ts:1:5: Expected expression in 'if' condition
+tests/coverage/misc/fail/oxc-13617-1.ts:1:5: Expected expression after operator
+tests/coverage/misc/fail/oxc-13617-2.ts:1:9: Expected expression after operator
+tests/coverage/misc/fail/oxc-13617-3.ts:1:26: Type argument list cannot be empty
+tests/coverage/misc/fail/oxc-13617-4.ts:1:16: Type argument list cannot be empty
+tests/coverage/misc/fail/oxc-14013.ts:2:20: Abstract property cannot have an initializer.
+tests/coverage/misc/fail/oxc-14014.ts:3:1: Class field cannot be named 'constructor'
+tests/coverage/misc/fail/oxc-16077.ts:1:33: A parameter property may not be declared using a binding pattern
+tests/coverage/misc/fail/oxc-169.js:2:1: Expected expression after operator
+tests/coverage/misc/fail/oxc-2253.ts:1:8: Expected '=', ',', or ';' after variable binding
+tests/coverage/misc/fail/oxc-232.js:2:1: Empty parenthesized expression
+tests/coverage/misc/fail/oxc-2394.ts:20:22: Expected 'with' in import type options
+tests/coverage/misc/fail/oxc-3528.jsx:1:25: Expected corresponding JSX closing tag for 'Apple'.
+tests/coverage/misc/fail/oxc-3948.ts:2:14: Expected }, got identifier
+tests/coverage/misc/fail/oxc-4111-1.js:1:44: Expected semicolon
+tests/coverage/misc/fail/oxc-4212-1.ts:1:17: Expected (, got identifier
+tests/coverage/misc/fail/oxc-4449-1.ts:1:11: Expected }, got identifier
+tests/coverage/misc/fail/oxc-4449-2.ts:1:11: Expected }, got number
+tests/coverage/misc/fail/oxc-4449-3.ts:1:10: An enum member cannot have a numeric name.
+tests/coverage/misc/fail/oxc-4449-4.ts:1:12: Expected }, got template_head
+tests/coverage/misc/fail/oxc-4449-6.ts:1:11: Expected }, got string
+tests/coverage/misc/fail/oxc-5955-1.ts:1:8: Expected '=', ',', or ';' after variable binding
+tests/coverage/misc/fail/oxc-5955-2.ts:3:8: Expected }, got ?
+tests/coverage/misc/fail/oxc-5955-3.ts:2:18: An index signature must have a type annotation.
+tests/coverage/misc/fail/oxc-9497.js:2:10: Unexpected token after ?.
+tests/coverage/misc/fail/oxc-9525-1.js:1:4: Unexpected token after ?.
+tests/coverage/misc/fail/oxc-9525-2.js:1:5: Unexpected token after ?.
+tests/coverage/misc/fail/oxc-9525-3.js:3:1: Unexpected token after ?.
+tests/coverage/misc/fail/switch-invalid-clause.js:2:3: Expected 'case' or 'default' in switch
