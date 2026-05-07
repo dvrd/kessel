@@ -1275,28 +1275,20 @@ report_error :: proc(p: ^Parser, message: string) {
 	}
 }
 
-// report_semantic_error reports an early error that does NOT affect parsing
-// decisions (break/continue context, label scoping, super/new.target context,
-// duplicate bindings, strict-mode parameter checks, etc.). These are gated
-// on `check_semantics` so the parser can run permissively like OXC when the
-// semantic checker pass will handle them.
-report_semantic_error :: #force_inline proc(p: ^Parser, message: string) {
-	if !p.check_semantics { return }
-	report_error(p, message)
-}
-
 // report_error_at is like report_error but at an explicit source offset.
 report_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
 	bump_append(&p.errors, ParseError{loc = loc, message = message})
 }
 
-// report_semantic_error_at is like report_semantic_error but at a specific
-// source location (for checks that append errors after-the-fact, e.g.
-// scope analysis, private-name resolution, __proto__ dups).
-report_semantic_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
-	if !p.check_semantics { return }
-	bump_append(&p.errors, ParseError{loc = loc, message = message})
-}
+// NOTE — the parser-side `report_semantic_error` and
+// `report_semantic_error_at` helpers were removed in slice 13e once
+// the migration of every inline call to src/checker.odin completed.
+// All early-error reporting now flows through ck_report (file-private
+// to checker.odin) or `checker_append_error` (the package-level entry
+// point used by the parser's verify_scopes machinery via
+// p.pending_checker). The architectural rule — parser = syntax,
+// checker = semantic — is now structurally enforced rather than
+// convention-only.
 
 enable_profiling :: proc(p: ^Parser) {
 	if p == nil {
@@ -2201,11 +2193,17 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 		case ^TemplateLiteral:
 			report_error(p, "Unexpected token ':'")
 		case ^YieldExpression:
-			// §14.13.1 - `yield` cannot be used as a LabelIdentifier inside
-			// a GeneratorBody. This fires only at statement position so the
-			// check is not confused by `? yield : yield` (ternary colon).
+			// §14.13.1 — `yield` cannot be used as a LabelIdentifier inside
+			// a GeneratorBody. The fixture reaches this branch only at
+			// statement position so the check is not confused by
+			// `? yield : yield` (ternary colon). Promoted to a structural
+			// parse error in generator context: `yield` is a reserved
+			// keyword in a GeneratorBody so the labelled-statement form
+			// is grammatically impossible there. Outside a generator,
+			// `yield:` is parsed but the colon arrival is unexpected
+			// (the YieldExpression had no operand), still a parse error.
 			if p.in_generator {
-				report_semantic_error(p, "'yield' cannot be used as a label identifier inside a generator function")
+				report_error(p, "'yield' cannot be used as a label identifier inside a generator function")
 			} else {
 				report_error(p, "Unexpected token ':'")
 			}
@@ -4322,7 +4320,6 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	eat(p) // consume class
 
 	id: Maybe(BindingIdentifier)
-	name_tok_type := p.cur_type
 	if can_be_binding_identifier(p.cur_type) {
 		current := get_current(p)
 		id = BindingIdentifier{
@@ -9348,7 +9345,14 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			// threshold - let them through so parse_assignment_expr can
 			// validate the target (e.g. `(yield) = 1` should be caught there).
 			if int(next_prec) >= int(Precedence.Conditional) {
-				report_semantic_error(p, "'yield' expression cannot be used as an operand of a conditional or binary operator")
+				// Structural parse error: by §14.4 / §15.5,
+				// YieldExpression is at AssignmentExpression precedence
+				// and cannot serve as operand to a conditional / binary /
+				// logical / coalescing operator without parentheses. The
+				// parser must return early here (return left below) to
+				// avoid building a malformed binary-expression AST that
+				// the post-parse semantic checker can't detect.
+				report_error(p, "'yield' expression cannot be used as an operand of a conditional or binary operator")
 			}
 			// Return early for all operators EXCEPT comma (sequence) and
 			// assignment (target validation needed in parse_assignment_expr).
@@ -9617,7 +9621,10 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				}
 			}
 			if !paren_wrapped {
-				report_semantic_error(p, "'yield' expression cannot be the right-hand side of a binary operator")
+				// Structural parse error: see the LHS-form rationale
+				// above. YieldExpression has assignment-expression
+				// precedence and the binary-operator grammar rejects it.
+				report_error(p, "'yield' expression cannot be the right-hand side of a binary operator")
 			}
 		}
 
@@ -9752,7 +9759,11 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// here as `+ AssignmentExpression`, which IS legal in source. Skip
 		// that gate until we have reliable paren-wrapping info.
 		if _, is_yield := argument.(^YieldExpression); is_yield {
-			report_semantic_error(p, "'yield' expression cannot be the operand of a unary operator")
+			// Structural parse error: §13.5 — UnaryExpression : <op>
+			// UnaryExpression. YieldExpression is at
+			// AssignmentExpression precedence and is therefore not a
+			// valid UnaryExpression operand.
+			report_error(p, "'yield' expression cannot be the operand of a unary operator")
 		}
 		if _, is_arrow := argument.(^ArrowFunctionExpression); is_arrow {
 			paren_wrapped := false
