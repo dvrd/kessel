@@ -252,6 +252,21 @@ function walk(dir, visit) {
 // Spawn kessel parse, return { exit, parseErrs, crashed, timeout }. Stdout
 // is the AST JSON; we only care about the trailing "Parse errors: N" line
 // in stderr (or stdout, when stderr is merged).
+//
+// NOTE on the kessel-vs-OXC asymmetry surfaced by --show-semantic-errors:
+// passing --show-semantic-errors here causes kessel to report ALL its
+// pass-3 early errors, while OXC's parseSync always reports the union
+// of its parser + oxc_semantic findings. Empirically (slice-14 audit)
+// running kessel with the flag on flips the corpus from
+//   19 oxc-only-rejects → 6 oxc-only-rejects
+//   0 kessel-only-rejects → 491 kessel-only-rejects
+// because kessel's checker is stricter than OXC's semantic for many
+// TS-mode edge cases (TS overload-signature semantics, the babel
+// `should-pass-rejected` family, etc.). The right comparison is
+// parser-only vs OXC-full pipeline (current setup) — the 19 oxc-only-
+// rejects are a known lenience gap (kessel defers TS-specific
+// semantics) and the 0 kessel-only-rejects is the actionable side.
+// Flipping the flag is documented but not enabled by default.
 function runKessel(fixture) {
   return new Promise((resolve) => {
     const cliArgs = ['parse', fixture.abs, '--compact'];
