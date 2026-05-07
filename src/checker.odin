@@ -1427,10 +1427,12 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	ck_check_class_private_static_mismatch(c, cls)
 
 	for elem in cls.body.body {
-		// Per-element accessor early-error checks (§15.4.3 / §15.4.4 /
-		// §15.4.5). Migrated from parser.odin in slice 3 — keeps the
-		// parser to syntax errors only.
-		ck_check_accessor(c, elem)
+		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
+		// parameter shape live in the parser (enforce_accessor_param_shape).
+		// Slice 15 promoted them out of this checker because they're
+		// structural per the grammar; keeping the check parser-side closes
+		// the class-accessor cluster of OXC-corpus oxc-only-rejects without
+		// requiring --show-semantic-errors.
 
 		// Computed keys are evaluated in the OUTER class-body scope:
 		// they don't see the about-to-be-pushed in_method / in_field_init,
@@ -1495,68 +1497,6 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 		ctx.in_field_init = prev_field
 	}
 	ck_walk_expr(c, ctx, val)
-}
-
-// Validate getter / setter accessor arity + setter rest / initializer
-// per ECMA-262 §15.4.3 (Getter), §15.4.4 (Setter arity),
-// §15.4.5 (Setter parameter shape).
-//
-// A leading TS `this` parameter is a type-only declaration (TS
-// extension; impossible in JS because `this` is a reserved word, so the
-// parser would have already rejected it). Skip it for arity counting
-// and addressing into the real parameter list.
-//
-// Diagnostic locations:
-//   * Arity errors anchor at the property key (the `get foo` / `set foo`
-//     identifier). For static blocks elem.key is nil but kind is
-//     StaticBlock, not Get/Set, so the early `kind != Get/Set` guard
-//     means we never read elem.key as nil here.
-//   * Setter param shape errors anchor at the parameter span.
-@(private="file")
-ck_check_accessor :: proc(c: ^Checker, elem: ClassElement) {
-	if elem.kind != .Get && elem.kind != .Set { return }
-
-	// Get/Set elements always store a ^FunctionExpression in elem.value
-	// (parse_method_body builds it). Defensive nil checks anyway.
-	fn_expr, have_expr := elem.value.(^Expression)
-	if !have_expr || fn_expr == nil { return }
-	fn, is_fn := fn_expr^.(^FunctionExpression)
-	if !is_fn || fn == nil { return }
-
-	real_idx := 0
-	real_n   := len(fn.params)
-	if len(fn.params) > 0 {
-		if id, is_id := fn.params[0].pattern.(^Identifier); is_id && id != nil && id.name == "this" {
-			real_idx = 1
-			real_n  -= 1
-		}
-	}
-
-	key_loc: u32 = 0
-	if elem.key != nil {
-		key_loc = u32(get_expression_loc(elem.key).span.start)
-	} else {
-		key_loc = u32(elem.loc.span.start)
-	}
-
-	if elem.kind == .Get && real_n != 0 {
-		ck_report(c, key_loc, "Getter must not have any formal parameters")
-		return
-	}
-	if elem.kind == .Set {
-		if real_n != 1 {
-			ck_report(c, key_loc, "Setter must have exactly one formal parameter")
-			return
-		}
-		param := fn.params[real_idx]
-		param_loc := u32(param.loc.span.start)
-		if _, is_rest := param.pattern.(^RestElement); is_rest {
-			ck_report(c, param_loc, "Setter parameter cannot be a rest element")
-		}
-		if _, has_default := param.default_val.(^Expression); has_default {
-			ck_report(c, param_loc, "A 'set' accessor cannot have an initializer.")
-		}
-	}
 }
 
 // ============================================================================

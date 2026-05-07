@@ -5215,6 +5215,23 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		return nil
 	}
 
+	// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
+	// parameter shape (rest / default initializer). Promoted from the
+	// semantic checker to parser-side syntax errors in slice 15 because
+	// these rules are structural per the grammar (a setter with rest can't
+	// be a syntactically valid PropertySetParameterList). Matches OXC's
+	// parser-only behavior and closes the class-accessor cluster of
+	// oxc-only-rejects in the corpus.
+	if kind == .Get || kind == .Set {
+		key_loc: LexerLoc
+		if key != nil {
+			key_loc = LexerLoc(get_expression_loc(key).span.start)
+		} else {
+			key_loc = LexerLoc(start.span.start)
+		}
+		enforce_accessor_param_shape(p, kind == .Set, params[:], key_loc)
+	}
+
 	// TypeScript return type annotation on method - stored on FunctionExpression.
 	method_return_type: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) && allow_ts_mode(p) {
@@ -5330,12 +5347,12 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// semantic checker (ck_check_strict_directive_with_nonsimple_params).
 
 		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
-		// parameter shape (rest / initializer). These are Static Semantic
-		// Errors (Early Errors), owned by pass 3 (src/checker.odin
-		// ck_check_accessor). Migrated out of the parser in slice 3 — the
-		// parser stays a pure syntax recognizer, the checker walks the
-		// finished class body and emits the diagnostics with anchored
-		// locations.
+		// parameter shape (rest / TS-mode initializer) are enforced inline
+		// at parse time by enforce_accessor_param_shape (called above, right
+		// after RParen). Slice 15 promoted this back to the parser because
+		// these are STRUCTURAL grammar rules — OXC's parser-only pipeline
+		// rejects them too, and gating behind --show-semantic-errors hid
+		// the parity in the corpus comparison.
 
 		// TS: abstract method must not have an implementation body.
 		if is_abstract && len(body.body) > 0 {
@@ -5728,6 +5745,66 @@ count_real_params :: #force_inline proc(p: ^Parser, params: []FunctionParameter)
 		n -= 1
 	}
 	return n
+}
+
+// enforce_accessor_param_shape implements §15.4.3 (Getter), §15.4.4 (Setter
+// arity), §15.4.5 (Setter parameter shape) at parse time. The arity and
+// rest-parameter rules are STRUCTURAL per the grammar — a setter with rest
+// or two params can't be a syntactically valid PropertySetParameterList —
+// so they belong on the parser side and fire in both JS and TS mode.
+//
+// The "setter cannot have an initializer" rule is TYPESCRIPT-ONLY because
+// the JS grammar (§15.4.5) routes through SingleNameBinding which permits
+// `Initializer_opt`, so `set foo(v = null) {}` is legal JS (real-world
+// example: three.js's Texture.image setter). Only the TS spec adds the
+// extra restriction; OXC mirrors this gating, and we match here.
+//
+// Slice 15 (2026-05-07) promoted these checks from the semantic checker
+// (formerly ck_check_accessor) to the parser, closing 14 of the 19
+// OXC-corpus oxc-only-rejects (every class-accessor case).
+//
+// Diagnostic location convention matches OXC:
+//   * arity errors anchor at the property key (so the underline lands on
+//     `set foo` rather than `(`),
+//   * setter param-shape errors anchor at the offending parameter.
+//
+// Used by both class-element parsing (parse_class_element) and
+// object-literal accessor parsing (parse_property). Both call sites share
+// the rule because §15.4 applies to both Class accessors and Object
+// accessors.
+enforce_accessor_param_shape :: proc(
+	p: ^Parser,
+	is_setter: bool,
+	params: []FunctionParameter,
+	key_loc: LexerLoc,
+) {
+	real_n := count_real_params(p, params)
+	real_idx := 0
+	if len(params) > 0 && allow_ts_mode(p) && is_this_param(params[0]) {
+		real_idx = 1
+	}
+	if !is_setter {
+		if real_n != 0 {
+			report_error_at(p, key_loc, "Getter must not have any formal parameters")
+		}
+		return
+	}
+	if real_n != 1 {
+		report_error_at(p, key_loc, "Setter must have exactly one formal parameter")
+		return
+	}
+	param := params[real_idx]
+	param_loc := LexerLoc(param.loc.span.start)
+	if _, is_rest := param.pattern.(^RestElement); is_rest {
+		report_error_at(p, param_loc, "Setter parameter cannot be a rest element")
+	}
+	// TS-only: §15.4.5 + TS strictness forbid `set foo(v = ...) {}`. JS
+	// permits it via SingleNameBinding's Initializer_opt; do not flag.
+	if allow_ts_mode(p) {
+		if _, has_default := param.default_val.(^Expression); has_default {
+			report_error_at(p, param_loc, "A 'set' accessor cannot have an initializer.")
+		}
+	}
 }
 
 // NOTE — §15.2.1 StrictFormalParameters duplicate-name check
@@ -11705,31 +11782,22 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if body_strict {
 		}
 
-		// §15.4.3 / §15.4.4 PropertySetParameterList / PropertyGetParameter
-		// enforce exact arity:
-		//   get  - zero parameters.
-		//   set  - exactly one non-rest parameter, no default.
-		obj_real_params := count_real_params(p, params[:])
-		if is_getter && obj_real_params != 0 {
-			report_error(p, "Getter must not have any formal parameters")
+		// §15.4.3 / §15.4.4 / §15.4.5 — PropertySetParameterList /
+		// PropertyGetParameter enforce exact arity AND parameter shape:
+		//   get  — zero parameters.
+		//   set  — exactly one non-rest parameter, no default initializer.
+		// Shared with the class-element accessor path. The default-initializer
+		// rule was added in slice 15 alongside the class-side promotion so the
+		// two contexts emit the same diagnostic surface (object literals were
+		// previously silent on `{ set foo(v=0) {} }` at parse time and the
+		// checker had to fire the message in --show-semantic-errors mode).
+		acc_key_loc: LexerLoc
+		if key != nil {
+			acc_key_loc = LexerLoc(get_expression_loc(key).span.start)
+		} else {
+			acc_key_loc = LexerLoc(fn_start.span.start)
 		}
-		if is_setter {
-			// PropertySetParameterList : FormalParameter - exactly one,
-			// non-rest. Default initializers ARE allowed per
-			// BindingElement : SingleNameBinding Initializer_opt.
-			if obj_real_params != 1 {
-				report_error(p, "Setter must have exactly one formal parameter")
-			} else {
-				real_idx := 0
-				if allow_ts_mode(p) && is_this_param(params[0]) { real_idx = 1 }
-				if real_idx < len(params) {
-					pp := params[real_idx].pattern
-					if _, is_rest := pp.(^RestElement); is_rest {
-						report_error(p, "Setter parameter cannot be a rest element")
-					}
-				}
-			}
-		}
+		enforce_accessor_param_shape(p, is_setter, params[:], acc_key_loc)
 
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start
