@@ -55,14 +55,14 @@
     {
       "message": "Assignment to 'eval' is not allowed in strict mode",
       "line": 4,
-      "column": 10,
-      "offset": 159
+      "column": 1,
+      "offset": 150
     }
   ]
 }
 Parse errors (1):
-  Line 4, Column 10: Assignment to 'eval' is not allowed in strict mode
+  Line 4, Column 1: Assignment to 'eval' is not allowed in strict mode
 
 --- Statistics ---
-Arena: used=37264B reserved=16777216B ratio=0%
+Arena: used=37248B reserved=16777216B ratio=0%
 Parse errors: 1

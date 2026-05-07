@@ -82,22 +82,22 @@
   "errors": [
     {
       "message": "Function name 'eval' is not allowed in strict mode",
-      "line": 6,
-      "column": 1,
-      "offset": 239
+      "line": 5,
+      "column": 10,
+      "offset": 229
     },
     {
       "message": "Function name 'arguments' is not allowed in strict mode",
-      "line": 7,
-      "column": 1,
-      "offset": 263
+      "line": 6,
+      "column": 10,
+      "offset": 248
     }
   ]
 }
 Parse errors (2):
-  Line 6, Column 1: Function name 'eval' is not allowed in strict mode
-  Line 7, Column 1: Function name 'arguments' is not allowed in strict mode
+  Line 5, Column 10: Function name 'eval' is not allowed in strict mode
+  Line 6, Column 10: Function name 'arguments' is not allowed in strict mode
 
 --- Statistics ---
-Arena: used=37264B reserved=16777216B ratio=0%
+Arena: used=37248B reserved=16777216B ratio=0%
 Parse errors: 2

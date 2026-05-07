@@ -178,6 +178,8 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	}
 	ctx.source_type  = program.type
 	ctx.at_top_level = true
+	// §14.3 — `using` / `await using` at top of a Script.
+	ck_check_using_at_script_top(c, program)
 	for stmt in program.body {
 		ck_walk_stmt(c, &ctx, stmt)
 	}
@@ -418,6 +420,8 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				}
 			}
 		}
+		// §14.13.1 — duplicate label declared in scope.
+		ck_check_label_redeclared(c, ctx, v.label.name, u32(v.label.loc.span.start))
 		entry := CheckerLabel{
 			name         = v.label.name,
 			is_iteration = label_is_iteration_target(v.body),
@@ -445,12 +449,15 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		ck_walk_expr(c, ctx, v.test)
 		ctx.iter_depth += 1
+		// §13.5 / §B.3.2 — plain FunctionDeclaration in iteration body.
+		ck_check_single_stmt_function(c, v.body)
 		ck_walk_stmt(c, ctx, v.body)
 		ctx.iter_depth -= 1
 
 	case ^DoWhileStatement:
 		if v == nil { return }
 		ctx.iter_depth += 1
+		ck_check_single_stmt_function(c, v.body)
 		ck_walk_stmt(c, ctx, v.body)
 		ctx.iter_depth -= 1
 		ck_walk_expr(c, ctx, v.test)
@@ -462,24 +469,31 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if t, have := v.test.(^Expression); have && t != nil { ck_walk_expr(c, ctx, t) }
 		if u, have := v.update.(^Expression); have && u != nil { ck_walk_expr(c, ctx, u) }
 		ctx.iter_depth += 1
+		ck_check_single_stmt_function(c, v.body)
 		ck_walk_stmt(c, ctx, v.body)
 		ctx.iter_depth -= 1
 
 	case ^ForInStatement:
 		if v == nil { return }
+		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, true)
+		ck_check_for_in_of_init_eval_args(c, ctx, v.left_expr)
 		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
 		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
 		ck_walk_expr(c, ctx, v.right)
 		ctx.iter_depth += 1
+		ck_check_single_stmt_function(c, v.body)
 		ck_walk_stmt(c, ctx, v.body)
 		ctx.iter_depth -= 1
 
 	case ^ForOfStatement:
 		if v == nil { return }
+		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, false)
+		ck_check_for_in_of_init_eval_args(c, ctx, v.left_expr)
 		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
 		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
 		ck_walk_expr(c, ctx, v.right)
 		ctx.iter_depth += 1
+		ck_check_single_stmt_function(c, v.body)
 		ck_walk_stmt(c, ctx, v.body)
 		ctx.iter_depth -= 1
 
@@ -505,6 +519,16 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		for s in v.block.body { ck_walk_stmt(c, ctx, s) }
 		if h, have := v.handler.(CatchClause); have {
+			// §15.4.5 — catch clause parameter duplicate-name check
+			// (§15.4.5 covers `catch ({a, a})` and the like).
+			ck_check_catch_param_dups(c, h)
+			// Catch parameter is a BindingIdentifier (or pattern containing
+			// BindingIdentifiers). §13.1.1 strict-mode check applies.
+			if ctx.strict_mode {
+				if p_pat, have_p := h.param.(Pattern); have_p {
+					ck_check_strict_param_pattern(c, p_pat)
+				}
+			}
 			for s in h.body.body { ck_walk_stmt(c, ctx, s) }
 		}
 		if f, have := v.finalizer.(BlockStatement); have {
@@ -518,6 +542,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			ck_report(c, u32(v.loc.span.start), "'with' statements are not allowed in strict mode")
 		}
 		ck_walk_expr(c, ctx, v.object)
+		ck_check_single_stmt_function(c, v.body)
 		ck_walk_stmt(c, ctx, v.body)
 
 	case ^ExpressionStatement:
@@ -552,6 +577,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	case ^ImportDeclaration:
 		if v != nil {
 			ck_check_import_export_position(c, ctx, v.loc, true, was_top_level)
+			ck_walk_import_decl(c, ctx, v)
 		}
 
 	case ^ExportAllDeclaration:
@@ -584,9 +610,58 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 	}
 }
 
+// ck_check_var_decl_lexical_dups — §14.3.1.1 — a LexicalDeclaration
+// (`let` / `const` / `using` / `await using`) may not have BoundNames
+// containing duplicates within a single declaration list. `let a, a;`
+// and `const [x, x] = [1, 2];` are SyntaxErrors. NOT enforced for
+// `var` declarations (Annex B.3.4.4 web-compat). The cross-declaration
+// duplicate-name check (a let in one block clashing with a let in the
+// same block from a different statement) lives in the scope-analysis
+// machinery and is migrated separately in slice 13.
 @(private="file")
+ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) {
+	if decl == nil { return }
+	switch decl.kind {
+	case .Let, .Const, .Using, .AwaitUsing:
+		// fall through
+	case .Var:
+		return
+	}
+	names: [dynamic]string
+	names.allocator = context.temp_allocator
+	reserve(&names, 4)
+	for d in decl.declarations { collect_bound_names(d.id, &names) }
+	n := len(names)
+	if n < 2 { return }
+	for i := 1; i < n; i += 1 {
+		for j := 0; j < i; j += 1 {
+			if names[i] == names[j] {
+				msg := fmt.tprintf("Identifier '%s' has already been declared", names[i])
+				ck_report(c, u32(decl.loc.span.start), msg)
+				return
+			}
+		}
+	}
+}
+
 ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDeclaration) {
 	if decl == nil { return }
+	// §14.3.1.1 — per-declaration duplicate-name check (slice 11).
+	ck_check_var_decl_lexical_dups(c, decl)
+	// §13.1.1 — strict-mode BindingIdentifier check for declarator ids.
+	// Recurses through ObjectPattern / ArrayPattern / AssignmentPattern
+	// / RestElement so destructured names are checked too. Generic
+	// flavour: `var let;` reports "'let' is a reserved identifier in
+	// strict mode" and `var eval;` reports "'eval' cannot be used as a
+	// binding name in strict mode" — matching parser.odin's old
+	// parse_binding_identifier diagnostics. Runs FIRST (matching the
+	// parser's parse-order) so the per-binding-id diagnostic appears
+	// before the per-declaration `let`-as-lex diagnostic below.
+	if ctx.strict_mode {
+		for d in decl.declarations {
+			ck_check_strict_binding_pattern(c, d.id, .Generic)
+		}
+	}
 	// §14.3.1.1 — BoundNames of a LexicalDeclaration must not contain
 	// `"let"`. `var let;` stays legal (Annex B.3.4.4); `let let;` and
 	// `const let;` are SyntaxErrors regardless of strict mode.
@@ -638,8 +713,17 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		ctx.params_is_arrow = true
 		ctx.in_async        = outer_in_async || e.async
 		ctx.in_generator    = outer_in_gen
+		// §15.3.1 / §15.9.1 — ArrowFunction params are ALWAYS
+		// UniqueFormalParameters, regardless of strict / sloppy or
+		// simple / non-simple. Match parser.odin's old
+		// `report_duplicate_param_names(params, true, true)` call by
+		// passing is_strict = true (so the "in strict mode" message
+		// fires) AND force_non_simple = true (to ensure the check runs
+		// even when the params are simple).
+		ck_check_duplicate_param_names(c, u32(e.loc.span.start), e.params[:], true, true)
 		for pr in e.params {
 			ck_check_arrow_param_pattern(c, ctx, pr.pattern)
+			if ctx.strict_mode { ck_check_strict_param_pattern(c, pr.pattern) }
 			ck_walk_pattern(c, ctx, pr.pattern)
 			if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
 		}
@@ -692,6 +776,12 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^AssignmentExpression:
 		if e == nil { return }
 		ck_check_assignment_invalid_lhs(c, e)
+		// §13.15.1 — in strict mode, the LHS of any assignment may not
+		// name `eval` or `arguments` (covers destructured forms via the
+		// recursive helper).
+		if ctx.strict_mode {
+			ck_check_strict_eval_arguments_in_target(c, e.left)
+		}
 		ck_walk_expr(c, ctx, e.left)
 		ck_walk_expr(c, ctx, e.right)
 
@@ -736,8 +826,13 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^UnaryExpression:
 		if e == nil { return }
 		ck_check_unary_delete_private(c, e)
+		ck_check_unary_delete_local(c, ctx, e)
 		ck_walk_expr(c, ctx, e.argument)
-	case ^UpdateExpression:          if e != nil { ck_walk_expr(c, ctx, e.argument) }
+	case ^UpdateExpression:
+		if e == nil { return }
+		// §13.4.4 — ++/-- on eval/arguments in strict mode is forbidden.
+		ck_check_strict_update_eval_arguments(c, ctx, e.argument)
+		ck_walk_expr(c, ctx, e.argument)
 	case ^ParenthesizedExpression:   if e != nil { ck_walk_expr(c, ctx, e.expression) }
 	case ^AwaitExpression:
 		if e == nil { return }
@@ -845,7 +940,11 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^MetaProperty:
 		if e != nil { ck_check_new_target(c, ctx, e) }
 	case ^Identifier:
-		if e != nil { ck_check_identifier_arguments(c, ctx, e) }
+		if e != nil {
+			ck_check_identifier_arguments(c, ctx, e)
+			// §12.6.1.1 — strict-mode reserved word as IdentifierReference.
+			ck_check_identifier_reference_strict(c, ctx, e)
+		}
 
 	// Leaf / literal-shape — nothing to walk for break/continue purposes:
 	//   NullLiteral, BooleanLiteral, RegExpLiteral, PrivateIdentifier,
@@ -903,6 +1002,40 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	// walk so the diagnostic anchors at the function start, matching the
 	// parser's old anchor.
 	ck_check_strict_directive_with_nonsimple_params(c, fn)
+	// §15.7.1 — strict-mode function-name BindingIdentifier check
+	// (`function eval(){}`, `function let(){}`, etc.). Done BEFORE
+	// ck_enter_function so the OUTER strict_mode is what gates the
+	// check (the body lifts strict mode for the body only). The check
+	// runs only for FunctionExpression-as-expression / FunctionDecl
+	// (kind == .Plain); class methods / accessors / static blocks /
+	// constructors don't have their own BindingIdentifier name.
+	if kind == .Plain {
+		if id, have := fn.id.(BindingIdentifier); have {
+			// Determine the strict-mode environment the function name
+			// is parsed under. For FunctionExpression the name is in
+			// the inner function's scope (so the function's OWN strict
+			// flag matters). The walker has not yet lifted strict mode
+			// for the body, so we check against the post-lift value
+			// directly here.
+			name_strict := ctx.strict_mode || (!fn.no_body && fn_body_lifts_strict(fn.body))
+			name_in_async := ctx.in_async
+			name_in_gen   := ctx.in_generator
+			_ = name_in_async
+			_ = name_in_gen
+			if name_strict {
+				if is_eval_or_arguments(id.name) {
+					msg := fmt.tprintf("Function name '%s' is not allowed in strict mode", id.name)
+					ck_report(c, u32(id.loc.span.start), msg)
+				} else if is_strict_reserved_simple_name(id.name) {
+					// `yield` as fn name in strict mode — parser-side
+					// `report_error` already catches generator name clash;
+					// strict-only reservation is checker-side.
+					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
+					ck_report(c, u32(id.loc.span.start), msg)
+				}
+			}
+		}
+	}
 	saved := ck_enter_function(ctx)
 	// Reset the [[HomeObject]] / constructor / class-element flags. The
 	// caller's request below restores any that the new body should keep
@@ -950,6 +1083,21 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	prev_arrow_par  := ctx.params_is_arrow
 	ctx.in_params       = true
 	ctx.params_is_arrow = false
+	// §15.5.1 / §15.6.1 / §15.8.1 — strict-mode parameter
+	// BindingIdentifier check (`eval` / `arguments` / strict-reserved).
+	// The lifted strict_mode is already applied for body context, but
+	// param patterns are checked under that same strict context (the
+	// parser tracked this with the post-body-prologue
+	// `body_strict || p.strict_mode` rule). Generators / async / async-
+	// generators inherit strict-flavoured uniqueness regardless.
+	if ctx.strict_mode {
+		for pr in fn.params { ck_check_strict_param_pattern(c, pr.pattern) }
+	}
+	// §15.5.1 / §15.6.1 / §15.8.1 — duplicate parameter names.
+	params_simple := params_are_simple(fn.params[:])
+	force_non_simple := !params_simple
+	dup_strict := ctx.strict_mode || fn.async || fn.generator
+	ck_check_duplicate_param_names(c, u32(fn.loc.span.start), fn.params[:], dup_strict, force_non_simple)
 	for pr in fn.params {
 		ck_walk_pattern(c, ctx, pr.pattern)
 		if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
@@ -1057,6 +1205,8 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// Whole-class checks: §15.7.1 — at most one constructor (with TS
 	// overload-signature exception). Migrated from parser.odin in slice 4.
 	ck_check_class_constructors(c, ctx, cls)
+	// §15.7.1 — private getter/setter static-mismatch (slice 11).
+	ck_check_class_private_static_mismatch(c, cls)
 
 	for elem in cls.body.body {
 		// Per-element accessor early-error checks (§15.4.3 / §15.4.4 /
@@ -1708,6 +1858,519 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 	if name == "yield" && (ctx.in_generator || ctx.strict_mode) {
 		ck_report(c, loc, "'yield' cannot be used as an arrow parameter in generator / strict context")
 	}
+}
+
+// ============================================================================
+// Slice 11 — cheap finishing migrations.
+//
+// Local AST-only checks for which the checker walker already had the
+// needed context after slices 5–10 (strict_mode, in_async, in_generator,
+// source_type, at_top_level, in_params, function_depth) so the
+// migrations are mechanical: drop the inline parser-side
+// `report_semantic_error*` and reproduce the diagnostic by walking the
+// finished AST.
+//
+// Coverage:
+//   * §14.3 — `using` / `await using` at top of a Script (parser L1479)
+//   * §14.13.1 — duplicate label declared in scope (parser L2254)
+//   * §13.5 / §B.3.2 — plain FunctionDeclaration as a single-statement
+//     iteration body (parser L2379)
+//   * §13.7.5.1 — CallExpression as for-in/of LHS in strict
+//     (parser L2883)
+//   * §13.7.5.1 — only a single declaration in a for-in/of head
+//     (parser L2924)
+//   * §13.7.5.1 — for-in/of variable declaration may not have an
+//     initializer (parser L2953)
+//   * §13.5.1 — `delete IdentifierReference` in strict mode
+//     (parser L10378)
+//   * §15.4.5 — duplicate identifier in catch clause parameter
+//     (parser L3548)
+//   * §15.7.1 — private getter/setter static-mismatch (parser L4763)
+//   * §15.5.1 / §15.6.1 / §15.8.1 — duplicate parameter name (parser
+//     L5978; the lexical-decl dup variant at L6005 stays scope-tied)
+//   * §15.5.1 / §15.6.1 / §15.8.1 — `eval` / `arguments` / strict-
+//     reserved as parameter pattern in strict mode (parser L6398/L6402)
+//   * §13.15.1 — `eval`/`arguments` as the target of a simple or
+//     compound assignment in strict mode (parser L2891 + L14408 share
+//     `report_strict_eval_arguments_in_target`)
+//   * §13.4.4 — `eval`/`arguments` as the target of an Update
+//     (`++`/`--`) in strict mode (parser L10411 + L10664)
+//   * §13.1.1 / §15.7.1 — strict-reserved word + `eval`/`arguments` as
+//     a BindingIdentifier in declaration positions: var/let/const
+//     declarators, function names (parser L3743/L3778/L3966), function
+//     parameters, catch param, etc. (parser L6650/L6732/L6739)
+//   * §12.6.1.1 — strict-reserved word as IdentifierReference (parser
+//     L10591/L11740/L12352).
+//   * §16.2.2 — `eval`/`arguments` as ImportedBinding (parser L9123).
+// ============================================================================
+
+// ck_check_using_at_script_top — §14.3 — `using` / `await using`
+// declarations are NOT allowed at the top level of a Script. The check
+// runs in `check_program` where source-type and top-level position are
+// trivially knowable (no need to reach into ck_walk_stmt). We do NOT
+// recurse into nested blocks: `using` inside a function body in a
+// Script is fine; only top-level Script position is rejected.
+@(private="file")
+ck_check_using_at_script_top :: proc(c: ^Checker, program: ^Program) {
+	if program == nil { return }
+	if program.type != .Script { return }
+	for stmt in program.body {
+		if stmt == nil { continue }
+		decl, ok := stmt^.(^VariableDeclaration)
+		if !ok || decl == nil { continue }
+		switch decl.kind {
+		case .Using:
+			ck_report(c, u32(decl.loc.span.start),
+				"'using' declaration is not allowed at the top level of a script")
+		case .AwaitUsing:
+			ck_report(c, u32(decl.loc.span.start),
+				"'await using' declaration is not allowed at the top level of a script")
+		case .Var, .Let, .Const:
+			// not a using-decl
+		}
+	}
+}
+
+// ck_check_label_redeclared — §14.13.1 — `LabelledStatement :
+// LabelIdentifier : LabelledItem` is a SyntaxError if `LabelIdentifier`
+// is already in the enclosing LabelSet for the current function. Called
+// from the LabeledStatement branch of ck_walk_stmt BEFORE the new
+// label is pushed.
+@(private="file")
+ck_check_label_redeclared :: proc(c: ^Checker, ctx: ^CheckerContext, name: string, off: u32) {
+	if _, have := label_in_scope(ctx, name); have {
+		msg := fmt.tprintf("Label '%s' has already been declared", name)
+		ck_report(c, off, msg)
+	}
+}
+
+// ck_check_single_stmt_function — §13.5 / §B.3.2 — a plain
+// FunctionDeclaration is forbidden as a single-statement body in
+// iteration / with statements. Async / generator FunctionDeclarations
+// in single-statement positions are caught by the parser as structural
+// errors (always invalid grammar). The Annex B carve-out for sloppy
+// `if`-consequent / `if`-alternate is honoured by NOT calling this
+// helper from the IfStatement walker.
+//
+// `body` is the single-statement body of an iteration / with /
+// labelled-statement-in-iteration construct. The check unwraps any
+// LabeledStatement layers (`label1: label2: function f() {}`) before
+// inspecting the inner statement.
+@(private="file")
+ck_check_single_stmt_function :: proc(c: ^Checker, body: ^Statement) {
+	s := body
+	for s != nil {
+		#partial switch v in s^ {
+		case ^LabeledStatement:
+			if v == nil { return }
+			s = v.body
+		case ^FunctionDeclaration:
+			if v == nil { return }
+			if v.async || v.generator { return } // parser-side syntax error
+			ck_report(c, u32(v.loc.span.start),
+				"Function declaration cannot appear in a single-statement context")
+			return
+		case:
+			return
+		}
+	}
+}
+
+// ck_check_for_in_of_head — bundle of three for-in/of head rules.
+// `kind_str` is "in" or "of" for the diagnostic noun.
+//
+//   1. CallExpression as LHS in strict mode (Annex B.3.4 only relaxes
+//      it in sloppy script).
+//   2. At most one VariableDeclarator in the head.
+//   3. No initializer in the head, except the Annex B sloppy-mode
+//      `for (var x = INIT in y) ;` carve-out (single Var declarator,
+//      Identifier binding, for-in form).
+@(private="file")
+ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
+                                left_expr: Maybe(^Expression),
+                                left_decl: Maybe(^VariableDeclaration),
+                                is_in: bool) {
+	kind_str := "of"
+	if is_in { kind_str = "in" }
+	if e, have := left_expr.(^Expression); have && e != nil {
+		if ctx.strict_mode && is_call_expression_target(e) {
+			msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_str)
+			ck_report(c, u32(loc_from_expr(e).span.start), msg)
+		}
+		return
+	}
+	decl, have_decl := left_decl.(^VariableDeclaration)
+	if !have_decl || decl == nil { return }
+	if len(decl.declarations) > 1 {
+		msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
+		ck_report(c, u32(decl.loc.span.start), msg)
+	}
+	for_in_init_ok := is_in &&
+	                  !ctx.strict_mode &&
+	                  decl.kind == .Var &&
+	                  len(decl.declarations) == 1
+	if for_in_init_ok && len(decl.declarations) == 1 {
+		if _, is_id := decl.declarations[0].id.(^Identifier); !is_id {
+			for_in_init_ok = false
+		}
+	}
+	if for_in_init_ok { return }
+	for d in decl.declarations {
+		if _, have_init := d.init.(^Expression); have_init {
+			msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_str)
+			ck_report(c, u32(decl.loc.span.start), msg)
+			return // one diagnostic per head, matching parser behaviour
+		}
+	}
+}
+
+// ck_check_unary_delete_local — §13.5.1 — in strict mode,
+// `delete IdentifierReference` is a SyntaxError. The check peels
+// ParenthesizedExpression layers (only present when --preserve-parens
+// is on) so `delete (x)` is rejected too. Member access, computed,
+// and arbitrary non-reference operands stay legal.
+@(private="file")
+ck_check_unary_delete_local :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^UnaryExpression) {
+	if e == nil || e.operator != .Delete || !ctx.strict_mode { return }
+	if e.argument == nil { return }
+	inner := e.argument
+	for inner != nil {
+		pe, is_paren := inner^.(^ParenthesizedExpression)
+		if !is_paren || pe == nil { break }
+		inner = pe.expression
+	}
+	if inner == nil { return }
+	ident, is_id := inner^.(^Identifier)
+	if !is_id || ident == nil { return }
+	msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
+	ck_report(c, u32(e.loc.span.start), msg)
+}
+
+// ck_check_catch_param_dups — §15.4.5 — names introduced by a catch
+// clause's binding pattern must be unique. `catch ({a, a}) {}` and
+// `catch ([x, x]) {}` etc. are SyntaxErrors. Re-uses parser.odin's
+// pattern-name collector.
+@(private="file")
+ck_check_catch_param_dups :: proc(c: ^Checker, h: CatchClause) {
+	param, have := h.param.(Pattern)
+	if !have || param == nil { return }
+	names: [dynamic]string
+	names.allocator = context.temp_allocator
+	reserve(&names, 4)
+	collect_pattern_bound_names_list(param, &names)
+	for i := 0; i < len(names); i += 1 {
+		for j := i + 1; j < len(names); j += 1 {
+			if names[i] == names[j] {
+				msg := fmt.tprintf("Identifier '%s' has already been declared in catch clause", names[i])
+				ck_report(c, u32(h.loc.span.start), msg)
+				return
+			}
+		}
+	}
+}
+
+// ck_check_class_private_static_mismatch — §15.7.1 — a private getter /
+// setter pair must have matching static-ness. `static get #f() {}`
+// paired with `set #f(v) {}` is a SyntaxError because the private slot
+// is shared across statics and instances and can't straddle.
+//
+// Walks `cls.body.body`, building a per-name accumulator of get/set
+// static flags as elements are seen, then fires once per mismatch. The
+// parser's shape is preserved verbatim — the check is purely AST-driven
+// (no parse-time state needed).
+@(private="file")
+ck_check_class_private_static_mismatch :: proc(c: ^Checker, cls: ^ClassExpression) {
+	if cls == nil { return }
+	PrivateGetSet :: struct { has_get, has_set, get_static, set_static: bool, set_loc: u32 }
+	seen: map[string]PrivateGetSet
+	seen.allocator = context.temp_allocator
+	defer delete(seen)
+	for elem in cls.body.body {
+		if elem.key == nil { continue }
+		pid, is_priv := elem.key^.(^PrivateIdentifier)
+		if !is_priv || pid == nil { continue }
+		name := pid.name
+		prev, _ := seen[name]
+		switch elem.kind {
+		case .Get:
+			if prev.has_set && prev.set_static != elem.static {
+				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
+				ck_report(c, u32(elem.loc.span.start), msg)
+			}
+			prev.has_get = true
+			prev.get_static = elem.static
+		case .Set:
+			if prev.has_get && prev.get_static != elem.static {
+				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
+				ck_report(c, u32(elem.loc.span.start), msg)
+			}
+			prev.has_set = true
+			prev.set_static = elem.static
+		case .Method, .Constructor, .StaticBlock:
+			// Field/method/ctor/staticblock don't pair with get/set.
+		}
+		seen[name] = prev
+	}
+}
+
+// ck_check_duplicate_param_names — §15.5.1 / §15.6.1 / §15.8.1.
+// FunctionDeclaration / FunctionExpression / class method / object
+// method (every non-arrow function) AND arrow with non-simple
+// parameter list:
+//   * Strict-mode bodies require UniqueFormalParameters even with a
+//     simple parameter list.
+//   * Generators / async / async-generators inherit
+//     UniqueFormalParameters regardless of outer strict mode.
+//   * Sloppy-mode regular functions with a non-simple parameter list
+//     are also UniqueFormalParameters.
+//
+// `is_strict` mirrors the parser's `strict := p.strict_mode ||
+// strict_override`; `force_non_simple` mirrors `force_when_non_simple
+// && !params_are_simple(params)`. Callers from ck_walk_function pick
+// the right combination based on the function flavour.
+@(private="file")
+ck_check_duplicate_param_names :: proc(c: ^Checker, fn_loc: u32,
+                                       params: []FunctionParameter,
+                                       is_strict: bool,
+                                       force_non_simple: bool) {
+	if len(params) == 0 { return }
+	if !is_strict && !force_non_simple { return }
+	names: [dynamic]string
+	names.allocator = context.temp_allocator
+	reserve(&names, 4)
+	for pr in params { collect_bound_names(pr.pattern, &names) }
+	n := len(names)
+	if n < 2 { return }
+	for i := 1; i < n; i += 1 {
+		for j := 0; j < i; j += 1 {
+			if names[i] == names[j] {
+				msg: string
+				if is_strict {
+					msg = fmt.tprintf("Duplicate parameter name '%s' in strict mode", names[i])
+				} else {
+					msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i])
+				}
+				ck_report(c, fn_loc, msg)
+				return // one diagnostic per call site, matching parser
+			}
+		}
+	}
+}
+
+// CkBindingFlavour selects the diagnostic phrasing for the
+// strict-mode binding-identifier check below.
+@(private="file")
+CkBindingFlavour :: enum {
+	Parameter,    // "Parameter name 'NAME' is not allowed in strict mode"
+	Generic,      // "'NAME' cannot be used as a binding name in strict mode"
+}
+
+// ck_check_strict_binding_pattern — §13.1.1 / §15.5.1 / §15.6.1 /
+// §15.8.1 — in strict mode, `eval` / `arguments` and the strict-
+// reserved words (`let`, `static`, `yield`, `implements`, `interface`,
+// `package`, `private`, `protected`, `public`) cannot appear as a
+// BindingIdentifier. Recurses through Object / Array / Assignment /
+// Rest patterns so destructured forms get the same check.
+//
+// `flavour` picks the eval/arguments diagnostic phrasing; the strict-
+// reserved phrasing is shared. Mirrors parser.odin's split between
+// `report_strict_param_pattern` (Parameter flavour) and
+// `parse_binding_identifier`'s eval/arguments branch (Generic flavour).
+@(private="file")
+ck_check_strict_binding_pattern :: proc(c: ^Checker, pat: Pattern, flavour: CkBindingFlavour) {
+	if pat == nil { return }
+	switch v in pat {
+	case ^Identifier:
+		if v == nil { return }
+		if is_eval_or_arguments(v.name) {
+			msg: string
+			switch flavour {
+			case .Parameter:
+				msg = fmt.tprintf("Parameter name '%s' is not allowed in strict mode", v.name)
+			case .Generic:
+				msg = fmt.tprintf("'%s' cannot be used as a binding name in strict mode", v.name)
+			}
+			ck_report(c, u32(v.loc.span.start), msg)
+		} else if is_strict_reserved_simple_name(v.name) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
+			ck_report(c, u32(v.loc.span.start), msg)
+		}
+	case ^ObjectPattern:
+		if v == nil { return }
+		for prop in v.properties { ck_check_strict_binding_pattern(c, prop.value, flavour) }
+	case ^ArrayPattern:
+		if v == nil { return }
+		for elem in v.elements {
+			if inner, ok := elem.(Pattern); ok { ck_check_strict_binding_pattern(c, inner, flavour) }
+		}
+	case ^AssignmentPattern:
+		if v == nil { return }
+		ck_check_strict_binding_pattern(c, v.left, flavour)
+	case ^RestElement:
+		if v == nil { return }
+		ck_check_strict_binding_pattern(c, v.argument, flavour)
+	case ^MemberExpression:
+		return
+	}
+}
+
+// ck_check_strict_param_pattern — thin wrapper preserving the
+// parameter-flavoured diagnostic for callers who want the old name.
+@(private="file")
+ck_check_strict_param_pattern :: proc(c: ^Checker, pat: Pattern) {
+	ck_check_strict_binding_pattern(c, pat, .Parameter)
+}
+
+// ck_check_strict_eval_arguments_in_target — §13.15.1 — in strict
+// mode, an assignment / for-in/of LHS may not name `eval` or
+// `arguments` (covers the destructured forms by recursing through
+// ArrayExpression / ObjectExpression / SpreadElement / nested
+// AssignmentExpression default-init). Mirrors parser.odin's
+// `report_strict_eval_arguments_in_target`.
+@(private="file")
+ck_check_strict_eval_arguments_in_target :: proc(c: ^Checker, expr: ^Expression) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^Identifier:
+		if e == nil { return }
+		if is_eval_or_arguments(e.name) {
+			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
+			ck_report(c, u32(e.loc.span.start), msg)
+		}
+	case ^ParenthesizedExpression:
+		if e != nil { ck_check_strict_eval_arguments_in_target(c, e.expression) }
+	case ^ArrayExpression:
+		if e == nil { return }
+		for elem in e.elements {
+			if inner, ok := elem.(^Expression); ok && inner != nil {
+				ck_check_strict_eval_arguments_in_target(c, inner)
+			}
+		}
+	case ^ObjectExpression:
+		if e == nil { return }
+		for prop in e.properties {
+			ck_check_strict_eval_arguments_in_target(c, prop.value)
+		}
+	case ^SpreadElement:
+		if e != nil { ck_check_strict_eval_arguments_in_target(c, e.argument) }
+	case ^AssignmentExpression:
+		if e == nil { return }
+		if e.operator == .Assign {
+			ck_check_strict_eval_arguments_in_target(c, e.left)
+		}
+	}
+}
+
+// ck_check_strict_update_eval_arguments — §13.4.4 — in strict mode,
+// `++`/`--` (prefix or postfix) may not be applied to `eval` or
+// `arguments` IdentifierReference. Mirrors
+// `report_strict_update_on_eval_or_arguments`.
+@(private="file")
+ck_check_strict_update_eval_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, arg: ^Expression) {
+	if !ctx.strict_mode || arg == nil { return }
+	ident, is_id := arg^.(^Identifier)
+	if !is_id || ident == nil { return }
+	if is_eval_or_arguments(ident.name) {
+		msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", ident.name)
+		ck_report(c, u32(ident.loc.span.start), msg)
+	}
+}
+
+// ck_check_binding_identifier_strict — §13.1.1 / §15.7.1 — `eval` /
+// `arguments` AND strict-reserved words (`let`, `static`, `yield`,
+// `implements`, `interface`, `package`, `private`, `protected`,
+// `public`) cannot serve as a BindingIdentifier in strict-mode code.
+//
+// `is_param` selects the parameter-flavoured diagnostic for `eval` /
+// `arguments` (matching parser.odin's `report_strict_param_pattern`).
+// Otherwise the generic binding-name diagnostic is used.
+//
+// Note: when called for a function name we use a function-name-flavoured
+// diagnostic via the `is_function_name` flag (the parser said
+// "Function name 'NAME' is not allowed in strict mode").
+@(private="file")
+CkBindingPosition :: enum {
+	Generic,        // var/let/const declarator id, catch param, ImportSpecifier.local
+	FunctionName,   // FunctionDeclaration.id / FunctionExpression.id
+}
+
+@(private="file")
+ck_check_binding_identifier_strict :: proc(c: ^Checker, ctx: ^CheckerContext,
+                                          name: string, off: u32,
+                                          pos: CkBindingPosition = .Generic) {
+	if !ctx.strict_mode { return }
+	if is_eval_or_arguments(name) {
+		msg: string
+		switch pos {
+		case .FunctionName:
+			msg = fmt.tprintf("Function name '%s' is not allowed in strict mode", name)
+		case .Generic:
+			msg = fmt.tprintf("'%s' cannot be used as a binding name in strict mode", name)
+		}
+		ck_report(c, off, msg)
+		return
+	}
+	if is_strict_reserved_simple_name(name) {
+		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", name)
+		ck_report(c, off, msg)
+	}
+}
+
+// ck_check_identifier_reference_strict — §12.6.1.1 — strict-mode
+// IdentifierReference cannot be `let`, `static`, `yield`,
+// `implements`, `interface`, `package`, `private`, `protected`,
+// `public`. Fires for ^Identifier nodes encountered in expression
+// position (ck_walk_expr's ^Identifier case). Note `await` reaches
+// this proc only through escaped forms; the unescaped `.Await` token
+// never produces an ^Identifier AST node.
+@(private="file")
+ck_check_identifier_reference_strict :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
+	if !ctx.strict_mode || id == nil { return }
+	if !is_strict_reserved_simple_name(id.name) { return }
+	msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
+	ck_report(c, u32(id.loc.span.start), msg)
+}
+
+// ck_check_import_specifier_local — §16.2.2 — ImportedBinding is a
+// BindingIdentifier in strict mode (module code). `eval` and
+// `arguments` are forbidden.
+@(private="file")
+ck_check_import_specifier_local :: proc(c: ^Checker, name: string, off: u32) {
+	if is_eval_or_arguments(name) {
+		msg := fmt.tprintf("'%s' cannot be used as an import binding name", name)
+		ck_report(c, off, msg)
+	}
+}
+
+// ck_walk_import_decl — visits each ImportSpecifierSpec to apply
+// §16.2.2 to the binding-identifier `local` field. Called from the
+// ImportDeclaration branch of ck_walk_stmt.
+@(private="file")
+ck_walk_import_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^ImportDeclaration) {
+	if decl == nil { return }
+	for spec in decl.specifiers {
+		if spec == nil { continue }
+		switch s in spec^ {
+		case ImportSpecifier:
+			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.span.start))
+		case ImportDefaultSpecifier:
+			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.span.start))
+		case ImportNamespaceSpecifier:
+			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.span.start))
+		}
+	}
+}
+
+// ck_check_for_in_of_init_eval_args — §13.7.5.1 — for-in/of LHS in
+// strict mode may not name eval/arguments (covers destructured forms).
+// Wrapper around ck_check_strict_eval_arguments_in_target gated on
+// strict mode and the for-head LHS expression position.
+@(private="file")
+ck_check_for_in_of_init_eval_args :: proc(c: ^Checker, ctx: ^CheckerContext, left_expr: Maybe(^Expression)) {
+	if !ctx.strict_mode { return }
+	e, have := left_expr.(^Expression)
+	if !have || e == nil { return }
+	ck_check_strict_eval_arguments_in_target(c, e)
 }
 
 // ============================================================================

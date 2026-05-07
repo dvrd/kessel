@@ -75,14 +75,14 @@
     {
       "message": "for-of loop variable declaration may not have an initializer",
       "line": 5,
-      "column": 19,
-      "offset": 249
+      "column": 6,
+      "offset": 236
     }
   ]
 }
 Parse errors (1):
-  Line 5, Column 19: for-of loop variable declaration may not have an initializer
+  Line 5, Column 6: for-of loop variable declaration may not have an initializer
 
 --- Statistics ---
-Arena: used=37456B reserved=16777216B ratio=0%
+Arena: used=37440B reserved=16777216B ratio=0%
 Parse errors: 1

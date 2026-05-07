@@ -84,15 +84,15 @@
   "errors": [
     {
       "message": "Duplicate parameter name 'a' in strict mode",
-      "line": 6,
-      "column": 1,
-      "offset": 88
+      "line": 3,
+      "column": 5,
+      "offset": 41
     }
   ]
 }
 Parse errors (1):
-  Line 6, Column 1: Duplicate parameter name 'a' in strict mode
+  Line 3, Column 5: Duplicate parameter name 'a' in strict mode
 
 --- Statistics ---
-Arena: used=37968B reserved=16777216B ratio=0%
+Arena: used=37888B reserved=16777216B ratio=0%
 Parse errors: 1

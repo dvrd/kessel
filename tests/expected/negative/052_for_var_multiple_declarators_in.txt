@@ -79,14 +79,14 @@
     {
       "message": "Only a single declaration is allowed in a for-in loop",
       "line": 5,
-      "column": 18,
-      "offset": 273
+      "column": 6,
+      "offset": 261
     }
   ]
 }
 Parse errors (1):
-  Line 5, Column 18: Only a single declaration is allowed in a for-in loop
+  Line 5, Column 6: Only a single declaration is allowed in a for-in loop
 
 --- Statistics ---
-Arena: used=37456B reserved=16777216B ratio=0%
+Arena: used=37440B reserved=16777216B ratio=0%
 Parse errors: 1

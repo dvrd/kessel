@@ -1443,43 +1443,10 @@ string_literal_can_be_directive :: #force_inline proc(p: ^Parser) -> bool {
 // ============================================================================
 
 parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset: int) {
-	// §Explicit Resource Management - `using` / `await using` are
-	// forbidden at the top level of a Script (only Module top-level
-	// allows them). Detect by token + the source-type pin (or the
-	// auto-detect script default - has_module_syntax set if any
-	// module syntax was seen so far).
-	if is_token(p, .Using) || (is_token(p, .Await) && peek_dispatch(p).type == .Using) {
-		// Only fire when this is actually a `using` DECLARATION (next token
-		// is a binding identifier, no preceding newline). `using[x] = null`
-		// where `using` is an identifier must not trigger this error.
-		nxt_chk := peek_dispatch(p)
-		is_using_decl := (nxt_chk.type == .Identifier || can_be_binding_identifier(nxt_chk.type)) &&
-		                 !nxt_chk.had_line_terminator
-		// For `await using`, the `using` follows `await`.
-		if is_token(p, .Await) {
-			await_nxt := peek_dispatch(p)
-			if await_nxt.type == .Using {
-				// Need to peek 2 tokens ahead for `await using <id>`.
-				// Use a snapshot approach: peek at `nxt.nxt` if available.
-				is_using_decl = true // conservative: fire for `await using`
-			}
-		}
-		if is_using_decl {
-			in_module := false
-			if st, have := p.force_source_type.(SourceType); have && st == .Module {
-				in_module = true
-			}
-			if p.has_module_syntax {
-				in_module = true
-			}
-			if !in_module {
-				kn := "using"
-				if is_token(p, .Await) { kn = "await using" }
-				msg := fmt.tprintf("'%s' declaration is not allowed at the top level of a script", kn)
-				report_semantic_error(p, msg)
-			}
-		}
-	}
+	// §Explicit Resource Management — `using` / `await using` at the
+	// top level of a Script is a SyntaxError (§14.3). Migrated to the
+	// semantic checker (ck_check_using_at_script_top); the parser stays
+	// permissive (it builds the VariableDeclaration node either way).
 
 	// Catch stray tokens that aren't valid statement starts (dangling
 	// `else`, orphan `}`, etc.) with a dedicated diagnostic rather than
@@ -2243,16 +2210,11 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				loc  = e.loc,
 				name = e.name,
 			}
-			// ECMA-262 §14.13.1 - `LabelledStatement : LabelIdentifier :
-			// LabelledItem` is a SyntaxError if `LabelIdentifier` is
-			// already in the enclosing LabelSet for the current function.
-			// `label_in_scope` only looks at [label_floor..len), so this
-			// correctly allows `foo: function() { foo: {} }` while
-			// rejecting `foo: { foo: {} }`.
-			if label_in_scope(p, e.name) {
-				msg := fmt.tprintf("Label '%s' has already been declared", e.name)
-				report_semantic_error(p, msg)
-			}
+			// §14.13.1 — duplicate-label check is enforced by the
+			// semantic checker (ck_check_label_redeclared). Parser keeps
+			// the label_stack so `continue label;` validation can
+			// piggy-back on `label_chain_leads_to_iteration` below; the
+			// duplicate-name check is dropped from here.
 			bump_append(&p.label_stack, e.name)
 			// ECMA-262 §14.8.1 - `continue label` requires the target label
 			// to name an IterationStatement (directly or via a chain of
@@ -2375,9 +2337,13 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		if v == nil { return }
 		if v.async || v.generator {
 			report_error(p, "Async / generator function declaration cannot appear in a single-statement context")
-		} else if !allow_plain_function {
-			report_semantic_error(p, "Function declaration cannot appear in a single-statement context")
 		}
+		// Plain FunctionDeclaration in a single-statement iteration /
+		// with body is checked by the semantic checker
+		// (ck_check_single_stmt_function), which honours Annex B.3.2's
+		// sloppy IfStatement carve-out by simply not running on if /
+		// labelled-statement-of-if positions.
+		_ = allow_plain_function
 	case ^LabeledStatement:
 		// Recurse through labels: `label1: label2: function f() {}` in
 		// a single-statement position (iteration body, with body, ...)
@@ -2874,22 +2840,14 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
 					report_error(p, msg)
 				}
-				// CallExpression as for-in/of LHS is invalid in strict mode
-				// (Annex B.3.4 only relaxes it in sloppy script).
-				if p.strict_mode && is_call_expression_target(left_expr) {
-					kind_name := "of"
-					if is_in { kind_name = "in" }
-					msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
-					report_semantic_error(p, msg)
-				}
+				// CallExpression as for-in/of LHS in strict mode is
+				// rejected by the semantic checker
+				// (ck_check_for_in_of_head).
 			}
-			// Strict-mode early-error: eval / arguments as an assignment
-			// target in the for-in/of head (covers destructuring too):
-			//   for ([arguments] of x) ;
-			//   for ({eval: y} in x) ;
-			if p.strict_mode {
-				report_strict_eval_arguments_in_target(p, left_expr)
-			}
+			// §13.7.5.1 strict-mode eval/arguments as for-in/of LHS is
+			// rejected by the semantic checker
+			// (ck_check_for_in_of_init_eval_args).
+			_ = left_expr
 			// for-in/of LHS is an AssignmentTarget; when it's an object /
 			// array literal it reinterprets as a destructuring pattern
 			// (§13.15.5.2). Run expr_to_pattern to trigger the same
@@ -2917,43 +2875,16 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// ForDeclaration in the for-in/of head - no comma-list - so even
 		// init-free `for (var x, y in z)` is a SyntaxError.
 		if left_decl != nil {
-			if len(left_decl.declarations) > 1 {
-				kind_name := "of"
-				if is_in { kind_name = "in" }
-				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_name)
-				report_semantic_error(p, msg)
-			}
-			// §Explicit Resource Management - `using` and `await using` are
-			// only legal in a for-of (or for-await-of) head, never for-in.
+			// §13.7.5.1 — "only a single declarator" + "no initializer"
+			// rules are checked by the semantic checker
+			// (ck_check_for_in_of_head). Parser keeps the structural rule
+			// below: `using` / `await using` is permitted only in for-of
+			// heads (not for-in), which is a parse-time constraint.
 			if is_in && (left_decl.kind == .Using || left_decl.kind == .AwaitUsing) {
 				kn := "using"
 				if left_decl.kind == .AwaitUsing { kn = "await using" }
 				msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
 				report_error(p, msg)
-			}
-			for_in_init_ok := is_in &&
-			                  !p.strict_mode &&
-			                  left_decl.kind == .Var &&
-			                  len(left_decl.declarations) == 1
-			if for_in_init_ok {
-				// Single declarator - tighten further: Annex B requires the
-				// binding to be a simple Identifier (BindingIdentifier). A
-				// destructuring pattern with an init - `for (var {a} = z in
-				// y)` - is NOT covered by Annex B and must error.
-				if _, is_id := left_decl.declarations[0].id.(^Identifier); !is_id {
-					for_in_init_ok = false
-				}
-			}
-			if !for_in_init_ok {
-				for decl in left_decl.declarations {
-					if _, have_init := decl.init.(^Expression); have_init {
-						kind_name := "of"
-						if is_in { kind_name = "in" }
-						msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_name)
-						report_semantic_error(p, msg)
-						break
-					}
-				}
 			}
 		}
 
@@ -3537,20 +3468,10 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 	// §14.15 - BoundNames of a CatchParameter must be unique. Catches
 	// the destructuring cases `catch ([x, x]) {}` and `catch ({x: a, y:
 	// a}) {}`. Use the existing collect helper (which dedups by map
-	// insertion) and pre-walk a manual list so duplicate detection works.
-	if p_pat, have := param.(Pattern); have {
-		name_list := make([dynamic]string, 0, 4, context.temp_allocator)
-		collect_pattern_bound_names_list(p_pat, &name_list)
-		for i := 0; i < len(name_list); i += 1 {
-			for j := i + 1; j < len(name_list); j += 1 {
-				if name_list[i] == name_list[j] {
-					msg := fmt.tprintf("Identifier '%s' has already been declared in catch clause", name_list[i])
-					report_semantic_error(p, msg)
-					break
-				}
-			}
-		}
-	}
+	// §15.4.5 — catch parameter duplicate-name check is enforced by
+	// the semantic checker (ck_check_catch_param_dups). Removed from
+	// the parser; param is built unchanged below.
+	_ = param
 
 	body := parse_block_statement(p)
 	if body == nil {
@@ -3729,19 +3650,17 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// OXC catches `(function*yield(){})` and
 			// `var x = function*yield(){}` etc. as parser-level errors,
 			// but NOT `export default function *yield() {}`. Match OXC:
-			// promote to report_error unless in export-default context.
-			if is_expr && generator && current.value == "yield" {
-				if p.in_export_default {
-					report_semantic_error(p, "'yield' cannot be used as the name of a generator function expression")
-				} else {
-					report_error(p, "'yield' cannot be used as the name of a generator function expression")
-				}
+			// fire as a structural parse error unless we're in export-
+			// default context (where the strict-mode reservation kicks in
+			// at the semantic checker via
+			// ck_check_binding_identifier_strict on the function name).
+			if is_expr && generator && current.value == "yield" && !p.in_export_default {
+				report_error(p, "'yield' cannot be used as the name of a generator function expression")
 			}
-			// In strict mode, `yield` is a reserved word and cannot be used
-			// as a FunctionExpression BindingIdentifier (§15.7.1).
-			if is_expr && p.strict_mode && current.value == "yield" && !generator {
-				report_semantic_error(p, "'yield' cannot be used as a function name in strict mode")
-			}
+			// §15.7.1 strict-mode `yield` as fn name (non-generator) is
+			// enforced by the semantic checker (handled by
+			// ck_walk_function's BindingIdentifier strict check).
+
 			// §12.6.1.1 contextual reservation - `await` / `yield` as a
 			// BindingIdentifier in the enclosing context. Fires for both
 			// declaration and expression forms when the enclosing scope is
@@ -3768,15 +3687,13 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 					report_error(p, "'await' cannot be used as a function name in module / async context")
 				}
 				// In generator context `yield` as a declaration name is a
-				// parser-level error (OXC catches it). In strict-mode-only
-				// context (no generator) OXC defers to oxc_semantic, so keep
-				// that path gated.
+				// parser-level error (OXC catches it).
 				if current.value == "yield" {
 					if p.in_generator || p.in_generator_params {
 						report_error(p, "'yield' cannot be used as a function name in generator context")
-					} else if p.strict_mode {
-						report_semantic_error(p, "'yield' cannot be used as a function name in strict mode")
 					}
+					// Strict-mode yield-as-decl-name is enforced by the
+					// semantic checker.
 				}
 			}
 			eat(p)
@@ -3952,31 +3869,15 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// UniqueFormalParameters unconditionally - pass strict_override=true
 	// for them regardless of outer strict mode.
 	strict_for_check := p.strict_mode || body_strict
-	if strict_for_check {
-		report_duplicate_param_names(p, params[:], false, true)
-		report_strict_param_names(p, params[:])
-		// ECMA-262 §15.1.1 - in strict mode, `function eval() {}` /
-		// `function arguments() {}` is a SyntaxError. `let`/`static`/
-		// etc. as the function name were already rejected at binding
-		// time via is_strict_reserved_word; `eval` / `arguments` lex as
-		// plain identifiers so the check has to run on the saved name.
-		if fn_id, have := id.(BindingIdentifier); have {
-			if is_eval_or_arguments(fn_id.name) {
-				msg := fmt.tprintf("Function name '%s' is not allowed in strict mode", fn_id.name)
-				report_semantic_error(p, msg)
-			}
-		}
-		// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
-		// !IsSimpleParameterList" early error: enforced by the semantic
-		// checker (ck_check_strict_directive_with_nonsimple_params) on every
-		// non-arrow FunctionExpression.
-	} else if generator || async {
-		// Generator / async / async-generator bodies inherit
-		// UniqueFormalParameters regardless of outer strict mode.
-		report_duplicate_param_names(p, params[:], true, true)
-	} else {
-		report_duplicate_param_names(p, params[:], true)
-	}
+	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — strict-mode parameter
+	// duplicate-name + eval/arguments + reserved-word + function name
+	// strict checks are all enforced by the semantic checker. The
+	// parser stays permissive (it builds the FunctionExpression with
+	// the parameters and name unchanged).
+	_ = strict_for_check
+	_ = generator
+	_ = async
+	_ = id
 
 	// §15.2.1.1 / §15.5.1 - It is a Syntax Error if any element of the
 	// BoundNames of FormalParameters also occurs in the LexicallyDeclaredNames
@@ -4754,14 +4655,9 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		// NOTE: duplicate private class member detection is deferred
 		// to the semantic checker (OXC's parser does not check this).
 		_ = dup
-		if static_mismatch {
-			// §15.7.1: a private getter / setter pair must have matching
-			// static-ness. `static get #f() {}` paired with `set #f(v) {}`
-			// is a SyntaxError because the private slot is shared and
-			// can't straddle static/instance.
-			msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-			report_semantic_error(p, msg)
-		}
+		// §15.7.1 private getter/setter static-mismatch is enforced by
+		// the semantic checker (ck_check_class_private_static_mismatch).
+		_ = static_mismatch
 	}
 }
 
@@ -5949,64 +5845,25 @@ count_real_params :: #force_inline proc(p: ^Parser, params: []FunctionParameter)
 // `p.strict_mode` has already been restored from a nested body (eg.
 // parse_function_declaration reads body_strict after the body parse
 // but before the param check runs).
+//
+// Migrated to the semantic checker (ck_check_duplicate_param_names),
+// which runs the same O(n²) name comparison post-parse. This stub is
+// kept for call sites that reference it; the body is now a no-op.
+// Future cleanup will delete the call sites and the stub. The
+// parameters are kept on the signature so existing call sites compile.
 report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, force_when_non_simple: bool = false, strict_override: bool = false) {
-	// Skip in `--ast-only` benchmark mode (deferred to semantic pass).
-	if p.ast_only { return }
-	if len(params) == 0 { return }
-	strict := p.strict_mode || strict_override
-	force_non_simple := force_when_non_simple && !params_are_simple(params)
-	if !strict && !force_non_simple { return }
-	// Note: a single param can introduce multiple bound names via
-	// destructuring (`([x, x]) => 1`), so we cannot early-exit on
-	// `len(params) < 2`. The post-collect `len(names) < 2` guard
-	// below catches the truly-empty case.
-	names: [dynamic]string
-	names.allocator = p.allocator
-	reserve(&names, 4)
-	for param in params { collect_bound_names(param.pattern, &names) }
-	n := len(names)
-	if n < 2 { return }
-	for i := 1; i < n; i += 1 {
-		for j := 0; j < i; j += 1 {
-			if names[i] == names[j] {
-				msg: string
-				if strict {
-					msg = fmt.tprintf("Duplicate parameter name '%s' in strict mode", names[i])
-				} else {
-					msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i])
-				}
-				report_semantic_error(p, msg)
-				break
-			}
-		}
-	}
+	_ = p
+	_ = params
+	_ = force_when_non_simple
+	_ = strict_override
 }
 
-// ECMA-262 §14.3.1.1 - `let` is forbidden as a BoundName inside a
-// LexicalDeclaration (`let` / `const` / `using` / `await using`). Walks
+// ECMA-262 §14.3.1.1 — per-LexicalDeclaration duplicate-name check.
+// Migrated to the semantic checker (ck_check_var_decl_lexical_dups).
+// Stub kept for existing call sites; body is a no-op.
 report_duplicate_lexical_names :: proc(p: ^Parser, decls: []VariableDeclarator) {
-	if len(decls) == 0 { return }
-	// Small fixed scratch (>= 16) avoids allocator pressure for the common
-	// case (1-3 declarators with a handful of names each). Fall back to a
-	// dynamic array only when necessary.
-	names: [dynamic]string
-	names.allocator = p.allocator
-	reserve(&names, 8)
-	for d in decls { collect_bound_names(d.id, &names) }
-	n := len(names)
-	if n < 2 { return }
-	// n is small in practice (≤10 for almost every real declaration).
-	// O(n2) is fine and avoids a map allocation. Report each duplicate
-	// once, pointing at the declaration span.
-	for i := 1; i < n; i += 1 {
-		for j := 0; j < i; j += 1 {
-			if names[i] == names[j] {
-				msg := fmt.tprintf("Identifier '%s' has already been declared", names[i])
-				report_semantic_error(p, msg)
-				break // one report per duplicate occurrence
-			}
-		}
-	}
+	_ = p
+	_ = decls
 }
 
 parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := false, is_declare := false) -> ^VariableDeclarator {
@@ -6380,92 +6237,35 @@ report_escaped_reserved_word_slow :: proc(p: ^Parser) {
 // reserved word are SyntaxErrors. Used after parse_function_body when
 // the body's directive prologue contained `"use strict"` or the
 // enclosing context was strict.
+// report_strict_param_names / report_strict_param_pattern — §15.5.1 /
+// §15.6.1 / §15.8.1 strict-mode parameter BindingIdentifier checks.
+// Migrated to the semantic checker (ck_check_strict_param_pattern,
+// ck_check_strict_binding_pattern). Stubs preserved for existing call
+// sites; bodies are no-ops.
 report_strict_param_names :: proc(p: ^Parser, params: []FunctionParameter) {
-	for param in params {
-		report_strict_param_pattern(p, param.pattern)
-	}
+	_ = p
+	_ = params
 }
 
 report_strict_param_pattern :: proc(p: ^Parser, pat: Pattern) {
-	// Skip in `--ast-only` benchmark mode (deferred to semantic pass).
-	if p.ast_only { return }
-	if pat == nil { return }
-	switch v in pat {
-	case ^Identifier:
-		if v == nil { return }
-		if is_eval_or_arguments(v.name) {
-			msg := fmt.tprintf("Parameter name '%s' is not allowed in strict mode", v.name)
-			report_semantic_error(p, msg)
-		} else if is_strict_reserved_name(v.name) ||
-		          v.name == "let" || v.name == "static" || v.name == "yield" {
-			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-			report_semantic_error(p, msg)
-		}
-	case ^ObjectPattern:
-		if v == nil { return }
-		for prop in v.properties {
-			report_strict_param_pattern(p, prop.value)
-		}
-	case ^ArrayPattern:
-		if v == nil { return }
-		for elem in v.elements {
-			if inner, ok := elem.(Pattern); ok {
-				report_strict_param_pattern(p, inner)
-			}
-		}
-	case ^AssignmentPattern:
-		if v == nil { return }
-		report_strict_param_pattern(p, v.left)
-	case ^RestElement:
-		if v == nil { return }
-		report_strict_param_pattern(p, v.argument)
-	case ^MemberExpression:
-		return
-	}
+	_ = p
+	_ = pat
 }
 
+// report_strict_eval_arguments_in_target — §13.15.1 strict-mode LHS
+// check. Migrated to ck_check_strict_eval_arguments_in_target. Stub
+// kept for existing call sites; body is a no-op.
 report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
-	if expr == nil { return }
-	#partial switch e in expr^ {
-	case ^Identifier:
-		if is_eval_or_arguments(e.name) {
-			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
-			report_semantic_error(p, msg)
-		}
-	case ^ParenthesizedExpression:
-		report_strict_eval_arguments_in_target(p, e.expression)
-	case ^ArrayExpression:
-		for elem in e.elements {
-			if inner, ok := elem.(^Expression); ok && inner != nil {
-				report_strict_eval_arguments_in_target(p, inner)
-			}
-		}
-	case ^ObjectExpression:
-		for prop in e.properties {
-			// Property is a struct, not a union - walk the value field
-			// directly. Shorthand shorthand-default (`{x = 1}`) lowers
-			// to an AssignmentExpression whose LHS is the identifier,
-			// handled by the ^AssignmentExpression case below.
-			report_strict_eval_arguments_in_target(p, prop.value)
-		}
-	case ^SpreadElement:
-		report_strict_eval_arguments_in_target(p, e.argument)
-	case ^AssignmentExpression:
-		// Default-init form in a destructuring target: walk only the LHS.
-		if e.operator == .Assign {
-			report_strict_eval_arguments_in_target(p, e.left)
-		}
-	}
+	_ = p
+	_ = expr
 }
 
+// report_strict_update_on_eval_or_arguments — §13.4.4 strict-mode
+// update target check. Migrated to ck_check_strict_update_eval_arguments.
+// Stub kept for existing call sites; body is a no-op.
 report_strict_update_on_eval_or_arguments :: proc(p: ^Parser, arg: ^Expression) {
-	if !p.strict_mode || arg == nil { return }
-	ident, is_id := arg.(^Identifier)
-	if !is_id || ident == nil { return }
-	if is_eval_or_arguments(ident.name) {
-		msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", ident.name)
-		report_semantic_error(p, msg)
-	}
+	_ = p
+	_ = arg
 }
 
 // A numeric literal's raw source looks like a "0-prefixed integer" if
@@ -6641,13 +6441,20 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		return ident
 	}
 
-	// Strict-mode reserved words: `let`, `static`, `yield`, `implements`,
-	// `interface`, `package`, `private`, `protected`, `public` are only
-	// FutureReservedWords under strict mode (ECMA-262 §13.2). In sloppy
-	// script they remain valid binding identifiers (`var let = 1;`).
+	// Strict-mode reserved words (`let`, `static`, `yield`, `implements`,
+	// `interface`, `package`, `private`, `protected`, `public`) as a
+	// BindingIdentifier are SyntaxErrors only in strict mode
+	// (ECMA-262 §13.2). In sloppy script they remain valid binding
+	// identifiers (`var let = 1;`). The strict-mode diagnostic is
+	// enforced by the semantic checker (ck_check_strict_binding_pattern
+	// via ck_walk_var_decl / ck_walk_function); the parser stays
+	// permissive but still has to convert the strict-reserved-token
+	// into an Identifier shape for the AST. Gate on p.strict_mode here
+	// so sloppy code falls through to the contextual-yield / await /
+	// identifier branches below (e.g. `var yield = 1` inside a sloppy
+	// generator must reach the contextual `.Yield` branch and report a
+	// structural error).
 	if p.strict_mode && is_strict_reserved_word(p.cur_type) {
-		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
-		report_semantic_error(p, msg)
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -6724,21 +6531,11 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 			report_error(p, msg)
 		}
 		eat(p)
-		if p.strict_mode {
-			// `eval` / `arguments` are forbidden as a BindingIdentifier in
-			// strict mode (ECMA-262 §13.1.1).
-			if is_eval_or_arguments(id_name) {
-				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
-				report_semantic_error(p, msg)
-			}
-			// Strict-mode FutureReservedWords that lex as .Identifier:
-			// `implements`, `interface`, `package`, `private`,
-			// `protected`, `public`.
-			if is_strict_reserved_name(id_name) {
-				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
-				report_semantic_error(p, msg)
-			}
-		}
+		// §13.1.1 strict-mode `eval` / `arguments` and strict-reserved
+		// FutureReservedWords (lex-as-Identifier forms) as a Binding
+		// Identifier are SyntaxErrors. Enforced by the semantic checker
+		// (ck_check_strict_binding_pattern via ck_walk_var_decl /
+		// ck_walk_function); the parser stays permissive.
 		ident := new_node(p, Identifier)
 		ident.loc = id_loc
 		ident.name = id_name
@@ -9116,12 +8913,10 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	}
 	spec.loc.span.end = prev_end_offset(p)
 
-	// §16.2.2 - ImportedBinding is a BindingIdentifier in strict mode
-	// (module code). `eval` and `arguments` are forbidden.
-	if is_eval_or_arguments(local.name) {
-		msg := fmt.tprintf("'%s' cannot be used as an import binding name", local.name)
-		report_semantic_error_at(p, LexerLoc(local.loc.span.start), msg)
-	}
+	// §16.2.2 — ImportedBinding `eval` / `arguments` early error is
+	// enforced by the semantic checker (ck_check_import_specifier_local).
+	// Always-reserved word as import binding stays a parser-side
+	// structural error (`import { default }` etc).
 	if is_always_reserved_word_name(local.name) {
 		msg := fmt.tprintf("'%s' is a reserved word and cannot be used as an import binding", local.name)
 		report_error(p, msg)
@@ -10356,32 +10151,9 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		unary.argument = argument
 		unary.prefix = true
 		unary.loc.span.end = prev_end_offset(p)
-		// ECMA-262 §12.5.1.1 / §13.5.1 - in strict mode, `delete` of an
-		// IdentifierReference is a SyntaxError. This covers both the bare
-		// form `delete x` AND the parenthesised form `delete (x)` (spec:
-		// "CoverParenthesizedExpressionAndArrowParameterList whose contents
-		// are an IdentifierReference"). Member access (`delete x.y`),
-		// computed (`delete x[y]`), and arbitrary non-reference operands
-		// stay legal. Parens around a SequenceExpression (`delete (a, b)`)
-		// or around a non-identifier expression aren't caught either; the
-		// rule only fires when peeling parens leaves a lone Identifier.
-		if current.type == .Delete && p.strict_mode {
-			inner := argument
-			for inner != nil {
-				pe, is_paren := inner.(^ParenthesizedExpression)
-				if !is_paren || pe == nil { break }
-				inner = pe.expression
-			}
-			if inner != nil {
-				if ident, is_id := inner.(^Identifier); is_id && ident != nil {
-					msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
-					report_semantic_error(p, msg)
-				}
-			}
-		}
-
-		// §13.5.1 "delete o.#priv" early error: enforced by the
-		// semantic checker (ck_check_unary_delete_private).
+		// §13.5.1 "delete IdentifierReference" in strict mode AND
+		// "delete o.#priv" early errors are enforced by the semantic
+		// checker (ck_check_unary_delete_local + ck_check_unary_delete_private).
 		return expression_from(p, unary)
 
 	case .PlusPlus, .MinusMinus:
@@ -10579,18 +10351,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// position. This fast-path bypasses parse_primary_expr, so the
 		// same check that lives on the slow path has to run here too.
 		report_escaped_reserved_word(p)
-		// §12.6.1.1 - strict-mode IdentifierReference cannot be `let` /
-		// `yield` / `implements` / `interface` / `package` / `private` /
-		// `protected` / `public` / `static`. Mirrors the check in
-		// parse_primary_expr's fallback ident branch; this fast-path
-		// must run it too (lexer emits `implements` / `interface` / etc.
-		// as plain .Identifier with a contextual value string).
-		if p.strict_mode {
-			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(p.cur_tok.value) {
-				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", p.cur_tok.value)
-				report_semantic_error(p, msg)
-			}
-		}
+		// §12.6.1.1 strict-mode IdentifierReference reservation check
+		// is enforced by the semantic checker
+		// (ck_check_identifier_reference_strict via ck_walk_expr's
+		// ^Identifier case).
 		// Escaped `async` before `function` is SyntaxError (fast path).
 		if p.cur_tok.has_escape && p.cur_tok.value == "async" {
 			nxt := peek_token(p)
@@ -11733,13 +11497,10 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// .Identifier, so check both channels. `yield` inside a generator
 		// and `await` inside async are handled by the dedicated keyword
 		// paths earlier in parse_unary_expr - we only reach here for
-		// IdentifierReference uses.
-		if p.strict_mode && current.type != .Await {
-			if is_strict_reserved_word(current.type) || is_strict_reserved_name(current.value) {
-				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
-				report_semantic_error(p, msg)
-			}
-		}
+		// §12.6.1.1 strict-mode IdentifierReference reservation check is
+		// enforced by the semantic checker
+		// (ck_check_identifier_reference_strict).
+
 		// §16.2 - `await` in module/async/static-block context is a keyword,
 		// not a valid IdentifierReference.
 		if (current.type == .Await || current.value == "await") && await_is_reserved_here(p) {
@@ -12345,13 +12106,12 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 					report_error(p, msg)
 				}
 			}
-			// Strict-mode IdentifierReference check (§12.6.1.1).
-			if p.strict_mode {
-				if is_strict_reserved_word(key_tok_type) || is_strict_reserved_name(key_name) {
-					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", key_name)
-					report_semantic_error(p, msg)
-				}
-			}
+			// §12.6.1.1 strict-mode IdentifierReference reservation check
+			// for shorthand-property names is enforced by the semantic
+			// checker (ck_check_identifier_reference_strict via the
+			// ObjectExpression walker's shorthand-Identifier visit).
+			_ = key_tok_type
+			_ = key_name
 		}
 	} else {
 		return nil

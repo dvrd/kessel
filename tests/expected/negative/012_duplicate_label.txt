@@ -72,14 +72,14 @@
     {
       "message": "Label 'outer' has already been declared",
       "line": 5,
-      "column": 9,
-      "offset": 189
+      "column": 2,
+      "offset": 182
     }
   ]
 }
 Parse errors (1):
-  Line 5, Column 9: Label 'outer' has already been declared
+  Line 5, Column 2: Label 'outer' has already been declared
 
 --- Statistics ---
-Arena: used=37392B reserved=16777216B ratio=0%
+Arena: used=37376B reserved=16777216B ratio=0%
 Parse errors: 1

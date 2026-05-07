@@ -95,12 +95,19 @@
       "line": 10,
       "column": 5,
       "offset": 442
+    },
+    {
+      "message": "'let' is a reserved identifier in strict mode",
+      "line": 10,
+      "column": 5,
+      "offset": 442
     }
   ]
 }
-Parse errors (1):
+Parse errors (2):
   Line 10, Column 5: Keyword 'let' must not contain escaped characters
+  Line 10, Column 5: 'let' is a reserved identifier in strict mode
 
 --- Statistics ---
-Arena: used=13168B reserved=16777216B ratio=0%
-Parse errors: 1
+Arena: used=37472B reserved=16777216B ratio=0%
+Parse errors: 2

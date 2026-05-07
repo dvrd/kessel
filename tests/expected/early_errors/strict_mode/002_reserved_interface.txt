@@ -43,14 +43,14 @@
     {
       "message": "'interface' is a reserved identifier in strict mode",
       "line": 2,
-      "column": 15,
-      "offset": 28
+      "column": 5,
+      "offset": 18
     }
   ]
 }
 Parse errors (1):
-  Line 2, Column 15: 'interface' is a reserved identifier in strict mode
+  Line 2, Column 5: 'interface' is a reserved identifier in strict mode
 
 --- Statistics ---
-Arena: used=37456B reserved=16777216B ratio=0%
+Arena: used=37440B reserved=16777216B ratio=0%
 Parse errors: 1
