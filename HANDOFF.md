@@ -1,8 +1,8 @@
 # Handoff — Kessel
 
-**Date:** 2026-05-06 (fifth wave — slices 5–7)
-**Tip:** `66f47e0 feat(checker): slice 7 — formal-parameter scope + 5 migrations parser → checker`
-**Branch:** `main`, ahead of `origin/main` by **3 commits** (slices 5/6/7; everything else from earlier waves was pushed by the user).
+**Date:** 2026-05-06 (sixth wave — slices 8–10)
+**Tip:** `6222980 feat(checker): slice 10 — class-name + arrow-param reservation rules (11 → 0)`
+**Branch:** `main`, ahead of `origin/main` by **3 commits** (slices 8/9/10; slices 5/6/7 were pushed by the user).
 
 ## What is Kessel
 
@@ -22,11 +22,11 @@ JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.o
 | **OXC corpus kessel-only-rejects** | 1 | **0** |
 | **Pre-existing failures listed in start-of-session HANDOFF** | 2 (three.module.js, jsx_fragment_broken) | **0** — both fixed |
 | **`fuzz:invalid` baselined crashes** | 8 (assumed real bugs) | **0** — all were verifier maxBuffer false positives |
-| **Inline `report_semantic_error*` calls in parser.odin** | 101 | **70** (slices 4–7 migrated 31; ≈30% reduction) |
-| `src/parser.odin` | 19 772 lines | **19 321 lines** (−451 net: −170 from slice 7's bespoke arrow-cover walkers, −120 from slice 6's bespoke field-init `arguments` walker, −50 from slice 4's `pending_proto_dups` machinery, plus other migration deltas) |
-| `src/checker.odin` | 62-line stub | **1 416 lines, 18 active checks across 7 slices** |
+| **Inline `report_semantic_error*` calls in parser.odin** | 101 | **48** (slices 4–10 migrated 53; ≈52% reduction) |
+| `src/parser.odin` | 19 772 lines | **19 238 lines** (−534 net: −170 slice 7's arrow-cover walkers, −120 slice 6's field-init `arguments` walker, −50 slice 4's `pending_proto_dups` machinery, plus migration deltas across slices 8–10) |
+| `src/checker.odin` | 62-line stub | **1 721 lines, 24 active checks across 10 slices** |
 
-11 commits added this session (start `f0a7eff` → tip `66f47e0`):
+14 commits added this session (start `f0a7eff` → tip `6222980`):
 
 1. `9fabda0` — feat(checker): slice 3 — migrate accessor checks parser → checker
 2. `5ece470` — perf: restore <-OXC ratio via SIMD + lazy module pre-scan (slice 4 perf)
@@ -39,6 +39,9 @@ JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.o
 9. `3429b46` — feat(checker): slice 5 — strict-mode tracker + 9 migrations (§14.11.1 with, §12.9.3.5 octal num, §12.9.4 octal escape, §12.9.6 template octal, §12.9.3 octal-bigint, §14.13.1 labeled-fn-strict, §14.3.1.1 let-as-binding)
 10. `c1efc63` — feat(checker): slice 6 — function-context tracker + 6 migrations (§13.3.7 super, §15.7.6 super-call, §13.3.12 new.target, §15.7.10 arguments-in-field-init, §15.7.5 arguments / await in static block) + delete bespoke `scan_field_init_arguments` walker (−120 lines)
 11. `66f47e0` — feat(checker): slice 7 — formal-parameter scope + 5 migrations (§15.5.1, §15.6.1, §15.3.1, §15.9.1) + delete bespoke arrow-cover walkers (−170 lines)
+12. `96003c2` — feat(checker): slice 8 — "use strict" directive in non-simple params (6 sites collapsed; §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 / §15.3.1 / §15.9.1)
+13. `b48b3ef` — feat(checker): slice 9 — import/export position rules + invalid-LHS in compound assignment (§16.2 / §16.2.1 / §13.15.1)
+14. `6222980` — feat(checker): slice 10 — class-name + arrow-param BindingIdentifier reservation rules (§15.7.1 strict-reserved/eval/arguments/await; arrow params: enum/await/yield/strict-reserved)
 
 ---
 
@@ -103,14 +106,14 @@ Apples-to-apples (`kessel --ast-only` vs OXC parser-only) on Apple M1 Max:
 
 | File | Lines | Purpose |
 |---|---:|---|
-| `src/parser.odin` | 19 321 | Hand-written Pratt parser + lazy module pre-scan + **70 inline `report_semantic_error*` checks (gated on `p.check_semantics`, awaiting migration to checker)**. Permissive when flag is off. |
+| `src/parser.odin` | 19 238 | Hand-written Pratt parser + lazy module pre-scan + **48 inline `report_semantic_error*` checks (gated on `p.check_semantics`, awaiting migration to checker)**. Permissive when flag is off. |
 | `src/emitter.odin` | 6 381 | ESTree JSON emitter. |
 | `src/lexer.odin` | 3 097 | SIMD lexer. Two-token lookahead. |
 | `src/regex.odin` | 2 235 | ES2025 §22.2.1 regex pattern validator. |
 | `src/ast.odin` | 1 611 | AST struct/union definitions. |
 | `src/raw_transfer.odin` | 1 304 | Zero-copy binary AST buffer. |
 | `src/main.odin` | 1 295 | CLI dispatch + worker pool. |
-| **`src/checker.odin`** | **1 416** | **AST-walker semantic checker (pass 3).** 7 slices live (≈18 distinct checks): break/continue + label scoping (slice 1); accessor arity + setter shape (slice 3); duplicate `__proto__`, duplicate `default:`, duplicate constructor (TS-aware), `delete o.#priv`, `super.#name` (slice 4); strict-mode tracker enforcing `with`, octal numeric, octal escape (string + template), octal BigInt, labeled-fn-strict, `let` as lexical binding (slice 5); function-context tracker enforcing `super` outside method, `super(...)` outside derived ctor, `new.target` outside fn, `arguments` in field-init, `arguments` / `await` in static block (slice 6); formal-parameter scope tracker enforcing yield/await in regular and arrow params (slice 7). Public API: `check_program`, `checker_run_for_job`. |
+| **`src/checker.odin`** | **1 721** | **AST-walker semantic checker (pass 3).** 10 slices live (≈24 distinct checks): break/continue + label scoping (slice 1); accessor arity + setter shape (slice 3); duplicate `__proto__`, duplicate `default:`, duplicate constructor (TS-aware), `delete o.#priv`, `super.#name` (slice 4); strict-mode tracker enforcing `with`, octal numeric, octal escape (string + template), octal BigInt, labeled-fn-strict, `let` as lexical binding (slice 5); function-context tracker enforcing `super` outside method, `super(...)` outside derived ctor, `new.target` outside fn, `arguments` in field-init, `arguments` / `await` in static block (slice 6); formal-parameter scope tracker enforcing yield/await in regular and arrow params (slice 7); `"use strict"` in non-simple params for both regular and arrow shapes (slice 8); import/export top-level/source-type rules + invalid-LHS in compound assignment (slice 9); class-name + arrow-param BindingIdentifier reservation rules with in_async/in_generator tracking (slice 10). Public API: `check_program`, `checker_run_for_job`. |
 | `src/simd.odin` | 601 | ARM64 NEON intrinsics. |
 | `src/parse_job.odin` | 419 | "Source-to-parsed-Program" deep module. |
 | `src/token.odin` | 383 | `TokenType` enum, `FastToken`, `LiteralValue`. |
@@ -131,8 +134,14 @@ Apples-to-apples (`kessel --ast-only` vs OXC parser-only) on Apple M1 Max:
 | **1** | `4b93e2a` | break / continue context + label scoping (§13.9.1, §13.9.2, §14.13.1, §14.8.1). New AST walker `check_program` + `checker_run_for_job`. Function/arrow/class-static-block boundaries. |
 | **2** | `86cd68b` | Wire `cli.show_semantic_errors → ParseConfig.check_semantics → p.check_semantics`. **101 inline `report_semantic_error*` calls in parser.odin now light up under the same flag.** Setter/getter check demoted from `report_error` to `report_semantic_error_at` with anchored locations (fixed three.module.js positional bug). |
 | **3** | `9fabda0` | **Migrate** the 4 accessor early-error checks parser → checker. New `ck_check_accessor` walks ClassElement nodes. Parser strictly drops these — no `report_semantic_error*` for accessors. |
-| **4** | `ea574d4` | **5 local AST-only checks**: duplicate `__proto__` (§13.2.5.1), more than one default in switch (§14.12.1), duplicate constructor with TS overload-sig exception (§15.7.1), `delete o.#priv` (§13.5.1), `super.#name` (§15.7.3). Adds `lang: Lang` to `CheckerContext` (threaded from `job.lang` via `checker_run_for_job`). Tears out the `pending_proto_dups` field + post-parse loop + `expr_to_pattern` cleanup — the AST already separates ObjectExpression from ObjectPattern, so the pending machinery was redundant. |
-| _next_ | _slice 5+_ | **90 inline `report_semantic_error*` calls remain in parser.odin.** Migrate slice-by-slice. |
+| **4** | `ea574d4` | **5 local AST-only checks**: duplicate `__proto__` (§13.2.5.1), more than one default in switch (§14.12.1), duplicate constructor with TS overload-sig exception (§15.7.1), `delete o.#priv` (§13.5.1), `super.#name` (§15.7.3). Adds `lang: Lang` to `CheckerContext`. Tears out the `pending_proto_dups` field. |
+| **5** | `3429b46` | **strict-mode tracker** + 9 migrations: `with` (§14.11.1), octal numeric (§12.9.3.5), octal escape in string + template (§12.9.4 / §12.9.6), octal BigInt (§12.9.3), labeled-fn-strict (§14.13.1), `let` as lexical binding (§14.3.1.1). Adds `strict_mode` + `in_tagged_template` to context; `directives_have_use_strict` + `fn_body_lifts_strict` helpers. |
+| **6** | `c1efc63` | **function-context tracker** + 6 migrations: `super` outside method (§13.3.7), `super(...)` outside derived ctor (§15.7.6), `new.target` outside fn (§13.3.12), `arguments` in field-init (§15.7.10), `arguments` / `await` in static block (§15.7.5). Adds `function_depth`, `in_method`, `in_derived_constructor`, `in_field_init`, `in_class_static_block` + `CkFnKind` enum. Deletes the parser's bespoke `scan_field_init_arguments` walker (−120 lines). |
+| **7** | `66f47e0` | **formal-parameter scope** + 5 migrations: yield/await in regular function params (§15.5.1 / §15.6.1), yield/await in arrow params (§15.3.1 / §15.9.1). Adds `in_params` + `params_is_arrow` + `ck_walk_pattern` (visits computed ObjectPattern keys + AssignmentPattern.right defaults). Deletes the parser's bespoke arrow-cover walkers (−170 lines). |
+| **8** | `96003c2` | **`"use strict"` directive in non-simple params** — 6 sites collapsed into two helpers: `ck_check_strict_directive_with_nonsimple_params` for non-arrow function shapes, `ck_check_arrow_strict_directive_with_nonsimple_params` for arrow block bodies (which lose directive-prologue info via parse_block_statement). |
+| **9** | `b48b3ef` | **import/export position rules** + invalid-LHS: §16.2 (Script source rejects all imports/exports), §16.2.1 (Module top-level only), §13.15.1 (Invalid LHS in compound destructured assignment). Adds `source_type` + `at_top_level` to context; ck_walk_stmt drops `at_top_level` to false on entry so any nested walk is non-top. |
+| **10** | `6222980` | **class-name + arrow-param reservation rules** — 11 migrations: strict-reserved / eval / arguments / await as class name (§15.7.1); arrow-param BindingIdentifier checks (eval/arguments in strict, strict-reserved in strict, enum, await in module/async, yield in generator/strict). Adds `in_async` + `in_generator` to context. |
+| _next_ | _slice 11+_ | **48 inline `report_semantic_error*` calls remain in parser.odin.** Mostly tied to the parser's scope_* / pn_walk_* machinery (duplicate scope bindings, duplicate exports, private-name resolution, scope-bind clashes); migrating them is a major architectural pass that lifts the entire scope-analysis to the checker. The remaining ≈20 non-scope-tied calls are: yield/await as identifier name in module/async/generator context (parser.odin uses lex-time has_escape info for some of these); the yield-as-operator-operand checks (need paren-wrapped info that the AST drops without `--preserve-parens`); function-decl in single-statement context; for-loop head/init restrictions. See "What To Work On Next" for triage. |
 
 ### Migration policy (rule established this session)
 
@@ -181,11 +190,11 @@ Result: 9/10 bench files below OXC, geo-mean 0.93×.
 
 | # | Issue | Severity | Scope |
 |---|---|---|---|
-| 1 | **70 inline `report_semantic_error*` calls in `parser.odin`** | architectural debt | Migration backlog. ≈7 remaining categories. The heavy infrastructure (strict-mode, function-context, formal-params) is now in place — slice 8+ should consist of smaller local checks (yield/await as identifier names, `"use strict"` directive in non-simple-params, import/export-only-at-top-level). See "What To Work On Next" below for sketch. |
+| 1 | **48 inline `report_semantic_error*` calls in `parser.odin`** | architectural debt | Migration backlog. The infrastructure (strict-mode, function-context, formal-params, in_async/in_generator) is in place — the easy checks are done. The remaining 48 fall into two buckets: (a) ≈30 calls tied to the parser's scope_* / pn_walk_* / scope_add machinery (duplicate scope bindings, duplicate exports, private-name resolution); migrating them is a single architectural pass that lifts scope analysis to the checker. (b) ≈18 long-tail calls: yield/await as identifier name needing lex-time has_escape info (8 calls), yield-as-operator-operand needing paren-wrap info dropped without `--preserve-parens` (3 calls), for-loop head/init / catch / formal-param duplicate computed-msg checks (7 calls). |
 | 2 | OXC corpus: **19 oxc-only-rejects** (kessel more lenient than OXC) | minor | Edge cases where kessel accepts but OXC rejects (the inverse direction is 0). Not actionable by simply "matching OXC" — case-by-case judgement. |
 | 3 | OXC corpus: 2 157 babel "should-pass-rejected" | shared gap with Babel | Babel-specific syntax (Flow, pipeline-operator, experimental decorators). NOT kessel bugs — OXC drops them too. |
 | 4 | `AGENTS.md` is `.gitignore`d | local-only | By project convention `AGENTS.md` is local agent prose, not shared. The HANDOFF doc covers all material info for next-agent handoff. |
-| 5 | Branch is **3 commits ahead of `origin/main`** — slices 5/6/7 not yet pushed | session deliverable | `git push origin main` to publish. (Earlier waves' commits were pushed by the user mid-session.) |
+| 5 | Branch is **3 commits ahead of `origin/main`** — slices 8/9/10 not yet pushed | session deliverable | `git push origin main` to publish. (Earlier waves' commits were pushed by the user mid-session.) |
 | 6 | `task test:bench:regression` reports a 21% geo-mean regression at handoff time | environmental, not real | Machine load avg 29–38 (external `pi` + `zellij` consuming 6 cores) since slice 4 commit. Verified noise: a temporary checkout of `5459ea1` (pre-slice-4 parser) reproduces the same regression magnitude on the same baseline. The locked baseline (`tests/baselines/bench_baseline.json`) is still the post-perf-restore floor; re-run on a quiet machine before treating it as real. |
 
 **✅ Closed since previous handoff:** the 8 baselined fuzz "crashes" were not real bugs — they were `spawnSync`'s 32 MB stdout buffer being exceeded by inflated AST output, which Node converts to SIGTERM. Verifier now ignores stdout entirely (it never read it anyway). Baseline relocked at `known_crashes: {}`. See `9b6f7e2`.
@@ -197,13 +206,13 @@ Result: 9/10 bench files below OXC, geo-mean 0.93×.
 | Item | State | What remains |
 |---|---|---|
 | **Architecture deepening chain (5/5 actionable + #4 deferred)** | ✅ **Complete** | #4 (shared AST traversal module) intentionally deferred — premature unless a third concrete walker pattern emerges. |
-| **#3 semantic checker migration** | ⚠️ **7 slices done, ≈7 categories remain (70 sites)** | Slices 1–7 built the core infrastructure: break/continue/labels (1), accessors (3), local class/object checks (4), strict-mode tracker (5), function-context tracker (6), formal-parameter scope (7). Slice 8+ is local long-tail — see "What To Work On Next". |
+| **#3 semantic checker migration** | ⚠️ **10 slices done, 48 sites remain (≈30 scope-tied + ≈18 long-tail)** | Slices 1–7 built the core infrastructure: break/continue/labels (1), accessors (3), local class/object checks (4), strict-mode tracker (5), function-context tracker (6), formal-parameter scope (7). Slices 8–10 cleaned up the obvious local rules: strict-directive in non-simple params (8), import/export position + invalid-LHS (9), class-name + arrow-param BindingIdentifier (10). The remaining 48 calls are dominated by scope-analysis tied checks (need to lift parser's `scope_*` machinery) and lex-time-dependent checks (yield-as-operand needs paren info, await-as-escaped-identifier needs has_escape info) — see "What To Work On Next". |
 | **Perf vs OXC** | ✅ **Restored to 0.93× geo-mean** (was 1.28×) | Future perf wins beyond s25 are exploratory. The W-cadence record (`docs/perf-session-22-final.md` … `perf-session-25-*.md`) documents what was tried and what worked. |
 | **`task test` chain end-to-end** | ✅ **All 18 gates green** | The recovery gate fix unblocked the full chain. |
 | **`odin -vet` cleanup** | ✅ **Complete** | All 33 warnings resolved. |
 | **Stale baselines (negative, test262:subset, oxc-corpus, bench, fuzz_invalid)** | ✅ **All relocked** | Clean reference for future regression detection. `fuzz_invalid_baseline.json` newly empty post slice-4 verifier fix. |
 | **8 "baselined fuzz crashes"** | ✅ **All cleared** — they were verifier maxBuffer false positives, not parser bugs. | — |
-| **Branch push** | ❌ slices 5/6/7 unpushed | `git push origin main` (3 commits). Earlier waves were pushed mid-session by the user. |
+| **Branch push** | ❌ slices 8/9/10 unpushed | `git push origin main` (3 commits). Slices 5/6/7 and earlier waves were pushed mid-session by the user. |
 
 `git stash list` empty. No WIP. No untracked files in `src/`.
 
@@ -213,20 +222,25 @@ Result: 9/10 bench files below OXC, geo-mean 0.93×.
 
 Prioritised:
 
-1. **Push the branch.** `git push origin main` — durably saves slices 5/6/7 (3 unpushed commits).
+1. **Push the branch.** `git push origin main` — durably saves slices 8/9/10 (3 unpushed commits).
 
-2. **Continue checker migration (slice 8+)** — the remaining ≈7 categories (70 sites). Slices 5–7 built the heavy infrastructure (strict-mode, function-context, params); slice 8+ should be smaller and more local. Suggested order:
-   - **Slice 8: yield-as-identifier-name + `await` as identifier in module/async**. Covers `'yield' cannot be used as the name of a generator function expression` (§15.5.1, 1 call), `'yield' cannot be used as a function name in strict mode` (2 calls), `'yield' cannot be used as a label identifier inside a generator function` (1 call), `'await' cannot be used as a class name in module / async context` (3 calls), `'await' is not allowed as an identifier in this context` (2 calls), `'enum' is a reserved identifier` (1 call), `'await'` / `'yield'` as arrow parameter names (2 calls). ≈12 calls. Most need a small `in_generator: bool` and `in_async: bool` flag pair on `CheckerContext` (function-kind context that complements slice 6's `in_method`).
-   - **Slice 9: `"use strict"` directive in non-simple-params**. Covers `Illegal 'use strict' directive in function with non-simple parameter list` (§10.2.1, 6 occurrences across regular/arrow/method/class). Approach: on each function-shape AST node with a non-simple param list, scan the body's directive prologue for `"use strict"` and emit. ≈6 calls.
-   - **Slice 10 — import/export-only-at-top-level + invalid LHS in assignment + private-field rules**: ≈10 long-tail one-offs. Local checks each, no shared context.
-   - **Approach (proven by slices 1–7):**
-     1. Add the AST walk + context flag in `src/checker.odin`.
-     2. **Delete** the corresponding `report_semantic_error*` call(s) in `parser.odin`. No flag-gating.
-     3. Run full gate chain. Relock expected-output fixtures if negative-gate anchors / messages change.
+2. **Slice 11+ candidates** — 48 inline calls remain. The progression from this session built up to the point where the *cheap* migrations are done; further migrations need either lex-time AST extensions or a major scope-analysis lift. Three buckets, in increasing cost:
 
-3. **Re-run `task test:bench:regression` on a quiet machine.** Reported a spurious 21% regression in the previous wave because of external load (`pi` + `zellij` saturating 6 cores). The locked baseline is correct; the regression was environmental. Confirmed: a temporary checkout of pre-slice-4 parser reproduced the same regression magnitude. The infrastructure-heavy slices 5–7 add per-AST-node walks (literals, identifiers, patterns) but ONLY when `--show-semantic-errors` is on — default `kessel parse` and `task bench:quick` paths are unchanged. Re-run on a quiet machine to confirm.
+   **2a. Cheap finishing touches (≈4–6 calls each):**
+   - **Function declaration in single-statement context** (§13.5 / Annex B.3.2, parser.odin:2379, 1 call). Approach: add `at_statement_list_item: bool` to context (similar to slice 9's `at_top_level` but BlockStatement.body / FunctionBody.body also count as StatementListItem positions).
+   - **`using` / `await using` at top level of script** (§14.3, parser.odin:1479, 1 call). Approach: in `check_program`, walk top-level VariableDeclaration nodes with kind in {.Using, .AwaitUsing}; if `program.type == .Script` (and not inside a module pre-scan-detected module), fire.
+   - **Function-name strict-reservation** (parser.odin:3743, 3778, 3966, 3 calls). Same pattern as slice 10's class-name check. AST: FunctionExpression.id / FunctionDeclaration.id (BindingIdentifier). Note: 3735 "yield as gen-fn-expr name" needs `in_export_default` context tracking that the AST doesn't preserve directly; partial migration only.
 
-4. **(Deferred — architecture review #4)** Shared AST traversal module. Slice 6 + 7 deleted ~290 lines of bespoke walkers (`scan_field_init_arguments`, `scan_arrow_cover_for_yield_await`, etc.) by folding them into the checker walk. The checker walker now covers literals, identifiers, patterns, and JSX in addition to the original break/continue scope tracking, so its surface roughly equals `pn_walk_*` (private-name verifier) and the emitter walk for many shapes. Slice 8+ may surface a third concrete pattern that justifies a unified `walker.odin`.
+   **2b. Lex-time-dependent (skip without parser changes):**
+   - **Yield expression as operator operand** (parser.odin:9931, 10200, 10335, 3 calls). The check uses `paren_wrapped` from a source-byte scan; without `--preserve-parens` (default OFF) the AST drops paren info. To migrate, add a `was_parenthesized: bool` flag to `^YieldExpression` at parse time. Cost: small parser change + AST-shape relock.
+   - **`await` as escaped identifier in module/async** (parser.odin:10617, 11746, 2 calls). The parser fires only when `cur_tok.has_escape && cur_tok.value == "await"`. The AST drops has_escape; non-escaped `await` in await-reserved context never reaches Identifier shape (the parser uses `.Await` token). Migration would need a `has_escape: bool` flag on `^Identifier`.
+
+   **2c. Scope-analysis migration (architectural, ≈30 calls in one pass):**
+   - The parser owns a `scope_*` family of procs (`scope_add`, `scope_map_*`, `scope_collect_pattern`, `scope_hoist_vars`, `scope_process_statement`) plus a `pn_walk_*` family (private-name resolver). They feed ≈30 of the remaining inline `report_semantic_error*` calls (duplicate scope bindings, duplicate exports, formal-param-vs-body redeclaration, private-name resolution, scope-bind clashes). Migrating them is a single architectural pass that lifts the entire scope analysis from parser.odin to checker.odin: builds a `Scope` tree alongside the AST walk, populates ScopeBinding entries from each declaration, and runs the conflict detection at scope-exit. Sketched as `slice 11: scope-analysis migration` in a future session — expected to delete ~600+ lines from parser.odin and add ~400 to checker.odin. Estimated 1–2 sessions of focused work.
+
+3. **Re-run `task test:bench:regression` on a quiet machine.** Reported a spurious 21% regression in the previous wave because of external load (`pi` + `zellij` saturating 6 cores). The locked baseline is correct; the regression was environmental. Confirmed: a temporary checkout of pre-slice-4 parser reproduced the same regression magnitude. Slices 5–10's infrastructure adds per-AST-node walks (literals, identifiers, patterns) but ONLY when `--show-semantic-errors` is on — default `kessel parse` and `task bench:quick` paths are unchanged. Re-run on a quiet machine to confirm.
+
+4. **(Deferred — architecture review #4)** Shared AST traversal module. Slice 6 + 7 deleted ~290 lines of bespoke walkers (`scan_field_init_arguments`, `scan_arrow_cover_for_yield_await`, etc.) by folding them into the checker walk. The checker walker now covers literals, identifiers, patterns, and JSX in addition to the original break/continue scope tracking. The 2c scope-analysis migration above would be a third concrete walker, justifying a unified `walker.odin` extraction afterward.
 
 ---
 
