@@ -9617,16 +9617,27 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `typeof yield`, `delete yield`, `+yield`, `-yield`, `~yield` in a
 		// generator body. (`yield` outside a generator is an Identifier,
 		// which IS a valid UnaryExpression operand, so the check is fine.)
-		// Note: AssignmentExpression as operand is technically also illegal
-		// by the grammar, but with --preserve-parens off `+(a=b)` reaches
-		// here as `+ AssignmentExpression`, which IS legal in source. Skip
-		// that gate until we have reliable paren-wrapping info.
-		if _, is_yield := argument.(^YieldExpression); is_yield {
-			// Structural parse error: §13.5 — UnaryExpression : <op>
-			// UnaryExpression. YieldExpression is at
-			// AssignmentExpression precedence and is therefore not a
-			// valid UnaryExpression operand.
-			report_error(p, "'yield' expression cannot be the operand of a unary operator")
+		// A parenthesised `(yield)` promotes the expression to primary-
+		// expression level; with --preserve-parens off the wrapper is
+		// stripped, so we detect the paren by scanning backwards from
+		// the yield's span start, mirroring the binary-op checks above.
+		// (Test262 / OXC parity: `void (yield)` inside a generator is
+		// legal; only the bare-yield form is rejected.)
+		if y, is_yield := argument.(^YieldExpression); is_yield {
+			yield_start := int(y.loc.span.start)
+			paren_wrapped := false
+			if p.lexer != nil && yield_start > 0 {
+				pi := yield_start - 1
+				for pi >= 0 {
+					pch := p.lexer.source_bytes[pi]
+					if pch == '(' { paren_wrapped = true; break }
+					if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
+					break
+				}
+			}
+			if !paren_wrapped {
+				report_error(p, "'yield' expression cannot be the operand of a unary operator")
+			}
 		}
 		if _, is_arrow := argument.(^ArrowFunctionExpression); is_arrow {
 			paren_wrapped := false
