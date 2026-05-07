@@ -29,6 +29,8 @@ import "core:os"
 import "core:path/filepath"
 import "core:testing"
 
+import kessel "../../../src"
+
 // ============================================================================
 // Parser-side tests (5)
 // ============================================================================
@@ -85,6 +87,69 @@ test_semantic_typescript :: proc(t: ^testing.T) {
 @(test)
 test_semantic_test262 :: proc(t: ^testing.T) {
 	run_snap_test(t, .Semantic, .Test262)
+}
+
+// ============================================================================
+// invariants gate — check AST structural integrity on misc fixtures
+// ============================================================================
+
+@(test)
+test_invariants :: proc(t: ^testing.T) {
+	root := find_kessel_root_for_test()
+	if root == "" {
+		testing.expectf(t, false, "could not locate kessel project root")
+		return
+	}
+
+	fixtures := load_misc(root, context.allocator)
+	if len(fixtures) == 0 {
+		testing.expectf(t, false, "no misc fixtures found")
+		return
+	}
+
+	total_checked := 0
+	total_violations := 0
+
+	for fix in fixtures {
+		cfg := kessel.ParseConfig{
+			lang_override          = fix.lang,
+			source_type_override   = fix.source_type,
+			strict_source_type     = false,
+			force_strict           = fix.force_strict,
+			preserve_parens        = false,
+			ast_only               = false,
+			check_semantics        = false,
+			source_is_dts_override = fix.source_is_dts,
+		}
+
+		job: kessel.ParseJob
+		if !kessel.parse_job_open_inline(&job, fix.code, cfg, fix.path) { continue }
+		kessel.parse_job_run(&job)
+
+		if len(job.parser.errors) == 0 && job.program != nil {
+			report: InvariantReport
+			invariant_report_init(&report, context.temp_allocator)
+			check_program(job.program, &report)
+
+			if !invariant_report_ok(report) {
+				total_violations += len(report.violations)
+				if total_violations <= 5 {
+					for v in report.violations {
+						testing.expectf(t, false, "%s: %s: %s", fix.rel, v.node, v.message)
+					}
+				}
+			}
+			total_checked += 1
+		}
+
+		kessel.parse_job_close(&job)
+	}
+
+	if total_violations > 0 {
+		testing.expectf(t, false, "invariants: %d violation(s) in %d checked fixtures", total_violations, total_checked)
+	} else {
+		testing.expectf(t, true, "invariants: %d fixture(s) checked, 0 violations", total_checked)
+	}
 }
 
 // ============================================================================

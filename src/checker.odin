@@ -47,6 +47,7 @@ package kessel
 
 import "core:mem"
 import "core:fmt"
+import "core:strings"
 
 // CheckerLabel — one label currently in scope.
 //
@@ -532,6 +533,47 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				}
 			}
 		}
+		// §14.13.1 — LabelIdentifier is a BindingIdentifier disguise; the
+		// IdentifierReference reservation rules apply:
+		//   * `yield` reserved in strict mode (§12.7.2)
+		//   * `await` reserved in module code (§16.2.2)
+		//   * Escaped contextual-reserved words are reserved unconditionally
+		//     (§12.7.2; matches our parser's check_identifier_await_reserved).
+		if v.label.name == "yield" && ctx.strict_mode {
+			ck_report(c, u32(v.label.loc.span.start),
+				"'yield' is reserved as a label name in strict mode")
+		}
+		if v.label.name == "await" && ctx.source_type == .Module {
+			ck_report(c, u32(v.label.loc.span.start),
+				"'await' is reserved as a label name in module code")
+		}
+		// Escaped reserved word as label — e.g. `aw\u0061it: 1;` in module
+		// (test262 labeled/value-await-module-escaped.js). The reservation
+		// is context-conditional: `await` is only reserved in modules /
+		// async, `yield` in strict / generators, `let`/`static` in strict.
+		// In a context where the cooked name ISN'T reserved, the escape
+		// is just a stylistic identifier choice and must be allowed (test262
+		// labeled/value-await-non-module-escaped.js + value-yield-non-strict-
+		// escaped.js). LabelIdentifier doesn't carry has_escape, so we probe
+		// the lexer source bytes for `\u` to detect the escaped form.
+		lbl_is_reserved := false
+		switch v.label.name {
+		case "await":  lbl_is_reserved = ctx.source_type == .Module || ctx.in_async
+		case "yield":  lbl_is_reserved = ctx.strict_mode || ctx.in_generator
+		case "let":    lbl_is_reserved = ctx.strict_mode
+		case "static": lbl_is_reserved = ctx.strict_mode
+		}
+		if lbl_is_reserved && c.pending_parser != nil && c.pending_parser.lexer != nil {
+			src := c.pending_parser.lexer.source
+			lbl_start := int(v.label.loc.span.start)
+			lbl_end   := int(v.label.loc.span.end)
+			if lbl_start >= 0 && lbl_end > lbl_start && lbl_end <= len(src) {
+				if strings.contains(src[lbl_start:lbl_end], "\\u") {
+					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", v.label.name)
+					ck_report(c, u32(v.label.loc.span.start), msg)
+				}
+			}
+		}
 		// §14.13.1 — duplicate label declared in scope.
 		ck_check_label_redeclared(c, ctx, v.label.name, u32(v.label.loc.span.start))
 		entry := CheckerLabel{
@@ -554,6 +596,26 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	case ^IfStatement:
 		if v == nil { return }
 		ck_walk_expr(c, ctx, v.test)
+		// §13.6 + §B.3.3 — plain FunctionDeclaration as the consequent /
+		// alternate of `if` is allowed only in sloppy mode (Annex B carve-
+		// out). Strict mode rejects every shape (`if (x) function f(){}`,
+		// `if (x) {} else function f(){}`, `if (x) function f(){} else g`).
+		//
+		// LABELLED function declarations (`if (x) lbl: function f(){}`)
+		// are NEVER permitted, even in sloppy mode — Annex B.3.2 only
+		// extends the carve-out to plain FunctionDeclaration. The labelled
+		// shape is rejected in both modes.
+		if ctx.strict_mode {
+			ck_check_single_stmt_function(c, v.consequent)
+			if alt, have := v.alternate.(^Statement); have && alt != nil {
+				ck_check_single_stmt_function(c, alt)
+			}
+		} else {
+			ck_check_if_labelled_function(c, v.consequent)
+			if alt, have := v.alternate.(^Statement); have && alt != nil {
+				ck_check_if_labelled_function(c, alt)
+			}
+		}
 		ck_walk_stmt(c, ctx, v.consequent)
 		if alt, have := v.alternate.(^Statement); have && alt != nil {
 			ck_walk_stmt(c, ctx, alt)
@@ -814,6 +876,15 @@ ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDecla
 			ck_check_strict_binding_pattern(c, d.id, .Generic)
 		}
 	}
+	// §16.2.2 — module code carries the [+Await] grammar parameter, so
+	// `await` is reserved in BindingIdentifier positions. `var await;`,
+	// `let await;`, `const await = 1;` at module scope are all SyntaxError
+	// (test262 reserved-words/await-module.js).
+	if ctx.source_type == .Module {
+		for d in decl.declarations {
+			ck_check_module_await_binding(c, d.id)
+		}
+	}
 	// §14.3.1.1 — BoundNames of a LexicalDeclaration must not contain
 	// `"let"`. `var let;` stays legal (Annex B.3.4.4); `let let;` and
 	// `const let;` are SyntaxErrors regardless of strict mode.
@@ -861,10 +932,14 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// inherit the surrounding strict mode but never lift it.
 		prev_in_params  := ctx.in_params
 		prev_arrow_par  := ctx.params_is_arrow
+		prev_static_blk := ctx.in_class_static_block
 		ctx.in_params       = true
 		ctx.params_is_arrow = true
 		ctx.in_async        = outer_in_async || e.async
 		ctx.in_generator    = outer_in_gen
+		// Arrow PARAMS are evaluated under the enclosing [+Await]
+		// context (so `static { (await => 0); }` correctly rejects
+		// the `await` arrow param). Keep in_class_static_block here.
 		// §15.3.1 / §15.9.1 — ArrowFunction params are ALWAYS
 		// UniqueFormalParameters, regardless of strict / sloppy or
 		// simple / non-simple. Match parser.odin's old
@@ -883,12 +958,27 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		ctx.params_is_arrow = prev_arrow_par
 		ctx.in_async        = e.async
 		ctx.in_generator    = false
+		// §15.7.5 / ContainsAwait static semantic: nested function /
+		// arrow BODY is its own [Await]-context boundary for the
+		// `ContainsAwait of ClassStaticBlockStatementList` rule. An
+		// `await` IdentifierReference (shorthand `{ await }` etc.)
+		// inside the arrow body is NOT an AwaitExpression in the
+		// static block's scope, so reset the flag for the body walk
+		// and restore on exit. Test262
+		// expressions/object/identifier-shorthand-static-init-await-valid.js.
+		ctx.in_class_static_block = false
+		defer ctx.in_class_static_block = prev_static_blk
 		#partial switch body in e.body {
 		case ^Expression:     if body != nil { ck_walk_expr(c, ctx, body) }
 		case ^BlockStatement:
 			if body != nil {
 				// Arrow block body is function-scope (§15.3.1).
 				ck_run_scope_check(c, ctx, body.body[:], false)
+				// §15.3.1 / §15.9.1 — BoundNames of FormalParameters may
+				// not occur in LexicallyDeclaredNames of FunctionBody.
+				// `(bar) => { let bar; }` is a SyntaxError. ck_walk_function
+				// already runs this for non-arrow shapes; mirror it here.
+				ck_check_params_vs_body_lex(c, e.params[:], body.body[:])
 				for s in body.body { ck_walk_stmt(c, ctx, s) }
 			}
 		}
@@ -1145,6 +1235,16 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			ck_check_identifier_reference_strict(c, ctx, e)
 			// §16.2 / §15.7.5 — escaped `await` in async / class-static-block.
 			ck_check_identifier_await_reserved(c, ctx, e)
+			// §15.7.5 — ClassStaticBlockBody runs under [+Await]: bare
+			// `await` is reserved as both BindingIdentifier and
+			// IdentifierReference. The parser doesn't track this for the
+			// IdentifierReference case (it disables in_async at static-block
+			// entry, so `await;` lexes/parses as an Identifier instead of
+			// an AwaitExpression). The checker fires the early error.
+			if e.name == "await" && ctx.in_class_static_block {
+				ck_report(c, u32(e.loc.span.start),
+					"'await' is reserved in a class static block")
+			}
 		}
 
 	case ^PrivateIdentifier:
@@ -1307,9 +1407,17 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		for pr in fn.params { ck_check_strict_param_pattern(c, pr.pattern) }
 	}
 	// §15.5.1 / §15.6.1 / §15.8.1 — duplicate parameter names.
+	//
+	// MethodDefinition (§15.4) ALWAYS has UniqueFormalParameters —
+	// regardless of outer strict mode — because the production already
+	// names that constraint. Class method bodies fire this naturally
+	// because ClassBody is implicitly strict; object-literal methods
+	// don't, so we force the strict-flavoured uniqueness check for
+	// `kind == .Method`. Async / generator functions of any flavour also
+	// require strict-flavoured uniqueness.
 	params_simple := params_are_simple(fn.params[:])
 	force_non_simple := !params_simple
-	dup_strict := ctx.strict_mode || fn.async || fn.generator
+	dup_strict := ctx.strict_mode || fn.async || fn.generator || kind == .Method
 	ck_check_duplicate_param_names(c, u32(fn.loc.span.start), fn.params[:], dup_strict, force_non_simple)
 	for pr in fn.params {
 		ck_walk_pattern(c, ctx, pr.pattern)
@@ -1382,11 +1490,21 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	if cls == nil { return }
 	has_extends := false
 	// super_class is evaluated in the OUTER scope (no function boundary,
-	// no class-body strict lift, no private-name visibility from THIS
-	// class — the heritage clause cannot reference its own privates).
+	// no private-name visibility from THIS class — the heritage clause
+	// cannot reference its own privates) but DOES inherit the implicit
+	// strict mode of the class declaration per §15.7.1: "All parts of a
+	// ClassDeclaration or ClassExpression are evaluated as strict-mode
+	// code." So `class C extends (function() { with ({}); }()) {}` must
+	// reject the inner `with` in the IIFE body, even when the outer
+	// program is sloppy. Lift strict_mode for the heritage walk and
+	// restore for the rest of ck_walk_class (the body-scope lift below
+	// re-applies it anyway).
+	prev_strict_heritage := ctx.strict_mode
 	if sc, have := cls.super_class.(^Expression); have && sc != nil {
 		has_extends = true
+		ctx.strict_mode = true
 		ck_walk_expr(c, ctx, sc)
+		ctx.strict_mode = prev_strict_heritage
 	}
 	// Push this class's declared private names onto the resolution
 	// stack BEFORE walking the class body. Pop on exit. The push is
@@ -1983,8 +2101,8 @@ ck_check_class_name :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpres
 		ck_report(c, loc, msg)
 		return
 	}
-	if name == "await" && (ctx.in_async || ctx.source_type == .Module) {
-		ck_report(c, loc, "'await' cannot be used as a class name in module / async context")
+	if name == "await" && (ctx.in_async || ctx.source_type == .Module || ctx.in_class_static_block) {
+		ck_report(c, loc, "'await' cannot be used as a class name in module / async / static-block context")
 	}
 }
 
@@ -2024,8 +2142,8 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 	if name == "enum" {
 		ck_report(c, loc, "'enum' is a reserved identifier")
 	}
-	if name == "await" && (ctx.in_async || ctx.source_type == .Module) {
-		ck_report(c, loc, "'await' cannot be used as an arrow parameter in module / async context")
+	if name == "await" && (ctx.in_async || ctx.source_type == .Module || ctx.in_class_static_block) {
+		ck_report(c, loc, "'await' cannot be used as an arrow parameter in module / async / static-block context")
 	}
 	if name == "yield" && (ctx.in_generator || ctx.strict_mode) {
 		ck_report(c, loc, "'yield' cannot be used as an arrow parameter in generator / strict context")
@@ -2290,6 +2408,37 @@ ck_check_label_redeclared :: proc(c: ^Checker, ctx: ^CheckerContext, name: strin
 	if _, have := label_in_scope(ctx, name); have {
 		msg := fmt.tprintf("Label '%s' has already been declared", name)
 		ck_report(c, off, msg)
+	}
+}
+
+// ck_check_if_labelled_function — §13.6.1 — LABELLED function
+// declarations are never allowed as the consequent / alternate of an
+// `if` statement, even in sloppy mode. Annex B.3.2 extends FunctionDecl
+// to single-statement positions but ONLY for plain (unlabelled)
+// FunctionDecl; a wrapping LabeledStatement disqualifies the carve-out.
+//
+// Walks past LabeledStatement layers; fires when the inner statement
+// is a FunctionDeclaration AND we passed at least one label on the way.
+@(private="file")
+ck_check_if_labelled_function :: proc(c: ^Checker, body: ^Statement) {
+	s := body
+	label_count := 0
+	for s != nil {
+		#partial switch v in s^ {
+		case ^LabeledStatement:
+			if v == nil { return }
+			label_count += 1
+			s = v.body
+		case ^FunctionDeclaration:
+			if v == nil { return }
+			if label_count == 0 { return }  // unlabelled — Annex B allows
+			if v.async || v.generator { return } // parser-side syntax error
+			ck_report(c, u32(v.loc.span.start),
+				"Labelled function declaration cannot appear in a single-statement context")
+			return
+		case:
+			return
+		}
 	}
 }
 
@@ -3013,6 +3162,38 @@ ck_check_identifier_reference_strict :: proc(c: ^Checker, ctx: ^CheckerContext, 
 	ck_report(c, u32(id.loc.span.start), msg)
 }
 
+// ck_check_module_await_binding — §16.2.2 — the BindingIdentifier
+// `await` is reserved in module code (the [+Await] grammar parameter is
+// set). Recurses through destructuring patterns so `var { await } = obj;`,
+// `var [await] = arr;` and `var { x: await } = obj;` all fire.
+@(private="file")
+ck_check_module_await_binding :: proc(c: ^Checker, pat: Pattern) {
+	#partial switch p in pat {
+	case ^Identifier:
+		if p == nil { return }
+		if p.name == "await" {
+			ck_report(c, u32(p.loc.span.start),
+				"'await' is reserved as a binding name in module code")
+		}
+	case ^ArrayPattern:
+		if p == nil { return }
+		for el in p.elements {
+			if inner, have := el.(Pattern); have { ck_check_module_await_binding(c, inner) }
+		}
+	case ^ObjectPattern:
+		if p == nil { return }
+		for pr in p.properties {
+			ck_check_module_await_binding(c, pr.value)
+		}
+	case ^RestElement:
+		if p == nil { return }
+		ck_check_module_await_binding(c, p.argument)
+	case ^AssignmentPattern:
+		if p == nil { return }
+		ck_check_module_await_binding(c, p.left)
+	}
+}
+
 // ck_check_identifier_await_reserved — §16.2 / §15.7.5 — the cooked
 // IdentifierName `await` cannot serve as an IdentifierReference in a
 // context where `await` is reserved (async function body, async
@@ -3024,9 +3205,17 @@ ck_check_identifier_reference_strict :: proc(c: ^Checker, ctx: ^CheckerContext, 
 // gating in parse_unary_expr's identifier fast-path and
 // parse_primary_expr's fallback identifier branch).
 //
-// Module top-level is intentionally NOT a reserved context here — OXC
-// (kessel's conformance oracle) accepts `let await = 1;` at module
-// top-level binding positions, so the checker matches OXC.
+// Binding-position `await` (e.g. `var await;`) at module top-level is
+// caught upstream by ck_check_module_await_binding from
+// ck_walk_var_decl; this proc handles the IdentifierReference case
+// (e.g. an escaped `\u0061wait` used as a bare reference).
+//
+// Module top-level IdentifierReference `await` is intentionally NOT a
+// reserved context here — it's valid as the head of a top-level
+// AwaitExpression. The reservation only applies to BindingIdentifier
+// positions (handled by ck_check_module_await_binding) and to escaped
+// forms in restricted contexts.
+//
 @(private="file")
 ck_check_identifier_await_reserved :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
 	if id == nil || id.name != "await" { return }

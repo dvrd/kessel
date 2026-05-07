@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12552/12692 (98.90%)
-Positive Passed: 12552/12692 (98.90%)
-Negative Passed: 1603/3470 (46.20%)
+AST Parsed     : 12551/12692 (98.89%)
+Positive Passed: 12551/12692 (98.89%)
+Negative Passed: 1606/3470 (46.28%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1220,9 +1220,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalM
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.11.ts::index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.11.ts::other.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.12.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.7.ts::index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.7.ts::other.ts
@@ -2044,6 +2041,9 @@ typescript/tests/cases/conformance/externalModules/exportNonLocalDeclarations.ts
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/moduleResolutionWithoutExtension6.ts
 typescript/tests/cases/conformance/externalModules/moduleResolutionWithoutExtension6.ts:4:1: 'import' is only valid in module code
+
+Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts
+typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts:3:15: 'await' is reserved as a binding name in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/exportNamespace9.ts::/c.ts
 typescript/tests/cases/conformance/externalModules/typeOnly/exportNamespace9.ts::/c.ts:2:1: 'A' has already been declared
@@ -3166,7 +3166,10 @@ typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportW
 typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithCommonjs.ts::1.ts:1:10: Expected as, got from
 typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithSystem.ts::1.ts:1:10: Expected as, got from
 typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.1.ts:4:11: Parenthesized expressions may not have a trailing comma.
-typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.5.ts:2:14: 'await' cannot be used as a class name in module / async context
+typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.2.ts:4:5: 'await' is reserved as a binding name in module code
+typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.3.ts:4:6: 'await' is reserved as a binding name in module code
+typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.4.ts:4:6: 'await' is reserved as a binding name in module code
+typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.5.ts:2:14: 'await' cannot be used as a class name in module / async / static-block context
 typescript/tests/cases/conformance/externalModules/typeOnly/exportDeclaration_missingBraces.ts:11:16: Expected =, got ;
 typescript/tests/cases/conformance/externalModules/typeOnly/exportNamespace_js.ts::b.js:1:20: Expected semicolon
 typescript/tests/cases/conformance/externalModules/typeOnly/exportSpecifiers.ts::/exports.ts:9:15: The 'type' modifier cannot be used in a type-only export

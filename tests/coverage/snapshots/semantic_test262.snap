@@ -1,34 +1,10 @@
 semantic_test262 Summary:
 AST Parsed     : 47088/47090 (100.00%)
 Positive Passed: 47088/47090 (100.00%)
-Negative Passed: 4561/4588 (99.41%)
-Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/function-declarations/in-statement-position-if-expression-statement-else-statement.js
-Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/function-declarations/in-statement-position-if-expression-statement.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-binding.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-init-await-binding.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters.js
-Expect Syntax Error: tasks/coverage/test262/test/language/identifier-resolution/static-init-invalid-await.js
+Negative Passed: 4585/4588 (99.93%)
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/top-level-await/new-await.js
-Expect Syntax Error: tasks/coverage/test262/test/language/reserved-words/await-module.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-await-binding-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/strict-mode/with.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-decl-else-decl-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-decl-else-stmt-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-decl-no-else-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-fun-else-fun-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-fun-else-stmt-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-fun-no-else-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-stmt-else-decl-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-stmt-else-fun-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/labelled-fn-stmt-first.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/labelled-fn-stmt-lone.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/labelled-fn-stmt-second.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/static-init-invalid-await.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-yield-strict.js
 Expect to Parse: tasks/coverage/test262/test/language/expressions/assignment/destructuring/obj-prop-__proto__dup.js
 test262/test/language/expressions/assignment/destructuring/obj-prop-__proto__dup.js:19:26: Redefinition of __proto__ property
 
@@ -277,6 +253,8 @@ test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindin
 test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindings.js:14:6: Only a single declaration is allowed in a for-in loop
 test262/test/language/block-scope/syntax/function-declarations/in-statement-position-do-statement-while-expression.js:14:4: Function declaration cannot appear in a single-statement context
 test262/test/language/block-scope/syntax/function-declarations/in-statement-position-for-statement.js:14:15: Function declaration cannot appear in a single-statement context
+test262/test/language/block-scope/syntax/function-declarations/in-statement-position-if-expression-statement-else-statement.js:15:19: Function declaration cannot appear in a single-statement context
+test262/test/language/block-scope/syntax/function-declarations/in-statement-position-if-expression-statement.js:15:11: Function declaration cannot appear in a single-statement context
 test262/test/language/block-scope/syntax/function-declarations/in-statement-position-while-expression-statement.js:14:15: Function declaration cannot appear in a single-statement context
 test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-function.js:23:40: 'f' has already been declared
 test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-generator.js:23:41: 'f' has already been declared
@@ -475,6 +453,8 @@ test262/test/language/expressions/arrow-function/param-dflt-yield-id-strict.js:2
 test262/test/language/expressions/arrow-function/params-duplicate.js:33:4: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/arrow-function/rest-param-strict-body.js:129:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/arrow-function/rest-params-trailing-comma-early-error.js:54:9: Rest element may not have a trailing comma
+test262/test/language/expressions/arrow-function/static-init-await-binding.js:16:6: 'await' cannot be used as an arrow parameter in module / async / static-block context
+test262/test/language/expressions/arrow-function/static-init-await-reference.js:16:11: 'await' is reserved in a class static block
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-identifier-futurereservedword.js:24:10: 'enum' is a reserved word
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-identifier-strict-futurereservedword.js:27:10: 'package' is a reserved identifier in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-identifier.js:24:10: Expected initializer expression after '='
@@ -927,6 +907,7 @@ test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-c
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-property.js:15:17: 'super' is only allowed in class methods or object-literal methods
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-duplicate-parameters.js:35:1: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-eval-in-formal-parameters.js:16:7: Arrow parameter 'eval' is not allowed in strict mode
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js:15:17: Formal parameter 'bar' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-call.js:15:13: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-property.js:15:14: 'super' is only allowed in class methods or object-literal methods
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js:34:1: Invalid expression for arrow function parameters
@@ -1123,8 +1104,8 @@ test262/test/language/expressions/class/async-method/dflt-params-rest.js:65:28: 
 test262/test/language/expressions/class/async-method/object-destructuring-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-method/rest-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-method/rest-params-trailing-comma-early-error.js:57:27: A rest parameter or binding pattern may not have a trailing comma.
-test262/test/language/expressions/class/class-name-ident-await-escaped-module.js:23:15: 'await' cannot be used as a class name in module / async context
-test262/test/language/expressions/class/class-name-ident-await-module.js:22:15: 'await' cannot be used as a class name in module / async context
+test262/test/language/expressions/class/class-name-ident-await-escaped-module.js:23:15: 'await' cannot be used as a class name in module / async / static-block context
+test262/test/language/expressions/class/class-name-ident-await-module.js:22:15: 'await' cannot be used as a class name in module / async / static-block context
 test262/test/language/expressions/class/class-name-ident-let-escaped.js:27:15: Keyword 'let' must not contain escaped characters
 test262/test/language/expressions/class/class-name-ident-let.js:27:15: 'let' is a reserved identifier and cannot be a class name
 test262/test/language/expressions/class/class-name-ident-static-escaped.js:27:15: Keyword 'static' must not contain escaped characters
@@ -1668,6 +1649,7 @@ test262/test/language/expressions/class/method/object-destructuring-param-strict
 test262/test/language/expressions/class/method/rest-param-strict-body.js:151:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/method/rest-params-trailing-comma-early-error.js:76:14: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/static-gen-method-param-dflt-yield.js:26:17: 'yield' expression is not allowed in formal parameters of a generator
+test262/test/language/expressions/class/static-init-await-binding.js:21:12: 'await' cannot be used as a class name in module / async / static-block context
 test262/test/language/expressions/class/static-method-param-dflt-yield.js:21:16: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/coalesce/cannot-chain-head-with-logical-and.js:31:15: Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses
 test262/test/language/expressions/coalesce/cannot-chain-head-with-logical-or.js:31:15: '&&' and '||' operators cannot be directly combined with '??' operator without parentheses
@@ -2241,6 +2223,7 @@ test262/test/language/expressions/object/method-definition/early-errors-object-m
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals-default.js:16:18: Top-level 'await' is only valid in module code
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals.js:16:14: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/object/method-definition/early-errors-object-method-body-contains-super-call.js:16:18: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters.js:26:6: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-eval-in-formal-parameters.js:17:13: Parameter name 'eval' is not allowed in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-body-duplicate.js:17:18: Generator/async shorthand property not allowed
 test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-contains-super-call.js:15:19: 'super' call is only allowed in the constructor of a derived class
@@ -2274,7 +2257,7 @@ test262/test/language/expressions/object/method-definition/generator-super-call-
 test262/test/language/expressions/object/method-definition/generator-super-call-param.js:20:14: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/object/method-definition/generator-use-strict-with-non-simple-param.js:21:5: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/meth-array-destructuring-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/meth-dflt-params-duplicates.js:62:9: Duplicate parameter name 'x' with non-simple parameter list
+test262/test/language/expressions/object/method-definition/meth-dflt-params-duplicates.js:62:9: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/meth-dflt-params-rest.js:66:15: Expected ), got =
 test262/test/language/expressions/object/method-definition/meth-object-destructuring-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/meth-rest-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
@@ -2415,6 +2398,7 @@ test262/test/language/global-code/super-call.js:20:1: 'super' call is only allow
 test262/test/language/global-code/super-prop-arrow.js:36:3: 'super' is only allowed in class methods or object-literal methods
 test262/test/language/global-code/super-prop.js:20:1: 'super' is only allowed in class methods or object-literal methods
 test262/test/language/global-code/yield-strict.js:25:1: 'yield' is a reserved identifier in strict mode
+test262/test/language/identifier-resolution/static-init-invalid-await.js:23:5: 'await' is reserved in a class static block
 test262/test/language/identifiers/start-zwj-escaped.js:15:5: Expected binding pattern
 test262/test/language/identifiers/start-zwnj-escaped.js:15:5: Expected binding pattern
 test262/test/language/identifiers/unicode-escape-nls-err.js:48:5: Expected binding pattern
@@ -3081,6 +3065,7 @@ test262/test/language/punctuators/S7.7_A2_T6.js:17:2: Expected semicolon
 test262/test/language/punctuators/S7.7_A2_T7.js:17:2: Expected semicolon
 test262/test/language/punctuators/S7.7_A2_T8.js:17:2: Expected semicolon
 test262/test/language/punctuators/S7.7_A2_T9.js:17:2: Expected semicolon
+test262/test/language/reserved-words/await-module.js:15:5: 'await' is reserved as a binding name in module code
 test262/test/language/reserved-words/ident-reference-false-escaped.js:20:1: Keyword 'false' must not contain escaped characters
 test262/test/language/reserved-words/ident-reference-false.js:23:8: Reserved word 'false' is not a valid binding identifier
 test262/test/language/reserved-words/ident-reference-null-escaped.js:20:1: Keyword 'null' must not contain escaped characters
@@ -3271,8 +3256,8 @@ test262/test/language/statements/class/async-method/dflt-params-rest.js:65:21: E
 test262/test/language/statements/class/async-method/object-destructuring-param-strict-body.js:132:15: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-method/rest-param-strict-body.js:132:15: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-method/rest-params-trailing-comma-early-error.js:57:20: A rest parameter or binding pattern may not have a trailing comma.
-test262/test/language/statements/class/class-name-ident-await-escaped-module.js:23:7: 'await' cannot be used as a class name in module / async context
-test262/test/language/statements/class/class-name-ident-await-module.js:22:7: 'await' cannot be used as a class name in module / async context
+test262/test/language/statements/class/class-name-ident-await-escaped-module.js:23:7: 'await' cannot be used as a class name in module / async / static-block context
+test262/test/language/statements/class/class-name-ident-await-module.js:22:7: 'await' cannot be used as a class name in module / async / static-block context
 test262/test/language/statements/class/class-name-ident-let-escaped.js:27:7: Keyword 'let' must not contain escaped characters
 test262/test/language/statements/class/class-name-ident-let.js:27:7: 'let' is a reserved identifier and cannot be a class name
 test262/test/language/statements/class/class-name-ident-static-escaped.js:27:7: Keyword 'static' must not contain escaped characters
@@ -3844,6 +3829,7 @@ test262/test/language/statements/class/private-non-static-setter-static-getter-e
 test262/test/language/statements/class/private-static-getter-non-static-setter-early-error.js:17:3: Private getter and setter for '#f' must both be static or both be non-static
 test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js:17:3: Private getter and setter for '#f' must both be static or both be non-static
 test262/test/language/statements/class/static-gen-method-param-dflt-yield.js:26:17: 'yield' expression is not allowed in formal parameters of a generator
+test262/test/language/statements/class/static-init-await-binding-invalid.js:24:11: 'await' cannot be used as a class name in module / async / static-block context
 test262/test/language/statements/class/static-init-invalid-await.js:30:7: 'await' is not allowed in a class static block
 test262/test/language/statements/class/static-init-invalid-label-dup.js:21:8: Label 'x' has already been declared
 test262/test/language/statements/class/static-init-invalid-lex-dup.js:22:5: 'x' has already been declared
@@ -3854,6 +3840,7 @@ test262/test/language/statements/class/static-init-invalid-undefined-break-targe
 test262/test/language/statements/class/static-init-invalid-undefined-continue-target.js:22:7: Undefined label
 test262/test/language/statements/class/static-init-invalid-yield.js:24:7: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/static-method-param-yield.js:21:16: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/strict-mode/with.js:14:33: 'with' statements are not allowed in strict mode
 test262/test/language/statements/class/syntax/early-errors/class-definition-evaluation-block-duplicate-binding.js:17:9: 'A' has already been declared
 test262/test/language/statements/class/syntax/early-errors/class-definition-evaluation-scriptbody-duplicate-binding.js:16:7: 'A' has already been declared
 test262/test/language/statements/class/syntax/escaped-static.js:24:15: Expected (, got identifier
@@ -4319,6 +4306,12 @@ test262/test/language/statements/if/if-cls-no-else.js:15:1: Class declaration ca
 test262/test/language/statements/if/if-const-else-const.js:14:27: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-const-else-stmt.js:14:27: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-const-no-else.js:15:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-decl-else-decl-strict.js:24:11: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-decl-else-stmt-strict.js:24:11: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-decl-no-else-strict.js:24:11: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-fun-else-fun-strict.js:25:11: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-fun-else-stmt-strict.js:25:11: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-fun-no-else-strict.js:25:11: Function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-gen-else-gen.js:15:30: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-gen-else-stmt.js:15:30: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-gen-no-else.js:16:1: Async / generator function declaration cannot appear in a single-statement context
@@ -4329,8 +4322,13 @@ test262/test/language/statements/if/if-stmt-else-async-fun.js:21:1: Async / gene
 test262/test/language/statements/if/if-stmt-else-async-gen.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-stmt-else-cls.js:15:1: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-stmt-else-const.js:15:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-stmt-else-decl-strict.js:28:19: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-stmt-else-fun-strict.js:29:19: Function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-stmt-else-gen.js:16:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-stmt-else-let.js:15:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/if/labelled-fn-stmt-first.js:29:28: Labelled function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/labelled-fn-stmt-lone.js:29:28: Labelled function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/labelled-fn-stmt-second.js:29:34: Labelled function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/labeled/continue.js:25:5: Illegal continue statement: label does not target an iteration statement
 test262/test/language/statements/labeled/decl-async-function.js:21:1: Async / generator function declaration cannot be a labeled item
@@ -4341,8 +4339,10 @@ test262/test/language/statements/labeled/decl-fun-strict.js:17:8: Function decla
 test262/test/language/statements/labeled/decl-gen.js:16:1: Async / generator function declaration cannot be a labeled item
 test262/test/language/statements/labeled/decl-let.js:15:1: Lexical declaration cannot be a labeled item
 test262/test/language/statements/labeled/let-array-with-newline.js:24:1: Lexical declaration cannot be a labeled item
+test262/test/language/statements/labeled/value-await-module-escaped.js:21:1: 'await' is reserved as a label name in module code
 test262/test/language/statements/labeled/value-await-module.js:20:6: 'await' expression requires an operand
 test262/test/language/statements/labeled/value-yield-strict-escaped.js:22:1: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/labeled/value-yield-strict.js:17:1: 'yield' is reserved as a label name in strict mode
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-ary.js:30:15: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-id.js:30:11: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-obj.js:30:15: Rest element must be last in array pattern
