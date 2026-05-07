@@ -98,6 +98,15 @@ CheckerLabel :: struct {
 // `in_class_static_block`: are we inside a class static block body
 //   (§15.7.5)? `arguments` and the `await` IdentifierReference are
 //   forbidden here. Inherited by arrows; reset by nested functions.
+// `in_params`: are we walking a function's formal-parameter list?
+//   YieldExpression / AwaitExpression nodes encountered here violate
+//   §15.5.1 / §15.6.1 / §15.8.1 / §15.9.1 (FormalParameters Contains
+//   YieldExpression / AwaitExpression is a SyntaxError). Cleared on
+//   entry to the function BODY so yield/await inside the body fires
+//   normally.
+// `params_is_arrow`: discriminant for the param-shape diagnostic.
+//   Arrow-param diagnostics use a slightly different message than
+//   regular-function-param diagnostics; this flag picks the right one.
 CheckerContext :: struct {
 	iter_depth:            int,
 	switch_depth:          int,
@@ -111,6 +120,8 @@ CheckerContext :: struct {
 	in_derived_constructor: bool,
 	in_field_init:         bool,
 	in_class_static_block: bool,
+	in_params:             bool,
+	params_is_arrow:       bool,
 }
 
 Checker :: struct {
@@ -558,9 +569,16 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// parse_program do), and the parser itself never lifts strict_mode
 		// for arrow block bodies. Match that behaviour here — arrow bodies
 		// inherit the surrounding strict mode but never lift it.
+		prev_in_params  := ctx.in_params
+		prev_arrow_par  := ctx.params_is_arrow
+		ctx.in_params       = true
+		ctx.params_is_arrow = true
 		for pr in e.params {
+			ck_walk_pattern(c, ctx, pr.pattern)
 			if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
 		}
+		ctx.in_params       = prev_in_params
+		ctx.params_is_arrow = prev_arrow_par
 		#partial switch body in e.body {
 		case ^Expression:     if body != nil { ck_walk_expr(c, ctx, body) }
 		case ^BlockStatement: if body != nil { for s in body.body { ck_walk_stmt(c, ctx, s) } }
@@ -658,9 +676,30 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if ctx.in_class_static_block {
 			ck_report(c, u32(e.loc.span.start), "'await' is not allowed in a class static block")
 		}
+		// §15.6.1 / arrow-cover: AwaitExpression in formal-parameter
+		// position is forbidden. Same arrow-vs-regular message split as
+		// the YieldExpression case.
+		if ctx.in_params {
+			if ctx.params_is_arrow {
+				ck_report(c, u32(e.loc.span.start), "Await expression is not allowed in arrow function parameters")
+			} else {
+				ck_report(c, u32(e.loc.span.start), "'await' expression is not allowed in formal parameters of an async function")
+			}
+		}
 		ck_walk_expr(c, ctx, e.argument)
 	case ^YieldExpression:
 		if e == nil { return }
+		// §15.5.1 / arrow-cover: YieldExpression in formal-parameter
+		// position is forbidden (the surrounding generator's scope
+		// only starts inside the body). The two diagnostic strings
+		// match the parser's existing arrow-vs-regular split.
+		if ctx.in_params {
+			if ctx.params_is_arrow {
+				ck_report(c, u32(e.loc.span.start), "Yield expression is not allowed in arrow function parameters")
+			} else {
+				ck_report(c, u32(e.loc.span.start), "'yield' expression is not allowed in formal parameters of a generator")
+			}
+		}
 		if a, have := e.argument.(^Expression); have && a != nil { ck_walk_expr(c, ctx, a) }
 	case ^ChainExpression:           if e != nil { ck_walk_expr(c, ctx, e.expression) }
 	case ^TaggedTemplateExpression:
@@ -822,14 +861,68 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	if !fn.no_body && fn_body_lifts_strict(fn.body) {
 		ctx.strict_mode = true
 	}
+	prev_in_params  := ctx.in_params
+	prev_arrow_par  := ctx.params_is_arrow
+	ctx.in_params       = true
+	ctx.params_is_arrow = false
 	for pr in fn.params {
+		ck_walk_pattern(c, ctx, pr.pattern)
 		if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
 	}
+	ctx.in_params       = prev_in_params
+	ctx.params_is_arrow = prev_arrow_par
 	if !fn.no_body {
 		for s in fn.body.body { ck_walk_stmt(c, ctx, s) }
 	}
 	ctx.function_depth -= 1
 	ck_exit_function(ctx, saved)
+}
+
+// ck_walk_pattern visits the expression positions inside a binding
+// Pattern (computed keys, AssignmentPattern.right defaults), so checks
+// keyed off ^YieldExpression / ^AwaitExpression / ^Identifier still
+// fire on `({x = yield 1} = ...)` etc. Patterns themselves are not
+// expressions, so the regular ck_walk_expr never reaches them.
+//
+// Today this is called only from the params walk (so in_params is
+// already true on entry). If a future slice needs to visit patterns
+// from a non-param context (e.g. for-of left-hand destructuring), the
+// caller is responsible for setting ctx.in_params accordingly.
+@(private="file")
+ck_walk_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
+	if pat == nil { return }
+	switch pp in pat {
+	case ^Identifier, ^MemberExpression:
+		return
+	case ^AssignmentPattern:
+		if pp == nil { return }
+		ck_walk_pattern(c, ctx, pp.left)
+		ck_walk_expr(c, ctx, pp.right)
+	case ^ObjectPattern:
+		if pp == nil { return }
+		for prop in pp.properties {
+			// Computed key contains an arbitrary expression that can
+			// reference yield / await; walk it. Non-computed keys are
+			// IdentifierName / StringLiteral literals — nothing to walk.
+			if prop.computed {
+				if key_outer, have := prop.key.(ObjectPatternPropertyKey); have {
+					if expr, ok := key_outer.(^Expression); ok && expr != nil {
+						ck_walk_expr(c, ctx, expr)
+					}
+				}
+			}
+			ck_walk_pattern(c, ctx, prop.value)
+		}
+	case ^ArrayPattern:
+		if pp == nil { return }
+		for elem in pp.elements {
+			if inner, have := elem.(Pattern); have {
+				ck_walk_pattern(c, ctx, inner)
+			}
+		}
+	case ^RestElement:
+		if pp != nil { ck_walk_pattern(c, ctx, pp.argument) }
+	}
 }
 
 @(private="file")

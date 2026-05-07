@@ -87,7 +87,7 @@
   ],
   "errors": [
     {
-      "message": "'await' expression is not allowed in formal parameters of an async function",
+      "message": "Await expression is not allowed in arrow function parameters",
       "line": 7,
       "column": 12,
       "offset": 408
@@ -95,7 +95,7 @@
   ]
 }
 Parse errors (1):
-  Line 7, Column 12: 'await' expression is not allowed in formal parameters of an async function
+  Line 7, Column 12: Await expression is not allowed in arrow function parameters
 
 --- Statistics ---
 Arena: used=38696B reserved=16777216B ratio=0%

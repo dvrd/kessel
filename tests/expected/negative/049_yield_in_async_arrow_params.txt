@@ -117,14 +117,14 @@
     {
       "message": "Yield expression is not allowed in arrow function parameters",
       "line": 9,
-      "column": 30,
-      "offset": 536
+      "column": 21,
+      "offset": 527
     }
   ]
 }
 Parse errors (1):
-  Line 9, Column 30: Yield expression is not allowed in arrow function parameters
+  Line 9, Column 21: Yield expression is not allowed in arrow function parameters
 
 --- Statistics ---
-Arena: used=37840B reserved=16777216B ratio=0%
+Arena: used=37824B reserved=16777216B ratio=0%
 Parse errors: 1

@@ -10523,9 +10523,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// parameter default of any async function-like form is forbidden
 		// even though the body itself is async - params are evaluated in
 		// the outer context.
-		if p.in_async_params {
-			report_semantic_error(p, "'await' expression is not allowed in formal parameters of an async function")
-		}
+		// §15.6.1 / §15.8.1 / §15.9.1 "AwaitExpression in formal
+		// parameters" early error: enforced by the semantic checker
+		// (^AwaitExpression case in ck_walk_expr) using its own
+		// ctx.in_params tracker.
 		current := p.cur_tok
 		eat(p)
 		prev_private_in_allowed := p.private_in_allowed
@@ -13189,9 +13190,9 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	// the generator scope only starts INSIDE the body. We flag the
 	// parent parser to mark this window with `in_generator_params`; the
 	// yield-expression constructor here consults it.
-	if p.in_generator_params {
-		report_semantic_error(p, "'yield' expression is not allowed in formal parameters of a generator")
-	}
+	// §15.5.1 / arrow-cover "YieldExpression in formal parameters"
+	// early error: enforced by the semantic checker (^YieldExpression
+	// case in ck_walk_expr) using its own ctx.in_params tracker.
 	// Note: `yield :` as a LabelledStatement head can't reach this
 	// function in a generator. parse_expression_statement only forms
 	// a label when the parsed expression is a plain ^Identifier; in a
@@ -13656,48 +13657,20 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 	return nil, false
 }
 
-// ECMA-262 §15.3.1 (and §15.9.1 for AsyncArrow):
-//   "It is a Syntax Error if ArrowParameters Contains YieldExpression is
-//   true."
-//   "It is a Syntax Error if CoverCallExpressionAndAsyncArrowHead Contains
-//   AwaitExpression is true."
+// §15.3.1 / §15.9.1 "ArrowParameters Contains YieldExpression /
+// CoverCallExpressionAndAsyncArrowHead Contains AwaitExpression" early
+// errors are now enforced by the semantic checker (^YieldExpression /
+// ^AwaitExpression cases in ck_walk_expr) using ctx.in_params /
+// ctx.params_is_arrow. The bespoke retroactive cover-walk that used to
+// live here (scan_arrow_cover_for_yield_await + scan_arrow_params_for_yield_only
+// + arrow_cover_walk_pattern + arrow_cover_walk_expr) was deleted as
+// part of slice 7 — the regular checker walk now visits arrow params
+// (including nested ObjectPattern computed keys + AssignmentPattern
+// defaults via ck_walk_pattern) under in_params=true, params_is_arrow=true.
 //
-// `Contains` is a compile-time predicate that descends through expressions
-// but stops at every function-like / class-like boundary - FunctionBody,
-// ConciseBody, AsyncConciseBody, GeneratorBody, ClassTail, etc. - because
-// a nested function / class introduces its own Yield / Await scope.
-//
-// The cover `(...)` is parsed in the outer context (which may be a
-// generator or async function where `yield` / `await` are legal as
-// expressions), so we only know the enclosing form is actually an arrow
-// after the `=>` is seen. This walker runs at that commit point and
-// reports retroactively. At most one error of each kind is emitted per
-// arrow so diagnostics stay focused even when a pattern has many
-// offending defaults.
-scan_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression) {
-	if expr == nil { return }
-	saw_yield := false
-	saw_await := false
-	arrow_cover_walk_expr(expr, &saw_yield, &saw_await)
-	if saw_yield {
-		report_semantic_error(p, "Yield expression is not allowed in arrow function parameters")
-	}
-	if saw_await {
-		report_semantic_error(p, "Await expression is not allowed in arrow function parameters")
-	}
-}
-
-// Walk an already-lowered FunctionParameter list (pattern + default) and
-// report YieldExpression / AwaitExpression. Used by the async-arrow
-// path in parse_async_arrow_with_parens, which builds params directly
-// via parse_function_params instead of going through the cover trial
-// parse. The AwaitExpression case overlaps with the in_async_params
-// fast-path; the walker is primarily for YieldExpression, which is
-// legal inside the params' AssignmentExpression context when the
-// outer scope is a generator (`function*g(){ return async (x = yield
-// 1) => x; }`). Per §15.9.1 the "all early errors of
-// ArrowFormalParameters apply" clause folds in the §15.3.1
-// yield-in-arrow-params ban.
+// pattern_contains_member_expression is still needed by the arrow-param
+// validity check at parse_arrow_function (a parameter pattern that
+// destructures into a MemberExpression is not a valid binding pattern).
 pattern_contains_member_expression :: proc(pat: Pattern) -> bool {
 	if pat == nil { return false }
 	switch pp in pat {
@@ -13721,157 +13694,6 @@ pattern_contains_member_expression :: proc(pat: Pattern) -> bool {
 		return false
 	}
 	return false
-}
-
-scan_arrow_params_for_yield_only :: proc(p: ^Parser, params: []FunctionParameter) {
-	// Yield-only variant - AwaitExpression is reported eagerly by the
-	// in_async_params fast-path in parse_unary_expr, so reusing the
-	// combined walker would double-count the diagnostic.
-	saw_yield := false
-	saw_await_ignored := false
-	for param in params {
-		arrow_cover_walk_pattern(param.pattern, &saw_yield, &saw_await_ignored)
-		if expr, have := param.default_val.(^Expression); have {
-			arrow_cover_walk_expr(expr, &saw_yield, &saw_await_ignored)
-		}
-	}
-	if saw_yield {
-		report_semantic_error(p, "Yield expression is not allowed in arrow function parameters")
-	}
-}
-
-arrow_cover_walk_pattern :: proc(pat: Pattern, saw_yield, saw_await: ^bool) {
-	if pat == nil { return }
-	if saw_yield^ && saw_await^ { return }
-	switch pp in pat {
-	case ^Identifier, ^MemberExpression:
-		return
-	case ^AssignmentPattern:
-		arrow_cover_walk_pattern(pp.left, saw_yield, saw_await)
-		arrow_cover_walk_expr(pp.right, saw_yield, saw_await)
-	case ^ObjectPattern:
-		for prop in pp.properties {
-			// Computed property keys carry arbitrary expressions. Non-computed
-			// keys are IdentifierName / StringLiteral literals - nothing to walk.
-			if key, have := prop.key.(ObjectPatternPropertyKey); have {
-				if prop.computed {
-					if expr, ok := key.(^Expression); ok {
-						arrow_cover_walk_expr(expr, saw_yield, saw_await)
-					}
-				}
-			}
-			arrow_cover_walk_pattern(prop.value, saw_yield, saw_await)
-		}
-	case ^ArrayPattern:
-		for elem in pp.elements {
-			if inner, have := elem.(Pattern); have {
-				arrow_cover_walk_pattern(inner, saw_yield, saw_await)
-			}
-		}
-	case ^RestElement:
-		arrow_cover_walk_pattern(pp.argument, saw_yield, saw_await)
-	}
-}
-
-arrow_cover_walk_expr :: proc(expr: ^Expression, saw_yield, saw_await: ^bool) {
-	if expr == nil { return }
-	if saw_yield^ && saw_await^ { return } // both already found
-	switch e in expr^ {
-	// Leaves - cannot contain yield / await.
-	case ^NullLiteral, ^BooleanLiteral, ^NumericLiteral, ^StringLiteral,
-	     ^BigIntLiteral, ^RegExpLiteral, ^Identifier, ^PrivateIdentifier,
-	     ^ThisExpression, ^Super, ^MetaProperty, ^JSXText,
-	     ^JSXEmptyExpression:
-		return
-
-	// Scope boundaries - `Contains` stops here per spec.
-	case ^FunctionExpression, ^ArrowFunctionExpression, ^ClassExpression:
-		return
-
-	// The two target productions.
-	case ^YieldExpression:
-		saw_yield^ = true
-		if arg, ok := e.argument.(^Expression); ok {
-			arrow_cover_walk_expr(arg, saw_yield, saw_await)
-		}
-	case ^AwaitExpression:
-		saw_await^ = true
-		arrow_cover_walk_expr(e.argument, saw_yield, saw_await)
-
-	// Compound expressions - recurse into every expression child.
-	case ^TemplateLiteral:
-		for sub in e.expressions { arrow_cover_walk_expr(sub, saw_yield, saw_await) }
-	case ^TaggedTemplateExpression:
-		arrow_cover_walk_expr(e.tag, saw_yield, saw_await)
-		arrow_cover_walk_expr(e.quasi, saw_yield, saw_await)
-	case ^ArrayExpression:
-		for maybe_elem in e.elements {
-			if elem, ok := maybe_elem.(^Expression); ok {
-				arrow_cover_walk_expr(elem, saw_yield, saw_await)
-			}
-		}
-	case ^ObjectExpression:
-		for prop in e.properties {
-			arrow_cover_walk_expr(prop.key, saw_yield, saw_await)
-			arrow_cover_walk_expr(prop.value, saw_yield, saw_await)
-		}
-	case ^MemberExpression:
-		arrow_cover_walk_expr(e.object, saw_yield, saw_await)
-		if e.computed {
-			arrow_cover_walk_expr(e.property, saw_yield, saw_await)
-		}
-	case ^CallExpression:
-		arrow_cover_walk_expr(e.callee, saw_yield, saw_await)
-		for arg in e.arguments { arrow_cover_walk_expr(arg, saw_yield, saw_await) }
-	case ^NewExpression:
-		arrow_cover_walk_expr(e.callee, saw_yield, saw_await)
-		for arg in e.arguments { arrow_cover_walk_expr(arg, saw_yield, saw_await) }
-	case ^ConditionalExpression:
-		arrow_cover_walk_expr(e.test, saw_yield, saw_await)
-		arrow_cover_walk_expr(e.consequent, saw_yield, saw_await)
-		arrow_cover_walk_expr(e.alternate, saw_yield, saw_await)
-	case ^UpdateExpression:
-		arrow_cover_walk_expr(e.argument, saw_yield, saw_await)
-	case ^UnaryExpression:
-		arrow_cover_walk_expr(e.argument, saw_yield, saw_await)
-	case ^BinaryExpression:
-		arrow_cover_walk_expr(e.left, saw_yield, saw_await)
-		arrow_cover_walk_expr(e.right, saw_yield, saw_await)
-	case ^LogicalExpression:
-		arrow_cover_walk_expr(e.left, saw_yield, saw_await)
-		arrow_cover_walk_expr(e.right, saw_yield, saw_await)
-	case ^AssignmentExpression:
-		arrow_cover_walk_expr(e.left, saw_yield, saw_await)
-		arrow_cover_walk_expr(e.right, saw_yield, saw_await)
-	case ^SequenceExpression:
-		for sub in e.expressions { arrow_cover_walk_expr(sub, saw_yield, saw_await) }
-	case ^SpreadElement:
-		arrow_cover_walk_expr(e.argument, saw_yield, saw_await)
-	case ^ChainExpression:
-		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
-	case ^ImportExpression:
-		arrow_cover_walk_expr(e.source, saw_yield, saw_await)
-	case ^ParenthesizedExpression:
-		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
-
-	// TS type-carrying expressions - the expression subtree is still live.
-	case ^TSAsExpression:
-		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
-	case ^TSSatisfiesExpression:
-		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
-	case ^TSNonNullExpression:
-		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
-	case ^TSTypeAssertion:
-		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
-	case ^TSInstantiationExpression:
-		arrow_cover_walk_expr(e.expression, saw_yield, saw_await)
-
-	// JSX cannot syntactically appear inside arrow params (params open with
-	// `(`, not `<Tag>`), but handle defensively - JSX bodies don't participate
-	// in the Yield / Await contains predicate.
-	case ^JSXElement, ^JSXFragment, ^JSXExpressionContainer, ^JSXSpreadChild:
-		return
-	}
 }
 
 // check_parenthesized_binding detects inner `(...)` wrapping a binding
@@ -13971,13 +13793,11 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// nil left means empty params: () => ...
 	eat(p) // consume =>
 
-	// §15.3.1 Contains check. Runs on the raw cover-expression before it
-	// is lowered to Pattern nodes, so the walker sees any YieldExpression
-	// / AwaitExpression that the outer scope allowed (e.g. inside a
-	// generator / async body) and retroactively rejects it.
-	if left != nil {
-		scan_arrow_cover_for_yield_await(p, left)
-	}
+	// §15.3.1 Contains check is enforced by the semantic checker on the
+	// finished AST: ck_walk_expr's ^ArrowFunctionExpression case sets
+	// in_params=true, params_is_arrow=true around the params walk, and
+	// ck_walk_pattern + the YieldExpression / AwaitExpression cases
+	// emit the diagnostic. No retroactive cover-walk needed here.
 
 	// Set async context for body parsing
 	prev_async := p.in_async
@@ -14805,12 +14625,9 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// §15.9.1 final clause: "All early error rules for
 	// ArrowFormalParameters and their derived productions also apply to
 	// CoverCallExpressionAndAsyncArrowHead when that production covers
-	// an AsyncArrowHead." That folds in §15.3.1's YieldExpression ban.
-	// AwaitExpression is already caught by the in_async_params fast-path
-	// above; this walker targets yield that an outer generator context
-	// allowed at param-parse time (`function*g(){ return async (x =
-	// yield 1) => x; }`).
-	scan_arrow_params_for_yield_only(p, params[:])
+	// an AsyncArrowHead" / yield-in-arrow-params: enforced by the
+	// semantic checker (^YieldExpression / ^AwaitExpression cases under
+	// ctx.in_params=true).
 
 	// Optional TS return-type annotation: `async (): Promise<T> => body`,
 	// or with a type predicate `async (x): x is T => body`.
