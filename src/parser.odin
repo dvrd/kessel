@@ -609,6 +609,15 @@ Parser :: struct {
 	// first - a child block exits before its parent).
 	scope_pending: [dynamic]ScopePending,
 
+	// pending_checker is the active semantic checker for the post-parse
+	// verify_scopes pass, set by checker_run_for_job before invoking
+	// verify_scopes. The scope_add machinery uses it as the destination
+	// for duplicate-binding diagnostics so the parser stays out of
+	// semantic-error reporting (the architectural rule: parser = syntax,
+	// checker = semantic). Nil when no checker is active (e.g. ast-only
+	// bench mode); scope_add silently drops diagnostics in that case.
+	pending_checker: ^Checker,
+
 	// Suppresses scope_pending pushes while true. Saved/restored around the
 	// uncovered expression contexts that the old AST walker (deleted in this
 	// commit) deliberately did not recurse into: ArrayExpression /
@@ -1689,15 +1698,14 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	if !p.ast_only {
 		verify_export_locals(p, program)
 
-		// §14.2.1 early-error pass: duplicate LexicallyDeclaredNames in any
-		// Block / FunctionBody / CatchClause / SwitchCase / static-block
-		// scope, plus the lexical/var clash (§14.3.1.1). These are Static
-		// Semantics SyntaxErrors, not downstream-tool concerns, so this
-		// walker always runs in conformance mode. FunctionDeclaration
-		// Annex B.3.2 nuance (sloppy-mode plain FunctionDeclaration doesn't
-		// bind lexically, letting `{ function f(){} function f(){} }` stay
-		// legal outside strict mode) is handled in scope_process_statement.
-		verify_scopes(p, program)
+		// §14.2.1 / §14.3.1.1 — the lex/var duplicate-binding scan now
+		// fires from the semantic checker (checker_run_for_job sets
+		// p.pending_checker before invoking verify_scopes, then clears
+		// it on exit). The parser itself still BUILDS the scope_pending
+		// queue at parse time so the checker doesn't have to recreate
+		// the scope tree from the AST; only the diagnostic-emission step
+		// is deferred. This matches OXC: oxc_parser builds scopes,
+		// oxc_semantic runs the early-error checks.
 	}
 
 	// §13.2.5.1 CoverInitializedName: any ObjectExpression that parsed
@@ -7500,23 +7508,28 @@ scope_map_set_first :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 	if len(m.items) > SCOPE_MAP_LINEAR_MAX { scope_map_promote(m) }
 }
 
+// scope_emit — forwards a scope-clash diagnostic to the post-parse
+// semantic checker (parser.pending_checker). Returns silently when the
+// checker is nil (ast-only mode) or when the parser was launched with
+// --check-semantics off and no checker was constructed.
+scope_emit :: #force_inline proc(p: ^Parser, at: u32, message: string) {
+	checker_append_error(p.pending_checker, LexerLoc(at), message)
+}
+
 scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind: ScopeBindingKind) {
 	switch kind {
 	case .Lexical:
 		if _, have := scope_map_get(lex, name); have {
-			msg := fmt.tprintf("'%s' has already been declared", name)
-			report_semantic_error_at(p, LexerLoc(at), msg)
+			scope_emit(p, at, fmt.tprintf("'%s' has already been declared", name))
 			return
 		}
 		if _, have := scope_map_get(vars, name); have {
-			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			report_semantic_error_at(p, LexerLoc(at), msg)
+			scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", name))
 		}
 		scope_map_set(lex, name, at)
 	case .Var:
 		if _, have := scope_map_get(lex, name); have {
-			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			report_semantic_error_at(p, LexerLoc(at), msg)
+			scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", name))
 			return
 		}
 		// Repeats of the same var are legal (§13.3.2 - VarDeclaredNames
@@ -7533,16 +7546,14 @@ scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind:
 			// while a .Lexical isn't. If the name is in `lex` but NOT
 			// in `vars`, it came from let/const/class - clash.
 			if _, vh := scope_map_get(vars, name); !vh {
-				msg := fmt.tprintf("'%s' has already been declared", name)
-				report_semantic_error_at(p, LexerLoc(at), msg)
+				scope_emit(p, at, fmt.tprintf("'%s' has already been declared", name))
 			}
 			return
 		}
 		if _, have := scope_map_get(vars, name); have {
 			// var-from-real-var before us. `{ var f; function f(){} }`
 			// in sloppy rejects per Acorn / V8.
-			msg := fmt.tprintf("Identifier '%s' has already been declared", name)
-			report_semantic_error_at(p, LexerLoc(at), msg)
+			scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", name))
 			return
 		}
 		scope_map_set(lex, name, at)

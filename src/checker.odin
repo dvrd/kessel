@@ -246,6 +246,17 @@ checker_run_for_job :: proc(job: ^ParseJob) {
 	if job == nil || job.program == nil { return }
 	c := init_checker(job.arena_alloc)
 	check_program(&c, job.program, job.lang)
+	// §14.2.1 / §14.3.1.1 — duplicate-binding scope analysis. The
+	// parser built the scope_pending queue at parse time but DEFERRED
+	// emission of the lex/var clash diagnostics. We thread the active
+	// checker through the parser's pending_checker field so scope_add
+	// has a destination for its diagnostics; the field is cleared on
+	// exit so a stale pointer doesn't leak across jobs.
+	job.parser.pending_checker = &c
+	defer job.parser.pending_checker = nil
+	if !job.parser.ast_only {
+		verify_scopes(&job.parser, job.program)
+	}
 	if len(c.errors) == 0 { return }
 	for err in c.errors {
 		bump_append(&job.parser.errors, err)
