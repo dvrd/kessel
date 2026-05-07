@@ -1,8 +1,8 @@
 # Handoff — Kessel
 
-**Date:** 2026-05-07 (eighth wave — slice 14 + scope-walk lift + corpus audit + bench relock)
-**Tip:** `d06c6c6 fix(parser): apply ASI before yield-binary-LHS check (corpus regression)`
-**Branch:** `main`, in sync with `origin/main` (this session published 4 commits and 1 doc commit; everything is pushed).
+**Date:** 2026-05-07 (ninth wave — slice 15: accessor shape checks promoted to parser-side)
+**Tip:** `docs(handoff): refresh after slice 15 (accessor checks promoted)` (slice-15 code in `10a7b54`)
+**Branch:** `main`, ahead of `origin/main` by 2 commits (slice 15 + this handoff refresh; 12 prior commits pushed earlier in the session).
 
 ## What is Kessel
 
@@ -18,16 +18,16 @@ JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.o
 | **Full-session reduction** | — | **101 → 0** across slices 1–13e (100%) |
 | **Architectural rule** | convention-only | **structurally enforced** (parser-side helpers deleted) |
 | **`Parser.scope_pending` queue + `scope_skip` + `pending_checker`** | parser-owned | **deleted; checker drives the walk** (slice 14) |
-| `src/parser.odin` | 19 238 lines | **18 494 lines** (−744 net across slices 11/12/13/14 + cleanup) |
-| `src/checker.odin` | 1 721 lines | **3 048 lines** (+1 327) |
+| `src/parser.odin` | 19 238 lines | **18 562 lines** (−676 net across slices 11/12/13/14 + cleanup + slice 15 ·68 line uptick from the parser-side accessor helper) |
+| `src/checker.odin` | 1 721 lines | **2 988 lines** (+1 267) |
 | **Bench geo-mean vs OXC** | 0.93× of OXC (slice 10 baseline) | **0.78× — 22% faster than the locked baseline** (relocked) |
 | **OXC-corpus kessel-only-rejects** | 0 | **0** (held; 1 regression caught + fixed mid-session) |
-| **OXC-corpus oxc-only-rejects** | 19 | **19** (held; documented lenience — see Known Issues) |
+| **OXC-corpus oxc-only-rejects** | 19 | **5** (−14 from slice 15 — every class-accessor case closed) |
 | **`odin -vet`** | 0 | **0** warnings (held) |
 | **All 18 `task test` gates** | green | **green** (held) |
 | **OXC parity on yield promotions** | unverified | **11/11 verified** (new `verify_yield_oxc_parity.js` harness) |
 
-10 commits pushed this session (`f0a7eff` ancestor → tip `d06c6c6`):
+13 commits this session (`f0a7eff` ancestor → tip `948a9e0`; the first 12 are pushed, slice 15 is local):
 
 1. `c22264e` — feat(checker): slice 11 — cheap finishers (48 → 22)
 2. `b3ebaf3` — feat(checker): slice 12 — `await`-as-escaped-identifier (22 → 20)
@@ -41,6 +41,8 @@ JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.o
 10. `637eb5a` — refactor(scope): slice 14 — lift scope_pending queue from parser to checker
 11. `f837bb6` — fix(parser): yield-as-unary-operand honor paren-wrapping (OXC parity)
 12. `d06c6c6` — fix(parser): apply ASI before yield-binary-LHS check (corpus regression + bench baseline relock)
+13. `10a7b54` — feat(parser): slice 15 — promote accessor shape checks to parser-side (oxc-only-rejects 19 → 5)
+14. `aea6c1b` — docs(handoff): refresh after slice 15
 
 ---
 
@@ -48,7 +50,7 @@ JavaScript / TypeScript / JSX / TSX parser written in [Odin](https://odin-lang.o
 
 > **Parser handles syntax errors. Checker handles semantic errors.** As of slice 13e + slice 14 + cleanup commit, the parser-side `report_semantic_error` / `report_semantic_error_at` helpers AND the `scope_pending` queue + `scope_skip` flag + `pending_checker` field + `verify_scopes` proc + `mark_last_scope_function_scope` proc + `ScopePending` struct + the parse-exit pushes that fed them are ALL deleted. Any new semantic check MUST be added to `src/checker.odin` — the parser literally cannot emit one. The handoff between parser and checker is one-way: `c.pending_parser → parser.scope_check_body` (the checker pulls the parser-side helpers as utility procs).
 
-All 13 migration slices + 1 architectural lift slice complete:
+All 13 migration slices + 1 architectural lift slice + 1 promotion-back slice complete:
 
 | Slice | Commit | Coverage |
 |---|---|---|
@@ -72,6 +74,7 @@ All 13 migration slices + 1 architectural lift slice complete:
 | **13e cleanup** | `6401112` | delete 7 no-op stub procs + 19 dead call sites. |
 | **14** | `637eb5a` | lift scope_pending queue from parser to checker (last architectural seam). |
 | **post-14** | `f837bb6` + `d06c6c6` | OXC parity on yield-tied promotions: paren-wrap respect + ASI before binary-LHS check. |
+| **15** | `10a7b54` | promote accessor shape checks (§15.4.3 / §15.4.4 / §15.4.5) from checker to parser — structural grammar rules belong on the parser side. Closes 14 of the 19 OXC-corpus oxc-only-rejects (every class-accessor case in typescript + babel suites). The TS-only "set foo(v=...) cannot have an initializer" rule is gated on `allow_ts_mode(p)` to honor the JS grammar's `SingleNameBinding Initializer_opt`. |
 
 ---
 
@@ -147,7 +150,7 @@ Geo-mean **0.88× of OXC.** All 10 files faster than OXC.
 | `task test:fuzz` | ✅ 100/100 | seed=20260421 |
 | `task test:fuzz:invalid` | ✅ **300/300 exited cleanly, 0 crashes** | |
 | `task test:crashes-known` | ✅ 0 new | |
-| `task test:oxc-corpus` | ✅ baseline OK | **0 kessel-only-rejects** (held); 19 oxc-only-rejects (documented lenience) |
+| `task test:oxc-corpus` | ✅ baseline OK | **0 kessel-only-rejects** (held); **5 oxc-only-rejects** (−14 from slice 15; baseline relocked) |
 | `task test:bench:regression` | ✅ 0.993 geo-mean (tolerance 1.050) | relocked at the post-slice-14 floor |
 
 Plus a new harness:
@@ -160,10 +163,10 @@ Plus a new harness:
 
 | File | Lines | Purpose |
 |---|---:|---|
-| `src/parser.odin` | 18 494 | Pratt parser + lazy module pre-scan + scope_check_body / scope_process_statement / scope_add helpers (utility-only, called from the checker). **0 inline `report_semantic_error*` calls; the helpers themselves are deleted.** **0 `scope_pending` queue infrastructure.** No reference to the Checker type from any field. |
+| `src/parser.odin` | 18 562 | Pratt parser + lazy module pre-scan + scope_check_body / scope_process_statement / scope_add helpers (utility-only, called from the checker). **0 inline `report_semantic_error*` calls; the helpers themselves are deleted.** **0 `scope_pending` queue infrastructure.** No reference to the Checker type from any field. Slice 15 added `enforce_accessor_param_shape` (parser-side accessor arity / shape check, shared by class-element and object-literal accessor paths). |
 | `src/emitter.odin` | 6 381 | ESTree JSON emitter. |
 | `src/lexer.odin` | 3 097 | SIMD lexer. |
-| **`src/checker.odin`** | **3 048** | **AST-walker semantic checker (pass 3).** 14 slices live (≈55+ distinct early-error checks + scope-clash detection). Public API: `check_program`, `checker_run_for_job`, `checker_append_error`. Now drives the entire scope-clash walk via `ck_run_scope_check`. |
+| **`src/checker.odin`** | **2 988** | **AST-walker semantic checker (pass 3).** 14 slices live (≈55+ distinct early-error checks + scope-clash detection); slice 15 demoted accessor-shape checks back to the parser, shrinking this file by 60 lines. Public API: `check_program`, `checker_run_for_job`, `checker_append_error`. Now drives the entire scope-clash walk via `ck_run_scope_check`. |
 | `src/regex.odin` | 2 235 | ES2025 §22.2.1 regex pattern validator. |
 | `src/ast.odin` | 1 614 | AST struct/union definitions. (+1 field: `Identifier.has_escape`.) |
 | `src/raw_transfer.odin` | 1 304 | Zero-copy binary AST buffer. |
@@ -186,15 +189,16 @@ Plus a new harness:
 
 | # | Issue | Severity | Scope |
 |---|---|---|---|
-| 1 | OXC corpus: **19 oxc-only-rejects** (kessel parser-only is more permissive than OXC's full parser+semantic pipeline) | documented lenience | The kessel/OXC corpus comparison is parser-only-vs-full-pipeline. Adding `--show-semantic-errors` to the kessel side flips the asymmetry: the corpus reports 6 oxc-only-rejects but 491 kessel-only-rejects (kessel's checker is stricter than OXC's semantic for many TS-mode edge cases). The current parser-only setup is the right gate — it pins kessel's PARSER's lenience and is reproducible. The 19 are: 4 setter-with-default/rest + 4 getter/setter shape + 4 top-level-await TS errors + 6 accessor edge cases + 1 stray-semicolon-in-class. All are slice-3 / slice-4 / slice-7 semantic errors that fire under `--show-semantic-errors`. |
-| 2 | OXC corpus: 2 157 babel "should-pass-rejected" | shared gap with Babel | Babel-specific syntax (Flow, pipeline-operator, experimental decorators). NOT kessel bugs — OXC drops them too. |
-| 3 | Branch state | clean | All commits pushed to `origin/main`. |
+| 1 | OXC corpus: **5 oxc-only-rejects** (down from 19 after slice 15) | documented lenience | The remaining 5: 4 typescript top-level-await edge cases (`conformance/externalModules/topLevelAwaitErrors.{2,3,4,12}.ts`) + 1 babel `esprima/es2015-identifier/invalid_expression_await/input.js` (`export var answer = await + 1;` outside async at module scope). All are spec semantic errors enforced by kessel's checker under `--show-semantic-errors`; in default parser-only mode kessel matches babel's parser-only behavior. |
+| 2 | OXC corpus: 2 161 babel "should-pass-rejected" | shared gap with Babel + harness limitation | The bulk (~1 800) is Babel-specific syntax (Flow, pipeline-operator, experimental decorators) where OXC also rejects — NOT kessel bugs. After slice 15, +4 fixtures joined this bucket because the corpus harness's classifier reads `options.json`'s `throws` field but ignores `output.json`'s `errors` array; those 4 fixtures (babel/es2015/class-methods/getter-signature, babel/es2015/uncategorised/{345,346,347}) DO declare expected errors via `output.json`, but the harness reads them as `expected: pass`. Fixing the classifier to honor `output.json` errors would re-shape ~1 691 verdicts and is out of scope for this slice. |
+| 3 | Branch state | local-ahead | Slice 15 (`10a7b54`) + this handoff refresh committed locally, not yet pushed to `origin/main`. |
 
 **Closed since previous handoff:**
 
   * Parser-side `report_semantic_error*` helpers, scope_pending queue, scope_skip flag, verify_scopes proc, mark_last_scope_function_scope, ScopePending struct, pending_checker bridge, 7 stub procs + 19 dead call sites — all deleted.
   * 1 mid-session OXC-corpus regression (`babel/es2015/yield/regexp` falsely rejected) — fixed by adding ASI before the yield-binary-LHS structural check.
   * 1 mid-session OXC-parity gap (`void (yield)` falsely rejected) — fixed by adding paren-wrap byte-scan to the yield-as-unary-operand check.
+  * 14 of 19 OXC-corpus oxc-only-rejects (every class-accessor case) — fixed by slice 15 promoting `§15.4.3 / §15.4.4 / §15.4.5` checks back to the parser via `enforce_accessor_param_shape`.
 
 ---
 
@@ -202,10 +206,11 @@ Plus a new harness:
 
 Future work (none blocking):
 
-1. **Stricter parser-side accessor checks (optional)**: 8 of the 19 oxc-only-rejects are setter-with-default / setter-with-rest / getter-with-args / setter-with-wrong-arity. These are STRUCTURAL errors per the grammar (a setter with rest can't be a syntactically valid setter). Promoting `ck_check_accessor` from semantic to a parser-side `report_error` would close those 8 cases and bring the corpus to 11 oxc-only-rejects. Cost: 1 small slice. Risk: changes accept/reject behavior for malformed accessor decls in default mode.
-2. **Scope-walker code split (deferred — architecture review #4)**: now that slice 14 has collapsed the parser's scope walker into the checker's main AST walk, the question of "extract a shared `walker.odin` module" is largely moot — there's only ONE walker (the checker's). Re-evaluate if a fourth walker pattern (linter / transformer / bundler) ever emerges.
-3. **Stub-cleanup is DONE** — slice 13e cleanup deleted all 7 parser-side stubs and their 19 call sites.
-4. **Bench:regression confirmation is DONE** — re-ran on the current machine, 22% improvement geo-mean over the previous baseline; relocked.
+1. **Accessor-shape promotion is DONE** — slice 15 closed every class-accessor case in the OXC-corpus oxc-only-rejects bucket. The remaining 5 are 4 top-level-await TS errors + 1 export-await-outside-async — all checker-only by design.
+2. **Corpus harness fidelity (optional, out of scope for parser work)**: the babel-suite classifier in `tests/verifiers/verify_oxc_corpus.js` reads `options.json`'s `throws` field but ignores `output.json`'s `errors` array. Honoring the latter would more accurately classify ~1 691 fixtures (currently mis-classified as `expected: pass` when their `output.json` declares expected errors). Reshapes verdicts but not parser behavior.
+3. **Scope-walker code split (deferred — architecture review #4)**: now that slice 14 has collapsed the parser's scope walker into the checker's main AST walk, the question of "extract a shared `walker.odin` module" is largely moot — there's only ONE walker (the checker's). Re-evaluate if a fourth walker pattern (linter / transformer / bundler) ever emerges.
+4. **Stub-cleanup is DONE** — slice 13e cleanup deleted all 7 parser-side stubs and their 19 call sites.
+5. **Bench:regression confirmation is DONE** — re-ran on the current machine, 22% improvement geo-mean over the previous baseline; relocked.
 
 ---
 
@@ -224,7 +229,7 @@ task test:negative        # 139 rejected, 0 accepted-bug
 task test:test262         # 66/66
 task test:test262:subset  # 66/66 baseline
 task test:real            # 467/467
-task test:oxc-corpus      # 0 kessel-only-rejects, 19 oxc-only-rejects (documented lenience)
+task test:oxc-corpus      # 0 kessel-only-rejects, 5 oxc-only-rejects (documented lenience)
 task test:estree
 task test:nodes           # 57/57
 task test:recovery        # 31/31
@@ -251,7 +256,8 @@ node tests/verifiers/verify_yield_oxc_parity.js   # 11/11 mismatches=0
 # Default — parser only (matches OXC parser-only)
 ./bin/kessel parse foo.js
 
-# With pass 3 — every early-error check (slices 1–14 covered)
+# With pass 3 — every early-error check (slices 1–15 covered, accessor
+# shape checks now fire parser-side regardless of this flag)
 ./bin/kessel parse foo.js --show-semantic-errors
 
 # Test262 subset and verify_negative.js automatically pass the flag for
