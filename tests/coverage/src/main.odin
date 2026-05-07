@@ -39,6 +39,20 @@ main :: proc() {
 	case "discover":   cmd_discover()
 	case "babel":      cmd_babel_smoke()
 	case "typescript": cmd_typescript_smoke()
+	case "test262":    cmd_test262_smoke()
+	case "misc":       cmd_misc_smoke()
+	case "estree":     cmd_estree_smoke()
+	case "run":
+		if len(args) < 3 {
+			fmt.println("usage: kessel_coverage run <suite> [--semantic]")
+			fmt.println("  suite: test262 | babel | typescript | estree | misc | all")
+			os.exit(1)
+		}
+		tool := Tool.Parser
+		for a in args[3:] {
+			if a == "--semantic" { tool = .Semantic }
+		}
+		cmd_run(args[2], tool)
 	case "parser":   fmt.println("[parser]    not yet wired — phase 7 lands the runner")
 	case "semantic": fmt.println("[semantic]  not yet wired — phase 11 lands the runner")
 	case "all":      fmt.println("[all]       not yet wired — phase 7 / 11 land the runners")
@@ -135,6 +149,103 @@ cmd_typescript_smoke :: proc() {
 	fmt.printfln("             negatives (should-fail): %d", n_neg)
 	fmt.printfln("             lang: TS=%d TSX=%d JS=%d JSX=%d", n_ts, n_tsx, n_js, n_jsx)
 	fmt.printfln("             multi-file units: %d", n_multi)
+}
+
+// cmd_test262_smoke — phase 4 smoke. Walks the test262 corpus and
+// classifies each fixture's frontmatter (negative.phase). No parser
+// invocation yet.
+cmd_test262_smoke :: proc() {
+	root := find_kessel_root()
+	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	defer delete(vendor)
+
+	t0 := time.now()
+	fixtures := load_test262(vendor, context.allocator)
+	dt := time.since(t0)
+
+	n_pos, n_neg := 0, 0
+	n_module, n_script := 0, 0
+	for f in fixtures {
+		if f.should_fail { n_neg += 1 } else { n_pos += 1 }
+		if f.source_type == .Module { n_module += 1 } else { n_script += 1 }
+	}
+
+	fmt.printfln("[test262] discovered %d fixtures in %v", len(fixtures), dt)
+	fmt.printfln("          positives (should-pass): %d", n_pos)
+	fmt.printfln("          negatives (should-fail): %d", n_neg)
+	fmt.printfln("          source_type: module=%d script=%d", n_module, n_script)
+}
+
+// cmd_run — phase 7+ end-to-end. Executes one suite (or all) through the
+// parser pipeline and prints OXC-style summary numbers. Snapshot file
+// I/O lands in phase 8.
+cmd_run :: proc(suite_arg: string, tool: Tool) {
+	root := find_kessel_root()
+	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	defer delete(vendor)
+
+	run_one :: proc(suite: Suite, tool: Tool, vendor, project: string) {
+		run := run_one_suite(suite, tool, vendor, project, context.allocator)
+		fmt.printfln("")
+		fmt.printfln("%s_%s Summary:", tool_name(tool), suite_name(suite))
+		print_stats(run.stats)
+		fmt.printfln("   (%d records, %v)", len(run.records), run.elapsed)
+	}
+
+	switch suite_arg {
+	case "test262":    run_one(.Test262,    tool, vendor, root)
+	case "babel":      run_one(.Babel,      tool, vendor, root)
+	case "typescript": run_one(.TypeScript, tool, vendor, root)
+	case "estree":     run_one(.Estree,     tool, vendor, root)
+	case "misc":       run_one(.Misc,       tool, vendor, root)
+	case "all":
+		run_one(.Misc,       tool, vendor, root)
+		run_one(.Estree,     tool, vendor, root)
+		run_one(.Babel,      tool, vendor, root)
+		run_one(.TypeScript, tool, vendor, root)
+		run_one(.Test262,    tool, vendor, root)  // largest — last
+	case:
+		fmt.printfln("unknown suite: %s", suite_arg)
+		os.exit(1)
+	}
+}
+
+print_stats :: proc(s: CoverageStats) {
+	pct :: proc(num, den: int) -> f64 {
+		if den == 0 { return 0 }
+		return f64(num) / f64(den) * 100
+	}
+	fmt.printfln("AST Parsed     : %d/%d (%.2f%%)",  s.parsed_positives, s.all_positives, pct(s.parsed_positives, s.all_positives))
+	fmt.printfln("Positive Passed: %d/%d (%.2f%%)",  s.passed_positives, s.all_positives, pct(s.passed_positives, s.all_positives))
+	if s.all_negatives > 0 {
+		fmt.printfln("Negative Passed: %d/%d (%.2f%%)", s.passed_negatives, s.all_negatives, pct(s.passed_negatives, s.all_negatives))
+	}
+}
+
+cmd_misc_smoke :: proc() {
+	root := find_kessel_root()
+	t0 := time.now()
+	fixtures := load_misc(root, context.allocator)
+	dt := time.since(t0)
+	n_pos, n_neg := 0, 0
+	for f in fixtures { if f.should_fail { n_neg += 1 } else { n_pos += 1 } }
+	fmt.printfln("[misc] discovered %d fixtures in %v", len(fixtures), dt)
+	fmt.printfln("       positives (should-pass): %d", n_pos)
+	fmt.printfln("       negatives (should-fail): %d", n_neg)
+}
+
+cmd_estree_smoke :: proc() {
+	root := find_kessel_root()
+	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	defer delete(vendor)
+	t0 := time.now()
+	fixtures := load_estree(vendor, context.allocator)
+	dt := time.since(t0)
+	n_pos, n_neg := 0, 0
+	for f in fixtures { if f.should_fail { n_neg += 1 } else { n_pos += 1 } }
+	fmt.printfln("[estree] discovered %d fixtures in %v", len(fixtures), dt)
+	fmt.printfln("         positives (should-pass): %d", n_pos)
+	fmt.printfln("         negatives (should-fail): %d", n_neg)
 }
 
 // Walk parents of cwd looking for the kessel project marker (`Taskfile.yml`).
