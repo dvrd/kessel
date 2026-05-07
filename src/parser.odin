@@ -2086,24 +2086,13 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		if is_next_token(p, .LParen) || is_next_token(p, .Dot) {
 			return parse_expression_or_labeled_statement(p)
 		}
-		// §16.2.1 - ImportDeclaration is a ModuleItem, not a Statement.
-		// Reject when inside a function body (in_function=true) or block
-		// (block_depth>0), but only when source type is forced to Module.
-		{
-			in_nested_pos := p.in_function || p.block_depth > 0
-			if in_nested_pos && p.in_module_top_level {
-				report_semantic_error(p, "'import' declarations are only allowed at the top level of a module")
-			}
-		}
+		// §16.2.1 ImportDeclaration not at module top level: enforced by
+		// the semantic checker (ck_check_import_export_position) using its
+		// own at_top_level tracker.
 		return parse_import_declaration(p)
 	case .Export:
-		// §16.2.1 - ExportDeclaration is a ModuleItem, not a Statement.
-		{
-			in_nested_pos := p.in_function || p.block_depth > 0
-			if in_nested_pos && p.in_module_top_level {
-				report_semantic_error(p, "'export' declarations are only allowed at the top level of a module")
-			}
-		}
+		// §16.2.1 ExportDeclaration not at module top level: enforced by
+		// the semantic checker (ck_check_import_export_position).
 		return parse_export_declaration(p)
 	case:
 		return parse_expression_or_labeled_statement(p)
@@ -8611,15 +8600,10 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		p.module_pre_scan_done = prev_pre_scan_done
 	}
 
-	// ECMA-262 §16.2 - `import` and `export` are only legal at the top
-	// level of a Module. When the caller has pinned sourceType=script
-	// via --source-type=script, reject with a diagnostic that matches
-	// OXC/V8 ("imports/exports are only valid in module code"). We still
-	// parse the rest of the declaration so the AST / span info is
-	// stable for tooling; only the error is emitted.
-	if st, have := p.force_source_type.(SourceType); have && st == .Script {
-		report_semantic_error(p, "'import' is only valid in module code")
-	}
+	// §16.2 "import only valid in module code" early error: enforced by
+	// the semantic checker (ck_check_import_export_position) consulting
+	// program.type. The parser still builds a complete ImportDeclaration
+	// AST node so downstream tooling has stable span info.
 
 	decl := new_node(p, ImportDeclaration)
 	decl.loc = start
@@ -9178,9 +9162,8 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		p.module_pre_scan_done = prev_pre_scan_done
 	}
 
-	if st, have := p.force_source_type.(SourceType); have && st == .Script {
-		report_semantic_error(p, "'export' is only valid in module code")
-	}
+	// §16.2 "export only valid in module code" early error: enforced by
+	// the semantic checker (ck_check_import_export_position).
 
 	if is_token(p, .Export) {
 		report_error(p, "'export' modifier already seen.")
@@ -14429,7 +14412,8 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 			}
 		}
 		if is_semantic {
-			report_semantic_error(p, "Invalid left-hand side in assignment")
+			// §13.15.1 "Invalid LHS in destructured compound assignment":
+			// enforced by the semantic checker (ck_check_assignment_invalid_lhs).
 		} else {
 			report_error(p, "Invalid left-hand side in assignment")
 		}

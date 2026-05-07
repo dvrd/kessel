@@ -107,6 +107,16 @@ CheckerLabel :: struct {
 // `params_is_arrow`: discriminant for the param-shape diagnostic.
 //   Arrow-param diagnostics use a slightly different message than
 //   regular-function-param diagnostics; this flag picks the right one.
+// `source_type`: §16.2 — .Script vs .Module. Read by Import/Export
+//   declaration cases (`import` / `export` are only valid in module
+//   code; in script source any position is an error). Set once at the
+//   top of check_program from `program.type`.
+// `at_top_level`: §16.2.1 — ImportDeclaration / ExportDeclaration are
+//   ModuleItems, only legal as direct children of `Program.body`. Set
+//   to true at the top of check_program; ck_walk_stmt drops it to false
+//   immediately on entry so any recursive walk into a child statement
+//   (block bodies, function bodies, single-statement consequents, etc.)
+//   sees a non-top-level position.
 CheckerContext :: struct {
 	iter_depth:            int,
 	switch_depth:          int,
@@ -122,6 +132,8 @@ CheckerContext :: struct {
 	in_class_static_block: bool,
 	in_params:             bool,
 	params_is_arrow:       bool,
+	source_type:           SourceType,
+	at_top_level:          bool,
 }
 
 Checker :: struct {
@@ -152,6 +164,8 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	} else if directives_have_use_strict(program.directives[:]) {
 		ctx.strict_mode = true
 	}
+	ctx.source_type  = program.type
+	ctx.at_top_level = true
 	for stmt in program.body {
 		ck_walk_stmt(c, &ctx, stmt)
 	}
@@ -339,6 +353,12 @@ CkFnKind :: enum {
 @(private="file")
 ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	if stmt == nil { return }
+	// §16.2.1 — only the IMMEDIATE call from `check_program` carries the
+	// top-level marker. Save the snapshot for the Import / Export cases
+	// to consult, then drop the flag for any recursive walk of children.
+	was_top_level := ctx.at_top_level
+	ctx.at_top_level = false
+	defer ctx.at_top_level = was_top_level
 	switch v in stmt^ {
 	case ^BreakStatement:
 		if v == nil { return }
@@ -496,6 +516,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^ExportNamedDeclaration:
 		if v == nil { return }
+		ck_check_import_export_position(c, ctx, v.loc, false, was_top_level)
 		if d, have := v.declaration.(^Declaration); have && d != nil {
 			ck_walk_export_decl(c, ctx, d)
 		}
@@ -504,13 +525,23 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^ExportDefaultDeclaration:
 		if v == nil || v.declaration == nil { return }
+		ck_check_import_export_position(c, ctx, v.loc, false, was_top_level)
 		#partial switch inner in v.declaration^ {
 		case ^Expression:  if inner != nil { ck_walk_expr(c, ctx, inner) }
 		case ^Declaration: if inner != nil { ck_walk_export_decl(c, ctx, inner) }
 		}
 
+	case ^ImportDeclaration:
+		if v != nil {
+			ck_check_import_export_position(c, ctx, v.loc, true, was_top_level)
+		}
+
+	case ^ExportAllDeclaration:
+		if v != nil {
+			ck_check_import_export_position(c, ctx, v.loc, false, was_top_level)
+		}
+
 	case ^EmptyStatement, ^DebuggerStatement,
-	     ^ImportDeclaration, ^ExportAllDeclaration,
 	     ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
 	     ^TSEnumDeclaration, ^TSModuleDeclaration,
 	     ^TSImportEqualsDeclaration,
@@ -629,6 +660,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^AssignmentExpression:
 		if e == nil { return }
+		ck_check_assignment_invalid_lhs(c, e)
 		ck_walk_expr(c, ctx, e.left)
 		ck_walk_expr(c, ctx, e.right)
 
@@ -1461,6 +1493,65 @@ ck_check_arrow_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^
 	if str.value != "use strict" { return }
 	if params_are_simple(fn.params[:]) { return }
 	ck_report(c, u32(fn.loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+}
+
+// ============================================================================
+// Slice 9 — import/export position rules + invalid-LHS in compound
+// assignment.
+// ============================================================================
+
+// §16.2 / §16.2.1 — ImportDeclaration / ExportDeclaration positioning.
+// Two related rules:
+//   * Source-type rule: in a Script Program, ANY position is invalid
+//     (`import` and `export` are only valid in module code, regardless
+//     of nesting).
+//   * Top-level rule: in a Module Program, the declaration must appear
+//     as a direct child of `Program.body` — not nested in a function
+//     body, block, single-statement consequent, switch case, etc.
+//
+// `is_import` picks the diagnostic noun in the script-mode message.
+// `was_top_level` is the snapshot of `ctx.at_top_level` taken at the
+// start of the surrounding `ck_walk_stmt` call — it's true ONLY when
+// the statement is being walked directly from `check_program`.
+@(private="file")
+ck_check_import_export_position :: proc(
+	c: ^Checker,
+	ctx: ^CheckerContext,
+	loc: Loc,
+	is_import: bool,
+	was_top_level: bool,
+) {
+	if ctx.source_type == .Script {
+		msg := "'export' is only valid in module code"
+		if is_import { msg = "'import' is only valid in module code" }
+		ck_report(c, u32(loc.span.start), msg)
+		return
+	}
+	if !was_top_level {
+		msg := "'export' declarations are only allowed at the top level of a module"
+		if is_import { msg = "'import' declarations are only allowed at the top level of a module" }
+		ck_report(c, u32(loc.span.start), msg)
+	}
+}
+
+// §13.15.1 — "Invalid left-hand side in assignment" early error fired
+// only for the destructuring-as-LHS-with-compound-operator case (e.g.
+// `[a] += 1`, `({x} = e) **= 2`). Every OTHER invalid-LHS shape is a
+// structural parse error reported by the parser via `report_error`.
+// The parser fires this at parse_assignment_expr; the AST preserves
+// AssignmentExpression.{left, operator}, so re-running
+// `is_valid_assignment_target` post-parse reproduces the diagnostic.
+@(private="file")
+ck_check_assignment_invalid_lhs :: proc(c: ^Checker, e: ^AssignmentExpression) {
+	if e == nil || e.left == nil { return }
+	if e.operator == .Assign { return } // covered by parser-side report_error
+	if is_valid_assignment_target(e.left, true) { return }
+	// Only ArrayExpression / ObjectExpression LHS reach here as semantic
+	// errors — every other invalid LHS is a parser-side structural error.
+	#partial switch _ in e.left^ {
+	case ^ArrayExpression, ^ObjectExpression:
+		ck_report(c, u32(e.loc.span.start), "Invalid left-hand side in assignment")
+	}
 }
 
 // ============================================================================
