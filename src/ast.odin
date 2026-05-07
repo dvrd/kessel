@@ -789,6 +789,13 @@ Identifier :: struct {
 	name:               string,
 	type_annotation:    Maybe(^TSTypeAnnotation),
 	optional:           bool,
+	// has_escape — set by the parser when the source token contained
+	// at least one Unicode escape sequence (`\u006Cet`, `\u0061wait`,
+	// etc.). Used by the semantic checker to enforce §12.7.2 (escaped
+	// reserved word) and §16.2.2 / §12.6.1.1 (escaped contextual reserved
+	// word as IdentifierReference). Zero-init false matches the
+	// lex-time default for the overwhelmingly common no-escape path.
+	has_escape:         bool,
 }
 
 // PrivateIdentifier for class private fields/methods (#field)

@@ -10370,16 +10370,14 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// §15.7.5 arguments-in-class-static-block: enforced by the
 		// semantic checker (ck_check_identifier_arguments). Parser stays
 		// permissive.
-		// `await` as IdentifierReference in module/async/static context.
-		// Plain (non-escaped) `await` always lexes as TokenType.Await, never
-		// .Identifier, so the only way this branch is reached with the cooked
-		// name "await" is via an escaped form like `\u0061wait` - a vanishingly
-		// rare path on the bench corpus. Gating the string compare on
-		// has_escape keeps `cur_tok.value == "await"` off the hot path for
-		// every ordinary identifier.
-		if p.cur_tok.has_escape && p.cur_tok.value == "await" && await_is_reserved_here(p) {
-			report_semantic_error(p, "'await' is not allowed as an identifier in this context")
-		}
+		// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
+		// async-params / class-static-block context is enforced by the
+		// semantic checker (ck_check_identifier_await_reserved). The
+		// has_escape flag is propagated to ^Identifier below so the checker
+		// can match the parser's narrow gating (only escaped forms reach
+		// this code path with cooked name "await"; non-escaped `await`
+		// lexes as `.Await` and parses as AwaitExpression).
+		id_has_escape := p.cur_tok.has_escape
 		// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
 		// reserved. The lexer emits it as .Identifier (contextual for
 		// TS enum decls). Mirrors the check in parse_primary_expr.
@@ -10405,6 +10403,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		id.loc.span.start = id_offset
 		id.loc.span.end   = prev_end_offset(p)
 		id.name = id_value
+		id.has_escape = id_has_escape
 		expr = id_e
 		// Inline LHS tail loop (member access, calls)
 		expr = parse_lhs_tail(p, expr, true)
@@ -11501,11 +11500,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// enforced by the semantic checker
 		// (ck_check_identifier_reference_strict).
 
-		// §16.2 - `await` in module/async/static-block context is a keyword,
-		// not a valid IdentifierReference.
-		if (current.type == .Await || current.value == "await") && await_is_reserved_here(p) {
-			report_semantic_error(p, "'await' is not allowed as an identifier in this context")
-		}
+		// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
+		// async-params / class-static-block context is enforced by the
+		// semantic checker (ck_check_identifier_await_reserved). The
+		// has_escape flag is propagated below to the Identifier so the
+		// checker can match the parser's narrow gating.
 		// Escaped `async` before `function` is SyntaxError. The lexer
 		// emits `.Identifier` (not `.Async`) for `\u0061sync`, so the
 		// `.Async` case's escape check doesn't fire.
@@ -11519,6 +11518,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		id, id_expr := new_expr(p, Identifier)
 		id.loc = loc_from_token(&current)
 		id.name = current.value
+		id.has_escape = current.has_escape
 		id.loc.span.end = prev_end_offset(p)
 		return id_expr
 

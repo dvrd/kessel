@@ -944,6 +944,8 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			ck_check_identifier_arguments(c, ctx, e)
 			// §12.6.1.1 — strict-mode reserved word as IdentifierReference.
 			ck_check_identifier_reference_strict(c, ctx, e)
+			// §16.2 / §15.7.5 — escaped `await` in async / class-static-block.
+			ck_check_identifier_await_reserved(c, ctx, e)
 		}
 
 	// Leaf / literal-shape — nothing to walk for break/continue purposes:
@@ -2329,6 +2331,30 @@ ck_check_identifier_reference_strict :: proc(c: ^Checker, ctx: ^CheckerContext, 
 	if !is_strict_reserved_simple_name(id.name) { return }
 	msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
 	ck_report(c, u32(id.loc.span.start), msg)
+}
+
+// ck_check_identifier_await_reserved — §16.2 / §15.7.5 — the cooked
+// IdentifierName `await` cannot serve as an IdentifierReference in a
+// context where `await` is reserved (async function body, async
+// function params, class static block body). Plain (non-escaped)
+// `await` always lexes as `.Await` and is parsed as AwaitExpression
+// elsewhere; the only way this AST shape is reached with
+// `name == "await"` is via an escaped form like `\u0061wait`, hence
+// the `id.has_escape` gate (matches parser.odin's lex-time has_escape
+// gating in parse_unary_expr's identifier fast-path and
+// parse_primary_expr's fallback identifier branch).
+//
+// Module top-level is intentionally NOT a reserved context here — OXC
+// (kessel's conformance oracle) accepts `let await = 1;` at module
+// top-level binding positions, so the checker matches OXC.
+@(private="file")
+ck_check_identifier_await_reserved :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
+	if id == nil || id.name != "await" { return }
+	if !id.has_escape { return }
+	if ctx.in_async || ctx.in_class_static_block {
+		ck_report(c, u32(id.loc.span.start),
+			"'await' is not allowed as an identifier in this context")
+	}
 }
 
 // ck_check_import_specifier_local — §16.2.2 — ImportedBinding is a
