@@ -9207,6 +9207,19 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		}
 		if !paren_wrapped {
 			next_prec := precedence_for_token(p.cur_type)
+			// §12.6 ASI: when there's a LineTerminator between the
+			// YieldExpression and the next operator token, the YieldExpression
+			// is a complete statement. The next operator becomes the start of
+			// the next statement (which may be a syntax error in its own right,
+			// e.g. `+ 1` as a stmt is valid; `/ 1 /g` parses as a regex).
+			// Critical for the Babel `es2015/yield/regexp` fixture where
+			//   `yield<nl>/ 1 /g`
+			// must parse as `yield;` followed by a regex statement, not as
+			// `yield / 1 / g` (a binary chain). OXC + V8 + SpiderMonkey all
+			// apply ASI here.
+			if p.cur_tok.had_line_terminator {
+				return left
+			}
 			// .Conditional (5) and above covers ?, ||, &&, ??, |, ^, &,
 			// ==, <, <<, +, *, **, etc. All forbidden as yield LHS without
 			// parens. Assignment operators (.Assignment=4) are below the
