@@ -46,6 +46,7 @@ package main
 // ============================================================================
 
 import "core:mem"
+import "core:fmt"
 
 // CheckerLabel — one label currently in scope.
 //
@@ -117,6 +118,15 @@ CheckerLabel :: struct {
 //   immediately on entry so any recursive walk into a child statement
 //   (block bodies, function bodies, single-statement consequents, etc.)
 //   sees a non-top-level position.
+// `in_async`: are we inside an async function body? Set by ck_walk_function
+//   when fn.async is true; arrows propagate via their own .async flag
+//   (a non-async arrow inside an async fn resets `in_async` to false to
+//   match the parser's existing behaviour at parse_arrow_function).
+//   Read by class-name / arrow-param identifier checks: `await` as a
+//   binding name in module/async context is a SyntaxError.
+// `in_generator`: are we inside a generator function body? Same
+//   propagation rules as in_async (arrows reset to false; arrows can't
+//   be generators). Read by class-name / arrow-param identifier checks.
 CheckerContext :: struct {
 	iter_depth:            int,
 	switch_depth:          int,
@@ -134,6 +144,8 @@ CheckerContext :: struct {
 	params_is_arrow:       bool,
 	source_type:           SourceType,
 	at_top_level:          bool,
+	in_async:              bool,
+	in_generator:          bool,
 }
 
 Checker :: struct {
@@ -296,6 +308,8 @@ CheckerScopeSave :: struct {
 	in_derived_constructor: bool,
 	in_field_init:         bool,
 	in_class_static_block: bool,
+	in_async:              bool,
+	in_generator:          bool,
 }
 
 @(private="file")
@@ -310,6 +324,8 @@ ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 		in_derived_constructor = ctx.in_derived_constructor,
 		in_field_init          = ctx.in_field_init,
 		in_class_static_block  = ctx.in_class_static_block,
+		in_async               = ctx.in_async,
+		in_generator           = ctx.in_generator,
 	}
 	ctx.iter_depth   = 0
 	ctx.switch_depth = 0
@@ -327,6 +343,8 @@ ck_exit_function :: proc(ctx: ^CheckerContext, saved: CheckerScopeSave) {
 	ctx.in_derived_constructor = saved.in_derived_constructor
 	ctx.in_field_init          = saved.in_field_init
 	ctx.in_class_static_block  = saved.in_class_static_block
+	ctx.in_async               = saved.in_async
+	ctx.in_generator           = saved.in_generator
 	// Truncate any labels pushed inside the function body that weren't
 	// popped (defensive — the LabeledStatement walker pops on exit, so
 	// this should already be a no-op).
@@ -599,6 +617,14 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// directive-prologue setup), so the helper checks the first body
 		// statement's StringLiteral expression directly.
 		ck_check_arrow_strict_directive_with_nonsimple_params(c, e)
+		// Snapshot the OUTER async/generator context BEFORE ck_enter_function
+		// resets it. Arrow params are evaluated under the COMBINED context:
+		//   * `await` is reserved if the outer scope was async OR the arrow
+		//     itself is async (per parser's await_is_reserved_here);
+		//   * `yield` is reserved if the outer scope was a generator (arrows
+		//     can't be generators themselves).
+		outer_in_async := ctx.in_async
+		outer_in_gen   := ctx.in_generator
 		// Arrow function = function boundary for break/continue/labels.
 		saved := ck_enter_function(ctx)
 		// Arrow block-body "use strict" prologue: parse_block_statement does
@@ -610,12 +636,17 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		prev_arrow_par  := ctx.params_is_arrow
 		ctx.in_params       = true
 		ctx.params_is_arrow = true
+		ctx.in_async        = outer_in_async || e.async
+		ctx.in_generator    = outer_in_gen
 		for pr in e.params {
+			ck_check_arrow_param_pattern(c, ctx, pr.pattern)
 			ck_walk_pattern(c, ctx, pr.pattern)
 			if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
 		}
 		ctx.in_params       = prev_in_params
 		ctx.params_is_arrow = prev_arrow_par
+		ctx.in_async        = e.async
+		ctx.in_generator    = false
 		#partial switch body in e.body {
 		case ^Expression:     if body != nil { ck_walk_expr(c, ctx, body) }
 		case ^BlockStatement: if body != nil { for s in body.body { ck_walk_stmt(c, ctx, s) } }
@@ -898,6 +929,17 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	// count for `new.target` purposes (§10.2.3). Arrow function entries
 	// in ck_walk_expr deliberately do NOT increment this.
 	ctx.function_depth += 1
+	// §15.5 / §15.6 — a function body's own async/generator-ness drives
+	// whether `await` / `yield` are reserved INSIDE the body. Static
+	// blocks reset both per §15.7.5 ("runs under [~Yield, ~Await]").
+	switch kind {
+	case .StaticBlock:
+		ctx.in_async     = false
+		ctx.in_generator = false
+	case .Plain, .Method, .Constructor:
+		ctx.in_async     = fn.async
+		ctx.in_generator = fn.generator
+	}
 	// §10.2.1 — a function body's `"use strict"` directive lifts strict
 	// mode for the body's lexical scope. ck_exit_function restores the
 	// outer flag so the lift is local to this function.
@@ -978,6 +1020,16 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 		has_extends = true
 		ck_walk_expr(c, ctx, sc)
 	}
+	// §15.7.1 — BindingIdentifier of a class is checked under strict
+	// reservation rules (the class body is implicitly strict + the name
+	// is in the enclosing TDZ with strict-reservation rules applied), so
+	// `class let`, `class implements`, `class yield`, `class eval` etc.
+	// are always SyntaxErrors. Migrated from parse_class_declaration /
+	// parse_class_expression to keep the class-name check in a single
+	// place. Note: `enum` as a class name stays a parser-side
+	// `report_error` (it's a structural reservation, not strict-only).
+	ck_check_class_name(c, ctx, cls)
+
 	// §15.7.1 — ClassBody is always strict-mode code (mirrors parser.odin
 	// `prev_strict_class := p.strict_mode; p.strict_mode = true`). The
 	// class body also opens a fresh class-element scope: `in_method`,
@@ -1551,6 +1603,110 @@ ck_check_assignment_invalid_lhs :: proc(c: ^Checker, e: ^AssignmentExpression) {
 	#partial switch _ in e.left^ {
 	case ^ArrayExpression, ^ObjectExpression:
 		ck_report(c, u32(e.loc.span.start), "Invalid left-hand side in assignment")
+	}
+}
+
+// ============================================================================
+// Slice 10 — BindingIdentifier reservation rules for class names + arrow
+// parameters. Strict-mode reserved-word handling for general
+// IdentifierReference / BindingIdentifier positions across the rest of
+// the AST is deferred to a future scope-analysis migration (parser-side
+// scope_* + report_strict_* helpers).
+// ============================================================================
+
+// is_strict_reserved_simple_name returns true if `name` matches a
+// strict-mode-reserved IdentifierName the AST exposes as a plain
+// ^Identifier (i.e. one that the lexer cooked from a token type the
+// parser couldn't already reject as a keyword). Mirrors parser.odin's
+// `is_strict_reserved_word(token_type) || is_strict_reserved_name(name)`
+// modulo lex-time information; the parser-side `let` / `static` / `yield`
+// branch is folded in here. `await` and `enum` are checked separately by
+// callers because they have their own diagnostic strings.
+@(private="file")
+is_strict_reserved_simple_name :: proc(name: string) -> bool {
+	switch name {
+	case "implements", "interface", "package", "private",
+	     "protected", "public", "let", "static", "yield":
+		return true
+	}
+	return false
+}
+
+// §15.7.1 — BindingIdentifier of a ClassExpression / ClassDeclaration
+// is checked under strict-reservation rules. Reports as semantic errors:
+//   * eval / arguments — `Class name 'NAME' is not allowed`
+//   * strict-reserved word (let, static, yield, implements, interface,
+//     package, private, protected, public) —
+//     `'NAME' is a reserved identifier and cannot be a class name`
+//   * await in module/async —
+//     `'await' cannot be used as a class name in module / async context`
+//
+// `enum` as a class name stays a parser-side structural error
+// (parse_class_declaration's `report_error`); not migrated.
+@(private="file")
+ck_check_class_name :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
+	if cls == nil { return }
+	id, has_id := cls.id.(BindingIdentifier)
+	if !has_id { return }
+	loc := u32(id.loc.span.start)
+	name := id.name
+
+	if is_strict_reserved_simple_name(name) {
+		msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", name)
+		ck_report(c, loc, msg)
+		return
+	}
+	if is_eval_or_arguments(name) {
+		msg := fmt.tprintf("Class name '%s' is not allowed", name)
+		ck_report(c, loc, msg)
+		return
+	}
+	if name == "await" && (ctx.in_async || ctx.source_type == .Module) {
+		ck_report(c, loc, "'await' cannot be used as a class name in module / async context")
+	}
+}
+
+// Arrow parameter BindingIdentifier reservation rules (mirror of
+// parse_arrow_function_with_parens' identifier-shape check at
+// parser.odin lines 13918–13931). Reports as semantic errors:
+//   * eval / arguments in strict mode —
+//     `Arrow parameter 'NAME' is not allowed in strict mode`
+//   * strict-reserved word in strict mode —
+//     `'NAME' is a reserved identifier in strict mode`
+//   * `enum` (always reserved) — `'enum' is a reserved identifier`
+//   * `await` in module/async —
+//     `'await' cannot be used as an arrow parameter in module / async context`
+//   * `yield` in generator/strict —
+//     `'yield' cannot be used as an arrow parameter in generator / strict context`
+//
+// Walks only the immediate identifier (no recursion into nested patterns;
+// `({await} = ...) => ...` puts `await` in a nested ObjectPattern, where
+// scope-bind machinery in the parser still owns the diagnostic).
+@(private="file")
+ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
+	if pat == nil { return }
+	id, is_id := pat.(^Identifier)
+	if !is_id || id == nil { return }
+	name := id.name
+	loc  := u32(id.loc.span.start)
+
+	if ctx.strict_mode {
+		if is_eval_or_arguments(name) {
+			msg := fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", name)
+			ck_report(c, loc, msg)
+		} else if is_strict_reserved_simple_name(name) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", name)
+			ck_report(c, loc, msg)
+		}
+	}
+	if name == "enum" {
+		ck_report(c, loc, "'enum' is a reserved identifier")
+	}
+	if name == "await" && (ctx.in_async || ctx.source_type == .Module) {
+		ck_report(c, loc, "'await' cannot be used as an arrow parameter in module / async context")
+	}
+	if name == "yield" && (ctx.in_generator || ctx.strict_mode) {
+		ck_report(c, loc, "'yield' cannot be used as an arrow parameter in generator / strict context")
 	}
 }
 

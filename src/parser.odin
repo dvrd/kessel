@@ -4483,18 +4483,12 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// etc. are always SyntaxErrors, regardless of enclosing strict
 		// / sloppy setting.
 		// §12.1.1 - `enum` is always reserved; never a valid class name.
-		// The lexer emits `enum` as .Identifier (contextual), check by value.
 		if current.value == "enum" {
 			report_error(p, "'enum' is a reserved word and cannot be a class name")
-		} else if is_strict_reserved_word(name_tok_type) || is_strict_reserved_name(current.value) {
-			msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value)
-			report_semantic_error(p, msg)
-		} else if is_eval_or_arguments(current.value) {
-			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
-			report_semantic_error(p, msg)
-		} else if current.value == "await" && await_is_reserved_here(p) {
-			report_semantic_error(p, "'await' cannot be used as a class name in module / async context")
 		}
+		// §15.7.1 strict-reserved / eval / arguments / await as class
+		// name: enforced by the semantic checker (ck_check_class_name)
+		// using its own in_async + source_type trackers.
 		// Escaped-ReservedWord in the BindingIdentifier position. Class
 		// names are strict-mode-only, so `class l\u0065t` reaches the
 		// strict-only branch too.
@@ -12784,16 +12778,9 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 			loc  = loc_from_token(&current),
 			name = current.value,
 		}
-		// Same §15.7.1 binding-identifier checks as parse_class_declaration.
-		if is_strict_reserved_word(name_tok_type) || is_strict_reserved_name(current.value) {
-			msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value)
-			report_semantic_error(p, msg)
-		} else if is_eval_or_arguments(current.value) {
-			msg := fmt.tprintf("Class name '%s' is not allowed", current.value)
-			report_semantic_error(p, msg)
-		} else if current.value == "await" && await_is_reserved_here(p) {
-			report_semantic_error(p, "'await' cannot be used as a class name in module / async context")
-		}
+		// §15.7.1 strict-reserved / eval / arguments / await as class
+		// name: enforced by the semantic checker (ck_check_class_name).
+		_ = name_tok_type
 		// §12.7.2 escaped-ReservedWord in BindingIdentifier position.
 		// Class names are strict-mode-only (§15.7.1), so the strict-only
 		// reservation list applies to escapes too.
@@ -13877,24 +13864,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			// mode rejects `eval` / `arguments`, FutureReservedWords, `let`,
 			// `static`, `yield`, and contextual `await` / `yield` checks
 			// follow the same rule as parse_function_declaration.
-			if p.strict_mode {
-				if is_eval_or_arguments(e.name) {
-					msg := fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name)
-					report_semantic_error(p, msg)
-				} else if is_strict_reserved_name(e.name) || e.name == "let" || e.name == "static" || e.name == "yield" {
-					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name)
-					report_semantic_error(p, msg)
-				}
-			}
-			if e.name == "enum" {
-				report_semantic_error(p, "'enum' is a reserved identifier")
-			}
-			if e.name == "await" && await_is_reserved_here(p) {
-				report_semantic_error(p, "'await' cannot be used as an arrow parameter in module / async context")
-			}
-			if e.name == "yield" && yield_is_reserved_here(p) {
-				report_semantic_error(p, "'yield' cannot be used as an arrow parameter in generator / strict context")
-			}
+			// Arrow parameter BindingIdentifier reservation rules: enforced
+			// by the semantic checker (ck_check_arrow_param_pattern)
+			// consulting strict_mode + in_async + in_generator + source_type.
 			ident := new_node(p, Identifier)
 			ident^ = e^
 			param := FunctionParameter{
