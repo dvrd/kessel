@@ -71,12 +71,24 @@ CheckerLabel :: struct {
 // `lang`: the source language. Read by checks that branch on TS-mode
 //   semantics (e.g. duplicate constructor: TS allows overload sigs to
 //   repeat freely, only the SECOND implementation body is an error).
+// `strict_mode`: ECMA-262 §10.2.1 "strict mode code". Initially set from
+//   the program prologue (or forced true for Module source-type / class
+//   bodies / class field initializers). Function bodies push a new value
+//   when their own prologue contains `"use strict"`. Read by every
+//   strict-mode-only early error (with statement, legacy octal literal,
+//   octal escape in string / template, function decl as labeled item).
+// `in_tagged_template`: gate for octal-escape diagnostics inside template
+//   literals. Tagged templates are exempt from the octal-escape ban
+//   (§12.9.6) because the tag receives the raw spans verbatim. Set
+//   around the .quasi walk in the ^TaggedTemplateExpression case.
 CheckerContext :: struct {
-	iter_depth:   int,
-	switch_depth: int,
-	labels:       [dynamic]CheckerLabel,
-	label_floor:  int,
-	lang:         Lang,
+	iter_depth:         int,
+	switch_depth:       int,
+	labels:             [dynamic]CheckerLabel,
+	label_floor:        int,
+	lang:               Lang,
+	strict_mode:        bool,
+	in_tagged_template: bool,
 }
 
 Checker :: struct {
@@ -98,6 +110,15 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	ctx: CheckerContext
 	ctx.labels = make([dynamic]CheckerLabel, 0, 4, c.allocator)
 	ctx.lang   = lang
+	// §10.2.1 + §16.2.2 — strict-mode initialisation:
+	//   * Module code is always strict (§16.2.2).
+	//   * Otherwise, a `"use strict"` directive at the program
+	//     prologue puts the whole script in strict mode.
+	if program.type == .Module {
+		ctx.strict_mode = true
+	} else if directives_have_use_strict(program.directives[:]) {
+		ctx.strict_mode = true
+	}
 	for stmt in program.body {
 		ck_walk_stmt(c, &ctx, stmt)
 	}
@@ -106,6 +127,37 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS) {
 	assert(ctx.switch_depth == 0)
 	assert(len(ctx.labels) == 0)
 	assert(ctx.label_floor == 0)
+}
+
+// directives_have_use_strict scans a directive prologue (Program- or
+// FunctionBody-level) for the literal `"use strict"` token.
+@(private="file")
+directives_have_use_strict :: proc(dirs: []Directive) -> bool {
+	for d in dirs {
+		if d.value.value == "use strict" { return true }
+	}
+	return false
+}
+
+// fn_body_lifts_strict — does a function body's directive prologue
+// contain a `"use strict"` directive?
+//
+// The parser DOES set `ExpressionStatement.directive` to the cooked
+// string of any prologue directive (parse_program, parse_function_body)
+// but it does NOT populate `FunctionBody.directives` — see
+// parser.odin's empty `directives = make([dynamic]Directive, 0, 0, ...)`
+// initialisations at lines 3938 / 4350. So we walk the body's leading
+// ExpressionStatement-with-directive run.
+@(private="file")
+fn_body_lifts_strict :: proc(body: FunctionBody) -> bool {
+	for stmt in body.body {
+		if stmt == nil { return false }
+		es, ok := stmt^.(^ExpressionStatement)
+		if !ok || es == nil { return false }
+		if es.directive == "" { return false } // prologue ended
+		if es.directive == "use strict" { return true }
+	}
+	return false
 }
 
 // checker_run_for_job runs the checker against a parsed ParseJob and
@@ -180,12 +232,19 @@ label_in_scope :: proc(ctx: ^CheckerContext, name: string) -> (CheckerLabel, boo
 // ck_enter_function — function-boundary push. Returns a snapshot to
 // pass to ck_exit_function. Mirrors the `label_floor` save/restore
 // pattern in parser.odin (parse_function_body).
+//
+// `strict_mode` is also threaded through the save: function bodies can
+// LIFT strict mode (a `"use strict"` directive in the body sets the
+// flag for the body's lexical scope only) but never lower it (a body
+// inside an already-strict scope can't escape strict by lacking the
+// directive). The save/restore pattern naturally implements both rules.
 @(private="file")
 CheckerScopeSave :: struct {
 	iter_depth:   int,
 	switch_depth: int,
 	label_floor:  int,
 	label_len:    int,
+	strict_mode:  bool,
 }
 
 @(private="file")
@@ -195,6 +254,7 @@ ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 		switch_depth = ctx.switch_depth,
 		label_floor  = ctx.label_floor,
 		label_len    = len(ctx.labels),
+		strict_mode  = ctx.strict_mode,
 	}
 	ctx.iter_depth   = 0
 	ctx.switch_depth = 0
@@ -207,6 +267,7 @@ ck_exit_function :: proc(ctx: ^CheckerContext, saved: CheckerScopeSave) {
 	ctx.iter_depth   = saved.iter_depth
 	ctx.switch_depth = saved.switch_depth
 	ctx.label_floor  = saved.label_floor
+	ctx.strict_mode  = saved.strict_mode
 	// Truncate any labels pushed inside the function body that weren't
 	// popped (defensive — the LabeledStatement walker pops on exit, so
 	// this should already be a no-op).
@@ -251,6 +312,16 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^LabeledStatement:
 		if v == nil { return }
+		// §14.13.1 — in strict mode, a LabelledItem may not be a plain
+		// FunctionDeclaration. Async / generator decls are syntax errors
+		// regardless of strictness and stay a parser-side `report_error`.
+		if ctx.strict_mode && v.body != nil {
+			if fn, is_fn := v.body^.(^FunctionDeclaration); is_fn && fn != nil {
+				if !fn.async && !fn.generator {
+					ck_report(c, u32(fn.loc.span.start), "Function declaration cannot be a labeled item in strict mode")
+				}
+			}
+		}
 		entry := CheckerLabel{
 			name         = v.label.name,
 			is_iteration = label_is_iteration_target(v.body),
@@ -346,6 +417,10 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^WithStatement:
 		if v == nil { return }
+		// §14.11.1 — WithStatement is forbidden in strict mode.
+		if ctx.strict_mode {
+			ck_report(c, u32(v.loc.span.start), "'with' statements are not allowed in strict mode")
+		}
 		ck_walk_expr(c, ctx, v.object)
 		ck_walk_stmt(c, ctx, v.body)
 
@@ -405,6 +480,10 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 @(private="file")
 ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDeclaration) {
 	if decl == nil { return }
+	// §14.3.1.1 — BoundNames of a LexicalDeclaration must not contain
+	// `"let"`. `var let;` stays legal (Annex B.3.4.4); `let let;` and
+	// `const let;` are SyntaxErrors regardless of strict mode.
+	ck_check_var_decl_let_binding(c, decl)
 	for d in decl.declarations {
 		if init, have := d.init.(^Expression); have && init != nil {
 			ck_walk_expr(c, ctx, init)
@@ -427,6 +506,11 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if e == nil { return }
 		// Arrow function = function boundary for break/continue/labels.
 		saved := ck_enter_function(ctx)
+		// Arrow block-body "use strict" prologue: parse_block_statement does
+		// NOT set ExpressionStatement.directive (only parse_function_body /
+		// parse_program do), and the parser itself never lifts strict_mode
+		// for arrow block bodies. Match that behaviour here — arrow bodies
+		// inherit the surrounding strict mode but never lift it.
 		for pr in e.params {
 			if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
 		}
@@ -513,9 +597,24 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^TaggedTemplateExpression:
 		if e == nil { return }
 		ck_walk_expr(c, ctx, e.tag)
+		// §12.9.6 — tagged-template quasis receive raw spans verbatim
+		// and are exempt from the legacy-octal / \8\9 escape ban. Set
+		// the gate around the immediate quasi walk so a nested
+		// (un-tagged) template literal in a substitution still fires.
+		prev_tagged := ctx.in_tagged_template
+		ctx.in_tagged_template = true
 		ck_walk_expr(c, ctx, e.quasi)
+		ctx.in_tagged_template = prev_tagged
 	case ^TemplateLiteral:
-		if e != nil { for s in e.expressions { ck_walk_expr(c, ctx, s) } }
+		if e == nil { return }
+		ck_check_template_octal(c, ctx, e)
+		// Substitution expressions inside the template are NORMAL
+		// expressions — they aren't covered by the tagged-template
+		// quasi exemption. Reset the gate while walking them.
+		prev_tagged := ctx.in_tagged_template
+		ctx.in_tagged_template = false
+		for s in e.expressions { ck_walk_expr(c, ctx, s) }
+		ctx.in_tagged_template = prev_tagged
 	case ^ImportExpression:
 		if e == nil { return }
 		ck_walk_expr(c, ctx, e.source)
@@ -544,10 +643,17 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			ck_walk_jsx_child(c, ctx, child)
 		}
 
+	// Strict-mode-only literal early errors (slice 5):
+	case ^NumericLiteral:
+		if e != nil { ck_check_legacy_octal_number(c, ctx, e) }
+	case ^StringLiteral:
+		if e != nil { ck_check_string_octal_escape(c, ctx, e) }
+	case ^BigIntLiteral:
+		if e != nil { ck_check_legacy_octal_bigint(c, e) }
+
 	// Leaf / literal-shape — nothing to walk for break/continue purposes:
-	//   NullLiteral, BooleanLiteral, NumericLiteral, StringLiteral,
-	//   BigIntLiteral, RegExpLiteral, Identifier, PrivateIdentifier,
-	//   ThisExpression, Super, MetaProperty, JSXText,
+	//   NullLiteral, BooleanLiteral, RegExpLiteral, Identifier,
+	//   PrivateIdentifier, ThisExpression, Super, MetaProperty, JSXText,
 	//   JSXExpressionContainer (visited via JSXElement child walk),
 	//   JSXEmptyExpression, JSXSpreadChild.
 	}
@@ -597,6 +703,12 @@ ck_walk_jsx_attr :: proc(c: ^Checker, ctx: ^CheckerContext, attr: JSXAttributeIt
 ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression) {
 	if fn == nil { return }
 	saved := ck_enter_function(ctx)
+	// §10.2.1 — a function body's `"use strict"` directive lifts strict
+	// mode for the body's lexical scope. ck_exit_function restores the
+	// outer flag so the lift is local to this function.
+	if !fn.no_body && fn_body_lifts_strict(fn.body) {
+		ctx.strict_mode = true
+	}
 	for pr in fn.params {
 		if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
 	}
@@ -609,10 +721,17 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 @(private="file")
 ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	if cls == nil { return }
-	// super_class is evaluated in the OUTER scope (no function boundary).
+	// super_class is evaluated in the OUTER scope (no function boundary,
+	// no class-body strict lift).
 	if sc, have := cls.super_class.(^Expression); have && sc != nil {
 		ck_walk_expr(c, ctx, sc)
 	}
+	// §15.7.1 — ClassBody is always strict-mode code (mirrors parser.odin
+	// `prev_strict_class := p.strict_mode; p.strict_mode = true`).
+	prev_strict := ctx.strict_mode
+	ctx.strict_mode = true
+	defer ctx.strict_mode = prev_strict
+
 	// Whole-class checks: §15.7.1 — at most one constructor (with TS
 	// overload-signature exception). Migrated from parser.odin in slice 4.
 	ck_check_class_constructors(c, ctx, cls)
@@ -836,6 +955,113 @@ ck_check_member_super_private :: proc(c: ^Checker, e: ^MemberExpression) {
 	if _, is_super := e.object^.(^Super); !is_super { return }
 	if _, is_private := e.property^.(^PrivateIdentifier); is_private {
 		ck_report(c, u32(e.loc.span.start), "Private fields cannot be accessed through 'super'")
+	}
+}
+
+// ============================================================================
+// Slice 5 — strict-mode-driven early errors and two strict-independent
+// declaration-shape checks (`let` as lexical name; legacy-octal BigInt).
+//
+// Strict mode tracking lives on `CheckerContext.strict_mode`:
+//   * Set to `true` initially when the program is `Module` source-type
+//     (§16.2.2) or has a `"use strict"` directive in its prologue.
+//   * Lifted by `ck_walk_function` when the function body's prologue
+//     contains `"use strict"` (§10.2.1). Restored on function exit.
+//   * Lifted unconditionally for the duration of a class body in
+//     `ck_walk_class` (§15.7).
+//   * Inherited (never lifted) into arrow function bodies, matching the
+//     parser's behaviour. Block-body "use strict" prologues in arrows
+//     are dropped on the floor by parse_block_statement.
+// ============================================================================
+
+// §12.9.3.5 — a NumericLiteral matching the LegacyOctalIntegerLiteral
+// shape (`0` followed by decimal digits, no `x`/`o`/`b`/`.`/`e`/`n`)
+// is a SyntaxError in strict mode. Re-uses the same shape detector
+// the parser uses, kept in src/parser.odin so the lexer and checker
+// agree on what a "legacy zero-prefixed integer" looks like.
+@(private="file")
+ck_check_legacy_octal_number :: proc(c: ^Checker, ctx: ^CheckerContext, num: ^NumericLiteral) {
+	if num == nil { return }
+	if !ctx.strict_mode { return }
+	if !is_legacy_zero_prefixed_integer(num.raw) { return }
+	ck_report(c, u32(num.loc.span.start), "Legacy octal literals are not allowed in strict mode")
+}
+
+// §12.9.4 — a StringLiteral whose raw source contains a
+// LegacyOctalEscapeSequence (`\012`) or NonOctalDecimalEscapeSequence
+// (`\8` / `\9`) is a SyntaxError in strict mode. The check fires for
+// every string in strict scope, including the directive prologue
+// itself (so `function f(){ "\1"; "use strict"; }` retroactively
+// reports the offender, matching the parser's hand-rolled scan).
+@(private="file")
+ck_check_string_octal_escape :: proc(c: ^Checker, ctx: ^CheckerContext, str: ^StringLiteral) {
+	if str == nil { return }
+	if !ctx.strict_mode { return }
+	if !string_raw_has_forbidden_escape(str.raw) { return }
+	ck_report(c, u32(str.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+}
+
+// §12.9.3 — a LegacyOctalIntegerLiteral cannot form a BigInt;
+// `0123n` is a SyntaxError regardless of strict / sloppy mode.
+// (`0o123n` is the modern form.) The raw text retains the trailing
+// `n`; `is_legacy_zero_prefixed_integer` strips it before matching.
+@(private="file")
+ck_check_legacy_octal_bigint :: proc(c: ^Checker, big: ^BigIntLiteral) {
+	if big == nil { return }
+	if !is_legacy_zero_prefixed_integer(big.raw) { return }
+	ck_report(c, u32(big.loc.span.start), "Legacy octal literals cannot be BigInt")
+}
+
+// §12.9.6 — inside an UNTAGGED template literal, no quasi may contain a
+// LegacyOctalEscapeSequence or NonOctalDecimalEscapeSequence in strict
+// mode. Tagged templates are exempt (the tag receives raw spans); the
+// `ctx.in_tagged_template` flag short-circuits the check. The parser's
+// behaviour is to fire ONCE per template (anchored at the template),
+// not once per quasi.
+@(private="file")
+ck_check_template_octal :: proc(c: ^Checker, ctx: ^CheckerContext, tmpl: ^TemplateLiteral) {
+	if tmpl == nil { return }
+	if ctx.in_tagged_template { return }
+	if !ctx.strict_mode { return }
+	for q in tmpl.quasis {
+		if string_raw_has_forbidden_escape(q.raw) {
+			ck_report(c, u32(tmpl.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			return
+		}
+	}
+}
+
+// §14.3.1.1 — BoundNames of a LexicalDeclaration must not contain
+// `"let"`. Applies to `let`, `const`, `using`, `await using`. `var`
+// declarations are exempt (Annex B.3.4.4). Always enforced; not
+// strict-mode dependent.
+//
+// Re-uses parser.odin's `collect_bound_names`, which descends through
+// every binding pattern shape (Identifier, Object/Array patterns,
+// AssignmentPattern, RestElement) and writes the bound names into the
+// passed-in `[dynamic]string`. The walker visits each declarator's
+// initialiser separately, so we don't need to recurse here.
+@(private="file")
+ck_check_var_decl_let_binding :: proc(c: ^Checker, decl: ^VariableDeclaration) {
+	if decl == nil { return }
+	switch decl.kind {
+	case .Let, .Const, .Using, .AwaitUsing:
+		// fall through to scan
+	case .Var:
+		return
+	}
+	names: [dynamic]string
+	names.allocator = c.allocator
+	reserve(&names, 4)
+	defer delete(names)
+	for d in decl.declarations {
+		collect_bound_names(d.id, &names)
+	}
+	for n in names {
+		if n == "let" {
+			ck_report(c, u32(decl.loc.span.start), "'let' is disallowed as a lexically bound name")
+			return // one diagnostic per declaration matches parser behaviour
+		}
 	}
 }
 

@@ -57,14 +57,14 @@
     {
       "message": "Legacy octal literals are not allowed in strict mode",
       "line": 4,
-      "column": 15,
-      "offset": 157
+      "column": 11,
+      "offset": 153
     }
   ]
 }
 Parse errors (1):
-  Line 4, Column 15: Legacy octal literals are not allowed in strict mode
+  Line 4, Column 11: Legacy octal literals are not allowed in strict mode
 
 --- Statistics ---
-Arena: used=37648B reserved=16777216B ratio=0%
+Arena: used=37632B reserved=16777216B ratio=0%
 Parse errors: 1

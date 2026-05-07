@@ -62,16 +62,16 @@
     },
     {
       "message": "'let' is disallowed as a lexically bound name",
-      "line": 5,
+      "line": 4,
       "column": 1,
-      "offset": 183
+      "offset": 170
     }
   ]
 }
 Parse errors (2):
   Line 4, Column 5: 'let' is a reserved identifier in strict mode
-  Line 5, Column 1: 'let' is disallowed as a lexically bound name
+  Line 4, Column 1: 'let' is disallowed as a lexically bound name
 
 --- Statistics ---
-Arena: used=37648B reserved=16777216B ratio=0%
+Arena: used=37632B reserved=16777216B ratio=0%
 Parse errors: 2

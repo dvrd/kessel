@@ -84,19 +84,19 @@
   ],
   "errors": [
     {
-      "message": "'let' is disallowed as a lexically bound name",
+      "message": "'let' has already been declared",
       "line": 7,
       "column": 1,
       "offset": 305
     },
     {
       "message": "'let' is disallowed as a lexically bound name",
-      "line": 8,
+      "line": 6,
       "column": 1,
-      "offset": 320
+      "offset": 292
     },
     {
-      "message": "'let' has already been declared",
+      "message": "'let' is disallowed as a lexically bound name",
       "line": 7,
       "column": 1,
       "offset": 305
@@ -104,10 +104,10 @@
   ]
 }
 Parse errors (3):
-  Line 7, Column 1: 'let' is disallowed as a lexically bound name
-  Line 8, Column 1: 'let' is disallowed as a lexically bound name
   Line 7, Column 1: 'let' has already been declared
+  Line 6, Column 1: 'let' is disallowed as a lexically bound name
+  Line 7, Column 1: 'let' is disallowed as a lexically bound name
 
 --- Statistics ---
-Arena: used=38032B reserved=16777216B ratio=0%
+Arena: used=38016B reserved=16777216B ratio=0%
 Parse errors: 3

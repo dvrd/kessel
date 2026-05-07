@@ -2306,9 +2306,10 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 					if v != nil {
 						if v.async || v.generator {
 							report_error(p, "Async / generator function declaration cannot be a labeled item")
-						} else if p.strict_mode {
-							report_semantic_error(p, "Function declaration cannot be a labeled item in strict mode")
 						}
+						// §14.13.1 "plain function decl as labeled item in strict":
+						// enforced by the semantic checker (ck_walk_stmt's
+						// ^LabeledStatement case).
 					}
 				}
 			}
@@ -3648,17 +3649,9 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume with
 
-	if p.strict_mode {
-		// ECMA-262 §13.11.1 - WithStatement is a SyntaxError in strict
-		// mode. Legal in sloppy script (the TypeScript compiler's bundle
-		// itself contains `with(...)` in a non-strict IIFE, which is how
-		// the earlier "relaxed" stub got here). Since we now set
-		// `p.strict_mode = true` only when a `"use strict"` directive is
-		// actually present (or inside a class body), the real-world
-		// relaxation is still there - it just no longer swallows the
-		// strict-mode diagnostic.
-		report_semantic_error(p, "'with' statements are not allowed in strict mode")
-	}
+	// §14.11.1 "with-in-strict" early error: enforced by the semantic
+	// checker (ck_walk_stmt's ^WithStatement case) using its own strict
+	// mode tracker. The parser stays permissive on this in slice 5+.
 
 	if !expect_token(p, .LParen) {
 		return nil
@@ -4432,21 +4425,14 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 
 	// §12.9.4 Annex B.1.2 / §12.9.4.1 - if the function body's prologue
 	// contains a "use strict" directive, EVERY prologue StringLiteral
-	// (including strings BEFORE the "use strict" one, and the directive
-	// itself) must not contain a LegacyOctalEscapeSequence or
-	// NonOctalDecimalEscapeSequence. Classic test262 shape:
-	//   function f() { "\1"; "use strict"; }
-	// The `"\1"` passes lexing (legal in sloppy), then the later
-	// "use strict" retroactively makes it illegal. Walk the collected
-	// prologue strings and report each offender.
-	if body_use_strict {
-		for str_lit in prologue_raws {
-			if str_lit == nil { continue }
-			if string_raw_has_forbidden_escape(str_lit.raw) {
-				report_semantic_error_at(p, LexerLoc(str_lit.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
-			}
-		}
-	}
+	// Retroactive octal / \8 / \9 scan over directive-prologue strings:
+	// enforced by the semantic checker. ck_check_string_octal_escape
+	// runs against EVERY StringLiteral in strict scope, including the
+	// prologue strings (an ExpressionStatement.expression is still a
+	// StringLiteral the walker visits). When the body lifts strict via
+	// `"use strict"`, ck_walk_function sets ctx.strict_mode = true
+	// before walking body.body, so prologue strings PRECEDING the
+	// directive token still report correctly.
 
 	p.in_function = prev_in_function
 	p.in_non_arrow_function = prev_in_non_arrow
@@ -5823,7 +5809,9 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// parse_binding_pattern, so `var let;` keeps working (B.3.4.4).
 	if !is_declare && (kind == .Let || kind == .Const || kind == .Using || kind == .AwaitUsing) {
 		report_duplicate_lexical_names(p, decl.declarations[:])
-		report_let_as_lexical_name(p, decl.declarations[:])
+		// §14.3.1.1 `let` as lexically bound name: enforced by the
+		// semantic checker (ck_check_var_decl_let_binding) for every
+		// VariableDeclaration the walker visits.
 	}
 
 	// §Explicit Resource Management - `using` / `await using` create
@@ -6027,22 +6015,6 @@ report_duplicate_param_names :: proc(p: ^Parser, params: []FunctionParameter, fo
 
 // ECMA-262 §14.3.1.1 - `let` is forbidden as a BoundName inside a
 // LexicalDeclaration (`let` / `const` / `using` / `await using`). Walks
-// every declarator's binding pattern and reports once per occurrence.
-// `var let;` is intentionally allowed (B.3.4.4) and handled by the
-// caller gating on `kind`.
-report_let_as_lexical_name :: proc(p: ^Parser, decls: []VariableDeclarator) {
-	if len(decls) == 0 { return }
-	names: [dynamic]string
-	names.allocator = p.allocator
-	reserve(&names, 4)
-	for d in decls { collect_bound_names(d.id, &names) }
-	for n in names {
-		if n == "let" {
-			report_semantic_error(p, "'let' is disallowed as a lexically bound name")
-		}
-	}
-}
-
 report_duplicate_lexical_names :: proc(p: ^Parser, decls: []VariableDeclarator) {
 	if len(decls) == 0 { return }
 	// Small fixed scratch (>= 16) avoids allocator pressure for the common
@@ -11588,9 +11560,8 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// SyntaxErrors in strict mode. Both share the shape:
 		// `0<digit>+` where the second char is a decimal digit (not
 		// `x`/`X`/`o`/`O`/`b`/`B`/`.`/`e`/`E`/`n`).
-		if p.strict_mode && is_legacy_zero_prefixed_integer(current.value) {
-			report_semantic_error(p, "Legacy octal literals are not allowed in strict mode")
-		}
+		// §12.9.3.5 legacy octal in strict mode: enforced by the
+		// semantic checker (ck_check_legacy_octal_number).
 		return num_e
 
 	case .String:
@@ -11602,13 +11573,12 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			str.value = val
 		}
 		str.loc.span.end = prev_end_offset(p)
-		// ECMA-262 §12.9.4 - LegacyOctalEscapeSequence (e.g. `\012`) and
-		// NonOctalDecimalEscapeSequence (`\8` / `\9`) are SyntaxErrors in
-		// a StringLiteral whose surrounding code is strict. `raw` carries
-		// the source text including the outer quotes.
-		if p.strict_mode && string_raw_has_forbidden_escape(current.value) {
-			report_semantic_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
-		}
+		// §12.9.4 octal / \8 / \9 escape in strict mode: enforced by
+		// the semantic checker (ck_check_string_octal_escape). Note this
+		// also covers the parser's old retroactive prologue scan: the
+		// checker walks every StringLiteral in the function body with
+		// strict_mode already lifted, so a bad escape in a directive
+		// prologue PRECEDING `"use strict"` fires correctly.
 		return str_e
 
 	case .BigInt:
@@ -11617,14 +11587,9 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		big.value = current.value  // Store as string
-		// ECMA-262 §12.9.3 - a LegacyOctalIntegerLiteral cannot form a
-		// BigInt. `0123n` is a SyntaxError (`0o123n` is the modern way).
-		// Always enforced, not strict-gated. Uses the same `0<digit>+`
-		// shape detector as numeric-literal strict-mode handling; the
-		// raw text still carries the trailing `n`, so we strip it first.
-		if is_legacy_zero_prefixed_integer(current.value) {
-			report_semantic_error(p, "Legacy octal literals cannot be BigInt")
-		}
+		// §12.9.3 legacy-octal BigInt: enforced by the semantic checker
+		// (ck_check_legacy_octal_bigint). Always errors regardless of
+		// strict mode.
 		big.loc.span.end = prev_end_offset(p)
 		return expression_from(p, big)
 
@@ -13441,10 +13406,8 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		eat(p)
 		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
 		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
-		// Strict-mode legacy-octal / \\8 / \\9 check (untagged only).
-		if !tagged && p.strict_mode && string_raw_has_forbidden_escape(elem.raw) {
-			report_semantic_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
-		}
+		// §12.9.6 octal / \\8 / \\9 escape in untagged template:
+		// enforced by the semantic checker (ck_check_template_octal).
 		// Untagged templates reject §12.9.6 invalid EscapeSequences in
 		// ALL modes - truncated \xH, \uH, \u{bad}, legacy-octal, etc.
 		if !tagged && untagged_template_raw_has_invalid_escape(elem.raw) {
@@ -13515,17 +13478,8 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 
 		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
 		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
-		// Strict-mode legacy-octal / \\8 / \\9 check (untagged only) -
-		// scan every quasi's raw source; break on the first hit so the
-		// diagnostic fires once per template.
-		if !tagged && p.strict_mode {
-			for q in tmpl.quasis {
-				if string_raw_has_forbidden_escape(q.raw) {
-					report_semantic_error(p, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
-					break
-				}
-			}
-		}
+		// §12.9.6 octal / \\8 / \\9 escape in untagged template (multi-quasi
+		// shape): enforced by the semantic checker (ck_check_template_octal).
 		if !tagged {
 			for q in tmpl.quasis {
 				if untagged_template_raw_has_invalid_escape(q.raw) {

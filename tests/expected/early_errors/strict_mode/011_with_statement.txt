@@ -59,14 +59,14 @@
     {
       "message": "'with' statements are not allowed in strict mode",
       "line": 4,
-      "column": 6,
-      "offset": 168
+      "column": 1,
+      "offset": 163
     }
   ]
 }
 Parse errors (1):
-  Line 4, Column 6: 'with' statements are not allowed in strict mode
+  Line 4, Column 1: 'with' statements are not allowed in strict mode
 
 --- Statistics ---
-Arena: used=37328B reserved=16777216B ratio=0%
+Arena: used=37312B reserved=16777216B ratio=0%
 Parse errors: 1

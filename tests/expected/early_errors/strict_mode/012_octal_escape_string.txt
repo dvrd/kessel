@@ -113,28 +113,28 @@
     {
       "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
       "line": 6,
-      "column": 20,
-      "offset": 281
+      "column": 14,
+      "offset": 275
     },
     {
       "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
       "line": 7,
-      "column": 18,
-      "offset": 300
+      "column": 14,
+      "offset": 296
     },
     {
       "message": "Octal or \\8 / \\9 escape sequences are not allowed in strict mode",
       "line": 8,
-      "column": 18,
-      "offset": 319
+      "column": 14,
+      "offset": 315
     }
   ]
 }
 Parse errors (3):
-  Line 6, Column 20: Octal or \8 / \9 escape sequences are not allowed in strict mode
-  Line 7, Column 18: Octal or \8 / \9 escape sequences are not allowed in strict mode
-  Line 8, Column 18: Octal or \8 / \9 escape sequences are not allowed in strict mode
+  Line 6, Column 14: Octal or \8 / \9 escape sequences are not allowed in strict mode
+  Line 7, Column 14: Octal or \8 / \9 escape sequences are not allowed in strict mode
+  Line 8, Column 14: Octal or \8 / \9 escape sequences are not allowed in strict mode
 
 --- Statistics ---
-Arena: used=37864B reserved=16777216B ratio=0%
+Arena: used=37848B reserved=16777216B ratio=0%
 Parse errors: 3
