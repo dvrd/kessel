@@ -2922,26 +2922,9 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 		report_statement_only_position(p, body, false)
 
-		// §14.7.5.1 - It is a Syntax Error if any element of the BoundNames
-		// of ForDeclaration (let/const/using) also occurs in the
-		// VarDeclaredNames of Statement. This does NOT apply to `for (var x
-		// in/of ...)` - var-var is legal and just merges into one binding.
-		if left_decl != nil && body != nil && left_decl.kind != .Var {
-			head_names := make([dynamic]string, 0, 4, context.temp_allocator)
-			for decl in left_decl.declarations {
-				scope_collect_pattern(decl.id, &head_names)
-			}
-			body_vars := scope_map_make(4)
-			scope_hoist_vars(p, body, &body_vars)
-			for n in head_names {
-				if off, have := scope_map_get(&body_vars, n); have {
-					kind_str := "of"
-					if is_in { kind_str = "in" }
-					msg := fmt.tprintf("'%s' is already declared in for-%s head", n, kind_str)
-					report_semantic_error_at(p, LexerLoc(off), msg)
-				}
-			}
-		}
+		// §14.7.5.1 for-in/of head-vs-body shadowing is enforced by the
+		// semantic checker (ck_check_for_head_body_shadow); the parser
+		// stays permissive.
 
 		if is_in {
 			// for-in - use separate fields for declaration vs expression
@@ -3031,26 +3014,8 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	report_statement_only_position(p, body, false)
 
-	// §14.7.4.1 - It is a Syntax Error if any element of the BoundNames of
-	// the for-loop LexicalDeclaration also occurs in the VarDeclaredNames of
-	// Statement (e.g. `for (const x = 0; ...) { var x; }`).
-	if init_decl != nil && body != nil {
-		id, have_init := init_decl.(^VariableDeclaration)
-		if have_init && id != nil && id.kind != .Var {
-			head_names := make([dynamic]string, 0, 4, context.temp_allocator)
-			for decl in id.declarations {
-				scope_collect_pattern(decl.id, &head_names)
-			}
-			body_vars := scope_map_make(4)
-			scope_hoist_vars(p, body, &body_vars)
-			for n in head_names {
-				if off, have := scope_map_get(&body_vars, n); have {
-					msg := fmt.tprintf("'%s' is already declared in for-loop head", n)
-					report_semantic_error_at(p, LexerLoc(off), msg)
-				}
-			}
-		}
-	}
+	// §14.7.4.1 for-loop head-vs-body shadowing is enforced by the
+	// semantic checker (ck_check_for_head_body_shadow).
 
 	// `for await (;;)` / `for await (let i=0;;)` - await is only valid
 	// with for-of, not regular for-statements.
@@ -3482,28 +3447,8 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 		return nil
 	}
 
-	// §14.15.1 - It is a Syntax Error if any element of the BoundNames of
-	// CatchParameter also occurs in the LexicallyDeclaredNames of Block.
-	// `--ast-only` defers this; OXC's parser does the same.
-	if !p.ast_only {
-		if p_pat, have := param.(Pattern); have {
-			// Collect catch param names
-			param_names := make([dynamic]string, 0, 4, context.temp_allocator)
-			collect_pattern_bound_names_list(p_pat, &param_names)
-			// Collect lexical names from the catch body
-			body_lex := scope_map_make(4)
-			body_lex_vars := scope_map_make(4)
-			for inner in body_ptr.body {
-				scope_process_statement(p, inner, &body_lex, &body_lex_vars, true)
-			}
-			for n in param_names {
-				if off, ok := scope_map_get(&body_lex, n); ok {
-					msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
-					report_semantic_error_at(p, LexerLoc(off), msg)
-				}
-			}
-		}
-	}
+	// §14.15.1 catch parameter vs body let/const redeclaration is
+	// enforced by the semantic checker (ck_check_catch_param_body_shadow).
 
 	clause := CatchClause{
 		loc   = start,
@@ -7876,29 +7821,15 @@ scope_map_clear :: #force_inline proc(m: ^ScopeMap) {
 	}
 }
 
-// Check that function formal parameters don't clash with lexically
-// declared names in the body (§15.2.1.1 / §15.5.1 etc.).
+// check_params_vs_body_lex — §15.2.1.1 / §15.5.1 — formal parameter
+// vs body let/const redeclaration check. Migrated to the semantic
+// checker (ck_check_params_vs_body_lex). Stub kept for existing call
+// sites (parse_function_body / parse_arrow_function bodies); body is
+// a no-op.
 check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: []^Statement) {
-	// Skip in `--ast-only` benchmark mode; OXC's parser also defers this
-	// (§15.2.1.1 / §15.5.1) to its semantic pass.
-	if p.ast_only { return }
-	if len(params) == 0 || len(body) == 0 { return }
-	param_names := make([dynamic]string, 0, len(params)*2, context.temp_allocator)
-	for param in params {
-		scope_collect_pattern(param.pattern, &param_names)
-	}
-	if len(param_names) == 0 { return }
-	body_lex := scope_map_make(4)
-	body_vars := scope_map_make(4)
-	for stmt in body {
-		scope_process_statement(p, stmt, &body_lex, &body_vars, false)
-	}
-	for n in param_names {
-		if off, have := scope_map_get(&body_lex, n); have {
-			msg := fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n)
-			report_semantic_error_at(p, LexerLoc(off), msg)
-		}
-	}
+	_ = p
+	_ = params
+	_ = body
 }
 
 // verify_scopes runs the lex/var clash check across every scope-bearing

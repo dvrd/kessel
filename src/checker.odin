@@ -264,6 +264,18 @@ ck_report :: proc(c: ^Checker, loc_offset: u32, message: string) {
 	})
 }
 
+// checker_append_error — package-level helper for code outside
+// checker.odin that needs to write a diagnostic into the checker's
+// error list. Used by parser.odin's scope-analysis machinery
+// (scope_add, check_params_vs_body_lex, ...) which has been migrated
+// to fire into the checker rather than directly into p.errors. A nil
+// `c` is silently ignored — the parser passes `nil` when running in
+// `--ast-only` mode where no checker is constructed.
+checker_append_error :: proc(c: ^Checker, loc: LexerLoc, message: string) {
+	if c == nil { return }
+	bump_append(&c.errors, ParseError{loc = loc, message = message})
+}
+
 // label_is_iteration_target — does `stmt` (the body of a LabeledStatement)
 // resolve to an IterationStatement, possibly through a chain of nested
 // LabeledStatements? Per ECMA-262 §14.8.1 the LabelledItem of a label
@@ -482,6 +494,9 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		if e, have := v.init_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
 		if d, have := v.init_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
+		if d, have := v.init_decl.(^VariableDeclaration); have && d != nil {
+			ck_check_for_head_body_shadow(c, d, v.body, "loop")
+		}
 		if t, have := v.test.(^Expression); have && t != nil { ck_walk_expr(c, ctx, t) }
 		if u, have := v.update.(^Expression); have && u != nil { ck_walk_expr(c, ctx, u) }
 		ctx.iter_depth += 1
@@ -493,6 +508,9 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, true)
 		ck_check_for_in_of_init_eval_args(c, ctx, v.left_expr)
+		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil {
+			ck_check_for_head_body_shadow(c, d, v.body, "in")
+		}
 		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
 		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
 		ck_walk_expr(c, ctx, v.right)
@@ -505,6 +523,9 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, false)
 		ck_check_for_in_of_init_eval_args(c, ctx, v.left_expr)
+		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil {
+			ck_check_for_head_body_shadow(c, d, v.body, "of")
+		}
 		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
 		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
 		ck_walk_expr(c, ctx, v.right)
@@ -538,6 +559,8 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			// §15.4.5 — catch clause parameter duplicate-name check
 			// (§15.4.5 covers `catch ({a, a})` and the like).
 			ck_check_catch_param_dups(c, h)
+			// §15.4.5 — catch param vs body let/const redeclaration.
+			ck_check_catch_param_body_shadow(c, h)
 			// Catch parameter is a BindingIdentifier (or pattern containing
 			// BindingIdentifiers). §13.1.1 strict-mode check applies.
 			if ctx.strict_mode {
@@ -1041,6 +1064,10 @@ ck_walk_jsx_attr :: proc(c: ^Checker, ctx: ^CheckerContext, attr: JSXAttributeIt
 ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression,
                         kind: CkFnKind = .Plain, derived_ctor: bool = false) {
 	if fn == nil { return }
+	// §15.2.1.1 — formal-parameter vs body let/const redeclaration.
+	if !fn.no_body {
+		ck_check_params_vs_body_lex(c, fn.params[:], fn.body.body[:])
+	}
 	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 	// !IsSimpleParameterList early error. Fires before the function-body
 	// walk so the diagnostic anchors at the function start, matching the
@@ -2202,6 +2229,209 @@ ck_check_single_stmt_function :: proc(c: ^Checker, body: ^Statement) {
 			return
 		case:
 			return
+		}
+	}
+}
+
+// scope_hoist_vars_no_parser — mirror of parser.odin's scope_hoist_vars
+// but without the (unused) ^Parser parameter. Recursively walks blocks
+// / loops / try-catch / if / labelled / with / switch bodies
+// collecting `var` BoundNames into the passed-in ScopeMap. Function
+// declarations are scope boundaries (their own VarScope) and are NOT
+// recursed into, matching the parser's behaviour.
+@(private="file")
+scope_hoist_vars_no_parser :: proc(stmt: ^Statement, vars: ^ScopeMap) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^VariableDeclaration:
+		if v == nil || v.kind != .Var { return }
+		names: [dynamic]string
+		names.allocator = context.temp_allocator
+		reserve(&names, 4)
+		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
+		for n in names {
+			scope_map_set_first(vars, n, v.loc.span.start)
+		}
+	case ^BlockStatement:
+		if v != nil { for inner in v.body { scope_hoist_vars_no_parser(inner, vars) } }
+	case ^IfStatement:
+		if v == nil { return }
+		scope_hoist_vars_no_parser(v.consequent, vars)
+		if alt, have := v.alternate.(^Statement); have { scope_hoist_vars_no_parser(alt, vars) }
+	case ^WhileStatement:    if v != nil { scope_hoist_vars_no_parser(v.body, vars) }
+	case ^DoWhileStatement:  if v != nil { scope_hoist_vars_no_parser(v.body, vars) }
+	case ^ForStatement:      if v != nil { scope_hoist_vars_no_parser(v.body, vars) }
+	case ^ForInStatement:    if v != nil { scope_hoist_vars_no_parser(v.body, vars) }
+	case ^ForOfStatement:    if v != nil { scope_hoist_vars_no_parser(v.body, vars) }
+	case ^LabeledStatement:  if v != nil { scope_hoist_vars_no_parser(v.body, vars) }
+	case ^WithStatement:     if v != nil { scope_hoist_vars_no_parser(v.body, vars) }
+	case ^TryStatement:
+		if v == nil { return }
+		for inner in v.block.body { scope_hoist_vars_no_parser(inner, vars) }
+		if h, have := v.handler.(CatchClause); have {
+			for inner in h.body.body { scope_hoist_vars_no_parser(inner, vars) }
+		}
+		if f, have := v.finalizer.(BlockStatement); have {
+			for inner in f.body { scope_hoist_vars_no_parser(inner, vars) }
+		}
+	case ^SwitchStatement:
+		if v == nil { return }
+		for sc in v.cases {
+			for inner in sc.consequent { scope_hoist_vars_no_parser(inner, vars) }
+		}
+	}
+}
+
+// scope_process_statement_no_parser — reduced version of
+// parser.odin's scope_process_statement that only needs to populate
+// `lex` (and `vars` for hoisting interactions) for the catch-body /
+// fn-body shadowing checks. Drops the parser-side ^Parser dependency
+// (no scope_add error reporting; the caller examines the resulting
+// maps for clashes externally). Mirrors only the cases the checker
+// needs: VariableDeclaration (let/const/using/await using → lex; var
+// → vars), FunctionDeclaration (always lex), ClassDeclaration (lex).
+@(private="file")
+scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap, is_block_scope: bool) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^VariableDeclaration:
+		if v == nil { return }
+		names: [dynamic]string
+		names.allocator = context.temp_allocator
+		reserve(&names, 4)
+		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
+		if v.kind == .Var {
+			for n in names { scope_map_set_first(vars, n, v.loc.span.start) }
+		} else {
+			for n in names { scope_map_set(lex, n, v.loc.span.start) }
+		}
+	case ^BlockStatement:
+		if v == nil { return }
+		hoisted := scope_map_make(4)
+		for inner in v.body { scope_hoist_vars_no_parser(inner, &hoisted) }
+		for it in hoisted.items {
+			scope_map_set_first(vars, it.name, it.at)
+		}
+	case ^FunctionDeclaration:
+		if v == nil { return }
+		if id, ok := v.id.(BindingIdentifier); ok {
+			scope_map_set(lex, id.name, id.loc.span.start)
+		}
+	case ^ClassDeclaration:
+		if v == nil { return }
+		if id, ok := v.id.(BindingIdentifier); ok {
+			scope_map_set(lex, id.name, id.loc.span.start)
+		}
+	case ^ImportDeclaration:
+		if v == nil { return }
+		for spec in v.specifiers {
+			if spec == nil { continue }
+			switch ss in spec^ {
+			case ImportSpecifier:          scope_map_set(lex, ss.local.name, ss.local.loc.span.start)
+			case ImportDefaultSpecifier:   scope_map_set(lex, ss.local.name, ss.local.loc.span.start)
+			case ImportNamespaceSpecifier: scope_map_set(lex, ss.local.name, ss.local.loc.span.start)
+			}
+		}
+	}
+	_ = is_block_scope
+}
+
+// ck_check_for_head_body_shadow — §13.7 — "It is a Syntax Error if
+// any element of the BoundNames of ForBinding also occurs in the
+// VarDeclaredNames of Statement". For for-in / for-of / vanilla
+// for-loop heads with a `let` / `const` / `using` declaration, the
+// loop body's hoisted `var` names cannot collide with the head's
+// bound names. Mirrors parser.odin's old inline check at parse-time
+// (parse_for_statement); migrated to a post-parse walk so the parser
+// stays a pure tree builder.
+//
+// `kind_str` selects the diagnostic noun: "in" / "of" / "loop".
+@(private="file")
+ck_check_for_head_body_shadow :: proc(c: ^Checker, decl: ^VariableDeclaration,
+                                       body: ^Statement, kind_str: string) {
+	if decl == nil || body == nil { return }
+	// `var` heads don't trigger — they hoist into the same scope as the
+	// body's vars, so the same name on both sides is legal.
+	switch decl.kind {
+	case .Let, .Const, .Using, .AwaitUsing:
+		// fall through
+	case .Var:
+		return
+	}
+	head_names: [dynamic]string
+	head_names.allocator = context.temp_allocator
+	reserve(&head_names, 4)
+	for d in decl.declarations {
+		scope_collect_pattern(d.id, &head_names)
+	}
+	if len(head_names) == 0 { return }
+	body_vars := scope_map_make(4)
+	scope_hoist_vars_no_parser(body, &body_vars)
+	for n in head_names {
+		if off, have := scope_map_get(&body_vars, n); have {
+			msg: string
+			switch kind_str {
+			case "in", "of":
+				msg = fmt.tprintf("'%s' is already declared in for-%s head", n, kind_str)
+			case:
+				msg = fmt.tprintf("'%s' is already declared in for-loop head", n)
+			}
+			ck_report(c, off, msg)
+		}
+	}
+}
+
+// ck_check_catch_param_body_shadow — §15.4.5 — the catch parameter's
+// BoundNames may not collide with LexicallyDeclaredNames of the catch
+// body. `catch (e) { let e; }` is a SyntaxError. Mirrors parser.odin's
+// old inline check (parse_catch_clause).
+@(private="file")
+ck_check_catch_param_body_shadow :: proc(c: ^Checker, h: CatchClause) {
+	param, have := h.param.(Pattern)
+	if !have || param == nil { return }
+	param_names: [dynamic]string
+	param_names.allocator = context.temp_allocator
+	reserve(&param_names, 4)
+	collect_pattern_bound_names_list(param, &param_names)
+	if len(param_names) == 0 { return }
+	body_lex := scope_map_make(4)
+	body_vars := scope_map_make(4)
+	for inner in h.body.body {
+		scope_process_statement_no_parser(inner, &body_lex, &body_vars, true)
+	}
+	for n in param_names {
+		if off, ok := scope_map_get(&body_lex, n); ok {
+			msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
+			ck_report(c, off, msg)
+		}
+	}
+}
+
+// ck_check_params_vs_body_lex — §15.2.1.1 / §15.5.1 — BoundNames of
+// FormalParameters may not occur in LexicallyDeclaredNames of
+// FunctionBody. `function f(a) { const a = 1; }` is a SyntaxError.
+// Mirrors parser.odin's old `check_params_vs_body_lex` proc; the
+// caller passes the parsed param list and body slice directly so the
+// checker doesn't need to introspect FunctionExpression internals.
+@(private="file")
+ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, body: []^Statement) {
+	if len(params) == 0 || len(body) == 0 { return }
+	param_names: [dynamic]string
+	param_names.allocator = context.temp_allocator
+	reserve(&param_names, len(params)*2)
+	for pr in params {
+		scope_collect_pattern(pr.pattern, &param_names)
+	}
+	if len(param_names) == 0 { return }
+	body_lex := scope_map_make(4)
+	body_vars := scope_map_make(4)
+	for stmt in body {
+		scope_process_statement_no_parser(stmt, &body_lex, &body_vars, false)
+	}
+	for n in param_names {
+		if off, have := scope_map_get(&body_lex, n); have {
+			msg := fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n)
+			ck_report(c, off, msg)
 		}
 	}
 }
