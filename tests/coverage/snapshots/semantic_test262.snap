@@ -2387,8 +2387,8 @@ test262/test/language/global-code/invalid-private-names-call-expression-bad-refe
 test262/test/language/global-code/invalid-private-names-call-expression-this.js:40:16: Private field '#x' must be declared in an enclosing class
 test262/test/language/global-code/invalid-private-names-member-expression-bad-reference.js:40:11: Private field '#x' must be declared in an enclosing class
 test262/test/language/global-code/invalid-private-names-member-expression-this.js:40:6: Private field '#x' must be declared in an enclosing class
-test262/test/language/global-code/new.target-arrow.js:36:3: 'new.target' is only allowed inside functions
-test262/test/language/global-code/new.target.js:20:1: 'new.target' is only allowed inside functions
+test262/test/language/global-code/new.target-arrow.js:36:13: 'new.target' is only allowed inside functions
+test262/test/language/global-code/new.target.js:20:11: 'new.target' is only allowed inside functions
 test262/test/language/global-code/return.js:22:7: 'return' outside of function
 test262/test/language/global-code/super-call-arrow.js:36:8: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/global-code/super-call.js:20:6: 'super' call is only allowed in the constructor of a derived class
@@ -2911,7 +2911,7 @@ test262/test/language/module-code/early-import-as-arguments.js:35:15: 'arguments
 test262/test/language/module-code/early-import-as-eval.js:35:15: 'eval' cannot be used as an import binding name
 test262/test/language/module-code/early-import-eval.js:35:10: 'eval' cannot be used as an import binding name
 test262/test/language/module-code/early-lex-and-var.js:18:1: Identifier 'x' has already been declared
-test262/test/language/module-code/early-new-target.js:16:1: 'new.target' is only allowed inside functions
+test262/test/language/module-code/early-new-target.js:16:11: 'new.target' is only allowed inside functions
 test262/test/language/module-code/early-strict-mode.js:15:5: 'public' is a reserved identifier in strict mode
 test262/test/language/module-code/early-super.js:15:1: 'super' can only be used with function calls or in property accesses
 test262/test/language/module-code/early-undef-break.js:17:9: Undefined label 'undef'

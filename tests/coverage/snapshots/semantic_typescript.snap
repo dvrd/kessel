@@ -2974,8 +2974,8 @@ typescript/tests/cases/conformance/es6/memberFunctionDeclarations/MemberFunction
 typescript/tests/cases/conformance/es6/memberFunctionDeclarations/MemberFunctionDeclaration6_es6.ts:3:1: Expected (, got }
 typescript/tests/cases/conformance/es6/memberFunctionDeclarations/MemberFunctionDeclaration8_es6.ts:4:12: Invalid character in identifier
 typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithUnderscores1.ts::m1.ts:5:5: Expected }, got string
-typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es5.ts:1:11: 'new.target' is only allowed inside functions
-typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es6.ts:1:11: 'new.target' is only allowed inside functions
+typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es5.ts:1:21: 'new.target' is only allowed inside functions
+typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es6.ts:1:21: 'new.target' is only allowed inside functions
 typescript/tests/cases/conformance/es6/shorthandPropertyAssignment/objectLiteralShorthandPropertiesErrorFromNotUsingIdentifier.ts:3:20: Numeric / string property name requires a value
 typescript/tests/cases/conformance/es6/shorthandPropertyAssignment/objectLiteralShorthandPropertiesErrorWithModule.ts:10:10: Expected }, got .
 typescript/tests/cases/conformance/es6/templates/TemplateExpression1.ts:1:19: Expected template literal continuation

@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12692/12692 (100.00%)
 Positive Passed: 12692/12692 (100.00%)
-Negative Passed: 1478/3470 (42.59%)
+Negative Passed: 1480/3470 (42.65%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1158,8 +1158,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modul
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports03.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports04.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports05.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/shorthandPropertyAssignment/objectLiteralShorthandPropertiesErrorFromNoneExistingIdentifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/templates/taggedTemplateStringsWithOverloadResolution3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/templates/taggedTemplateStringsWithOverloadResolution3_ES6.ts
@@ -2644,6 +2642,8 @@ typescript/tests/cases/conformance/es6/memberFunctionDeclarations/MemberFunction
 typescript/tests/cases/conformance/es6/memberFunctionDeclarations/MemberFunctionDeclaration6_es6.ts:3:1: Expected (, got }
 typescript/tests/cases/conformance/es6/memberFunctionDeclarations/MemberFunctionDeclaration8_es6.ts:4:12: Invalid character in identifier
 typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithUnderscores1.ts::m1.ts:5:5: Expected }, got string
+typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es5.ts:1:21: 'new.target' is only allowed inside functions
+typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es6.ts:1:21: 'new.target' is only allowed inside functions
 typescript/tests/cases/conformance/es6/shorthandPropertyAssignment/objectLiteralShorthandPropertiesErrorFromNotUsingIdentifier.ts:3:20: Numeric / string property name requires a value
 typescript/tests/cases/conformance/es6/shorthandPropertyAssignment/objectLiteralShorthandPropertiesErrorWithModule.ts:10:10: Expected }, got .
 typescript/tests/cases/conformance/es6/templates/TemplateExpression1.ts:1:19: Expected template literal continuation

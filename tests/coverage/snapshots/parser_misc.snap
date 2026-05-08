@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 204/274 (74.45%)
+Negative Passed: 205/274 (74.82%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -20,7 +20,6 @@ Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/011_duplicate_default_in_switch.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/012_duplicate_label.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/024_new_target_outside_function.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/026_class_named_strict_reserved.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/030_duplicate_constructor.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/041_yield_in_generator_params.js
@@ -155,6 +154,7 @@ tests/coverage/misc/fail/negative/020_duplicate_destructured_params.js:6:1: Dupl
 tests/coverage/misc/fail/negative/021_arrow_duplicate_params.js:4:11: Duplicate parameter name 'a' in strict mode
 tests/coverage/misc/fail/negative/022_yield_as_binding_in_generator.js:5:6: 'yield' is reserved as a binding name inside a generator
 tests/coverage/misc/fail/negative/023_await_as_binding_in_async.js:6:6: 'await' is reserved as a binding name in this context
+tests/coverage/misc/fail/negative/024_new_target_outside_function.js:4:21: 'new.target' is only allowed inside functions
 tests/coverage/misc/fail/negative/025_legacy_octal_bigint.js:6:13: BigInt literal cannot use legacy octal / non-octal-decimal form
 tests/coverage/misc/fail/negative/027_rest_trailing_comma.js:4:16: Rest element may not have a trailing comma
 tests/coverage/misc/fail/negative/028_delete_private_field.js:8:3: Private fields cannot be deleted

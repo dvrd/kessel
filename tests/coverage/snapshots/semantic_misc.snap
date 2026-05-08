@@ -153,7 +153,7 @@ tests/coverage/misc/fail/negative/020_duplicate_destructured_params.js:6:1: Dupl
 tests/coverage/misc/fail/negative/021_arrow_duplicate_params.js:4:11: Duplicate parameter name 'a' in strict mode
 tests/coverage/misc/fail/negative/022_yield_as_binding_in_generator.js:5:6: 'yield' is reserved as a binding name inside a generator
 tests/coverage/misc/fail/negative/023_await_as_binding_in_async.js:6:6: 'await' is reserved as a binding name in this context
-tests/coverage/misc/fail/negative/024_new_target_outside_function.js:4:11: 'new.target' is only allowed inside functions
+tests/coverage/misc/fail/negative/024_new_target_outside_function.js:4:21: 'new.target' is only allowed inside functions
 tests/coverage/misc/fail/negative/025_legacy_octal_bigint.js:6:13: BigInt literal cannot use legacy octal / non-octal-decimal form
 tests/coverage/misc/fail/negative/026_class_named_strict_reserved.js:8:7: 'let' is a reserved identifier and cannot be a class name
 tests/coverage/misc/fail/negative/027_rest_trailing_comma.js:4:16: Rest element may not have a trailing comma

@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 4333/4588 (94.44%)
+Negative Passed: 4336/4588 (94.51%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-binding.js
@@ -103,8 +103,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/global-code/invalid-pr
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/invalid-private-names-call-expression-this.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/invalid-private-names-member-expression-bad-reference.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/invalid-private-names-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/global-code/new.target-arrow.js
-Expect Syntax Error: tasks/coverage/test262/test/language/global-code/new.target.js
 Expect Syntax Error: tasks/coverage/test262/test/language/identifier-resolution/static-init-invalid-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/string/S7.8.4_A4.3_T1.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/string/S7.8.4_A4.3_T2.js
@@ -129,7 +127,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-impo
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-import-as-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-import-as-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-import-eval.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-new-target.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/invalid-private-names-call-expression-bad-reference.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/invalid-private-names-call-expression-this.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/invalid-private-names-member-expression-bad-reference.js
@@ -2535,6 +2532,8 @@ test262/test/language/future-reserved-words/yield-strict-escaped.js:24:5: Keywor
 test262/test/language/future-reserved-words/yield-strict.js:22:5: 'yield' is a reserved identifier in strict mode
 test262/test/language/global-code/export.js:21:1: 'export' is only valid in module code
 test262/test/language/global-code/import.js:21:1: 'import' is only valid in module code
+test262/test/language/global-code/new.target-arrow.js:36:13: 'new.target' is only allowed inside functions
+test262/test/language/global-code/new.target.js:20:11: 'new.target' is only allowed inside functions
 test262/test/language/global-code/return.js:22:7: 'return' outside of function
 test262/test/language/global-code/super-call-arrow.js:36:8: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/global-code/super-call.js:20:6: 'super' call is only allowed in the constructor of a derived class
@@ -3033,6 +3032,7 @@ test262/test/language/module-code/early-dup-top-function-generator.js:20:11: 'x'
 test262/test/language/module-code/early-dup-top-function.js:20:10: 'x' has already been declared
 test262/test/language/module-code/early-export-ill-formed-string.js:21:17: Export name string must not contain unpaired surrogates
 test262/test/language/module-code/early-lex-and-var.js:18:1: Identifier 'x' has already been declared
+test262/test/language/module-code/early-new-target.js:16:11: 'new.target' is only allowed inside functions
 test262/test/language/module-code/early-strict-mode.js:15:5: 'public' is a reserved identifier in strict mode
 test262/test/language/module-code/early-super.js:15:1: 'super' can only be used with function calls or in property accesses
 test262/test/language/module-code/early-undef-break.js:17:9: Undefined label 'undef'

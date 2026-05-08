@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2227/2233 (99.73%)
 Positive Passed: 2227/2233 (99.73%)
-Negative Passed: 1443/1711 (84.34%)
+Negative Passed: 1449/1711 (84.69%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -19,8 +19,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-directive/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-property-name/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/opts/allowNewTargetOutsideFunction-false-2/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/opts/allowNewTargetOutsideFunction-false/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-arr-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-func/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-let/input.js
@@ -59,8 +57,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/duplicate-proto/in-new-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/duplicate-proto/with-assignment-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/duplicate-proto/without-assignment-expression/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/meta-properties/invalid-arrow-function/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/220/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/243/input.js
@@ -155,7 +151,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-private-member-access/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-nested/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-top-level/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target-invalid/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-await/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js
@@ -168,7 +163,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-param-strict-mode/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-meta-property/invalid-new-target/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-getter-literal-identifier/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-identifier-literal/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-identifiers/input.js
@@ -318,6 +312,8 @@ babel/packages/babel-parser/test/fixtures/core/object/invalid-getter-param/input
 babel/packages/babel-parser/test/fixtures/core/object/invalid-setter-no-param/input.js:1:8: Setter must have exactly one formal parameter
 babel/packages/babel-parser/test/fixtures/core/object/invalid-setter-two-params/input.js:1:8: Setter must have exactly one formal parameter
 babel/packages/babel-parser/test/fixtures/core/opts/allowAwaitOutsideFunction-false/input.js:1:11: Top-level 'for await' is only valid in module code
+babel/packages/babel-parser/test/fixtures/core/opts/allowNewTargetOutsideFunction-false-2/input.js:1:27: 'new.target' is only allowed inside functions
+babel/packages/babel-parser/test/fixtures/core/opts/allowNewTargetOutsideFunction-false/input.js:1:21: 'new.target' is only allowed inside functions
 babel/packages/babel-parser/test/fixtures/core/opts/allowReturnOutsideFunction-true-invalid-in-static-block/input.js:3:12: 'return' is not allowed in a class static block
 babel/packages/babel-parser/test/fixtures/core/opts/allowYieldOutsideFunction-false/input.js:1:1: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/core/opts/allowYieldOutsideFunction-true/input.js:1:1: 'yield' expression is only allowed in a generator body
@@ -591,9 +587,11 @@ babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-7/
 babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-8/input.js:1:1: 'let' is disallowed as a lexically bound name
 babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-9/input.js:1:1: 'let' is disallowed as a lexically bound name
 babel/packages/babel-parser/test/fixtures/es2015/let/let-at-catch-block/input.js:2:3: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/meta-properties/invalid-arrow-function/input.js:2:13: 'new.target' is only allowed inside functions
 babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-invalid-prop/input.js:2:6: Expected expression after 'new'
 babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid-escaped-new/input.js:1:16: Keyword 'new' must not contain escaped characters
 babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid-escaped-target/input.js:1:19: Expected expression after 'new'
+babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid/input.js:1:11: 'new.target' is only allowed inside functions
 babel/packages/babel-parser/test/fixtures/es2015/modules/duplicate-export-default-and-export-as-default/input.js:2:17: Duplicate exported name 'default'
 babel/packages/babel-parser/test/fixtures/es2015/modules/duplicate-export-default/input.js:3:1: Duplicate exported name 'default'
 babel/packages/babel-parser/test/fixtures/es2015/modules/duplicate-named-export-class-declaration/input.js:2:14: Duplicate exported name 'Foo'
@@ -1114,6 +1112,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-co
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-generator/input.js:3:9: Expected semicolon or line terminator after class field
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-inline/input.js:2:5: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/await-in-computed-property-in-params-of-async-arrow/input.js:1:21: Top-level 'await' is only valid in module code
+babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target-invalid/input.js:1:19: 'new.target' is only allowed inside functions
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-ctor-2/input.js:3:3: Class field cannot be named 'constructor'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-ctor/input.js:3:1: Class field cannot be named 'constructor'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-static-prototype-2/input.js:5:1: Classes may not have a static member named 'prototype'
@@ -1263,6 +1262,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-lexical-declaration/inv
 babel/packages/babel-parser/test/fixtures/esprima/es2015-lexical-declaration/invalid_const_forin/input.js:1:6: for-in loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/esprima/es2015-lexical-declaration/invalid_let_forin/input.js:1:6: for-in loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/esprima/es2015-meta-property/invalid-dots/input.js:1:29: Expected expression after 'new'
+babel/packages/babel-parser/test/fixtures/esprima/es2015-meta-property/invalid-new-target/input.js:1:19: 'new.target' is only allowed inside functions
 babel/packages/babel-parser/test/fixtures/esprima/es2015-meta-property/unknown-property/input.js:1:25: Expected expression after 'new'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-call-dot-dot/input.js:1:3: Expected ), got .
 babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-call-dots/input.js:1:6: Expected expression after '...'

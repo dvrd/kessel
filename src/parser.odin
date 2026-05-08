@@ -4723,11 +4723,9 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 	seen.allocator = p.allocator
 	defer delete(seen)
 
-	// §15.7.1 "at most one constructor" early error: enforced by the
-	// semantic checker (ck_check_class_constructors). The remaining
-	// loop body in this proc handles syntax-level concerns: the static
-	// `prototype` ban (§15.7.1) and the post-parse private-name
-	// duplicate map (Annex §15.7.6).
+	// §15.7.1 "A class definition can have at most one constructor."
+	// Track non-TS-overload constructors and report duplicates.
+	constructor_count := 0
 
 	for elem in elems {
 		if elem.key == nil { continue }
@@ -4741,10 +4739,25 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 			}
 		}
 
-		// §15.7.1 duplicate-constructor early error (with TS
-		// overload-signature exception) is enforced by the semantic
-		// checker — ck_check_class_constructors walks the same
-		// elements with the lang context the parser used to consult.
+		// §15.7.1 — at most one constructor. TS overload signatures
+		// (body-less methods named "constructor") are exempt.
+		if !elem.static && !elem.computed && elem.kind == .Constructor {
+			has_body := false
+			if val, has_val := elem.value.?; has_val && val != nil {
+				has_body = true
+				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
+					if len(fn.body.body) == 0 && len(fn.body.directives) == 0 {
+						has_body = false  // TS overload signature
+					}
+				}
+			}
+			if has_body {
+				constructor_count += 1
+				if constructor_count > 1 {
+					report_error(p, "A class can only have one constructor")
+				}
+			}
+		}
 
 		pid, is_private := elem.key.(^PrivateIdentifier)
 		if !is_private || pid == nil { continue }
@@ -12910,9 +12923,13 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			// [[NewTarget]] from their enclosing scope, so an arrow at
 			// script top-level has no new.target either. Test262:
 			// language/global-code/new.target-arrow.js.
-			// §13.3.12 / §15.2 new.target outside any function: enforced
-			// by the semantic checker (ck_check_new_target) using its own
-			// function_depth tracker. Parser stays permissive.
+			// §13.3.12 / §15.2 — `new.target` outside a function body.
+			// Allowed in: non-arrow function bodies, class field initializers
+			// (the field runs as part of the constructor), class static blocks,
+			// and CommonJS files (the file is wrapped in a function).
+			if !p.in_non_arrow_function && !p.in_field_init && !p.in_static_block && !p.is_commonjs {
+				report_error(p, "'new.target' is only allowed inside functions")
+			}
 			meta := new_node(p, MetaProperty)
 			meta.loc = start
 			meta.meta = Identifier{loc = start, name = "new"}
