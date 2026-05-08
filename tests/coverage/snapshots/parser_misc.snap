@@ -1,16 +1,74 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 80/135 (59.26%)
+Negative Passed: 161/274 (58.76%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/001_duplicate_proto_object_literal.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/002_let_let_in_strict.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/004_duplicate_lexical_declaration.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/005_duplicate_function_params_strict.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/006_octal_literal_strict.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/007_assign_to_eval_strict.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/009_break_without_label.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/010_super_outside_method.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/001_reserved_implements.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/002_reserved_interface.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/003_reserved_package.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/004_reserved_private.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/005_reserved_protected.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/006_reserved_public.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/007_reserved_static.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/008_reserved_yield.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/009_duplicate_params_strict_nested.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/010_eval_arguments_assignment.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/011_with_statement.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/012_octal_escape_string.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/014_update_eval_arguments.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/015_delete_identifier.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/016_function_name_eval.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/017_labeled_function_declaration.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js
 Expect Syntax Error: tests/coverage/misc/fail/escape-00.js
 Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
 Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/let-member-expression.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/011_duplicate_default_in_switch.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/012_duplicate_label.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/013_break_unknown_label.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/016_let_as_lexical_name.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/020_duplicate_destructured_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/021_arrow_duplicate_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/024_new_target_outside_function.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/026_class_named_strict_reserved.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/028_delete_private_field.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/030_duplicate_constructor.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/031_super_call_in_non_derived_constructor.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/032_super_call_in_non_constructor_method.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/036_continue_non_iteration_label.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/041_yield_in_generator_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/044_await_in_async_arrow_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/045_await_in_async_function_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/046_await_in_async_method_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/047_await_in_non_async_arrow_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/048_yield_in_arrow_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/049_yield_in_async_arrow_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/050_for_let_init_in.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/051_for_var_init_of.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/052_for_var_multiple_declarators_in.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/053_for_var_destructuring_init_in.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/054_export_undefined_local.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/060_regex_unterminated_group.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/061_semantic_duplicate_lexical.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/062_semantic_let_var_clash.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/063_semantic_import_shadow.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10159.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-11453.js
@@ -60,6 +118,17 @@ Expect Syntax Error: tests/coverage/misc/fail/semantic-for-await-in-block-in-sta
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
 tests/coverage/misc/fail/commonjs-top-level-await.cjs:2:1: Top-level 'await' is only valid in module code
 tests/coverage/misc/fail/diff-markers.js:10:1: Unexpected token '<<'
+tests/coverage/misc/fail/early_errors/003_const_without_initializer.js:4:1: Missing initializer in 'const' declaration
+tests/coverage/misc/fail/early_errors/008_return_outside_function.js:4:8: 'return' outside of function
+tests/coverage/misc/fail/early_errors/011_await_outside_async.js:4:23: await outside of async function
+tests/coverage/misc/fail/early_errors/012_unicode_escape_hex_too_big.js:3:14: Invalid \u{} escape: code point out of range [0..0x10FFFF]
+tests/coverage/misc/fail/early_errors/013_hex_escape_too_short.js:3:14: Invalid \x escape: expected 2 hex digits
+tests/coverage/misc/fail/early_errors/014_unicode_escape_too_short.js:3:14: Invalid \u escape: expected 4 hex digits
+tests/coverage/misc/fail/early_errors/015_unterminated_template.js:3:1: Expected template literal continuation
+tests/coverage/misc/fail/early_errors/016_digit_start_identifier.js:4:7: Expected binding pattern
+tests/coverage/misc/fail/early_errors/module_context/005_await_in_module_non_async_function.js:3:12: await outside of async function
+tests/coverage/misc/fail/early_errors/strict_mode/013_octal_escape_template.js:8:20: Invalid escape sequence in template literal
+tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js:10:5: Keyword 'let' must not contain escaped characters
 tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected >, got !
 tests/coverage/misc/fail/imbalanced-array-expr.js:2:1: Expected ], got const
 tests/coverage/misc/fail/imbalanced-call-expr.js:2:1: Expected ), got const
@@ -86,6 +155,76 @@ tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected >, got ;
 tests/coverage/misc/fail/minus-yield-100.js:1:37: 'yield' expression cannot be the operand of a unary operator
 tests/coverage/misc/fail/missing-conditional-alternative-type.ts:2:1: Expected :, got EOF
 tests/coverage/misc/fail/missing-conditional-alternative.js:2:1: Expected :, got EOF
+tests/coverage/misc/fail/negative/001_unterminated_string.js:2:11: Unterminated string literal
+tests/coverage/misc/fail/negative/002_missing_closing_paren.js:2:7: Expected ), got {
+tests/coverage/misc/fail/negative/003_missing_closing_brace.js:4:1: Expected '}' at end of function body
+tests/coverage/misc/fail/negative/004_invalid_token.js:2:12: Decorators can only be applied to class expressions
+tests/coverage/misc/fail/negative/005_duplicate_else.js:2:19: Unexpected 'else' without matching 'if'
+tests/coverage/misc/fail/negative/006_invalid_lhs_assignment.js:2:10: Invalid left-hand side in assignment
+tests/coverage/misc/fail/negative/007_unterminated_regex.js:2:10: Unterminated regular expression
+tests/coverage/misc/fail/negative/008_bare_function_expression.js:2:9: Function declaration requires a name
+tests/coverage/misc/fail/negative/009_unexpected_token_after_return.js:2:1: Unexpected '}' — unmatched closing brace
+tests/coverage/misc/fail/negative/010_reserved_word_as_var.js:2:5: 'class' is a reserved word and cannot be used as a binding name
+tests/coverage/misc/fail/negative/014_duplicate_private_class_member.js:13:1: Class private member name cannot be '#constructor'
+tests/coverage/misc/fail/negative/015_for_await_outside_async.js:8:12: 'for await' outside of async function
+tests/coverage/misc/fail/negative/017_static_prototype_class_member.js:9:1: Classes may not have a static member named 'prototype'
+tests/coverage/misc/fail/negative/018_private_identifier_outside_class.js:6:9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+tests/coverage/misc/fail/negative/019_new_dynamic_import.js:3:5: Dynamic 'import()' cannot be invoked with 'new'
+tests/coverage/misc/fail/negative/022_yield_as_binding_in_generator.js:5:6: 'yield' is reserved as a binding name inside a generator
+tests/coverage/misc/fail/negative/023_await_as_binding_in_async.js:6:6: 'await' is reserved as a binding name in this context
+tests/coverage/misc/fail/negative/025_legacy_octal_bigint.js:6:13: BigInt literal cannot use legacy octal / non-octal-decimal form
+tests/coverage/misc/fail/negative/027_rest_trailing_comma.js:4:16: Rest element may not have a trailing comma
+tests/coverage/misc/fail/negative/028_for_await_script_top_level.js:2:11: Top-level 'for await' is only valid in module code
+tests/coverage/misc/fail/negative/029_throw_line_terminator.js:6:2: Illegal newline after 'throw'
+tests/coverage/misc/fail/negative/033_escaped_keyword_as_keyword.js:11:1: Keyword 'if' must not contain escaped characters
+tests/coverage/misc/fail/negative/034_escaped_keyword_as_binding.js:9:5: Keyword 'var' must not contain escaped characters
+tests/coverage/misc/fail/negative/035_arrow_line_terminator_before_arrow.js:10:1: Unexpected line terminator before '=>' (restricted production)
+tests/coverage/misc/fail/negative/037_tagged_template_on_optional_chain.js:8:10: Tagged template literals cannot appear in an optional chain
+tests/coverage/misc/fail/negative/038_for_in_assignment_lhs.js:12:15: Invalid left-hand side in for-in loop
+tests/coverage/misc/fail/negative/039_for_of_assignment_lhs.js:7:15: Invalid left-hand side in for-of loop
+tests/coverage/misc/fail/negative/040_duplicate_import_binding.js:11:1: Duplicate import binding 'a'
+tests/coverage/misc/fail/negative/042_yield_expr_outside_generator.js:8:1: 'yield' expression is only allowed in a generator body
+tests/coverage/misc/fail/negative/043_yield_expr_in_plain_function.js:7:10: 'yield' expression is only allowed in a generator body
+tests/coverage/misc/fail/negative/055_export_string_local_without_from.js:6:10: A string literal cannot be used as an exported binding without `from`
+tests/coverage/misc/fail/negative/056_regex_duplicate_flags.js:4:17: Duplicate regular expression flag
+tests/coverage/misc/fail/negative/057_regex_invalid_flag.js:3:16: Invalid regular expression flag
+tests/coverage/misc/fail/negative/058_regex_uv_mutually_exclusive.js:5:16: Regular expression flags 'u' and 'v' are mutually exclusive
+tests/coverage/misc/fail/negative/059_regex_unmatched_paren.js:4:15: Unmatched ')' in regular expression
+tests/coverage/misc/fail/negative/064_unparenthesized_arrow_operand.js:1:10: Arrow function cannot be used as an unparenthesized operand
+tests/coverage/misc/fail/negative/066_arrow_rest_not_last.js:2:1: Rest parameter must be last in arrow function parameters
+tests/coverage/misc/fail/negative/067_object_rest_trailing_comma.js:1:14: Rest property may not have a trailing comma
+tests/coverage/misc/fail/negative/068_object_rest_pattern.js:1:14: Rest property may not be a binding pattern
+tests/coverage/misc/fail/negative/069_unparenthesized_arrow_rhs.js:2:1: Arrow function cannot be used as an unparenthesized operand
+tests/coverage/misc/fail/negative/070_unparenthesized_arrow_unary_operand.js:2:1: Arrow function cannot be used as an unparenthesized operand
+tests/coverage/misc/fail/negative/071_label_let_declaration.js:2:1: Lexical declaration cannot be a labeled item
+tests/coverage/misc/fail/negative/072_private_in_additive_rhs.js:4:9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+tests/coverage/misc/fail/negative/073_private_in_no_in_context.js:4:18: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+tests/coverage/misc/fail/negative/074_private_in_await_operand.js:4:11: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+tests/coverage/misc/fail/negative/075_arrow_member_binding_target.js:2:1: Member expression cannot be used as a binding target
+tests/coverage/misc/fail/negative/numeric_literals/001_separator_leading.js:2:16: Numeric separator not allowed here
+tests/coverage/misc/fail/negative/numeric_literals/002_separator_trailing.js:2:16: Numeric separator not allowed here
+tests/coverage/misc/fail/negative/numeric_literals/003_separator_double.js:2:17: Numeric separator must be between two digits
+tests/coverage/misc/fail/negative/numeric_literals/004_bigint_decimal_point.js:2:18: BigInt literal cannot contain a decimal point
+tests/coverage/misc/fail/negative/numeric_literals/005_bigint_exponent.js:2:18: BigInt literal cannot contain an exponent
+tests/coverage/misc/fail/negative/numeric_literals/006_invalid_binary_digit.js:2:17: Expected semicolon
+tests/coverage/misc/fail/negative/numeric_literals/007_legacy_octal_float.js:1:5: Legacy octal / non-octal-decimal literal cannot contain a decimal point
+tests/coverage/misc/fail/negative/numeric_literals/008_legacy_bigint.js:1:4: BigInt literal cannot use legacy octal / non-octal-decimal form
+tests/coverage/misc/fail/negative/regex_literals/001_unclosed_class.js:2:11: Unterminated regular expression
+tests/coverage/misc/fail/negative/regex_literals/002_bad_quantifier.js:2:11: Unterminated regular expression
+tests/coverage/misc/fail/negative/regex_literals/003_bad_group.js:2:11: Unterminated regular expression
+tests/coverage/misc/fail/negative/regex_literals/004_duplicate_flags.js:2:11: Unterminated regular expression
+tests/coverage/misc/fail/negative/regex_literals/005_invalid_unicode_escape.js:2:11: Unterminated regular expression
+tests/coverage/misc/fail/negative/regex_literals/006_trailing_backslash.js:2:11: Unterminated regular expression
+tests/coverage/misc/fail/negative/truncation/001_array_eof.js:2:23: Expected ], got ;
+tests/coverage/misc/fail/negative/truncation/002_object_eof.js:2:27: Unexpected ';' in object literal
+tests/coverage/misc/fail/negative/truncation/003_function_params_eof.js:3:1: Expected ), got EOF
+tests/coverage/misc/fail/negative/truncation/004_function_body_eof.js:4:1: Expected '}' at end of function body
+tests/coverage/misc/fail/negative/truncation/005_class_body_eof.js:6:1: Expected '}' at end of class body
+tests/coverage/misc/fail/negative/truncation/006_call_args_eof.js:3:1: Expected ), got EOF
+tests/coverage/misc/fail/negative/truncation/007_member_chain_eof.js:3:1: Expected ], got EOF
+tests/coverage/misc/fail/negative/truncation/008_optional_chain_eof.js:3:1: Unexpected token after ?.
+tests/coverage/misc/fail/negative/truncation/009_template_substitution_eof.js:2:28: Expected template literal continuation
+tests/coverage/misc/fail/negative/truncation/010_jsx_tag_eof.js:3:1: Expected >, got EOF
 tests/coverage/misc/fail/oxc-10638.js:2:1: Unexpected reserved word 'in'
 tests/coverage/misc/fail/oxc-10639.js:1:1: Unexpected token '<<'
 tests/coverage/misc/fail/oxc-10977.ts:1:9: Expected type after ':'

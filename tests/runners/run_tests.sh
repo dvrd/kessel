@@ -5,7 +5,10 @@
 #
 # Ownership:
 # - Positive fixtures with pinned stdout live under tests/expected/.
-# - Negative / early-error fixtures are owned by tests/verifiers/verify_negative.js.
+# - Must-reject fixtures (formerly negative/, early_errors/) are owned by the
+#   coverage harness: they live under tests/coverage/misc/fail/ and are
+#   classified by parser_misc.snap + semantic_misc.snap. The Bash runner
+#   here only enforces positive fixtures.
 # - Positive fixtures are all enforced here. Known gaps must fail visibly.
 
 set -euo pipefail
@@ -51,11 +54,10 @@ normalize_output() {
 is_skipped_fixture() {
     local rel_path="$1"
 
-    # Session 11+: every fixture is enforced here, on every run.
-    # Negative / early_errors fixtures are also separately gated by
-    # verify_negative.js (which only checks the error count); the unit
-    # runner additionally locks the byte-for-byte AST + error JSON
-    # output. "Skipped" is no longer a dumping ground for parser gaps.
+    # Every fixture under tests/fixtures/ is positive (must-parse) and
+    # enforced here. Must-reject fixtures live under tests/coverage/misc/fail/
+    # and are classified by the Odin coverage harness, not by this runner.
+    # "Skipped" is not a dumping ground for parser gaps.
     return 1
 }
 
@@ -103,27 +105,14 @@ while IFS= read -r fixture; do
         es2025/*ts_interface*|es2025/*ts_type*|es2025/*ts_enum*) lang_flag="--lang=ts" ;;
         # JSX/TSX fixtures outside the dialect dirs need explicit mode.
         recovery/jsx_ts/*)        lang_flag="--lang=tsx" ;;
-        negative/truncation/*jsx*) lang_flag="--lang=jsx" ;;
         es2025/*jsx*|es2025/*fragment*) lang_flag="--lang=jsx" ;;
     esac
 
-    # --show-semantic-errors opts into pass 3 (the inline parser-side
-    # report_semantic_error checks AND the AST-walker in src/checker.odin).
-    # Default `kessel parse` is parser-only to match OXC's parseSync.
-    # Apply the flag only to fixtures whose purpose is to verify rejection
-    # under spec Early Errors (early_errors/*, negative/*); other fixtures
-    # (recovery/*, regression/*, spec/*) verify parser-only behaviour and
-    # would see spurious failures from semantic-only diagnostics.
-    semantic_flag=""
-    case "$rel_path" in
-        early_errors/*|negative/*) semantic_flag="--show-semantic-errors" ;;
-    esac
-    if [[ -n "$lang_flag" && -n "$semantic_flag" ]]; then
-        cmd=(timeout 10 "$KESSEL_BIN" parse "$lang_flag" "$semantic_flag" "$fixture")
-    elif [[ -n "$lang_flag" ]]; then
+    # Default `kessel parse` is parser-only (matches OXC's parseSync).
+    # Must-reject fixtures (early-error / negative) are owned by the
+    # coverage harness now, so this runner never needs --show-semantic-errors.
+    if [[ -n "$lang_flag" ]]; then
         cmd=(timeout 10 "$KESSEL_BIN" parse "$lang_flag" "$fixture")
-    elif [[ -n "$semantic_flag" ]]; then
-        cmd=(timeout 10 "$KESSEL_BIN" parse "$semantic_flag" "$fixture")
     else
         cmd=(timeout 10 "$KESSEL_BIN" parse "$fixture")
     fi
@@ -150,14 +139,11 @@ while IFS= read -r fixture; do
     # Parse-errors-expected fixtures: recovery/* exercise error recovery;
     # spec/ambiguity/001,002,004 exercise the TSX grammar restriction that
     # forbids `<Type>expr` / generic-arrow-without-trailing-comma (OXC
-    # rejects these with parse errors too); negative/* and early_errors/*
-    # are intentionally malformed and pin the rejected output. The gate on
-    # these fixtures is the STABILITY of emitted AST + error list against
-    # a golden, not error-free parsing. Everything else must parse clean.
+    # rejects these with parse errors too). The gate on these fixtures is
+    # the STABILITY of emitted AST + error list against a golden, not
+    # error-free parsing. Everything else must parse clean.
     case "$rel_path" in
         recovery/*) ;;
-        negative/*) ;;
-        early_errors/*) ;;
         spec/ambiguity/001_ts_assertion_vs_jsx_simple.js) ;;
         spec/ambiguity/002_ts_assertion_vs_jsx_paren.js) ;;
         spec/ambiguity/004_generic_arrow_vs_relational.js) ;;

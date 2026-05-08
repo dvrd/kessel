@@ -11,7 +11,14 @@
 //
 // Path-level skip: nothing (the directory is hand-curated).
 //
-// should_fail: parent-dir basename is `fail` ⇒ true; `pass` ⇒ false.
+// should_fail: nearest `pass`/`fail` ancestor under `tests/coverage/misc/`.
+// We walk up from the fixture path so subdirectories under `pass/` and
+// `fail/` (e.g. `fail/negative/truncation/...`) inherit the bucket from
+// the closest `pass`/`fail` directory, not from the immediate parent.
+// This lets us preserve the semantic grouping of regression families
+// (truncation, numeric_literals, regex_literals, strict_mode, ...) while
+// keeping a single classification axis.
+//
 // Lang/source_type: derived from the file extension; .ts/.tsx default to
 // TS-mode, .mjs to module, .cjs/.cts to commonjs (Script). The suite is
 // kessel-internal — we control naming conventions.
@@ -43,10 +50,7 @@ load_misc :: proc(project_root: string, allocator: runtime.Allocator) -> []Fixtu
 	out := make([dynamic]Fixture, 0, len(files), allocator)
 
 	for f in files {
-		dir := filepath.dir(f.abs, allocator)
-		defer delete(dir, allocator)
-		bucket := filepath.base(dir)
-		should_fail := bucket == "fail"
+		should_fail := resolve_misc_should_fail(f.abs, allocator)
 
 		lang := resolve_misc_lang(f.abs)
 		st   := resolve_misc_source_type(f.abs)
@@ -63,6 +67,30 @@ load_misc :: proc(project_root: string, allocator: runtime.Allocator) -> []Fixtu
 	}
 
 	return out[:]
+}
+
+// Walk up from the fixture path looking for the nearest ancestor whose
+// basename is `pass` or `fail`. Returns true on `fail`, false on `pass`,
+// false on neither (defensive default — every fixture under
+// `tests/coverage/misc/` is reachable through one of the two buckets).
+@(private="file")
+resolve_misc_should_fail :: proc(path: string, allocator: runtime.Allocator) -> bool {
+	cur := filepath.dir(path, allocator)
+	defer delete(cur, allocator)
+
+	// `filepath.dir` returns "." or "/" once we walk past the root.
+	for cur != "." && cur != "/" && cur != "" {
+		base := filepath.base(cur)
+		switch base {
+		case "fail": return true
+		case "pass": return false
+		}
+		parent := filepath.dir(cur, allocator)
+		if parent == cur { break }
+		delete(cur, allocator)
+		cur = parent
+	}
+	return false
 }
 
 @(private="file")
