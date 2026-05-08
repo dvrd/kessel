@@ -2333,12 +2333,21 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		if v.async || v.generator {
 			report_error(p, "Async / generator function declaration cannot appear in a single-statement context")
 		}
-		// Plain FunctionDeclaration in a single-statement iteration /
-		// with body is checked by the semantic checker
-		// (ck_check_single_stmt_function), which honours Annex B.3.2's
-		// sloppy IfStatement carve-out by simply not running on if /
-		// labelled-statement-of-if positions.
-		_ = allow_plain_function
+		// Plain FunctionDeclaration in a single-statement context.
+		// Annex B.3.2 web-compat: a sloppy IfStatement consequent /
+		// alternate (or a LabelledStatement at StatementListItem level)
+		// allows a plain FunctionDeclaration; iteration / with bodies do
+		// not. The caller threads the right gate via allow_plain_function:
+		//   * if statement consequent / alternate — !p.strict_mode
+		//   * iteration / with body — always false
+		//   * label inside iteration / if-body — false (recursive call)
+		//
+		// Promoted from the semantic checker (ck_check_single_stmt_function).
+		// The strict-mode case is the test262 cluster
+		// language/statements/if/if-decl-*-strict.js etc.
+		if !allow_plain_function {
+			report_error(p, "Function declarations are not allowed in a single-statement context")
+		}
 	case ^LabeledStatement:
 		// Recurse through labels: `label1: label2: function f() {}` in
 		// a single-statement position (iteration body, with body, ...)

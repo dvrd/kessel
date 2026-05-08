@@ -159,16 +159,16 @@ babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-import-
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-import-var/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-import-var/input.ts:5:1: Identifier 'Context' has already been declared
 
-babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js:1:11: Labelled function declaration cannot appear in a single-statement context
+babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js:2:1: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/invalid-assignment-target-type/input.js:3:15: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/core/categorized/for-missing-semicolons/input.js:3:3: Expected ;, got identifier
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-1/input.js:1:9: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-6/input.js:1:10: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-7/input.js:1:10: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-8/input.js:1:16: Invalid left-hand side in assignment
-babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-inside-loop/input.js:1:11: Function declaration cannot appear in a single-statement context
-babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-labeled-inside-if/input.js:1:18: Labelled function declaration cannot appear in a single-statement context
-babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-labeled-inside-loop/input.js:1:21: Function declaration cannot appear in a single-statement context
+babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-inside-loop/input.js:1:27: Function declarations are not allowed in a single-statement context
+babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-labeled-inside-if/input.js:2:1: Function declarations are not allowed in a single-statement context
+babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-labeled-inside-loop/input.js:1:37: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-left-hand-side-in-postfix-operation/input.js:1:8: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-left-hand-side-in-prefix-operation/input.js:1:8: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/malformed-switch/input.js:2:3: Expected 'case' or 'default' in switch
@@ -227,7 +227,7 @@ babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as/input.js:1
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-block/input.js:4:10: Export 'encrypt' is not defined in the module
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin-as/input.js:1:10: Export 'Object' is not defined in the module
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin/input.js:1:10: Export 'Object' is not defined in the module
-babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-if/input.js:1:10: Export 'encrypt' is not defined in the module
+babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-if/input.js:3:1: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export/input.js:1:10: Export 'encrypt' is not defined in the module
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-await/input.js:1:1: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-yield/input.js:1:1: 'yield' expression is only allowed in a generator body

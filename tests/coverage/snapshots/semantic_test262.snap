@@ -248,11 +248,11 @@ test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindin
 test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindings-with-initializer.js:14:6: Only a single declaration is allowed in a for-in loop
 test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindings-without-and-with-initializer.js:14:6: Only a single declaration is allowed in a for-in loop
 test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindings.js:14:6: Only a single declaration is allowed in a for-in loop
-test262/test/language/block-scope/syntax/function-declarations/in-statement-position-do-statement-while-expression.js:14:4: Function declaration cannot appear in a single-statement context
-test262/test/language/block-scope/syntax/function-declarations/in-statement-position-for-statement.js:14:15: Function declaration cannot appear in a single-statement context
-test262/test/language/block-scope/syntax/function-declarations/in-statement-position-if-expression-statement-else-statement.js:15:19: Function declaration cannot appear in a single-statement context
-test262/test/language/block-scope/syntax/function-declarations/in-statement-position-if-expression-statement.js:15:11: Function declaration cannot appear in a single-statement context
-test262/test/language/block-scope/syntax/function-declarations/in-statement-position-while-expression-statement.js:14:15: Function declaration cannot appear in a single-statement context
+test262/test/language/block-scope/syntax/function-declarations/in-statement-position-do-statement-while-expression.js:14:20: Function declarations are not allowed in a single-statement context
+test262/test/language/block-scope/syntax/function-declarations/in-statement-position-for-statement.js:16:1: Function declarations are not allowed in a single-statement context
+test262/test/language/block-scope/syntax/function-declarations/in-statement-position-if-expression-statement-else-statement.js:17:1: Function declarations are not allowed in a single-statement context
+test262/test/language/block-scope/syntax/function-declarations/in-statement-position-if-expression-statement.js:17:1: Function declarations are not allowed in a single-statement context
+test262/test/language/block-scope/syntax/function-declarations/in-statement-position-while-expression-statement.js:16:1: Function declarations are not allowed in a single-statement context
 test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-function.js:23:40: 'f' has already been declared
 test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-generator.js:23:41: 'f' has already been declared
 test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-class.js:23:31: 'f' has already been declared
@@ -3894,10 +3894,10 @@ test262/test/language/statements/do-while/decl-async-fun.js:20:26: Async / gener
 test262/test/language/statements/do-while/decl-async-gen.js:20:27: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/do-while/decl-cls.js:14:15: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/do-while/decl-const.js:14:20: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/do-while/decl-fun.js:14:4: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/do-while/decl-fun.js:14:20: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/do-while/decl-gen.js:15:21: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/do-while/decl-let.js:14:11: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/do-while/labelled-fn-stmt.js:18:20: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/do-while/labelled-fn-stmt.js:18:36: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/do-while/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/expression/S12.4_A1.js:19:9: Function declaration requires a name
 test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-init-yield-ident-invalid.js:33:20: 'yield' is a reserved identifier in strict mode
@@ -3997,7 +3997,7 @@ test262/test/language/statements/for-in/decl-async-fun.js:21:1: Async / generato
 test262/test/language/statements/for-in/decl-async-gen.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-in/decl-cls.js:15:1: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/for-in/decl-const.js:15:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/for-in/decl-fun.js:14:19: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/for-in/decl-fun.js:15:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for-in/decl-gen.js:16:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-in/decl-let.js:15:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/for-in/dstr/array-elem-init-yield-ident-invalid.js:32:12: 'yield' is a reserved identifier in strict mode
@@ -4043,10 +4043,10 @@ test262/test/language/statements/for-in/head-lhs-cover-non-asnmt-trgt.js:24:16: 
 test262/test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-ary.js:20:18: Invalid destructuring assignment target
 test262/test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-obj.js:20:20: Invalid destructuring assignment target
 test262/test/language/statements/for-in/head-lhs-non-asnmt-trgt.js:18:14: Invalid left-hand side in for-in loop
-test262/test/language/statements/for-in/labelled-fn-stmt-const.js:18:37: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for-in/labelled-fn-stmt-let.js:18:35: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for-in/labelled-fn-stmt-lhs.js:18:31: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for-in/labelled-fn-stmt-var.js:18:35: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/for-in/labelled-fn-stmt-const.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for-in/labelled-fn-stmt-let.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for-in/labelled-fn-stmt-lhs.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for-in/labelled-fn-stmt-var.js:19:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for-in/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/for-in/var-arguments-fn-strict-init.js:18:12: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/for-in/var-arguments-fn-strict.js:18:12: 'arguments' cannot be used as a binding name in strict mode
@@ -4058,7 +4058,7 @@ test262/test/language/statements/for-of/decl-async-fun.js:21:1: Async / generato
 test262/test/language/statements/for-of/decl-async-gen.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/decl-cls.js:15:1: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/decl-const.js:15:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/for-of/decl-fun.js:14:19: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/for-of/decl-fun.js:15:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for-of/decl-gen.js:16:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/decl-let.js:15:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/dstr/array-elem-init-yield-ident-invalid.js:32:12: 'yield' is a reserved identifier in strict mode
@@ -4143,10 +4143,10 @@ test262/test/language/statements/for-of/head-using-bound-names-let.js:17:6: 'let
 test262/test/language/statements/for-of/head-using-init.js:20:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-var-init.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-var-no-expr.js:17:17: Expected ), got ,
-test262/test/language/statements/for-of/labelled-fn-stmt-const.js:18:37: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for-of/labelled-fn-stmt-let.js:18:35: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for-of/labelled-fn-stmt-lhs.js:18:31: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for-of/labelled-fn-stmt-var.js:18:35: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/for-of/labelled-fn-stmt-const.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for-of/labelled-fn-stmt-let.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for-of/labelled-fn-stmt-lhs.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for-of/labelled-fn-stmt-var.js:19:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for-of/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/for/S12.6.3_A11.1_T3.js:24:40: Undefined label 'nonexist'
 test262/test/language/statements/for/S12.6.3_A11_T3.js:24:40: Undefined label 'nonexist'
@@ -4169,7 +4169,7 @@ test262/test/language/statements/for/decl-async-fun.js:21:1: Async / generator f
 test262/test/language/statements/for/decl-async-gen.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for/decl-cls.js:15:1: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/for/decl-const.js:15:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/for/decl-fun.js:14:18: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/for/decl-fun.js:15:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for/decl-gen.js:16:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for/decl-let.js:15:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/for/dstr/const-ary-ptrn-rest-init-ary.js:51:22: Rest element must be last in array pattern
@@ -4192,10 +4192,10 @@ test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-id.js:45:1
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-obj.js:45:19: Rest element must be last in array pattern
 test262/test/language/statements/for/head-const-bound-names-in-stmt.js:21:3: 'x' is already declared in for-loop head
 test262/test/language/statements/for/head-let-bound-names-in-stmt.js:21:3: 'x' is already declared in for-loop head
-test262/test/language/statements/for/labelled-fn-stmt-const.js:18:44: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for/labelled-fn-stmt-expr.js:18:34: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for/labelled-fn-stmt-let.js:18:38: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/for/labelled-fn-stmt-var.js:18:38: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/for/labelled-fn-stmt-const.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for/labelled-fn-stmt-expr.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for/labelled-fn-stmt-let.js:19:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/for/labelled-fn-stmt-var.js:19:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/function/13.0_4-5gs.js:17:28: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/statements/function/13.1-13gs.js:17:10: Function name 'arguments' is not allowed in strict mode
@@ -4305,12 +4305,12 @@ test262/test/language/statements/if/if-cls-no-else.js:15:1: Class declaration ca
 test262/test/language/statements/if/if-const-else-const.js:14:27: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-const-else-stmt.js:14:27: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-const-no-else.js:15:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/if/if-decl-else-decl-strict.js:24:11: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/if/if-decl-else-stmt-strict.js:24:11: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/if/if-decl-no-else-strict.js:24:11: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/if/if-fun-else-fun-strict.js:25:11: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/if/if-fun-else-stmt-strict.js:25:11: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/if/if-fun-no-else-strict.js:25:11: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-decl-else-decl-strict.js:24:29: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/if/if-decl-else-stmt-strict.js:24:29: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/if/if-decl-no-else-strict.js:25:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/if/if-fun-else-fun-strict.js:25:27: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/if/if-fun-else-stmt-strict.js:25:27: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/if/if-fun-no-else-strict.js:26:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/if/if-gen-else-gen.js:15:30: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-gen-else-stmt.js:15:30: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-gen-no-else.js:16:1: Async / generator function declaration cannot appear in a single-statement context
@@ -4321,13 +4321,13 @@ test262/test/language/statements/if/if-stmt-else-async-fun.js:21:1: Async / gene
 test262/test/language/statements/if/if-stmt-else-async-gen.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-stmt-else-cls.js:15:1: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-stmt-else-const.js:15:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/if/if-stmt-else-decl-strict.js:28:19: Function declaration cannot appear in a single-statement context
-test262/test/language/statements/if/if-stmt-else-fun-strict.js:29:19: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/if-stmt-else-decl-strict.js:29:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/if/if-stmt-else-fun-strict.js:30:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/if/if-stmt-else-gen.js:16:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-stmt-else-let.js:15:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/if/labelled-fn-stmt-first.js:29:28: Labelled function declaration cannot appear in a single-statement context
-test262/test/language/statements/if/labelled-fn-stmt-lone.js:29:28: Labelled function declaration cannot appear in a single-statement context
-test262/test/language/statements/if/labelled-fn-stmt-second.js:29:34: Labelled function declaration cannot appear in a single-statement context
+test262/test/language/statements/if/labelled-fn-stmt-first.js:29:50: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/if/labelled-fn-stmt-lone.js:30:1: Function declarations are not allowed in a single-statement context
+test262/test/language/statements/if/labelled-fn-stmt-second.js:30:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/if/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/labeled/continue.js:25:14: 'continue' must target an iteration label, 'test262' does not
 test262/test/language/statements/labeled/decl-async-function.js:21:1: Async / generator function declaration cannot be a labeled item
@@ -4562,20 +4562,20 @@ test262/test/language/statements/while/decl-async-fun.js:21:1: Async / generator
 test262/test/language/statements/while/decl-async-gen.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/while/decl-cls.js:15:1: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/while/decl-const.js:15:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/while/decl-fun.js:14:15: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/while/decl-fun.js:15:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/while/decl-gen.js:16:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/while/decl-let.js:15:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/while/labelled-fn-stmt.js:18:31: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/while/labelled-fn-stmt.js:19:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/while/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/with/12.10.1-11gs.js:15:1: 'with' statements are not allowed in strict mode
 test262/test/language/statements/with/decl-async-fun.js:22:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/with/decl-async-gen.js:22:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/with/decl-cls.js:16:1: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/with/decl-const.js:16:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/with/decl-fun.js:15:11: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/with/decl-fun.js:16:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/with/decl-gen.js:17:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/with/decl-let.js:16:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/with/labelled-fn-stmt.js:26:27: Function declaration cannot appear in a single-statement context
+test262/test/language/statements/with/labelled-fn-stmt.js:27:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/with/let-array-with-newline.js:24:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/with/strict-fn-decl-nested-1.js:21:5: 'with' statements are not allowed in strict mode
 test262/test/language/statements/with/strict-fn-decl-nested-2.js:20:5: 'with' statements are not allowed in strict mode

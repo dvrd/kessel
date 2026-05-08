@@ -3,16 +3,12 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2229/2233 (99.82%)
 Positive Passed: 2229/2233 (99.82%)
-Negative Passed: 1378/1711 (80.54%)
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
+Negative Passed: 1383/1711 (80.83%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-5/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-inside-loop/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-labeled-inside-if/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-labeled-inside-loop/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/create-parenthesized-expressions/invalid-parenthesized-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/create-parenthesized-expressions/invalid-parenthesized-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/create-parenthesized-expressions/invalid-parenthesized-assignment-pattern-4/input.js
@@ -55,7 +51,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-block/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin-as/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-if/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/427/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/463/input.js
@@ -349,12 +344,16 @@ babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts:10:30: A parameter cannot have a question mark and an initializer.
 
+babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js:2:1: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/invalid-assignment-target-type/input.js:3:15: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/core/categorized/for-missing-semicolons/input.js:3:3: Expected ;, got identifier
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-1/input.js:1:9: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-6/input.js:1:10: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-7/input.js:1:10: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-8/input.js:1:16: Invalid left-hand side in assignment
+babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-inside-loop/input.js:1:27: Function declarations are not allowed in a single-statement context
+babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-labeled-inside-if/input.js:2:1: Function declarations are not allowed in a single-statement context
+babel/packages/babel-parser/test/fixtures/core/categorized/invalid-fn-decl-labeled-inside-loop/input.js:1:37: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-left-hand-side-in-postfix-operation/input.js:1:8: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-left-hand-side-in-prefix-operation/input.js:1:8: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/malformed-switch/input.js:2:3: Expected 'case' or 'default' in switch
@@ -380,6 +379,7 @@ babel/packages/babel-parser/test/fixtures/core/regression/13694-invalid-dot-brac
 babel/packages/babel-parser/test/fixtures/core/regression/T2921/input.js:1:5: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/core/regression/non-octal-float-strict-mode/input.js:1:1: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/regression/octal-float-fail/input.js:1:5: Legacy octal / non-octal-decimal literal cannot contain a decimal point
+babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-if/input.js:3:1: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-await/input.js:1:1: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-yield/input.js:1:1: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/core/uncategorised/108/input.js:1:17: Expected semicolon
