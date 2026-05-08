@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2227/2233 (99.73%)
 Positive Passed: 2227/2233 (99.73%)
-Negative Passed: 1538/1711 (89.89%)
+Negative Passed: 1545/1711 (90.30%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -61,17 +61,12 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/367/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-strict-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-strict/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-1/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-2/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-3/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-4/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-6/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-generator-method/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-generator/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/yield-star-parameter-default-inside-generator/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-call/parenthesized-argument-object-double-proto/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-arguments-of-async-call-inside-parameters-of-async-arrow-function/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-async-arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-get-static-set/input.js
@@ -97,13 +92,11 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-literal-identifier/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-literals/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-setter-literal-identifier/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-default/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-export-default/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-strict-function-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-binding-element/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-function-declaration/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-function-expression/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/yield-generator-arrow-default/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0088/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0089/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0090/input.js
@@ -693,12 +686,16 @@ babel/packages/babel-parser/test/fixtures/es2015/yield/in-class-heritage/input.j
 babel/packages/babel-parser/test/fixtures/es2015/yield/in-global-scope/input.js:1:1: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/es2015/yield/in-iterator-stmt/input.js:2:20: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/es2015/yield/in-plain-function/input.js:1:16: 'yield' expression is only allowed in a generator body
-babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-5/input.js:2:21: Invalid expression for arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-1/input.js:2:8: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-3/input.js:2:8: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-4/input.js:2:18: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-5/input.js:2:9: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-6/input.js:2:9: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-strict/input.js:2:17: 'yield' is a reserved identifier in strict mode
-babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-inside-generator-1/input.js:2:16: Invalid expression for arrow function parameters
-babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-inside-generator-2/input.js:2:19: Invalid expression for arrow function parameters
-babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-inside-generator-3/input.js:2:22: Expected identifier in arrow function parameters
-babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-no-parens-inside-generator/input.js:2:14: Invalid expression for arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-inside-generator-1/input.js:2:4: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-inside-generator-2/input.js:2:4: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-inside-generator-3/input.js:2:10: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-no-parens-inside-generator/input.js:2:3: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-generator-method/input.js:1:12: 'yield' is reserved as a binding name inside a generator
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-generator/input.js:1:14: 'yield' is reserved as a binding name inside a generator
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict-body/input.js:1:13: 'yield' is a reserved identifier in strict mode
@@ -758,6 +755,7 @@ babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-binding-i
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-function-declaration-name-inside-async-function/input.js:2:12: 'await' cannot be used as a function name in module / async context
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-arrow-expression-disallowed/input.js:1:9: await outside of async function
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-async-arrow-function/input.js:1:12: Top-level 'await' is only valid in module code
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-arrow-function/input.js:2:8: 'await' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-function/input.js:2:20: await outside of async function
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/export-async/input.js:2:1: Unexpected token
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/export-invalid/input.js:1:35: Expected semicolon
@@ -1266,8 +1264,9 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/unclo
 '
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-binding-property/input.js:1:13: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-expression/input.js:1:15: 'yield' expression is only allowed in a generator body
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-parameter/input.js:1:30: Invalid expression for arrow function parameters
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-parameters/input.js:1:39: Expected identifier in arrow function parameters
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-default/input.js:1:22: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-parameter/input.js:1:17: 'yield' is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-parameters/input.js:1:26: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-catch/input.js:1:31: 'yield' is reserved as a binding name inside a generator
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-declaration/input.js:1:27: 'yield' cannot be used as a function name in generator context
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-expression-name/input.js:1:11: 'yield' cannot be used as the name of a generator function expression
@@ -1289,6 +1288,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-str
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-lexical-declaration/input.js:1:19: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-rest-parameter/input.js:1:29: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-variable-declaration/input.js:1:19: 'yield' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/yield-generator-arrow-default/input.js:1:22: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/expression-primary-array/migrated_0012/input.js:1:13: Expected semicolon
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/GH-1106-00/input.js:1:2: Invalid \x escape: expected 2 hex digits
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/GH-1106-01/input.js:1:2: Invalid \x escape: expected 2 hex digits

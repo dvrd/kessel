@@ -177,8 +177,8 @@ tests/coverage/misc/fail/negative/043_yield_expr_in_plain_function.js:7:10: 'yie
 tests/coverage/misc/fail/negative/044_await_in_async_arrow_params.js:7:12: Await expression is not allowed in arrow function parameters
 tests/coverage/misc/fail/negative/045_await_in_async_function_params.js:8:22: 'await' expression is not allowed in formal parameters of an async function
 tests/coverage/misc/fail/negative/046_await_in_async_method_params.js:7:15: 'await' expression is not allowed in formal parameters of an async function
-tests/coverage/misc/fail/negative/047_await_in_non_async_arrow_params.js:9:15: Await expression is not allowed in arrow function parameters
-tests/coverage/misc/fail/negative/048_yield_in_arrow_params.js:8:15: Yield expression is not allowed in arrow function parameters
+tests/coverage/misc/fail/negative/047_await_in_non_async_arrow_params.js:9:15: 'await' is not allowed in arrow function parameters
+tests/coverage/misc/fail/negative/048_yield_in_arrow_params.js:8:15: 'yield' is not allowed in arrow function parameters
 tests/coverage/misc/fail/negative/049_yield_in_async_arrow_params.js:9:21: Yield expression is not allowed in arrow function parameters
 tests/coverage/misc/fail/negative/050_for_let_init_in.js:5:6: for-in loop variable declaration may not have an initializer
 tests/coverage/misc/fail/negative/051_for_var_init_of.js:5:6: for-of loop variable declaration may not have an initializer

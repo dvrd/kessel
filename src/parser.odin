@@ -13507,6 +13507,55 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 // returns `false` for anything else so the caller can emit a clean error
 // rather than silently accepting invalid input.
 //
+// walk_arrow_cover_for_yield_await — §15.3.1 ArrowParameters Contains
+// check. The cover expression `(x = yield, y = await foo)` was parsed
+// under the surrounding generator/async context, so YieldExpression /
+// AwaitExpression nodes appear inside it. When committing to arrow
+// params, the [Yield] / [Await] grammar parameters of the cover
+// production reject these nodes:
+//   * (x = yield) => {}        in generator    → SyntaxError
+//   * async (x = await y) => {}                → SyntaxError
+// `disallow_yield` / `disallow_await` reflect the surrounding context
+// the COVER expression was parsed in. The walker only needs to recurse
+// into shapes that can legally hold default-value expressions; it does
+// not descend into nested function literals (those introduce their own
+// scope where yield/await can be legitimately bound).
+walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow_yield, disallow_await: bool) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^YieldExpression:
+		if disallow_yield {
+			report_error_at(p, LexerLoc(e.loc.span.start), "'yield' is not allowed in arrow function parameters")
+		}
+	case ^AwaitExpression:
+		if disallow_await {
+			report_error_at(p, LexerLoc(e.loc.span.start), "'await' is not allowed in arrow function parameters")
+		}
+	case ^SequenceExpression:
+		for inner in e.expressions {
+			walk_arrow_cover_for_yield_await(p, inner, disallow_yield, disallow_await)
+		}
+	case ^AssignmentExpression:
+		walk_arrow_cover_for_yield_await(p, e.left, disallow_yield, disallow_await)
+		walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+	case ^ArrayExpression:
+		for el in e.elements {
+			inner, has := el.?
+			if !has || inner == nil { continue }
+			walk_arrow_cover_for_yield_await(p, inner, disallow_yield, disallow_await)
+		}
+	case ^ObjectExpression:
+		for prop in e.properties {
+			if prop.computed && prop.key != nil {
+				walk_arrow_cover_for_yield_await(p, prop.key, disallow_yield, disallow_await)
+			}
+			walk_arrow_cover_for_yield_await(p, prop.value, disallow_yield, disallow_await)
+		}
+	case ^SpreadElement:
+		walk_arrow_cover_for_yield_await(p, e.argument, disallow_yield, disallow_await)
+	}
+}
+
 // Deep-conversion of object/array destructuring internals (e.g. nested
 // `{a: {b}} = {}`) is handled by later parse passes - this helper only needs
 // to produce the outer Pattern wrapper.
@@ -13906,6 +13955,15 @@ check_span_for_inner_parens :: proc(p: ^Parser, span_start, span_end: int, src: 
 }
 
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
+	// §15.3.1 — ArrowParameters Contains check. The cover expression
+	// was parsed under the surrounding generator/async context, so a
+	// `yield` / `await` produced a real YieldExpression / AwaitExpression
+	// instead of an identifier. When committing to arrow params, those
+	// nodes are SyntaxErrors per the [Yield] / [Await] grammar params on
+	// CoverParenthesizedExpressionAndArrowParameterList.
+	if left != nil && (p.in_generator || p.in_async || is_async) {
+		walk_arrow_cover_for_yield_await(p, left, p.in_generator, p.in_async || is_async)
+	}
 	start: Loc
 	if left != nil {
 		start = loc_from_expr(left)

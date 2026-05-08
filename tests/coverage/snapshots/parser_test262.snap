@@ -1,8 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 4508/4588 (98.26%)
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js
+Negative Passed: 4510/4588 (98.30%)
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-reference.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-no-arguments.js
@@ -11,7 +10,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-func
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-6.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-eval.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/await-as-param-nested-arrow-body-position.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js
@@ -519,6 +517,7 @@ test262/test/language/expressions/arrow-function/dstr/syntax-error-ident-ref-voi
 test262/test/language/expressions/arrow-function/dstr/syntax-error-ident-ref-while-escaped.js:40:23: Keyword 'while' must not contain escaped characters
 test262/test/language/expressions/arrow-function/dstr/syntax-error-ident-ref-with-escaped.js:40:22: Keyword 'with' must not contain escaped characters
 test262/test/language/expressions/arrow-function/object-destructuring-param-strict-body.js:129:4: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js:27:8: 'yield' is not allowed in arrow function parameters
 test262/test/language/expressions/arrow-function/param-dflt-yield-id-strict.js:21:6: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/arrow-function/params-duplicate.js:33:4: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/arrow-function/rest-param-strict-body.js:129:4: Illegal 'use strict' directive in function with non-simple parameter list
@@ -956,6 +955,7 @@ test262/test/language/expressions/async-arrow-function/await-as-identifier-refer
 test262/test/language/expressions/async-arrow-function/await-as-label-identifier-escaped.js:33:3: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/async-arrow-function/await-as-label-identifier.js:33:3: 'await' cannot be used as a label identifier in an async function
 test262/test/language/expressions/async-arrow-function/await-as-param-ident-nested-arrow-parameter-position.js:16:11: Top-level 'await' is only valid in module code
+test262/test/language/expressions/async-arrow-function/await-as-param-nested-arrow-body-position.js:16:19: 'await' is not allowed in arrow function parameters
 test262/test/language/expressions/async-arrow-function/await-as-param-nested-arrow-parameter-position.js:16:12: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/await-as-param-rest-nested-arrow-parameter-position.js:16:15: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/dflt-params-duplicates.js:50:2: Duplicate parameter name 'x' in strict mode
