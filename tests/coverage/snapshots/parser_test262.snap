@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 4198/4588 (91.50%)
+Negative Passed: 4257/4588 (92.79%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-id-strict.js
@@ -50,34 +50,7 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/clas
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-static.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/arrow-fnc-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/comp-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/equality-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/fields-duplicate-privatenames.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-arrow-fnc-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-comp-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-private-arrow-fnc-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-private-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-private-ternary-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-private-typeof-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-static-comp-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-static-literal-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-static-private-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-static-string-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-string-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-ternary-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-typeof-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/private-arrow-fnc-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/private-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/private-ternary-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/private-typeof-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/static-comp-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/static-literal-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/static-private-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/static-string-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/string-literal-name-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-class-body-ctor-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression.js
@@ -127,8 +100,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elem
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-bad-reference.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-this.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/ternary-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/typeof-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-gen-method-param-dflt-yield.js
@@ -229,29 +200,7 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/methods-gen-yield-as-function-expression-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/methods-gen-yield-as-identifier-in-nested-function.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/arrow-fnc-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/comp-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/equality-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/fields-duplicate-privatenames.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-arrow-fnc-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-comp-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-private-arrow-fnc-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-private-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-private-ternary-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-private-typeof-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-static-comp-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-static-literal-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-static-private-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-static-string-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-string-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-ternary-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-typeof-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/private-arrow-fnc-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/private-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/private-ternary-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/private-typeof-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-1.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-3.js
@@ -260,11 +209,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/eleme
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-6.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-7.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-8.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/static-comp-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/static-literal-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/static-private-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/static-string-literal-name-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/string-literal-name-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-class-body-ctor-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression.js
@@ -314,8 +258,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/eleme
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-bad-reference.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-this.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/super-private-access-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/ternary-init-err-contains-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/typeof-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method-param-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js
@@ -324,7 +266,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/priva
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-await-binding-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-label-dup.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-yield.js
@@ -1589,6 +1530,7 @@ test262/test/language/expressions/class/dstr/private-meth-static-dflt-ary-ptrn-r
 test262/test/language/expressions/class/dstr/private-meth-static-dflt-ary-ptrn-rest-not-final-ary.js:73:25: Rest element must be last in array pattern
 test262/test/language/expressions/class/dstr/private-meth-static-dflt-ary-ptrn-rest-not-final-id.js:73:23: Rest element must be last in array pattern
 test262/test/language/expressions/class/dstr/private-meth-static-dflt-ary-ptrn-rest-not-final-obj.js:73:27: Rest element must be last in array pattern
+test262/test/language/expressions/class/elements/arrow-fnc-init-err-contains-arguments.js:33:13: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/arrow-fnc-init-err-contains-super.js:26:18: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/class/elements/async-gen-private-method-static/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/class/elements/async-gen-private-method-static/await-as-binding-identifier.js:35:9: 'await' is reserved as a binding name in this context
@@ -1630,7 +1572,9 @@ test262/test/language/expressions/class/elements/async-private-method/await-as-i
 test262/test/language/expressions/class/elements/async-private-method/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/expressions/class/elements/async-private-method/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-private-method/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/class/elements/comp-name-init-err-contains-arguments.js:34:9: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/comp-name-init-err-contains-super.js:27:14: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/equality-init-err-contains-arguments.js:33:13: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/equality-init-err-contains-super.js:26:18: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/class/elements/fields-asi-3.js:17:9: Expected semicolon or line terminator after class field
 test262/test/language/expressions/class/elements/fields-asi-4.js:17:10: Expected semicolon or line terminator after class field
@@ -1658,31 +1602,55 @@ test262/test/language/expressions/class/elements/gen-private-method/yield-as-lab
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
 test262/test/language/expressions/class/elements/gen-private-method/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/gen-private-method/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/elements/literal-name-init-err-contains-arguments.js:33:7: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/literal-name-init-err-contains-super.js:26:12: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-arrow-fnc-init-err-contains-arguments.js:34:19: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-arrow-fnc-init-err-contains-super.js:27:24: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-comp-name-init-err-contains-arguments.js:33:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-comp-name-init-err-contains-super.js:26:20: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/class/elements/nested-equality-init-err-contains-arguments.js:32:16: Arrow function cannot be used as an unparenthesized operand
 test262/test/language/expressions/class/elements/nested-equality-init-err-contains-super.js:25:16: Arrow function cannot be used as an unparenthesized operand
+test262/test/language/expressions/class/elements/nested-literal-name-init-err-contains-arguments.js:32:13: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-literal-name-init-err-contains-super.js:25:18: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-private-arrow-fnc-init-err-contains-arguments.js:34:19: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-private-arrow-fnc-init-err-contains-super.js:27:24: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-private-literal-name-init-err-contains-arguments.js:32:14: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-private-literal-name-init-err-contains-super.js:25:19: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-private-ternary-init-err-contains-arguments.js:32:26: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-private-ternary-init-err-contains-super.js:25:31: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-private-typeof-init-err-contains-arguments.js:32:21: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-private-typeof-init-err-contains-super.js:25:26: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-static-comp-name-init-err-contains-arguments.js:33:22: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-static-comp-name-init-err-contains-super.js:26:27: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-static-literal-init-err-contains-arguments.js:32:20: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-static-literal-init-err-contains-super.js:25:25: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-static-private-init-err-contains-arguments.js:32:21: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-static-private-init-err-contains-super.js:25:26: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-static-string-literal-name-init-err-contains-arguments.js:32:22: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-static-string-literal-name-init-err-contains-super.js:25:27: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-string-literal-name-init-err-contains-arguments.js:32:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-string-literal-name-init-err-contains-super.js:25:20: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-ternary-init-err-contains-arguments.js:32:25: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-ternary-init-err-contains-super.js:25:30: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/nested-typeof-init-err-contains-arguments.js:32:20: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/nested-typeof-init-err-contains-super.js:25:25: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/private-arrow-fnc-init-err-contains-arguments.js:33:14: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/private-arrow-fnc-init-err-contains-super.js:26:19: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/private-literal-name-init-err-contains-arguments.js:33:8: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/private-literal-name-init-err-contains-super.js:26:13: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/private-ternary-init-err-contains-arguments.js:33:20: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/private-ternary-init-err-contains-super.js:26:25: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/private-typeof-init-err-contains-arguments.js:33:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/private-typeof-init-err-contains-super.js:26:20: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/static-comp-name-init-err-contains-arguments.js:34:16: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/static-comp-name-init-err-contains-super.js:27:21: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/static-literal-init-err-contains-arguments.js:33:14: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/static-literal-init-err-contains-super.js:26:19: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/static-private-init-err-contains-arguments.js:33:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/static-private-init-err-contains-super.js:26:20: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/static-string-literal-name-init-err-contains-arguments.js:33:16: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/static-string-literal-name-init-err-contains-super.js:26:21: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/string-literal-name-init-err-contains-arguments.js:33:9: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/string-literal-name-init-err-contains-super.js:26:14: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/class/elements/syntax/early-errors/class-heritage-array-literal-arrow-heritage.js:23:26: Expected {, got =>
 test262/test/language/expressions/class/elements/syntax/early-errors/class-heritage-array-literal-async-arrow-heritage.js:23:38: Arrow function is not a valid class heritage expression
@@ -1857,7 +1825,9 @@ test262/test/language/expressions/class/elements/syntax/early-errors/private-fie
 test262/test/language/expressions/class/elements/syntax/early-errors/private-generator-cannot-escape-token.js:24:5: Expected method or property name
 test262/test/language/expressions/class/elements/syntax/early-errors/private-member-exp-cannot-escape-token.js:31:10: Expected identifier after '.'
 test262/test/language/expressions/class/elements/syntax/early-errors/private-method-cannot-escape-token.js:24:3: Expected method or property name
+test262/test/language/expressions/class/elements/ternary-init-err-contains-arguments.js:33:19: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/ternary-init-err-contains-super.js:26:24: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/typeof-init-err-contains-arguments.js:33:14: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/typeof-init-err-contains-super.js:26:19: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/class/gen-method-static/array-destructuring-param-strict-body.js:155:17: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/gen-method-static/dflt-params-duplicates.js:84:17: Duplicate parameter name 'x' in strict mode
@@ -3579,6 +3549,7 @@ test262/test/language/statements/class/dstr/private-meth-static-dflt-ary-ptrn-re
 test262/test/language/statements/class/dstr/private-meth-static-dflt-ary-ptrn-rest-not-final-ary.js:72:25: Rest element must be last in array pattern
 test262/test/language/statements/class/dstr/private-meth-static-dflt-ary-ptrn-rest-not-final-id.js:72:23: Rest element must be last in array pattern
 test262/test/language/statements/class/dstr/private-meth-static-dflt-ary-ptrn-rest-not-final-obj.js:72:27: Rest element must be last in array pattern
+test262/test/language/statements/class/elements/arrow-fnc-init-err-contains-arguments.js:33:13: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/arrow-fnc-init-err-contains-super.js:26:18: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/elements/async-gen-private-method-static/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/elements/async-gen-private-method-static/await-as-binding-identifier.js:35:9: 'await' is reserved as a binding name in this context
@@ -3620,7 +3591,9 @@ test262/test/language/statements/class/elements/async-private-method/await-as-id
 test262/test/language/statements/class/elements/async-private-method/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/statements/class/elements/async-private-method/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/elements/async-private-method/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/statements/class/elements/comp-name-init-err-contains-arguments.js:34:9: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/comp-name-init-err-contains-super.js:27:14: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/equality-init-err-contains-arguments.js:33:13: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/equality-init-err-contains-super.js:26:18: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/elements/fields-asi-3.js:17:9: Expected semicolon or line terminator after class field
 test262/test/language/statements/class/elements/fields-asi-4.js:17:10: Expected semicolon or line terminator after class field
@@ -3648,31 +3621,55 @@ test262/test/language/statements/class/elements/gen-private-method/yield-as-labe
 test262/test/language/statements/class/elements/gen-private-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
 test262/test/language/statements/class/elements/gen-private-method/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/gen-private-method/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/elements/literal-name-init-err-contains-arguments.js:33:7: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/literal-name-init-err-contains-super.js:26:12: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-arrow-fnc-init-err-contains-arguments.js:34:19: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-arrow-fnc-init-err-contains-super.js:27:24: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-comp-name-init-err-contains-arguments.js:33:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-comp-name-init-err-contains-super.js:26:20: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/elements/nested-equality-init-err-contains-arguments.js:32:16: Arrow function cannot be used as an unparenthesized operand
 test262/test/language/statements/class/elements/nested-equality-init-err-contains-super.js:25:16: Arrow function cannot be used as an unparenthesized operand
+test262/test/language/statements/class/elements/nested-literal-name-init-err-contains-arguments.js:32:13: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-literal-name-init-err-contains-super.js:25:18: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-private-arrow-fnc-init-err-contains-arguments.js:34:19: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-private-arrow-fnc-init-err-contains-super.js:27:24: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-private-literal-name-init-err-contains-arguments.js:32:14: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-private-literal-name-init-err-contains-super.js:25:19: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-private-ternary-init-err-contains-arguments.js:32:27: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-private-ternary-init-err-contains-super.js:25:32: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-private-typeof-init-err-contains-arguments.js:32:21: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-private-typeof-init-err-contains-super.js:25:26: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-static-comp-name-init-err-contains-arguments.js:33:22: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-static-comp-name-init-err-contains-super.js:26:27: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-static-literal-init-err-contains-arguments.js:32:20: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-static-literal-init-err-contains-super.js:25:25: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-static-private-init-err-contains-arguments.js:32:21: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-static-private-init-err-contains-super.js:25:26: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-static-string-literal-name-init-err-contains-arguments.js:32:22: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-static-string-literal-name-init-err-contains-super.js:25:27: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-string-literal-name-init-err-contains-arguments.js:32:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-string-literal-name-init-err-contains-super.js:25:20: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-ternary-init-err-contains-arguments.js:32:26: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-ternary-init-err-contains-super.js:25:31: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/nested-typeof-init-err-contains-arguments.js:32:20: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/nested-typeof-init-err-contains-super.js:25:25: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/private-arrow-fnc-init-err-contains-arguments.js:33:14: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/private-arrow-fnc-init-err-contains-super.js:26:19: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/private-literal-name-init-err-contains-arguments.js:33:8: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/private-literal-name-init-err-contains-super.js:26:13: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/private-ternary-init-err-contains-arguments.js:33:21: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/private-ternary-init-err-contains-super.js:26:26: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/private-typeof-init-err-contains-arguments.js:33:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/private-typeof-init-err-contains-super.js:26:20: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/static-comp-name-init-err-contains-arguments.js:34:16: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/static-comp-name-init-err-contains-super.js:27:21: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/static-literal-init-err-contains-arguments.js:33:14: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/static-literal-init-err-contains-super.js:26:19: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/static-private-init-err-contains-arguments.js:33:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/static-private-init-err-contains-super.js:26:20: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/static-string-literal-name-init-err-contains-arguments.js:33:16: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/static-string-literal-name-init-err-contains-super.js:26:21: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/string-literal-name-init-err-contains-arguments.js:33:9: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/string-literal-name-init-err-contains-super.js:26:14: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/elements/syntax/early-errors/class-heritage-array-literal-arrow-heritage.js:23:20: Expected {, got =>
 test262/test/language/statements/class/elements/syntax/early-errors/class-heritage-array-literal-async-arrow-heritage.js:23:32: Arrow function is not a valid class heritage expression
@@ -3847,7 +3844,9 @@ test262/test/language/statements/class/elements/syntax/early-errors/private-fiel
 test262/test/language/statements/class/elements/syntax/early-errors/private-generator-cannot-escape-token.js:24:5: Expected method or property name
 test262/test/language/statements/class/elements/syntax/early-errors/private-member-exp-cannot-escape-token.js:31:10: Expected identifier after '.'
 test262/test/language/statements/class/elements/syntax/early-errors/private-method-cannot-escape-token.js:24:3: Expected method or property name
+test262/test/language/statements/class/elements/ternary-init-err-contains-arguments.js:33:20: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/ternary-init-err-contains-super.js:26:25: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/typeof-init-err-contains-arguments.js:33:14: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/typeof-init-err-contains-super.js:26:19: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/gen-method-static/array-destructuring-param-strict-body.js:153:17: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/gen-method-static/dflt-params-duplicates.js:82:17: Duplicate parameter name 'x' in strict mode
@@ -3890,6 +3889,7 @@ test262/test/language/statements/class/method/dflt-params-rest.js:83:15: Expecte
 test262/test/language/statements/class/method/object-destructuring-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-params-trailing-comma-early-error.js:75:14: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/static-init-invalid-arguments.js:21:15: 'arguments' is not allowed in a class static block
 test262/test/language/statements/class/static-init-invalid-lex-dup.js:22:5: 'x' has already been declared
 test262/test/language/statements/class/static-init-invalid-lex-var.js:23:5: Identifier 'x' has already been declared
 test262/test/language/statements/class/static-init-invalid-return.js:24:13: 'return' is not allowed in a class static block

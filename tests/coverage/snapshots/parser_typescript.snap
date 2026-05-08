@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12599/12692 (99.27%)
 Positive Passed: 12599/12692 (99.27%)
-Negative Passed: 1479/3470 (42.62%)
+Negative Passed: 1480/3470 (42.65%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -47,7 +47,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.t
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyIdenticalToItself.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/argumentsBindsToFunctionScopeArgumentList.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/argumentsReferenceInObjectLiteral_Js.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/arrayConcatMap.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiPublicPrivateProtected.ts
@@ -2300,6 +2299,7 @@ typescript/tests/cases/compiler/ambiguousGenericAssertion1.ts:4:10: Expected ini
 typescript/tests/cases/compiler/anonymousModules.ts:1:8: Expected semicolon
 typescript/tests/cases/compiler/argumentsReferenceInConstructor4_Js.ts:18:9: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/argumentsReferenceInMethod4_Js.ts:16:9: 'arguments' cannot be used as a binding name in strict mode
+typescript/tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock.ts:3:10: 'arguments' cannot appear in a class field initializer
 typescript/tests/cases/compiler/arraySigChecking.ts:11:28: An index signature must have a type annotation.
 typescript/tests/cases/compiler/arrowFunctionErrorSpan.ts:18:5: Line terminator not permitted before '=>'
 typescript/tests/cases/compiler/arrowFunctionMissingCurlyWithSemicolon.ts:2:15: Unexpected token

@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2227/2233 (99.73%)
 Positive Passed: 2227/2233 (99.73%)
-Negative Passed: 1431/1711 (83.64%)
+Negative Passed: 1435/1711 (83.87%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -158,13 +158,9 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-private-member-access/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-nested/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-top-level/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-arrow-function/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-nested-class-decorator-call-expression/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target-invalid/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-inside-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/yield-in-class-property-in-generator/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-arguments/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-await/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js
@@ -1116,6 +1112,9 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invali
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property/input.js:2:11: Expected }, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-ts-type-literal/input.js:2:3: Expected }, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-call/input.js:4:19: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-arrow-function/input.js:3:17: 'arguments' cannot appear in a class field initializer
+babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-nested-class-decorator-call-expression/input.js:3:26: 'arguments' cannot appear in a class field initializer
+babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments/input.js:3:11: 'arguments' cannot appear in a class field initializer
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-computed/input.js:3:10: Expected semicolon or line terminator after class field
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-generator/input.js:3:9: Expected semicolon or line terminator after class field
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-inline/input.js:2:5: Expected (, got identifier
@@ -1128,6 +1127,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-properties/static-field-n
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-call/input.js:4:18: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-async-arrow-function-in-static-block/input.js:3:29: 'await' is reserved as a binding name in this context
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-static-block/input.js:11:35: 'await' expression requires an operand
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-arguments/input.js:3:16: 'arguments' is not allowed in a class static block
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-break/input.js:6:9: 'break' must be inside a loop or switch
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-continue/input.js:5:7: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-decorators/input.js:4:3: Decorators are not valid here.

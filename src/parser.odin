@@ -349,6 +349,12 @@ Parser :: struct {
 	// arguments / SuperCall` early error).
 	in_static_block: bool,
 
+	// True when parsing a class field initialiser (§15.7.10). The
+	// synthetic ClassFieldInitializer function does NOT bind `arguments`,
+	// so `arguments` as IdentifierReference is a SyntaxError. Reset on
+	// entry to non-arrow function bodies (they bind their own `arguments`).
+	in_field_init: bool,
+
 	// True when parsing inside a TS namespace/module body. `await` is
 	// not a keyword here even in module-mode files.
 	in_ts_namespace: bool,
@@ -3870,6 +3876,10 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// function environment, so `super(...)` inside it is a SyntaxError.
 	prev_in_derived_ctor := p.in_derived_constructor
 	p.in_derived_constructor = false
+	// Regular functions bind their own `arguments`, so class-field
+	// initialiser `arguments` rejection stops propagating.
+	prev_in_field_init_fn := p.in_field_init
+	p.in_field_init = false
 
 	// In declare / ambient-module context, allow no body (just a semicolon).
 	// An ambient module body (`module "x" { function f(): void; }`) or a
@@ -3936,6 +3946,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.in_generator_params = prev_in_gen_params_body
 	p.in_method = prev_in_method
 	p.in_derived_constructor = prev_in_derived_ctor
+	p.in_field_init = prev_in_field_init_fn
 
 	// Retroactive StrictFormalParameters check: if either the enclosing
 	// context was already strict or the body declared `"use strict"`, the
@@ -4362,6 +4373,10 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// bodies: `class C { static { (() => { class await {} }); } }` is valid.
 	prev_static_block_in_fb := p.in_static_block
 	p.in_static_block = false
+	// §15.7.10 — a nested function binds its own `arguments`, so the
+	// class-field `arguments` ban stops here.
+	prev_field_init_in_fb := p.in_field_init
+	p.in_field_init = false
 
 	p.in_function = true
 	p.in_non_arrow_function = true
@@ -4430,6 +4445,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	p.strict_mode = prev_strict
 	p.no_in = prev_no_in
 	p.in_static_block = prev_static_block_in_fb
+	p.in_field_init = prev_field_init_in_fb
 	// Restore the enclosing label floor. Labels pushed inside this body
 	// should have been popped on their LabelledStatement exit; if not
 	// (parse bail-out, etc.) truncate down so leftovers don't pollute
@@ -5253,15 +5269,18 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			prev_in_generator := p.in_generator
 			prev_in_async_params := p.in_async_params
 			prev_in_generator_params := p.in_generator_params
+			prev_in_field_init := p.in_field_init
 			p.in_async = false
 			p.in_generator = false
 			p.in_async_params = false
 			p.in_generator_params = false
+			p.in_field_init = true
 			init_expr := parse_assignment_expression(p)
 			p.in_async = prev_in_async
 			p.in_generator = prev_in_generator
 			p.in_async_params = prev_in_async_params
 			p.in_generator_params = prev_in_generator_params
+			p.in_field_init = prev_in_field_init
 			p.in_method = prev_in_method
 			p.in_derived_constructor = prev_in_derived_ctor
 			if init_expr != nil {
@@ -10518,14 +10537,18 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error(p, "'async' keyword must not contain Unicode escape sequences")
 			}
 		}
-		// `arguments` as IdentifierReference in a class static block is
-		// a SyntaxError per §15.7.5 (ContainsArguments). Includes the
-		// escaped form `argument\u0073` since `cur_tok.value` is the
-		// cooked name. Test262: language/statements/class/static-init-
-		// invalid-arguments.js.
-		// §15.7.5 arguments-in-class-static-block: enforced by the
-		// semantic checker (ck_check_identifier_arguments). Parser stays
-		// permissive.
+		// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
+		// forbidden in class field initializers (the synthetic
+		// ClassFieldInitializer does NOT bind `arguments`) and in class
+		// static blocks (ContainsArguments). Includes escaped form
+		// `argument\u0073` since `cur_tok.value` is the cooked name.
+		if p.cur_tok.value == "arguments" {
+			if p.in_static_block {
+				report_error(p, "'arguments' is not allowed in a class static block")
+			} else if p.in_field_init {
+				report_error(p, "'arguments' cannot appear in a class field initializer")
+			}
+		}
 		// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
 		// async-params / class-static-block context is enforced by the
 		// semantic checker (ck_check_identifier_await_reserved). The
@@ -11696,6 +11719,16 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		id.name = current.value
 		id.has_escape = current.has_escape
 		id.loc.span.end = prev_end_offset(p)
+		// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
+		// forbidden in class field initializers and class static blocks
+		// (the synthetic function does NOT bind `arguments`).
+		if current.value == "arguments" {
+			if p.in_static_block {
+				report_error(p, "'arguments' is not allowed in a class static block")
+			} else if p.in_field_init {
+				report_error(p, "'arguments' cannot appear in a class field initializer")
+			}
+		}
 		return id_expr
 
 	case .LParen:
