@@ -8308,24 +8308,31 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 		// in TS. Skip in TS mode entirely.
 		if allow_ts_mode(p) { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			// Annex B.3.2 / §14.1.3:
-			//   - strict mode: FunctionDeclaration BoundName is always
-			//     lexical.
-			//   - sloppy async / generator / async-generator: always
-			//     lexical (they don't qualify for B.3.2).
-			//   - sloppy plain FunctionDeclaration in a BLOCK scope:
-			//     .FunctionAnnexB - sibling dups legal (B.3.3), mixed
-			//     let/const/class/var collisions error (§14.2.1).
-			//   - sloppy plain FunctionDeclaration at function / Script
-			//     Program scope: .Var - var-hoisted; clashes with same-
-			//     name var are legal per long-standing convention.
-			kind: ScopeBindingKind = .Lexical
-			if !p.strict_mode && !v.async && !v.generator {
-				if is_block_scope {
+			// Annex B.3.2 / §14.1.3 / §16.1.7 / §16.2.1:
+			//   - block scope: strict + sloppy-async/generator are .Lexical
+			//     (sibling dups error). Sloppy plain Function -> .FunctionAnnexB.
+			//   - module top level (§16.2.1.1): "At the top level of a Module,
+			//     function declarations are treated like lexical declarations."
+			//     Duplicates are SyntaxError -> .Lexical.
+			//   - script / function-body top level: HoistableDeclarations are
+			//     in VarDeclaredNames, NOT LexicallyDeclaredNames. Same-name
+			//     duplicates are valid (re-binding the same hoisted slot) in
+			//     both strict and sloppy modes.
+			kind: ScopeBindingKind = .Var
+			if is_block_scope {
+				if !p.strict_mode && !v.async && !v.generator {
 					kind = .FunctionAnnexB
 				} else {
-					kind = .Var
+					kind = .Lexical
 				}
+			} else if p.in_module_top_level {
+				// Module top-level: spec treats fn decls as lexical for the
+				// duplicate check. parse_program runs the body scope check
+				// with `in_module_top_level` still set when --source-type=
+				// module is pinned; auto-detected modules upgrade after the
+				// parse so the check there falls back to .Var (the semantic
+				// checker still catches it via its own walk).
+				kind = .Lexical
 			}
 			scope_add(p, lex, vars, id.name, id.loc.span.start, kind)
 		}
