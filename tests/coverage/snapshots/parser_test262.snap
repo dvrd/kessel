@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3606/4588 (78.60%)
+Negative Passed: 3611/4588 (78.71%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
@@ -348,7 +348,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/n
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/name-eval-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/name-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-dflt-yield-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-eval-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-invalid-identifier-complex.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-invalid-identifier-simple.js
@@ -383,8 +382,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/met
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/name-super-call-param.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-body-strict-inside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-body-strict-outside.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-param-arguments-strict-inside.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-param-eval-strict-inside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/optional-chaining/call-expression-super-no-base.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-decrement/arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-decrement/eval.js
@@ -879,9 +876,7 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/na
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-arguments-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-eval-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-arguments-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-dflt-yield-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-eval-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-decl-else-decl-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-decl-else-stmt-strict.js
@@ -2675,6 +2670,7 @@ test262/test/language/expressions/function/param-duplicated-strict-3.js:22:2: Du
 test262/test/language/expressions/function/param-duplicated-strict-body-1.js:22:2: Duplicate parameter name 'param' in strict mode
 test262/test/language/expressions/function/param-duplicated-strict-body-2.js:23:2: Duplicate parameter name 'param1' in strict mode
 test262/test/language/expressions/function/param-duplicated-strict-body-3.js:21:2: Duplicate parameter name 'param' in strict mode
+test262/test/language/expressions/function/param-eval-strict-body.js:22:12: Parameter name 'eval' is not allowed in strict mode
 test262/test/language/expressions/function/rest-param-strict-body.js:130:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/function/rest-params-trailing-comma-early-error.js:55:17: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/function/use-strict-with-non-simple-param.js:19:9: Illegal 'use strict' directive in function with non-simple parameter list
@@ -2879,7 +2875,9 @@ test262/test/language/expressions/object/method-definition/yield-star-after-newl
 test262/test/language/expressions/object/method-definition/yield-weak-binding.js:17:27: 'yield' expression cannot be the right-hand side of a binary operator
 test262/test/language/expressions/object/prop-def-invalid-async-prefix.js:35:14: Generator/async shorthand property not allowed
 test262/test/language/expressions/object/prop-def-invalid-star-prefix.js:21:8: Generator/async shorthand property not allowed
+test262/test/language/expressions/object/setter-param-arguments-strict-inside.js:18:9: Parameter name 'arguments' is not allowed in strict mode
 test262/test/language/expressions/object/setter-param-arguments-strict-outside.js:18:9: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/expressions/object/setter-param-eval-strict-inside.js:18:9: Parameter name 'eval' is not allowed in strict mode
 test262/test/language/expressions/object/setter-param-eval-strict-outside.js:18:9: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/optional-chaining/early-errors-tail-position-null-op-template-string-esi.js:25:4: Unexpected token after ?.
 test262/test/language/expressions/optional-chaining/early-errors-tail-position-null-op-template-string.js:22:8: Unexpected token after ?.
@@ -4341,6 +4339,7 @@ test262/test/language/statements/function/invalid-function-body-3.js:17:19: Priv
 test262/test/language/statements/function/invalid-name-dot.js:16:13: Expected (, got .
 test262/test/language/statements/function/invalid-name-two-dots.js:16:13: Expected (, got .
 test262/test/language/statements/function/object-destructuring-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/statements/function/param-arguments-strict-body.js:22:23: Parameter name 'arguments' is not allowed in strict mode
 test262/test/language/statements/function/param-arguments-strict.js:22:22: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/param-duplicated-strict-1.js:22:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-2.js:23:1: Duplicate parameter name 'param1' in strict mode
@@ -4348,6 +4347,7 @@ test262/test/language/statements/function/param-duplicated-strict-3.js:22:1: Dup
 test262/test/language/statements/function/param-duplicated-strict-body-1.js:22:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-body-2.js:23:1: Duplicate parameter name 'param1' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-body-3.js:22:1: Duplicate parameter name 'param' in strict mode
+test262/test/language/statements/function/param-eval-strict-body.js:22:23: Parameter name 'eval' is not allowed in strict mode
 test262/test/language/statements/function/param-eval-strict.js:22:22: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/rest-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/function/rest-params-trailing-comma-early-error.js:56:16: A rest parameter or binding pattern may not have a trailing comma.

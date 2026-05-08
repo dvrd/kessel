@@ -3819,6 +3819,18 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if body_strict && force_non_simple {
 		report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 	}
+	// §13.1.1 — retroactive strict-mode binding check on params for
+	// functions whose body opted into strict via a `"use strict"`
+	// directive while the outer scope was sloppy. parse_binding_pattern
+	// fired its strict-binding check at param-parse time, but only if
+	// p.strict_mode was already true; the body-strict promotion happens
+	// later, so we re-walk the params here. Gate on `!p.strict_mode`
+	// (the OUTER state — parse_function_body restores p.strict_mode to
+	// the pre-body value before returning) so enclosing-strict callers
+	// don't double-fire.
+	if body_strict && !p.strict_mode {
+		report_strict_param_pattern_retro(p, params[:])
+	}
 	_ = id
 
 	// §15.2.1.1 / §15.5.1 - It is a Syntax Error if any element of the
@@ -5788,6 +5800,75 @@ arrow_body_lifts_strict :: proc(body: ArrowFunctionBody) -> bool {
 	str, sok := es.expression.(^StringLiteral)
 	if !sok || str == nil { return false }
 	return str.value == "use strict"
+}
+
+// is_strict_reserved_binding_name — unified predicate for the names
+// kessel rejects as a BindingIdentifier in strict mode. Combines:
+//   * §13.1.1 — "eval" / "arguments"
+//   * §13.2 dedicated-token group — "let" / "static" / "yield"
+//   * §13.2 lex-as-Identifier group — "implements" / "interface" /
+//     "package" / "private" / "protected" / "public"
+// Used by the body-strict retroactive parameter check below; the
+// parse_binding_pattern path uses the more granular triplet of
+// is_strict_reserved_word(token), is_strict_reserved_name(name),
+// is_eval_or_arguments(name) because it has access to lex-time info.
+is_strict_reserved_binding_name :: #force_inline proc(name: string) -> bool {
+	if is_eval_or_arguments(name) { return true }
+	if is_strict_reserved_name(name) { return true }
+	switch name {
+	case "let", "static", "yield":
+		return true
+	}
+	return false
+}
+
+// report_strict_param_pattern_retro — when a function body promotes
+// to strict mode via a `"use strict"` directive AND the outer scope
+// was sloppy, the params were parsed under p.strict_mode=false and so
+// parse_binding_pattern's strict-binding check did NOT fire on them.
+// Walk every BindingIdentifier reachable from the param patterns and
+// emit the strict-mode-reserved diagnostic for each match. Mirrors
+// the checker's ck_check_strict_param_pattern recursive walk.
+//
+// Caller must gate on `body_strict && !outer_strict` so the
+// enclosing-strict path (already covered by parse_binding_pattern)
+// doesn't double-fire.
+report_strict_param_pattern_retro :: proc(p: ^Parser, params: []FunctionParameter) {
+	for pr in params {
+		walk_strict_param_binding(p, pr.pattern)
+	}
+}
+
+@(private="file")
+walk_strict_param_binding :: proc(p: ^Parser, pat: Pattern) {
+	if pat == nil { return }
+	switch v in pat {
+	case ^Identifier:
+		if v == nil { return }
+		if is_eval_or_arguments(v.name) {
+			msg := fmt.tprintf("Parameter name '%s' is not allowed in strict mode", v.name)
+			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+		} else if is_strict_reserved_binding_name(v.name) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
+			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+		}
+	case ^ObjectPattern:
+		if v == nil { return }
+		for prop in v.properties { walk_strict_param_binding(p, prop.value) }
+	case ^ArrayPattern:
+		if v == nil { return }
+		for elem in v.elements {
+			if inner, ok := elem.(Pattern); ok { walk_strict_param_binding(p, inner) }
+		}
+	case ^AssignmentPattern:
+		if v == nil { return }
+		walk_strict_param_binding(p, v.left)
+	case ^RestElement:
+		if v == nil { return }
+		walk_strict_param_binding(p, v.argument)
+	case ^MemberExpression:
+		return
+	}
 }
 
 // Scan a FormalParameters list for duplicate binding names and report
@@ -12006,6 +12087,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if body_strict && !params_are_simple(params[:]) {
 			report_error_at(p, LexerLoc(fn_start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
+		// §13.1.1 — retroactive strict-mode param check for
+		// `set x(eval) { "use strict"; }` and friends.
+		if body_strict && !p.strict_mode {
+			report_strict_param_pattern_retro(p, params[:])
+		}
 
 		// §15.4.3 / §15.4.4 / §15.4.5 — PropertySetParameterList /
 		// PropertyGetParameter enforce exact arity AND parameter shape:
@@ -12114,6 +12200,13 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// !IsSimpleParameterList for object-literal methods.
 		if body_strict && !params_are_simple(params[:]) {
 			report_error_at(p, LexerLoc(fn_start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
+		// §13.1.1 — retroactive strict-mode param check (see the same
+		// hook on parse_function_declaration above). Object-literal
+		// method shorthand inherits the outer scope's strict_mode — it
+		// does not implicitly become strict like class methods do.
+		if body_strict && !p.strict_mode {
+			report_strict_param_pattern_retro(p, params[:])
 		}
 
 		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.

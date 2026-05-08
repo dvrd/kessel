@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2232/2233 (99.96%)
 Positive Passed: 2232/2233 (99.96%)
-Negative Passed: 1284/1711 (75.04%)
+Negative Passed: 1300/1711 (75.98%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -96,17 +96,10 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/489/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/490/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/491/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/495/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/496/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/500/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/502/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/511/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/512/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/513/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/515/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/516/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/520/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/521/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/522/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/544/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/545/input.js
@@ -160,7 +153,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/246/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/247/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/249/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/289/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/291/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/296/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/297/input.js
@@ -182,7 +174,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-generator-method/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-generator/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-strict/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/yield-star-parameter-default-inside-generator/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-call/parenthesized-argument-object-double-proto/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-arguments-of-async-call-inside-parameters-of-async-arrow-function/input.js
@@ -352,8 +343,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0206/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0207/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0208/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0212/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0213/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0217/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0218/input.js
@@ -362,15 +351,10 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0221/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0222/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0223/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0233/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0234/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0235/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0236/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0239/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0241/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0242/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0246/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0247/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0248/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0250/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0274/input.js
@@ -576,6 +560,8 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/471/input.js:1:48: 
 babel/packages/babel-parser/test/fixtures/core/uncategorised/492/input.js:1:49: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/493/input.js:1:42: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/494/input.js:1:50: 'eval' cannot be used as a binding name in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/495/input.js:1:16: Parameter name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/496/input.js:1:16: Parameter name 'arguments' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/497/input.js:1:49: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/498/input.js:1:49: 'arguments' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/504/input.js:1:38: 'implements' is a reserved identifier in strict mode
@@ -585,10 +571,15 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/507/input.js:1:38: 
 babel/packages/babel-parser/test/fixtures/core/uncategorised/508/input.js:1:38: 'protected' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/509/input.js:1:38: 'public' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/510/input.js:1:38: 'static' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/511/input.js:1:16: 'static' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/514/input.js:1:1: Duplicate parameter name 't' in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/515/input.js:1:12: Parameter name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/516/input.js:1:12: 'package' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/517/input.js:1:30: Duplicate parameter name 't' in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/518/input.js:1:2: Duplicate parameter name 't' in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/519/input.js:1:31: Duplicate parameter name 't' in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/520/input.js:1:13: Parameter name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/521/input.js:1:13: 'package' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/523/input.js:1:5: 'this' is a reserved word and cannot be used as a binding name
 babel/packages/babel-parser/test/fixtures/core/uncategorised/524/input.js:2:1: Illegal newline after 'throw'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/536/input.js:1:9: Missing initializer in 'const' declaration
@@ -769,6 +760,7 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/283/input.js:1:16
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/284/input.js:1:14: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/285/input.js:1:6: Numeric / string property name requires a value
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/286/input.js:1:17: Invalid destructuring assignment target
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/289/input.js:1:6: Parameter name 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/290/input.js:1:27: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/293/input.js:1:13: Unexpected spread/rest element in expression
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/294/input.js:1:10: Unexpected spread/rest element outside of arrow parameters
@@ -826,6 +818,7 @@ babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-insi
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-no-parens-inside-generator/input.js:2:14: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-generator-method/input.js:1:12: 'yield' is reserved as a binding name inside a generator
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-generator/input.js:1:14: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict-body/input.js:1:13: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict/input.js:2:13: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2016/exponentiation-operator/10/input.js:1:4: Unparenthesized unary expression cannot appear as the left operand of '**'
 babel/packages/babel-parser/test/fixtures/es2016/exponentiation-operator/11/input.js:1:6: Unparenthesized unary expression cannot appear as the left operand of '**'
@@ -1492,6 +1485,8 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0188/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0209/input.js:1:49: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0210/input.js:1:42: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0211/input.js:1:50: 'eval' cannot be used as a binding name in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0212/input.js:1:16: Parameter name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0213/input.js:1:16: Parameter name 'arguments' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0214/input.js:1:49: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0215/input.js:1:49: 'arguments' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0224/input.js:1:38: 'implements' is a reserved identifier in strict mode
@@ -1503,10 +1498,15 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0229/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0230/input.js:1:38: 'static' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0231/input.js:1:38: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0232/input.js:1:38: 'let' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0233/input.js:1:16: 'static' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0240/input.js:1:1: Duplicate parameter name 't' in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0241/input.js:1:12: Parameter name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0242/input.js:1:12: 'package' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0243/input.js:1:30: Duplicate parameter name 't' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0244/input.js:1:2: Duplicate parameter name 't' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0245/input.js:1:31: Duplicate parameter name 't' in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0246/input.js:1:13: Parameter name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0247/input.js:1:13: 'package' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0249/input.js:1:15: Duplicate parameter name '__proto__' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0252/input.js:2:1: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0254/input.js:2:1: Expected binding pattern
