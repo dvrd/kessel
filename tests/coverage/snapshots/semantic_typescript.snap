@@ -2887,7 +2887,7 @@ typescript/tests/cases/conformance/decorators/invalid/decoratorOnTypeAlias.ts:4:
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnUsing.ts:4:1: Expected class after decorator
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnVar.ts:4:1: Expected class after decorator
 typescript/tests/cases/conformance/dynamicImport/importCallExpressionGrammarError.ts:5:8: '...' is not allowed in 'import()' call
-typescript/tests/cases/conformance/dynamicImport/importCallExpressionInScriptContext2.ts::1.ts:3:10: Function name 'arguments' is not allowed in strict mode
+typescript/tests/cases/conformance/dynamicImport/importCallExpressionInScriptContext2.ts::1.ts:3:10: Function name 'arguments' is reserved in strict mode
 typescript/tests/cases/conformance/dynamicImport/importCallExpressionIncorrect1.ts::1.ts:2:1: Expected import source or specifier
 typescript/tests/cases/conformance/dynamicImport/importCallExpressionIncorrect2.ts::1.ts:1:9: Unexpected import in expression context
 typescript/tests/cases/conformance/dynamicImport/importCallExpressionWithTypeArgument.ts::1.ts:2:10: Unexpected import in expression context
@@ -3694,8 +3694,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMod
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode5.ts:2:1: Assignment to 'eval' is not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode6.ts:2:1: Update of 'eval' is not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode7.ts:2:3: Update of 'eval' is not allowed in strict mode
-typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode8.ts:2:10: Function name 'eval' is not allowed in strict mode
-typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode9.ts:2:18: Function name 'eval' is not allowed in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode8.ts:2:10: Function name 'eval' is reserved in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode9.ts:2:18: Function name 'eval' is reserved in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression2.ts:3:5: 'super' can only be used with function calls or in property accesses
 typescript/tests/cases/conformance/parser/ecmascript5/TupleTypes/TupleType4.ts:1:9: Expected ], got EOF
 typescript/tests/cases/conformance/parser/ecmascript5/TupleTypes/TupleType6.ts:1:16: Expected tuple element type, got ','

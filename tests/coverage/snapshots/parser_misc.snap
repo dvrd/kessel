@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 205/274 (74.82%)
+Negative Passed: 206/274 (75.18%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -13,7 +13,6 @@ Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_to
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/012_octal_escape_string.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/015_delete_identifier.js
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/016_function_name_eval.js
 Expect Syntax Error: tests/coverage/misc/fail/escape-00.js
 Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
 Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
@@ -103,6 +102,7 @@ tests/coverage/misc/fail/early_errors/strict_mode/010_eval_arguments_assignment.
 tests/coverage/misc/fail/early_errors/strict_mode/011_with_statement.js:4:1: 'with' statements are not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/013_octal_escape_template.js:8:20: Invalid escape sequence in template literal
 tests/coverage/misc/fail/early_errors/strict_mode/014_update_eval_arguments.js:5:1: Update of 'eval' is not allowed in strict mode
+tests/coverage/misc/fail/early_errors/strict_mode/016_function_name_eval.js:5:10: Function name 'eval' is reserved in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/017_labeled_function_declaration.js:8:1: Function declarations cannot be labeled items in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js:10:5: Keyword 'let' must not contain escaped characters
 tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js:7:6: for-in loop variable declaration may not have an initializer

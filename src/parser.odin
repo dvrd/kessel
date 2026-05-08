@@ -3997,7 +3997,17 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if body_strict && !p.strict_mode {
 		report_strict_param_pattern_retro(p, params[:])
 	}
-	_ = id
+	// §12.6.1.1 — in strict mode (outer or body-promoted), the
+	// FunctionName BindingIdentifier may not be `eval` or `arguments`.
+	// Async functions are always strict (§15.8.1). Generator functions
+	// in strict context fire too. TS ambient (`declare`) functions are
+	// exempt: they have no body and are erased at compile time.
+	if id_v, has_id := id.?; has_id && (strict_for_check || async) && !p.in_ambient && !p.source_is_dts {
+		if is_eval_or_arguments(id_v.name) {
+			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
+			report_error_at(p, LexerLoc(id_v.loc.span.start), msg)
+		}
+	}
 
 	// §15.2.1.1 / §15.5.1 - It is a Syntax Error if any element of the
 	// BoundNames of FormalParameters also occurs in the LexicallyDeclaredNames

@@ -351,15 +351,15 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/478/input.js:1:33: 
 babel/packages/babel-parser/test/fixtures/core/uncategorised/479/input.js:1:33: Update of 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/480/input.js:1:33: Update of 'arguments' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/481/input.js:1:33: Update of 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/482/input.js:1:42: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/483/input.js:1:42: Function name 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/484/input.js:1:10: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/485/input.js:1:10: Function name 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/486/input.js:1:43: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/487/input.js:1:43: Function name 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/488/input.js:1:11: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/489/input.js:1:11: Function name 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/uncategorised/490/input.js:1:48: Function name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/482/input.js:1:42: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/483/input.js:1:42: Function name 'arguments' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/484/input.js:1:10: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/485/input.js:1:10: Function name 'arguments' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/486/input.js:1:43: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/487/input.js:1:43: Function name 'arguments' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/488/input.js:1:11: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/489/input.js:1:11: Function name 'arguments' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/core/uncategorised/490/input.js:1:48: Function name 'eval' is reserved in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/491/input.js:1:11: 'package' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/492/input.js:1:49: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/493/input.js:1:42: 'eval' cannot be used as a binding name in strict mode
@@ -1513,15 +1513,15 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0195/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0196/input.js:1:33: Update of 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0197/input.js:1:33: Update of 'arguments' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0198/input.js:1:33: Update of 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0199/input.js:1:42: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0200/input.js:1:42: Function name 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0201/input.js:1:10: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0202/input.js:1:10: Function name 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0203/input.js:1:43: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0204/input.js:1:43: Function name 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0205/input.js:1:11: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0206/input.js:1:11: Function name 'arguments' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0207/input.js:1:48: Function name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0199/input.js:1:42: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0200/input.js:1:42: Function name 'arguments' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0201/input.js:1:10: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0202/input.js:1:10: Function name 'arguments' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0203/input.js:1:43: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0204/input.js:1:43: Function name 'arguments' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0205/input.js:1:11: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0206/input.js:1:11: Function name 'arguments' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0207/input.js:1:48: Function name 'eval' is reserved in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0208/input.js:1:11: 'package' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0209/input.js:1:49: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0210/input.js:1:42: 'eval' cannot be used as a binding name in strict mode
@@ -1548,8 +1548,8 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0231/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0232/input.js:1:38: 'let' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0233/input.js:1:16: 'static' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0234/input.js:1:10: 'static' is a reserved identifier in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0235/input.js:1:10: Function name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0236/input.js:1:10: Function name 'arguments' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0235/input.js:1:10: Function name 'eval' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0236/input.js:1:10: Function name 'arguments' is reserved in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0239/input.js:1:24: 'static' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0240/input.js:1:1: Duplicate parameter name 't' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0241/input.js:1:12: Parameter name 'eval' is not allowed in strict mode
