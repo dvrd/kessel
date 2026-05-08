@@ -8,15 +8,15 @@
     "cpus": 10
   },
   "files": {
-    "bench/real_world/batch3/snabbdom.js": 2.875,
-    "bench/real_world/batch2/preact.js": 105.084,
-    "bench/real_world/lodash.js": 1116.833,
-    "bench/real_world/jquery.js": 1282.625,
-    "bench/real_world/d3.js": 3832.875,
-    "bench/real_world/react.dev.js": 294.583,
-    "bench/real_world/react-dom.dev.js": 2926.125,
-    "bench/real_world/antd.js": 16853.583,
-    "bench/real_world/batch2/monaco.js": 25316.167,
-    "bench/real_world/typescript.js": 31996.625
+    "bench/real_world/batch3/snabbdom.js": 2.959,
+    "bench/real_world/batch2/preact.js": 120.834,
+    "bench/real_world/lodash.js": 1366.75,
+    "bench/real_world/jquery.js": 1521.333,
+    "bench/real_world/d3.js": 4875.125,
+    "bench/real_world/react.dev.js": 410.958,
+    "bench/real_world/react-dom.dev.js": 4108.5,
+    "bench/real_world/antd.js": 23045.667,
+    "bench/real_world/batch2/monaco.js": 31537.583,
+    "bench/real_world/typescript.js": 44908.375
   }
 }
