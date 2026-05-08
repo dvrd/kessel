@@ -1242,6 +1242,25 @@ await_using_starts_decl :: proc(p: ^Parser) -> bool {
 	return third_type == .Identifier || can_be_binding_identifier(third_type)
 }
 
+// using_starts_decl decides whether `using ...` at the current position
+// starts a UsingDeclaration (returns true) or is a plain Identifier
+// expression where `using` is just a name (returns false).
+//
+// 2-token lookahead: a UsingDeclaration must be followed by a
+// BindingIdentifier with no preceding LineTerminator. Without that,
+// `using` is just an Identifier (e.g. `export default using;` or
+// `using;` as an expression statement).
+//
+// Note: this is the non-for-head form. Inside a for-init, the caller
+// must additionally disambiguate `for (using of ...)` between
+// `for (<expr> of <iter>)` and `for (using <name=of> ;)` — see the
+// inline logic in parse_for_statement.
+using_starts_decl :: proc(p: ^Parser) -> bool {
+	nxt := peek_token(p)
+	if nxt.had_line_terminator { return false }
+	return nxt.type == .Identifier || can_be_binding_identifier(nxt.type)
+}
+
 report_error :: proc(p: ^Parser, message: string) {
 	err := ParseError{
 		loc     = LexerLoc(cur_offset(p)),
@@ -8797,11 +8816,19 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		   (p.cur_type == .Let && !p.cur_tok.had_line_terminator) {
 			report_error(p, "'export default' cannot be followed by a variable declaration")
 		}
-		if is_token(p, .Using) && p.lexer.nxt.kind != .Semi && p.lexer.nxt.kind != .EOF {
+		// `using` / `await using` may also appear as a plain expression
+		// here — `using` is a contextual keyword, so `export default using;`
+		// and `export default await using;` are valid expression forms
+		// where `using` is just an Identifier. Use the same 3-token
+		// lookahead helper as for-statement init parsing to distinguish
+		// declaration form from expression form, instead of guessing from
+		// the immediate next token only. Mirrors babel + OXC.
+		if is_token(p, .Using) && using_starts_decl(p) {
 			report_error(p, "'export default' cannot be followed by a using declaration")
 		}
 		if is_token(p, .Await) && p.lexer.nxt.kind == .Using &&
-		   (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+		   (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 &&
+		   await_using_starts_decl(p) {
 			report_error(p, "'export default' cannot be followed by a using declaration")
 		}
 		expr := parse_assignment_expression(p)

@@ -1,8 +1,8 @@
 commit: c543b031
 
 parser_babel Summary:
-AST Parsed     : 2231/2233 (99.91%)
-Positive Passed: 2231/2233 (99.91%)
+AST Parsed     : 2232/2233 (99.96%)
+Positive Passed: 2232/2233 (99.96%)
 Negative Passed: 1206/1711 (70.49%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
@@ -509,9 +509,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-var-enum/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/type-alias/invalid-within-single-statement-context/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/valid-export-default-await-expression-using/input.js
-babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/valid-export-default-await-expression-using/input.js:1:16: 'export default' cannot be followed by a using declaration
-
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts:10:30: A parameter cannot have a question mark and an initializer.
 

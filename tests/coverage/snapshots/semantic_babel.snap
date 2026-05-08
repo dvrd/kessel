@@ -1,8 +1,8 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2207/2233 (98.84%)
-Positive Passed: 2207/2233 (98.84%)
+AST Parsed     : 2208/2233 (98.88%)
+Positive Passed: 2208/2233 (98.88%)
 Negative Passed: 1629/1711 (95.21%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -121,9 +121,6 @@ babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-co
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target/input.js
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target/input.js:2:14: 'new.target' is only allowed inside functions
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/valid-export-default-await-expression-using/input.js
-babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/valid-export-default-await-expression-using/input.js:1:16: 'export default' cannot be followed by a using declaration
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000/input.js
 babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000/input.js:1:33: 'with' statements are not allowed in strict mode
