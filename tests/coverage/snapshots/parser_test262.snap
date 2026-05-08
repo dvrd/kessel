@@ -1,204 +1,13 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 2744/4588 (59.81%)
+Negative Passed: 3100/4588 (67.57%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/strict-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/var-arraybindingpattern-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/var-objectbindingpattern-initializer.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_N-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_N.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_No-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_No.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_T-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_T.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Y-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Y.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Yes-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Yes.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/character-class-range-end.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/character-class-range-no-dash-end.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/character-class-range-no-dash-start.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/character-class-range-start.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-CharacterClass.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-P.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-u.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-CharacterClass.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-P.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-u.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-CharacterClass.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-P.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-u.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-CharacterClass.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-P.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-u.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-CharacterClass.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-P.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-u.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-CharacterClass.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-P.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-u.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-CharacterClass.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-P.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-u.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Block-implicit-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Block-implicit.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-Is-prefix-Script-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-Is-prefix-Script.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-circumflex-negation-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-circumflex-negation.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-empty-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-empty.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-invalid-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-no-braces-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-no-braces-value-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-no-braces-value.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-no-braces.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-and-value-only-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-and-value-only.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-only-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-only.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-unclosed-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-unclosed.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-unopened-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/grammar-extension-unopened.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-01-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-01.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-02-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-02.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-03-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-03.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-04-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-04.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-05-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-05.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-06-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-06.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-07-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-07.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-08-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-08.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-09-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-09.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-10-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-10.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-11-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-11.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-12-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-12.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-13-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-13.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-14-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/loose-matching-14.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-equals-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-equals.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-equals-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-equals.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-equals-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-equals.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-binary-property-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-binary-property.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-and-value-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-and-value.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-existing-value-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-existing-value.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-General_Category-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-Script-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-Script.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-Script_Extensions-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-Script_Extensions.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-general-category.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Composition_Exclusion-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Composition_Exclusion.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFC-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFC.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFD-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFD.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKC-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKC.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKD-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKD.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-FC_NFKC_Closure-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-FC_NFKC_Closure.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Full_Composition_Exclusion-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Full_Composition_Exclusion.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Grapheme_Link-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Grapheme_Link.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Hyphen-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Hyphen.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Alphabetic-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Alphabetic.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Default_Ignorable_Code_Point-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Default_Ignorable_Code_Point.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Grapheme_Extend-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Grapheme_Extend.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Continue-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Continue.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Start-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Start.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Lowercase-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Lowercase.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Math-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Math.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Uppercase-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Uppercase.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Prepended_Concatenation_Mark-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Prepended_Concatenation_Mark.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-property-Block-with-value-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-property-Block-with-value.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-property-FC_NFKC_Closure-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-property-FC_NFKC_Closure.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-property-Line_Break-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-property-Line_Break-with-value-negated.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-property-Line_Break-with-value.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/property-escapes/unsupported-property-Line_Break.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-01.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-02.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-03.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-04.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-05.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-06.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-07.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-08.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-09.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-10.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-11.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-12.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-13.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-14.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-15.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-16.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-17.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-18.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-19.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-20.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-21.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-22.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-23.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-24.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-25.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-26.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-27.js
-Expect Syntax Error: tasks/coverage/test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-28.js
 Expect Syntax Error: tasks/coverage/test262/test/language/arguments-object/10.5-1gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/for-in/disallow-initialization-assignment.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindings-with-and-without-initializer.js
@@ -881,171 +690,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legac
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integery-06-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integery-07-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/non-octal-decimal-integer-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-multi-duplicate.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-s-escape.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-both-empty.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-code-point-repeat-i-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-code-point-repeat-i-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-no-colon-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-no-colon-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-no-colon-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-arbitrary.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-combining-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-combining-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-combining-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-d.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-g.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-non-display-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-non-display-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-non-flag.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-uppercase-I.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-y.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-zwj.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-zwnbsp.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-zwnj.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-multi-duplicate.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-s-escape.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-code-point-repeat-i-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-code-point-repeat-i-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-arbitrary.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-combining-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-combining-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-combining-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-d.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-g.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-non-display-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-non-display-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-non-flag.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-uppercase-I.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-y.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-zwj.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-zwnbsp.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-zwnj.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-case-fold-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-case-fold-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-case-fold-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-unicode-case-fold-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-unicode-case-fold-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-case-fold-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-case-fold-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-case-fold-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-unicode-case-fold-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-unicode-case-fold-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-code-point-repeat-i-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-code-point-repeat-i-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-arbitrary.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-combining-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-combining-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-combining-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-d.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-g.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-non-display-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-non-display-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-non-flag.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-uppercase-I.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-y.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-zwj.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-zwnbsp.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-other-code-point-zwnj.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-should-not-case-fold-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-should-not-case-fold-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-should-not-case-fold-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-case-fold-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-case-fold-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-escape-i.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-escape-m.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-escape-s.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/early-err-pattern.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/invalid-braced-quantifier-exact.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/invalid-braced-quantifier-lower.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/invalid-braced-quantifier-range.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/invalid-optional-lookbehind.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/invalid-optional-negative-lookbehind.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/invalid-range-lookbehind.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/invalid-range-negative-lookbehind.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-2-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-3-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-4-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-4.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-5.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-without-group-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-2-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-duplicate-groupspecifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-empty-groupspecifier-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-empty-groupspecifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-identity-escape-in-capture-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-2-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-3-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-4.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-5.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-6.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-2-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-3-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier-4-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier-4.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-2-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-4-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-4.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-5-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-5.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-6.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-7.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-8-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-8.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-9-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-numeric-groupspecifier-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-numeric-groupspecifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-punctuator-starting-groupspecifier-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-punctuator-starting-groupspecifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-unterminated-groupspecifier-u.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/named-groups/invalid-unterminated-groupspecifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-class-escape.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-extended-pattern-char.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-identity-escape.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-legacy-octal-escape.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-a.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-ab.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-b.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-non-empty-class-ranges.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-oob-decimal-escape.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-optional-lookahead.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-optional-lookbehind.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-optional-negative-lookahead.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-optional-negative-lookbehind.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-range-lookahead.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-range-lookbehind.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-range-negative-lookahead.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-invalid-range-negative-lookbehind.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-unicode-esc-bounds.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/u-unicode-esc-non-hex.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/regexp/unicode-escape-nls-err.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/string/S7.8.4_A4.3_T1.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/string/S7.8.4_A4.3_T2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/string/legacy-non-octal-escape-sequence-1-strict-explicit-pragma.js
@@ -1847,6 +1491,197 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-fn-method.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-script.js
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F-negated.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid-negated.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Invalid.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_N-negated.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_N.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_No-negated.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_No.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_T-negated.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_T.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Y-negated.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Y.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Yes-negated.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_Yes.js:18:2: Invalid Unicode property escape: binary property cannot have a value
+test262/test/built-ins/RegExp/property-escapes/character-class-range-end.js:20:3: Invalid character class range: range endpoints must be single characters
+test262/test/built-ins/RegExp/property-escapes/character-class-range-no-dash-end.js:20:3: Invalid character class range: range endpoints must be single characters
+test262/test/built-ins/RegExp/property-escapes/character-class-range-no-dash-start.js:20:3: Invalid character class range: range endpoints must be single characters
+test262/test/built-ins/RegExp/property-escapes/character-class-range-start.js:20:3: Invalid character class range: range endpoints must be single characters
+test262/test/built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-CharacterClass.js:20:2: Invalid negated character class containing property of strings in v-mode
+test262/test/built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-P.js:20:2: Invalid Unicode property escape: '\P{...}' cannot be a property of strings
+test262/test/built-ins/RegExp/property-escapes/generated/strings/Basic_Emoji-negative-u.js:20:2: Invalid Unicode property escape: 'of strings' property requires the 'v' flag
+test262/test/built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-CharacterClass.js:20:2: Invalid negated character class containing property of strings in v-mode
+test262/test/built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-P.js:20:2: Invalid Unicode property escape: '\P{...}' cannot be a property of strings
+test262/test/built-ins/RegExp/property-escapes/generated/strings/Emoji_Keycap_Sequence-negative-u.js:20:2: Invalid Unicode property escape: 'of strings' property requires the 'v' flag
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-CharacterClass.js:20:2: Invalid negated character class containing property of strings in v-mode
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-P.js:20:2: Invalid Unicode property escape: '\P{...}' cannot be a property of strings
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji-negative-u.js:20:2: Invalid Unicode property escape: 'of strings' property requires the 'v' flag
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-CharacterClass.js:20:2: Invalid negated character class containing property of strings in v-mode
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-P.js:20:2: Invalid Unicode property escape: '\P{...}' cannot be a property of strings
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Flag_Sequence-negative-u.js:20:2: Invalid Unicode property escape: 'of strings' property requires the 'v' flag
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-CharacterClass.js:20:2: Invalid negated character class containing property of strings in v-mode
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-P.js:20:2: Invalid Unicode property escape: '\P{...}' cannot be a property of strings
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Modifier_Sequence-negative-u.js:20:2: Invalid Unicode property escape: 'of strings' property requires the 'v' flag
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-CharacterClass.js:20:2: Invalid negated character class containing property of strings in v-mode
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-P.js:20:2: Invalid Unicode property escape: '\P{...}' cannot be a property of strings
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_Tag_Sequence-negative-u.js:20:2: Invalid Unicode property escape: 'of strings' property requires the 'v' flag
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-CharacterClass.js:20:2: Invalid negated character class containing property of strings in v-mode
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-P.js:20:2: Invalid Unicode property escape: '\P{...}' cannot be a property of strings
+test262/test/built-ins/RegExp/property-escapes/generated/strings/RGI_Emoji_ZWJ_Sequence-negative-u.js:20:2: Invalid Unicode property escape: 'of strings' property requires the 'v' flag
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Block-implicit-negated.js:21:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Block-implicit.js:21:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit-negated.js:21:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-implicit.js:21:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script-negated.js:21:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-In-prefix-Script.js:21:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-Is-prefix-Script-negated.js:21:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-Is-prefix-Script.js:21:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-circumflex-negation-negated.js:21:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-circumflex-negation.js:21:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-empty-negated.js:21:3: Invalid Unicode property escape: empty body
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-empty.js:21:3: Invalid Unicode property escape: empty body
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-invalid-negated.js:21:3: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-invalid.js:21:3: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-no-braces-negated.js:21:2: Invalid Unicode property escape: expected '{' after \p
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-no-braces-value-negated.js:21:2: Invalid Unicode property escape: expected '{' after \p
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-no-braces-value.js:21:2: Invalid Unicode property escape: expected '{' after \p
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-no-braces.js:21:2: Invalid Unicode property escape: expected '{' after \p
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-and-value-only-negated.js:21:2: Invalid Unicode property escape: empty property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-and-value-only.js:21:2: Invalid Unicode property escape: empty property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-negated.js:21:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-only-negated.js:21:2: Invalid Unicode property escape: empty property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator-only.js:21:2: Invalid Unicode property escape: empty property name
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-separator.js:21:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-unclosed-negated.js:21:2: Invalid Unicode property escape: missing closing '}'
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-unclosed.js:21:2: Invalid Unicode property escape: missing closing '}'
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-unopened-negated.js:21:2: Invalid Unicode property escape: expected '{' after \p
+test262/test/built-ins/RegExp/property-escapes/grammar-extension-unopened.js:21:2: Invalid Unicode property escape: expected '{' after \p
+test262/test/built-ins/RegExp/property-escapes/loose-matching-01-negated.js:18:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/loose-matching-01.js:18:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/loose-matching-02-negated.js:18:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/loose-matching-02.js:18:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/loose-matching-03-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-03.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-04-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-04.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-05-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-05.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-06-negated.js:18:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/loose-matching-06.js:18:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/loose-matching-07-negated.js:18:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/loose-matching-07.js:18:2: Invalid Unicode property escape: invalid character in body
+test262/test/built-ins/RegExp/property-escapes/loose-matching-08-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-08.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-09-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-09.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-10-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-10.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-11-negated.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-11.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-12-negated.js:18:2: Invalid Unicode property escape: unknown General_Category value
+test262/test/built-ins/RegExp/property-escapes/loose-matching-12.js:18:2: Invalid Unicode property escape: unknown General_Category value
+test262/test/built-ins/RegExp/property-escapes/loose-matching-13-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-13.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-14-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/loose-matching-14.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-equals-negated.js:17:2: Invalid Unicode property escape: empty property value
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-equals.js:17:2: Invalid Unicode property escape: empty property value
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category-negated.js:17:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-General_Category.js:17:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-equals-negated.js:17:2: Invalid Unicode property escape: empty property value
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-equals.js:17:2: Invalid Unicode property escape: empty property value
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script-negated.js:17:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script.js:17:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-equals-negated.js:17:2: Invalid Unicode property escape: empty property value
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-equals.js:17:2: Invalid Unicode property escape: empty property value
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions-negated.js:17:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-binary-property-without-value-Script_Extensions.js:17:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-existent-binary-property-negated.js:17:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-existent-binary-property.js:17:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-and-value-negated.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-and-value.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-existing-value-negated.js:17:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-existing-value.js:17:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-General_Category-negated.js:18:5: Invalid extended pattern character '{' in u-mode
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-Script-negated.js:18:5: Invalid extended pattern character '{' in u-mode
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-Script.js:18:5: Invalid extended pattern character '{' in u-mode
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-Script_Extensions-negated.js:18:5: Invalid extended pattern character '{' in u-mode
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-Script_Extensions.js:18:5: Invalid extended pattern character '{' in u-mode
+test262/test/built-ins/RegExp/property-escapes/non-existent-property-value-general-category.js:18:5: Invalid extended pattern character '{' in u-mode
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Composition_Exclusion-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Composition_Exclusion.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFC-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFC.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFD-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFD.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKC-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKC.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKD-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Expands_On_NFKD.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-FC_NFKC_Closure-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-FC_NFKC_Closure.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Full_Composition_Exclusion-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Full_Composition_Exclusion.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Grapheme_Link-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Grapheme_Link.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Hyphen-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Hyphen.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Alphabetic-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Alphabetic.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Default_Ignorable_Code_Point-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Default_Ignorable_Code_Point.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Grapheme_Extend-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Grapheme_Extend.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Continue-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Continue.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Start-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_ID_Start.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Lowercase-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Lowercase.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Math-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Math.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Uppercase-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Other_Uppercase.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Prepended_Concatenation_Mark-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-binary-property-Prepended_Concatenation_Mark.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-property-Block-with-value-negated.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-property-Block-with-value.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-property-FC_NFKC_Closure-negated.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-property-FC_NFKC_Closure.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-property-Line_Break-negated.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-property-Line_Break-with-value-negated.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-property-Line_Break-with-value.js:18:2: Invalid Unicode property escape: unknown property name
+test262/test/built-ins/RegExp/property-escapes/unsupported-property-Line_Break.js:18:2: Invalid Unicode property escape: unknown lone property name
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-01.js:19:3: Invalid unescaped character in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-02.js:19:3: Invalid unescaped character in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-03.js:19:3: Invalid unescaped character in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-04.js:19:3: Invalid unescaped character in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-05.js:19:3: Invalid unescaped character in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-06.js:19:3: Invalid unescaped character in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-07.js:19:3: Invalid unescaped character in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-08.js:19:3: Invalid unescaped character in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-09.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-10.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-11.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-12.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-13.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-14.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-15.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-16.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-17.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-18.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-19.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-20.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-21.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-22.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-23.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-24.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-25.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-26.js:19:3: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-27.js:19:4: Invalid reserved double punctuator in v-mode character class
+test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-28.js:19:4: Invalid reserved double punctuator in v-mode character class
 test262/test/built-ins/RegExp/prototype/unicodeSets/uv-flags.js:17:4: Regular expression flags 'u' and 'v' are mutually exclusive
 test262/test/language/asi/S7.9.2_A1_T1.js:16:5: Expected semicolon
 test262/test/language/asi/S7.9.2_A1_T3.js:17:1: Expected ;, got )
@@ -3635,13 +3470,178 @@ test262/test/language/literals/regexp/S7.8.5_A2.3_T1.js:34:1: Expected expressio
 test262/test/language/literals/regexp/S7.8.5_A2.3_T3.js:35:1: Expected expression after operator
 test262/test/language/literals/regexp/S7.8.5_A2.5_T1.js:28:3: Expected semicolon
 test262/test/language/literals/regexp/S7.8.5_A2.5_T3.js:28:3: Expected semicolon
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-multi-duplicate.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-s-escape.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-add-remove-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-both-empty.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-code-point-repeat-i-1.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-code-point-repeat-i-2.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-no-colon-1.js:18:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-no-colon-2.js:18:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-no-colon-3.js:18:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-arbitrary.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-combining-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-combining-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-combining-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-d.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-g.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-non-display-1.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-non-display-2.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-non-flag.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-u.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-uppercase-I.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-y.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-zwj.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-zwnbsp.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-other-code-point-zwnj.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-multi-duplicate.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-s-escape.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-add-remove-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-code-point-repeat-i-1.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-code-point-repeat-i-2.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-arbitrary.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-combining-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-combining-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-combining-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-d.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-g.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-non-display-1.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-non-display-2.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-non-flag.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-u.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-uppercase-I.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-y.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-zwj.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-zwnbsp.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-other-code-point-zwnj.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-case-fold-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-case-fold-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-case-fold-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-unicode-case-fold-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-reverse-should-not-unicode-case-fold-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-case-fold-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-case-fold-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-case-fold-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-unicode-case-fold-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-arithmetic-modifiers-should-not-unicode-case-fold-s.js:19:2: Invalid regular expression modifier sequence
 test262/test/language/literals/regexp/early-err-bad-flag.js:18:4: Invalid regular expression flag
 test262/test/language/literals/regexp/early-err-dup-flag.js:18:6: Duplicate regular expression flag
 test262/test/language/literals/regexp/early-err-flags-unicode-escape.js:18:4: Expected semicolon
+test262/test/language/literals/regexp/early-err-modifiers-code-point-repeat-i-1.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-code-point-repeat-i-2.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-arbitrary.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-combining-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-combining-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-combining-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-d.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-g.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-non-display-1.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-non-display-2.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-non-flag.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-u.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-uppercase-I.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-y.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-zwj.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-zwnbsp.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-other-code-point-zwnj.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-should-not-case-fold-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-should-not-case-fold-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-should-not-case-fold-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-case-fold-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-case-fold-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-escape-i.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-escape-m.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-modifiers-should-not-unicode-escape-s.js:19:2: Invalid regular expression modifier sequence
+test262/test/language/literals/regexp/early-err-pattern.js:17:2: Quantifier without preceding atom
+test262/test/language/literals/regexp/invalid-braced-quantifier-exact.js:25:2: Quantifier without preceding atom
+test262/test/language/literals/regexp/invalid-braced-quantifier-lower.js:25:2: Quantifier without preceding atom
+test262/test/language/literals/regexp/invalid-braced-quantifier-range.js:25:2: Quantifier without preceding atom
+test262/test/language/literals/regexp/invalid-optional-lookbehind.js:20:9: Invalid quantifier on lookbehind assertion
+test262/test/language/literals/regexp/invalid-optional-negative-lookbehind.js:20:9: Invalid quantifier on lookbehind assertion
+test262/test/language/literals/regexp/invalid-range-lookbehind.js:20:9: Invalid quantifier on lookbehind assertion
+test262/test/language/literals/regexp/invalid-range-negative-lookbehind.js:20:9: Invalid quantifier on lookbehind assertion
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-2-u.js:20:12: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-2.js:20:12: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-3-u.js:20:13: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-3.js:20:13: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-4-u.js:20:5: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-4.js:20:5: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-5.js:20:5: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-u.js:20:12: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname-without-group-u.js:20:5: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-dangling-groupname.js:20:12: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-2-u.js:19:19: Duplicate named capture group
+test262/test/language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-2.js:19:19: Duplicate named capture group
+test262/test/language/literals/regexp/named-groups/invalid-duplicate-groupspecifier-u.js:19:12: Duplicate named capture group
+test262/test/language/literals/regexp/named-groups/invalid-duplicate-groupspecifier.js:19:12: Duplicate named capture group
+test262/test/language/literals/regexp/named-groups/invalid-empty-groupspecifier-u.js:15:5: Empty named capture group
+test262/test/language/literals/regexp/named-groups/invalid-empty-groupspecifier.js:15:5: Empty named capture group
+test262/test/language/literals/regexp/named-groups/invalid-identity-escape-in-capture-u.js:15:7: Invalid identity escape in u-mode regular expression
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-2-u.js:15:12: Unterminated named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-2.js:15:12: Unterminated named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-3-u.js:15:12: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-3.js:15:12: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-4.js:15:5: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-5.js:15:5: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-6.js:15:2: Invalid named back-reference: '\k' must be followed by '<name>'
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-u.js:15:9: Invalid named back-reference: '\k' must be followed by '<name>'
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-2-u.js:15:5: Invalid named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-3-u.js:15:2: Invalid named back-reference: '\k' must be followed by '<name>'
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname-without-group-u.js:15:5: Unterminated named capture reference
+test262/test/language/literals/regexp/named-groups/invalid-incomplete-groupname.js:15:9: Invalid named back-reference: '\k' must be followed by '<name>'
+test262/test/language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier-4-u.js:15:6: Invalid identity escape in u-mode regular expression
+test262/test/language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier-4.js:15:5: Unterminated named capture group
+test262/test/language/literals/regexp/named-groups/invalid-non-id-continue-groupspecifier.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-2-u.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-2.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-3.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-4-u.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-4.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-5-u.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-5.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-6.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-7.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-8-u.js:15:5: Invalid identity escape in u-mode regular expression
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-8.js:15:5: Unterminated named capture group
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-9-u.js:15:6: Invalid '\u{…}' escape: code point out of range [0..0x10FFFF]
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier-u.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-non-id-start-groupspecifier.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-numeric-groupspecifier-u.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-numeric-groupspecifier.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-punctuator-starting-groupspecifier-u.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-punctuator-starting-groupspecifier.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier-u.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier.js:15:5: Invalid named capture group name
+test262/test/language/literals/regexp/named-groups/invalid-unterminated-groupspecifier-u.js:15:5: Unterminated named capture group
+test262/test/language/literals/regexp/named-groups/invalid-unterminated-groupspecifier.js:15:5: Unterminated named capture group
 test262/test/language/literals/regexp/regexp-first-char-no-line-separator.js:34:1: Expected expression after operator
 test262/test/language/literals/regexp/regexp-first-char-no-paragraph-separator.js:34:1: Expected expression after operator
 test262/test/language/literals/regexp/regexp-source-char-no-line-separator.js:33:1: Expected expression after operator
 test262/test/language/literals/regexp/regexp-source-char-no-paragraph-separator.js:34:1: Expected expression after operator
+test262/test/language/literals/regexp/u-invalid-class-escape.js:23:2: Invalid '\c' escape: control letter must be ASCII letter
+test262/test/language/literals/regexp/u-invalid-extended-pattern-char.js:20:2: Invalid extended pattern character '{' in u-mode
+test262/test/language/literals/regexp/u-invalid-identity-escape.js:22:2: Invalid identity escape in u-mode regular expression
+test262/test/language/literals/regexp/u-invalid-legacy-octal-escape.js:25:2: Invalid decimal escape: out-of-range back-reference
+test262/test/language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-a.js:32:3: Invalid character class range: range endpoints must be single characters
+test262/test/language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-ab.js:32:3: Invalid character class range: range endpoints must be single characters
+test262/test/language/literals/regexp/u-invalid-non-empty-class-ranges-no-dash-b.js:32:3: Invalid character class range: range endpoints must be single characters
+test262/test/language/literals/regexp/u-invalid-non-empty-class-ranges.js:31:3: Invalid character class range: range endpoints must be single characters
+test262/test/language/literals/regexp/u-invalid-oob-decimal-escape.js:20:2: Invalid decimal escape: out-of-range back-reference
+test262/test/language/literals/regexp/u-invalid-optional-lookahead.js:20:8: Invalid quantifier on assertion in u-mode regular expression
+test262/test/language/literals/regexp/u-invalid-optional-lookbehind.js:20:9: Invalid quantifier on assertion in u-mode regular expression
+test262/test/language/literals/regexp/u-invalid-optional-negative-lookahead.js:20:8: Invalid quantifier on assertion in u-mode regular expression
+test262/test/language/literals/regexp/u-invalid-optional-negative-lookbehind.js:20:9: Invalid quantifier on assertion in u-mode regular expression
+test262/test/language/literals/regexp/u-invalid-range-lookahead.js:20:8: Invalid quantifier on assertion in u-mode regular expression
+test262/test/language/literals/regexp/u-invalid-range-lookbehind.js:20:9: Invalid quantifier on assertion in u-mode regular expression
+test262/test/language/literals/regexp/u-invalid-range-negative-lookahead.js:20:8: Invalid quantifier on assertion in u-mode regular expression
+test262/test/language/literals/regexp/u-invalid-range-negative-lookbehind.js:20:9: Invalid quantifier on assertion in u-mode regular expression
+test262/test/language/literals/regexp/u-unicode-esc-bounds.js:20:2: Invalid '\u{…}' escape: code point out of range [0..0x10FFFF]
+test262/test/language/literals/regexp/u-unicode-esc-non-hex.js:15:2: Invalid '\u{…}' escape
+test262/test/language/literals/regexp/unicode-escape-nls-err.js:73:2: Invalid '\u{…}' escape
 test262/test/language/literals/string/S7.8.4_A1.1_T1.js:18:3: Expected semicolon
 test262/test/language/literals/string/S7.8.4_A1.1_T2.js:18:2: Unterminated string literal
 test262/test/language/literals/string/S7.8.4_A1.2_T1.js:18:3: Expected semicolon

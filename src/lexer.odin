@@ -141,13 +141,6 @@ Lexer :: struct {
 	hashbang_end:   u32,
 	has_hashbang:   bool,
 
-	// check_semantics: when false (the default), suppress regex-pattern
-	// validation diagnostics. The parser sets this from its own
-	// check_semantics flag during init_parser. Matches OXC's behaviour:
-	// regex body validation is a semantic-layer concern, not a parse-layer
-	// one, so the permissive parser skips it.
-	check_semantics: bool,
-
 	// bom_before_hashbang: true when the source opens with UTF-8 BOM
 	// (`EF BB BF`) immediately followed by `#!`. OXC, Acorn, and Babel all
 	// reject this: the hashbang production requires the `#!` to be the
@@ -2514,15 +2507,17 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		return FastToken{start = start, end = end, kind = .RegularExpression, flags = flags}
 	}
 
-	// Structural regex body checks — gated on check_semantics like the
-	// full pattern validator. OXC defers these to the semantic layer.
-	if l.check_semantics {
-		if in_class {
-			bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated character class in regular expression"})
-		}
-		if group_depth > 0 {
-			bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
-		}
+	// Structural regex body checks. Promoted to always-on (was previously
+	// gated on check_semantics, mirroring OXC's split). Treating regex
+	// validation as a parser-side concern lets `parser_test262.snap` /
+	// `parser_misc.snap` reject malformed regex literals without needing
+	// the semantic checker. The cost is bounded — these are O(1) checks
+	// over already-tracked lexer state.
+	if in_class {
+		bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated character class in regular expression"})
+	}
+	if group_depth > 0 {
+		bump_append(&l.lexer_errors, LexerError{offset = u32(pattern_start), message = "Unterminated group in regular expression"})
 	}
 
 	// Pattern body validation is delegated to regex_validate_pattern
@@ -2579,21 +2574,24 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	// every diagnostic that depends on flag context (property escapes,
 	// strict IdentityEscape, char-class range early errors in u/v mode,
 	// v-flag set notation, …) plus the flag-agnostic named-group checks.
-	// Gated on check_semantics: regex-body validation is a semantic-layer
-	// concern (OXC defers it to oxc_semantic). In permissive mode the
-	// regex literal is accepted as-is.
 	//
-	// Post-#5 the validator no longer reaches into lexer state - it takes
-	// (source, span, flags, alloc) and returns a [dynamic]RegexDiagnostic.
-	// We map those back into LexerError so the lexer's error channel
-	// stays the single source of truth for now. A future #3 (semantic
-	// checker) move can call regex_validate post-parse on RegExpLiteral
-	// nodes and skip this lexer-time invocation entirely.
-	if l.check_semantics {
-		diags := regex_validate(l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator)
-		for d in diags {
-			append(&l.lexer_errors, LexerError{offset = d.offset, message = d.message})
-		}
+	// Promoted to always-on (2026-05-08). Was previously gated on
+	// check_semantics, mirroring OXC's parser/semantic split, but every
+	// diagnostic emitted here is a §22.2.1 early error — a SyntaxError
+	// that ECMA-262 specifies as parse-phase. Running it always closes
+	// ~356 negatives in `parser_test262.snap` (the
+	// `language/literals/regexp` and `built-ins/RegExp/property-escapes`
+	// clusters) without any false-positive risk on positive fixtures —
+	// `semantic_test262.snap` has been at 47088/47090 positives for
+	// multiple sessions with this code path active.
+	//
+	// Post-#5 the validator no longer reaches into lexer state — it
+	// takes (source, span, flags, alloc) and returns a
+	// [dynamic]RegexDiagnostic. We map those back into LexerError so the
+	// lexer's error channel stays the single source of truth.
+	diags := regex_validate(l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator)
+	for d in diags {
+		append(&l.lexer_errors, LexerError{offset = d.offset, message = d.message})
 	}
 
 	end := u32(l.offset)

@@ -7,7 +7,7 @@
 //
 //   read source → reserve arena → init lexer (with source-type) → init
 //   parser (with lang, .d.ts, force_source_type, force_strict,
-//   preserve_parens, ast_only, check_semantics) → parse_program
+//   preserve_parens, ast_only) → parse_program
 //
 // Before this module the chain lived in five different shapes across
 // `parse_file`, `parse_file_to_disk`, `raw_transfer_file`,
@@ -60,8 +60,10 @@
 //   * CLI option flow - the job takes a snapshot via
 //     `parse_config_from_cli` from a CliConfig built by the CLI flag
 //     parser (src/cli_config.odin).
-//   * Semantic checking - p.check_semantics still gates the inline
-//     scope/regex passes; the dedicated checker module is #3.
+//   * Semantic checking - opt-in via `checker_run_for_job(&job)` after
+//     `parse_job_run`. Pass 3 is intentionally OUT of the parse pipeline
+//     so that `kessel parse` stays parser-only by default (matches OXC's
+//     `parseSync`). The CLI's --show-semantic-errors flag wires it in.
 //
 // Test surface: callers can drive `parse_job_open_inline` +
 // `parse_job_run` and assert against `job.program` / `job.parser.errors`
@@ -106,13 +108,6 @@ ParseConfig :: struct {
 	// gives a fair Parser::new() + parse() comparison.
 	ast_only: bool,
 
-	// Inline parser-side semantic checks (regex body, scope verify,
-	// label scoping, ...). Currently NOT plumbed from any CLI flag -
-	// the existing --show-semantic-errors flag is dead code in the
-	// shipping CLI. Plumbing it lives with #3 (semantic checker
-	// migration). Kept here so tests can opt in today.
-	check_semantics: bool,
-
 	// Override .d.ts detection for inline sources where the path is
 	// synthetic. nil = use path suffix (.d.ts / .d.mts / .d.cts).
 	source_is_dts_override: Maybe(bool),
@@ -130,11 +125,10 @@ ParseConfig :: struct {
 //
 // Pre-#6 this read 5 process globals; post-#6 it reads the explicit
 // `cli` argument. ast_only is set per-call by the bench harness;
-// check_semantics is wired from cli.show_semantic_errors so that BOTH
-// the inline parser-side semantic checks (the gated report_semantic_error
-// call sites in parser.odin) AND the new AST-walker checker.odin pass
-// fire under the same flag. Default off keeps `kessel parse` parser-only
-// (matches OXC's parseSync); --show-semantic-errors lights up pass 3.
+// `--show-semantic-errors` is read directly by `main.odin` to invoke
+// `checker_run_for_job` after the parser finishes — it doesn't flow
+// through ParseConfig. Default `kessel parse` stays parser-only and
+// matches OXC's `parseSync`.
 parse_config_from_cli :: proc(cli: CliConfig) -> ParseConfig {
 	return ParseConfig{
 		lang_override          = cli.lang_override,
@@ -143,7 +137,6 @@ parse_config_from_cli :: proc(cli: CliConfig) -> ParseConfig {
 		force_strict           = cli.force_strict,
 		preserve_parens        = cli.preserve_parens,
 		ast_only               = false,
-		check_semantics        = cli.show_semantic_errors,
 		source_is_dts_override = nil,
 	}
 }
@@ -405,13 +398,7 @@ parse_job_run :: proc(job: ^ParseJob) {
 	job.parser.force_strict     = job.config.force_strict
 	job.parser.preserve_parens  = job.config.preserve_parens
 	job.parser.ast_only         = job.config.ast_only
-	job.parser.check_semantics  = job.config.check_semantics
 	job.parser.is_commonjs      = job.is_commonjs
-	// init_parser already propagated check_semantics to the lexer, but
-	// it did so BEFORE we updated p.check_semantics here. Re-propagate
-	// so regex-body validation and lexer-side semantic checks see the
-	// final config value.
-	job.lexer.check_semantics = job.config.check_semantics
 
 	job.program = parse_program(&job.parser, job.initial_source_type)
 }

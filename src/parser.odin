@@ -507,14 +507,6 @@ Parser :: struct {
 	// or control-flow headers - only the expression-position case.
 	preserve_parens:   bool,
 
-	// When false (default), the parser skips validation-only early-error
-	// checks (break/continue context, label scoping, super/new.target
-	// context, duplicate bindings, strict-mode parameter checks, etc.).
-	// These checks are deferred to the semantic checker pass. When true,
-	// the parser enforces them inline - matching the pre-refactor
-	// behaviour for backwards compatibility and standalone CLI use.
-	check_semantics:   bool,
-
 	// Per-parse counters used by `verify_private_names` to short-circuit
 	// the §15.7.3 AllPrivateIdentifiersValid walk. The walker is a
 	// recursive visitor over the entire AST; on real-world JS that
@@ -844,9 +836,6 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.interner = interner
 
 	p.lexer = lexer
-	// Propagate semantic-checking mode to the lexer so that regex-body
-	// validation (a semantic concern) can be skipped in permissive mode.
-	lexer.check_semantics = p.check_semantics
 
 	// Prime token cache
 	prime_token_cache(p)

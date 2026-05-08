@@ -126,7 +126,6 @@ test_invariants :: proc(t: ^testing.T) {
 			force_strict           = fix.force_strict,
 			preserve_parens        = false,
 			ast_only               = false,
-			check_semantics        = false,
 			source_is_dts_override = fix.source_is_dts,
 		}
 

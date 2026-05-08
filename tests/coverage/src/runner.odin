@@ -53,7 +53,6 @@ run_parser_one :: proc(
 		force_strict           = fix.force_strict,
 		preserve_parens        = false,
 		ast_only               = false,
-		check_semantics        = tool == .Semantic,
 		source_is_dts_override = fix.source_is_dts,
 		is_commonjs_override   = fix.is_commonjs,
 	}

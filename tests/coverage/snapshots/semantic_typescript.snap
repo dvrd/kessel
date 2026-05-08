@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12551/12692 (98.89%)
 Positive Passed: 12551/12692 (98.89%)
-Negative Passed: 1606/3470 (46.28%)
+Negative Passed: 1616/3470 (46.57%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1610,11 +1610,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/forAwait/parser.forAwait.es2018.ts::topLevelWithDeclIsError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/forAwait/parser.forAwait.es2018.ts::topLevelWithExprIsError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.decmialNegative.ts::1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::12.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::16.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::20.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::24.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::28.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::29.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::30.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::31.ts
@@ -1623,11 +1618,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::34.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::35.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::36.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::40.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::44.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::48.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript3/Accessors/parserES3Accessors1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript3/Accessors/parserES3Accessors3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors1.ts
@@ -3425,32 +3415,42 @@ typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parse
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::1.ts:1:2: Invalid \u{} escape: missing closing '}'
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::10.ts:1:2: Invalid \x escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::11.ts:2:1: Invalid escape sequence in template literal
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::12.ts:1:2: Invalid '\x' escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::13.ts:1:2: Invalid \u{} escape: missing closing '}'
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::14.ts:1:2: Invalid \u{} escape: missing closing '}'
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::15.ts:2:1: Invalid escape sequence in template literal
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::16.ts:1:2: Invalid '\u{…}' escape
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::17.ts:1:2: Invalid \u escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::18.ts:1:2: Invalid \u escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::19.ts:2:1: Invalid escape sequence in template literal
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::2.ts:1:2: Invalid \u{} escape: missing closing '}'
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::20.ts:1:2: Invalid '\u' escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::21.ts:1:2: Invalid \x escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::22.ts:1:2: Invalid \x escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::23.ts:2:1: Invalid escape sequence in template literal
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::24.ts:1:2: Invalid '\x' escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::25.ts:1:2: Invalid \u{} escape: missing closing '}'
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::26.ts:1:2: Invalid \u{} escape: missing closing '}'
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::27.ts:2:1: Invalid escape sequence in template literal
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::28.ts:1:2: Invalid '\u{…}' escape
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::3.ts:2:1: Invalid escape sequence in template literal
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::37.ts:1:2: Invalid \u{} escape: missing closing '}'
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::38.ts:1:2: Invalid \u{} escape: missing closing '}'
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::39.ts:2:1: Invalid escape sequence in template literal
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::4.ts:1:2: Invalid '\u{…}' escape
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::40.ts:1:2: Invalid '\u{…}' escape
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::41.ts:1:2: Invalid \u escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::42.ts:1:2: Invalid \u escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::43.ts:2:1: Invalid escape sequence in template literal
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::44.ts:1:2: Invalid '\u' escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::45.ts:1:2: Invalid \x escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::46.ts:1:2: Invalid \x escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::47.ts:2:1: Invalid escape sequence in template literal
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::48.ts:1:2: Invalid '\x' escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::5.ts:1:2: Invalid \u escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::6.ts:1:2: Invalid \u escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::7.ts:2:1: Invalid escape sequence in template literal
+typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::8.ts:1:2: Invalid '\u' escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::9.ts:1:2: Invalid \x escape: expected 2 hex digits
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors10.ts:2:10: Expected }, got UNKNOWN
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors5.ts:2:13: An implementation cannot be declared in ambient contexts
