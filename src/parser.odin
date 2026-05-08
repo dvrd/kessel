@@ -2055,16 +2055,39 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		if is_next_token(p, .LParen) || is_next_token(p, .Dot) {
 			return parse_expression_or_labeled_statement(p)
 		}
-		// §16.2.1 ImportDeclaration not at module top level: enforced by
-		// the semantic checker (ck_check_import_export_position) using its
-		// own at_top_level tracker.
+		// §16.2.1 ImportDeclaration / ExportDeclaration are ModuleItems,
+		// only legal at the top level of a Module body.
+		check_import_export_position(p, true)
 		return parse_import_declaration(p)
 	case .Export:
-		// §16.2.1 ExportDeclaration not at module top level: enforced by
-		// the semantic checker (ck_check_import_export_position).
+		// §16.2.1 — see .Import above.
+		check_import_export_position(p, false)
 		return parse_export_declaration(p)
 	case:
 		return parse_expression_or_labeled_statement(p)
+	}
+}
+
+// §16.2.1 — ImportDeclaration and ExportDeclaration are ModuleItems,
+// legal only at the top level of a Module body. Two failure modes:
+//   1. Script source: import/export are not grammar productions at all.
+//   2. Module source, nested position (inside a function body, block,
+//      arrow body, etc.): the declaration is outside the top-level
+//      ModuleItemList.
+// The error is reported but parsing continues (permissive recovery).
+check_import_export_position :: proc(p: ^Parser, is_import: bool) {
+	// Script-mode: import/export are Module-only syntax.
+	if st, have := p.force_source_type.(SourceType); have && st == .Script {
+		msg := "'export' is only valid in module code"
+		if is_import { msg = "'import' is only valid in module code" }
+		report_error(p, msg)
+		return
+	}
+	// Module-mode with explicit pin: reject when not at top-level.
+	if p.in_module_top_level && (p.in_function || p.block_depth > 0) {
+		msg := "'export' declaration is only allowed at the top level of a module"
+		if is_import { msg = "'import' declaration is only allowed at the top level of a module" }
+		report_error(p, msg)
 	}
 }
 

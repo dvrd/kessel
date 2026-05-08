@@ -3,7 +3,7 @@ commit: c543b031
 semantic_babel Summary:
 AST Parsed     : 2213/2233 (99.10%)
 Positive Passed: 2213/2233 (99.10%)
-Negative Passed: 1629/1711 (95.21%)
+Negative Passed: 1632/1711 (95.38%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -54,11 +54,8 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-parameter/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-implementation/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-initializer/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/export/equals-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters-arrow/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-in-script/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-require-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/export-import-type/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/type-equals/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-within-single-statement-context/input.ts
@@ -768,7 +765,7 @@ babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-obj-method/input.js:1:15: Expected }, got identifier
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-static-class-method/input.js:1:29: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-await/input.js:1:21: Keyword 'await' must not contain escaped characters
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-export-async-function/input.js:1:8: 'async' keyword must not contain Unicode escape sequences
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-export-async-function/input.js:1:1: 'export' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-export-dflt-async-function/input.js:1:16: 'async' keyword must not contain Unicode escape sequences
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-sequence-arrow-list/input.js:1:13: Expected ), got identifier
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-sequence-arrow/input.js:1:1: 'async' keyword must not contain Unicode escape sequences
@@ -1236,7 +1233,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/incomplete-yi
 babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/malformed-generator-method-2/input.js:1:15: Expected method or property name
 babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/malformed-generator-method/input.js:1:6: Expected method name after '*'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_escaped_surrogate_pairs/input.js:1:5: Expected binding pattern
-babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_expression_await/input.js:1:21: Top-level 'await' is only valid in module code
+babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_expression_await/input.js:1:1: 'export' is only valid in module code
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_id_smp/input.js:1:5: Invalid character in identifier
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_lone_surrogate/input.js:1:1: Unexpected token '\uD800'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_var_await/input.js:1:1: 'export' is only valid in module code
@@ -1680,8 +1677,11 @@ babel/packages/babel-parser/test/fixtures/typescript/exponentiation/await-non-nu
 babel/packages/babel-parser/test/fixtures/typescript/exponentiation/unary-non-null-before-exponential/input.ts:1:12: Unparenthesized unary expression cannot appear as the left operand of '**'
 babel/packages/babel-parser/test/fixtures/typescript/export/declare-invalid/input.ts:1:16: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/export/double-declare/input.ts:1:16: Expected semicolon
+babel/packages/babel-parser/test/fixtures/typescript/export/equals-in-script/input.ts:1:1: 'export' is only valid in module code
 babel/packages/babel-parser/test/fixtures/typescript/function/empty-type-parameters/input.ts:1:14: Type parameter list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/function/parameter-properties/input.ts:9:1: A parameter cannot have a question mark and an initializer.
+babel/packages/babel-parser/test/fixtures/typescript/import/equals-in-script/input.ts:1:1: 'import' is only valid in module code
+babel/packages/babel-parser/test/fixtures/typescript/import/equals-require-in-script/input.ts:1:1: 'import' is only valid in module code
 babel/packages/babel-parser/test/fixtures/typescript/interface/abstract/input.ts:1:10: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/interface/declare-new-line/input.ts:1:9: Line terminator not permitted after 'interface'
 babel/packages/babel-parser/test/fixtures/typescript/interface/export-abstract-interface/input.ts:1:17: Expected semicolon
