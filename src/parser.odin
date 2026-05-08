@@ -2193,6 +2193,19 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 		case ^Identifier:
 			eat(p) // consume :
 
+			// §13.2 — LabelIdentifier is subject to the same
+			// strict-mode reservation as IdentifierReference. In strict
+			// mode `yield: 1`, `let: 1`, `eval: 1`, etc. are SyntaxErrors
+			// because the LabelIdentifier production is `Identifier` and
+			// the Identifier in question is one of the strict-reserved
+			// names. Promoted from the semantic checker.
+			if p.strict_mode {
+				if is_eval_or_arguments(e.name) || is_strict_reserved_binding_name(e.name) {
+					msg := fmt.tprintf("'%s' cannot be used as a label identifier in strict mode", e.name)
+					report_error_at(p, LexerLoc(e.loc.span.start), msg)
+				}
+			}
+
 			labeled := new_node(p, LabeledStatement)
 			labeled.loc = start
 			labeled.label = LabelIdentifier{
@@ -2247,9 +2260,16 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 						if v.async || v.generator {
 							report_error(p, "Async / generator function declaration cannot be a labeled item")
 						}
-						// §14.13.1 "plain function decl as labeled item in strict":
-						// enforced by the semantic checker (ck_walk_stmt's
-						// ^LabeledStatement case).
+						// §14.13.1 — a plain FunctionDeclaration is a valid
+						// LabelledItem only under Annex B.3.3, which the spec
+						// gates on "NotInClassBody and StrictFormalParameters
+						// is not strict". In strict mode the carve-out is
+						// removed and \`label: function f() {}\` is a
+						// SyntaxError. Promoted from the semantic checker
+						// (ck_walk_stmt's ^LabeledStatement case).
+						if p.strict_mode {
+							report_error(p, "Function declarations cannot be labeled items in strict mode")
+						}
 					}
 				}
 			}

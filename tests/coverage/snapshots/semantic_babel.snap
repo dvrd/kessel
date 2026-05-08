@@ -552,7 +552,7 @@ babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-class/
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-const/input.js:2:1: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-async/input.js:2:1: Async / generator function declaration cannot be a labeled item
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-generator/input.js:2:1: Async / generator function declaration cannot be a labeled item
-babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-strict/input.js:1:36: Function declaration cannot be a labeled item in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-strict/input.js:1:53: Function declarations cannot be labeled items in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-let/input.js:2:1: Lexical declaration cannot be a labeled item
 babel/packages/babel-parser/test/fixtures/es2015/template/error-after-newline/input.js:3:2: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/109/input.js:1:6: for-of loop variable declaration may not have an initializer

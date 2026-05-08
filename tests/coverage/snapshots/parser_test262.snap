@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3809/4588 (83.02%)
+Negative Passed: 3811/4588 (83.06%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-generator.js
@@ -706,10 +706,8 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/na
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-dflt-yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/param-dflt-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/decl-fun-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/static-init-invalid-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/redeclaration-error-from-within-strict-mode-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/syntax/identifier-let-allowed-as-lefthandside-expression-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/switch/S12.11_A2_T1.js
@@ -4403,11 +4401,13 @@ test262/test/language/statements/labeled/decl-async-function.js:21:1: Async / ge
 test262/test/language/statements/labeled/decl-async-generator.js:21:1: Async / generator function declaration cannot be a labeled item
 test262/test/language/statements/labeled/decl-cls.js:15:1: Class declaration cannot appear in a single-statement context
 test262/test/language/statements/labeled/decl-const.js:15:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/labeled/decl-fun-strict.js:18:1: Function declarations cannot be labeled items in strict mode
 test262/test/language/statements/labeled/decl-gen.js:16:1: Async / generator function declaration cannot be a labeled item
 test262/test/language/statements/labeled/decl-let.js:15:1: Lexical declaration cannot be a labeled item
 test262/test/language/statements/labeled/let-array-with-newline.js:24:1: Lexical declaration cannot be a labeled item
 test262/test/language/statements/labeled/value-await-module.js:20:6: 'await' expression requires an operand
 test262/test/language/statements/labeled/value-yield-strict-escaped.js:22:1: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/labeled/value-yield-strict.js:17:1: 'yield' cannot be used as a label identifier in strict mode
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-ary.js:30:15: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-id.js:30:11: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-obj.js:30:15: Rest element must be last in array pattern

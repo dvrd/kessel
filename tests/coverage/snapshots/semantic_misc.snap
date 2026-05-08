@@ -99,7 +99,7 @@ tests/coverage/misc/fail/early_errors/strict_mode/013_octal_escape_template.js:8
 tests/coverage/misc/fail/early_errors/strict_mode/014_update_eval_arguments.js:5:1: Update of 'eval' is not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/015_delete_identifier.js:6:1: Deleting local variable 'x' is not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/016_function_name_eval.js:5:10: Function name 'eval' is not allowed in strict mode
-tests/coverage/misc/fail/early_errors/strict_mode/017_labeled_function_declaration.js:7:6: Function declaration cannot be a labeled item in strict mode
+tests/coverage/misc/fail/early_errors/strict_mode/017_labeled_function_declaration.js:8:1: Function declarations cannot be labeled items in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js:10:5: Keyword 'let' must not contain escaped characters
 tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js:7:6: for-in loop variable declaration may not have an initializer
 tests/coverage/misc/fail/escape-00.js:1:25: Octal or \8 / \9 escape sequences are not allowed in strict mode

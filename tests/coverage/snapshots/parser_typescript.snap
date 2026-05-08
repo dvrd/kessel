@@ -3432,7 +3432,7 @@ typescript/tests/cases/conformance/statements/labeledStatements/labeledStatement
 typescript/tests/cases/conformance/statements/labeledStatements/labeledStatementExportDeclarationNoCrash1.ts:4:1: Missing initializer in 'const' declaration
 typescript/tests/cases/conformance/statements/labeledStatements/labeledStatementWithLabel.ts:3:1: Async / generator function declaration cannot be a labeled item
 typescript/tests/cases/conformance/statements/labeledStatements/labeledStatementWithLabel_es2015.ts:3:1: Async / generator function declaration cannot be a labeled item
-typescript/tests/cases/conformance/statements/labeledStatements/labeledStatementWithLabel_strict.ts:4:1: Async / generator function declaration cannot be a labeled item
+typescript/tests/cases/conformance/statements/labeledStatements/labeledStatementWithLabel_strict.ts:3:1: Function declarations cannot be labeled items in strict mode
 typescript/tests/cases/conformance/statements/throwStatements/invalidThrowStatement.ts:1:6: Expected expression after throw
 typescript/tests/cases/conformance/statements/tryStatements/invalidTryStatements.ts:2:5: Unexpected reserved word 'catch'
 typescript/tests/cases/conformance/types/import/importTypeGeneric.ts::usage.ts:1:68: String literal expected in import type

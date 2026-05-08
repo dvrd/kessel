@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2229/2233 (99.82%)
 Positive Passed: 2229/2233 (99.82%)
-Negative Passed: 1403/1711 (82.00%)
+Negative Passed: 1404/1711 (82.06%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -80,7 +80,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-as-identifier-strict-fail/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/meta-properties/invalid-arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/123/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/220/input.js
@@ -656,6 +655,7 @@ babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-class/
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-const/input.js:2:1: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-async/input.js:2:1: Async / generator function declaration cannot be a labeled item
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-generator/input.js:2:1: Async / generator function declaration cannot be a labeled item
+babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-strict/input.js:1:53: Function declarations cannot be labeled items in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-let/input.js:2:1: Lexical declaration cannot be a labeled item
 babel/packages/babel-parser/test/fixtures/es2015/template/error-after-newline/input.js:3:2: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/109/input.js:1:6: for-of loop variable declaration may not have an initializer
