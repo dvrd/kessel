@@ -11081,13 +11081,15 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			num.value = val
 		}
 		num.loc.span.end = prev_end_offset(p)
-		// ECMA-262 Annex B.1.1 + §13.2.5.1 - LegacyOctalIntegerLiteral
+		// ECMA-262 Annex B.1.1 + §12.9.3.5 — LegacyOctalIntegerLiteral
 		// (`0777`) and NonOctalDecimalIntegerLiteral (`078`) are
 		// SyntaxErrors in strict mode. Both share the shape:
 		// `0<digit>+` where the second char is a decimal digit (not
-		// `x`/`X`/`o`/`O`/`b`/`B`/`.`/`e`/`E`/`n`).
-		// §12.9.3.5 legacy octal in strict mode: enforced by the
+		// `x`/`X`/`o`/`O`/`b`/`B`/`.`/`e`/`E`/`n`). Promoted from the
 		// semantic checker (ck_check_legacy_octal_number).
+		if p.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
+			report_error_at(p, LexerLoc(num.loc.span.start), "Legacy octal literals are not allowed in strict mode")
+		}
 		return num_e
 
 	case .String:
@@ -11113,9 +11115,9 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		big.value = current.value  // Store as string
-		// §12.9.3 legacy-octal BigInt: enforced by the semantic checker
-		// (ck_check_legacy_octal_bigint). Always errors regardless of
-		// strict mode.
+		// §12.9.3 legacy-octal BigInt (`0123n`) is rejected by the lexer
+		// ("BigInt literal cannot use legacy octal / non-octal-decimal
+		// form") so the checker / parser don't need a second site.
 		big.loc.span.end = prev_end_offset(p)
 		return expression_from(p, big)
 
@@ -12418,6 +12420,17 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 			num.value = val
 		}
 		num.loc.span.end = prev_end_offset(p)
+		// §12.9.3.5 (Annex B.1.1) — LegacyOctalIntegerLiteral and
+		// NonOctalDecimalIntegerLiteral are SyntaxErrors in strict mode.
+		// Promoted from the semantic checker (ck_check_legacy_octal_number)
+		// so parser-only snaps reject `"use strict"; 010;` /
+		// `"use strict"; 078;` and friends. Only the primary-expression
+		// numeric path needs the hook — object property keys (§13.2.5),
+		// destructuring keys, and TS literal-type names go through other
+		// branches that don't surface to runtime evaluation.
+		if p.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
+			report_error_at(p, LexerLoc(num.loc.span.start), "Legacy octal literals are not allowed in strict mode")
+		}
 		return expression_from(p, num)
 
 	case:

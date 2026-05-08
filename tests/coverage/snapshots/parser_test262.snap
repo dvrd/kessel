@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3651/4588 (79.58%)
+Negative Passed: 3661/4588 (79.80%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
@@ -407,16 +407,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/global-code/super-prop
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/super-prop.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/identifier-resolution/static-init-invalid-await.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/7.8.3-1gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/7.8.3-2gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integer-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integery-000-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integery-005-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integery-01-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integery-010-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integery-06-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integery-07-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/non-octal-decimal-integer-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/string/S7.8.4_A4.3_T1.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/string/S7.8.4_A4.3_T2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/string/legacy-non-octal-escape-sequence-1-strict-explicit-pragma.js
@@ -3132,6 +3122,8 @@ test262/test/language/literals/bigint/octal-invalid-digit.js:26:3: Expected semi
 test262/test/language/literals/boolean/false-with-unicode.js:20:1: Keyword 'false' must not contain escaped characters
 test262/test/language/literals/boolean/true-with-unicode.js:20:1: Keyword 'true' must not contain escaped characters
 test262/test/language/literals/null/null-with-unicode.js:20:1: Keyword 'null' must not contain escaped characters
+test262/test/language/literals/numeric/7.8.3-1gs.js:15:9: Legacy octal literals are not allowed in strict mode
+test262/test/language/literals/numeric/7.8.3-2gs.js:19:5: Legacy octal literals are not allowed in strict mode
 test262/test/language/literals/numeric/S7.8.3_A6.1_T1.js:16:3: Hex literal requires at least one digit
 test262/test/language/literals/numeric/S7.8.3_A6.1_T2.js:16:3: Hex literal requires at least one digit
 test262/test/language/literals/numeric/S7.8.3_A6.2_T1.js:16:3: Expected semicolon
@@ -3140,6 +3132,14 @@ test262/test/language/literals/numeric/binary-invalid-digit.js:23:3: Expected se
 test262/test/language/literals/numeric/binary-invalid-leading.js:23:3: Expected semicolon
 test262/test/language/literals/numeric/binary-invalid-truncated.js:23:3: Binary literal requires at least one digit
 test262/test/language/literals/numeric/binary-invalid-unicode.js:23:2: Expected semicolon
+test262/test/language/literals/numeric/legacy-octal-integer-strict.js:33:1: Legacy octal literals are not allowed in strict mode
+test262/test/language/literals/numeric/legacy-octal-integery-000-strict.js:15:1: Legacy octal literals are not allowed in strict mode
+test262/test/language/literals/numeric/legacy-octal-integery-005-strict.js:15:1: Legacy octal literals are not allowed in strict mode
+test262/test/language/literals/numeric/legacy-octal-integery-01-strict.js:15:1: Legacy octal literals are not allowed in strict mode
+test262/test/language/literals/numeric/legacy-octal-integery-010-strict.js:15:1: Legacy octal literals are not allowed in strict mode
+test262/test/language/literals/numeric/legacy-octal-integery-06-strict.js:15:1: Legacy octal literals are not allowed in strict mode
+test262/test/language/literals/numeric/legacy-octal-integery-07-strict.js:15:1: Legacy octal literals are not allowed in strict mode
+test262/test/language/literals/numeric/non-octal-decimal-integer-strict.js:39:1: Legacy octal literals are not allowed in strict mode
 test262/test/language/literals/numeric/numeric-followed-by-ident.js:18:2: Identifier directly after number
 test262/test/language/literals/numeric/numeric-separators/numeric-separator-literal-bil-bd-nsl-bd-err.js:34:3: Numeric separator must be between two digits
 test262/test/language/literals/numeric/numeric-separators/numeric-separator-literal-bil-nsl-bd-dunder-err.js:34:5: Numeric separator must be between two digits
