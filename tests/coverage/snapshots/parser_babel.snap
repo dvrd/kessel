@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2227/2233 (99.73%)
 Positive Passed: 2227/2233 (99.73%)
-Negative Passed: 1470/1711 (85.91%)
+Negative Passed: 1472/1711 (86.03%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -36,7 +36,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/463/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/464/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/465/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/466/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/491/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/512/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/513/input.js
@@ -177,7 +176,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0180/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0181/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0182/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0183/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0208/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0217/input.js
@@ -436,6 +434,7 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/459/input.js:1:22: 
 babel/packages/babel-parser/test/fixtures/core/uncategorised/460/input.js:1:25: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/461/input.js:1:40: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/462/input.js:1:43: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/466/input.js:1:30: Deleting an unqualified identifier is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/467/input.js:1:30: 'with' statements are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/468/input.js:1:37: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/469/input.js:1:37: 'arguments' cannot be used as a binding name in strict mode
@@ -1467,6 +1466,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0176/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0177/input.js:1:25: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0178/input.js:1:40: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0179/input.js:1:43: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0183/input.js:1:30: Deleting an unqualified identifier is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0184/input.js:1:30: 'with' statements are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0185/input.js:1:37: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0186/input.js:1:37: 'arguments' cannot be used as a binding name in strict mode

@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12692/12692 (100.00%)
 Positive Passed: 12692/12692 (100.00%)
-Negative Passed: 1495/3470 (43.08%)
+Negative Passed: 1499/3470 (43.20%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -246,7 +246,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/definiteAssi
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/deleteExpressionMustBeOptional.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/deleteExpressionMustBeOptional_exactOptionalPropertyTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/deleteOperator1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/deleteOperatorInStrictMode.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/destructureCatchClause.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/destructuredLateBoundNameHasCorrectTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/destructuringFromUnionSpread.ts
@@ -1091,8 +1090,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/compu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames30_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames30_ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames3_ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames3_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames40_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames40_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames51_ES5.ts
@@ -1823,7 +1820,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWhileStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode15.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode16.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode3-negative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode6-negative.ts
@@ -2089,6 +2085,7 @@ typescript/tests/cases/compiler/decoratorInJsFile1.ts:3:10: Expected ), got :
 typescript/tests/cases/compiler/decrementAndIncrementOperators.ts:4:5: Invalid left-hand side expression in postfix operation
 typescript/tests/cases/compiler/defaultKeywordWithoutExport1.ts:4:1: Expected class after decorator
 typescript/tests/cases/compiler/defaultKeywordWithoutExport2.ts:1:1: Unexpected reserved word 'default'
+typescript/tests/cases/compiler/deleteOperatorInStrictMode.ts:3:1: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/compiler/destructionAssignmentError.ts:6:10: Unexpected token '='
 typescript/tests/cases/compiler/destructuringControlFlowNoCrash.ts:11:22: Expected ), got :
 typescript/tests/cases/compiler/disallowedBlockScopedInPresenceOfParseErrors1.ts:6:5: Lexical declaration cannot appear in a single-statement context
@@ -2597,6 +2594,8 @@ typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames26_ES6.ts:10:12: 'super' property access is only valid inside a method
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames27_ES5.ts:4:12: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames27_ES6.ts:4:12: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames3_ES5.ts:5:10: Deleting an unqualified identifier is not allowed in strict mode
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames3_ES6.ts:5:10: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES5.ts:9:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES6.ts:9:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames50_ES5.ts:11:10: Setter must have exactly one formal parameter
@@ -3315,6 +3314,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMod
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode12.ts:2:19: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode13.ts:4:7: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode14.ts:2:1: 'with' statements are not allowed in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode15.ts:2:1: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode2.ts:5:1: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode3.ts:2:1: Assignment to 'eval' is not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode4.ts:2:1: Assignment to 'arguments' is not allowed in strict mode

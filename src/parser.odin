@@ -10348,15 +10348,20 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// (ck_check_unary_delete_private) so parser-only snaps reject the
 		// class/elements/syntax/early-errors/delete cluster.
 		//
-		// `delete IdentifierReference` strict-mode early error stays on
-		// the checker (ck_check_unary_delete_local) — it requires
-		// distinguishing IdentifierReference from MemberExpression after
-		// the inner expression has resolved its CoverParenthesizedExpression
-		// shape, which is cleaner to do post-parse.
 		if unary.operator == .Delete {
 			if me, is_member := unary.argument.(^MemberExpression); is_member && me != nil && me.property != nil {
 				if _, is_private := me.property^.(^PrivateIdentifier); is_private {
 					report_error_at(p, LexerLoc(unary.loc.span.start), "Private fields cannot be deleted")
+				}
+			}
+			// §13.5.1.1 — in strict mode, `delete IdentifierReference`
+			// is a SyntaxError (the bare identifier cannot reference a
+			// configurable property). The argument must be a plain Identifier
+			// at this point; --preserve-parens off strips the paren wrapper
+			// so `delete (x)` and `delete x` both reach here.
+			if p.strict_mode {
+				if _, is_id := unary.argument.(^Identifier); is_id {
+					report_error_at(p, LexerLoc(unary.loc.span.start), "Deleting an unqualified identifier is not allowed in strict mode")
 				}
 			}
 		}

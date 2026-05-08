@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 4388/4588 (95.64%)
+Negative Passed: 4390/4588 (95.68%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-binding.js
@@ -76,8 +76,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elem
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-init-await-binding.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/delete/identifier-strict-recursive.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/delete/identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-invalid-identifier-complex.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/__proto__-duplicate.js
@@ -1808,6 +1806,8 @@ test262/test/language/expressions/compound-assignment/xor-arguments-strict.js:19
 test262/test/language/expressions/compound-assignment/xor-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/conditional/in-branch-2.js:22:22: Invalid left-hand side in for-in loop
 test262/test/language/expressions/conditional/in-condition.js:22:12: Invalid left-hand side in for-in loop
+test262/test/language/expressions/delete/identifier-strict-recursive.js:18:1: Deleting an unqualified identifier is not allowed in strict mode
+test262/test/language/expressions/delete/identifier-strict.js:17:1: Deleting an unqualified identifier is not allowed in strict mode
 test262/test/language/expressions/dynamic-import/escape-sequence-import.js:35:1: Keyword 'import' must not contain escaped characters
 test262/test/language/expressions/dynamic-import/import-attributes/2nd-param-yield-ident-invalid.js:19:30: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-1-update-expression.js:47:1: Invalid left-hand side expression in postfix operation

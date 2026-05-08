@@ -1688,8 +1688,8 @@ test262/test/language/expressions/compound-assignment/xor-arguments-strict.js:19
 test262/test/language/expressions/compound-assignment/xor-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/conditional/in-branch-2.js:22:22: Invalid left-hand side in for-in loop
 test262/test/language/expressions/conditional/in-condition.js:22:12: Invalid left-hand side in for-in loop
-test262/test/language/expressions/delete/identifier-strict-recursive.js:18:1: Deleting local variable 'identifier' is not allowed in strict mode
-test262/test/language/expressions/delete/identifier-strict.js:17:1: Deleting local variable 'test262identifier' is not allowed in strict mode
+test262/test/language/expressions/delete/identifier-strict-recursive.js:18:1: Deleting an unqualified identifier is not allowed in strict mode
+test262/test/language/expressions/delete/identifier-strict.js:17:1: Deleting an unqualified identifier is not allowed in strict mode
 test262/test/language/expressions/dynamic-import/escape-sequence-import.js:35:1: Keyword 'import' must not contain escaped characters
 test262/test/language/expressions/dynamic-import/import-attributes/2nd-param-yield-ident-invalid.js:19:30: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/dynamic-import/syntax/invalid/invalid-assignmenttargettype-syntax-error-1-update-expression.js:47:1: Invalid left-hand side expression in postfix operation
