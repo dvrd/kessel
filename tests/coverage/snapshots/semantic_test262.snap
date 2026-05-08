@@ -500,7 +500,7 @@ test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-expr.j
 test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid.js:23:12: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/assignment/dstr/obj-id-init-simple-strict.js:23:6: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/assignment/dstr/obj-id-init-yield-ident-invalid.js:23:10: 'yield' is a reserved identifier in strict mode
-test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js:23:6: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js:23:6: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-init-yield-ident-invalid.js:23:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:56:19: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:59:10: Invalid left-hand side in assignment
@@ -4023,7 +4023,7 @@ test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-expr.js:33:
 test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/for-in/dstr/obj-id-init-simple-strict.js:32:8: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/statements/for-in/dstr/obj-id-init-yield-ident-invalid.js:32:12: 'yield' is a reserved identifier in strict mode
-test262/test/language/statements/for-in/dstr/obj-id-simple-strict.js:32:8: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/statements/for-in/dstr/obj-id-simple-strict.js:32:8: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/statements/for-in/dstr/obj-prop-elem-init-yield-ident-invalid.js:32:15: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-in/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:65:21: Invalid left-hand side in assignment
 test262/test/language/statements/for-in/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:68:10: Invalid left-hand side in assignment
@@ -4100,7 +4100,7 @@ test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-expr.js:33:
 test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/for-of/dstr/obj-id-init-simple-strict.js:32:8: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/statements/for-of/dstr/obj-id-init-yield-ident-invalid.js:32:12: 'yield' is a reserved identifier in strict mode
-test262/test/language/statements/for-of/dstr/obj-id-simple-strict.js:32:8: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/statements/for-of/dstr/obj-id-simple-strict.js:32:8: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/statements/for-of/dstr/obj-prop-elem-init-yield-ident-invalid.js:32:15: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-of/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:65:21: Invalid left-hand side in assignment
 test262/test/language/statements/for-of/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:68:10: Invalid left-hand side in assignment

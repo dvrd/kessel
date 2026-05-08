@@ -12462,6 +12462,23 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				if k != nil && k.name == "await" && await_is_reserved_here(p) {
 					report_error(p, "'await' is not allowed as a shorthand property identifier")
 				}
+				// §13.2.5.4 — ObjectLiteral PropertyDefinition shorthand
+				// IdentifierReference is a CoverInitializedName candidate;
+				// the AssignmentTargetType must be valid. In strict mode
+				// strict-reserved names (let / static / yield / implements
+				// / interface / package / private / protected / public) and
+				// eval / arguments are NOT valid BindingIdentifiers, so the
+				// shorthand fails. Promoted from the semantic checker
+				// (ck_check_shorthand_property_strict_reserved).
+				if k != nil && p.strict_mode {
+					if is_eval_or_arguments(k.name) {
+						msg := fmt.tprintf("'%s' cannot be used as a shorthand property identifier in strict mode", k.name)
+						report_error_at(p, LexerLoc(k.loc.span.start), msg)
+					} else if is_strict_reserved_binding_name(k.name) {
+						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", k.name)
+						report_error_at(p, LexerLoc(k.loc.span.start), msg)
+					}
+				}
 			}
 		}
 		shorthand = true

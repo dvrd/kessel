@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3785/4588 (82.50%)
+Negative Passed: 3795/4588 (82.72%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-generator.js
@@ -306,14 +306,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/rhs-yie
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/__proto__-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/getter-body-strict-inside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/getter-body-strict-outside.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-implements-invalid-strict-mode.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-interface-invalid-strict-mode.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-let-invalid-strict-mode.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-package-invalid-strict-mode.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-private-invalid-strict-mode.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-protected-invalid-strict-mode.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-public-invalid-strict-mode.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-static-invalid-strict-mode.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-body-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/generator-param-init-yield.js
@@ -674,7 +666,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/array-rest-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-id-init-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-id-init-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-id-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-prop-elem-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-prop-elem-target-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-prop-nested-array-yield-ident-invalid.js
@@ -695,7 +686,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/array-rest-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-id-init-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-id-init-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-id-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-prop-elem-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-prop-elem-target-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-prop-nested-array-yield-ident-invalid.js
@@ -1183,7 +1173,7 @@ test262/test/language/expressions/assignment/dstr/array-rest-nested-obj-invalid.
 test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js:24:12: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid.js:23:12: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/assignment/dstr/obj-id-init-simple-strict.js:23:6: Assignment to 'eval' is not allowed in strict mode
-test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js:23:6: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js:23:6: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:56:19: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:59:10: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/obj-prop-nested-array-invalid.js:23:31: Invalid destructuring assignment target
@@ -2660,9 +2650,17 @@ test262/test/language/expressions/object/dstr/meth-dflt-ary-ptrn-rest-not-final-
 test262/test/language/expressions/object/dstr/meth-dflt-ary-ptrn-rest-not-final-id.js:55:15: Rest element must be last in array pattern
 test262/test/language/expressions/object/dstr/meth-dflt-ary-ptrn-rest-not-final-obj.js:55:19: Rest element must be last in array pattern
 test262/test/language/expressions/object/getter-param-dflt.js:23:10: Getter must not have any formal parameters
+test262/test/language/expressions/object/identifier-shorthand-implements-invalid-strict-mode.js:31:5: 'implements' is a reserved identifier in strict mode
+test262/test/language/expressions/object/identifier-shorthand-interface-invalid-strict-mode.js:31:5: 'interface' is a reserved identifier in strict mode
 test262/test/language/expressions/object/identifier-shorthand-invalid-computed-name.js:29:6: Computed property name requires a value
 test262/test/language/expressions/object/identifier-shorthand-invalid-zero.js:22:4: Numeric / string property name requires a value
+test262/test/language/expressions/object/identifier-shorthand-let-invalid-strict-mode.js:31:5: 'let' is a reserved identifier in strict mode
+test262/test/language/expressions/object/identifier-shorthand-package-invalid-strict-mode.js:31:5: 'package' is a reserved identifier in strict mode
+test262/test/language/expressions/object/identifier-shorthand-private-invalid-strict-mode.js:31:5: 'private' is a reserved identifier in strict mode
+test262/test/language/expressions/object/identifier-shorthand-protected-invalid-strict-mode.js:31:5: 'protected' is a reserved identifier in strict mode
+test262/test/language/expressions/object/identifier-shorthand-public-invalid-strict-mode.js:31:5: 'public' is a reserved identifier in strict mode
 test262/test/language/expressions/object/identifier-shorthand-static-init-await-invalid.js:23:14: 'await' is not allowed as a shorthand property identifier
+test262/test/language/expressions/object/identifier-shorthand-static-invalid-strict-mode.js:31:5: 'static' is a reserved identifier in strict mode
 test262/test/language/expressions/object/identifier-shorthand-yield-invalid-strict-mode.js:32:3: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/object/method-definition/async-await-as-binding-identifier-escaped.js:30:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/object/method-definition/async-await-as-binding-identifier.js:30:9: 'await' is reserved as a binding name in this context
@@ -4148,6 +4146,7 @@ test262/test/language/statements/for-in/dstr/array-rest-nested-array-invalid.js:
 test262/test/language/statements/for-in/dstr/array-rest-nested-obj-invalid.js:32:29: Invalid destructuring assignment target
 test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/for-in/dstr/obj-id-simple-strict.js:32:8: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/statements/for-in/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:65:21: Invalid left-hand side in assignment
 test262/test/language/statements/for-in/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:68:10: Invalid left-hand side in assignment
 test262/test/language/statements/for-in/dstr/obj-prop-nested-array-invalid.js:32:25: Invalid destructuring assignment target
@@ -4204,6 +4203,7 @@ test262/test/language/statements/for-of/dstr/let-ary-ptrn-rest-not-final-obj.js:
 test262/test/language/statements/for-of/dstr/let-obj-ptrn-init-err.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/for-of/dstr/obj-id-simple-strict.js:32:8: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/statements/for-of/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:65:21: Invalid left-hand side in assignment
 test262/test/language/statements/for-of/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:68:10: Invalid left-hand side in assignment
 test262/test/language/statements/for-of/dstr/obj-prop-nested-array-invalid.js:32:25: Invalid destructuring assignment target
