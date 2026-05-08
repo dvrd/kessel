@@ -4738,6 +4738,12 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 // the parse_class_body deferred decrement), any remaining unresolved
 // refs are reported as syntax errors and the list is cleared.
 resolve_pending_private_refs :: proc(p: ^Parser, elements: []ClassElement, pending_refs_before: int) {
+	// Fast path: no refs queued during this body's parse and no
+	// outstanding refs from inner classes — nothing to do. The vast
+	// majority of class bodies fall here (real-world JS classes mostly
+	// don't use private names at all).
+	if len(p.pending_priv_refs) == 0 { return }
+
 	declared: map[string]bool
 	declared.allocator = context.temp_allocator
 	defer delete(declared)
@@ -10682,14 +10688,15 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 		// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
-		// forbidden in class field initializers (the synthetic
-		// ClassFieldInitializer does NOT bind `arguments`) and in class
-		// static blocks (ContainsArguments). Includes escaped form
-		// `argument\u0073` since `cur_tok.value` is the cooked name.
-		if p.cur_tok.value == "arguments" {
+		// forbidden in class field initializers and class static blocks.
+		// Gate on context flags FIRST: the string compare is only worth
+		// running when we're in one of those rare scopes. Real-world JS
+		// is overwhelmingly outside any class-field / class-static-block
+		// context, so the early-out hits ~100% of the hot path.
+		if (p.in_static_block || p.in_field_init) && p.cur_tok.value == "arguments" {
 			if p.in_static_block {
 				report_error(p, "'arguments' is not allowed in a class static block")
-			} else if p.in_field_init {
+			} else {
 				report_error(p, "'arguments' cannot appear in a class field initializer")
 			}
 		}
@@ -11897,11 +11904,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		id.loc.span.end = prev_end_offset(p)
 		// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
 		// forbidden in class field initializers and class static blocks
-		// (the synthetic function does NOT bind `arguments`).
-		if current.value == "arguments" {
+		// (the synthetic function does NOT bind `arguments`). Gate on the
+		// rare-context flags FIRST so the string compare doesn't run on
+		// every identifier in the hot path.
+		if (p.in_static_block || p.in_field_init) && current.value == "arguments" {
 			if p.in_static_block {
 				report_error(p, "'arguments' is not allowed in a class static block")
-			} else if p.in_field_init {
+			} else {
 				report_error(p, "'arguments' cannot appear in a class field initializer")
 			}
 		}
