@@ -9937,9 +9937,24 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		unary.argument = argument
 		unary.prefix = true
 		unary.loc.span.end = prev_end_offset(p)
-		// §13.5.1 "delete IdentifierReference" in strict mode AND
-		// "delete o.#priv" early errors are enforced by the semantic
-		// checker (ck_check_unary_delete_local + ck_check_unary_delete_private).
+		// §13.5.1.1 — `delete o.#priv` is a SyntaxError. PrivateNames
+		// have no observable [[Configurable]] state and the spec rejects
+		// the form outright. Promoted from the semantic checker
+		// (ck_check_unary_delete_private) so parser-only snaps reject the
+		// class/elements/syntax/early-errors/delete cluster.
+		//
+		// `delete IdentifierReference` strict-mode early error stays on
+		// the checker (ck_check_unary_delete_local) — it requires
+		// distinguishing IdentifierReference from MemberExpression after
+		// the inner expression has resolved its CoverParenthesizedExpression
+		// shape, which is cleaner to do post-parse.
+		if unary.operator == .Delete {
+			if me, is_member := unary.argument.(^MemberExpression); is_member && me != nil && me.property != nil {
+				if _, is_private := me.property^.(^PrivateIdentifier); is_private {
+					report_error_at(p, LexerLoc(unary.loc.span.start), "Private fields cannot be deleted")
+				}
+			}
+		}
 		return expression_from(p, unary)
 
 	case .PlusPlus, .MinusMinus:
