@@ -1,9 +1,9 @@
 commit: c543b031
 
 parser_babel Summary:
-AST Parsed     : 2229/2233 (99.82%)
-Positive Passed: 2229/2233 (99.82%)
-Negative Passed: 1404/1711 (82.06%)
+AST Parsed     : 2227/2233 (99.73%)
+Positive Passed: 2227/2233 (99.73%)
+Negative Passed: 1420/1711 (82.99%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -21,28 +21,12 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-property-name/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/opts/allowNewTargetOutsideFunction-false-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/opts/allowNewTargetOutsideFunction-false/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-2nd-lvl-lex-nested/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-2nd-lvl-lex/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-2nd-lvl-var-nested/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-2nd-lvl-var/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-arr-destr/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-dbl-let/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-func/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-let/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-obj-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-arr-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-obj-destr/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-class/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-const/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-func/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-let/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-var/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-gen/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-module-sloppy/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-module/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-var-sloppy/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-gen-func/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-nested-let-var/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/for-var/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as-default/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as/input.js
@@ -311,11 +295,17 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-var-enum/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/type-alias/invalid-within-single-statement-context/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-gen-gen-script/input.js
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-gen-gen-script/input.js:2:11: 'foo' has already been declared
+
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/263/input.js
 babel/packages/babel-parser/test/fixtures/core/uncategorised/263/input.js:1:18: 'with' statements are not allowed in strict mode
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/264/input.js
 babel/packages/babel-parser/test/fixtures/core/uncategorised/264/input.js:1:18: 'with' statements are not allowed in strict mode
+
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/duplicate-function-var-name/input.js
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/duplicate-function-var-name/input.js:4:16: Identifier 'x' has already been declared
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000/input.js
 babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000/input.js:1:33: 'with' statements are not allowed in strict mode
@@ -358,8 +348,24 @@ babel/packages/babel-parser/test/fixtures/core/regression/13694-invalid-dot-brac
 babel/packages/babel-parser/test/fixtures/core/regression/T2921/input.js:1:5: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/core/regression/non-octal-float-strict-mode/input.js:1:1: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/regression/octal-float-fail/input.js:1:5: Legacy octal / non-octal-decimal literal cannot contain a decimal point
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-2nd-lvl-lex-nested/input.js:4:3: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-2nd-lvl-lex/input.js:3:1: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-2nd-lvl-var-nested/input.js:4:3: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-2nd-lvl-var/input.js:3:1: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-dbl-let/input.js:1:32: 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-class/input.js:2:7: 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-const/input.js:2:1: 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-func/input.js:2:10: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-let/input.js:2:1: 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-var/input.js:2:1: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-const-const/input.js:1:1: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-gen/input.js:1:29: 'f' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-module-sloppy/input.js:1:30: 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-module/input.js:2:10: 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-var-sloppy/input.js:3:3: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-gen-func/input.js:1:29: 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-let-let/input.js:1:1: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-nested-let-var/input.js:3:5: Identifier 'a' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-if/input.js:3:1: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-await/input.js:1:1: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-yield/input.js:1:1: 'yield' expression is only allowed in a generator body

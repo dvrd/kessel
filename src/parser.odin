@@ -1724,6 +1724,18 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		}
 	}
 
+	// §14.2.1 / §14.3.1.1 — program-level scope check. The body's
+	// inner scopes (block / function / class element bodies) are
+	// scope-checked inline at parse-exit; here we only need to fire
+	// the program-body lex/var clash check. Promoted from the semantic
+	// checker (pre-slice-16 lived there) so parser-only snaps catch
+	// duplicate-binding / lex-var clashes natively.
+	if !p.ast_only && has_scope_relevant_stmt(program.body[:]) {
+		lex := scope_map_make(16)
+		vars := scope_map_make(16)
+		scope_check_body(p, program.body[:], false, &lex, &vars)
+	}
+
 	return program
 }
 
@@ -2099,16 +2111,20 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	block.loc.span.end = prev_end_offset(p)
-	// Queue this block for post-parse scope verification. is_block_scope=true
-	// is the genuine BlockStatement default (§14.2.1: an inner Block is its
-	// own lexical scope, sloppy plain FunctionDecls follow Annex B.3.2). Two
-	// callers re-stamp the just-pushed entry to is_block_scope=false:
+	// §14.2.1 — inline lex/var clash check on this block's body.
+	// is_block_scope=true: BlockStatement is its own lexical scope and
+	// sloppy plain FunctionDeclarations follow Annex B.3.2. Two callers
+	// re-run scope_check_body with is_block_scope=false on the same
+	// body when the block is reinterpreted as a function-scope shell:
 	// parse_arrow_function (arrow block body is a function scope) and
-	// parse_class_element's StaticBlock arm (a static block body is its own
-	// function scope per §15.7.5). See those sites for the override.
-	// Slice 14: the parser-side scope_pending push was removed. The
-	// semantic checker walks ck_walk_stmt's BlockStatement case and
-	// invokes scope_check_body for each block body in source order.
+	// parse_class_element's StaticBlock arm (§15.7.5). Both call sites
+	// suppress this fire by setting p.scope_skip first; see those
+	// sites for the rationale.
+	if !p.ast_only && has_scope_relevant_stmt(block.body[:]) {
+		lex := scope_map_make(8)
+		vars := scope_map_make(8)
+		scope_check_body(p, block.body[:], true, &lex, &vars)
+	}
 	return block_stmt
 }
 
@@ -3367,12 +3383,18 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 			relevant = true
 		}
 	}
-	// Slice 14: the parser-side scope_pending push was removed. The
-	// semantic checker walks ck_walk_stmt's SwitchStatement case and
-	// invokes scope_check_body on the flattened consequents in source
-	// order.
-	_ = total
-	_ = relevant
+	// §14.12.2 — inline lex/var clash check across all SwitchCase
+	// consequents. They share a single block-scope (the switch's
+	// CaseBlock). Flatten the per-case lists once and run the check.
+	if !p.ast_only && relevant {
+		flat := make([dynamic]^Statement, 0, total, context.temp_allocator)
+		for c in switch_.cases {
+			for s in c.consequent { append(&flat, s) }
+		}
+		lex := scope_map_make(8)
+		vars := scope_map_make(8)
+		scope_check_body(p, flat[:], true, &lex, &vars)
+	}
 	return statement_from(p, switch_)
 }
 
@@ -4404,17 +4426,18 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	}
 
 	body.loc.span.end = prev_end_offset(p)
-	// Queue this function body for post-parse scope verification.
-	// is_block_scope=false: a FunctionBody is its own function-scope, so a
-	// sloppy plain FunctionDeclaration inside it hoists as .Var (§14.1.3),
-	// matching the semantics of the previous scope_recurse path. Skip the
-	// queue when the body has nothing scope-relevant to check (typical
-	// callback bodies like `() => { return jsx }`) or when scope_skip is
-	// set by an enclosing uncovered expression context. Also skip in
-	// --ast-only bench mode (verify_scopes is a no-op there).
-	// Slice 14: the parser-side scope_pending push was removed. The
-	// semantic checker walks ck_walk_function and invokes
-	// scope_check_body on each function body in source order.
+	// §14.2.1 — inline lex/var clash check on this function body.
+	// is_block_scope=false: a FunctionBody is its own function-scope,
+	// so a sloppy plain FunctionDeclaration inside it hoists as .Var
+	// (§14.1.3), matching the semantics of the previous scope_recurse
+	// path. Skip when the body has nothing scope-relevant (typical
+	// callback bodies like `() => { return jsx }`) or in --ast-only
+	// bench mode.
+	if !p.ast_only && has_scope_relevant_stmt(body.body[:]) {
+		lex := scope_map_make(8)
+		vars := scope_map_make(8)
+		scope_check_body(p, body.body[:], false, &lex, &vars)
+	}
 	return body
 }
 
@@ -7913,29 +7936,36 @@ scope_map_set_first :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 	if len(m.items) > SCOPE_MAP_LINEAR_MAX { scope_map_promote(m) }
 }
 
-// scope_emit — forwards a scope-clash diagnostic to the active
-// semantic checker. The caller passes the checker pointer explicitly
-// (no parser-side bridge field) so the parser stays free of any
-// reference to the checker. Nil c is a silent no-op (matches the
-// ast-only / no-checker invocation paths).
-scope_emit :: #force_inline proc(c: ^Checker, at: u32, message: string) {
-	checker_append_error(c, LexerLoc(at), message)
+// scope_emit — emits a scope-clash diagnostic into the active parser's
+// error list. Nil p is a silent no-op so callers can run
+// scope_check_body in --ast-only mode (no parser, no errors).
+//
+// Pre-slice-15 this routed through `checker_append_error` (the scope
+// pass lived in the checker). Promotion (slice 16) moves the
+// scope-emit destination back onto the parser so parser-only snaps
+// pick up duplicate-binding diagnostics natively. Callers from the
+// checker still pass the parser pointer (via c.pending_parser) so the
+// errors flow into the same job.parser.errors stream the checker's
+// other diagnostics merge into.
+scope_emit :: #force_inline proc(p: ^Parser, at: u32, message: string) {
+	if p == nil { return }
+	bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = message})
 }
 
-scope_add :: proc(c: ^Checker, lex, vars: ^ScopeMap, name: string, at: u32, kind: ScopeBindingKind) {
+scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind: ScopeBindingKind) {
 	switch kind {
 	case .Lexical:
 		if _, have := scope_map_get(lex, name); have {
-			scope_emit(c, at, fmt.tprintf("'%s' has already been declared", name))
+			scope_emit(p, at, fmt.tprintf("'%s' has already been declared", name))
 			return
 		}
 		if _, have := scope_map_get(vars, name); have {
-			scope_emit(c, at, fmt.tprintf("Identifier '%s' has already been declared", name))
+			scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", name))
 		}
 		scope_map_set(lex, name, at)
 	case .Var:
 		if _, have := scope_map_get(lex, name); have {
-			scope_emit(c, at, fmt.tprintf("Identifier '%s' has already been declared", name))
+			scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", name))
 			return
 		}
 		// Repeats of the same var are legal (§13.3.2 - VarDeclaredNames
@@ -7952,14 +7982,14 @@ scope_add :: proc(c: ^Checker, lex, vars: ^ScopeMap, name: string, at: u32, kind
 			// while a .Lexical isn't. If the name is in `lex` but NOT
 			// in `vars`, it came from let/const/class - clash.
 			if _, vh := scope_map_get(vars, name); !vh {
-				scope_emit(c, at, fmt.tprintf("'%s' has already been declared", name))
+				scope_emit(p, at, fmt.tprintf("'%s' has already been declared", name))
 			}
 			return
 		}
 		if _, have := scope_map_get(vars, name); have {
 			// var-from-real-var before us. `{ var f; function f(){} }`
 			// in sloppy rejects per Acorn / V8.
-			scope_emit(c, at, fmt.tprintf("Identifier '%s' has already been declared", name))
+			scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", name))
 			return
 		}
 		scope_map_set(lex, name, at)
@@ -8055,7 +8085,7 @@ scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^ScopeMap) {
 // Process one Statement and add its contributing lexical/var BoundNames
 // to the scope maps. Nested scopes are NOT recursed here - the caller's
 // walker handles that separately.
-scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, vars: ^ScopeMap, is_block_scope: bool = false) {
+scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeMap, is_block_scope: bool = false) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
 	case ^VariableDeclaration:
@@ -8064,7 +8094,7 @@ scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, 
 		if v.kind != .Var { kind = .Lexical }
 		names := make([dynamic]string, 0, 4, context.temp_allocator)
 		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
-		for n in names { scope_add(c, lex, vars, n, v.loc.span.start, kind) }
+		for n in names { scope_add(p, lex, vars, n, v.loc.span.start, kind) }
 	case ^BlockStatement:
 		// §14.2.1 - Hoist `var` VarDeclaredNames from nested blocks into this
 		// scope so lex/var clashes like `{ { var f; } let f; }` are detected.
@@ -8073,16 +8103,17 @@ scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, 
 		// then call scope_add for each so clash detection runs.
 		hoisted := scope_map_make(4)
 		for inner in v.body { scope_hoist_vars(p, inner, &hoisted) }
-		for it in hoisted.items { scope_add(c, lex, vars, it.name, it.at, .Var) }
+		for it in hoisted.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
 	case ^FunctionDeclaration:
 		if v == nil { return }
-		// TS overload signature (no `{ ... }` body): emits NO binding for
-		// scope-clash purposes. Multiple overloads + one impl all share a
-		// single name without colliding. Same relaxation applies to
-		// `declare function` regardless of body shape.
-		if allow_ts_mode(p) && (v.no_body || v.declare) {
-			return
-		}
+		// TS: function declarations can legitimately merge with same-
+		// named classes / namespaces / interfaces / type aliases / enums
+		// in the same module ("expando function", "function + namespace",
+		// overload signatures with declare-class, etc.). The type
+		// checker disambiguates which side a reference targets, so
+		// parser-side dup detection produces too many false positives
+		// in TS. Skip in TS mode entirely.
+		if allow_ts_mode(p) { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
 			// Annex B.3.2 / §14.1.3:
 			//   - strict mode: FunctionDeclaration BoundName is always
@@ -8103,24 +8134,36 @@ scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, 
 					kind = .Var
 				}
 			}
-			scope_add(c, lex, vars, id.name, id.loc.span.start, kind)
+			scope_add(p, lex, vars, id.name, id.loc.span.start, kind)
 		}
 	case ^ClassDeclaration:
 		if v == nil { return }
+		// TS: class declarations also participate in declaration
+		// merging — same reasoning as FunctionDeclaration above.
+		if allow_ts_mode(p) { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			scope_add(c, lex, vars, id.name, id.loc.span.start, .Lexical)
+			scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
 		}
 	case ^ImportDeclaration:
 		if v == nil { return }
+		// TS: imports can legitimately merge with same-named
+		// FunctionDeclaration / ClassDeclaration / TSInterfaceDeclaration /
+		// TSTypeAliasDeclaration etc. in the same module — the
+		// type-checker resolves which side the reference targets. Skip
+		// the scope-add in TS mode so the parser-side check doesn't
+		// fire false positives on "expando function" patterns like
+		// `import Foo from "x"; export function Foo() {}`. JS-mode
+		// imports never have this carve-out.
+		if allow_ts_mode(p) { return }
 		for spec in v.specifiers {
 			if spec == nil { continue }
 			switch ss in spec^ {
 			case ImportSpecifier:
-				scope_add(c, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
 			case ImportDefaultSpecifier:
-				scope_add(c, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
 			case ImportNamespaceSpecifier:
-				scope_add(c, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
 			}
 		}
 	case ^ExportNamedDeclaration:
@@ -8133,22 +8176,18 @@ scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, 
 				if inner.kind != .Var { kind = .Lexical }
 				names := make([dynamic]string, 0, 4, context.temp_allocator)
 				for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
-				for n in names { scope_add(c, lex, vars, n, inner.loc.span.start, kind) }
+				for n in names { scope_add(p, lex, vars, n, inner.loc.span.start, kind) }
 			case ^FunctionDeclaration:
 				if inner == nil { break }
-				// TS overload signature / `declare function` - see
-				// scope_process_statement's plain-FunctionDeclaration arm
-				// for the rationale.
-				if allow_ts_mode(p) && (inner.no_body || inner.declare) {
-					break
-				}
+				if allow_ts_mode(p) { break }
 				if id, ok := inner.id.(BindingIdentifier); ok {
-					scope_add(c, lex, vars, id.name, id.loc.span.start, .Lexical)
+					scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
 				}
 			case ^ClassDeclaration:
 				if inner == nil { break }
+				if allow_ts_mode(p) { break }
 				if id, ok := inner.id.(BindingIdentifier); ok {
-					scope_add(c, lex, vars, id.name, id.loc.span.start, .Lexical)
+					scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
 				}
 			case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
 			     ^TSEnumDeclaration, ^TSModuleDeclaration,
@@ -8162,7 +8201,12 @@ scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, 
 	case ^ExportDefaultDeclaration:
 		// `export default function F() {}` / `export default class F {}`
 		// - the name `F` is bound in the module scope as a lexical.
+		// In TS, multiple `export default function foo` overload
+		// signatures plus an implementation can coexist (and even merge
+		// with an `interface Foo {}`), so skip the scope-add in TS
+		// mode — same rationale as the FunctionDeclaration arm above.
 		if v == nil { return }
+		if allow_ts_mode(p) { return }
 		if d := v.declaration; d != nil {
 			#partial switch inner in d^ {
 			case ^Declaration:
@@ -8171,13 +8215,13 @@ scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, 
 					case ^FunctionDeclaration:
 						if decl != nil {
 							if id, ok := decl.id.(BindingIdentifier); ok {
-								scope_add(c, lex, vars, id.name, id.loc.span.start, .Lexical)
+								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
 							}
 						}
 					case ^ClassDeclaration:
 						if decl != nil {
 							if id, ok := decl.id.(BindingIdentifier); ok {
-								scope_add(c, lex, vars, id.name, id.loc.span.start, .Lexical)
+								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
 							}
 						}
 					}
@@ -8189,13 +8233,13 @@ scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, 
 					case ^FunctionExpression:
 						if fn != nil {
 							if id, ok := fn.id.(BindingIdentifier); ok {
-								scope_add(c, lex, vars, id.name, id.loc.span.start, .Lexical)
+								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
 							}
 						}
 					case ^ClassExpression:
 						if fn != nil {
 							if id, ok := fn.id.(BindingIdentifier); ok {
-								scope_add(c, lex, vars, id.name, id.loc.span.start, .Lexical)
+								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
 							}
 						}
 					}
@@ -8222,11 +8266,21 @@ scope_process_statement :: proc(p: ^Parser, c: ^Checker, stmt: ^Statement, lex, 
 // (resize to 0, cap retained) and a possibly-allocated spill map per body
 // is far cheaper than allocating fresh maps for every entry - on real
 // bundles like antd.js that's 3,994 × 2 saved allocations.
-scope_check_body :: #force_inline proc(p: ^Parser, c: ^Checker, body: []^Statement, is_block_scope: bool, lex, vars: ^ScopeMap) {
+scope_check_body :: #force_inline proc(p: ^Parser, body: []^Statement, is_block_scope: bool, lex, vars: ^ScopeMap) {
 	for stmt in body {
-		scope_process_statement(p, c, stmt, lex, vars, is_block_scope)
+		scope_process_statement(p, stmt, lex, vars, is_block_scope)
 	}
 }
+
+// (Removed AST walker in favour of inline scope_check_body calls at
+// each scope-bearing parse-exit — see parse_block_statement,
+// parse_function_body, parse_switch_statement, and parse_program.
+// The inline approach matches the pre-slice-14 parser-side
+// implementation: each scope's check happens right after the body is
+// built, naturally covering nested scopes regardless of where they
+// appear in the AST — inside expressions, class fields, arrow
+// bodies, or anywhere parse_block_statement / parse_function_body
+// are reached.)
 
 // Reset a ScopeMap so the caller's `lex` / `vars` pool can be reused for the
 // next body. Keeps the items backing buffer (capacity) and the spill map's

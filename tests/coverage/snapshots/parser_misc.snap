@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 192/274 (70.07%)
+Negative Passed: 197/274 (71.90%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -35,10 +35,6 @@ Expect Syntax Error: tests/coverage/misc/fail/negative/047_await_in_non_async_ar
 Expect Syntax Error: tests/coverage/misc/fail/negative/048_yield_in_arrow_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/049_yield_in_async_arrow_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/054_export_undefined_local.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/061_semantic_duplicate_lexical.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/062_semantic_let_var_clash.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/063_semantic_import_shadow.js
-Expect Syntax Error: tests/coverage/misc/fail/oxc-10159.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-11453.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-11485.ts
@@ -70,7 +66,6 @@ Expect Syntax Error: tests/coverage/misc/fail/oxc-13284-2.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13323.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-14944.ts
-Expect Syntax Error: tests/coverage/misc/fail/oxc-18231.mjs
 Expect Syntax Error: tests/coverage/misc/fail/oxc-1942-1.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-1942-2.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
@@ -190,6 +185,9 @@ tests/coverage/misc/fail/negative/057_regex_invalid_flag.js:3:16: Invalid regula
 tests/coverage/misc/fail/negative/058_regex_uv_mutually_exclusive.js:5:16: Regular expression flags 'u' and 'v' are mutually exclusive
 tests/coverage/misc/fail/negative/059_regex_unmatched_paren.js:4:15: Unmatched ')' in regular expression
 tests/coverage/misc/fail/negative/060_regex_unterminated_group.js:3:12: Unterminated group in regular expression
+tests/coverage/misc/fail/negative/061_semantic_duplicate_lexical.js:8:1: 'x' has already been declared
+tests/coverage/misc/fail/negative/062_semantic_let_var_clash.js:9:1: Identifier 'x' has already been declared
+tests/coverage/misc/fail/negative/063_semantic_import_shadow.js:8:1: 'x' has already been declared
 tests/coverage/misc/fail/negative/064_unparenthesized_arrow_operand.js:1:10: Arrow function cannot be used as an unparenthesized operand
 tests/coverage/misc/fail/negative/066_arrow_rest_not_last.js:2:1: Rest parameter must be last in arrow function parameters
 tests/coverage/misc/fail/negative/067_object_rest_trailing_comma.js:1:14: Rest property may not have a trailing comma
@@ -225,6 +223,7 @@ tests/coverage/misc/fail/negative/truncation/007_member_chain_eof.js:3:1: Expect
 tests/coverage/misc/fail/negative/truncation/008_optional_chain_eof.js:3:1: Unexpected token after ?.
 tests/coverage/misc/fail/negative/truncation/009_template_substitution_eof.js:2:28: Expected template literal continuation
 tests/coverage/misc/fail/negative/truncation/010_jsx_tag_eof.js:3:1: Expected >, got EOF
+tests/coverage/misc/fail/oxc-10159.js:1:38: Identifier 'b' has already been declared
 tests/coverage/misc/fail/oxc-10638.js:2:1: Unexpected reserved word 'in'
 tests/coverage/misc/fail/oxc-10639.js:1:1: Unexpected token '<<'
 tests/coverage/misc/fail/oxc-10977.ts:1:9: Expected type after ':'
@@ -259,6 +258,7 @@ tests/coverage/misc/fail/oxc-14013.ts:2:20: Abstract property cannot have an ini
 tests/coverage/misc/fail/oxc-14014.ts:3:1: Class field cannot be named 'constructor'
 tests/coverage/misc/fail/oxc-16077.ts:1:33: A parameter property may not be declared using a binding pattern
 tests/coverage/misc/fail/oxc-169.js:2:1: Expected expression after operator
+tests/coverage/misc/fail/oxc-18231.mjs:2:10: 'f' has already been declared
 tests/coverage/misc/fail/oxc-2253.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-232.js:2:1: Empty parenthesized expression
 tests/coverage/misc/fail/oxc-2394.ts:20:22: Expected 'with' in import type options

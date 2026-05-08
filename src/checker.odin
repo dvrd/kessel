@@ -200,34 +200,19 @@ init_checker :: proc(alloc: mem.Allocator) -> Checker {
 	}
 }
 
-// ck_run_scope_check — invoke the parser-side scope_check_body helper
-// against `body`, using the checker's reusable lex/var maps. The
-// helper performs the §14.2.1 / §14.3.1.1 lex/var clash detection and
-// emits diagnostics into the checker's error list (via scope_emit →
-// checker_append_error). No-ops when:
+// ck_run_scope_check — no-op stub. §14.2.1 / §14.3.1.1 lex/var clash
+// detection runs at parser end-of-program (run_scope_checks in
+// parser.odin) so parser-only snaps catch them. This proc stays as a
+// thin shim because the existing ck_walk_stmt call sites still pass
+// through it; removing the call sites is a follow-up cleanup.
 //
-//   * the bound parser is nil (no_op invocation path),
-//   * the parser was launched in --ast-only mode (the OXC-parity
-//     bench harness path),
-//   * `ctx.scope_skip` is set (we're inside an uncovered expression
-//     context that the parser-side walker also skipped),
-//   * `body` has no scope-relevant statements (cheap fast-path
-//     sharing the parser's `has_scope_relevant_stmt` predicate).
-//
-// The is_block_scope flag controls Annex B.3.2 sloppy-mode
-// FunctionDeclaration semantics: true for genuine block scopes
-// (catch / finally / for-body / nested blocks / switch-case-list),
-// false for function bodies / arrow block bodies / static blocks
-// (function-scope; sloppy plain FunctionDecl hoists as .Var).
+// Pre-slice-16 the parser-side scope_check_body was invoked from here
+// against the checker's reusable lex/var maps. With the parser now
+// running its own walk in run_scope_checks, calling scope_check_body
+// again would double-fire every duplicate-binding diagnostic.
 @(private="file")
 ck_run_scope_check :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement, is_block_scope: bool) {
-	if c.pending_parser == nil { return }
-	if c.pending_parser.ast_only { return }
-	if ctx.scope_skip { return }
-	if !has_scope_relevant_stmt(body) { return }
-	scope_map_clear(&c.scope_lex)
-	scope_map_clear(&c.scope_vars)
-	scope_check_body(c.pending_parser, c, body, is_block_scope, &c.scope_lex, &c.scope_vars)
+	_ = c; _ = ctx; _ = body; _ = is_block_scope
 }
 
 // check_program is the entry point for the semantic checker.
