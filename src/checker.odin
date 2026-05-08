@@ -547,6 +547,16 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			ck_report(c, u32(v.label.loc.span.start),
 				"'await' is reserved as a label name in module code")
 		}
+		// §15.7.1 — ClassStaticBlock forbids `await` as a LabelIdentifier
+		// regardless of source type. Per test262 static-init-invalid-await.js:
+		//   class C { static { await: 0; } }   // SyntaxError
+		// The static-block body is parsed under [+Await] for the purpose of
+		// reserving `await` even in script files. The module-only branch
+		// above doesn't catch this for script-mode fixtures.
+		if v.label.name == "await" && ctx.in_class_static_block && ctx.source_type != .Module {
+			ck_report(c, u32(v.label.loc.span.start),
+				"'await' is reserved as a label name in a class static block")
+		}
 		// Escaped reserved word as label — e.g. `aw\u0061it: 1;` in module
 		// (test262 labeled/value-await-module-escaped.js). The reservation
 		// is context-conditional: `await` is only reserved in modules /
@@ -1009,6 +1019,21 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^NewExpression:
 		if e == nil { return }
+		// §13.3.5 — NewExpression : new MemberExpression. MemberExpression
+		// does not produce AwaitExpression, so `new await <expr>` at module
+		// top-level (where `await` is reserved as the head of an
+		// AwaitExpression rather than an Identifier) is a SyntaxError. The
+		// parser doesn't currently track [+Await] for module top-level,
+		// so the AST shape we receive is
+		// `NewExpression{ callee: Identifier("await"), arguments: [] }`
+		// when the source was `new await;`. Detect that exact shape here.
+		// Test262 module-code/top-level-await/new-await.js.
+		if ctx.source_type == .Module && e.callee != nil {
+			if id, ok := e.callee^.(^Identifier); ok && id != nil && id.name == "await" {
+				ck_report(c, u32(id.loc.span.start),
+					"'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'")
+			}
+		}
 		ck_walk_expr(c, ctx, e.callee)
 		for a in e.arguments { ck_walk_expr(c, ctx, a) }
 
@@ -1568,9 +1593,21 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 
 		// Computed keys are evaluated in the OUTER class-body scope:
 		// they don't see the about-to-be-pushed in_method / in_field_init,
-		// but they do see strict_mode = true (already set above).
+		// but they DO see the enclosing class-static-block / field-init
+		// flags. The reset at the top of ck_walk_class clears those for
+		// the body's element values; restore them just for computed-key
+		// walks so checks like ContainsArguments / `await`-reservation
+		// fire correctly when an inner class's computed key references
+		// `arguments` or `await` from inside an outer static block.
+		// (test262 static-init-invalid-arguments.js / -await.js.)
 		if elem.computed && elem.key != nil {
+			saved_static_b := ctx.in_class_static_block
+			saved_field_i  := ctx.in_field_init
+			ctx.in_class_static_block = prev_in_static_b
+			ctx.in_field_init         = prev_in_field
 			ck_walk_expr(c, ctx, elem.key)
+			ctx.in_class_static_block = saved_static_b
+			ctx.in_field_init         = saved_field_i
 		}
 
 		ck_walk_class_element_value(c, ctx, elem, has_extends)

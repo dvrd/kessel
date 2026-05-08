@@ -1,10 +1,7 @@
 semantic_test262 Summary:
 AST Parsed     : 47088/47090 (100.00%)
 Positive Passed: 47088/47090 (100.00%)
-Negative Passed: 4585/4588 (99.93%)
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/top-level-await/new-await.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/static-init-invalid-await.js
+Negative Passed: 4588/4588 (100.00%)
 Expect to Parse: tasks/coverage/test262/test/language/expressions/assignment/destructuring/obj-prop-__proto__dup.js
 test262/test/language/expressions/assignment/destructuring/obj-prop-__proto__dup.js:19:26: Redefinition of __proto__ property
 
@@ -3049,6 +3046,7 @@ test262/test/language/module-code/privatename-not-valid-earlyerr-module-6.js:21:
 test262/test/language/module-code/privatename-not-valid-earlyerr-module-7.js:21:5: Private field '#x' must be declared in an enclosing class
 test262/test/language/module-code/privatename-not-valid-earlyerr-module-8.js:20:8: Private field '#x' must be declared in an enclosing class
 test262/test/language/module-code/top-level-await/early-errors-await-not-simple-assignment-target.js:17:14: Invalid left-hand side in assignment
+test262/test/language/module-code/top-level-await/new-await.js:17:5: 'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'
 test262/test/language/module-code/top-level-await/no-operand.js:17:6: 'await' expression requires an operand
 test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-body.js:38:17: await outside of async function
 test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-params.js:38:17: await outside of async function
@@ -3830,6 +3828,7 @@ test262/test/language/statements/class/private-static-getter-non-static-setter-e
 test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js:17:3: Private getter and setter for '#f' must both be static or both be non-static
 test262/test/language/statements/class/static-gen-method-param-dflt-yield.js:26:17: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/statements/class/static-init-await-binding-invalid.js:24:11: 'await' cannot be used as a class name in module / async / static-block context
+test262/test/language/statements/class/static-init-invalid-arguments.js:21:15: 'arguments' is not allowed in a class static block
 test262/test/language/statements/class/static-init-invalid-await.js:30:7: 'await' is not allowed in a class static block
 test262/test/language/statements/class/static-init-invalid-label-dup.js:21:8: Label 'x' has already been declared
 test262/test/language/statements/class/static-init-invalid-lex-dup.js:22:5: 'x' has already been declared
@@ -4339,6 +4338,7 @@ test262/test/language/statements/labeled/decl-fun-strict.js:17:8: Function decla
 test262/test/language/statements/labeled/decl-gen.js:16:1: Async / generator function declaration cannot be a labeled item
 test262/test/language/statements/labeled/decl-let.js:15:1: Lexical declaration cannot be a labeled item
 test262/test/language/statements/labeled/let-array-with-newline.js:24:1: Lexical declaration cannot be a labeled item
+test262/test/language/statements/labeled/static-init-invalid-await.js:23:5: 'await' is reserved as a label name in a class static block
 test262/test/language/statements/labeled/value-await-module-escaped.js:21:1: 'await' is reserved as a label name in module code
 test262/test/language/statements/labeled/value-await-module.js:20:6: 'await' expression requires an operand
 test262/test/language/statements/labeled/value-yield-strict-escaped.js:22:1: Keyword 'yield' must not contain escaped characters
