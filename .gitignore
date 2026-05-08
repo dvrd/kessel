@@ -5,7 +5,7 @@ src.bin
 src.bin.dSYM/
 _archive/
 bench/
-vendor/
+tests/vendor/
 
 *.dSYM/
 

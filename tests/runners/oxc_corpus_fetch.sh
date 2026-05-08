@@ -11,7 +11,7 @@
 # This guarantees byte-identical input to what OXC tests itself against —
 # our pass/fail numbers are directly comparable to OXC's published coverage.
 #
-# We do NOT vendor test262 here; that's already in vendor/test262/ and gated
+# We do NOT vendor test262 here; that's already in tests/vendor/test262/ and gated
 # via verify_test262_full.js.
 #
 # Why sparse-checkout the big two: a full clone of microsoft/TypeScript is
@@ -34,7 +34,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENDOR_DIR="${SCRIPT_DIR}/../../vendor"
+VENDOR_DIR="${SCRIPT_DIR}/../vendor"
 mkdir -p "$VENDOR_DIR"
 
 # SHAs lifted from oxc-project/oxc@main:.github/scripts/clone-parallel.mjs.

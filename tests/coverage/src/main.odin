@@ -72,7 +72,7 @@ main :: proc() {
 // lists / classifiers on top.
 cmd_discover :: proc() {
 	root := find_kessel_root()
-	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	vendor, _ := filepath.join({root, "tests", "vendor"}, context.allocator)
 	defer delete(vendor)
 
 	fmt.printfln("[coverage] vendor root: %s", vendor)
@@ -97,7 +97,7 @@ cmd_discover :: proc() {
 // without invoking the parser.
 cmd_babel_smoke :: proc() {
 	root := find_kessel_root()
-	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	vendor, _ := filepath.join({root, "tests", "vendor"}, context.allocator)
 	defer delete(vendor)
 
 	t0 := time.now()
@@ -127,7 +127,7 @@ cmd_babel_smoke :: proc() {
 // summary counts. No parser invocation yet.
 cmd_typescript_smoke :: proc() {
 	root := find_kessel_root()
-	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	vendor, _ := filepath.join({root, "tests", "vendor"}, context.allocator)
 	defer delete(vendor)
 
 	t0 := time.now()
@@ -160,7 +160,7 @@ cmd_typescript_smoke :: proc() {
 // invocation yet.
 cmd_test262_smoke :: proc() {
 	root := find_kessel_root()
-	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	vendor, _ := filepath.join({root, "tests", "vendor"}, context.allocator)
 	defer delete(vendor)
 
 	t0 := time.now()
@@ -195,7 +195,7 @@ cmd_test262_smoke :: proc() {
 //     (mirrors OXC's behavior — first run lands the baseline).
 cmd_run :: proc(suite_arg: string, tool: Tool, update: bool) -> int {
 	root := find_kessel_root()
-	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	vendor, _ := filepath.join({root, "tests", "vendor"}, context.allocator)
 	defer delete(vendor)
 
 	drifted := 0
@@ -292,7 +292,7 @@ cmd_misc_smoke :: proc() {
 
 cmd_estree_smoke :: proc() {
 	root := find_kessel_root()
-	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	vendor, _ := filepath.join({root, "tests", "vendor"}, context.allocator)
 	defer delete(vendor)
 	t0 := time.now()
 	fixtures := load_estree(vendor, context.allocator)
