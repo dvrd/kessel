@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 184/274 (67.15%)
+Negative Passed: 189/274 (68.98%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -17,7 +17,6 @@ Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/012_octal
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/015_delete_identifier.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/016_function_name_eval.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/017_labeled_function_declaration.js
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js
 Expect Syntax Error: tests/coverage/misc/fail/escape-00.js
 Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
 Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
@@ -38,10 +37,6 @@ Expect Syntax Error: tests/coverage/misc/fail/negative/046_await_in_async_method
 Expect Syntax Error: tests/coverage/misc/fail/negative/047_await_in_non_async_arrow_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/048_yield_in_arrow_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/049_yield_in_async_arrow_params.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/050_for_let_init_in.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/051_for_var_init_of.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/052_for_var_multiple_declarators_in.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/053_for_var_destructuring_init_in.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/054_export_undefined_local.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/061_semantic_duplicate_lexical.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/062_semantic_let_var_clash.js
@@ -123,6 +118,7 @@ tests/coverage/misc/fail/early_errors/strict_mode/011_with_statement.js:4:1: 'wi
 tests/coverage/misc/fail/early_errors/strict_mode/013_octal_escape_template.js:8:20: Invalid escape sequence in template literal
 tests/coverage/misc/fail/early_errors/strict_mode/014_update_eval_arguments.js:5:1: Update of 'eval' is not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js:10:5: Keyword 'let' must not contain escaped characters
+tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js:7:6: for-in loop variable declaration may not have an initializer
 tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected >, got !
 tests/coverage/misc/fail/imbalanced-array-expr.js:2:1: Expected ], got const
 tests/coverage/misc/fail/imbalanced-call-expr.js:2:1: Expected ), got const
@@ -184,6 +180,10 @@ tests/coverage/misc/fail/negative/039_for_of_assignment_lhs.js:7:15: Invalid lef
 tests/coverage/misc/fail/negative/040_duplicate_import_binding.js:11:1: Duplicate import binding 'a'
 tests/coverage/misc/fail/negative/042_yield_expr_outside_generator.js:8:1: 'yield' expression is only allowed in a generator body
 tests/coverage/misc/fail/negative/043_yield_expr_in_plain_function.js:7:10: 'yield' expression is only allowed in a generator body
+tests/coverage/misc/fail/negative/050_for_let_init_in.js:5:6: for-in loop variable declaration may not have an initializer
+tests/coverage/misc/fail/negative/051_for_var_init_of.js:5:6: for-of loop variable declaration may not have an initializer
+tests/coverage/misc/fail/negative/052_for_var_multiple_declarators_in.js:5:6: Only a single declaration is allowed in a for-in loop
+tests/coverage/misc/fail/negative/053_for_var_destructuring_init_in.js:5:6: for-in loop variable declaration may not have an initializer
 tests/coverage/misc/fail/negative/055_export_string_local_without_from.js:6:10: A string literal cannot be used as an exported binding without `from`
 tests/coverage/misc/fail/negative/056_regex_duplicate_flags.js:4:17: Duplicate regular expression flag
 tests/coverage/misc/fail/negative/057_regex_invalid_flag.js:3:16: Invalid regular expression flag

@@ -2870,16 +2870,53 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// ForDeclaration in the for-in/of head - no comma-list - so even
 		// init-free `for (var x, y in z)` is a SyntaxError.
 		if left_decl != nil {
-			// §13.7.5.1 — "only a single declarator" + "no initializer"
-			// rules are checked by the semantic checker
-			// (ck_check_for_in_of_head). Parser keeps the structural rule
-			// below: `using` / `await using` is permitted only in for-of
-			// heads (not for-in), which is a parse-time constraint.
+			// §13.7.5.1 — `using` / `await using` is permitted only in
+			// for-of heads (not for-in), which is a parse-time constraint.
 			if is_in && (left_decl.kind == .Using || left_decl.kind == .AwaitUsing) {
 				kn := "using"
 				if left_decl.kind == .AwaitUsing { kn = "await using" }
 				msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
 				report_error(p, msg)
+			}
+
+			// §13.7.5.1 — "only a single declarator" + "no initializer"
+			// rules. Promoted from the semantic checker
+			// (ck_check_for_in_of_head) so parser-only snaps reject the
+			// `for (let x = 1 of [])` / `for (var a, b of [])` / etc.
+			// clusters.
+			//
+			// Annex B.3.5 web-compat carve-out: a sloppy-mode
+			// `for (var SimpleIdentifier = Expr in Expr) Statement` is
+			// legal. Every other combination is a SyntaxError:
+			//   * for-of always rejects init.
+			//   * Strict mode for-in rejects init.
+			//   * `let` / `const` / `using` / `await using` always reject.
+			//   * Multiple declarators (`for (var a, b of x)`) always
+			//     reject regardless of init.
+			//   * Destructuring pattern + init always rejects.
+			kind_str := "of"
+			if is_in { kind_str = "in" }
+			if len(left_decl.declarations) > 1 {
+				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
+				report_error_at(p, LexerLoc(left_decl.loc.span.start), msg)
+			} else {
+				annex_b_ok := is_in && !p.strict_mode &&
+				              left_decl.kind == .Var &&
+				              len(left_decl.declarations) == 1
+				if annex_b_ok {
+					if _, is_id := left_decl.declarations[0].id.(^Identifier); !is_id {
+						annex_b_ok = false
+					}
+				}
+				if !annex_b_ok {
+					for d in left_decl.declarations {
+						if _, have_init := d.init.(^Expression); have_init {
+							msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_str)
+							report_error_at(p, LexerLoc(left_decl.loc.span.start), msg)
+							break // one diagnostic per head, matching the checker
+						}
+					}
+				}
 			}
 		}
 
