@@ -3796,14 +3796,21 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// UniqueFormalParameters unconditionally - pass strict_override=true
 	// for them regardless of outer strict mode.
 	strict_for_check := p.strict_mode || body_strict
-	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — strict-mode parameter
-	// duplicate-name + eval/arguments + reserved-word + function name
-	// strict checks are all enforced by the semantic checker. The
-	// parser stays permissive (it builds the FunctionExpression with
-	// the parameters and name unchanged).
-	_ = strict_for_check
-	_ = generator
-	_ = async
+	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — FormalParameters
+	// duplicate-name check. Async / generator function bodies have
+	// UniqueFormalParameters even in sloppy mode (§15.5.1 / §15.8.1
+	// say so explicitly); strict-mode bodies inherit it via
+	// StrictFormalParameters (§15.2.1). Sloppy-mode regular functions
+	// with a non-simple parameter list also fall under
+	// UniqueFormalParameters (§15.1.2).
+	//
+	// The eval/arguments + reserved-word + function-name strict checks
+	// remain on the semantic checker side for now — they require
+	// recursing into destructuring patterns and the parser-side surface
+	// would duplicate ck_check_strict_binding_pattern wholesale.
+	dup_strict := strict_for_check || async || generator
+	force_non_simple := !params_are_simple(params[:])
+	report_duplicate_param_names(p, params[:], start, dup_strict, force_non_simple)
 	_ = id
 
 	// §15.2.1.1 / §15.5.1 - It is a Syntax Error if any element of the
@@ -5358,11 +5365,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		p.strict_mode = prev_strict
 		p.in_derived_constructor = prev_in_derived_ctor
 
-		// Class methods always have UniqueFormalParameters; retro-check.
-		// Pass strict_override=true because class bodies are implicitly
-		// strict (§15.7.1) and the outer p.strict_mode has already been
-		// restored above, so the strict-arm check needs the override to
-		// actually fire on `class C { foo(a, a) {} }`.
+		// Class methods always have UniqueFormalParameters — the
+		// MethodDefinition production (§15.4) names the constraint, so
+		// duplicates fire regardless of outer strict mode (which has been
+		// restored to its pre-method value above). Retro-check with
+		// is_strict=true so the diagnostic phrasing matches the strict-mode
+		// arm (test262's class fixtures all expect "in strict mode").
+		// is_strict=true subsumes the non-simple force — the helper
+		// returns the same diagnostic phrasing for either trigger when
+		// strict, so skip the params_are_simple scan in this hot path.
+		report_duplicate_param_names(p, params[:], paren_loc, true, false)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
 		// !IsSimpleParameterList" for class methods: enforced by the
@@ -5829,12 +5841,95 @@ enforce_accessor_param_shape :: proc(
 	}
 }
 
-// NOTE — §15.2.1 StrictFormalParameters duplicate-name check
-// (`report_duplicate_param_names`) and §14.3.1.1 per-LexicalDeclaration
-// duplicate-name check (`report_duplicate_lexical_names`) were
-// migrated to the semantic checker (ck_check_duplicate_param_names /
-// ck_check_var_decl_lexical_dups) in slice 11; the parser-side stubs
-// were deleted in the slice-13e cleanup once every call site was
+// report_duplicate_param_names — §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1
+// FormalParameters duplicate-name check.
+//
+// Two trigger conditions, OR'd together:
+//   * is_strict        — strict mode (§15.2.1: StrictFormalParameters
+//                        require UniqueFormalParameters) OR generator /
+//                        async / class method (those productions name
+//                        the constraint regardless of outer mode).
+//   * force_non_simple — non-simple parameter list in sloppy mode
+//                        (§15.1.2: UniqueFormalParameters applies once
+//                        ANY param has a default, destructuring, or
+//                        rest — even in sloppy script).
+//
+// Mirrors the checker's `ck_check_duplicate_param_names`. Slice 11
+// migrated this to the semantic checker for layering hygiene; slice
+// promoted-it-back (this commit) restores the parser-side check so
+// `parser_test262.snap` / `parser_typescript.snap` reject the
+// dflt-params-duplicates / async-gen-method-duplicates clusters
+// without needing --show-semantic-errors.
+report_duplicate_param_names :: proc(
+	p:                ^Parser,
+	params:           []FunctionParameter,
+	fn_loc:           Loc,
+	is_strict:        bool,
+	force_non_simple: bool,
+) {
+	if len(params) < 2 { return }
+	if !is_strict && !force_non_simple { return }
+
+	// Fast path — all params are plain Identifier patterns with no
+	// default value, no rest, no destructuring. ~95 % of real-world
+	// functions hit this; pairwise compare directly off the pattern
+	// pointer without allocating a [dynamic]string. The slow path
+	// below handles destructuring / rest where we have to recurse to
+	// collect every bound name.
+	all_plain := true
+	for pr in params {
+		if _, ok := pr.pattern.(^Identifier); !ok { all_plain = false; break }
+		if _, has_def := pr.default_val.(^Expression); has_def { all_plain = false; break }
+	}
+	if all_plain {
+		n := len(params)
+		for i := 1; i < n; i += 1 {
+			name_i := params[i].pattern.(^Identifier).name
+			for j := 0; j < i; j += 1 {
+				name_j := params[j].pattern.(^Identifier).name
+				if name_i == name_j {
+					msg: string
+					if is_strict {
+						msg = fmt.tprintf("Duplicate parameter name '%s' in strict mode", name_i)
+					} else {
+						msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", name_i)
+					}
+					report_error_at(p, LexerLoc(fn_loc.span.start), msg)
+					return
+				}
+			}
+		}
+		return
+	}
+
+	// Slow path — destructuring / default / rest. Walk every pattern
+	// to collect bound names, then pairwise compare.
+	names: [dynamic]string
+	names.allocator = context.temp_allocator
+	reserve(&names, 4)
+	for pr in params { collect_bound_names(pr.pattern, &names) }
+	n := len(names)
+	if n < 2 { return }
+	for i := 1; i < n; i += 1 {
+		for j := 0; j < i; j += 1 {
+			if names[i] == names[j] {
+				msg: string
+				if is_strict {
+					msg = fmt.tprintf("Duplicate parameter name '%s' in strict mode", names[i])
+				} else {
+					msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i])
+				}
+				report_error_at(p, LexerLoc(fn_loc.span.start), msg)
+				return // one diagnostic per call site, matching the checker
+			}
+		}
+	}
+}
+
+// NOTE — §14.3.1.1 per-LexicalDeclaration duplicate-name check
+// (`report_duplicate_lexical_names`) was migrated to the semantic
+// checker (ck_check_var_decl_lexical_dups) in slice 11; the parser-side
+// stub was deleted in the slice-13e cleanup once every call site was
 // purged.
 
 parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := false, is_declare := false) -> ^VariableDeclarator {
@@ -11828,9 +11923,12 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 
 		// Getters / setters always have UniqueFormalParameters
 		// (ECMA-262 §15.4.3 / §15.4.4). A setter with two params named
-		// the same is a SyntaxError regardless of strict mode. strict_override
-		// = true forces the duplicate-name check independent of
-		// p.strict_mode (which has been restored above).
+		// the same is a SyntaxError regardless of outer strict mode.
+		// `enforce_accessor_param_shape` (called above) already rejects
+		// arity ≠ 1 for setters, but a one-shot fixture like
+		// `({set x([a, a]) {}})` still parses one-param fine and needs
+		// this duplicate check.
+		report_duplicate_param_names(p, params[:], fn_start, true, false)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
 		// !IsSimpleParameterList" for object-literal accessors: enforced
@@ -11839,8 +11937,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Strict-mode param names (eval / arguments / let / yield / static
 		// / FutureReservedWords). When the body opted in via "use strict",
 		// param names must satisfy strict-mode reservation rules.
-		if body_strict {
-		}
+		_ = body_strict
 
 		// §15.4.3 / §15.4.4 / §15.4.5 — PropertySetParameterList /
 		// PropertyGetParameter enforce exact arity AND parameter shape:
@@ -11939,17 +12036,18 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		p.in_derived_constructor = prev_in_derived_ctor
 
 		// Object-literal methods run under UniqueFormalParameters rules
-		// (ECMA-262 §15.4.1 / §15.4.5) - duplicates are always a
-		// SyntaxError. strict_override = true forces the check even when
-		// the surrounding context is sloppy.
+		// (ECMA-262 §15.4.1 / §15.4.5) — duplicates are always a
+		// SyntaxError. is_strict=true forces the strict-mode arm even when
+		// the surrounding context is sloppy (e.g. `({m(a, a){}})` at the
+		// top level of a script).
+		report_duplicate_param_names(p, params[:], fn_start, true, false)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
 		// !IsSimpleParameterList" for object-literal methods: enforced by
 		// the semantic checker (ck_check_strict_directive_with_nonsimple_params).
 
 		// Strict-mode param-name reservation. See accessor case above.
-		if body_strict {
-		}
+		_ = body_strict
 
 		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
 

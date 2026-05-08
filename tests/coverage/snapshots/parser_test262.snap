@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3100/4588 (67.57%)
+Negative Passed: 3149/4588 (68.64%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
@@ -195,15 +195,12 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-func
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-property.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/named-array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/named-dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/named-object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/named-rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/nameless-array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/nameless-dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/nameless-object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/nameless-rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-NSPL-with-USD.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-binding-identifier-arguments.js
@@ -218,7 +215,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-gene
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-super-property.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/named-array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/named-dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/named-object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/named-rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/named-yield-identifier-spread-strict.js
@@ -228,25 +224,21 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-gene
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/yield-as-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/yield-as-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-method-static/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-method-static/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-method-static/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-method-static/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-method/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-method/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-method/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-method/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-await-escaped-module.js
@@ -493,14 +485,12 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elem
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/typeof-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/yield-as-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/yield-as-binding-identifier.js
@@ -508,11 +498,9 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method-static/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method-static/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method-static/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method-static/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-gen-method-param-dflt-yield.js
@@ -545,7 +533,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/delete/ide
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/delete/identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/dynamic-import/import-attributes/2nd-param-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/early-body-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/early-body-super-prop.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/early-errors/invalid-names-call-expression-bad-reference.js
@@ -560,17 +547,10 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/n
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/name-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-dflt-yield-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-duplicated-strict-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-duplicated-strict-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-duplicated-strict-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-duplicated-strict-body-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-duplicated-strict-body-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-duplicated-strict-body-3.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-eval-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/use-strict-with-non-simple-param.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/named-yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/named-yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/object-destructuring-param-strict-body.js
@@ -602,24 +582,19 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/ide
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-public-invalid-strict-mode.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-static-invalid-strict-mode.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-gen-meth-array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-gen-meth-dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-gen-meth-object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-gen-meth-rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-meth-array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-meth-dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-meth-object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-meth-rest-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-NSPL-with-USD.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-body-contains-super-call.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/gen-meth-array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/gen-meth-dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/gen-meth-object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/gen-meth-rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/gen-yield-identifier-spread-strict.js
@@ -631,7 +606,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/met
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/generator-super-call-param.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/generator-use-strict-with-non-simple-param.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/meth-array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/meth-dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/meth-object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/meth-rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/name-param-redecl.js
@@ -832,14 +806,12 @@ Expect Syntax Error: tasks/coverage/test262/test/language/module-code/privatenam
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/top-level-await/new-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/reserved-words/await-module.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-NSPL-with-USD.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-binding-identifier-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-binding-identifier-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-property.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-duplicate-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-formals-contains-super-call.js
@@ -847,7 +819,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-funct
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-generator/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-generator/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-generator/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-generator/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-generator/yield-identifier-spread-strict.js
@@ -871,25 +842,21 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A8_T2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/static-init-without-label.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/yield-as-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/yield-as-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-method-static/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-method-static/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-method-static/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-method-static/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-method/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-method/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-method/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-method/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-await-escaped-module.js
@@ -897,11 +864,9 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-static.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-async-method-duplicate-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-NSPL-with-USD.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-body-contains-super-call.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-duplicate-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/methods-gen-yield-as-function-expression-binding-identifier.js
@@ -1154,14 +1119,12 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/eleme
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/typeof-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/yield-as-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/yield-identifier-spread-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/yield-as-binding-identifier.js
@@ -1169,11 +1132,9 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-m
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method-param-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method-static/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method-static/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method-static/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method-static/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js
@@ -1315,10 +1276,7 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-13gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-1gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-4gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-5gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-8gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-body-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-body-super-prop.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-errors/invalid-names-call-expression-bad-reference.js
@@ -1338,18 +1296,11 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/ob
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-arguments-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-arguments-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-dflt-yield-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-duplicated-strict-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-duplicated-strict-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-duplicated-strict-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-duplicated-strict-body-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-duplicated-strict-body-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-duplicated-strict-body-3.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-eval-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/use-strict-with-non-simple-param.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/rest-param-strict-body.js
@@ -2225,8 +2176,10 @@ test262/test/language/expressions/async-function/named-await-as-identifier-refer
 test262/test/language/expressions/async-function/named-await-as-identifier-reference.js:29:13: 'await' expression requires an operand
 test262/test/language/expressions/async-function/named-await-as-label-identifier-escaped.js:29:3: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/async-function/named-await-as-label-identifier.js:29:3: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/async-function/named-dflt-params-duplicates.js:36:2: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/async-function/named-dflt-params-rest.js:40:24: Expected ), got =
 test262/test/language/expressions/async-function/named-rest-params-trailing-comma-early-error.js:33:23: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/async-function/nameless-dflt-params-duplicates.js:36:2: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/async-function/nameless-dflt-params-rest.js:40:22: Expected ), got =
 test262/test/language/expressions/async-function/nameless-rest-params-trailing-comma-early-error.js:33:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/async-generator/await-as-binding-identifier-escaped.js:30:7: 'await' is reserved as a binding name in this context
@@ -2235,6 +2188,7 @@ test262/test/language/expressions/async-generator/await-as-identifier-reference-
 test262/test/language/expressions/async-generator/await-as-identifier-reference.js:30:13: 'await' expression requires an operand
 test262/test/language/expressions/async-generator/await-as-label-identifier-escaped.js:30:3: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/async-generator/await-as-label-identifier.js:30:3: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/async-generator/dflt-params-duplicates.js:39:4: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/async-generator/dflt-params-rest.js:43:25: Expected ), got =
 test262/test/language/expressions/async-generator/dstr/ary-ptrn-rest-init-ary.js:33:31: Rest element must be last in array pattern
 test262/test/language/expressions/async-generator/dstr/ary-ptrn-rest-init-id.js:33:27: Rest element must be last in array pattern
@@ -2275,6 +2229,7 @@ test262/test/language/expressions/async-generator/named-await-as-identifier-refe
 test262/test/language/expressions/async-generator/named-await-as-identifier-reference.js:30:13: 'await' expression requires an operand
 test262/test/language/expressions/async-generator/named-await-as-label-identifier-escaped.js:30:3: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/async-generator/named-await-as-label-identifier.js:30:3: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/async-generator/named-dflt-params-duplicates.js:39:4: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/async-generator/named-dflt-params-rest.js:43:27: Expected ), got =
 test262/test/language/expressions/async-generator/named-rest-params-trailing-comma-early-error.js:36:26: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/async-generator/named-yield-as-binding-identifier-escaped.js:30:7: Keyword 'yield' must not contain escaped characters
@@ -2300,6 +2255,7 @@ test262/test/language/expressions/class/async-gen-method-static/await-as-identif
 test262/test/language/expressions/class/async-gen-method-static/await-as-identifier-reference.js:35:15: 'await' expression requires an operand
 test262/test/language/expressions/class/async-gen-method-static/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method-static/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/class/async-gen-method-static/dflt-params-duplicates.js:63:23: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/async-gen-method-static/dflt-params-rest.js:67:29: Expected ), got =
 test262/test/language/expressions/class/async-gen-method-static/rest-params-trailing-comma-early-error.js:60:28: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/async-gen-method-static/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
@@ -2313,6 +2269,7 @@ test262/test/language/expressions/class/async-gen-method/await-as-identifier-ref
 test262/test/language/expressions/class/async-gen-method/await-as-identifier-reference.js:35:15: 'await' expression requires an operand
 test262/test/language/expressions/class/async-gen-method/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/class/async-gen-method/dflt-params-duplicates.js:63:16: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/async-gen-method/dflt-params-rest.js:67:22: Expected ), got =
 test262/test/language/expressions/class/async-gen-method/rest-params-trailing-comma-early-error.js:60:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/async-gen-method/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
@@ -2326,6 +2283,7 @@ test262/test/language/expressions/class/async-method-static/await-as-identifier-
 test262/test/language/expressions/class/async-method-static/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/expressions/class/async-method-static/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/async-method-static/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/class/async-method-static/dflt-params-duplicates.js:61:22: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/async-method-static/dflt-params-rest.js:65:28: Expected ), got =
 test262/test/language/expressions/class/async-method-static/rest-params-trailing-comma-early-error.js:57:27: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/async-method/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
@@ -2334,6 +2292,7 @@ test262/test/language/expressions/class/async-method/await-as-identifier-referen
 test262/test/language/expressions/class/async-method/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/expressions/class/async-method/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/async-method/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/class/async-method/dflt-params-duplicates.js:61:22: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/async-method/dflt-params-rest.js:65:28: Expected ), got =
 test262/test/language/expressions/class/async-method/rest-params-trailing-comma-early-error.js:57:27: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/class-name-ident-let-escaped.js:27:15: Keyword 'let' must not contain escaped characters
@@ -2595,6 +2554,7 @@ test262/test/language/expressions/class/elements/syntax/early-errors/private-fie
 test262/test/language/expressions/class/elements/syntax/early-errors/private-generator-cannot-escape-token.js:24:5: Expected method or property name
 test262/test/language/expressions/class/elements/syntax/early-errors/private-member-exp-cannot-escape-token.js:31:10: Expected identifier after '.'
 test262/test/language/expressions/class/elements/syntax/early-errors/private-method-cannot-escape-token.js:24:3: Expected method or property name
+test262/test/language/expressions/class/gen-method-static/dflt-params-duplicates.js:84:17: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/gen-method-static/dflt-params-rest.js:88:23: Expected ), got =
 test262/test/language/expressions/class/gen-method-static/rest-params-trailing-comma-early-error.js:81:22: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/gen-method-static/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
@@ -2602,6 +2562,7 @@ test262/test/language/expressions/class/gen-method-static/yield-as-identifier-re
 test262/test/language/expressions/class/gen-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/gen-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/gen-method/dflt-params-duplicates.js:84:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/gen-method/dflt-params-rest.js:88:16: Expected ), got =
 test262/test/language/expressions/class/gen-method/rest-params-trailing-comma-early-error.js:81:15: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/gen-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
@@ -2610,8 +2571,10 @@ test262/test/language/expressions/class/gen-method/yield-as-identifier-reference
 test262/test/language/expressions/class/gen-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
 test262/test/language/expressions/class/getter-param-dflt.js:23:16: Getter must not have any formal parameters
+test262/test/language/expressions/class/method-static/dflt-params-duplicates.js:80:16: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/method-static/dflt-params-rest.js:84:22: Expected ), got =
 test262/test/language/expressions/class/method-static/rest-params-trailing-comma-early-error.js:76:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/method/dflt-params-duplicates.js:80:9: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/method/dflt-params-rest.js:84:15: Expected ), got =
 test262/test/language/expressions/class/method/rest-params-trailing-comma-early-error.js:76:14: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/coalesce/cannot-chain-head-with-logical-and.js:31:15: Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses
@@ -2950,6 +2913,7 @@ test262/test/language/expressions/exponentiation/exp-operator-syntax-error-negat
 test262/test/language/expressions/exponentiation/exp-operator-syntax-error-plus-unary-expression-base.js:25:4: Unparenthesized unary expression cannot appear as the left operand of '**'
 test262/test/language/expressions/exponentiation/exp-operator-syntax-error-typeof-unary-expression-base.js:25:10: Unparenthesized unary expression cannot appear as the left operand of '**'
 test262/test/language/expressions/exponentiation/exp-operator-syntax-error-void-unary-expression-base.js:25:8: Unparenthesized unary expression cannot appear as the left operand of '**'
+test262/test/language/expressions/function/dflt-params-duplicates.js:59:4: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/expressions/function/dflt-params-rest.js:63:18: Expected ), got =
 test262/test/language/expressions/function/dstr/ary-ptrn-rest-init-ary.js:53:24: Rest element must be last in array pattern
 test262/test/language/expressions/function/dstr/ary-ptrn-rest-init-id.js:53:20: Rest element must be last in array pattern
@@ -2963,7 +2927,14 @@ test262/test/language/expressions/function/dstr/dflt-ary-ptrn-rest-init-obj.js:5
 test262/test/language/expressions/function/dstr/dflt-ary-ptrn-rest-not-final-ary.js:53:21: Rest element must be last in array pattern
 test262/test/language/expressions/function/dstr/dflt-ary-ptrn-rest-not-final-id.js:53:19: Rest element must be last in array pattern
 test262/test/language/expressions/function/dstr/dflt-ary-ptrn-rest-not-final-obj.js:53:23: Rest element must be last in array pattern
+test262/test/language/expressions/function/param-duplicated-strict-1.js:22:2: Duplicate parameter name 'param' in strict mode
+test262/test/language/expressions/function/param-duplicated-strict-2.js:23:2: Duplicate parameter name 'param1' in strict mode
+test262/test/language/expressions/function/param-duplicated-strict-3.js:22:2: Duplicate parameter name 'param' in strict mode
+test262/test/language/expressions/function/param-duplicated-strict-body-1.js:22:2: Duplicate parameter name 'param' in strict mode
+test262/test/language/expressions/function/param-duplicated-strict-body-2.js:23:2: Duplicate parameter name 'param1' in strict mode
+test262/test/language/expressions/function/param-duplicated-strict-body-3.js:21:2: Duplicate parameter name 'param' in strict mode
 test262/test/language/expressions/function/rest-params-trailing-comma-early-error.js:55:17: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/generators/dflt-params-duplicates.js:60:4: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/generators/dflt-params-rest.js:64:19: Expected ), got =
 test262/test/language/expressions/generators/dstr/ary-ptrn-rest-init-ary.js:53:25: Rest element must be last in array pattern
 test262/test/language/expressions/generators/dstr/ary-ptrn-rest-init-id.js:53:21: Rest element must be last in array pattern
@@ -3074,6 +3045,7 @@ test262/test/language/expressions/object/method-definition/async-gen-await-as-id
 test262/test/language/expressions/object/method-definition/async-gen-await-as-identifier-reference.js:29:15: 'await' expression requires an operand
 test262/test/language/expressions/object/method-definition/async-gen-await-as-label-identifier-escaped.js:29:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/async-gen-await-as-label-identifier.js:29:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/expressions/object/method-definition/async-gen-meth-dflt-params-duplicates.js:44:16: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/async-gen-meth-dflt-params-rest.js:48:22: Expected ), got =
 test262/test/language/expressions/object/method-definition/async-gen-meth-escaped-async.js:25:15: Expected }, got *
 test262/test/language/expressions/object/method-definition/async-gen-meth-rest-params-trailing-comma-early-error.js:41:21: A rest parameter or binding pattern may not have a trailing comma.
@@ -3083,12 +3055,15 @@ test262/test/language/expressions/object/method-definition/async-gen-yield-as-id
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-identifier-reference.js:29:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-label-identifier-escaped.js:29:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/object/method-definition/async-meth-dflt-params-duplicates.js:37:16: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/async-meth-dflt-params-rest.js:41:22: Expected ), got =
 test262/test/language/expressions/object/method-definition/async-meth-escaped-async.js:25:16: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/async-meth-rest-params-trailing-comma-early-error.js:34:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters.js:27:12: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-async-lineterminator.js:21:3: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals-default.js:16:18: Top-level 'await' is only valid in module code
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals.js:16:14: 'await' is reserved as a binding name in this context
+test262/test/language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters.js:26:6: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-body-duplicate.js:17:18: Generator/async shorthand property not allowed
 test262/test/language/expressions/object/method-definition/escaped-get-e.js:24:12: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/escaped-get-g.js:24:12: Expected }, got identifier
@@ -3098,6 +3073,7 @@ test262/test/language/expressions/object/method-definition/escaped-set-e.js:24:1
 test262/test/language/expressions/object/method-definition/escaped-set-s.js:24:12: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/escaped-set-t.js:24:12: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/escaped-set.js:24:22: Expected }, got identifier
+test262/test/language/expressions/object/method-definition/gen-meth-dflt-params-duplicates.js:66:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/gen-meth-dflt-params-rest.js:70:16: Expected ), got =
 test262/test/language/expressions/object/method-definition/gen-meth-rest-params-trailing-comma-early-error.js:63:15: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/object/method-definition/gen-yield-as-binding-identifier-escaped.js:29:9: Keyword 'yield' must not contain escaped characters
@@ -3107,6 +3083,7 @@ test262/test/language/expressions/object/method-definition/gen-yield-as-identifi
 test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier-escaped.js:29:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier inside a generator function
 test262/test/language/expressions/object/method-definition/generator-param-id-yield.js:19:11: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/object/method-definition/meth-dflt-params-duplicates.js:62:9: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/meth-dflt-params-rest.js:66:15: Expected ), got =
 test262/test/language/expressions/object/method-definition/meth-rest-params-trailing-comma-early-error.js:58:14: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/object/method-definition/private-name-early-error-async-fn-inside-class.js:24:11: Expected }, got private_identifier
@@ -3736,9 +3713,11 @@ test262/test/language/statements/async-function/await-as-identifier-reference-es
 test262/test/language/statements/async-function/await-as-identifier-reference.js:29:13: 'await' expression requires an operand
 test262/test/language/statements/async-function/await-as-label-identifier-escaped.js:29:3: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/async-function/await-as-label-identifier.js:29:3: 'await' cannot be used as a label identifier in an async function
+test262/test/language/statements/async-function/dflt-params-duplicates.js:36:1: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/async-function/dflt-params-rest.js:40:23: Expected ), got =
 test262/test/language/statements/async-function/early-errors-declaration-await-in-formals-default.js:14:30: 'await' expression requires an operand
 test262/test/language/statements/async-function/early-errors-declaration-await-in-formals.js:14:21: 'await' is reserved as a binding name in this context
+test262/test/language/statements/async-function/early-errors-declaration-duplicate-parameters.js:17:1: Duplicate parameter name 'a' in strict mode
 test262/test/language/statements/async-function/escaped-async.js:24:1: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/statements/async-function/let-newline-await-in-async-function.js:23:5: 'await' is reserved as a binding name in this context
 test262/test/language/statements/async-function/rest-params-trailing-comma-early-error.js:33:22: A rest parameter or binding pattern may not have a trailing comma.
@@ -3748,6 +3727,7 @@ test262/test/language/statements/async-generator/await-as-identifier-reference-e
 test262/test/language/statements/async-generator/await-as-identifier-reference.js:30:13: 'await' expression requires an operand
 test262/test/language/statements/async-generator/await-as-label-identifier-escaped.js:30:3: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/async-generator/await-as-label-identifier.js:30:3: 'await' cannot be used as a label identifier in an async function
+test262/test/language/statements/async-generator/dflt-params-duplicates.js:39:1: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/async-generator/dflt-params-rest.js:43:24: Expected ), got =
 test262/test/language/statements/async-generator/dstr/ary-ptrn-rest-init-ary.js:32:29: Rest element must be last in array pattern
 test262/test/language/statements/async-generator/dstr/ary-ptrn-rest-init-id.js:32:25: Rest element must be last in array pattern
@@ -3809,6 +3789,7 @@ test262/test/language/statements/class/async-gen-method-static/await-as-identifi
 test262/test/language/statements/class/async-gen-method-static/await-as-identifier-reference.js:35:15: 'await' expression requires an operand
 test262/test/language/statements/class/async-gen-method-static/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method-static/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/statements/class/async-gen-method-static/dflt-params-duplicates.js:63:23: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/async-gen-method-static/dflt-params-rest.js:67:29: Expected ), got =
 test262/test/language/statements/class/async-gen-method-static/rest-params-trailing-comma-early-error.js:60:28: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/async-gen-method-static/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
@@ -3822,6 +3803,7 @@ test262/test/language/statements/class/async-gen-method/await-as-identifier-refe
 test262/test/language/statements/class/async-gen-method/await-as-identifier-reference.js:35:15: 'await' expression requires an operand
 test262/test/language/statements/class/async-gen-method/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/statements/class/async-gen-method/dflt-params-duplicates.js:62:16: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/async-gen-method/dflt-params-rest.js:66:22: Expected ), got =
 test262/test/language/statements/class/async-gen-method/rest-params-trailing-comma-early-error.js:59:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/async-gen-method/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
@@ -3836,6 +3818,7 @@ test262/test/language/statements/class/async-method-static/await-as-identifier-r
 test262/test/language/statements/class/async-method-static/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/statements/class/async-method-static/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/async-method-static/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/statements/class/async-method-static/dflt-params-duplicates.js:60:22: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/async-method-static/dflt-params-rest.js:64:28: Expected ), got =
 test262/test/language/statements/class/async-method-static/rest-params-trailing-comma-early-error.js:56:27: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/async-method/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
@@ -3844,13 +3827,16 @@ test262/test/language/statements/class/async-method/await-as-identifier-referenc
 test262/test/language/statements/class/async-method/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/statements/class/async-method/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/async-method/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
+test262/test/language/statements/class/async-method/dflt-params-duplicates.js:61:15: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/async-method/dflt-params-rest.js:65:21: Expected ), got =
 test262/test/language/statements/class/async-method/rest-params-trailing-comma-early-error.js:57:20: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/class-name-ident-let-escaped.js:27:7: Keyword 'let' must not contain escaped characters
 test262/test/language/statements/class/class-name-ident-static-escaped.js:27:7: Keyword 'static' must not contain escaped characters
 test262/test/language/statements/class/class-name-ident-yield-escaped.js:27:7: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/definition/early-errors-class-async-method-duplicate-parameters.js:28:12: Duplicate parameter name 'a' in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-await-in-formals-default.js:15:18: Top-level 'await' is only valid in module code
 test262/test/language/statements/class/definition/early-errors-class-method-await-in-formals.js:15:14: 'await' is reserved as a binding name in this context
+test262/test/language/statements/class/definition/early-errors-class-method-duplicate-parameters.js:27:6: Duplicate parameter name 'a' in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-formals-body-duplicate.js:17:18: Expected (, got identifier
 test262/test/language/statements/class/definition/methods-gen-yield-as-logical-or-expression.js:18:11: 'yield' expression cannot be used as an operand of a conditional or binary operator
 test262/test/language/statements/class/definition/methods-gen-yield-star-after-newline.js:19:5: Unexpected token '*'
@@ -4111,6 +4097,7 @@ test262/test/language/statements/class/elements/syntax/early-errors/private-fiel
 test262/test/language/statements/class/elements/syntax/early-errors/private-generator-cannot-escape-token.js:24:5: Expected method or property name
 test262/test/language/statements/class/elements/syntax/early-errors/private-member-exp-cannot-escape-token.js:31:10: Expected identifier after '.'
 test262/test/language/statements/class/elements/syntax/early-errors/private-method-cannot-escape-token.js:24:3: Expected method or property name
+test262/test/language/statements/class/gen-method-static/dflt-params-duplicates.js:82:17: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/gen-method-static/dflt-params-rest.js:86:23: Expected ), got =
 test262/test/language/statements/class/gen-method-static/rest-params-trailing-comma-early-error.js:79:22: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/gen-method-static/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
@@ -4118,6 +4105,7 @@ test262/test/language/statements/class/gen-method-static/yield-as-identifier-ref
 test262/test/language/statements/class/gen-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/gen-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/gen-method/dflt-params-duplicates.js:82:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/gen-method/dflt-params-rest.js:86:16: Expected ), got =
 test262/test/language/statements/class/gen-method/rest-params-trailing-comma-early-error.js:79:15: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/gen-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
@@ -4126,8 +4114,10 @@ test262/test/language/statements/class/gen-method/yield-as-identifier-reference.
 test262/test/language/statements/class/gen-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
 test262/test/language/statements/class/getter-param-dflt.js:23:15: Getter must not have any formal parameters
+test262/test/language/statements/class/method-static/dflt-params-duplicates.js:79:16: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/method-static/dflt-params-rest.js:83:22: Expected ), got =
 test262/test/language/statements/class/method-static/rest-params-trailing-comma-early-error.js:75:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/method/dflt-params-duplicates.js:79:9: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/method/dflt-params-rest.js:83:15: Expected ), got =
 test262/test/language/statements/class/method/rest-params-trailing-comma-early-error.js:75:14: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/static-init-invalid-return.js:24:13: 'return' is not allowed in a class static block
@@ -4370,7 +4360,10 @@ test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-ary.js:45:
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-id.js:45:15: Rest element must be last in array pattern
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-obj.js:45:19: Rest element must be last in array pattern
 test262/test/language/statements/for/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/function/13.1-5gs.js:17:1: Duplicate parameter name 'param' in strict mode
+test262/test/language/statements/function/13.1-8gs.js:17:19: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/S13_A7_T3.js:15:19: Unexpected token '\'
+test262/test/language/statements/function/dflt-params-duplicates.js:60:1: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/statements/function/dflt-params-rest.js:64:17: Expected ), got =
 test262/test/language/statements/function/dstr/ary-ptrn-rest-init-ary.js:53:22: Rest element must be last in array pattern
 test262/test/language/statements/function/dstr/ary-ptrn-rest-init-id.js:53:18: Rest element must be last in array pattern
@@ -4391,8 +4384,15 @@ test262/test/language/statements/function/invalid-function-body-2.js:17:19: Unex
 test262/test/language/statements/function/invalid-function-body-3.js:17:19: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 test262/test/language/statements/function/invalid-name-dot.js:16:13: Expected (, got .
 test262/test/language/statements/function/invalid-name-two-dots.js:16:13: Expected (, got .
+test262/test/language/statements/function/param-duplicated-strict-1.js:22:1: Duplicate parameter name 'param' in strict mode
+test262/test/language/statements/function/param-duplicated-strict-2.js:23:1: Duplicate parameter name 'param1' in strict mode
+test262/test/language/statements/function/param-duplicated-strict-3.js:22:1: Duplicate parameter name 'param' in strict mode
+test262/test/language/statements/function/param-duplicated-strict-body-1.js:22:1: Duplicate parameter name 'param' in strict mode
+test262/test/language/statements/function/param-duplicated-strict-body-2.js:23:1: Duplicate parameter name 'param1' in strict mode
+test262/test/language/statements/function/param-duplicated-strict-body-3.js:22:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/rest-params-trailing-comma-early-error.js:56:16: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/function/static-init-await-binding-invalid.js:24:14: 'await' cannot be used as a function name in module / async context
+test262/test/language/statements/generators/dflt-params-duplicates.js:60:1: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/generators/dflt-params-rest.js:64:18: Expected ), got =
 test262/test/language/statements/generators/dstr/ary-ptrn-rest-init-ary.js:52:23: Rest element must be last in array pattern
 test262/test/language/statements/generators/dstr/ary-ptrn-rest-init-id.js:52:19: Rest element must be last in array pattern
