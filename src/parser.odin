@@ -3134,27 +3134,41 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	eat(p) // consume break
 
 	label: Maybe(LabelIdentifier)
+	label_loc: LexerLoc
 	// Label only if on same line (no LineTerminator between break and identifier)
 	if is_token(p, .Identifier) && !p.cur_tok.had_line_terminator {
 		// LabelIdentifier is an Identifier position - escaped ReservedWord
 		// (e.g. `break \u0069f;`) is a Syntax Error (§12.7.2).
 		report_escaped_reserved_word(p)
+		lbl_loc := cur_loc(p)
+		label_loc = LexerLoc(lbl_loc.span.start)
 		label = LabelIdentifier{
-			loc  = cur_loc(p),
+			loc  = lbl_loc,
 			name = cur_value(p),
 		}
 		eat(p)
 	}
 
-	// ECMA-262 §13.9.1 Static Semantics: an unlabeled `break;` is only
-	// valid inside an IterationStatement or SwitchStatement. Labeled
-	// `break label;` is valid iff `label` names an enclosing
-	// LabelledStatement (any kind - the spec doesn't restrict to
-	// iteration). p.label_stack tracks exactly that set; it resets on
-	// function boundaries so `break outer;` can't escape out of a
-	// function expression.
-	// Early-error checks for break (label scope, loop/switch context)
-	// are deferred to the semantic checker pass.
+	// ECMA-262 §13.9.1 — BreakStatement context check. Promoted from
+	// the semantic checker (ck_walk_stmt's ^BreakStatement case) so
+	// parser-only snaps reject the break-outside-loop / unknown-label
+	// clusters in test262.
+	//
+	//   * Unlabeled `break;` requires the parser to be inside an
+	//     IterationStatement OR SwitchStatement. p.in_loop / p.in_switch
+	//     track exactly that.
+	//   * Labeled `break label;` requires `label` to name an enclosing
+	//     LabelledStatement (any kind — the spec doesn't restrict to
+	//     iteration). label_in_scope / label_floor handle function-boundary
+	//     resets so `break outer;` can't escape out of a nested function.
+	if lbl, have := label.(LabelIdentifier); have {
+		if !label_in_scope(p, lbl.name) {
+			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
+			report_error_at(p, label_loc, msg)
+		}
+	} else if !p.in_loop && !p.in_switch {
+		report_error_at(p, LexerLoc(start.span.start), "'break' must be inside a loop or switch")
+	}
 
 	// §14.9 - BreakStatement requires a `;` (or ASI).
 	expect_semicolon_or_asi(p)
@@ -3178,20 +3192,41 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	// See parse_break_statement for the tracking rationale.
 
 	label: Maybe(LabelIdentifier)
+	label_loc: LexerLoc
 	// Label only if on same line (no LineTerminator between continue and identifier)
 	if is_token(p, .Identifier) && !p.cur_tok.had_line_terminator {
 		// LabelIdentifier is an Identifier position - escaped ReservedWord
 		// (e.g. `continue \u0069f;`) is a Syntax Error (§12.7.2).
 		report_escaped_reserved_word(p)
+		lbl_loc := cur_loc(p)
+		label_loc = LexerLoc(lbl_loc.span.start)
 		label = LabelIdentifier{
-			loc  = cur_loc(p),
+			loc  = lbl_loc,
 			name = cur_value(p),
 		}
 		eat(p)
 	}
 
-	// Early-error checks for continue (loop context, label targets)
-	// are deferred to the semantic checker pass.
+	// ECMA-262 §13.9.2 — ContinueStatement context check. Promoted from
+	// the semantic checker (ck_walk_stmt's ^ContinueStatement case).
+	//
+	//   * Unlabeled `continue;` requires the parser to be inside an
+	//     IterationStatement (NOT SwitchStatement — §13.9.2 says so).
+	//   * Labeled `continue label;` requires `label` to name an enclosing
+	//     LabelledStatement that contains an IterationStatement.
+	//     label_iter_in_scope is the parser's parallel-bitset version of
+	//     label_in_scope that gates on the per-label is_iteration flag.
+	if lbl, have := label.(LabelIdentifier); have {
+		if !label_in_scope(p, lbl.name) {
+			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
+			report_error_at(p, label_loc, msg)
+		} else if !label_iter_in_scope(p, lbl.name) {
+			msg := fmt.tprintf("'continue' must target an iteration label, '%s' does not", lbl.name)
+			report_error_at(p, label_loc, msg)
+		}
+	} else if !p.in_loop {
+		report_error_at(p, LexerLoc(start.span.start), "'continue' must be inside a loop")
+	}
 
 	// §14.8 - ContinueStatement requires a `;` (or ASI).
 	expect_semicolon_or_asi(p)
@@ -3486,9 +3521,13 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume with
 
-	// §14.11.1 "with-in-strict" early error: enforced by the semantic
-	// checker (ck_walk_stmt's ^WithStatement case) using its own strict
-	// mode tracker. The parser stays permissive on this in slice 5+.
+	// §14.11.1 — `with` statements are forbidden in strict mode.
+	// Promoted from the semantic checker (ck_walk_stmt's ^WithStatement
+	// case) so parser-only snaps reject the language/statements/with
+	// strict-mode cluster.
+	if p.strict_mode {
+		report_error_at(p, LexerLoc(start.span.start), "'with' statements are not allowed in strict mode")
+	}
 
 	if !expect_token(p, .LParen) {
 		return nil

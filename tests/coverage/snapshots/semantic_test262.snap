@@ -2522,10 +2522,10 @@ test262/test/language/import/import-defer/syntax/invalid-defer-default-and-names
 test262/test/language/import/import-defer/syntax/invalid-defer-default.js:33:14: Expected from, got identifier
 test262/test/language/import/import-defer/syntax/invalid-defer-named.js:33:14: Expected from, got {
 test262/test/language/import/import-defer/syntax/invalid-export-defer-namespace.js:32:19: Expected semicolon
-test262/test/language/keywords/ident-ref-break.js:20:7: Expected semicolon
+test262/test/language/keywords/ident-ref-break.js:20:1: 'break' must be inside a loop or switch
 test262/test/language/keywords/ident-ref-case.js:20:1: Unexpected reserved word 'case'
 test262/test/language/keywords/ident-ref-catch.js:20:1: Unexpected 'catch' or 'finally' without matching 'try'
-test262/test/language/keywords/ident-ref-continue.js:20:10: Expected semicolon
+test262/test/language/keywords/ident-ref-continue.js:20:1: 'continue' must be inside a loop
 test262/test/language/keywords/ident-ref-default.js:20:1: Unexpected reserved word 'default'
 test262/test/language/keywords/ident-ref-delete.js:20:1: Unexpected reserved word 'delete'
 test262/test/language/keywords/ident-ref-do.js:20:4: Expected while, got =
@@ -2914,8 +2914,8 @@ test262/test/language/module-code/early-lex-and-var.js:18:1: Identifier 'x' has 
 test262/test/language/module-code/early-new-target.js:16:1: 'new.target' is only allowed inside functions
 test262/test/language/module-code/early-strict-mode.js:15:5: 'public' is a reserved identifier in strict mode
 test262/test/language/module-code/early-super.js:15:1: 'super' can only be used with function calls or in property accesses
-test262/test/language/module-code/early-undef-break.js:17:3: Undefined label
-test262/test/language/module-code/early-undef-continue.js:17:3: Undefined label
+test262/test/language/module-code/early-undef-break.js:17:9: Undefined label 'undef'
+test262/test/language/module-code/early-undef-continue.js:17:12: Undefined label 'undef'
 test262/test/language/module-code/export-default-asyncfunction-declaration-binding-exists.js:23:31: 'A' has already been declared
 test262/test/language/module-code/export-default-asyncgenerator-declaration-binding-exists.js:23:33: 'AG' has already been declared
 test262/test/language/module-code/export-default-function-declaration-binding-exists.js:23:25: 'F' has already been declared
@@ -3176,18 +3176,18 @@ test262/test/language/statements/block/early-errors/invalid-names-call-expressio
 test262/test/language/statements/block/early-errors/invalid-names-call-expression-this.js:40:18: Private field '#x' must be declared in an enclosing class
 test262/test/language/statements/block/early-errors/invalid-names-member-expression-bad-reference.js:40:13: Private field '#x' must be declared in an enclosing class
 test262/test/language/statements/block/early-errors/invalid-names-member-expression-this.js:40:8: Private field '#x' must be declared in an enclosing class
-test262/test/language/statements/block/labeled-continue.js:22:5: Illegal continue statement: label does not target an iteration statement
-test262/test/language/statements/break/S12.8_A1_T1.js:18:1: Illegal break statement: not in a loop or switch
-test262/test/language/statements/break/S12.8_A1_T2.js:20:1: Undefined label
-test262/test/language/statements/break/S12.8_A1_T3.js:21:5: Illegal break statement: not in a loop or switch
-test262/test/language/statements/break/S12.8_A1_T4.js:23:5: Undefined label
-test262/test/language/statements/break/S12.8_A5_T1.js:23:9: Undefined label
-test262/test/language/statements/break/S12.8_A5_T2.js:25:9: Undefined label
-test262/test/language/statements/break/S12.8_A5_T3.js:25:9: Undefined label
-test262/test/language/statements/break/S12.8_A6.js:23:17: Undefined label
-test262/test/language/statements/break/S12.8_A8_T1.js:19:2: Undefined label
-test262/test/language/statements/break/S12.8_A8_T2.js:19:2: Illegal break statement: not in a loop or switch
-test262/test/language/statements/break/static-init-without-label.js:24:7: Illegal break statement: not in a loop or switch
+test262/test/language/statements/block/labeled-continue.js:22:14: 'continue' must target an iteration label, 'label' does not
+test262/test/language/statements/break/S12.8_A1_T1.js:18:1: 'break' must be inside a loop or switch
+test262/test/language/statements/break/S12.8_A1_T2.js:20:7: Undefined label 'LABEL'
+test262/test/language/statements/break/S12.8_A1_T3.js:21:5: 'break' must be inside a loop or switch
+test262/test/language/statements/break/S12.8_A1_T4.js:23:11: Undefined label 'LABEL'
+test262/test/language/statements/break/S12.8_A5_T1.js:23:15: Undefined label 'LABEL_ANOTHER_LOOP'
+test262/test/language/statements/break/S12.8_A5_T2.js:25:15: Undefined label 'IN_DO_FUNC'
+test262/test/language/statements/break/S12.8_A5_T3.js:25:15: Undefined label 'LABEL_IN'
+test262/test/language/statements/break/S12.8_A6.js:23:23: Undefined label 'LABEL1'
+test262/test/language/statements/break/S12.8_A8_T1.js:19:8: Undefined label 'LABEL2'
+test262/test/language/statements/break/S12.8_A8_T2.js:19:2: 'break' must be inside a loop or switch
+test262/test/language/statements/break/static-init-without-label.js:24:7: 'break' must be inside a loop or switch
 test262/test/language/statements/class/async-gen-meth-escaped-async.js:25:15: Expected (, got *
 test262/test/language/statements/class/async-gen-method-static/array-destructuring-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method-static/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
@@ -3835,8 +3835,8 @@ test262/test/language/statements/class/static-init-invalid-lex-dup.js:22:5: 'x' 
 test262/test/language/statements/class/static-init-invalid-lex-var.js:23:5: Identifier 'x' has already been declared
 test262/test/language/statements/class/static-init-invalid-return.js:24:13: 'return' is not allowed in a class static block
 test262/test/language/statements/class/static-init-invalid-super-call.js:20:5: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/statements/class/static-init-invalid-undefined-break-target.js:22:7: Undefined label
-test262/test/language/statements/class/static-init-invalid-undefined-continue-target.js:22:7: Undefined label
+test262/test/language/statements/class/static-init-invalid-undefined-break-target.js:22:13: Undefined label 'y'
+test262/test/language/statements/class/static-init-invalid-undefined-continue-target.js:22:16: Undefined label 'y'
 test262/test/language/statements/class/static-init-invalid-yield.js:24:7: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/static-method-param-yield.js:21:16: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/strict-mode/with.js:14:33: 'with' statements are not allowed in strict mode
@@ -3869,18 +3869,18 @@ test262/test/language/statements/const/syntax/without-initializer-if-expression-
 test262/test/language/statements/const/syntax/without-initializer-if-expression-statement.js:15:1: Missing initializer in 'const' declaration
 test262/test/language/statements/const/syntax/without-initializer-label-statement.js:15:1: Missing initializer in 'const' declaration
 test262/test/language/statements/const/syntax/without-initializer-while-expression-statement.js:15:1: Missing initializer in 'const' declaration
-test262/test/language/statements/continue/S12.7_A1_T1.js:20:1: Illegal continue statement: not in a loop
-test262/test/language/statements/continue/S12.7_A1_T2.js:22:1: Undefined label
-test262/test/language/statements/continue/S12.7_A1_T3.js:23:5: Undefined label
-test262/test/language/statements/continue/S12.7_A1_T4.js:21:5: Illegal continue statement: not in a loop
-test262/test/language/statements/continue/S12.7_A5_T1.js:22:4: Undefined label
-test262/test/language/statements/continue/S12.7_A5_T2.js:22:4: Undefined label
-test262/test/language/statements/continue/S12.7_A5_T3.js:23:4: Undefined label
-test262/test/language/statements/continue/S12.7_A6.js:21:17: Undefined label
-test262/test/language/statements/continue/S12.7_A8_T1.js:19:2: Undefined label
-test262/test/language/statements/continue/S12.7_A8_T2.js:17:2: Illegal continue statement: not in a loop
+test262/test/language/statements/continue/S12.7_A1_T1.js:20:1: 'continue' must be inside a loop
+test262/test/language/statements/continue/S12.7_A1_T2.js:22:10: Undefined label 'LABEL'
+test262/test/language/statements/continue/S12.7_A1_T3.js:23:14: Undefined label 'LABEL'
+test262/test/language/statements/continue/S12.7_A1_T4.js:21:5: 'continue' must be inside a loop
+test262/test/language/statements/continue/S12.7_A5_T1.js:22:13: Undefined label 'LABEL_ANOTHER_LOOP'
+test262/test/language/statements/continue/S12.7_A5_T2.js:22:13: Undefined label 'IN_DO_FUNC'
+test262/test/language/statements/continue/S12.7_A5_T3.js:23:13: Undefined label 'LABEL_IN'
+test262/test/language/statements/continue/S12.7_A6.js:21:26: Undefined label 'LABEL1'
+test262/test/language/statements/continue/S12.7_A8_T1.js:19:11: Undefined label 'LABEL2'
+test262/test/language/statements/continue/S12.7_A8_T2.js:17:2: 'continue' must be inside a loop
 test262/test/language/statements/continue/static-init-with-label.js:25:7: Undefined label
-test262/test/language/statements/continue/static-init-without-label.js:25:7: Illegal continue statement: not in a loop
+test262/test/language/statements/continue/static-init-without-label.js:25:7: 'continue' must be inside a loop
 test262/test/language/statements/debugger/expression.js:14:2: Unexpected reserved word 'debugger'
 test262/test/language/statements/do-while/S12.6.1_A12.js:17:13: Expected while, got var
 test262/test/language/statements/do-while/S12.6.1_A15.js:19:10: Numeric / string property name requires a value
@@ -4148,10 +4148,10 @@ test262/test/language/statements/for-of/labelled-fn-stmt-let.js:18:35: Function 
 test262/test/language/statements/for-of/labelled-fn-stmt-lhs.js:18:31: Function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/labelled-fn-stmt-var.js:18:35: Function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/for/S12.6.3_A11.1_T3.js:24:31: Undefined label
-test262/test/language/statements/for/S12.6.3_A11_T3.js:24:31: Undefined label
-test262/test/language/statements/for/S12.6.3_A12.1_T3.js:24:31: Undefined label
-test262/test/language/statements/for/S12.6.3_A12_T3.js:24:31: Undefined label
+test262/test/language/statements/for/S12.6.3_A11.1_T3.js:24:40: Undefined label 'nonexist'
+test262/test/language/statements/for/S12.6.3_A11_T3.js:24:40: Undefined label 'nonexist'
+test262/test/language/statements/for/S12.6.3_A12.1_T3.js:24:37: Undefined label 'nonexist'
+test262/test/language/statements/for/S12.6.3_A12_T3.js:24:37: Undefined label 'nonexist'
 test262/test/language/statements/for/S12.6.3_A4.1.js:22:18: Expected ), got ;
 test262/test/language/statements/for/S12.6.3_A4_T1.js:22:14: Expected ), got ;
 test262/test/language/statements/for/S12.6.3_A4_T2.js:22:10: Invalid left-hand side in for-in loop
@@ -4329,7 +4329,7 @@ test262/test/language/statements/if/labelled-fn-stmt-first.js:29:28: Labelled fu
 test262/test/language/statements/if/labelled-fn-stmt-lone.js:29:28: Labelled function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/labelled-fn-stmt-second.js:29:34: Labelled function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/labeled/continue.js:25:5: Illegal continue statement: label does not target an iteration statement
+test262/test/language/statements/labeled/continue.js:25:14: 'continue' must target an iteration label, 'test262' does not
 test262/test/language/statements/labeled/decl-async-function.js:21:1: Async / generator function declaration cannot be a labeled item
 test262/test/language/statements/labeled/decl-async-generator.js:21:1: Async / generator function declaration cannot be a labeled item
 test262/test/language/statements/labeled/decl-cls.js:15:1: Class declaration cannot appear in a single-statement context

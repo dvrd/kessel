@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 176/274 (64.23%)
+Negative Passed: 180/274 (65.69%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -10,14 +10,12 @@ Expect Syntax Error: tests/coverage/misc/fail/early_errors/001_duplicate_proto_o
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/004_duplicate_lexical_declaration.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/006_octal_literal_strict.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/007_assign_to_eval_strict.js
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/009_break_without_label.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/010_super_outside_method.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/010_eval_arguments_assignment.js
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/011_with_statement.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/012_octal_escape_string.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/014_update_eval_arguments.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/015_delete_identifier.js
@@ -31,14 +29,12 @@ Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/let-member-expression.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/011_duplicate_default_in_switch.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/012_duplicate_label.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/013_break_unknown_label.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/016_let_as_lexical_name.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/024_new_target_outside_function.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/026_class_named_strict_reserved.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/030_duplicate_constructor.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/031_super_call_in_non_derived_constructor.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/032_super_call_in_non_constructor_method.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/036_continue_non_iteration_label.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/041_yield_in_generator_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/044_await_in_async_arrow_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/045_await_in_async_function_params.js
@@ -107,6 +103,7 @@ tests/coverage/misc/fail/early_errors/002_let_let_in_strict.js:4:5: 'let' is a r
 tests/coverage/misc/fail/early_errors/003_const_without_initializer.js:4:1: Missing initializer in 'const' declaration
 tests/coverage/misc/fail/early_errors/005_duplicate_function_params_strict.js:4:1: Duplicate parameter name 'a' in strict mode
 tests/coverage/misc/fail/early_errors/008_return_outside_function.js:4:8: 'return' outside of function
+tests/coverage/misc/fail/early_errors/009_break_without_label.js:4:1: 'break' must be inside a loop or switch
 tests/coverage/misc/fail/early_errors/011_await_outside_async.js:4:23: await outside of async function
 tests/coverage/misc/fail/early_errors/012_unicode_escape_hex_too_big.js:3:14: Invalid \u{} escape: code point out of range [0..0x10FFFF]
 tests/coverage/misc/fail/early_errors/013_hex_escape_too_short.js:3:14: Invalid \x escape: expected 2 hex digits
@@ -123,6 +120,7 @@ tests/coverage/misc/fail/early_errors/strict_mode/006_reserved_public.js:2:5: 'p
 tests/coverage/misc/fail/early_errors/strict_mode/007_reserved_static.js:2:5: 'static' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/008_reserved_yield.js:2:5: 'yield' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/009_duplicate_params_strict_nested.js:3:5: Duplicate parameter name 'a' in strict mode
+tests/coverage/misc/fail/early_errors/strict_mode/011_with_statement.js:4:1: 'with' statements are not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/013_octal_escape_template.js:8:20: Invalid escape sequence in template literal
 tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js:10:5: Keyword 'let' must not contain escaped characters
 tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected >, got !
@@ -161,6 +159,7 @@ tests/coverage/misc/fail/negative/007_unterminated_regex.js:2:10: Unterminated r
 tests/coverage/misc/fail/negative/008_bare_function_expression.js:2:9: Function declaration requires a name
 tests/coverage/misc/fail/negative/009_unexpected_token_after_return.js:2:1: Unexpected '}' — unmatched closing brace
 tests/coverage/misc/fail/negative/010_reserved_word_as_var.js:2:5: 'class' is a reserved word and cannot be used as a binding name
+tests/coverage/misc/fail/negative/013_break_unknown_label.js:6:8: Undefined label 'bar'
 tests/coverage/misc/fail/negative/014_duplicate_private_class_member.js:13:1: Class private member name cannot be '#constructor'
 tests/coverage/misc/fail/negative/015_for_await_outside_async.js:8:12: 'for await' outside of async function
 tests/coverage/misc/fail/negative/017_static_prototype_class_member.js:9:1: Classes may not have a static member named 'prototype'
@@ -178,6 +177,7 @@ tests/coverage/misc/fail/negative/029_throw_line_terminator.js:6:2: Illegal newl
 tests/coverage/misc/fail/negative/033_escaped_keyword_as_keyword.js:11:1: Keyword 'if' must not contain escaped characters
 tests/coverage/misc/fail/negative/034_escaped_keyword_as_binding.js:9:5: Keyword 'var' must not contain escaped characters
 tests/coverage/misc/fail/negative/035_arrow_line_terminator_before_arrow.js:10:1: Unexpected line terminator before '=>' (restricted production)
+tests/coverage/misc/fail/negative/036_continue_non_iteration_label.js:13:12: 'continue' must target an iteration label, 'foo' does not
 tests/coverage/misc/fail/negative/037_tagged_template_on_optional_chain.js:8:10: Tagged template literals cannot appear in an optional chain
 tests/coverage/misc/fail/negative/038_for_in_assignment_lhs.js:12:15: Invalid left-hand side in for-in loop
 tests/coverage/misc/fail/negative/039_for_of_assignment_lhs.js:7:15: Invalid left-hand side in for-of loop

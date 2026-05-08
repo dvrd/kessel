@@ -295,10 +295,10 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/405/input.js:1:3: E
 babel/packages/babel-parser/test/fixtures/core/uncategorised/406/input.js:1:3: Expected (, got .
 babel/packages/babel-parser/test/fixtures/core/uncategorised/407/input.js:1:3: Expected semicolon
 babel/packages/babel-parser/test/fixtures/core/uncategorised/408/input.js:1:3: Expected semicolon
-babel/packages/babel-parser/test/fixtures/core/uncategorised/409/input.js:1:1: Illegal break statement: not in a loop or switch
-babel/packages/babel-parser/test/fixtures/core/uncategorised/410/input.js:1:7: Expected semicolon
-babel/packages/babel-parser/test/fixtures/core/uncategorised/411/input.js:1:1: Illegal continue statement: not in a loop
-babel/packages/babel-parser/test/fixtures/core/uncategorised/412/input.js:1:10: Expected semicolon
+babel/packages/babel-parser/test/fixtures/core/uncategorised/409/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/core/uncategorised/410/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/core/uncategorised/411/input.js:1:1: 'continue' must be inside a loop
+babel/packages/babel-parser/test/fixtures/core/uncategorised/412/input.js:1:1: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/413/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/core/uncategorised/414/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/core/uncategorised/415/input.js:1:6: Only a single declaration is allowed in a for-in loop
@@ -341,14 +341,14 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/451/input.js:1:1: I
 babel/packages/babel-parser/test/fixtures/core/uncategorised/452/input.js:1:1: Unexpected token '"\'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/453/input.js:1:1: Unexpected token '"\u'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/454/input.js:1:7: 'return' outside of function
-babel/packages/babel-parser/test/fixtures/core/uncategorised/455/input.js:1:1: Illegal break statement: not in a loop or switch
-babel/packages/babel-parser/test/fixtures/core/uncategorised/456/input.js:1:1: Illegal continue statement: not in a loop
-babel/packages/babel-parser/test/fixtures/core/uncategorised/457/input.js:1:23: Illegal continue statement: not in a loop
+babel/packages/babel-parser/test/fixtures/core/uncategorised/455/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/core/uncategorised/456/input.js:1:1: 'continue' must be inside a loop
+babel/packages/babel-parser/test/fixtures/core/uncategorised/457/input.js:1:23: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/458/input.js:1:10: Expected while, got *
-babel/packages/babel-parser/test/fixtures/core/uncategorised/459/input.js:1:16: Undefined label
-babel/packages/babel-parser/test/fixtures/core/uncategorised/460/input.js:1:16: Undefined label
-babel/packages/babel-parser/test/fixtures/core/uncategorised/461/input.js:1:34: Undefined label
-babel/packages/babel-parser/test/fixtures/core/uncategorised/462/input.js:1:34: Undefined label
+babel/packages/babel-parser/test/fixtures/core/uncategorised/459/input.js:1:22: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/460/input.js:1:25: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/461/input.js:1:40: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/462/input.js:1:43: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/463/input.js:1:34: Illegal break statement: not in a loop or switch
 babel/packages/babel-parser/test/fixtures/core/uncategorised/464/input.js:1:34: Illegal continue statement: not in a loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/465/input.js:1:19: Label 'x' has already been declared
@@ -1126,8 +1126,8 @@ babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-bindin
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-static-block/input.js:11:35: 'await' expression requires an operand
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-arguments/input.js:3:16: 'arguments' is not allowed in a class static block
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-await/input.js:5:7: 'await' is not allowed in a class static block
-babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-break/input.js:6:9: Illegal break statement: not in a loop or switch
-babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-continue/input.js:5:7: Illegal continue statement: not in a loop
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-break/input.js:6:9: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-continue/input.js:5:7: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-decorators/input.js:4:3: Decorators are not valid here.
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-legacy-octal/input.js:4:5: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-return/input.js:4:12: 'return' is not allowed in a class static block
@@ -1442,10 +1442,10 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0112/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0113/input.js:1:3: Expected (, got .
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0114/input.js:1:3: Expected semicolon
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0115/input.js:1:3: Expected semicolon
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0116/input.js:1:1: Illegal break statement: not in a loop or switch
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0117/input.js:1:7: Expected semicolon
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0118/input.js:1:1: Illegal continue statement: not in a loop
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0119/input.js:1:10: Expected semicolon
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0116/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0117/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0118/input.js:1:1: 'continue' must be inside a loop
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0119/input.js:1:1: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0120/input.js:2:1: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0121/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0122/input.js:2:1: Expected expression after throw
@@ -1500,14 +1500,14 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0169/i
 '
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0170/input.js:1:15: Catch parameter is missing
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0171/input.js:2:1: 'return' outside of function
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0172/input.js:1:1: Illegal break statement: not in a loop or switch
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0173/input.js:1:1: Illegal continue statement: not in a loop
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0174/input.js:1:23: Illegal continue statement: not in a loop
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0172/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0173/input.js:1:1: 'continue' must be inside a loop
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0174/input.js:1:23: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0175/input.js:1:10: Expected while, got *
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0176/input.js:1:16: Undefined label
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0177/input.js:1:16: Undefined label
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0178/input.js:1:34: Undefined label
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0179/input.js:1:34: Undefined label
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0176/input.js:1:22: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0177/input.js:1:25: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0178/input.js:1:40: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0179/input.js:1:43: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0180/input.js:1:34: Illegal break statement: not in a loop or switch
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0181/input.js:1:34: Illegal continue statement: not in a loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0182/input.js:1:19: Label 'x' has already been declared

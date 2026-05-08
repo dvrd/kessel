@@ -1,9 +1,9 @@
 commit: c543b031
 
 parser_babel Summary:
-AST Parsed     : 2232/2233 (99.96%)
-Positive Passed: 2232/2233 (99.96%)
-Negative Passed: 1300/1711 (75.98%)
+AST Parsed     : 2229/2233 (99.82%)
+Positive Passed: 2229/2233 (99.82%)
+Negative Passed: 1323/1711 (77.32%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -60,22 +60,12 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-if/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/409/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/411/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/415/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/427/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/455/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/456/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/457/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/459/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/460/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/461/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/462/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/463/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/464/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/465/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/466/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/467/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/472/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/473/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/474/input.js
@@ -108,7 +98,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-in-object-method/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-outside-constructor/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class/extends-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-module/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-eval/input.js
@@ -254,8 +243,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/yield-in-class-property-in-generator/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-arguments/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-await/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-break/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-continue/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-legacy-octal/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-super-call/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js
@@ -307,22 +294,12 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0094/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0100/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0116/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0118/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0123/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0143/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0172/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0173/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0174/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0176/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0177/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0178/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0179/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0180/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0181/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0182/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0183/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0184/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0189/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0190/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0191/input.js
@@ -415,6 +392,15 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-var-enum/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/type-alias/invalid-within-single-statement-context/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/263/input.js
+babel/packages/babel-parser/test/fixtures/core/uncategorised/263/input.js:1:18: 'with' statements are not allowed in strict mode
+
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/264/input.js
+babel/packages/babel-parser/test/fixtures/core/uncategorised/264/input.js:1:18: 'with' statements are not allowed in strict mode
+
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000/input.js
+babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000/input.js:1:33: 'with' statements are not allowed in strict mode
+
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts:10:30: A parameter cannot have a question mark and an initializer.
 
@@ -510,8 +496,10 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/405/input.js:1:3: E
 babel/packages/babel-parser/test/fixtures/core/uncategorised/406/input.js:1:3: Expected (, got .
 babel/packages/babel-parser/test/fixtures/core/uncategorised/407/input.js:1:3: Expected semicolon
 babel/packages/babel-parser/test/fixtures/core/uncategorised/408/input.js:1:3: Expected semicolon
-babel/packages/babel-parser/test/fixtures/core/uncategorised/410/input.js:1:7: Expected semicolon
-babel/packages/babel-parser/test/fixtures/core/uncategorised/412/input.js:1:10: Expected semicolon
+babel/packages/babel-parser/test/fixtures/core/uncategorised/409/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/core/uncategorised/410/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/core/uncategorised/411/input.js:1:1: 'continue' must be inside a loop
+babel/packages/babel-parser/test/fixtures/core/uncategorised/412/input.js:1:1: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/413/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/core/uncategorised/414/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/core/uncategorised/416/input.js:1:15: Expected ;, got )
@@ -552,7 +540,15 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/451/input.js:1:1: I
 babel/packages/babel-parser/test/fixtures/core/uncategorised/452/input.js:1:1: Unexpected token '"\'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/453/input.js:1:1: Unexpected token '"\u'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/454/input.js:1:7: 'return' outside of function
+babel/packages/babel-parser/test/fixtures/core/uncategorised/455/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/core/uncategorised/456/input.js:1:1: 'continue' must be inside a loop
+babel/packages/babel-parser/test/fixtures/core/uncategorised/457/input.js:1:23: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/458/input.js:1:10: Expected while, got *
+babel/packages/babel-parser/test/fixtures/core/uncategorised/459/input.js:1:22: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/460/input.js:1:25: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/461/input.js:1:40: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/462/input.js:1:43: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/467/input.js:1:30: 'with' statements are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/468/input.js:1:37: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/469/input.js:1:37: 'arguments' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/470/input.js:1:48: 'eval' cannot be used as a binding name in strict mode
@@ -620,6 +616,7 @@ babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-static-p
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-super-call-after-new/input.js:2:28: 'new super()' is not allowed
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/getter-signature/input.js:2:7: Getter must not have any formal parameters
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/malformed-super-expression/input.js:3:5: 'super' can only be used with function calls or in property accesses
+babel/packages/babel-parser/test/fixtures/es2015/class/extends-strict/input.js:2:3: 'with' statements are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-get/input.js:1:20: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-set/input.js:1:20: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-static/input.js:1:23: Expected (, got identifier
@@ -1156,6 +1153,8 @@ babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-static-prot
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/static-field-named-constructor/input.js:2:23: Class field cannot be named 'constructor'
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-async-arrow-function-in-static-block/input.js:3:29: 'await' is reserved as a binding name in this context
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-static-block/input.js:11:35: 'await' expression requires an operand
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-break/input.js:6:9: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-continue/input.js:5:7: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-decorators/input.js:4:3: Decorators are not valid here.
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-return/input.js:4:12: 'return' is not allowed in a class static block
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-yield/input.js:5:7: 'yield' expression is only allowed in a generator body
@@ -1423,8 +1422,10 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0112/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0113/input.js:1:3: Expected (, got .
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0114/input.js:1:3: Expected semicolon
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0115/input.js:1:3: Expected semicolon
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0117/input.js:1:7: Expected semicolon
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0119/input.js:1:10: Expected semicolon
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0116/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0117/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0118/input.js:1:1: 'continue' must be inside a loop
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0119/input.js:1:1: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0120/input.js:2:1: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0121/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0122/input.js:2:1: Expected expression after throw
@@ -1477,7 +1478,15 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0169/i
 '
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0170/input.js:1:15: Catch parameter is missing
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0171/input.js:2:1: 'return' outside of function
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0172/input.js:1:1: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0173/input.js:1:1: 'continue' must be inside a loop
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0174/input.js:1:23: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0175/input.js:1:10: Expected while, got *
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0176/input.js:1:22: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0177/input.js:1:25: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0178/input.js:1:40: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0179/input.js:1:43: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0184/input.js:1:30: 'with' statements are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0185/input.js:1:37: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0186/input.js:1:37: 'arguments' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0187/input.js:1:48: 'eval' cannot be used as a binding name in strict mode

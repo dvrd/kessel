@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3611/4588 (78.71%)
+Negative Passed: 3651/4588 (79.58%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
@@ -447,8 +447,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-impo
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-import-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-lex-and-var.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-new-target.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-undef-break.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-undef-continue.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/export-default-asyncfunction-declaration-binding-exists.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/export-default-asyncgenerator-declaration-binding-exists.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/export-default-function-declaration-binding-exists.js
@@ -570,18 +568,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/block/early
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/block/early-errors/invalid-names-call-expression-this.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/block/early-errors/invalid-names-member-expression-bad-reference.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/block/early-errors/invalid-names-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/block/labeled-continue.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A1_T1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A1_T2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A1_T3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A1_T4.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A5_T1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A5_T2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A5_T3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A6.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A8_T1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A8_T2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/static-init-without-label.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-await-escaped-module.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-await-module.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-let.js
@@ -742,27 +728,13 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/stati
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-lex-dup.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-lex-var.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-super-call.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-undefined-break-target.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-undefined-continue-target.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-method-param-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/strict-mode/with.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/syntax/early-errors/class-definition-evaluation-block-duplicate-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/syntax/early-errors/class-definition-evaluation-scriptbody-duplicate-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/const/redeclaration-error-from-within-strict-mode-function-const.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/const/syntax/const-declaring-let-split-across-two-lines.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A1_T1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A1_T2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A1_T3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A1_T4.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A5_T1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A5_T2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A5_T3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A6.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A8_T1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/S12.7_A8_T2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/static-init-with-label.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/static-init-without-label.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/do-while/decl-fun.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/do-while/labelled-fn-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-init-yield-ident-invalid.js
@@ -848,10 +820,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/labe
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/labelled-fn-stmt-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/labelled-fn-stmt-lhs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/labelled-fn-stmt-var.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/S12.6.3_A11.1_T3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/S12.6.3_A11_T3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/S12.6.3_A12.1_T3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/S12.6.3_A12_T3.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/decl-fun.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-const-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-let-bound-names-in-stmt.js
@@ -889,7 +857,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-stmt-
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/labelled-fn-stmt-first.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/labelled-fn-stmt-lone.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/labelled-fn-stmt-second.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/continue.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/decl-fun-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/static-init-invalid-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
@@ -970,15 +937,8 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/using/redec
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/using/syntax/using-not-allowed-at-top-level-of-script.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/while/decl-fun.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/while/labelled-fn-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/12.10.1-11gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/decl-fun.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/labelled-fn-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-fn-decl-nested-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-fn-decl-nested-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-fn-decl.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-fn-expr.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-fn-method.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/strict-script.js
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
 test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F-negated.js:18:2: Invalid Unicode property escape: binary property cannot have a value
 test262/test/built-ins/RegExp/property-escapes/binary-property-with-value-ASCII_-_F.js:18:2: Invalid Unicode property escape: binary property cannot have a value
@@ -3088,10 +3048,10 @@ test262/test/language/import/import-defer/syntax/invalid-defer-default-and-names
 test262/test/language/import/import-defer/syntax/invalid-defer-default.js:33:14: Expected from, got identifier
 test262/test/language/import/import-defer/syntax/invalid-defer-named.js:33:14: Expected from, got {
 test262/test/language/import/import-defer/syntax/invalid-export-defer-namespace.js:32:19: Expected semicolon
-test262/test/language/keywords/ident-ref-break.js:20:7: Expected semicolon
+test262/test/language/keywords/ident-ref-break.js:20:1: 'break' must be inside a loop or switch
 test262/test/language/keywords/ident-ref-case.js:20:1: Unexpected reserved word 'case'
 test262/test/language/keywords/ident-ref-catch.js:20:1: Unexpected 'catch' or 'finally' without matching 'try'
-test262/test/language/keywords/ident-ref-continue.js:20:10: Expected semicolon
+test262/test/language/keywords/ident-ref-continue.js:20:1: 'continue' must be inside a loop
 test262/test/language/keywords/ident-ref-default.js:20:1: Unexpected reserved word 'default'
 test262/test/language/keywords/ident-ref-delete.js:20:1: Unexpected reserved word 'delete'
 test262/test/language/keywords/ident-ref-do.js:20:4: Expected while, got =
@@ -3440,6 +3400,8 @@ test262/test/language/module-code/early-dup-export-star-as-dflt.js:19:13: Duplic
 test262/test/language/module-code/early-export-ill-formed-string.js:21:17: Export name string must not contain unpaired surrogates
 test262/test/language/module-code/early-strict-mode.js:15:5: 'public' is a reserved identifier in strict mode
 test262/test/language/module-code/early-super.js:15:1: 'super' can only be used with function calls or in property accesses
+test262/test/language/module-code/early-undef-break.js:17:9: Undefined label 'undef'
+test262/test/language/module-code/early-undef-continue.js:17:12: Undefined label 'undef'
 test262/test/language/module-code/export-expname-from-as-unpaired-surrogate.js:21:19: Export name string must not contain unpaired surrogates
 test262/test/language/module-code/export-expname-from-star-unpaired-surrogate.js:21:8: Unexpected string literal after 'export'
 test262/test/language/module-code/export-expname-from-unpaired-surrogate.js:21:10: Export name string must not contain unpaired surrogates
@@ -3579,6 +3541,18 @@ test262/test/language/statements/block/12.1-6.js:16:3: Expected (, got {
 test262/test/language/statements/block/12.1-7.js:14:5: Expected while, got ;
 test262/test/language/statements/block/S12.1_A4_T1.js:19:10: Unexpected ';' in object literal
 test262/test/language/statements/block/S12.1_A4_T2.js:19:5: Unexpected ';' in object literal
+test262/test/language/statements/block/labeled-continue.js:22:14: 'continue' must target an iteration label, 'label' does not
+test262/test/language/statements/break/S12.8_A1_T1.js:18:1: 'break' must be inside a loop or switch
+test262/test/language/statements/break/S12.8_A1_T2.js:20:7: Undefined label 'LABEL'
+test262/test/language/statements/break/S12.8_A1_T3.js:21:5: 'break' must be inside a loop or switch
+test262/test/language/statements/break/S12.8_A1_T4.js:23:11: Undefined label 'LABEL'
+test262/test/language/statements/break/S12.8_A5_T1.js:23:15: Undefined label 'LABEL_ANOTHER_LOOP'
+test262/test/language/statements/break/S12.8_A5_T2.js:25:15: Undefined label 'IN_DO_FUNC'
+test262/test/language/statements/break/S12.8_A5_T3.js:25:15: Undefined label 'LABEL_IN'
+test262/test/language/statements/break/S12.8_A6.js:23:23: Undefined label 'LABEL1'
+test262/test/language/statements/break/S12.8_A8_T1.js:19:8: Undefined label 'LABEL2'
+test262/test/language/statements/break/S12.8_A8_T2.js:19:2: 'break' must be inside a loop or switch
+test262/test/language/statements/break/static-init-without-label.js:24:7: 'break' must be inside a loop or switch
 test262/test/language/statements/class/async-gen-meth-escaped-async.js:25:15: Expected (, got *
 test262/test/language/statements/class/async-gen-method-static/array-destructuring-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method-static/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
@@ -4066,6 +4040,9 @@ test262/test/language/statements/class/method/object-destructuring-param-strict-
 test262/test/language/statements/class/method/rest-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-params-trailing-comma-early-error.js:75:14: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/static-init-invalid-return.js:24:13: 'return' is not allowed in a class static block
+test262/test/language/statements/class/static-init-invalid-undefined-break-target.js:22:13: Undefined label 'y'
+test262/test/language/statements/class/static-init-invalid-undefined-continue-target.js:22:16: Undefined label 'y'
+test262/test/language/statements/class/strict-mode/with.js:14:33: 'with' statements are not allowed in strict mode
 test262/test/language/statements/class/syntax/escaped-static.js:24:15: Expected (, got identifier
 test262/test/language/statements/const/dstr/ary-ptrn-rest-init-ary.js:30:17: Rest element must be last in array pattern
 test262/test/language/statements/const/dstr/ary-ptrn-rest-init-id.js:30:13: Rest element must be last in array pattern
@@ -4091,6 +4068,17 @@ test262/test/language/statements/const/syntax/without-initializer-if-expression-
 test262/test/language/statements/const/syntax/without-initializer-if-expression-statement.js:15:1: Missing initializer in 'const' declaration
 test262/test/language/statements/const/syntax/without-initializer-label-statement.js:15:1: Missing initializer in 'const' declaration
 test262/test/language/statements/const/syntax/without-initializer-while-expression-statement.js:15:1: Missing initializer in 'const' declaration
+test262/test/language/statements/continue/S12.7_A1_T1.js:20:1: 'continue' must be inside a loop
+test262/test/language/statements/continue/S12.7_A1_T2.js:22:10: Undefined label 'LABEL'
+test262/test/language/statements/continue/S12.7_A1_T3.js:23:14: Undefined label 'LABEL'
+test262/test/language/statements/continue/S12.7_A1_T4.js:21:5: 'continue' must be inside a loop
+test262/test/language/statements/continue/S12.7_A5_T1.js:22:13: Undefined label 'LABEL_ANOTHER_LOOP'
+test262/test/language/statements/continue/S12.7_A5_T2.js:22:13: Undefined label 'IN_DO_FUNC'
+test262/test/language/statements/continue/S12.7_A5_T3.js:23:13: Undefined label 'LABEL_IN'
+test262/test/language/statements/continue/S12.7_A6.js:21:26: Undefined label 'LABEL1'
+test262/test/language/statements/continue/S12.7_A8_T1.js:19:11: Undefined label 'LABEL2'
+test262/test/language/statements/continue/S12.7_A8_T2.js:17:2: 'continue' must be inside a loop
+test262/test/language/statements/continue/static-init-without-label.js:25:7: 'continue' must be inside a loop
 test262/test/language/statements/debugger/expression.js:14:2: Unexpected reserved word 'debugger'
 test262/test/language/statements/do-while/S12.6.1_A12.js:17:13: Expected while, got var
 test262/test/language/statements/do-while/S12.6.1_A15.js:19:10: Numeric / string property name requires a value
@@ -4273,6 +4261,10 @@ test262/test/language/statements/for-of/head-lhs-let.js:25:14: Expected '=', ','
 test262/test/language/statements/for-of/head-lhs-non-asnmt-trgt.js:18:14: Invalid left-hand side in for-of loop
 test262/test/language/statements/for-of/head-var-no-expr.js:17:17: Expected ), got ,
 test262/test/language/statements/for-of/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/for/S12.6.3_A11.1_T3.js:24:40: Undefined label 'nonexist'
+test262/test/language/statements/for/S12.6.3_A11_T3.js:24:40: Undefined label 'nonexist'
+test262/test/language/statements/for/S12.6.3_A12.1_T3.js:24:37: Undefined label 'nonexist'
+test262/test/language/statements/for/S12.6.3_A12_T3.js:24:37: Undefined label 'nonexist'
 test262/test/language/statements/for/S12.6.3_A4.1.js:22:18: Expected ), got ;
 test262/test/language/statements/for/S12.6.3_A4_T1.js:22:14: Expected ), got ;
 test262/test/language/statements/for/S12.6.3_A4_T2.js:22:10: Invalid left-hand side in for-in loop
@@ -4413,6 +4405,7 @@ test262/test/language/statements/if/if-stmt-else-const.js:15:1: Lexical declarat
 test262/test/language/statements/if/if-stmt-else-gen.js:16:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/if/if-stmt-else-let.js:15:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/if/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/labeled/continue.js:25:14: 'continue' must target an iteration label, 'test262' does not
 test262/test/language/statements/labeled/decl-async-function.js:21:1: Async / generator function declaration cannot be a labeled item
 test262/test/language/statements/labeled/decl-async-generator.js:21:1: Async / generator function declaration cannot be a labeled item
 test262/test/language/statements/labeled/decl-cls.js:15:1: Class declaration cannot appear in a single-statement context
@@ -4570,6 +4563,7 @@ test262/test/language/statements/while/decl-const.js:15:1: Lexical declaration c
 test262/test/language/statements/while/decl-gen.js:16:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/while/decl-let.js:15:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/while/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/with/12.10.1-11gs.js:15:1: 'with' statements are not allowed in strict mode
 test262/test/language/statements/with/decl-async-fun.js:22:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/with/decl-async-gen.js:22:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/with/decl-cls.js:16:1: Class declaration cannot appear in a single-statement context
@@ -4577,6 +4571,12 @@ test262/test/language/statements/with/decl-const.js:16:1: Lexical declaration ca
 test262/test/language/statements/with/decl-gen.js:17:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/with/decl-let.js:16:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/with/let-array-with-newline.js:24:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/with/strict-fn-decl-nested-1.js:21:5: 'with' statements are not allowed in strict mode
+test262/test/language/statements/with/strict-fn-decl-nested-2.js:20:5: 'with' statements are not allowed in strict mode
+test262/test/language/statements/with/strict-fn-decl.js:18:3: 'with' statements are not allowed in strict mode
+test262/test/language/statements/with/strict-fn-expr.js:18:4: 'with' statements are not allowed in strict mode
+test262/test/language/statements/with/strict-fn-method.js:17:22: 'with' statements are not allowed in strict mode
+test262/test/language/statements/with/strict-script.js:17:1: 'with' statements are not allowed in strict mode
 test262/test/language/types/boolean/S8.3_A2.1.js:15:9: Invalid left-hand side in assignment
 test262/test/language/types/boolean/S8.3_A2.2.js:15:10: Invalid left-hand side in assignment
 test262/test/language/types/null/S8.2_A2.js:15:5: 'null' is a reserved word and cannot be used as a binding name
