@@ -1,9 +1,9 @@
 commit: c543b031
 
 parser_babel Summary:
-AST Parsed     : 2229/2233 (99.82%)
-Positive Passed: 2229/2233 (99.82%)
-Negative Passed: 1205/1711 (70.43%)
+AST Parsed     : 2231/2233 (99.91%)
+Positive Passed: 2231/2233 (99.91%)
+Negative Passed: 1206/1711 (70.49%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -457,7 +457,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no-plugin-jsx-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no_plugin-non-BMP-identifier/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no_plugin/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/arrow-function/generic-tsx/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/cast/unparenthesized-assert-and-assign/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/cast/unparenthesized-type-assertion-and-assign/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-1/input.ts
@@ -515,12 +514,6 @@ babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-managem
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts:10:30: A parameter cannot have a question mark and an initializer.
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/tsx/assignment-in-conditional-expression/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/tsx/assignment-in-conditional-expression/input.ts:3:23: Expected expression after operator
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/type-arguments/tsx/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/type-arguments/tsx/input.ts:1:1: Unexpected '<': not a valid TS type assertion or generic arrow
 
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/invalid-assignment-target-type/input.js:3:15: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/core/categorized/for-missing-semicolons/input.js:3:3: Expected ;, got identifier
@@ -1560,6 +1553,7 @@ babel/packages/babel-parser/test/fixtures/tokens/template-string/invalid-octal/i
 babel/packages/babel-parser/test/fixtures/tokens/template-string/invalid-unicode-escape-codepoint/input.js:1:8: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/typescript/arrow-function/async-arrow-function-after-binary-operator/input.ts:2:1: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/typescript/arrow-function/async-rest-optional-parameter/input.ts:1:14: Expected ), got ?
+babel/packages/babel-parser/test/fixtures/typescript/arrow-function/generic-tsx/input.ts:4:1: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 babel/packages/babel-parser/test/fixtures/typescript/arrow-function/invalid-class-implements/input.ts:1:22: Expected {, got =>
 babel/packages/babel-parser/test/fixtures/typescript/assert-predicate/invalid-escaped-asserts-keyword/input.ts:1:63: An implementation cannot be declared in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/assign/invalid-TSTypeParameterInstantiation/input.ts:15:31: Expected expression after operator
@@ -1678,7 +1672,7 @@ babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-stati
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-02/input.ts:2:19: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/tsx/anonymous-function-generator-invalid/input.ts:1:23: Expected type parameter name, got ','
 babel/packages/babel-parser/test/fixtures/typescript/tsx/cast-invalid/input.tsx:3:22: Expected ], got :
-babel/packages/babel-parser/test/fixtures/typescript/tsx/invalid-gt-arrow-like/input.ts:1:12: Arrow function cannot be used as an unparenthesized operand
+babel/packages/babel-parser/test/fixtures/typescript/tsx/invalid-gt-arrow-like/input.ts:1:10: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 babel/packages/babel-parser/test/fixtures/typescript/type-alias/declare-new-line/input.ts:1:9: Line terminator not permitted after 'type'
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/call-optional-chain-invalid/input.ts:1:12: Expected '(' after type arguments in optional call
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-function/input.ts:1:5: Expected expression after operator
@@ -1686,7 +1680,7 @@ babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-interf
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-interface-implements/input.ts:1:22: Type argument list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-new/input.ts:1:7: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-superclass/input.ts:1:19: Type argument list cannot be empty
-babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-tsx/input.ts:1:9: Unexpected '<': not a valid TS type assertion or generic arrow
+babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-tsx/input.ts:1:15: Type argument list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-type-import/input.ts:1:19: Type argument list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-type-ref/input.ts:1:12: Type argument list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/instantiation-expression-property-access/input.ts:2:5: An instantiation expression cannot be followed by a property access.

@@ -394,8 +394,17 @@ load_babel :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fixtu
 	return out[:]
 }
 
-// resolve_babel_lang — extension takes priority for .ts/.tsx; for .js/.mjs/.jsx
-// the typescript / jsx plugins override (mirrors OXC).
+// resolve_babel_lang — extension is the primary signal; plugins refine it.
+//
+// Babel's actual contract is plugin-driven: a `.ts` file with both `jsx`
+// and `typescript` plugins parses as TSX, even though the extension says
+// `.ts`. Nine babel fixtures rely on this (e.g. typescript/tsx/* with .ts
+// extensions + plugins:["jsx","typescript"] in options.json). We mirror
+// that here so the classifier matches babel's expectations.
+//
+// `.tsx` and `.jsx` extensions are unambiguous — they always carry their
+// JSX dialect regardless of plugins. `.js` / `.mjs` fall through to the
+// plugin-driven path. `.ts` with the JSX plugin promotes to TSX.
 @(private="file")
 resolve_babel_lang :: proc(path: string, opts: BabelOptions) -> kessel.Lang {
 	ext := filepath.ext(filepath.base(path))
@@ -403,7 +412,11 @@ resolve_babel_lang :: proc(path: string, opts: BabelOptions) -> kessel.Lang {
 	has_jsx := is_jsx(opts)
 	switch ext {
 	case ".tsx": return .TSX
-	case ".ts":  return .TS
+	case ".ts":
+		// Babel: .ts + jsx plugin = TSX (mirrors babel-parser's plugin
+		// activation order; OXC also flips to TSX in this combo).
+		if has_jsx { return .TSX }
+		return .TS
 	case ".jsx":
 		if has_ts { return .TSX }
 		return .JSX
