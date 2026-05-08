@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12692/12692 (100.00%)
 Positive Passed: 12692/12692 (100.00%)
-Negative Passed: 1511/3470 (43.54%)
+Negative Passed: 1512/3470 (43.57%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -943,7 +943,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/m
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadSuper.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadSuperUseDefineForClassFields.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameDeclarationMerging.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameDuplicateField.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedClassAccessorsShadowing.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedClassFieldShadowing.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedClassMethodShadowing.ts
@@ -2487,6 +2486,7 @@ typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndPr
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadAssignment.ts:1:15: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadDeclaration.ts:3:3: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameConstructorReserved.ts:3:2: Class private member name cannot be '#constructor'
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameDuplicateField.ts:119:9: Duplicate private name '#foo'
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameEnum.ts:2:5: An enum member cannot have a private name
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameFieldDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameHashCharName.ts:1:1: Private identifier can only appear as the LHS of an 'in' expression or as a class member

@@ -4866,6 +4866,20 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 			report_error(p, "Class private member name cannot be '#constructor'")
 			continue
 		}
+		// TS overload signatures (body-less methods/constructors): skip
+		// from the dup map entirely so the implementation can be added
+		// without false-flagging.
+		if allow_ts_mode(p) && (elem.kind == .Method || elem.kind == .Constructor) {
+			is_overload := true
+			if val, has_val := elem.value.?; has_val && val != nil {
+				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
+					if len(fn.body.body) > 0 || len(fn.body.directives) > 0 {
+						is_overload = false
+					}
+				}
+			}
+			if is_overload { continue }
+		}
 		prev, _ := seen[name]
 		dup := false
 		static_mismatch := false
@@ -4885,9 +4899,13 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 			prev.has_other = true
 		}
 		seen[name] = prev
-		// NOTE: duplicate private class member detection is deferred
-		// to the semantic checker (OXC's parser does not check this).
-		_ = dup
+		// §15.7.1 — PrivateBoundIdentifiers must be pairwise distinct,
+		// except a single get/set pair on the same name. TS body-less
+		// overload signatures were skipped above and don't enter `seen`.
+		if dup {
+			msg := fmt.tprintf("Duplicate private name '#%s'", name)
+			report_error_at(p, LexerLoc(elem.loc.span.start), msg)
+		}
 		// §15.7.1 private getter/setter static-mismatch is enforced by
 		// the semantic checker (ck_check_class_private_static_mismatch).
 		_ = static_mismatch

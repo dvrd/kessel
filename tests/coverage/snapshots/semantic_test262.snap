@@ -1303,7 +1303,7 @@ test262/test/language/expressions/class/elements/fields-asi-3.js:17:9: Expected 
 test262/test/language/expressions/class/elements/fields-asi-4.js:17:10: Expected semicolon or line terminator after class field
 test262/test/language/expressions/class/elements/fields-asi-same-line-1.js:16:27: Expected (, got identifier
 test262/test/language/expressions/class/elements/fields-asi-same-line-2.js:16:31: Expected semicolon or line terminator after class field
-test262/test/language/expressions/class/elements/fields-duplicate-privatenames.js:23:3: Duplicate private name '#x' in class body
+test262/test/language/expressions/class/elements/fields-duplicate-privatenames.js:23:3: Duplicate private name '#x'
 test262/test/language/expressions/class/elements/fields-literal-name-propname-constructor.js:28:14: Class field cannot be named 'constructor'
 test262/test/language/expressions/class/elements/fields-literal-name-static-propname-constructor.js:28:21: Class field cannot be named 'constructor'
 test262/test/language/expressions/class/elements/fields-literal-name-static-propname-prototype.js:29:2: Classes may not have a static member named 'prototype'
@@ -1488,19 +1488,19 @@ test262/test/language/expressions/class/elements/syntax/early-errors/grammar-pri
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage.js:36:40: Private field '#foo' must be declared in an enclosing class
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-field-on-object-destructuring.js:30:13: Expected property key in object pattern
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js:28:14: Private fields cannot be accessed through 'super'
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async-gen.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-gen.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-get-field.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-get-get.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-field.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-get.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-meth.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-set.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticfield.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticmeth.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-field.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-set.js:25:3: Duplicate private name '#m' in class body
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async-gen.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-gen.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-get-field.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-get-get.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-field.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-get.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-meth.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-set.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticfield.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticmeth.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-field.js:25:3: Duplicate private name '#m'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-set.js:25:3: Duplicate private name '#m'
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-constructor.js:25:2: Class private member name cannot be '#constructor'
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-error.js:35:5: Expected (, got identifier
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-identifier-invalid-ues.js:63:3: Expected method or property name
@@ -3472,7 +3472,7 @@ test262/test/language/statements/class/elements/fields-asi-3.js:17:9: Expected s
 test262/test/language/statements/class/elements/fields-asi-4.js:17:10: Expected semicolon or line terminator after class field
 test262/test/language/statements/class/elements/fields-asi-same-line-1.js:16:27: Expected (, got identifier
 test262/test/language/statements/class/elements/fields-asi-same-line-2.js:16:31: Expected semicolon or line terminator after class field
-test262/test/language/statements/class/elements/fields-duplicate-privatenames.js:23:3: Duplicate private name '#x' in class body
+test262/test/language/statements/class/elements/fields-duplicate-privatenames.js:23:3: Duplicate private name '#x'
 test262/test/language/statements/class/elements/fields-literal-name-propname-constructor.js:28:14: Class field cannot be named 'constructor'
 test262/test/language/statements/class/elements/fields-literal-name-static-propname-constructor.js:28:21: Class field cannot be named 'constructor'
 test262/test/language/statements/class/elements/fields-literal-name-static-propname-prototype.js:30:1: Classes may not have a static member named 'prototype'
@@ -3665,19 +3665,19 @@ test262/test/language/statements/class/elements/syntax/early-errors/grammar-priv
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage.js:36:34: Private field '#foo' must be declared in an enclosing class
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-field-on-object-destructuring.js:30:13: Expected property key in object pattern
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access.js:28:14: Private fields cannot be accessed through 'super'
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async-gen.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-gen.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-get-field.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-get-get.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-field.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-get.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-meth.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-set.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticfield.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticmeth.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-field.js:25:3: Duplicate private name '#m' in class body
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-set.js:25:3: Duplicate private name '#m' in class body
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async-gen.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-gen.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-get-field.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-get-get.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-field.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-get.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-meth.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-set.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticfield.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticmeth.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-field.js:25:3: Duplicate private name '#m'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-set.js:25:3: Duplicate private name '#m'
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-constructor.js:26:1: Class private member name cannot be '#constructor'
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-error.js:35:5: Expected (, got identifier
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-identifier-invalid-ues.js:63:3: Expected method or property name

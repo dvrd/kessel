@@ -2814,7 +2814,7 @@ typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndPr
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadAssignment.ts:1:15: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadDeclaration.ts:3:3: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameConstructorReserved.ts:3:2: Class private member name cannot be '#constructor'
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameDuplicateField.ts:6:9: Duplicate private name '#foo' in class body
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameDuplicateField.ts:119:9: Duplicate private name '#foo'
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameEnum.ts:2:5: An enum member cannot have a private name
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameFieldDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameHashCharName.ts:1:1: Private identifier can only appear as the LHS of an 'in' expression or as a class member

@@ -143,7 +143,7 @@ tests/coverage/misc/fail/negative/010_reserved_word_as_var.js:2:5: 'class' is a 
 tests/coverage/misc/fail/negative/011_duplicate_default_in_switch.js:8:2: More than one default clause in switch
 tests/coverage/misc/fail/negative/012_duplicate_label.js:5:2: Label 'outer' has already been declared
 tests/coverage/misc/fail/negative/013_break_unknown_label.js:6:8: Undefined label 'bar'
-tests/coverage/misc/fail/negative/014_duplicate_private_class_member.js:13:1: Class private member name cannot be '#constructor'
+tests/coverage/misc/fail/negative/014_duplicate_private_class_member.js:7:2: Duplicate private name '#x'
 tests/coverage/misc/fail/negative/015_for_await_outside_async.js:8:12: 'for await' outside of async function
 tests/coverage/misc/fail/negative/016_let_as_lexical_name.js:6:1: 'let' is disallowed as a lexically bound name
 tests/coverage/misc/fail/negative/017_static_prototype_class_member.js:9:1: Classes may not have a static member named 'prototype'
