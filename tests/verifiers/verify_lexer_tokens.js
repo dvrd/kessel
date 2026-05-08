@@ -34,13 +34,22 @@ function parseKessel(file, lang) {
   catch(e) { return { ok: false, tree: null, parseErrors: n }; }
 }
 
-function parseOxc(source, lang) {
+function parseOxc(source, lang, file) {
   const oxc = require(path.join(ROOT, 'bench/node_modules/oxc-parser'));
-  const opts = {};
-  if (lang === 'jsx') opts.lang = 'jsx';
-  if (lang === 'ts') opts.lang = 'typescript';
-  if (lang === 'tsx') opts.lang = 'tsx';
-  return oxc.parseSync(source, opts);
+  // oxc-parser dialect detection runs off the filename extension first,
+  // and only consults `opts.lang` as a fallback. Substitute an extension
+  // that matches the desired dialect so spec/typescript/*.js etc. parse
+  // as TS/JSX/TSX (matching kessel's `--lang=` override).
+  const ext = lang === 'tsx' ? '.tsx'
+            : lang === 'ts'  ? '.ts'
+            : lang === 'jsx' ? '.jsx'
+            :                  '.js';
+  const filename = (file || 'input.js').replace(/\.[^./]+$/, '') + ext;
+  const result = oxc.parseSync(filename, source, {});
+  // Match kessel's `parse` output — just the Program AST. The full result
+  // wrapper carries extra span-bearing nodes (errors[]) that would skew
+  // the count comparison.
+  return result && result.program ? result.program : result;
 }
 
 function extractSpans(tree) {
@@ -70,16 +79,16 @@ function spanIssues(spans) {
 }
 
 const FIXTURES = [
-  'tests/fixtures/basic/001_variable_declaration.js',
-  'tests/fixtures/spec/escapes/001_hex_escape.js',
-  'tests/fixtures/spec/escapes/002_unicode_escape.js',
-  'tests/fixtures/spec/regex_disambiguation/001_block_regex.js',
-  'tests/fixtures/spec/regex_disambiguation/002_division.js',
-  'tests/fixtures/spec/unicode/001_unicode_identifier_start.js',
+  'tests/fixtures/basic/001_const.js',
+  'tests/fixtures/spec/escapes/002_hex_escape.js',
+  'tests/fixtures/spec/escapes/001_unicode_code_point.js',
+  'tests/fixtures/spec/regex_disambiguation/001_after_return.js',
+  'tests/fixtures/spec/regex_disambiguation/007_division.js',
+  'tests/fixtures/spec/unicode/001_letter_start.js',
   'tests/fixtures/spec/asi/001_return_newline.js',
   'tests/fixtures/spec/lexical/005_comment_regex_boundary.js',
-  'tests/fixtures/spec/jsx/001_element.js',
-  'tests/fixtures/spec/typescript/001_interface.js',
+  'tests/fixtures/spec/jsx/001_namespaced_tag.js',
+  'tests/fixtures/spec/typescript/001_generic_function.js',
   'bench/real_world/batch3/snabbdom.js',
 ];
 
@@ -94,7 +103,7 @@ for (const rel of FIXTURES) {
   const k = parseKessel(abs, lang);
   if (!k.ok) { console.log('  FAIL ' + rel + ' — kessel parse failed'); fail++; continue; }
   let oTree;
-  try { oTree = parseOxc(src, lang); } catch(e) { console.log('  FAIL ' + rel + ' — oxc error'); fail++; continue; }
+  try { oTree = parseOxc(src, lang, rel); } catch(e) { console.log('  FAIL ' + rel + ' — oxc error: ' + e.message); fail++; continue; }
   const kSpans = extractSpans(k.tree), oSpans = extractSpans(oTree);
   const issues = spanIssues(kSpans);
   const diff = Math.abs(kSpans.length - oSpans.length);

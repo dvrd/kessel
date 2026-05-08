@@ -198,6 +198,21 @@ tasks:
       - task: test:lexer-tokens
 
   # ============================================================
+  # OXC reference binary build (Rust) — used by verifiers that diff
+  # against OXC's parser output (verify_regression, verify_string_escapes,
+  # fuzz_diff). Requires a sibling OXC checkout; see bench/oxc_compare/Cargo.toml.
+  # ============================================================
+
+  bench:oxc:build:
+    desc: Build OXC reference binary (Rust) used by diff-against-OXC verifiers.
+    dir: bench/oxc_compare
+    cmds:
+      - cargo build --release -q
+    status:
+      - test -f ../../{{.OXC_BENCH}}
+      - test -f ../../bench/oxc_compare/target/release/oxc_cli_equiv
+
+  # ============================================================
   # Performance regression gate.
   # ============================================================
 
