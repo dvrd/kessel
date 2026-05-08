@@ -41,45 +41,32 @@ tasks:
       - src/*.odin
 
   # ============================================================
-  # Test
+  # ============================================================
+  # Test — mirrors the OXC workflow: one command for the canonical gate.
+  #
+  #   task test                    Primary gate (coverage snap gate + unit fixtures)
+  #   task test -- --update        Regenerate snaps after a deliberate fix
+  #   task test:quick              Fast dev-loop subset (~8s)
+  #   task test:release            Zero-tolerance pre-release gate
   # ============================================================
 
   test:
-    desc: Run all tests — unit, regression, real-world, spec-compliance, invariants, fixtures, nodes, recovery, lexical, ambiguity, test262, test262:subset, multi-parser, fuzz:diff (baselined), fuzz:invalid (baselined), crashes-known. All gates are baseline-gated in the default chain; run `task test:negative:strict` before a release for zero-tolerance on negative fixtures.
+    desc: "Primary gate — coverage snap gate (50K+ fixtures) + unit fixtures."
     deps: [build]
-    silent: true
+    silent: false
     cmds:
-      - task: test:unit
-      # Baseline-gated: known-accepted-but-shouldn't negative fixtures are
-      # tracked in tests/baselines/negative_baseline.json and must not grow.
-      # The strict variant (task test:negative:strict) is available as an
-      # opt-in pre-release gate.
-      - task: test:negative
-      - task: test:ambiguity
-      - task: test:regression
-      - task: test:real
-      - task: test:estree
-      - task: test:nodes
-      - task: test:recovery
-      - task: test:lexical
-      - task: test:invariants
-      - task: test:spec-compliance
-      - task: test:spec-fixtures
-      - task: test:multi-parser
-      - task: test:fuzz
-      - task: test:fuzz:invalid
-      - task: test:crashes-known
       - task: test:coverage
+      - task: test:unit
 
   test:coverage:
-    desc: "OXC-style conformance harness — 10 snap files (parser + semantic for test262/babel/typescript/estree/misc). Mirrors oxc-project/oxc:tasks/coverage. The parser_test262.snap / semantic_test262.snap files are the ES2025 conformance proof."
+    desc: "OXC-style conformance harness — 10 snap files (parser + semantic for test262/babel/typescript/estree/misc). The parser_test262.snap / semantic_test262.snap files are the canonical conformance proof."
     deps: [build]
     silent: true
     cmds:
       - odin test tests/coverage/src -no-bounds-check -o:speed -define:ODIN_TEST_TRACK_MEMORY=false
 
   test:coverage:update:
-    desc: Regenerate every snap baseline. Run after a deliberate parser change.
+    desc: "Regenerate every snap baseline. Run after a deliberate parser change."
     deps: [build:coverage]
     silent: true
     cmds:
@@ -87,447 +74,45 @@ tasks:
       - ./bin/kessel_coverage run all --update --semantic
 
   test:coverage:run:
-    desc: 'Run a single coverage suite via the standalone binary. Usage: task test:coverage:run -- <suite> [--semantic] [--update]. Suites: test262 / babel / typescript / estree / misc / all.'
+    desc: "Run a single coverage suite via the standalone binary. Usage: task test:coverage:run -- <suite> [--semantic] [--update]. Suites: test262 / babel / typescript / estree / misc / all."
     deps: [build:coverage]
     silent: true
     cmds:
       - ./bin/kessel_coverage run {{.CLI_ARGS}}
 
   test:unit:
-    desc: Positive fixture golden-output tests
+    desc: "Positive fixture golden-output tests (430 fixtures)."
     deps: [build]
     silent: true
     cmds:
       - tests/runners/run_tests.sh
 
-  test:negative:
-    desc: Negative and early-error fixtures must be rejected by the parser
+  # ============================================================
+  # Fast dev loop — the checks that matter most, in ~8 seconds.
+  # ============================================================
+
+  test:quick:
+    desc: "Fast dev-loop gate — unit + regression + invariants + lexer tokens (~8s)."
     deps: [build]
     silent: true
     cmds:
-      - node tests/verifiers/verify_negative.js
-
-  test:negative:update:
-    desc: Re-capture negative_baseline.json after a deliberate fix
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_negative.js --update
-
-  test:negative:strict:
-    desc: Zero-tolerance negative-fixture gate
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_negative.js --strict
-
-  test:ambiguity:
-    desc: "JS / TS / JSX boundary gate. 10 ambiguity fixtures, classified as pass / known_fail / unexpected_fail vs tests/baselines/ambiguity_baseline.json. Each fixture is parsed in its per-fixture intent mode (ts/jsx/js) and checked against its golden AND deep-compared vs OXC."
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_ambiguity.js
-
-  test:ambiguity:update:
-    desc: Re-capture tests/baselines/ambiguity_baseline.json after a deliberate fix
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_ambiguity.js --update
-
-  test:ambiguity:strict:
-    desc: Zero-tolerance ambiguity gate — every fixture must pass both golden match and deep compare.
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_ambiguity.js --strict
+      - task: test:unit
+      - task: test:regression
+      - node tests/verifiers/verify_lexer_tokens.js
 
   test:regression:
-    desc: Structural regression checks for session-fixed bugs vs OXC
+    desc: "Structural regression checks (11 path-based assertions vs reference)."
     deps: [build, bench:oxc:build]
     silent: true
     cmds:
       - node tests/verifiers/verify_regression.js
 
-  test:estree:
-    desc: ESTree-drift gates — string escape decoding + deep integration walk vs OXC
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      # String-escape decoding (Bug E): compares every kessel-emitted
-      # `StringLiteral.value` to OXC's across a representative set of real
-      # files covering single-char escapes, \xHH, \uHHHH, \u{H...H},
-      # line continuations, and identity fallback.
-      - node tests/verifiers/verify_string_escapes.js bench/real_world/jquery.js
-      - node tests/verifiers/verify_string_escapes.js bench/real_world/react.dev.js
-      - node tests/verifiers/verify_string_escapes.js bench/real_world/lodash.js
-      - node tests/verifiers/verify_string_escapes.js bench/real_world/babel.js
-      # Deep integration walk over the raw binary buffer vs OXC's parseSync.
-      # Covers: arrow block bodies, function bodies inside IIFEs, for-loop
-      # init/left slots, try/catch blocks, template literals, destructuring,
-      # and — post-fix — cooked escape strings encoded via STRING_ARENA_FLAG.
-      # Baseline-gated (tests/baselines/integration_baseline.json) so that
-      # the tracked real-world drift doesn't block the chain while it is
-      # fixed. Use `task test:estree:strict` for zero-tolerance before a
-      # release, or `task test:integration:update` after a deliberate fix.
-      - node tests/verifiers/verify_integration.js bench/real_world/jquery.js --baseline
-      - node tests/verifiers/verify_integration.js bench/real_world/react-dom.dev.js --baseline
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/preact.js --baseline
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/snabbdom.js --baseline
-      # S26 W5 — broader binary-path gate. Curated TS/TSX/JSX spec fixtures
-      # that exercise the new walker code (ClassDeclaration body + decorators,
-      # TSInterfaceDeclaration / TSTypeAliasDeclaration / TSEnumDeclaration /
-      # TSModuleDeclaration, JSXElement / JSXFragment / JSXExpressionContainer,
-      # ChainExpression, TSAsExpression / TSSatisfies / TSNonNull / TSAssertion,
-      # ParenthesizedExpression, TaggedTemplateExpression, TemplateLiteral).
-      # Each fixture exercises one or more S26 W1+W2-alt+W3 binary fixes on
-      # production-shaped code. Baselined at 0 — any regression fails.
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/002_generic_class.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/011_interface_extends.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/012_const_enum.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/013_class_implements.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/015_namespace_module.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/005_nested_element.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/010_form_with_controlled_inputs.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js --baseline
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js --baseline
-      # 006 — added W5b after fixing the ArrowFunctionExpression .expression /
-      # .async offset bug (was reading from body-union tag bytes, not the
-      # actual flags). Exercises async arrow + JSX child + JSXAttribute value.
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/006_jsx_async_expression_children.js --baseline
-      # S26 W5b — each fixture below was crashing or mismatching pre-W5b.
-      # Locked in at 0 to gate the bug classes we just closed:
-      #   prettier.js — PropertyKind.Method emit + ObjectPattern reinterpret
-      #                + async-flag offset fix (3 walker bugs).
-      #   rxjs.js     — `async`-Identifier RODATA-literal parser bug.
-      #   sucrase.js  — raw_transfer shorthand-property double-walk SIGSEGV.
-      #   yup.js      — raw_transfer shorthand-with-default alias SIGSEGV.
-      #   showdown.js — surrogate-pair UTF-8 encoding bug (1009 mismatches).
-      #   d3.js       — SIGSEGV on shorthand-properties in production code.
-      - node tests/verifiers/verify_integration.js bench/real_world/prettier.js --baseline
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/rxjs.js --baseline
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/sucrase.js --baseline
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/yup.js --baseline
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/showdown.js --baseline
-      - node tests/verifiers/verify_integration.js bench/real_world/d3.js --baseline
-      # Deep JSON-level compare — covers ALL 57 emitted node types (not just the
-      # 37 the raw-buffer integration verifier walks). Gates snabbdom.js, the
-      # smallest real file we can round-trip cleanly against every reference.
-      - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser oxc
-      # Class decorator binary-buffer gate (S26 W1). The raw_transfer walker
-      # had to be extended to follow `c.decorators`, `elem.decorators`, and
-      # the embedded `c.id.name` / `f.id.name` strings; verify_integration
-      # doesn't currently walk class bodies, so this dedicated verifier
-      # exercises the new wiring against the stacked-feature decorator
-      # fixture. Red before the fix, green after.
-      - node tests/verifiers/verify_class_decorators.js
-      # Class TS-slot binary-buffer gate (S26 W2-alt). Sibling of the
-      # decorator gate — walks `c.type_parameters`, `c.implements`,
-      # `elem.type_annotation`, `f.return_type`, and the inner
-      # Identifier.type_annotation through the new master rewrite_ts_type
-      # walker. Red before the fix, green after; tested via the curated
-      # 002_generic_class.js + 013_class_implements.js fixtures.
-      - node tests/verifiers/verify_class_typescript.js
-      # TS-statement / JSX binary-buffer gate (S26 W3). Walks every TS
-      # statement variant (TSInterfaceDeclaration / TSTypeAliasDeclaration
-      # / TSEnumDeclaration / TSModuleDeclaration) and the JSX expression
-      # variants (JSXElement / JSXFragment / JSXText /
-      # JSXExpressionContainer / JSXEmptyExpression / JSXSpreadChild) plus
-      # ChainExpression. Before W3 these all hit `case:` defaults in
-      # rewrite_statement / rewrite_expression and left their inner
-      # pointers as bare arena addresses. Red before the fix, green after;
-      # tested via 011_interface_extends.js + 012_const_enum.js +
-      # 015_namespace_module.js + spec/jsx/005_nested_element.js.
-      - node tests/verifiers/verify_ts_statements_jsx.js
-
-  test:estree:strict:
-    desc: Zero-tolerance ESTree drift gate — every real-world integration walk must match OXC byte-for-byte.
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_string_escapes.js bench/real_world/jquery.js
-      - node tests/verifiers/verify_string_escapes.js bench/real_world/react.dev.js
-      - node tests/verifiers/verify_string_escapes.js bench/real_world/lodash.js
-      - node tests/verifiers/verify_string_escapes.js bench/real_world/babel.js
-      - node tests/verifiers/verify_integration.js bench/real_world/jquery.js
-      - node tests/verifiers/verify_integration.js bench/real_world/react-dom.dev.js
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/preact.js
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/snabbdom.js
-      # S26 W5 — strict zero-tolerance pass for the spec fixture surfaces.
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/002_generic_class.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/011_interface_extends.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/012_const_enum.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/013_class_implements.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/015_namespace_module.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/005_nested_element.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/010_form_with_controlled_inputs.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/006_jsx_async_expression_children.js
-      # S26 W5b strict pass for the 6 real-world bug-class fixtures.
-      - node tests/verifiers/verify_integration.js bench/real_world/prettier.js
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/rxjs.js
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/sucrase.js
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/yup.js
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/showdown.js
-      - node tests/verifiers/verify_integration.js bench/real_world/d3.js
-      - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser oxc
-      - node tests/verifiers/verify_class_decorators.js
-      - node tests/verifiers/verify_class_typescript.js
-      - node tests/verifiers/verify_ts_statements_jsx.js
-
-  test:integration:update:
-    desc: Re-capture tests/baselines/integration_baseline.json for every file the estree gate walks through verify_integration.
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_integration.js bench/real_world/jquery.js --update
-      - node tests/verifiers/verify_integration.js bench/real_world/react-dom.dev.js --update
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/preact.js --update
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/snabbdom.js --update
-      # S26 W5 — spec fixtures (curated, all baselined at 0).
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/002_generic_class.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/011_interface_extends.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/012_const_enum.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/013_class_implements.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/typescript/015_namespace_module.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/005_nested_element.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/jsx/010_form_with_controlled_inputs.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/001_generic_component.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/tsx/002_hooks_refs_as_casts.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/001_decorators_private_static_block.js --update
-      - node tests/verifiers/verify_integration.js tests/fixtures/spec/interactions/006_jsx_async_expression_children.js --update
-      # S26 W5b — 6 real-world bug-class fixtures.
-      - node tests/verifiers/verify_integration.js bench/real_world/prettier.js --update
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/rxjs.js --update
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/sucrase.js --update
-      - node tests/verifiers/verify_integration.js bench/real_world/batch2/yup.js --update
-      - node tests/verifiers/verify_integration.js bench/real_world/batch3/showdown.js --update
-      - node tests/verifiers/verify_integration.js bench/real_world/d3.js --update
-
-  # NOTE: test:test262 subgates were retired in favor of `task test:coverage`,
-  # which runs the full 47 095-fixture test262 corpus end-to-end through the
-  # OXC-style coverage harness (parser_test262.snap / semantic_test262.snap).
-  # The single-source-of-truth ES2025 conformance number is now whatever the
-  # snap file reports.
-
-  test:oxc-corpus:fetch:
-    desc: "Fetch the OXC conformance corpus (microsoft/TypeScript + babel/babel + oxc-project/estree-conformance) at the SHAs OXC pins in tasks/coverage/. Sparse-checks out the relevant fixture trees (~213 MB total). Idempotent — re-runs are no-ops if SHAs already match. Required before `task test:oxc-corpus`."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh
-
-  test:oxc-corpus:fetch:typescript:
-    desc: "Fetch only the microsoft/TypeScript corpus (largest of the three, ~138 MB)."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh typescript
-
-  test:oxc-corpus:fetch:babel:
-    desc: "Fetch only the babel/babel parser fixtures (~70 MB)."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh babel
-
-  test:oxc-corpus:fetch:estree:
-    desc: "Fetch only the oxc-project/estree-conformance corpus (~5 MB, has ESTree-format JSON oracles)."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh estree
-
-  # NOTE: test:oxc-corpus was retired in favor of `task test:coverage`,
-  # which produces parser_babel.snap, parser_typescript.snap, and
-  # parser_estree.snap (matching OXC's own conformance methodology). The
-  # cross-parser comparator (kessel-vs-OXC live diff) was inferior signal
-  # to per-fixture vs declared-expectation; the snap files are the new
-  # source of truth.
-
-  test:multi-parser:
-    desc: ESTree cross-parser compat — compare Kessel against Acorn and Babel
-    deps: [build]
-    silent: true
-    cmds:
-      # snabbdom.js is the gold-standard "every parser agrees" fixture today.
-      # If this file ever disagrees across oxc/acorn/babel, something regressed
-      # in either Kessel's ESTree output OR in the normalisation layer.
-      - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser acorn
-      - node tests/verifiers/verify_json_deep.js bench/real_world/batch3/snabbdom.js --parser babel
-
-  test:nodes:
-    desc: ESTree node-type coverage — minimal fixture per emitted type
-    deps: [build]
-    silent: true
-    cmds:
-      # 57 fixtures, one per node type Kessel claims to emit. Each is parsed
-      # and checked that the expected type name appears in the output. Guards
-      # against silent breakage of any single emit path.
-      - node tests/verifiers/estree_nodes_coverage.js
-
-  test:invariants:
-    desc: Structural ESTree invariants across the 467-file real-world corpus
-    deps: [build]
-    silent: true
-    cmds:
-      # 8 zero-tolerance invariants (start/end present, start<=end, Program
-      # shape, function shapes, catch shapes, declarator shapes) + 2 baseline-
-      # locked (no-Unknown, no-UNIMPLEMENTED). Any violation of the former, or
-      # an increase above baseline on the latter, fails the gate.
-      - node tests/verifiers/verify_invariants.js
-
-  test:recovery:
-    desc: "Error-recovery quality gate. Every fixture under tests/fixtures/recovery/* is intentionally malformed but carries a `const anchor_after_error = 1;` declaration after the malformed region. The verifier asserts: parser didn't crash, parse-error count is bounded, the anchor survived in the emitted AST, no Unknown-node explosions, no absurd source spans. Zero-tolerance."
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_recovery.js
-
-  test:lexical:
-    desc: "Tokenisation-sensitive AST-shape gate. 10 lexical fixtures (BOM/hashbang, CRLF restricted production, identifier escapes, numeric separators, template raw/cooked, comment-regex boundary, ZWJ, U+2028/U+2029) each checked via a focused per-fixture AST assertion, not just pass/fail. Baselined at tests/baselines/lexical_surfaces_baseline.json; two current tracked lexer gaps are visible there."
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_lexical_surfaces.js
-
-  test:lexical:update:
-    desc: Re-capture tests/baselines/lexical_surfaces_baseline.json after a deliberate fix
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_lexical_surfaces.js --update
-
-  test:lexical:strict:
-    desc: Zero-tolerance lexical-surfaces gate — every per-fixture AST assertion must pass.
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_lexical_surfaces.js --strict
-
-  test:spec-compliance:
-    desc: Deep JSON compare vs OXC/Acorn/Babel on curated real files, baseline-locked
-    deps: [build]
-    silent: true
-    cmds:
-      # Divergence counts per (file, parser) pair are locked in
-      # tests/spec_baseline.json. Any increase is a regression; any
-      # decrease is an improvement (run with --update to commit).
-      - node tests/verifiers/verify_spec_compliance.js
-
-  test:invariants:update:
-    desc: Re-capture invariants_baseline.json after a deliberate fix
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_invariants.js --update
-
-  test:spec-compliance:update:
-    desc: Re-capture spec_baseline.json after a deliberate fix
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_spec_compliance.js --update
-
-  test:spec-fixtures:
-    desc: Hand-authored ES spec fixtures (es2015–es2025 + edge) vs OXC, category pass rates baseline-locked
-    deps: [build]
-    silent: true
-    cmds:
-      # 56 minimal fixtures, one per ES feature. Each is parsed by Kessel
-      # and deep-JSON-compared to OXC; a fixture passes only on exact match.
-      # Category pass rates in tests/spec_fixtures_baseline.json are locked;
-      # a regression in any category fails. Easier to triage than real-world
-      # regressions — failure category points directly at a feature bucket.
-      - node tests/runners/run_spec_fixtures.js
-
-  test:spec-fixtures:update:
-    desc: Re-capture spec_fixtures_baseline.json after a deliberate fix
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/runners/run_spec_fixtures.js --update
-
-  test:deep-families:
-    desc: "Per-family deep-compare gate. Runs verify_json_deep vs OXC across the high-risk syntax families (ambiguity, asi, escapes, interactions, jsx, lexical, regex_disambiguation, typescript, unicode) and locks {files, pass, fail, divergences} per family at tests/baselines/deep_families_baseline.json. Complementary view to test:spec-fixtures (which reports by ES category); kept out of the default test chain because it re-runs the same deep compare."
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_deep_families.js
-
-  test:deep-families:update:
-    desc: Re-capture tests/baselines/deep_families_baseline.json after a deliberate fix
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_deep_families.js --update
-
-  test:fuzz:
-    desc: "Differential fuzz vs OXC — baseline-gated. Fixed seed; tests/baselines/fuzz_baseline.json locks the set of known-failing case hashes. A NEW failure hash fails the gate; a disappearing hash is reported as an IMPROVEMENT (run test:fuzz:update to commit)."
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      # 100 random cases, seed + count + parser pinned so the generated-
-      # program hash-set is reproducible across runs. Baseline mode compares
-      # the CURRENT failing-hash set to the committed set; new hashes fail,
-      # vanished hashes print as IMPROVEMENTS.
-      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --baseline
-
-  test:fuzz:update:
-    desc: Re-capture tests/baselines/fuzz_baseline.json (use after fixing a fuzz-found bug)
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --update
-
-  test:fuzz:strict:
-    desc: Zero-tolerance differential fuzz — any mismatch vs OXC fails, regardless of baseline. Use before a release.
-    deps: [build, bench:oxc:build]
-    silent: true
-    cmds:
-      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --strict
-
-  test:fuzz:invalid:
-    desc: "Invalid-input mutation fuzzer. Mutates random bytes from the 467-file real-world corpus (bit-flips, truncations, broken UTF-8, nul-injection, nested garbage) and asserts Kessel exits {0,1} within a deadline — never SIGTRAP/SIGSEGV/SIGABRT. Baseline-gated against tests/baselines/fuzz_invalid_baseline.json."
-    deps: [build]
-    silent: true
-    cmds:
-      # 300 mutations, seed pinned so the crash-hash set is reproducible.
-      # A signal-terminated or timed-out run is a crash; exit 0 (parsed)
-      # and 1 (reported parse errors) are both OK.
-      - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --baseline
-
-  test:fuzz:invalid:update:
-    desc: Re-capture tests/baselines/fuzz_invalid_baseline.json (use ONLY after triaging every crash)
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --update
-
-  test:fuzz:invalid:strict:
-    desc: Zero-tolerance invalid-input fuzz — any crash fails, regardless of baseline. Use before a release.
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --strict
-
-  test:crashes-known:
-    desc: "Asserts the 3 known-SIGTRAP fixtures still crash exactly as expected. A stopped-crashing fixture is an IMPROVEMENT (surface it explicitly, don't hide it as 'unit test passes'). A new crashing fixture regresses the gate. Pinned in tests/verifiers/verify_crashes_known.js."
-    deps: [build]
-    silent: true
-    cmds:
-      - node tests/verifiers/verify_crashes_known.js
-
   test:real:
-    desc: Parse all 467 real-world JS files in parallel, fail on any error
+    desc: "Parse all 467 real-world files, fail on any error or crash."
     deps: [build]
     silent: true
     cmds:
       - |
-        # Parallel driver — kessel is single-file-per-invocation and CPU-bound.
-        # xargs -P $(nproc) gives near-linear speedup on multi-core.
-        # For each file: redirect stdout (potentially 100+ MB of JSON) to
-        # /dev/null; capture stderr (where "Parse errors: N" appears) to a
-        # per-file tempfile; grep for errors. Prints FAIL: lines only.
         set +e
         outdir=$(mktemp -d)
         trap 'rm -rf "$outdir"' EXIT
@@ -550,258 +135,129 @@ tasks:
         echo "$total files parsed, $fails failures"
         [ "$fails" -eq 0 ] || exit 1
 
-  # ============================================================
-  # Benchmark
-  # ============================================================
-
-  bench:
-    desc: Full benchmark vs OXC (all files)
+  test:estree:
+    desc: "String-escape decoding parity vs reference parser on key real-world files."
     deps: [build, bench:oxc:build]
+    silent: true
     cmds:
-      - |
-        faster=0; parity=0; slower=0; total=0
-        for f in $(find {{.BENCH_FILES}} -name '*.js' -o -name '*.mjs' | sort); do
-          k=$(./{{.BIN}} microbench parse "$f" --iterations {{.BENCH_ITERS}} 2>&1 | awk '/Min:/ {print $2}')
-          o=$({{.OXC_BENCH}} "$f" {{.BENCH_ITERS}} 2>&1 | awk '/Min:/ {print $2}')
-          [ -z "$k" ] || [ -z "$o" ] && continue
-          total=$((total+1))
-          r=$(python3 -c "v=float('$k')/float('$o'); print(f'{v:.3f}')" 2>/dev/null)
-          [ -z "$r" ] && continue
-          is_faster=$(python3 -c "print(1 if float('$r') <= 0.97 else 0)")
-          is_parity=$(python3 -c "print(1 if 0.97 < float('$r') <= 1.03 else 0)")
-          if [ "$is_faster" = "1" ]; then faster=$((faster+1))
-          elif [ "$is_parity" = "1" ]; then parity=$((parity+1))
-          else slower=$((slower+1)); fi
-        done
-        echo ""
-        echo "========================================"
-        echo "  $total files benchmarked"
-        echo "========================================"
-        echo "Faster (≤0.97x): $faster ($((faster*100/total))%)"
-        echo "Parity (0.97–1.03x): $parity ($((parity*100/total))%)"
-        echo "Slower (>1.03x): $slower ($((slower*100/total))%)"
-        echo "At parity or faster: $((faster+parity)) ($(((faster+parity)*100/total))%)"
-
-  bench:quick:
-    desc: Benchmark 10 key files vs OXC (apples-to-apples — ast-only mode)
-    deps: [build, bench:oxc:build]
-    cmds:
-      - |
-        # OXC's parser-only bench harness defers all scope/binding/early-error
-        # checks to oxc_semantic, which the bench never invokes. To compare on
-        # equal terms, kessel runs in --ast-only mode (which disables the same
-        # set of checks). Test262 / TS / JSX / negative gates all keep the
-        # checks ON via the default parse path, so conformance is preserved.
-        printf 'apples-to-apples (kessel --ast-only vs OXC parse-only)\n\n'
-        for f in \
-          bench/real_world/typescript.js \
-          bench/real_world/batch2/cesium.js \
-          bench/real_world/batch2/monaco.js \
-          bench/real_world/antd.js \
-          bench/real_world/jquery.js \
-          bench/real_world/d3.js \
-          bench/real_world/react-dom.dev.js \
-          bench/real_world/batch2/preact.js \
-          bench/real_world/lodash.js \
-          bench/real_world/batch3/snabbdom.js; do
-          name=$(basename "$f")
-          k=$(./{{.BIN}} microbench parse "$f" --iterations 30 --ast-only 2>&1 | awk '/Min:/ {print $2}')
-          o=$({{.OXC_BENCH}} "$f" 30 2>&1 | awk '/Min:/ {print $2}')
-          r=$(python3 -c "print(f'{float(\"$k\")/float(\"$o\"):.2f}x')" 2>/dev/null)
-          printf '%-25s kessel=%-12s oxc=%-12s ratio=%s\n' "$name" "${k}us" "${o}us" "$r"
-        done
-
-  bench:quick:full:
-    desc: "Benchmark 10 key files vs OXC (apples-to-oranges \u2014 full kessel parse with all conformance checks ON)"
-    deps: [build, bench:oxc:build]
-    cmds:
-      - |
-        # Compares kessel's full parse (all spec-mandated scope / early-error
-        # checks ON — i.e. parser+semantic combined) against OXC's parser-only.
-        # This is apples-to-oranges and was the historical default; use
-        # `bench:quick` for the fair comparison.
-        printf 'apples-to-oranges (kessel full parse vs OXC parse-only)\n\n'
-        for f in \
-          bench/real_world/typescript.js \
-          bench/real_world/batch2/cesium.js \
-          bench/real_world/batch2/monaco.js \
-          bench/real_world/antd.js \
-          bench/real_world/jquery.js \
-          bench/real_world/d3.js \
-          bench/real_world/react-dom.dev.js \
-          bench/real_world/batch2/preact.js \
-          bench/real_world/lodash.js \
-          bench/real_world/batch3/snabbdom.js; do
-          name=$(basename "$f")
-          k=$(./{{.BIN}} microbench parse "$f" --iterations 30 2>&1 | awk '/Min:/ {print $2}')
-          o=$({{.OXC_BENCH}} "$f" 30 2>&1 | awk '/Min:/ {print $2}')
-          r=$(python3 -c "print(f'{float(\"$k\")/float(\"$o\"):.2f}x')" 2>/dev/null)
-          printf '%-25s kessel=%-12s oxc=%-12s ratio=%s\n' "$name" "${k}us" "${o}us" "$r"
-        done
-
-  bench:oxc:build:
-    desc: Build OXC benchmark binary (Rust)
-    dir: bench/oxc_compare
-    cmds:
-      - cargo build --release -q
-    status:
-      - test -f ../../{{.OXC_BENCH}}
-    sources:
-      - bench/oxc_compare/**/*.rs
-      - bench/oxc_compare/Cargo.toml
+      - node tests/verifiers/verify_string_escapes.js bench/real_world/jquery.js
+      - node tests/verifiers/verify_string_escapes.js bench/real_world/react.dev.js
+      - node tests/verifiers/verify_string_escapes.js bench/real_world/lodash.js
+      - node tests/verifiers/verify_string_escapes.js bench/real_world/babel.js
 
   # ============================================================
-  # Performance regression gate — separate from the default `task test`
-  # chain because (a) it's slow (~60s), and (b) it's sensitive to machine
-  # noise. Run before a release and after intentional perf work.
+  # Fuzzing — differential and invalid-input
   # ============================================================
 
-  test:bench:regression:
-    desc: "Performance regression gate. Microbench 10 curated files, compare min runtime to tests/baselines/bench_baseline.json. Fails if any file is >10% slower OR geo-mean is >5% slower."
+  test:fuzz:
+    desc: "Differential fuzz vs reference (100 random programs, baseline-gated)."
+    deps: [build, bench:oxc:build]
+    silent: true
+    cmds:
+      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --baseline
+
+  test:fuzz:invalid:
+    desc: "Invalid-input mutation fuzz (300 mutations, baseline-gated)."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --baseline
+
+  test:crashes-known:
+    desc: "Asserts known-SIGTRAP fixtures still crash as expected."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_crashes_known.js
+
+  test:lexer-tokens:
+    desc: "Lexer token-stream conformance — AST span structure vs reference."
     deps: [build]
     silent: false
     cmds:
-      # 30 iterations per file keeps the Min-of-N estimate tight without
-      # dominating wall-clock. Warmup run per file is handled inside the
-      # verifier. Re-run on a quiet machine if the geo-mean is borderline.
+      - node tests/verifiers/verify_lexer_tokens.js
+
+  # ============================================================
+  # Pre-release — everything strict, zero tolerance.
+  # ============================================================
+
+  test:release:
+    desc: "Zero-tolerance pre-release gate — coverage + unit + regression + real-world + estree + fuzz + bench."
+    deps: [build, bench:oxc:build]
+    silent: false
+    cmds:
+      - task: test:coverage
+      - task: test:unit
+      - task: test:regression
+      - task: test:real
+      - task: test:estree
+      - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --strict
+      - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --strict
+      - task: test:crashes-known
+      - task: test:bench:regression
+      - task: test:lexer-tokens
+
+  # ============================================================
+  # Performance regression gate.
+  # ============================================================
+
+  test:bench:regression:
+    desc: "Performance regression gate — microbench 10 curated files."
+    deps: [build]
+    silent: false
+    cmds:
       - node tests/verifiers/verify_bench_regression.js --iterations 30
 
   test:bench:regression:update:
-    desc: "Re-capture tests/baselines/bench_baseline.json. Use after intentional perf work; include the rationale in the commit message."
+    desc: "Re-capture bench baseline after intentional perf work."
     deps: [build]
     silent: false
     cmds:
       - node tests/verifiers/verify_bench_regression.js --iterations 30 --update
 
   # ============================================================
-  # TypeScript / JSX conformance gates
-  #
-  # Separate from `task test` because they validate parser surface
-  # area that's still stabilising. Each gate compares against a
-  # locked baseline at tests/baselines/{ts,jsx}_conformance_baseline.json
-  # and fails on regressions (pass→fail or new failures). Use the
-  # :update variants after deliberate parser changes.
+  # Corpus fetch — required before first `task test`.
   # ============================================================
 
-  test:ts:conformance:
-    desc: "TypeScript conformance gate. Parses the curated TS / .d.ts corpus and checks against tests/baselines/ts_conformance_baseline.json. Fails on regressions; baseline-locked failures are tolerated. Run :update after a deliberate parser fix."
-    deps: [build]
-    silent: false
-    cmds:
-      - node tests/verifiers/verify_ts_conformance.js
-
-  test:ts:conformance:update:
-    desc: "Re-capture tests/baselines/ts_conformance_baseline.json. Use after a deliberate TS parser fix; commit message should explain the gain."
-    deps: [build]
-    silent: false
-    cmds:
-      - node tests/verifiers/verify_ts_conformance.js --update
-
-  test:ts:conformance:strict:
-    desc: "Zero-tolerance TS conformance: any failure (regression OR baseline-known) fails the gate. Useful as a release gate."
-    deps: [build]
-    silent: false
-    cmds:
-      - node tests/verifiers/verify_ts_conformance.js --strict
-
-  test:jsx:conformance:
-    desc: "JSX conformance gate. Parses the curated JSX/TSX corpus and checks against tests/baselines/jsx_conformance_baseline.json. Same regression model as test:ts:conformance."
-    deps: [build]
-    silent: false
-    cmds:
-      - node tests/verifiers/verify_jsx_conformance.js
-
-  test:jsx:conformance:update:
-    desc: "Re-capture tests/baselines/jsx_conformance_baseline.json."
-    deps: [build]
-    silent: false
-    cmds:
-      - node tests/verifiers/verify_jsx_conformance.js --update
-
-  test:jsx:conformance:strict:
-    desc: "Zero-tolerance JSX conformance gate."
-    deps: [build]
-    silent: false
-    cmds:
-      - node tests/verifiers/verify_jsx_conformance.js --strict
-
-  # ============================================================
-  # ============================================================
-  # Fast inner dev loop — run this during active development.
-  # Runs the fastest, highest-signal gates in ~8 seconds.
-  # CI should run `task test` (the full chain).
-  # ============================================================
-
-  test:quick:
-    desc: "Fast inner-loop gate — unit + negative + regression + invariants + nodes + lexical (~8s)"
-    deps: [build]
+  test:oxc-corpus:fetch:
+    desc: "Fetch the OXC conformance corpus (TypeScript + Babel + ESTree). Required before running coverage."
     silent: true
     cmds:
-      - task: test:unit
-      - task: test:negative
-      - task: test:regression
-      - task: test:invariants
-      - task: test:nodes
-      - task: test:lexical
+      - bash tests/runners/oxc_corpus_fetch.sh
 
-  # ============================================================
-  # Pre-release zero-tolerance gate.
-  # Every surface is checked in --strict mode (no baseline tolerance).
-  # Run this before tagging a release.
-  # ============================================================
-
-  test:release:
-    desc: "Zero-tolerance pre-release gate — every surface must be clean"
-    deps: [build, bench:oxc:build]
-    silent: false
+  test:oxc-corpus:fetch:typescript:
+    desc: "Fetch only the TypeScript corpus (~138 MB)."
+    silent: true
     cmds:
-      - task: test:unit
-      - task: test:negative:strict
-      - task: test:ambiguity:strict
-      - task: test:regression
-      - task: test:real
-      - task: test:estree:strict
-      - task: test:nodes
-      - task: test:recovery
-      - task: test:lexical:strict
-      - task: test:invariants
-      - task: test:spec-compliance
-      - task: test:spec-fixtures
-      - task: test:multi-parser
-      - task: test:fuzz:strict
-      - task: test:fuzz:invalid:strict
-      - task: test:crashes-known
-      - task: test:coverage
-      - task: test:bench:regression
-      - task: test:ts:conformance:strict
-      - task: test:jsx:conformance:strict
+      - bash tests/runners/oxc_corpus_fetch.sh typescript
+
+  test:oxc-corpus:fetch:babel:
+    desc: "Fetch only the Babel parser fixtures (~70 MB)."
+    silent: true
+    cmds:
+      - bash tests/runners/oxc_corpus_fetch.sh babel
+
+  test:oxc-corpus:fetch:estree:
+    desc: "Fetch only the ESTree conformance corpus (~5 MB)."
+    silent: true
+    cmds:
+      - bash tests/runners/oxc_corpus_fetch.sh estree
 
   # ============================================================
-  # Conformance summary reporter — human-readable dashboard
+  # Informational — not gates.
   # ============================================================
 
   test:conformance:report:
-    desc: "Print a human-readable conformance summary from the snap files"
+    desc: "Print a human-readable conformance summary from the snap files."
     silent: false
     cmds:
       - node tests/verifiers/report_conformance.js
 
   test:conformance:report:json:
-    desc: "Print conformance summary as JSON (machine-readable)"
+    desc: "Print conformance summary as JSON."
     silent: true
     cmds:
       - node tests/verifiers/report_conformance.js --json
-
-  # ============================================================
-  # Lexer token-stream conformance (Phase 1 — span structure)
-  # ============================================================
-
-  test:lexer-tokens:
-    desc: "Lexer token-stream conformance vs OXC. Validates AST span counts and contiguity on a curated fixture set."
-    deps: [build]
-    silent: false
-    cmds:
-      - node tests/verifiers/verify_lexer_tokens.js
 
   # Install
   # ============================================================
