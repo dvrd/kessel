@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 4407/4588 (96.05%)
+Negative Passed: 4480/4588 (97.65%)
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-reference.js
@@ -25,9 +25,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/clas
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/fields-duplicate-privatenames.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-class-body-ctor-duplicate.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async-gen.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async.js
@@ -42,41 +39,11 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elem
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticmeth.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-field.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-set.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-in-computed-property-missing.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-fn-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-fn-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-fn-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-fn-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-heritage-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-heritage-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-heritage-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-heritage-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-fn-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-fn-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-fn-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-fn-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-heritage-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-heritage-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-heritage-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-heritage-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-this.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-init-await-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/param-dflt-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-invalid-identifier-complex.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/__proto__-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/generator-param-init-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/generator-param-redecl-const.js
@@ -90,10 +57,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-impo
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-import-as-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-import-as-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-import-eval.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/privatename-not-valid-earlyerr-module-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/privatename-not-valid-earlyerr-module-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/privatename-not-valid-earlyerr-module-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/privatename-not-valid-earlyerr-module-4.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/top-level-await/new-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/reserved-words/await-module.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-formals-body-duplicate.js
@@ -105,14 +68,7 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/methods-gen-yield-as-function-expression-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/fields-duplicate-privatenames.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-4.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-class-body-ctor-duplicate.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async-gen.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async.js
@@ -127,35 +83,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/eleme
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-meth-staticmeth.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-field.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-set-set.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-in-computed-property-missing.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-fn-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-fn-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-fn-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-fn-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/fields-init-heritage-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/fields-init-heritage-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/fields-init-heritage-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/fields-init-heritage-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-fn-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-fn-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-fn-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-fn-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-heritage-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-heritage-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-heritage-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-heritage-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-member-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-call-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-call-expression-this.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-bad-reference.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-this.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/syntax/early-errors/super-private-access-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js
@@ -1633,14 +1560,18 @@ test262/test/language/expressions/class/elements/syntax/early-errors/grammar-fie
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-field-identifier-invalid-zwnj-error.js:69:3: Expected method or property name
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-fields-same-line-error.js:32:5: Expected (, got identifier
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-array-literal.js:36:27: Expected {, got =>
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage.js:36:68: Private field '#foo' must be declared in an enclosing class
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression.js:36:49: Private name reference is not allowed outside of a class
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-obj-literal.js:36:27: Expected {, got =>
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive.js:36:54: Private field '#foo' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage.js:36:40: Private field '#foo' must be declared in an enclosing class
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-field-on-object-destructuring.js:30:13: Expected property key in object pattern
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-constructor.js:25:2: Class private member name cannot be '#constructor'
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-error.js:35:5: Expected (, got identifier
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-identifier-invalid-ues.js:63:3: Expected method or property name
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-identifier-invalid-zwj-error.js:63:3: Expected method or property name
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-identifier-invalid-zwnj-error.js:63:3: Expected method or property name
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-in-computed-property-missing.js:51:9: Private field '#f' must be declared in an enclosing class
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-accessor-get-meth.js:28:9: Expected (, got identifier
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-accessor-set-meth.js:28:9: Expected (, got identifier
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-async-gen-meth.js:28:13: Expected (, got identifier
@@ -1696,6 +1627,34 @@ test262/test/language/expressions/class/elements/syntax/early-errors/grammar-sta
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-static-privatename-constructor.js:25:2: Class private member name cannot be '#constructor'
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-static-set-meth-prototype.js:25:2: Classes may not have a static member named 'prototype'
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-static-set-meth-super.js:25:12: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-call-expression-bad-reference.js:51:20: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-call-expression-this.js:51:22: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-fn-call-expression-bad-reference.js:51:33: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-fn-call-expression-this.js:51:35: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-fn-member-expression-bad-reference.js:51:30: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-fn-member-expression-this.js:51:25: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-heritage-call-expression-bad-reference.js:55:20: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-heritage-call-expression-this.js:55:22: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-heritage-member-expression-bad-reference.js:55:17: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-heritage-member-expression-this.js:55:12: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-member-expression-bad-reference.js:51:17: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/field-init-member-expression-this.js:51:12: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-call-expression-bad-reference.js:51:22: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-call-expression-this.js:51:24: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-fn-call-expression-bad-reference.js:52:34: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-fn-call-expression-this.js:52:36: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-fn-member-expression-bad-reference.js:52:31: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-fn-member-expression-this.js:52:26: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-heritage-call-expression-bad-reference.js:56:18: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-heritage-call-expression-this.js:56:20: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-heritage-member-expression-bad-reference.js:56:15: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-heritage-member-expression-this.js:56:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-member-expression-bad-reference.js:51:19: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-member-expression-this.js:51:14: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-call-expression-bad-reference.js:56:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-call-expression-this.js:56:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-bad-reference.js:56:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/expressions/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-this.js:56:10: Private field '#x' must be declared in an enclosing class
 test262/test/language/expressions/class/elements/syntax/early-errors/private-async-generator-cannot-escape-token.js:24:11: Expected method or property name
 test262/test/language/expressions/class/elements/syntax/early-errors/private-async-method-cannot-escape-token.js:24:9: Expected (, got INVALID
 test262/test/language/expressions/class/elements/syntax/early-errors/private-call-exp-cannot-escape-token.js:31:11: Expected identifier after '.'
@@ -2207,6 +2166,7 @@ test262/test/language/expressions/in/private-field-in-nested.js:25:15: Private i
 test262/test/language/expressions/in/private-field-in.js:24:10: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 test262/test/language/expressions/in/private-field-invalid-assignment-reference.js:23:10: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 test262/test/language/expressions/in/private-field-invalid-assignment-target.js:29:21: Invalid left-hand side in assignment
+test262/test/language/expressions/in/private-field-invalid-identifier-complex.js:29:5: Private field '#b' must be declared in an enclosing class
 test262/test/language/expressions/in/private-field-invalid-identifier-simple.js:25:1: Private name reference is not allowed outside of a class
 test262/test/language/expressions/in/private-field-invalid-rhs.js:24:23: Invalid expression for arrow function parameters
 test262/test/language/expressions/in/private-field-rhs-yield-absent.js:31:15: 'yield' is a reserved identifier in strict mode
@@ -3124,6 +3084,10 @@ test262/test/language/module-code/parse-err-syntax-1.js:21:1: Unexpected token '
 test262/test/language/module-code/parse-err-syntax-2.js:21:4: Invalid left-hand side expression in postfix operation
 test262/test/language/module-code/parse-err-yield.js:32:1: 'yield' is a reserved identifier in strict mode
 test262/test/language/module-code/private-identifiers-not-empty.js:18:6: Private name reference is not allowed outside of a class
+test262/test/language/module-code/privatename-not-valid-earlyerr-module-1.js:21:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/module-code/privatename-not-valid-earlyerr-module-2.js:21:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/module-code/privatename-not-valid-earlyerr-module-3.js:20:12: Private field '#x' must be declared in an enclosing class
+test262/test/language/module-code/privatename-not-valid-earlyerr-module-4.js:22:10: Private field '#x' must be declared in an enclosing class
 test262/test/language/module-code/privatename-not-valid-earlyerr-module-5.js:23:11: Private name reference is not allowed outside of a class
 test262/test/language/module-code/privatename-not-valid-earlyerr-module-6.js:21:11: Private name reference is not allowed outside of a class
 test262/test/language/module-code/privatename-not-valid-earlyerr-module-7.js:21:7: Private name reference is not allowed outside of a class
@@ -3607,6 +3571,10 @@ test262/test/language/statements/class/elements/private-ternary-init-err-contain
 test262/test/language/statements/class/elements/private-ternary-init-err-contains-super.js:26:26: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/elements/private-typeof-init-err-contains-arguments.js:33:15: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/private-typeof-init-err-contains-super.js:26:20: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-1.js:22:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-2.js:22:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-3.js:21:12: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-4.js:22:10: Private field '#x' must be declared in an enclosing class
 test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-5.js:24:11: Private name reference is not allowed outside of a class
 test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-6.js:22:11: Private name reference is not allowed outside of a class
 test262/test/language/statements/class/elements/privatename-not-valid-earlyerr-script-7.js:22:7: Private name reference is not allowed outside of a class
@@ -3725,14 +3693,18 @@ test262/test/language/statements/class/elements/syntax/early-errors/grammar-fiel
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-field-identifier-invalid-zwnj-error.js:69:3: Expected method or property name
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-fields-same-line-error.js:32:5: Expected (, got identifier
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-array-literal.js:36:21: Expected {, got =>
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-chained-usage.js:36:62: Private field '#foo' must be declared in an enclosing class
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-function-expression.js:36:43: Private name reference is not allowed outside of a class
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-obj-literal.js:36:21: Expected {, got =>
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive.js:36:48: Private field '#foo' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage.js:36:34: Private field '#foo' must be declared in an enclosing class
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-field-on-object-destructuring.js:30:13: Expected property key in object pattern
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-constructor.js:26:1: Class private member name cannot be '#constructor'
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-error.js:35:5: Expected (, got identifier
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-identifier-invalid-ues.js:63:3: Expected method or property name
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-identifier-invalid-zwj-error.js:63:3: Expected method or property name
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-identifier-invalid-zwnj-error.js:63:3: Expected method or property name
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-in-computed-property-missing.js:51:9: Private field '#f' must be declared in an enclosing class
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-accessor-get-meth.js:28:9: Expected (, got identifier
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-accessor-set-meth.js:28:9: Expected (, got identifier
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatename-whitespace-error-async-gen-meth.js:28:13: Expected (, got identifier
@@ -3788,6 +3760,34 @@ test262/test/language/statements/class/elements/syntax/early-errors/grammar-stat
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-static-privatename-constructor.js:26:1: Class private member name cannot be '#constructor'
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-static-set-meth-prototype.js:26:1: Classes may not have a static member named 'prototype'
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-static-set-meth-super.js:25:12: 'super' call is only allowed in the constructor of a derived class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-call-expression-bad-reference.js:41:20: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-call-expression-this.js:41:22: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-fn-call-expression-bad-reference.js:41:33: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-fn-call-expression-this.js:41:35: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-fn-member-expression-bad-reference.js:41:30: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-fn-member-expression-this.js:41:25: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-member-expression-bad-reference.js:41:17: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/field-init-member-expression-this.js:41:12: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/fields-init-heritage-call-expression-bad-reference.js:56:20: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/fields-init-heritage-call-expression-this.js:56:22: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/fields-init-heritage-member-expression-bad-reference.js:56:17: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/fields-init-heritage-member-expression-this.js:56:12: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-call-expression-bad-reference.js:41:22: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-call-expression-this.js:41:24: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-fn-call-expression-bad-reference.js:42:34: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-fn-call-expression-this.js:42:36: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-fn-member-expression-bad-reference.js:42:31: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-fn-member-expression-this.js:42:26: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-heritage-call-expression-bad-reference.js:56:18: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-heritage-call-expression-this.js:56:20: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-heritage-member-expression-bad-reference.js:56:15: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-heritage-member-expression-this.js:56:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-member-expression-bad-reference.js:41:19: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-member-expression-this.js:41:14: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-call-expression-bad-reference.js:56:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-call-expression-this.js:56:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-bad-reference.js:56:10: Private field '#x' must be declared in an enclosing class
+test262/test/language/statements/class/elements/syntax/early-errors/invalid-names/method-outter-member-expression-this.js:56:10: Private field '#x' must be declared in an enclosing class
 test262/test/language/statements/class/elements/syntax/early-errors/private-async-generator-cannot-escape-token.js:24:11: Expected method or property name
 test262/test/language/statements/class/elements/syntax/early-errors/private-async-method-cannot-escape-token.js:24:9: Expected (, got INVALID
 test262/test/language/statements/class/elements/syntax/early-errors/private-call-exp-cannot-escape-token.js:31:11: Expected identifier after '.'

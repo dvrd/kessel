@@ -268,6 +268,15 @@ Raw_Dynamic_Array :: struct {
 // `scope_check_body` at each entry point. See checker.odin's
 // `ck_run_scope_check` for the replacement.
 
+// PendingPrivRef — captured at every PrivateIdentifier reference site.
+// Resolved at end of parse_class_body against the just-parsed elements.
+// Unresolved ones bubble up to the enclosing class body's queue.
+PendingPrivRef :: struct {
+	name:  string,
+	loc:   Loc,
+	depth: int,  // class_depth at which the reference was made
+}
+
 // Parser represents the recursive descent parser
 Parser :: struct {
 	// Lexer reference (per-parser, thread-safe for parallel parsing)
@@ -441,9 +450,14 @@ Parser :: struct {
 	// parse_class_body, decremented on exit. Used to enforce §15.7.3
 	// PrivateName references (`#x`, `obj.#x`, `#x in y`) outside any
 	// class body — if class_depth == 0, the reference cannot resolve.
-	// Sub-checks (private name not declared in enclosing class) are
-	// still on the semantic checker.
 	class_depth: int,
+
+	// Per-class-body pending private-name reference list. Populated as
+	// we encounter `#x` / `obj.#x` / `obj?.#x` references during the
+	// class body parse. At end of parse_class_body we collect declared
+	// names from the elements and validate (or bubble unresolved ones
+	// up to the enclosing class).
+	pending_priv_refs: [dynamic]PendingPrivRef,
 
 	// Language mode - controls JSX / TS syntax admissibility.
 	//   .JS  : plain JavaScript. `<` at expression start → syntax error.
@@ -777,6 +791,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.source_len = len(lexer.source)
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
+	p.pending_priv_refs = make([dynamic]PendingPrivRef, 0, 0, alloc)
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
 	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1-2 times.
@@ -4663,6 +4678,11 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 	p.class_depth += 1
 	defer p.class_depth -= 1
 
+	// Snapshot the pending-ref boundary so refs added during this
+	// class body's parse are scoped correctly. Refs declared in this
+	// body resolve here; unresolved refs bubble to the outer class.
+	pending_refs_before := len(p.pending_priv_refs)
+
 	body := ClassBody{
 		loc  = start,
 		// Lazy alloc - zero-element class bodies (`class C {}`) appear in
@@ -4699,7 +4719,64 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 
 	body.loc.span.end = prev_end_offset(p)
 	report_private_class_member_errors(p, body.body[:])
+
+	// §15.7.3 — resolve pending private-name references against the
+	// declared names in this class body. Unresolved refs bubble up to
+	// the enclosing class (added back to pending_priv_refs); if this is
+	// the outermost class (depth becomes 0 after decrement), unresolved
+	// refs are reported as errors.
+	resolve_pending_private_refs(p, body.body[:], pending_refs_before)
 	return body
+}
+
+// resolve_pending_private_refs — called at the end of parse_class_body
+// to validate any PrivateName references that were queued during this
+// body's parse (`pending_priv_refs[pending_refs_before:]`). References
+// whose name is declared in `elements` are dropped (resolved). Others
+// stay in the pending list to bubble up to the enclosing class. When
+// the outermost class body finishes (class_depth would drop to 0 after
+// the parse_class_body deferred decrement), any remaining unresolved
+// refs are reported as syntax errors and the list is cleared.
+resolve_pending_private_refs :: proc(p: ^Parser, elements: []ClassElement, pending_refs_before: int) {
+	declared: map[string]bool
+	declared.allocator = context.temp_allocator
+	defer delete(declared)
+
+	for elem in elements {
+		if elem.key == nil { continue }
+		if pid, is_priv := elem.key.(^PrivateIdentifier); is_priv && pid != nil {
+			if pid.name != "" { declared[pid.name] = true }
+		}
+	}
+
+	write_idx := pending_refs_before
+	for i in pending_refs_before..<len(p.pending_priv_refs) {
+		ref := p.pending_priv_refs[i]
+		if declared[ref.name] {
+			continue  // resolved at this depth — drop
+		}
+		p.pending_priv_refs[write_idx] = ref
+		write_idx += 1
+	}
+	resize(&p.pending_priv_refs, write_idx)
+
+	// If this was the outermost class (class_depth is currently > 0
+	// because the deferred decrement hasn't run yet — the deferred
+	// statement runs AFTER us), any remaining unresolved refs at index
+	// 0..pending_refs_before came from outside the outermost class and
+	// would already be on the wrong side of the class_depth==0 gate.
+	// Refs added at this depth (pending_refs_before..) that survived
+	// the resolve are unresolved.
+	if p.class_depth == 1 {
+		// We were at depth 1; about to drop to 0. All pending refs are
+		// unresolved — report them.
+		for i in 0..<len(p.pending_priv_refs) {
+			ref := p.pending_priv_refs[i]
+			msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", ref.name)
+			report_error_at(p, LexerLoc(ref.loc.span.start), msg)
+		}
+		clear(&p.pending_priv_refs)
+	}
 }
 
 // ECMA-262 §15.7.1 Static Semantics - a class body's PrivateBoundIdentifiers
@@ -10730,9 +10807,12 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				if pid.name == "" {
 					report_error(p, "Private identifier must not have whitespace after '#'")
 				}
-				// §15.7.3 — `obj.#x` outside any class body cannot resolve.
+				// §15.7.3 — `obj.#x` outside any class body cannot resolve;
+				// inside a class, queue for end-of-body validation.
 				if p.class_depth == 0 {
 					report_error(p, "Private name reference is not allowed outside of a class")
+				} else if pid.name != "" {
+					append(&p.pending_priv_refs, PendingPrivRef{name = pid.name, loc = pid.loc, depth = p.class_depth})
 				}
 				// §15.7.3 "super.#name" early error: enforced by the
 				// semantic checker (ck_check_member_super_private).
@@ -10789,9 +10869,12 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					pid.name = name
 					p.private_id_count += 1
 					member.property = expression_from(p, pid)
-					// §15.7.3 — `obj?.#x` outside any class cannot resolve.
+					// §15.7.3 — `obj?.#x` outside any class cannot resolve;
+					// inside a class, queue for end-of-body validation.
 					if p.class_depth == 0 {
 						report_error(p, "Private name reference is not allowed outside of a class")
+					} else if pid.name != "" {
+						append(&p.pending_priv_refs, PendingPrivRef{name = pid.name, loc = pid.loc, depth = p.class_depth})
 					}
 				} else {
 					// Create regular Identifier
@@ -11358,15 +11441,19 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
 		}
 		// §15.7.3 — a PrivateIdentifier reference outside any class body
-		// cannot resolve. The full "declared in enclosing class" check
-		// stays on the semantic checker; this catches the easy bare case.
-		if p.class_depth == 0 {
-			report_error(p, "Private name reference is not allowed outside of a class")
-		}
+		// cannot resolve. Inside a class body, queue the reference for
+		// validation at end-of-class-body (when the declared-name set is
+		// known).
 		// Private field reference: #x (used in expressions like #x in this)
 		name := current.value
 		if len(name) > 0 && name[0] == '#' {
 			name = name[1:]
+		}
+		private_ref_loc := loc_from_token(&current)
+		if p.class_depth == 0 {
+			report_error(p, "Private name reference is not allowed outside of a class")
+		} else if name != "" {
+			append(&p.pending_priv_refs, PendingPrivRef{name = name, loc = private_ref_loc, depth = p.class_depth})
 		}
 		pid := new_node(p, PrivateIdentifier)
 		pid.loc = loc_from_token(&current)

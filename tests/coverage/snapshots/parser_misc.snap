@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 208/274 (75.91%)
+Negative Passed: 209/274 (76.28%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -65,7 +65,6 @@ Expect Syntax Error: tests/coverage/misc/fail/oxc-4449-5.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-5036.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-5177.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-5355.jsx
-Expect Syntax Error: tests/coverage/misc/fail/oxc-7582.js
 Expect Syntax Error: tests/coverage/misc/fail/script-top-level-using.js
 Expect Syntax Error: tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
@@ -271,6 +270,7 @@ tests/coverage/misc/fail/oxc-4449-6.ts:2:1: Expected }, got EOF
 tests/coverage/misc/fail/oxc-5955-1.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-5955-2.ts:3:8: Expected }, got ?
 tests/coverage/misc/fail/oxc-5955-3.ts:2:18: An index signature must have a type annotation.
+tests/coverage/misc/fail/oxc-7582.js:4:9: Private field '#x' must be declared in an enclosing class
 tests/coverage/misc/fail/oxc-9497.js:2:10: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-1.js:1:4: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-2.js:1:5: Unexpected token after ?.

@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12692/12692 (100.00%)
 Positive Passed: 12692/12692 (100.00%)
-Negative Passed: 1499/3470 (43.20%)
+Negative Passed: 1511/3470 (43.54%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -917,7 +917,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/c
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classExpressions/classWithStaticFieldInParameterBindingPattern.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classExpressions/classWithStaticFieldInParameterInitializer.2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock16.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock23.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/classConstructorOverloadsAccessibility.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/classWithTwoConstructorDefinitions.ts
@@ -940,25 +939,15 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/m
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers12.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers13.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameAccessorssDerivedClasses.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndAny.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndIndexSignature.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndObjectRestSpread.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadSuper.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadSuperUseDefineForClassFields.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameDeclarationMerging.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameDuplicateField.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameFieldDerivedClasses.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameImplicitDeclaration.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodsDerivedClasses.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedClassAccessorsShadowing.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedClassFieldShadowing.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedClassMethodShadowing.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedMethodAccess.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticAccessorssDerivedClasses.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticFieldAccess.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticFieldDerivedClasses.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameUncheckedJsOptionalChain.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNamesAndDecorators.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNamesAndStaticFields.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNamesConstructorChain-1.ts
@@ -1866,7 +1855,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/mod
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/moduleExportsAliasLoop1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/moduleExportsAliasLoop2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/plainJSGrammarErrors3.ts::plainJSGrammarErrors3.js
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/plainJSGrammarErrors4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/prototypePropertyAssignmentMergeAcrossFiles2.ts::other.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/prototypePropertyAssignmentMergeAcrossFiles2.ts::prototypePropertyAssignmentMergeAcrossFiles2.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/requireOfESWithPropertyAccess.ts::ch.js
@@ -2471,6 +2459,7 @@ typescript/tests/cases/conformance/classes/classDeclarations/classHeritageSpecif
 typescript/tests/cases/conformance/classes/classDeclarations/classHeritageSpecification/classExtendsEveryObjectType.ts:6:31: Unexpected ';' in object literal
 typescript/tests/cases/conformance/classes/classDeclarations/classHeritageSpecification/classExtendsEveryObjectType2.ts:1:31: Unexpected ';' in object literal
 typescript/tests/cases/conformance/classes/classDeclarations/classWithPredefinedTypesAsNames2.ts:3:7: Expected {, got void
+typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock16.ts:11:28: Private field '#y' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock19.ts:3:5: Decorators are not valid here.
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock20.ts:2:18: Expected (, got {
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock22.ts:4:9: 'await' is reserved as a binding name in this context
@@ -2491,12 +2480,17 @@ typescript/tests/cases/conformance/classes/members/accessibility/privateInstance
 typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers6.ts:6:21: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers9.ts:7:56: 'super' property access is only valid inside a method
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameAccessorsAccess.ts:14:15: Private name reference is not allowed outside of a class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameAccessorssDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndAny.ts:9:15: Private field '#bar' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndIndexSignature.ts:6:14: Private field '#f' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndPropertySignature.ts:2:5: Unexpected token in TS object type
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadAssignment.ts:1:15: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadDeclaration.ts:3:3: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameConstructorReserved.ts:3:2: Class private member name cannot be '#constructor'
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameEnum.ts:2:5: An enum member cannot have a private name
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameFieldDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameHashCharName.ts:1:1: Private identifier can only appear as the LHS of an 'in' expression or as a class member
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameImplicitDeclaration.ts:4:14: Private field '#x' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameInInExpression.ts:25:20: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameInInExpressionTransform.ts:20:14: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameInObjectLiteral-1.ts:2:5: Expected }, got private_identifier
@@ -2506,11 +2500,16 @@ typescript/tests/cases/conformance/classes/members/privateNames/privateNameJsBad
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameJsBadDeclaration.ts:3:3: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodAccess.ts:12:17: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodClassExpression.ts:9:24: Private name reference is not allowed outside of a class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodsDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedMethodAccess.ts:19:19: Private field '#unknown' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameNotAccessibleOutsideDefiningClass.ts:5:14: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameNotAllowedOutsideClass.ts:1:7: Expected binding pattern
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticAccessorsAccess.ts:16:9: Private name reference is not allowed outside of a class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticAccessorssDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticFieldDerivedClasses.ts:4:17: Private field '#derivedProp' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticMethodAsync.ts:11:18: Expected (, got *
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticMethodClassExpression.ts:9:21: Private name reference is not allowed outside of a class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameUncheckedJsOptionalChain.ts:4:15: Private field '#foo' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesAndGenericClasses-2.ts:24:7: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesAndIndexedAccess.ts:7:28: Expected ], got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesInGenericClasses.ts:22:7: Private name reference is not allowed outside of a class
@@ -3372,6 +3371,7 @@ typescript/tests/cases/conformance/salsa/constructorNameInGenerator.ts:2:17: Cla
 typescript/tests/cases/conformance/salsa/plainJSBinderErrors.ts:6:11: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/salsa/plainJSGrammarErrors.ts:3:9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 typescript/tests/cases/conformance/salsa/plainJSGrammarErrors3.ts::/a.js:2:5: await outside of async function
+typescript/tests/cases/conformance/salsa/plainJSGrammarErrors4.ts:5:14: Private field '#b' must be declared in an enclosing class
 typescript/tests/cases/conformance/salsa/plainJSRedeclare.ts:2:1: Identifier 'orbitol' has already been declared
 typescript/tests/cases/conformance/salsa/plainJSRedeclare2.ts:2:1: Identifier 'orbitol' has already been declared
 typescript/tests/cases/conformance/salsa/plainJSReservedStrict.ts:2:7: 'eval' cannot be used as a binding name in strict mode
