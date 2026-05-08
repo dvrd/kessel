@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12558/12692 (98.94%)
-Positive Passed: 12558/12692 (98.94%)
-Negative Passed: 1597/3470 (46.02%)
+AST Parsed     : 12566/12692 (99.01%)
+Positive Passed: 12566/12692 (99.01%)
+Negative Passed: 1594/3470 (45.94%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -306,8 +306,11 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumWithComp
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumWithPrimitiveName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumsWithMultipleDeclarations1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumsWithMultipleDeclarations2.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::commonjs.d.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::esm.d.mts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::index.d.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::index.d.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::other.d.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorElaboration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorForConflictingExportEqualsValue.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorForUsingPropertyOfTypeAsType03.ts
@@ -1889,17 +1892,8 @@ typescript/tests/cases/compiler/declarationEmitUnknownImport.ts:2:9: Export 'Foo
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/duplicateErrorNameNotFound.ts
 typescript/tests/cases/compiler/duplicateErrorNameNotFound.ts:4:5: Export 'RoomInterface' is not defined in the module
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnly.ts::commonjs.cts
-typescript/tests/cases/compiler/erasableSyntaxOnly.ts::commonjs.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnly.ts::other.d.cts
-typescript/tests/cases/compiler/erasableSyntaxOnly.ts::other.d.cts:2:1: 'export' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/evalOrArgumentsInDeclarationFunctions.ts
 typescript/tests/cases/compiler/evalOrArgumentsInDeclarationFunctions.ts:8:18: Function name 'eval' is not allowed in strict mode
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/exportAssignmentExpressionIsExpressionNode.ts::/node_modules/eslint-plugin-import-x/index.d.cts
-typescript/tests/cases/compiler/exportAssignmentExpressionIsExpressionNode.ts::/node_modules/eslint-plugin-import-x/index.d.cts:2:1: 'export' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/exportSpecifierForAGlobal.ts::b.ts
 typescript/tests/cases/compiler/exportSpecifierForAGlobal.ts::b.ts:1:9: Export 'X' is not defined in the module
@@ -1934,20 +1928,8 @@ typescript/tests/cases/compiler/impliedNodeFormatEmit4.ts::/c.cts:1:1: 'export' 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit4.ts::/i.cts
 typescript/tests/cases/compiler/impliedNodeFormatEmit4.ts::/i.cts:1:1: 'import' is only valid in module code
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/importHelpersVerbatimModuleSyntax.ts::/main.cts
-typescript/tests/cases/compiler/importHelpersVerbatimModuleSyntax.ts::/main.cts:5:1: 'export' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/literalTypeNameAssertionNotTriggered.ts::/a.ts
 typescript/tests/cases/compiler/literalTypeNameAssertionNotTriggered.ts::/a.ts:2:10: Export 'x' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/moduleExportNonStructured.ts::exportAny.d.cts
-typescript/tests/cases/compiler/moduleExportNonStructured.ts::exportAny.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/moduleExportNonStructured.ts::exportSymbol.d.cts
-typescript/tests/cases/compiler/moduleExportNonStructured.ts::exportSymbol.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/moduleExportNonStructured.ts::exportUnknown.d.cts
-typescript/tests/cases/compiler/moduleExportNonStructured.ts::exportUnknown.d.cts:2:1: 'export' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/moduleNodeDefaultImports.ts::mod.cts
 typescript/tests/cases/compiler/moduleNodeDefaultImports.ts::mod.cts:2:1: 'export' is only valid in module code
@@ -2041,9 +2023,6 @@ typescript/tests/cases/conformance/externalModules/exportNonLocalDeclarations.ts
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/moduleResolutionWithoutExtension6.ts
 typescript/tests/cases/conformance/externalModules/moduleResolutionWithoutExtension6.ts:4:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/moduleResolutionWithoutExtension7.ts
-typescript/tests/cases/conformance/externalModules/moduleResolutionWithoutExtension7.ts:2:1: 'import' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts
 typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts:3:15: 'await' is reserved as a binding name in module code
@@ -2142,16 +2121,16 @@ Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModul
 typescript/tests/cases/conformance/node/esmModuleExports1.ts::/exporter.mts:2:10: Export 'Foo' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports1.ts::/importer-cts.cts
-typescript/tests/cases/conformance/node/esmModuleExports1.ts::/importer-cts.cts:1:1: 'import' is only valid in module code
+typescript/tests/cases/conformance/node/esmModuleExports1.ts::/importer-cts.cts:4:1: 'import' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports2.ts::/importer-cts.cts
-typescript/tests/cases/conformance/node/esmModuleExports2.ts::/importer-cts.cts:1:1: 'import' is only valid in module code
+typescript/tests/cases/conformance/node/esmModuleExports2.ts::/importer-cts.cts:4:1: 'import' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports3.ts::/exporter.mts
 typescript/tests/cases/conformance/node/esmModuleExports3.ts::/exporter.mts:2:15: Export 'Foo' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports3.ts::/importer-cts.cts
-typescript/tests/cases/conformance/node/esmModuleExports3.ts::/importer-cts.cts:1:1: 'import' is only valid in module code
+typescript/tests/cases/conformance/node/esmModuleExports3.ts::/importer-cts.cts:4:1: 'import' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModules1.ts::index.cts
 typescript/tests/cases/conformance/node/nodeModules1.ts::index.cts:2:1: 'import' is only valid in module code
@@ -2336,7 +2315,7 @@ typescript/tests/cases/compiler/castOfYield.ts:4:21: Cannot use `yield` as an id
 typescript/tests/cases/compiler/catchClauseWithInitializer1.ts:3:10: Expected ), got =
 typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing9.ts:14:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/circularOptionalityRemoval.ts:5:55: A parameter cannot have a question mark and an initializer.
-typescript/tests/cases/compiler/class2.ts:1:36: Expected semicolon
+typescript/tests/cases/compiler/class2.ts:1:29: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/classExpressionPropertyModifiers.ts:2:40: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/compiler/classExtendsMultipleBaseClasses.ts:3:18: Expected {, got ,
 typescript/tests/cases/compiler/classFieldsBrokenConstructorEmitNoCrash1.ts:4:1: Class field cannot be named 'constructor'
@@ -2424,13 +2403,10 @@ typescript/tests/cases/compiler/enumMemberResolution.ts:5:5: Expected semicolon
 typescript/tests/cases/compiler/enumWithBigint.ts:2:3: An enum member cannot have a numeric name.
 typescript/tests/cases/compiler/enumWithParenthesizedInitializer1.ts:3:1: Expected ), got }
 typescript/tests/cases/compiler/erasableSyntaxOnly2.ts:1:10: Unexpected '<': not a valid TS type assertion or generic arrow
-typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::commonjs.d.cts:1:1: 'import' is only valid in module code
-typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::index.d.cts:2:1: 'export' is only valid in module code
-typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::other.d.cts:2:1: 'export' is only valid in module code
 typescript/tests/cases/compiler/errorForUsingPropertyOfTypeAsType01.ts:44:24: Expected identifier after '.' in import-equals module reference
 typescript/tests/cases/compiler/errorOnInitializerInInterfaceProperty.ts:2:17: Expected }, got =
 typescript/tests/cases/compiler/errorOnInitializerInObjectTypeLiteralProperty.ts:2:17: Unexpected token in TS object type
-typescript/tests/cases/compiler/errorRecoveryInClassDeclaration.ts:4:20: Expected ), got identifier
+typescript/tests/cases/compiler/errorRecoveryInClassDeclaration.ts:4:13: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword.ts:7:19: Expected semicolon
 typescript/tests/cases/compiler/errorSpanForUnclosedJsxTag.tsx:11:23: Expected <, got EOF
 typescript/tests/cases/compiler/es6ClassTest.ts:25:48: A parameter cannot have a question mark and an initializer.
@@ -2582,7 +2558,7 @@ typescript/tests/cases/compiler/moduleElementsInWrongContext.ts:3:5: 'export' de
 typescript/tests/cases/compiler/moduleElementsInWrongContext2.ts:3:5: 'export' declarations are only allowed at the top level of a module
 typescript/tests/cases/compiler/moduleKeywordRepeatError.ts:3:15: Expected semicolon
 typescript/tests/cases/compiler/modulePreserve4.ts::/f.cts:1:1: 'export' is only valid in module code
-typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:1:1: 'import' is only valid in module code
+typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:2:11: Expected from, got =
 typescript/tests/cases/compiler/moduleProperty1.ts:9:13: Expected semicolon
 typescript/tests/cases/compiler/multiLinePropertyAccessAndArrowFunctionIndent1.ts:1:8: 'return' outside of function
 typescript/tests/cases/compiler/multipleClassPropertyModifiers.ts:3:19: 'public' modifier must precede 'static' modifier.
@@ -2674,12 +2650,12 @@ typescript/tests/cases/compiler/slashBeforeVariableDeclaration1.ts:1:1: Unexpect
 typescript/tests/cases/compiler/spaceBeforeQuestionMarkInPropertyAssignment.ts:1:12: Expected }, got ?
 typescript/tests/cases/compiler/standaloneBreak.ts:1:1: 'break' must be inside a loop or switch
 typescript/tests/cases/compiler/staticAsIdentifier.ts:12:19: Expected (, got identifier
-typescript/tests/cases/compiler/staticClassProps.ts:4:16: Expected semicolon
+typescript/tests/cases/compiler/staticClassProps.ts:4:9: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/staticModifierAlreadySeen.ts:2:19: Expected (, got identifier
 typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifier must precede 'static' modifier.
 typescript/tests/cases/compiler/staticPrototypeProperty.ts:5:1: Classes may not have a static member named 'prototype'
 typescript/tests/cases/compiler/staticsInAFunction.ts:1:13: Expected (, got {
-typescript/tests/cases/compiler/staticsInConstructorBodies.ts:3:10: Expected semicolon
+typescript/tests/cases/compiler/staticsInConstructorBodies.ts:3:3: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/strictModeReservedWord.ts:1:1: 'let' is disallowed as a lexically bound name
 typescript/tests/cases/compiler/strictModeReservedWord2.ts:4:9: 'package' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/strictModeReservedWordInClassDeclaration.ts:4:17: 'private' is a reserved identifier in strict mode
@@ -3242,7 +3218,7 @@ typescript/tests/cases/conformance/jsx/tsxTypeArgumentResolution.tsx:26:13: Type
 typescript/tests/cases/conformance/jsx/unicodeEscapesInJsxtags.tsx:17:1: Expected corresponding JSX closing tag for '\u0061'.
 typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/main.cts:1:1: 'import' is only valid in module code
 typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/node_modules/dual/index.d.cts:1:1: 'export' is only valid in module code
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.cjs:2:1: 'import' is only valid in module code
+typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.cjs:51:12: Expected from, got =
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.js:50:12: Expected from, got =
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.mjs:50:12: Expected from, got =
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::subfolder/index.cjs:3:1: 'export' is only valid in module code
@@ -3484,14 +3460,14 @@ typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ArrowFunctio
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ArrowFunctions/parserX_ArrowFunction3.ts:1:12: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/Blocks/parserErrorRecovery_Block1.ts:3:5: Expected expression after operator
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/Blocks/parserErrorRecovery_Block2.ts:2:5: Invalid character in identifier
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/Blocks/parserErrorRecovery_Block3.ts:4:13: Expected semicolon
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/Blocks/parserErrorRecovery_Block3.ts:4:5: 'private' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ClassElements/parserErrorRecovery_ClassElement1.ts:5:7: Expected (, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ClassElements/parserErrorRecovery_ClassElement2.ts:4:8: Expected (, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ClassElements/parserErrorRecovery_ClassElement3.ts:6:9: Expected class after decorator
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/Expressions/parserErrorRecovery_Expression1.ts:1:11: Empty parenthesized expression
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause1.ts:2:2: Expected {, got EOF
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause2.ts:1:18: Expected {, got ,
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause3.ts:1:28: Expected {, got identifier
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause3.ts:1:17: 'implements' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause4.ts:1:30: Expected interface name after 'implements'
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause5.ts:1:18: Expected {, got ,
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause6.ts:1:21: Expected interface name after 'extends'
@@ -3500,7 +3476,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/IfStatements
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement3.ts:4:3: Expected ), got }
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement4.ts:4:3: Expected statement after 'if' condition
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement5.ts:5:8: Expected semicolon
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement6.ts:5:10: Expected semicolon
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/IfStatements/parserErrorRecoveryIfStatement6.ts:5:3: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/IncompleteMemberVariables/parserErrorRecovery_IncompleteMemberVariable2.ts:12:22: Expected semicolon or line terminator after class field
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/LeftShifts/parserErrorRecovery_LeftShift1.ts:1:29: Expected expression after operator
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ModuleElements/parserErrorRecovery_ModuleElement1.ts:1:8: 'return' outside of function

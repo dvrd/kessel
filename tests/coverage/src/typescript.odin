@@ -351,6 +351,14 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 				rel_with_unit = strings.concatenate({f.rel, "::", unit.name}, allocator)
 			}
 
+			// .cjs / .cts sub-units are CommonJS — set the override so
+			// the parser knows import/export in script-mode is valid.
+			cjs: Maybe(bool)
+			if strings.has_suffix(unit.name, ".cjs") ||
+			   strings.has_suffix(unit.name, ".cts") {
+				cjs = true
+			}
+
 			append(&out, Fixture{
 				path          = f.abs,
 				rel           = rel_with_unit,
@@ -358,6 +366,7 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 				source_type   = st,
 				lang          = lang,
 				source_is_dts = dts,
+				is_commonjs   = cjs,
 				should_fail   = should_fail,
 				suite         = .TypeScript,
 			})

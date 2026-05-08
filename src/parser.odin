@@ -2083,11 +2083,16 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 // The error is reported but parsing continues (permissive recovery).
 check_import_export_position :: proc(p: ^Parser, is_import: bool) {
 	// Script-mode: import/export are Module-only syntax.
+	// Exception: TypeScript .cts files and CommonJS .cjs files are tagged
+	// Script but still allow import/export syntax (TS transpiles them;
+	// Node.js handles the upgrade).
 	if st, have := p.force_source_type.(SourceType); have && st == .Script {
-		msg := "'export' is only valid in module code"
-		if is_import { msg = "'import' is only valid in module code" }
-		report_error(p, msg)
-		return
+		if p.lang != .TS && p.lang != .TSX && !p.is_commonjs {
+			msg := "'export' is only valid in module code"
+			if is_import { msg = "'import' is only valid in module code" }
+			report_error(p, msg)
+			return
+		}
 	}
 	// Module-mode with explicit pin: reject when not at top-level.
 	if p.in_module_top_level && (p.in_function || p.block_depth > 0) {
@@ -10526,10 +10531,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// position. This fast-path bypasses parse_primary_expr, so the
 		// same check that lives on the slow path has to run here too.
 		report_escaped_reserved_word(p)
-		// §12.6.1.1 strict-mode IdentifierReference reservation check
-		// is enforced by the semantic checker
-		// (ck_check_identifier_reference_strict via ck_walk_expr's
-		// ^Identifier case).
+		// §12.6.1.1 strict-mode IdentifierReference reservation.
+		if p.strict_mode {
+			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(p.cur_tok.value) {
+				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", p.cur_tok.value)
+				report_error(p, msg)
+			}
+		}
 		// Escaped `async` before `function` is SyntaxError (fast path).
 		if p.cur_tok.has_escape && p.cur_tok.value == "async" {
 			nxt := peek_token(p)
@@ -11698,9 +11706,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// .Identifier, so check both channels. `yield` inside a generator
 		// and `await` inside async are handled by the dedicated keyword
 		// paths earlier in parse_unary_expr - we only reach here for
-		// §12.6.1.1 strict-mode IdentifierReference reservation check is
-		// enforced by the semantic checker
-		// (ck_check_identifier_reference_strict).
+		// sloppy-mode fall-through.
+		if p.strict_mode {
+			if is_strict_reserved_word(current.type) || is_strict_reserved_name(current.value) {
+				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
+				report_error(p, msg)
+			}
+		}
 
 		// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
 		// async-params / class-static-block context is enforced by the

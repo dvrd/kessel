@@ -4342,7 +4342,7 @@ test262/test/language/statements/labeled/static-init-invalid-await.js:23:5: 'awa
 test262/test/language/statements/labeled/value-await-module-escaped.js:21:1: 'await' is reserved as a label name in module code
 test262/test/language/statements/labeled/value-await-module.js:20:6: 'await' expression requires an operand
 test262/test/language/statements/labeled/value-yield-strict-escaped.js:22:1: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/labeled/value-yield-strict.js:17:1: 'yield' cannot be used as a label identifier in strict mode
+test262/test/language/statements/labeled/value-yield-strict.js:17:1: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-ary.js:30:15: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-id.js:30:11: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-init-obj.js:30:15: Rest element must be last in array pattern
