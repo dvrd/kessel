@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2232/2233 (99.96%)
 Positive Passed: 2232/2233 (99.96%)
-Negative Passed: 1222/1711 (71.42%)
+Negative Passed: 1232/1711 (72.00%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -203,18 +203,8 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/yield-star-parameter-default-inside-generator/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/array-pattern-default/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/array-pattern/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-arrow-function/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-function/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/default/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/generator-function/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/generator-method/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/method/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/object-pattern-default/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/object-pattern/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/rest/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-call/parenthesized-argument-object-double-proto/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-arguments-of-async-call-inside-parameters-of-async-arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-arrow-function/input.js
@@ -880,8 +870,18 @@ babel/packages/babel-parser/test/fixtures/es2016/exponentiation-operator/16/inpu
 babel/packages/babel-parser/test/fixtures/es2016/exponentiation-operator/await-before-exponential/input.js:1:21: Unparenthesized unary expression cannot appear as the left operand of '**'
 babel/packages/babel-parser/test/fixtures/es2016/exponentiation-operator/await-unary-before-exponential/input.js:1:22: Unparenthesized unary expression cannot appear as the left operand of '**'
 babel/packages/babel-parser/test/fixtures/es2016/exponentiation-operator/nested-unary-before-exponential/input.js:1:6: Unparenthesized unary expression cannot appear as the left operand of '**'
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/array-pattern-default/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/array-pattern/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-arrow-function-after-binary-operator/input.js:1:17: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-arrow-function-after-unary-operator/input.js:1:21: Arrow function cannot be used as an unparenthesized operand
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-function/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/default/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/generator-function/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/generator-method/input.js:2:6: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/method/input.js:2:4: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/object-pattern-default/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/object-pattern/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/rest/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 babel/packages/babel-parser/test/fixtures/es2017/async-arrow/invalid-parens-binary-argument/input.js:2:1: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/es2017/async-arrow/invalid-parens-class-heritage/input.js:1:32: Arrow function is not a valid class heritage expression
 babel/packages/babel-parser/test/fixtures/es2017/async-arrow/invalid-parens-unary-argument/input.js:1:34: Arrow function cannot be used as an unparenthesized operand

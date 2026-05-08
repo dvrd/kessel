@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12692/12692 (100.00%)
 Positive Passed: 12692/12692 (100.00%)
-Negative Passed: 1348/3470 (38.85%)
+Negative Passed: 1349/3470 (38.88%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1466,7 +1466,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionNameConflicts.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionOverloadCompatibilityWithVoid01.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionOverloadErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionWithUseStrictAndSimpleParameterList_es2016.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing1.ts
@@ -2847,6 +2846,7 @@ typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers1.ts
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers_js.ts::./a.js:1:15: Expected }, got identifier
 typescript/tests/cases/conformance/externalModules/umd-errors.ts::err3.d.ts:3:8: Expected semicolon
 typescript/tests/cases/conformance/functions/functionOverloadErrorsSyntax.ts:9:36: A rest parameter must be last in a parameter list
+typescript/tests/cases/conformance/functions/functionWithUseStrictAndSimpleParameterList_es2016.ts:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::3.ts:8:18: 'import()' requires a specifier
 typescript/tests/cases/conformance/importAssertion/importAssertion4.ts:1:34: Expected {, got EOF
 typescript/tests/cases/conformance/importAssertion/importAssertion5.ts:1:36: Expected }, got EOF

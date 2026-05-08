@@ -3811,6 +3811,14 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	dup_strict := strict_for_check || async || generator
 	force_non_simple := !params_are_simple(params[:])
 	report_duplicate_param_names(p, params[:], start, dup_strict, force_non_simple)
+	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — it is a SyntaxError if
+	// the function body has a `"use strict"` directive AND the parameter
+	// list is not simple. The directive cannot promote params that have
+	// already been evaluated (or contain destructuring / defaults), so the
+	// spec rejects the combination outright.
+	if body_strict && force_non_simple {
+		report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+	}
 	_ = id
 
 	// §15.2.1.1 / §15.5.1 - It is a Syntax Error if any element of the
@@ -5376,9 +5384,15 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// strict, so skip the params_are_simple scan in this hot path.
 		report_duplicate_param_names(p, params[:], paren_loc, true, false)
 
-		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
-		// !IsSimpleParameterList" for class methods: enforced by the
-		// semantic checker (ck_check_strict_directive_with_nonsimple_params).
+		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
+		// !IsSimpleParameterList. A class method that has both a
+		// `"use strict"` directive in its body AND a non-simple parameter
+		// list is a SyntaxError. p.last_body_strict survives the
+		// strict_mode restore above because parse_function_body sets it
+		// just before returning.
+		if p.last_body_strict && !params_are_simple(params[:]) {
+			report_error_at(p, LexerLoc(paren_loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
 
 		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
 		// parameter shape (rest / TS-mode initializer) are enforced inline
@@ -11930,14 +11944,14 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// this duplicate check.
 		report_duplicate_param_names(p, params[:], fn_start, true, false)
 
-		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
-		// !IsSimpleParameterList" for object-literal accessors: enforced
-		// by the semantic checker (ck_check_strict_directive_with_nonsimple_params).
-
-		// Strict-mode param names (eval / arguments / let / yield / static
-		// / FutureReservedWords). When the body opted in via "use strict",
-		// param names must satisfy strict-mode reservation rules.
-		_ = body_strict
+		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
+		// !IsSimpleParameterList for object-literal accessors. Setters
+		// always have exactly one parameter (enforce_accessor_param_shape
+		// above), so the only way the non-simple guard fires here is when
+		// that lone setter param is a destructuring / default / rest form.
+		if body_strict && !params_are_simple(params[:]) {
+			report_error_at(p, LexerLoc(fn_start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
 
 		// §15.4.3 / §15.4.4 / §15.4.5 — PropertySetParameterList /
 		// PropertyGetParameter enforce exact arity AND parameter shape:
@@ -12042,12 +12056,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// top level of a script).
 		report_duplicate_param_names(p, params[:], fn_start, true, false)
 
-		// §15.5.1 / §15.6.1 / §15.8.1 "ContainsUseStrict +
-		// !IsSimpleParameterList" for object-literal methods: enforced by
-		// the semantic checker (ck_check_strict_directive_with_nonsimple_params).
-
-		// Strict-mode param-name reservation. See accessor case above.
-		_ = body_strict
+		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
+		// !IsSimpleParameterList for object-literal methods.
+		if body_strict && !params_are_simple(params[:]) {
+			report_error_at(p, LexerLoc(fn_start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
 
 		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
 
