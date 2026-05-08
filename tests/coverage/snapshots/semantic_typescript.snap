@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12566/12692 (99.01%)
 Positive Passed: 12566/12692 (99.01%)
-Negative Passed: 1594/3470 (45.94%)
+Negative Passed: 1595/3470 (45.97%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1135,7 +1135,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/esDecorat
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAbstract.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAbstractAccessor.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAmbient.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/esDecorators/esDecorators-privateFieldAccess.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/expressions/asOperator/asOperatorAmbiguity.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/expressions/assignmentOperator/compoundAdditionAssignmentLHSCanBeAssigned.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/expressions/assignmentOperator/compoundAdditionAssignmentWithInvalidOperands.ts
@@ -2807,12 +2806,12 @@ typescript/tests/cases/conformance/classes/indexMemberDeclarations/publicIndexer
 typescript/tests/cases/conformance/classes/members/accessibility/privateInstanceMemberAccessibility.ts:12:12: Expected semicolon or line terminator after class field
 typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers6.ts:6:21: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers9.ts:7:56: 'super' property access is only valid inside a method
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameAccessorsAccess.ts:14:10: Private field '#prop' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameAccessorsAccess.ts:14:15: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameAccessorssDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndAny.ts:9:15: Private field '#bar' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndIndexSignature.ts:6:14: Private field '#f' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndPropertySignature.ts:2:5: Unexpected token in TS object type
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadAssignment.ts:1:9: Private field '#nope' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadAssignment.ts:1:15: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadDeclaration.ts:3:3: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameConstructorReserved.ts:3:2: Class private member name cannot be '#constructor'
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameDuplicateField.ts:6:9: Duplicate private name '#foo' in class body
@@ -2825,25 +2824,25 @@ typescript/tests/cases/conformance/classes/members/privateNames/privateNameInInE
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameInObjectLiteral-1.ts:2:5: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameInObjectLiteral-2.ts:2:5: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameInObjectLiteral-3.ts:2:9: Expected }, got private_identifier
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameJsBadAssignment.ts:1:9: Private field '#nope' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameJsBadAssignment.ts:1:15: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameJsBadDeclaration.ts:3:3: Expected }, got private_identifier
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodAccess.ts:12:10: Private field '#method' must be declared in an enclosing class
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodClassExpression.ts:9:17: Private field '#method' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodAccess.ts:12:17: Private name reference is not allowed outside of a class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodClassExpression.ts:9:24: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameMethodsDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameNestedMethodAccess.ts:19:19: Private field '#unknown' must be declared in an enclosing class
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameNotAccessibleOutsideDefiningClass.ts:5:9: Private field '#foo' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameNotAccessibleOutsideDefiningClass.ts:5:14: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameNotAllowedOutsideClass.ts:1:7: Expected binding pattern
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticAccessorsAccess.ts:16:4: Private field '#prop' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticAccessorsAccess.ts:16:9: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticAccessorssDerivedClasses.ts:9:23: Private field '#prop' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticFieldDerivedClasses.ts:4:17: Private field '#derivedProp' must be declared in an enclosing class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticMethodAsync.ts:11:18: Expected (, got *
-typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticMethodClassExpression.ts:9:14: Private field '#method' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNameStaticMethodClassExpression.ts:9:21: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameUncheckedJsOptionalChain.ts:4:15: Private field '#foo' must be declared in an enclosing class
-typescript/tests/cases/conformance/classes/members/privateNames/privateNamesAndGenericClasses-2.ts:24:3: Private field '#foo' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNamesAndGenericClasses-2.ts:24:7: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesAndIndexedAccess.ts:7:28: Expected ], got private_identifier
-typescript/tests/cases/conformance/classes/members/privateNames/privateNamesInGenericClasses.ts:22:3: Private field '#foo' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNamesInGenericClasses.ts:22:7: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesIncompatibleModifiers.ts:2:12: An accessibility modifier cannot be used with a private identifier.
-typescript/tests/cases/conformance/classes/members/privateNames/privateNamesInterfaceExtendingClass.ts:10:7: Private field '#prop' must be declared in an enclosing class
+typescript/tests/cases/conformance/classes/members/privateNames/privateNamesInterfaceExtendingClass.ts:10:13: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesNoDelete.ts:4:9: Private fields cannot be deleted
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesNotAllowedAsParameters.ts:2:12: Expected binding pattern
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesNotAllowedInVariableDeclarations.ts:1:7: Expected binding pattern
@@ -3063,6 +3062,7 @@ typescript/tests/cases/conformance/esDecorators/classDeclaration/fields/esDecora
 typescript/tests/cases/conformance/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStaticAbstract.ts:6:37: A decorator can only decorate a method implementation, not an overload.
 typescript/tests/cases/conformance/esDecorators/esDecorators-decoratorExpression.1.ts:5:8: Expected class after decorator
 typescript/tests/cases/conformance/esDecorators/esDecorators-decoratorExpression.3.ts:5:14: Type arguments in decorator must be followed by a call
+typescript/tests/cases/conformance/esDecorators/esDecorators-privateFieldAccess.ts:3:17: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/expressions/assignmentOperator/assignmentLHSIsValue.ts:6:33: Invalid left-hand side in assignment
 typescript/tests/cases/conformance/expressions/assignmentOperator/compoundAssignmentLHSIsValue.ts:7:22: Invalid left-hand side in assignment
 typescript/tests/cases/conformance/expressions/commaOperator/commaOperatorWithoutOperand.ts:9:8: Parenthesized expressions may not have a trailing comma.

@@ -437,6 +437,14 @@ Parser :: struct {
 	// declarations so inner classes don't leak their extends state.
 	class_has_extends: bool,
 
+	// Depth counter for nested classes. Incremented on entry to
+	// parse_class_body, decremented on exit. Used to enforce §15.7.3
+	// PrivateName references (`#x`, `obj.#x`, `#x in y`) outside any
+	// class body — if class_depth == 0, the reference cannot resolve.
+	// Sub-checks (private name not declared in enclosing class) are
+	// still on the semantic checker.
+	class_depth: int,
+
 	// Language mode - controls JSX / TS syntax admissibility.
 	//   .JS  : plain JavaScript. `<` at expression start → syntax error.
 	//   .JSX : JS + JSX. `<` at expression start → JSX element.
@@ -4649,6 +4657,10 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 	if !expect_token(p, .LBrace) {
 		return {}
 	}
+
+	// Track nesting for the parser-side private-name resolution gate.
+	p.class_depth += 1
+	defer p.class_depth -= 1
 
 	body := ClassBody{
 		loc  = start,
@@ -10712,6 +10724,10 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				if pid.name == "" {
 					report_error(p, "Private identifier must not have whitespace after '#'")
 				}
+				// §15.7.3 — `obj.#x` outside any class body cannot resolve.
+				if p.class_depth == 0 {
+					report_error(p, "Private name reference is not allowed outside of a class")
+				}
 				// §15.7.3 "super.#name" early error: enforced by the
 				// semantic checker (ck_check_member_super_private).
 			} else {
@@ -10767,6 +10783,10 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					pid.name = name
 					p.private_id_count += 1
 					member.property = expression_from(p, pid)
+					// §15.7.3 — `obj?.#x` outside any class cannot resolve.
+					if p.class_depth == 0 {
+						report_error(p, "Private name reference is not allowed outside of a class")
+					}
 				} else {
 					// Create regular Identifier
 					ident := new_node(p, Identifier)
@@ -11330,6 +11350,12 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		                    (p.lexer != nil && p.lexer.nxt.kind != .In)
 		if invalid_position {
 			report_error(p, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
+		}
+		// §15.7.3 — a PrivateIdentifier reference outside any class body
+		// cannot resolve. The full "declared in enclosing class" check
+		// stays on the semantic checker; this catches the easy bare case.
+		if p.class_depth == 0 {
+			report_error(p, "Private name reference is not allowed outside of a class")
 		}
 		// Private field reference: #x (used in expressions like #x in this)
 		name := current.value

@@ -1091,7 +1091,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invali
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-call/input.js:4:19: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-private-member-access/input.js:5:5: Private fields cannot be accessed through 'super'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-nested/input.js:4:20: Private field '#priv' must be declared in an enclosing class
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-top-level/input.js:1:16: Private field '#priv' must be declared in an enclosing class
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-top-level/input.js:1:21: Private name reference is not allowed outside of a class
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-arrow-function/input.js:3:17: 'arguments' cannot appear in a class field initializer
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-nested-class-decorator-call-expression/input.js:3:26: 'arguments' cannot appear in a class field initializer
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments/input.js:3:11: 'arguments' cannot appear in a class field initializer
