@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3795/4588 (82.72%)
+Negative Passed: 3809/4588 (83.02%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-generator.js
@@ -649,7 +649,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/stati
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/syntax/early-errors/class-definition-evaluation-block-duplicate-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/syntax/early-errors/class-definition-evaluation-scriptbody-duplicate-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/const/redeclaration-error-from-within-strict-mode-function-const.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/const/syntax/const-declaring-let-split-across-two-lines.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/static-init-with-label.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-nested-array-yield-ident-invalid.js
@@ -670,12 +669,8 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-prop-elem-target-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-prop-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-prop-nested-obj-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/head-const-bound-names-dup.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/head-const-bound-names-in-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/head-const-bound-names-let.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/head-let-bound-names-dup.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/head-let-bound-names-in-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/head-let-bound-names-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/array-elem-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/array-elem-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/array-elem-nested-obj-yield-ident-invalid.js
@@ -691,15 +686,9 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-prop-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-prop-nested-obj-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-await-using-bound-names-in-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-await-using-bound-names-let.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-const-bound-names-dup.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-const-bound-names-in-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-const-bound-names-let.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-let-bound-names-dup.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-let-bound-names-in-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-let-bound-names-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-using-bound-names-in-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-using-bound-names-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-const-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-let-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-13gs.js
@@ -723,9 +712,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/val
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/redeclaration-error-from-within-strict-mode-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/syntax/identifier-let-allowed-as-lefthandside-expression-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/syntax/identifier-let-disallowed-as-boundname.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/syntax/let-let-declaration-split-across-two-lines.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/let/syntax/let-let-declaration-with-initializer-split-across-two-lines.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/switch/S12.11_A2_T1.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/switch/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/switch/syntax/redeclaration/async-function-name-redeclaration-attempt-with-async-generator.js
@@ -3994,6 +3980,7 @@ test262/test/language/statements/const/static-init-await-binding-invalid.js:24:1
 test262/test/language/statements/const/syntax/block-scope-syntax-const-declarations-mixed-with-without-initialiser.js:15:1: Missing initializer in 'const' declaration
 test262/test/language/statements/const/syntax/block-scope-syntax-const-declarations-mixed-without-with-initialiser.js:15:1: Missing initializer in 'const' declaration
 test262/test/language/statements/const/syntax/block-scope-syntax-const-declarations-without-initialiser.js:15:1: Missing initializer in 'const' declaration
+test262/test/language/statements/const/syntax/const-declaring-let-split-across-two-lines.js:18:1: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/const/syntax/with-initializer-do-statement-while-expression.js:14:17: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/const/syntax/with-initializer-for-statement.js:15:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/const/syntax/with-initializer-if-expression-statement-else-statement.js:15:1: Lexical declaration cannot appear in a single-statement context
@@ -4152,6 +4139,10 @@ test262/test/language/statements/for-in/dstr/obj-prop-elem-target-obj-literal-op
 test262/test/language/statements/for-in/dstr/obj-prop-nested-array-invalid.js:32:25: Invalid destructuring assignment target
 test262/test/language/statements/for-in/dstr/obj-prop-nested-obj-invalid.js:32:31: Invalid destructuring assignment target
 test262/test/language/statements/for-in/dstr/obj-rest-not-last-element-invalid.js:33:22: Rest element must be last in object pattern
+test262/test/language/statements/for-in/head-const-bound-names-dup.js:17:6: Identifier 'x' has already been declared
+test262/test/language/statements/for-in/head-const-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
+test262/test/language/statements/for-in/head-let-bound-names-dup.js:17:6: Identifier 'x' has already been declared
+test262/test/language/statements/for-in/head-let-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-in/head-lhs-cover-non-asnmt-trgt.js:24:16: Invalid left-hand side in for-in loop
 test262/test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-ary.js:20:18: Invalid destructuring assignment target
 test262/test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-obj.js:20:20: Invalid destructuring assignment target
@@ -4218,10 +4209,15 @@ test262/test/language/statements/for-of/dstr/var-ary-ptrn-rest-not-final-id.js:4
 test262/test/language/statements/for-of/dstr/var-ary-ptrn-rest-not-final-obj.js:48:19: Rest element must be last in array pattern
 test262/test/language/statements/for-of/dstr/var-obj-ptrn-init-err.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/escaped-of.js:23:12: Expected '=', ',', or ';' after variable binding
+test262/test/language/statements/for-of/head-await-using-bound-names-let.js:17:8: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-of/head-await-using-init.js:21:8: for-of loop variable declaration may not have an initializer
+test262/test/language/statements/for-of/head-const-bound-names-dup.js:17:6: Identifier 'x' has already been declared
+test262/test/language/statements/for-of/head-const-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-of/head-const-init.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-decl-no-expr.js:17:17: Expected ), got ,
 test262/test/language/statements/for-of/head-expr-no-expr.js:18:13: Expected ), got ,
+test262/test/language/statements/for-of/head-let-bound-names-dup.js:17:6: Identifier 'x' has already been declared
+test262/test/language/statements/for-of/head-let-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-of/head-let-init.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-lhs-async-invalid.js:17:15: The left-hand side of a for-of loop may not be 'async'
 test262/test/language/statements/for-of/head-lhs-cover-non-asnmt-trgt.js:24:16: Invalid left-hand side in for-of loop
@@ -4229,6 +4225,7 @@ test262/test/language/statements/for-of/head-lhs-invalid-asnmt-ptrn-ary.js:20:18
 test262/test/language/statements/for-of/head-lhs-invalid-asnmt-ptrn-obj.js:20:20: Invalid destructuring assignment target
 test262/test/language/statements/for-of/head-lhs-let.js:25:14: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/for-of/head-lhs-non-asnmt-trgt.js:18:14: Invalid left-hand side in for-of loop
+test262/test/language/statements/for-of/head-using-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-of/head-using-init.js:20:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-var-init.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-var-no-expr.js:17:17: Expected ), got ,
@@ -4418,6 +4415,9 @@ test262/test/language/statements/let/dstr/ary-ptrn-rest-not-final-ary.js:30:12: 
 test262/test/language/statements/let/dstr/ary-ptrn-rest-not-final-id.js:30:10: Rest element must be last in array pattern
 test262/test/language/statements/let/dstr/ary-ptrn-rest-not-final-obj.js:30:14: Rest element must be last in array pattern
 test262/test/language/statements/let/static-init-await-binding-invalid.js:24:9: 'await' is reserved as a binding name in this context
+test262/test/language/statements/let/syntax/identifier-let-disallowed-as-boundname.js:13:6: 'let' is disallowed as a lexically bound name
+test262/test/language/statements/let/syntax/let-let-declaration-split-across-two-lines.js:32:1: 'let' is disallowed as a lexically bound name
+test262/test/language/statements/let/syntax/let-let-declaration-with-initializer-split-across-two-lines.js:32:1: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/let/syntax/let-newline-await-in-normal-function.js:23:11: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/let/syntax/let-newline-yield-in-generator-function.js:24:5: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/let/syntax/let-newline-yield-in-normal-function.js:22:11: Expected '=', ',', or ';' after variable binding

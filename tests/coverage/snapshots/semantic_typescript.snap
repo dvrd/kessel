@@ -2697,7 +2697,7 @@ typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifi
 typescript/tests/cases/compiler/staticPrototypeProperty.ts:5:1: Classes may not have a static member named 'prototype'
 typescript/tests/cases/compiler/staticsInAFunction.ts:1:13: Expected (, got {
 typescript/tests/cases/compiler/staticsInConstructorBodies.ts:3:10: Expected semicolon
-typescript/tests/cases/compiler/strictModeReservedWord.ts:5:9: 'public' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/strictModeReservedWord.ts:1:1: 'let' is disallowed as a lexically bound name
 typescript/tests/cases/compiler/strictModeReservedWord2.ts:4:9: 'package' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/strictModeReservedWordInClassDeclaration.ts:4:17: 'private' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/strictModeReservedWordInDestructuring.ts:2:6: 'public' is a reserved identifier in strict mode
@@ -2985,7 +2985,7 @@ typescript/tests/cases/conformance/es6/destructuring/destructuringParameterPrope
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterProperties3.ts:2:57: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterProperties4.ts:2:59: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterProperties5.ts:5:58: A parameter property may not be declared using a binding pattern
-typescript/tests/cases/conformance/es6/destructuring/destructuringSameNames.ts:21:1: 'foo1' has already been declared
+typescript/tests/cases/conformance/es6/destructuring/destructuringSameNames.ts:21:1: Identifier 'foo1' has already been declared
 typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES5.ts:3:5: Missing initializer in destructuring declaration
 typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES5iterable.ts:3:5: Missing initializer in destructuring declaration
 typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES6.ts:3:5: Missing initializer in destructuring declaration

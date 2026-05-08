@@ -69,7 +69,7 @@ tests/coverage/misc/fail/diff-markers.js:10:1: Unexpected token '<<'
 tests/coverage/misc/fail/early_errors/001_duplicate_proto_object_literal.js:4:29: Redefinition of __proto__ property
 tests/coverage/misc/fail/early_errors/002_let_let_in_strict.js:4:5: 'let' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/003_const_without_initializer.js:4:1: Missing initializer in 'const' declaration
-tests/coverage/misc/fail/early_errors/004_duplicate_lexical_declaration.js:3:1: 'x' has already been declared
+tests/coverage/misc/fail/early_errors/004_duplicate_lexical_declaration.js:3:1: Identifier 'x' has already been declared
 tests/coverage/misc/fail/early_errors/005_duplicate_function_params_strict.js:4:1: Duplicate parameter name 'a' in strict mode
 tests/coverage/misc/fail/early_errors/006_octal_literal_strict.js:4:11: Legacy octal literals are not allowed in strict mode
 tests/coverage/misc/fail/early_errors/007_assign_to_eval_strict.js:4:1: Assignment to 'eval' is not allowed in strict mode
@@ -145,7 +145,7 @@ tests/coverage/misc/fail/negative/012_duplicate_label.js:5:2: Label 'outer' has 
 tests/coverage/misc/fail/negative/013_break_unknown_label.js:6:8: Undefined label 'bar'
 tests/coverage/misc/fail/negative/014_duplicate_private_class_member.js:13:1: Class private member name cannot be '#constructor'
 tests/coverage/misc/fail/negative/015_for_await_outside_async.js:8:12: 'for await' outside of async function
-tests/coverage/misc/fail/negative/016_let_as_lexical_name.js:7:1: 'let' has already been declared
+tests/coverage/misc/fail/negative/016_let_as_lexical_name.js:6:1: 'let' is disallowed as a lexically bound name
 tests/coverage/misc/fail/negative/017_static_prototype_class_member.js:9:1: Classes may not have a static member named 'prototype'
 tests/coverage/misc/fail/negative/018_private_identifier_outside_class.js:6:9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 tests/coverage/misc/fail/negative/019_new_dynamic_import.js:3:5: Dynamic 'import()' cannot be invoked with 'new'

@@ -213,13 +213,13 @@ babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-const/input
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-func/input.js:2:10: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-let/input.js:2:1: 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-var/input.js:2:1: Identifier 'foo' has already been declared
-babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-const-const/input.js:1:1: 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-const-const/input.js:1:1: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-gen/input.js:1:29: 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-module-sloppy/input.js:1:30: 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-module/input.js:2:10: 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-var-sloppy/input.js:3:3: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-gen-func/input.js:1:29: 'f' has already been declared
-babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-let-let/input.js:1:1: 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-let-let/input.js:1:1: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-nested-let-var/input.js:3:5: Identifier 'a' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/for-var/input.js:2:5: 'i' is already declared in for-loop head
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as-default/input.js:1:10: Export 'encrypt' is not defined in the module
@@ -1163,7 +1163,7 @@ babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-synta
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-with-entry-no-colon/input.js:1:25: Expected :, got ,
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/valid-syntax-export-with-invalid-value/input.js:1:63: Only string literals are allowed as import attribute values
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/valid-syntax-with-invalid-value/input.js:1:55: Only string literals are allowed as import attribute values
-babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-duplicate-using-bindings/input.js:3:5: 'f' has already been declared
+babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-duplicate-using-bindings/input.js:3:5: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-export-await-using/input.js:2:1: Using declarations cannot be exported directly
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-export-default-await-using/input.js:1:16: 'export default' cannot be followed by a using declaration
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-for-of-await-linebreak-using/input.js:2:8: Line terminator not permitted between 'await' and 'using'
@@ -1182,7 +1182,7 @@ babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-managem
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-no-initializer/input.js:3:1: Missing initializer in 'await using' declaration
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-object-pattern/input.js:2:15: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/disallow-destructuring/input.js:2:1: 'using' declaration requires a binding identifier
-babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-duplicate-using-bindings/input.js:2:3: 'f' has already been declared
+babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-duplicate-using-bindings/input.js:2:3: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-export-default-using/input.js:1:16: 'export default' cannot be followed by a using declaration
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-export-using/input.js:2:1: Using declarations cannot be exported directly
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-await-using-binding-of-of/input.mjs:1:24: Expected ), got of

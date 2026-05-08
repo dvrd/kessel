@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2229/2233 (99.82%)
 Positive Passed: 2229/2233 (99.82%)
-Negative Passed: 1384/1711 (80.89%)
+Negative Passed: 1403/1711 (82.00%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -37,13 +37,11 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-func/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-let/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-var/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-const-const/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-gen/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-module-sloppy/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-module/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-var-sloppy/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-gen-func/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-let-let/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-nested-let-var/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/for-var/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as-default/input.js
@@ -80,19 +78,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/duplicate-proto/with-assignment-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/duplicate-proto/without-assignment-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-as-identifier-strict-fail/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-1/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-10/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-11/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-12/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-2/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-3/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-4/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-5/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-6/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-7/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-8/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-9/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-at-catch-block/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/meta-properties/invalid-arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-strict/input.js
@@ -206,13 +191,9 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-super-call/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-duplicate-using-bindings/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-script-top-level-using-binding/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-binding-let/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-duplicate-using-bindings/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-script-top-level-using-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-binding-await-module/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-binding-let/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-binding-pattern/invalid-dup-param/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-1/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-2/input.js
@@ -378,6 +359,8 @@ babel/packages/babel-parser/test/fixtures/core/regression/13694-invalid-dot-brac
 babel/packages/babel-parser/test/fixtures/core/regression/T2921/input.js:1:5: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/core/regression/non-octal-float-strict-mode/input.js:1:1: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/regression/octal-float-fail/input.js:1:5: Legacy octal / non-octal-decimal literal cannot contain a decimal point
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-const-const/input.js:1:1: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-let-let/input.js:1:1: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-if/input.js:3:1: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-await/input.js:1:1: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-yield/input.js:1:1: 'yield' expression is only allowed in a generator body
@@ -610,6 +593,19 @@ babel/packages/babel-parser/test/fixtures/es2015/identifiers/invalid-escape-seq-
 babel/packages/babel-parser/test/fixtures/es2015/identifiers/invalid-escape-seq-true/input.js:1:1: Keyword 'true' must not contain escaped characters
 babel/packages/babel-parser/test/fixtures/es2015/let/invalid-escape/input.js:1:10: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2015/let/let-array-with-newline/input.js:3:1: Lexical declaration cannot appear in a single-statement context
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-1/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-10/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-11/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-12/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-2/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-3/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-4/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-5/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-6/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-7/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-8/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-binding-list-fail-9/input.js:1:1: 'let' is disallowed as a lexically bound name
+babel/packages/babel-parser/test/fixtures/es2015/let/let-at-catch-block/input.js:2:3: 'let' is disallowed as a lexically bound name
 babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-invalid-prop/input.js:2:6: Expected expression after 'new'
 babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid-escaped-new/input.js:1:16: Keyword 'new' must not contain escaped characters
 babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid-escaped-target/input.js:1:19: Expected expression after 'new'
@@ -1168,6 +1164,7 @@ babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-synta
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-with-entry-no-colon/input.js:1:25: Expected :, got ,
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/valid-syntax-export-with-invalid-value/input.js:1:63: Only string literals are allowed as import attribute values
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/valid-syntax-with-invalid-value/input.js:1:55: Only string literals are allowed as import attribute values
+babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-duplicate-using-bindings/input.js:3:5: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-export-await-using/input.js:2:1: Using declarations cannot be exported directly
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-export-default-await-using/input.js:1:16: 'export default' cannot be followed by a using declaration
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-for-of-await-linebreak-using/input.js:2:8: Line terminator not permitted between 'await' and 'using'
@@ -1180,10 +1177,12 @@ babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-managem
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-array-pattern/input.js:2:28: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-binding-await-module/input.js:2:15: 'await' is reserved as a binding name in this context
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-binding-await-script/input.js:2:15: 'await' is reserved as a binding name in this context
+babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-binding-let/input.js:2:3: 'let' is disallowed as a lexically bound name
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-decl-as-expr/input.js:2:17: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-no-initializer/input.js:3:1: Missing initializer in 'await using' declaration
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-using-object-pattern/input.js:2:15: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/disallow-destructuring/input.js:2:1: 'using' declaration requires a binding identifier
+babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-duplicate-using-bindings/input.js:2:3: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-export-default-using/input.js:1:16: 'export default' cannot be followed by a using declaration
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-export-using/input.js:2:1: Using declarations cannot be exported directly
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-await-using-binding-of-of/input.mjs:1:24: Expected ), got of
@@ -1197,6 +1196,7 @@ babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/in
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-module-bare-case-using-binding/input.js:6:5: 'using' declaration is not allowed directly inside a switch case clause
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-script-bare-case-using-binding/input.js:6:5: 'using' declaration is not allowed directly inside a switch case clause
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-script-top-level-labeled-using-binding/input.js:2:1: Lexical declaration cannot appear in a single-statement context
+babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-binding-let/input.js:2:3: 'let' is disallowed as a lexically bound name
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-binding-pattern-for-lhs/input.js:2:14: Expected ;, got {
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-no-initializer/input.js:3:1: Missing initializer in 'using' declaration
 babel/packages/babel-parser/test/fixtures/esprima/declaration-function/dupe-param/input.js:1:1: Duplicate parameter name 'x' in strict mode

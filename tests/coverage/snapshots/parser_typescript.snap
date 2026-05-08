@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12692/12692 (100.00%)
 Positive Passed: 12692/12692 (100.00%)
-Negative Passed: 1431/3470 (41.24%)
+Negative Passed: 1440/3470 (41.50%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -582,12 +582,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarati
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates6.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates7.ts::file1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates7.ts::file2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInConstDeclarations_ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInConstDeclarations_ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInLetConstDeclOfForOfAndForIn_ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInLetConstDeclOfForOfAndForIn_ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInLetDeclarations_ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInLetDeclarations_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInVarDeclOfForIn_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInVarDeclOfForIn_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInVarDeclOfForOf_ES5.ts
@@ -1161,7 +1155,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destr
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5iterable.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringSameNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringSpread.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/missingAndExcessProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/optionalBindingParameters1.ts
@@ -1170,8 +1163,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destr
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/restElementWithAssignmentPattern2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/restElementWithAssignmentPattern4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/restElementWithBindingPattern2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of51.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of52.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of53.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of54.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of56.ts
@@ -2287,6 +2278,12 @@ typescript/tests/cases/compiler/letAsIdentifierInStrictMode.ts:2:5: 'let' is a r
 typescript/tests/cases/compiler/letDeclarations-invalidContexts.ts:4:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/letDeclarations-scopes.ts:44:5: Lexical declaration cannot be a labeled item
 typescript/tests/cases/compiler/letDeclarations-validContexts.ts:32:1: Lexical declaration cannot be a labeled item
+typescript/tests/cases/compiler/letInConstDeclarations_ES5.ts:2:1: 'let' is disallowed as a lexically bound name
+typescript/tests/cases/compiler/letInConstDeclarations_ES6.ts:2:1: 'let' is disallowed as a lexically bound name
+typescript/tests/cases/compiler/letInLetConstDeclOfForOfAndForIn_ES5.ts:2:6: 'let' is disallowed as a lexically bound name
+typescript/tests/cases/compiler/letInLetConstDeclOfForOfAndForIn_ES6.ts:2:6: 'let' is disallowed as a lexically bound name
+typescript/tests/cases/compiler/letInLetDeclarations_ES5.ts:2:1: 'let' is disallowed as a lexically bound name
+typescript/tests/cases/compiler/letInLetDeclarations_ES6.ts:2:1: 'let' is disallowed as a lexically bound name
 typescript/tests/cases/compiler/libMembers.ts:9:17: Expected expression after 'new'
 typescript/tests/cases/compiler/literalsInComputedProperties1.ts:39:5: An enum member cannot have a numeric name.
 typescript/tests/cases/compiler/manyCompilerErrorsInTheTwoFiles.ts::a.ts:1:12: Decorators can only be applied to class expressions
@@ -2394,7 +2391,7 @@ typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifi
 typescript/tests/cases/compiler/staticPrototypeProperty.ts:5:1: Classes may not have a static member named 'prototype'
 typescript/tests/cases/compiler/staticsInAFunction.ts:1:13: Expected (, got {
 typescript/tests/cases/compiler/staticsInConstructorBodies.ts:3:10: Expected semicolon
-typescript/tests/cases/compiler/strictModeReservedWord.ts:5:9: 'public' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/strictModeReservedWord.ts:1:1: 'let' is disallowed as a lexically bound name
 typescript/tests/cases/compiler/strictModeReservedWord2.ts:4:9: 'package' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/strictModeReservedWordInClassDeclaration.ts:4:17: 'private' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/stringLiteralsErrors.ts:18:25: Expected semicolon
@@ -2628,6 +2625,7 @@ typescript/tests/cases/conformance/es6/destructuring/destructuringParameterPrope
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterProperties3.ts:2:57: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterProperties4.ts:2:59: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterProperties5.ts:5:58: A parameter property may not be declared using a binding pattern
+typescript/tests/cases/conformance/es6/destructuring/destructuringSameNames.ts:21:1: Identifier 'foo1' has already been declared
 typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES5.ts:3:5: Missing initializer in destructuring declaration
 typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES5iterable.ts:3:5: Missing initializer in destructuring declaration
 typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES6.ts:3:5: Missing initializer in destructuring declaration
@@ -2641,6 +2639,8 @@ typescript/tests/cases/conformance/es6/destructuring/restPropertyWithBindingPatt
 typescript/tests/cases/conformance/es6/for-ofStatements/for-of-excess-declarations.ts:1:6: Only a single declaration is allowed in a for-of loop
 typescript/tests/cases/conformance/es6/for-ofStatements/for-of2.ts:2:1: Missing initializer in 'const' declaration
 typescript/tests/cases/conformance/es6/for-ofStatements/for-of3.ts:2:13: Invalid left-hand side in for-of loop
+typescript/tests/cases/conformance/es6/for-ofStatements/for-of51.ts:1:6: 'let' is disallowed as a lexically bound name
+typescript/tests/cases/conformance/es6/for-ofStatements/for-of52.ts:1:6: Identifier 'v' has already been declared
 typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration10_es6.ts:1:34: Invalid expression for arrow function parameters
 typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration12_es6.ts:1:20: 'yield' cannot be used as the name of a generator function expression
 typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration5_es6.ts:1:14: 'yield' is reserved as a binding name inside a generator

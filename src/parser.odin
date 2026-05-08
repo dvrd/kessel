@@ -5729,9 +5729,41 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// in both strict and sloppy. The binding check lives here, not in
 	// parse_binding_pattern, so `var let;` keeps working (B.3.4.4).
 	if !is_declare && (kind == .Let || kind == .Const || kind == .Using || kind == .AwaitUsing) {
-		// §14.3.1.1 `let` as lexically bound name: enforced by the
-		// semantic checker (ck_check_var_decl_let_binding) for every
-		// VariableDeclaration the walker visits.
+		// §14.3.1.1 — BoundNames of a LexicalDeclaration must not
+		// contain `"let"` AND must not contain duplicates. `var` is
+		// exempt (Annex B.3.3.1 "VarDeclaredNames of a Script may
+		// contain repeats"). Promoted from the semantic checker
+		// (ck_check_var_decl_let_binding + the duplicate-name pass).
+		//
+		// One pass over collected BoundNames covers both rules: the
+		// `let`-as-name check fires first because it has a more
+		// specific diagnostic, and we early-return after either fires
+		// to keep one diagnostic per declaration (matches the checker).
+		names: [dynamic]string
+		names.allocator = context.temp_allocator
+		reserve(&names, 4)
+		for d in decl.declarations { collect_bound_names(d.id, &names) }
+		let_seen := false
+		dup_name := ""
+		dedup: map[string]bool
+		dedup.allocator = context.temp_allocator
+		reserve(&dedup, 4)
+		for n in names {
+			if n == "let" && !let_seen {
+				let_seen = true
+			}
+			if _, have := dedup[n]; have {
+				if dup_name == "" { dup_name = n }
+			} else {
+				dedup[n] = true
+			}
+		}
+		if let_seen {
+			report_error_at(p, LexerLoc(decl.loc.span.start), "'let' is disallowed as a lexically bound name")
+		} else if dup_name != "" {
+			msg := fmt.tprintf("Identifier '%s' has already been declared", dup_name)
+			report_error_at(p, LexerLoc(decl.loc.span.start), msg)
+		}
 	}
 
 	// §Explicit Resource Management - `using` / `await using` create
