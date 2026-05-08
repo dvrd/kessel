@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12599/12692 (99.27%)
 Positive Passed: 12599/12692 (99.27%)
-Negative Passed: 1468/3470 (42.31%)
+Negative Passed: 1479/3470 (42.62%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -103,7 +103,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkSuperCa
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkTypePredicateForRedundantProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkerInitializationCrash.ts::/index.tsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkerInitializationCrash.ts::/node_modules/@fullcalendar/core/index.d.ts
@@ -468,7 +467,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericUnbou
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericsWithDuplicateTypeParameters1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/getterMissingReturnError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/gettersAndSetters.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/illegalSuperCallsInConstructor.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAliasInModuleAugmentation.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict3.ts
@@ -816,11 +814,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeRe
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeWordInImportDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/super.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/super1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superCallFromClassThatHasNoBaseType1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superCallFromFunction1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superCallInsideClassDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superCallInsideClassExpression.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superCallOutsideConstructor.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superInConstructorParam1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superInObjectLiterals_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superInObjectLiterals_ES6.ts
@@ -932,12 +927,10 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/c
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorParameterProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorParameterProperties2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassConstructorWithoutSuperCall.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassParameterProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassSuperCallsWithThisArg.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassSuperProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassSuperStatementPosition.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/superCallInConstructorWithNoBaseType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/superPropertyInConstructorBeforeSuperCall.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/accessibility/protectedClassPropertyAccessibleWithinNestedSubclass.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/accessibility/protectedInstanceMemberAccessibility.ts
@@ -948,7 +941,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/m
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers12.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers13.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNameAccessorsAccess.ts
@@ -1098,7 +1090,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/class
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallFromClassThatHasNoBaseTypeButWithSameSymbolInterface.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES5.ts
@@ -1115,8 +1106,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/compu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames26_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames26_ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames27_ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames27_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames30_ES5.ts
@@ -2335,6 +2324,7 @@ typescript/tests/cases/compiler/callExpressionWithMissingTypeArgument1.ts:1:12: 
 typescript/tests/cases/compiler/cannotInvokeNewOnErrorExpression.ts:5:22: Expected expression after 'new'
 typescript/tests/cases/compiler/castOfYield.ts:4:21: Cannot use `yield` as an identifier in a generator context
 typescript/tests/cases/compiler/catchClauseWithInitializer1.ts:3:10: Expected ), got =
+typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing9.ts:14:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/circularOptionalityRemoval.ts:5:55: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/compiler/class2.ts:1:36: Expected semicolon
 typescript/tests/cases/compiler/classExpressionPropertyModifiers.ts:2:40: Initializers are not allowed in ambient contexts.
@@ -2343,7 +2333,7 @@ typescript/tests/cases/compiler/classFieldsBrokenConstructorEmitNoCrash1.ts:4:1:
 typescript/tests/cases/compiler/classHeritageWithTrailingSeparator.ts:2:18: Expected {, got ,
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier.ts:2:12: Expected method or property name
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier2.ts:2:12: Expected method or property name
-typescript/tests/cases/compiler/classUpdateTests.ts:93:10: Expected semicolon
+typescript/tests/cases/compiler/classUpdateTests.ts:43:23: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/classWithEmptyTypeParameter.ts:1:9: Type parameter list cannot be empty
 typescript/tests/cases/compiler/collisionArgumentsClassConstructor.ts:3:31: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/collisionArgumentsClassMethod.ts:2:30: 'arguments' cannot be used as a binding name in strict mode
@@ -2463,6 +2453,7 @@ typescript/tests/cases/compiler/gettersAndSettersErrors.ts:6:16: Getter must not
 typescript/tests/cases/compiler/giant.ts:62:17: An index signature must have a type annotation.
 typescript/tests/cases/compiler/identifierStartAfterNumericLiteral.ts:3:2: Expected semicolon
 typescript/tests/cases/compiler/illegalModifiersOnClassElements.ts:2:20: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/illegalSuperCallsInConstructor.ts:9:37: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/implementClausePrecedingExtends.ts:2:22: Expected {, got extends
 typescript/tests/cases/compiler/implementsClauseAlreadySeen.ts:4:22: Expected {, got identifier
 typescript/tests/cases/compiler/importAssertionNonstring.ts:1:50: Only string literals are allowed as import attribute values
@@ -2658,6 +2649,9 @@ typescript/tests/cases/compiler/strictModeReservedWordInClassDeclaration.ts:4:17
 typescript/tests/cases/compiler/strictOptionalProperties1.ts:206:1: Identifier 'e' has already been declared
 typescript/tests/cases/compiler/stringLiteralsErrors.ts:18:25: Expected semicolon
 typescript/tests/cases/compiler/superAccess2.ts:7:10: 'super' can only be used with function calls or in property accesses
+typescript/tests/cases/compiler/superCallFromClassThatHasNoBaseType1.ts:8:26: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/compiler/superCallFromFunction1.ts:2:10: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/compiler/superCallOutsideConstructor.ts:6:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/superCallsInConstructor.ts:12:9: 'with' statements are not allowed in strict mode
 typescript/tests/cases/compiler/superErrors.ts:3:13: 'super' can only be used with function calls or in property accesses
 typescript/tests/cases/compiler/superInLambdas.ts:61:29: 'super' can only be used with function calls or in property accesses
@@ -2784,11 +2778,14 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock8.ts
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:3:27: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInConstructorParameters.ts:7:33: 'public' modifier must precede 'readonly' modifier.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyReadonly.ts:2:23: 'readonly' modifier can only appear on a property declaration
+typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassConstructorWithoutSuperCall.ts:24:36: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassSuperCallsInNonConstructorMembers.ts:8:13: Expected semicolon or line terminator after class field
+typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/superCallInConstructorWithNoBaseType.ts:3:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/classes/indexMemberDeclarations/privateIndexer.ts:4:13: 'private' modifier cannot appear on an index signature.
 typescript/tests/cases/conformance/classes/indexMemberDeclarations/privateIndexer2.ts:4:13: Expected }, got [
 typescript/tests/cases/conformance/classes/indexMemberDeclarations/publicIndexer.ts:4:12: 'public' modifier cannot appear on an index signature.
 typescript/tests/cases/conformance/classes/members/accessibility/privateInstanceMemberAccessibility.ts:12:12: Expected semicolon or line terminator after class field
+typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers6.ts:6:21: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameAndPropertySignature.ts:2:5: Unexpected token in TS object type
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameBadDeclaration.ts:3:3: Expected }, got private_identifier
 typescript/tests/cases/conformance/classes/members/privateNames/privateNameConstructorReserved.ts:3:2: Class private member name cannot be '#constructor'
@@ -2873,6 +2870,9 @@ typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/binaryIntege
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/invalidBinaryIntegerLiteralAndOctalIntegerLiteral.ts:2:16: Expected semicolon
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/octalIntegerLiteralError.ts:2:19: Expected semicolon
 typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts:4:16: 'arguments' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/es6/classDeclaration/superCallFromClassThatHasNoBaseTypeButWithSameSymbolInterface.ts:5:14: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames27_ES5.ts:4:12: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames27_ES6.ts:4:12: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES5.ts:9:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES6.ts:9:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames50_ES5.ts:11:10: Setter must have exactly one formal parameter
@@ -3012,7 +3012,7 @@ typescript/tests/cases/conformance/expressions/optionalChaining/elementAccessCha
 typescript/tests/cases/conformance/expressions/optionalChaining/propertyAccessChain/propertyAccessChain.3.ts:3:9: Invalid left-hand side expression in postfix operation
 typescript/tests/cases/conformance/expressions/optionalChaining/taggedTemplateChain/taggedTemplateChain.ts:2:5: Unexpected token after ?.
 typescript/tests/cases/conformance/expressions/propertyAccess/propertyAccessNumericLiterals.ts:6:5: Expected semicolon
-typescript/tests/cases/conformance/expressions/superCalls/errorSuperCalls.ts:46:9: 'super' can only be used with function calls or in property accesses
+typescript/tests/cases/conformance/expressions/superCalls/errorSuperCalls.ts:4:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/expressions/typeAssertions/typeAssertions.ts:44:4: Unexpected '<': not a valid TS type assertion or generic arrow
 typescript/tests/cases/conformance/expressions/typeGuards/typeGuardFunctionErrors.ts:17:57: Expected {, got is
 typescript/tests/cases/conformance/expressions/typeGuards/typePredicateOnVariableDeclaration02.ts:1:10: Expected '=', ',', or ';' after variable binding

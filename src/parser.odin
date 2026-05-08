@@ -5390,7 +5390,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// in_method = true save / restore as the body parsing below.
 	prev_method_in_method := p.in_method
 	p.in_method = true
+	// `super(...)` in a derived constructor's default-param initializer
+	// is accepted by OXC (the param scope inherits the constructor's
+	// SuperCall eligibility). Set `in_derived_constructor` before params
+	// so super-call checking in parse_assignment_expr picks it up.
+	prev_ctor_params_derived := p.in_derived_constructor
+	if kind == .Constructor && !static_ && p.class_has_extends {
+		p.in_derived_constructor = true
+	}
 	params := parse_function_params(p)
+	p.in_derived_constructor = prev_ctor_params_derived
 	if allow_ts_mode(p) {
 		for param in params {
 			has_modifier := param.accessibility != .None || param.readonly || param.override_
@@ -10830,9 +10839,13 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					report_error(p, "Arrow function must be parenthesized before call")
 				}
 			}
-			// §15.7.6 SuperCall outside derived constructor: enforced by
-			// the semantic checker (ck_check_super_call) using its own
-			// in_derived_constructor tracker. Parser stays permissive.
+			// §15.7.6 SuperCall: `super(...)` is only legal inside the
+			// constructor of a derived class.
+			if _, is_super := expr^.(^Super); is_super {
+				if !p.in_derived_constructor {
+					report_error(p, "'super' call is only allowed in the constructor of a derived class")
+				}
+			}
 			// Save and clear pending_paren_start before parsing arguments.
 			// The paren-start from the callee must not propagate into argument
 			// sub-expressions (e.g. `(0,f)({prop: g(x)})` - g(x) must not

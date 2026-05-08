@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2227/2233 (99.73%)
 Positive Passed: 2227/2233 (99.73%)
-Negative Passed: 1425/1711 (83.28%)
+Negative Passed: 1431/1711 (83.64%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -55,7 +55,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/545/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-in-object-method/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-outside-constructor/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-module/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/duplicate-proto/in-new-expression/input.js
@@ -64,7 +63,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/let/let-as-identifier-strict-fail/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/meta-properties/invalid-arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/meta-properties/new-target-invalid/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/123/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/220/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/243/input.js
@@ -157,7 +155,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-static-method/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-static-set/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-optional-private-property/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-call/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-private-member-access/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-nested/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-top-level/input.js
@@ -165,12 +162,10 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-nested-class-decorator-call-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target-invalid/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-call/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-inside-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/yield-in-class-property-in-generator/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-arguments/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-await/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-super-call/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-script-top-level-using-binding/input.js
@@ -189,7 +184,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-literal-identifier/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-literals/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-setter-literal-identifier/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_not_inside_function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-default/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-export-default/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-strict-function-expression/input.js
@@ -550,6 +544,7 @@ babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-binary-left/
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-callee/input.js:1:9: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-for-in-init-concise-binary-in/input.js:1:17: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-ternary-test/input.js:1:10: Arrow function cannot be used as an unparenthesized operand
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-outside-constructor/input.js:2:14: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-identifier/input.js:2:11: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-string/input.js:2:13: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-get-identifier/input.js:2:9: Expected (, got identifier
@@ -660,6 +655,7 @@ babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-s
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-let/input.js:2:1: Lexical declaration cannot be a labeled item
 babel/packages/babel-parser/test/fixtures/es2015/template/error-after-newline/input.js:3:2: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/109/input.js:1:6: for-of loop variable declaration may not have an initializer
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/123/input.js:1:46: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/126/input.js:1:26: Class constructor cannot be a getter
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/127/input.js:1:23: Class constructor cannot be a generator method
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/151/input.js:1:6: Computed property name requires a value
@@ -1119,6 +1115,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invali
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property-with-assignment/input.js:4:5: Expected }, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property/input.js:2:11: Expected }, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-ts-type-literal/input.js:2:3: Expected }, got private_identifier
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-call/input.js:4:19: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-computed/input.js:3:10: Expected semicolon or line terminator after class field
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-generator/input.js:3:9: Expected semicolon or line terminator after class field
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-inline/input.js:2:5: Expected (, got identifier
@@ -1128,6 +1125,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-ctor/input.
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-static-prototype-2/input.js:5:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-static-prototype/input.js:4:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/static-field-named-constructor/input.js:2:23: Class field cannot be named 'constructor'
+babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-call/input.js:4:18: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-async-arrow-function-in-static-block/input.js:3:29: 'await' is reserved as a binding name in this context
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-static-block/input.js:11:35: 'await' expression requires an operand
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-break/input.js:6:9: 'break' must be inside a loop or switch
@@ -1135,6 +1133,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-cont
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-decorators/input.js:4:3: Decorators are not valid here.
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-legacy-octal/input.js:4:5: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-return/input.js:4:12: 'return' is not allowed in a class static block
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-super-call/input.js:5:10: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-yield/input.js:5:7: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/es2022/module-string-names/duplicate-exported-binding-check/input.js:2:22: Duplicate exported name 'foo'
 babel/packages/babel-parser/test/fixtures/es2022/module-string-names/export-name-has-lone-surrogate/input.js:2:17: Export name string must not contain unpaired surrogates
@@ -1276,6 +1275,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-
 babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-new-spreads/input.js:1:16: Spread argument cannot contain another spread element
 babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_access/input.js:3:10: 'super' can only be used with function calls or in property accesses
 babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_id/input.js:2:17: 'super' can only be used with function calls or in property accesses
+babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_not_inside_function/input.js:1:14: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/after-switch/input.js:1:9: Expected (, got template
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/invalid-escape/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/invalid-octal-literal/input.js:1:6: Invalid escape sequence in template literal

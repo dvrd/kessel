@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 199/274 (72.63%)
+Negative Passed: 202/274 (73.72%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/001_duplicate_proto_object_literal.js
@@ -23,8 +23,6 @@ Expect Syntax Error: tests/coverage/misc/fail/negative/012_duplicate_label.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/024_new_target_outside_function.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/026_class_named_strict_reserved.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/030_duplicate_constructor.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/031_super_call_in_non_derived_constructor.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/032_super_call_in_non_constructor_method.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/041_yield_in_generator_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/044_await_in_async_arrow_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/045_await_in_async_function_params.js
@@ -59,7 +57,6 @@ Expect Syntax Error: tests/coverage/misc/fail/oxc-12612-1.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-12612-2.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-12612-3.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-12612-4.ts
-Expect Syntax Error: tests/coverage/misc/fail/oxc-13284-1.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284-2.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13323.js
@@ -165,6 +162,8 @@ tests/coverage/misc/fail/negative/027_rest_trailing_comma.js:4:16: Rest element 
 tests/coverage/misc/fail/negative/028_delete_private_field.js:8:3: Private fields cannot be deleted
 tests/coverage/misc/fail/negative/028_for_await_script_top_level.js:2:11: Top-level 'for await' is only valid in module code
 tests/coverage/misc/fail/negative/029_throw_line_terminator.js:6:2: Illegal newline after 'throw'
+tests/coverage/misc/fail/negative/031_super_call_in_non_derived_constructor.js:7:8: 'super' call is only allowed in the constructor of a derived class
+tests/coverage/misc/fail/negative/032_super_call_in_non_constructor_method.js:10:8: 'super' call is only allowed in the constructor of a derived class
 tests/coverage/misc/fail/negative/033_escaped_keyword_as_keyword.js:11:1: Keyword 'if' must not contain escaped characters
 tests/coverage/misc/fail/negative/034_escaped_keyword_as_binding.js:9:5: Keyword 'var' must not contain escaped characters
 tests/coverage/misc/fail/negative/035_arrow_line_terminator_before_arrow.js:10:1: Unexpected line terminator before '=>' (restricted production)
@@ -250,6 +249,7 @@ tests/coverage/misc/fail/oxc-11789-2.ts:1:13: Type parameter list cannot be empt
 tests/coverage/misc/fail/oxc-12546-1.ts:1:25: Expected interface name after 'extends'
 tests/coverage/misc/fail/oxc-12546-2.ts:1:21: Expected expression after 'extends'
 tests/coverage/misc/fail/oxc-12816.ts:1:5: Expected expression in 'if' condition
+tests/coverage/misc/fail/oxc-13284-1.js:2:6: 'super' call is only allowed in the constructor of a derived class
 tests/coverage/misc/fail/oxc-13617-1.ts:1:5: Expected expression after operator
 tests/coverage/misc/fail/oxc-13617-2.ts:1:9: Expected expression after operator
 tests/coverage/misc/fail/oxc-13617-3.ts:1:26: Type argument list cannot be empty

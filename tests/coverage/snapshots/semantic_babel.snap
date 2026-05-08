@@ -421,7 +421,7 @@ babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-callee/input
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-for-in-init-concise-binary-in/input.js:1:17: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-ternary-test/input.js:1:10: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-in-object-method/input.js:4:14: 'super' is only allowed in class methods or object-literal methods
-babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-outside-constructor/input.js:2:9: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-outside-constructor/input.js:2:14: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-identifier/input.js:2:11: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-string/input.js:2:13: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-get-identifier/input.js:2:9: Expected (, got identifier
@@ -540,7 +540,7 @@ babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-func-s
 babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-let/input.js:2:1: Lexical declaration cannot be a labeled item
 babel/packages/babel-parser/test/fixtures/es2015/template/error-after-newline/input.js:3:2: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/109/input.js:1:6: for-of loop variable declaration may not have an initializer
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/123/input.js:1:41: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/123/input.js:1:46: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js:1:28: Duplicate constructor in class
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/126/input.js:1:26: Class constructor cannot be a getter
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/127/input.js:1:23: Class constructor cannot be a generator method
@@ -1087,7 +1087,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invali
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property-with-assignment/input.js:4:5: Expected }, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property/input.js:2:11: Expected }, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-ts-type-literal/input.js:2:3: Expected }, got private_identifier
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-call/input.js:4:14: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-call/input.js:4:19: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-private-member-access/input.js:5:5: Private fields cannot be accessed through 'super'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-nested/input.js:4:20: Private field '#priv' must be declared in an enclosing class
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-top-level/input.js:1:16: Private field '#priv' must be declared in an enclosing class
@@ -1103,7 +1103,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-ctor/input.
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-static-prototype-2/input.js:5:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-static-prototype/input.js:4:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/static-field-named-constructor/input.js:2:23: Class field cannot be named 'constructor'
-babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-call/input.js:4:13: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-call/input.js:4:18: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/yield-in-class-property-in-generator/input.js:4:9: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-async-arrow-function-in-static-block/input.js:3:29: 'await' is reserved as a binding name in this context
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-static-block/input.js:11:35: 'await' expression requires an operand
@@ -1114,7 +1114,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-cont
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-decorators/input.js:4:3: Decorators are not valid here.
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-legacy-octal/input.js:4:5: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-return/input.js:4:12: 'return' is not allowed in a class static block
-babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-super-call/input.js:5:5: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-super-call/input.js:5:10: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-yield/input.js:5:7: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/es2022/module-string-names/duplicate-exported-binding-check/input.js:2:22: Duplicate exported name 'foo'
 babel/packages/babel-parser/test/fixtures/es2022/module-string-names/export-name-has-lone-surrogate/input.js:2:17: Export name string must not contain unpaired surrogates
@@ -1271,7 +1271,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-
 babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-new-spreads/input.js:1:16: Spread argument cannot contain another spread element
 babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_access/input.js:3:10: 'super' can only be used with function calls or in property accesses
 babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_id/input.js:2:17: 'super' can only be used with function calls or in property accesses
-babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_not_inside_function/input.js:1:9: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_not_inside_function/input.js:1:14: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/after-switch/input.js:1:9: Expected (, got template
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/invalid-escape/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/invalid-octal-literal/input.js:1:6: Invalid escape sequence in template literal

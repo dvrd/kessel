@@ -161,8 +161,8 @@ tests/coverage/misc/fail/negative/028_delete_private_field.js:8:3: Private field
 tests/coverage/misc/fail/negative/028_for_await_script_top_level.js:2:11: Top-level 'for await' is only valid in module code
 tests/coverage/misc/fail/negative/029_throw_line_terminator.js:6:2: Illegal newline after 'throw'
 tests/coverage/misc/fail/negative/030_duplicate_constructor.js:7:2: Duplicate constructor in class
-tests/coverage/misc/fail/negative/031_super_call_in_non_derived_constructor.js:7:3: 'super' call is only allowed in the constructor of a derived class
-tests/coverage/misc/fail/negative/032_super_call_in_non_constructor_method.js:10:3: 'super' call is only allowed in the constructor of a derived class
+tests/coverage/misc/fail/negative/031_super_call_in_non_derived_constructor.js:7:8: 'super' call is only allowed in the constructor of a derived class
+tests/coverage/misc/fail/negative/032_super_call_in_non_constructor_method.js:10:8: 'super' call is only allowed in the constructor of a derived class
 tests/coverage/misc/fail/negative/033_escaped_keyword_as_keyword.js:11:1: Keyword 'if' must not contain escaped characters
 tests/coverage/misc/fail/negative/034_escaped_keyword_as_binding.js:9:5: Keyword 'var' must not contain escaped characters
 tests/coverage/misc/fail/negative/035_arrow_line_terminator_before_arrow.js:10:1: Unexpected line terminator before '=>' (restricted production)
@@ -256,7 +256,7 @@ tests/coverage/misc/fail/oxc-11789-2.ts:1:13: Type parameter list cannot be empt
 tests/coverage/misc/fail/oxc-12546-1.ts:1:25: Expected interface name after 'extends'
 tests/coverage/misc/fail/oxc-12546-2.ts:1:21: Expected expression after 'extends'
 tests/coverage/misc/fail/oxc-12816.ts:1:5: Expected expression in 'if' condition
-tests/coverage/misc/fail/oxc-13284-1.js:2:1: 'super' call is only allowed in the constructor of a derived class
+tests/coverage/misc/fail/oxc-13284-1.js:2:6: 'super' call is only allowed in the constructor of a derived class
 tests/coverage/misc/fail/oxc-13284-2.js:2:1: 'super' is only allowed in class methods or object-literal methods
 tests/coverage/misc/fail/oxc-13323.js:3:5: 'super' is only allowed in class methods or object-literal methods
 tests/coverage/misc/fail/oxc-13617-1.ts:1:5: Expected expression after operator
