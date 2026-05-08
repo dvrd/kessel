@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2232/2233 (99.96%)
 Positive Passed: 2232/2233 (99.96%)
-Negative Passed: 1276/1711 (74.58%)
+Negative Passed: 1283/1711 (74.99%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -159,7 +159,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/245/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/246/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/247/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/248/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/249/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/289/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/291/input.js
@@ -185,8 +184,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/yield-star-parameter-default-inside-generator/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/arrow-function/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-call/parenthesized-argument-object-double-proto/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-arguments-of-async-call-inside-parameters-of-async-arrow-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-arrow-function/input.js
@@ -284,8 +281,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-1/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-3/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/complex-rest-in-arrow-not-allowed/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-duplicated-params/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-param-strict-mode/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-for-of/invalid-const-init/input.js
@@ -319,8 +314,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0089/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0090/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0091/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0092/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0093/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0094/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0100/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js
@@ -753,6 +746,7 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/232/input.js:1:7:
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/237/input.js:1:11: Expected from, got EOF
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/238/input.js:1:20: Expected from, got EOF
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/239/input.js:1:17: Expected string literal module specifier
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/248/input.js:1:15: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/250/input.js:1:4: Empty parenthesized expression
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/251/input.js:1:11: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/252/input.js:1:15: Expected identifier in arrow function parameters
@@ -846,8 +840,10 @@ babel/packages/babel-parser/test/fixtures/es2016/exponentiation-operator/await-u
 babel/packages/babel-parser/test/fixtures/es2016/exponentiation-operator/nested-unary-before-exponential/input.js:1:6: Unparenthesized unary expression cannot appear as the left operand of '**'
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/array-pattern-default/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/array-pattern/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/arrow-function/input.js:1:9: Illegal 'use strict' directive in function with non-simple parameter list
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-arrow-function-after-binary-operator/input.js:1:17: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-arrow-function-after-unary-operator/input.js:1:21: Arrow function cannot be used as an unparenthesized operand
+babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-arrow-function/input.js:1:9: Illegal 'use strict' directive in function with non-simple parameter list
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/async-function/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/default/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 babel/packages/babel-parser/test/fixtures/es2016/simple-parameter-list/generator-function/input.js:1:1: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1236,6 +1232,8 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-array-binding-pattern/i
 babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/with-default-catch-param-fail/input.js:1:20: Expected ), got =
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/arrow-rest-forgetting-comma/input.js:2:1: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/arrow-with-multiple-rest/input.js:2:1: Rest parameter must be last in arrow function parameters
+babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/complex-rest-in-arrow-not-allowed/input.js:1:1: Duplicate parameter name 'a' in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-duplicated-params/input.js:1:1: Duplicate parameter name 'x' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-line-terminator-arrow/input.js:2:1: Unexpected line terminator before '=>' (restricted production)
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-rest/input.js:1:16: Binding element cannot be parenthesized
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/object-binding-pattern-invalid-member-expr/input.js:2:1: Member expression cannot be used as a binding target
@@ -1419,6 +1417,8 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0081/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0082/input.js:1:3: Expected }, got (
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0083/input.js:1:6: Expected }, got {
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0084/input.js:2:1: Expected }, got EOF
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0092/input.js:1:1: Duplicate parameter name 'a' in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0093/input.js:1:15: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0095/input.js:1:4: Empty parenthesized expression
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0096/input.js:1:4: Empty parenthesized expression
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0097/input.js:1:4: Empty parenthesized expression

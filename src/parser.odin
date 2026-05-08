@@ -5771,6 +5771,25 @@ params_are_simple :: proc(params: []FunctionParameter) -> bool {
 	return true
 }
 
+// arrow_body_lifts_strict — does an arrow function block body open with
+// a "use strict" directive? Arrow bodies use parse_block_statement, which
+// (unlike parse_function_body / parse_program) does NOT promote leading
+// string-literal statements to a directive prologue. So we sniff body[0]
+// for an ExpressionStatement whose expression is a StringLiteral with
+// value == "use strict". Mirrors the checker's
+// ck_check_arrow_strict_directive_with_nonsimple_params shape — used by
+// parse_arrow_function for the §15.3.1 ContainsUseStrict +
+// !IsSimpleParameterList early error.
+arrow_body_lifts_strict :: proc(body: ArrowFunctionBody) -> bool {
+	block, is_block := body.(^BlockStatement)
+	if !is_block || block == nil || len(block.body) == 0 { return false }
+	es, eok := block.body[0]^.(^ExpressionStatement)
+	if !eok || es == nil { return false }
+	str, sok := es.expression.(^StringLiteral)
+	if !sok || str == nil { return false }
+	return str.value == "use strict"
+}
+
 // Scan a FormalParameters list for duplicate binding names and report
 // each duplicate. Callers decide when to run it:
 //   * function / function expression - always safe to call; no-op in
@@ -13621,6 +13640,24 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		}
 	}
 
+	// §15.3.1 — ArrowFormalParameters always have UniqueFormalParameters,
+	// regardless of outer strict mode (the production names the constraint).
+	report_duplicate_param_names(p, params[:], start, true, false)
+
+	// §15.3.1 — ContainsUseStrict + !IsSimpleParameterList for arrow
+	// functions. Arrow concise (expression) bodies cannot contain a
+	// directive, so only block bodies need the check. parse_block_statement
+	// does NOT promote leading string-literal statements to a directive
+	// prologue (only parse_function_body / parse_program do), so we sniff
+	// body[0]'s ExpressionStatement.expression as a StringLiteral with
+	// value == "use strict" — mirrors the checker's old
+	// ck_check_arrow_strict_directive_with_nonsimple_params shape.
+	if is_block_body {
+		if arrow_body_lifts_strict(body) && !params_are_simple(params[:]) {
+			report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
+	}
+
 	// §14.1.2 - CoverParenthesizedExpressionAndArrowFormalParameters.
 	// Parenthesized binding elements in arrow params (`(a, (b)) => 42`,
 	// `([(a)]) => {}`, etc.) are rejected by both V8 and OXC.
@@ -14033,9 +14070,9 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	arrow.loc.span.end = prev_end_offset(p)
 
 	// Single-param async arrow: only one FormalParameter, so nothing
-	// to dedupe. Still run the helper for consistency / future-proof.
-	// Pass strict_override=true per §15.9.1 - async arrows always have
-	// UniqueFormalParameters.
+	// to dedupe. The duplicate check still runs (no-op for n < 2) for
+	// shape consistency with the other arrow paths.
+	report_duplicate_param_names(p, params[:], start, true, false)
 
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async bar => { let bar; }` is a SyntaxError.
@@ -14146,8 +14183,9 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	if rt, ok := async_return_type.?; ok { arrow.return_type = rt }
 	arrow.loc.span.end = prev_end_offset(p)
 
-	// Async arrow with paren'd params: UniqueFormalParameters always.
-	// Pass strict_override=true per §15.9.1.
+	// §15.9.1 — async arrow with paren'd params: UniqueFormalParameters
+	// always (regardless of outer strict mode).
+	report_duplicate_param_names(p, params[:], start, true, false)
 
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async(bar) => { let bar; }` is the canonical
@@ -14158,9 +14196,15 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		}
 	}
 
-	// §15.9.1 "ContainsUseStrict + !IsSimpleParameterList" early error
-	// for async arrows: enforced by the semantic checker
-	// (ck_check_arrow_strict_directive_with_nonsimple_params).
+	// §15.9.1 — ContainsUseStrict + !IsSimpleParameterList early error
+	// for async arrows. Mirror the synchronous-arrow shape:
+	// arrow_body_lifts_strict sniffs body[0] because parse_block_statement
+	// doesn't promote prologue directives.
+	if is_block_body {
+		if arrow_body_lifts_strict(body) && !params_are_simple(params[:]) {
+			report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
+	}
 
 	return expression_from(p, arrow)
 }
@@ -17141,7 +17185,13 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	if rt, ok := return_type.?; ok { arrow.return_type = rt }
 	arrow.loc.span.end = prev_end_offset(p)
 
-	// TS generic arrow - same UniqueFormalParameters rule as plain arrow.
+	// TS generic arrow — same UniqueFormalParameters rule as plain arrow.
+	report_duplicate_param_names(p, params[:], start_loc, true, false)
+	if is_block_body {
+		if arrow_body_lifts_strict(body) && !params_are_simple(params[:]) {
+			report_error_at(p, LexerLoc(start_loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
+	}
 
 	return expression_from(p, arrow)
 }

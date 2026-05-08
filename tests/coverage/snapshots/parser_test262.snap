@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3393/4588 (73.95%)
+Negative Passed: 3414/4588 (74.41%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
@@ -113,13 +113,8 @@ Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/red
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/14.1-4gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/14.1-5gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/array-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/dflt-params-duplicates.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/object-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-id-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/params-duplicate.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-reference.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-identifier-strict-futurereservedword.js
@@ -127,20 +122,10 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-func
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-no-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-no-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-1.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-1.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-3.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-4.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-5.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-6.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-rest.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/use-strict-with-non-simple-param.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-elem-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-elem-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-elem-nested-obj-yield-ident-invalid.js
@@ -162,18 +147,12 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/direct-identifierreference-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/parenthesized-identifierreference-arguments-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/parenthesized-identifierreference-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/array-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/await-as-param-nested-arrow-body-position.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/dflt-params-duplicates.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-NSPL-with-USD.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-property.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-duplicate-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-property.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/object-destructuring-param-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/rest-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-binding-identifier-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-binding-identifier-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-body-contains-super-call.js
@@ -1462,6 +1441,8 @@ test262/test/language/directive-prologue/func-expr-parse.js:21:7: 'static' is a 
 test262/test/language/export/escaped-as-export-specifier.js:25:11: Expected }, got identifier
 test262/test/language/export/escaped-default.js:24:8: Keyword 'default' must not contain escaped characters
 test262/test/language/export/escaped-from.js:24:11: 'from' keyword must not contain Unicode escape sequences
+test262/test/language/expressions/arrow-function/array-destructuring-param-strict-body.js:129:4: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/expressions/arrow-function/dflt-params-duplicates.js:58:4: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/dflt-params-rest.js:62:14: Invalid left-hand side in assignment
 test262/test/language/expressions/arrow-function/dstr/ary-ptrn-rest-init-ary.js:55:2: Rest element cannot have a default initializer
 test262/test/language/expressions/arrow-function/dstr/ary-ptrn-rest-init-id.js:55:2: Rest element cannot have a default initializer
@@ -1520,13 +1501,26 @@ test262/test/language/expressions/arrow-function/dstr/syntax-error-ident-ref-var
 test262/test/language/expressions/arrow-function/dstr/syntax-error-ident-ref-void-escaped.js:40:22: Keyword 'void' must not contain escaped characters
 test262/test/language/expressions/arrow-function/dstr/syntax-error-ident-ref-while-escaped.js:40:23: Keyword 'while' must not contain escaped characters
 test262/test/language/expressions/arrow-function/dstr/syntax-error-ident-ref-with-escaped.js:40:22: Keyword 'with' must not contain escaped characters
+test262/test/language/expressions/arrow-function/object-destructuring-param-strict-body.js:129:4: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/expressions/arrow-function/params-duplicate.js:33:4: Duplicate parameter name 'a' in strict mode
+test262/test/language/expressions/arrow-function/rest-param-strict-body.js:129:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/arrow-function/rest-params-trailing-comma-early-error.js:54:9: Rest element may not have a trailing comma
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-identifier-futurereservedword.js:24:10: 'enum' is a reserved word
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-identifier.js:24:10: Expected initializer expression after '='
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-rest.js:16:19: Rest parameter must be wrapped in parentheses
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-1.js:25:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-3.js:27:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-1.js:25:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-2.js:27:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-3.js:27:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-4.js:29:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-5.js:29:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-rest.js:23:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates.js:23:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/asi-restriction-invalid-parenless-parameters-expression-body.js:16:1: Unexpected line terminator before '=>' (restricted production)
 test262/test/language/expressions/arrow-function/syntax/early-errors/asi-restriction-invalid-parenless-parameters.js:18:1: Unexpected line terminator before '=>' (restricted production)
 test262/test/language/expressions/arrow-function/syntax/early-errors/asi-restriction-invalid.js:15:1: Unexpected line terminator before '=>' (restricted production)
+test262/test/language/expressions/arrow-function/syntax/early-errors/use-strict-with-non-simple-param.js:19:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/assignment/dstr/array-elem-nested-array-invalid.js:23:21: Invalid destructuring assignment target
 test262/test/language/expressions/assignment/dstr/array-elem-nested-memberexpr-optchain-prop-ref-init.js:56:14: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/array-elem-nested-obj-invalid.js:23:27: Invalid destructuring assignment target
@@ -1912,6 +1906,7 @@ test262/test/language/expressions/assignmenttargettype/parenthesized-updateexpre
 test262/test/language/expressions/assignmenttargettype/parenthesized-updateexpression-star-star-exponentiationexpression-2.js:24:20: Invalid left-hand side in assignment
 test262/test/language/expressions/assignmenttargettype/parenthesized-yieldexpression-0.js:23:2: 'yield' expression is only allowed in a generator body
 test262/test/language/expressions/assignmenttargettype/parenthesized-yieldexpression-1.js:23:16: Invalid left-hand side in assignment
+test262/test/language/expressions/async-arrow-function/array-destructuring-param-strict-body.js:121:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-arrow-function/await-as-binding-identifier-escaped.js:33:7: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-arrow-function/await-as-binding-identifier.js:33:7: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-arrow-function/await-as-identifier-reference-escaped.js:33:8: Keyword 'await' must not contain escaped characters
@@ -1921,13 +1916,18 @@ test262/test/language/expressions/async-arrow-function/await-as-label-identifier
 test262/test/language/expressions/async-arrow-function/await-as-param-ident-nested-arrow-parameter-position.js:16:11: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/await-as-param-nested-arrow-parameter-position.js:16:12: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/await-as-param-rest-nested-arrow-parameter-position.js:16:15: Top-level 'await' is only valid in module code
+test262/test/language/expressions/async-arrow-function/dflt-params-duplicates.js:50:2: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/async-arrow-function/dflt-params-rest.js:54:14: Expected ), got =
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-NSPL-with-USD.js:16:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-arguments-in-formal-parameters.js:16:7: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-await-in-formals-default.js:14:11: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-await-in-formals.js:14:7: 'await' is reserved as a binding name in this context
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-duplicate-parameters.js:35:1: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-eval-in-formal-parameters.js:16:7: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js:34:1: Invalid expression for arrow function parameters
 test262/test/language/expressions/async-arrow-function/escaped-async.js:24:1: 'async' keyword must not contain Unicode escape sequences
+test262/test/language/expressions/async-arrow-function/object-destructuring-param-strict-body.js:121:2: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/expressions/async-arrow-function/rest-param-strict-body.js:121:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-arrow-function/rest-params-trailing-comma-early-error.js:46:13: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/async-function/await-as-binding-identifier-escaped.js:29:7: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-function/await-as-binding-identifier.js:29:7: 'await' is reserved as a binding name in this context
