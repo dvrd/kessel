@@ -535,7 +535,7 @@ babel/packages/babel-parser/test/fixtures/es2015/class/extends-strict/input.js:2
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-get/input.js:1:20: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-set/input.js:1:20: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-static/input.js:1:23: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-eval/input.js:1:17: Assignment to 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-eval/input.js:1:17: Binding identifier 'eval' not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-this/input.js:1:12: Reserved word 'this' is not a valid binding identifier
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/error-operator-for-default/input.js:1:14: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/invalid-object-method/input.js:1:12: Expected }, got (
@@ -671,8 +671,8 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/229/input.js:1:5:
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/230/input.js:1:5: 'default' is a reserved word and cannot be used as a binding name
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/231/input.js:1:5: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/232/input.js:1:7: 'default' is a reserved word and cannot be used as a binding name
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/233/input.js:1:21: Assignment to 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/234/input.js:1:21: Assignment to 'arguments' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/233/input.js:1:21: Binding identifier 'eval' not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/234/input.js:1:21: Binding identifier 'arguments' not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/235/input.js:1:6: for-in loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/236/input.js:1:6: for-of loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/237/input.js:1:11: Expected from, got EOF
@@ -718,8 +718,8 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/327/input.js:1:5:
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/328/input.js:1:19: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/329/input.js:1:23: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/331/input.js:1:27: Class declaration cannot appear in a single-statement context
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/332/input.js:1:19: Assignment to 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/334/input.js:1:5: Assignment to 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/332/input.js:1:19: Binding identifier 'eval' not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/334/input.js:1:5: Binding identifier 'eval' not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/335/input.js:1:19: 'yield' is reserved as a binding name inside a generator
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/339/input.js:1:6: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/340/input.js:1:16: Expected {, got number

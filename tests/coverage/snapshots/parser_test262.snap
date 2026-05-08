@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 4351/4588 (94.83%)
+Negative Passed: 4356/4588 (94.94%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-binding.js
@@ -214,13 +214,8 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/stati
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/static-init-invalid-label-dup.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/static-init-with-label.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/array-elem-target-simple-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/dstr/obj-id-init-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/head-const-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/head-let-bound-names-in-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/array-elem-target-simple-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/obj-id-init-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-await-using-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-const-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head-let-bound-names-in-stmt.js
@@ -705,7 +700,7 @@ test262/test/language/expressions/assignment/dstr/array-elem-nested-memberexpr-o
 test262/test/language/expressions/assignment/dstr/array-elem-nested-obj-invalid.js:23:27: Invalid destructuring assignment target
 test262/test/language/expressions/assignment/dstr/array-elem-nested-obj-yield-ident-invalid.js:23:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/assignment/dstr/array-elem-put-obj-literal-optchain-prop-ref-init.js:59:10: Invalid left-hand side in assignment
-test262/test/language/expressions/assignment/dstr/array-elem-target-simple-strict.js:23:5: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/assignment/dstr/array-elem-target-simple-strict.js:23:5: Binding identifier 'arguments' not allowed in strict mode
 test262/test/language/expressions/assignment/dstr/array-elem-target-yield-invalid.js:23:8: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/assignment/dstr/array-rest-before-element.js:23:18: Rest element must be last in array pattern
 test262/test/language/expressions/assignment/dstr/array-rest-before-elision.js:23:16: Rest element may not have a trailing comma
@@ -719,7 +714,7 @@ test262/test/language/expressions/assignment/dstr/array-rest-nested-obj-yield-id
 test262/test/language/expressions/assignment/dstr/array-rest-yield-ident-invalid.js:24:10: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js:24:12: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid.js:23:12: 'yield' is reserved as a binding name inside a generator
-test262/test/language/expressions/assignment/dstr/obj-id-init-simple-strict.js:23:6: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/assignment/dstr/obj-id-init-simple-strict.js:23:6: Binding identifier 'eval' not allowed in strict mode
 test262/test/language/expressions/assignment/dstr/obj-id-init-yield-ident-invalid.js:23:10: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js:23:6: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-init-yield-ident-invalid.js:23:13: 'yield' is a reserved identifier in strict mode
@@ -3924,6 +3919,7 @@ test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-ne
 test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-nested-array-yield-ident-invalid.js:33:18: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-nested-obj-invalid.js:33:34: Invalid destructuring assignment target
 test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-nested-obj-yield-ident-invalid.js:33:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-target-simple-strict.js:33:15: Binding identifier 'arguments' not allowed in strict mode
 test262/test/language/statements/for-await-of/async-func-decl-dstr-array-elem-target-yield-invalid.js:33:18: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-await-of/async-func-dstr-const-ary-ptrn-rest-init-ary.js:52:30: Rest element must be last in array pattern
 test262/test/language/statements/for-await-of/async-func-dstr-const-ary-ptrn-rest-init-id.js:52:26: Rest element must be last in array pattern
@@ -4025,6 +4021,7 @@ test262/test/language/statements/for-in/dstr/array-elem-nested-memberexpr-optcha
 test262/test/language/statements/for-in/dstr/array-elem-nested-obj-invalid.js:32:26: Invalid destructuring assignment target
 test262/test/language/statements/for-in/dstr/array-elem-nested-obj-yield-ident-invalid.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-in/dstr/array-elem-put-obj-literal-optchain-prop-ref-init.js:68:10: Invalid left-hand side in assignment
+test262/test/language/statements/for-in/dstr/array-elem-target-simple-strict.js:32:7: Binding identifier 'arguments' not allowed in strict mode
 test262/test/language/statements/for-in/dstr/array-elem-target-yield-invalid.js:32:10: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-in/dstr/array-rest-before-element.js:32:19: Rest element must be last in array pattern
 test262/test/language/statements/for-in/dstr/array-rest-before-elision.js:32:17: Rest element may not have a trailing comma
@@ -4038,6 +4035,7 @@ test262/test/language/statements/for-in/dstr/array-rest-nested-obj-yield-ident-i
 test262/test/language/statements/for-in/dstr/array-rest-yield-ident-invalid.js:33:12: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/for-in/dstr/obj-id-init-simple-strict.js:32:8: Binding identifier 'eval' not allowed in strict mode
 test262/test/language/statements/for-in/dstr/obj-id-init-yield-ident-invalid.js:32:12: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-in/dstr/obj-id-simple-strict.js:32:8: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/statements/for-in/dstr/obj-prop-elem-init-yield-ident-invalid.js:32:15: 'yield' is a reserved identifier in strict mode
@@ -4082,6 +4080,7 @@ test262/test/language/statements/for-of/dstr/array-elem-nested-memberexpr-optcha
 test262/test/language/statements/for-of/dstr/array-elem-nested-obj-invalid.js:32:26: Invalid destructuring assignment target
 test262/test/language/statements/for-of/dstr/array-elem-nested-obj-yield-ident-invalid.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-of/dstr/array-elem-put-obj-literal-optchain-prop-ref-init.js:68:10: Invalid left-hand side in assignment
+test262/test/language/statements/for-of/dstr/array-elem-target-simple-strict.js:32:7: Binding identifier 'arguments' not allowed in strict mode
 test262/test/language/statements/for-of/dstr/array-elem-target-yield-invalid.js:32:10: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-of/dstr/array-rest-before-element.js:32:19: Rest element must be last in array pattern
 test262/test/language/statements/for-of/dstr/array-rest-before-elision.js:32:17: Rest element may not have a trailing comma
@@ -4111,6 +4110,7 @@ test262/test/language/statements/for-of/dstr/let-ary-ptrn-rest-not-final-obj.js:
 test262/test/language/statements/for-of/dstr/let-obj-ptrn-init-err.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/for-of/dstr/obj-id-init-simple-strict.js:32:8: Binding identifier 'eval' not allowed in strict mode
 test262/test/language/statements/for-of/dstr/obj-id-init-yield-ident-invalid.js:32:12: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-of/dstr/obj-id-simple-strict.js:32:8: 'eval' cannot be used as a shorthand property identifier in strict mode
 test262/test/language/statements/for-of/dstr/obj-prop-elem-init-yield-ident-invalid.js:32:15: 'yield' is a reserved identifier in strict mode

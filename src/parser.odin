@@ -13378,6 +13378,18 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 	case ^Identifier:
 		id_ptr := new_node(p, Identifier)
 		id_ptr^ = e^
+		// §15.3.1 / §12.6.1.1 — in strict mode, an arrow function
+		// parameter BindingIdentifier may not be `eval`, `arguments`, or
+		// any strict-mode reserved name. Fires when the cover expression
+		// is being committed as an arrow parameter (this conversion is
+		// also used for assignment patterns, but those are reported via
+		// the assignment LHS path).
+		if p.strict_mode {
+			if is_eval_or_arguments(e.name) {
+				msg := fmt.tprintf("Binding identifier '%s' not allowed in strict mode", e.name)
+				report_error_at(p, LexerLoc(e.loc.span.start), msg)
+			}
+		}
 		return id_ptr, true
 	case ^ObjectExpression:
 		// Convert each ObjectExpression.Property into an ObjectPatternProperty.
