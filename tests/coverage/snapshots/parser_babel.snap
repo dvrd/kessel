@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2227/2233 (99.73%)
 Positive Passed: 2227/2233 (99.73%)
-Negative Passed: 1435/1711 (83.87%)
+Negative Passed: 1437/1711 (83.99%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -54,7 +54,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/544/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/545/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-in-object-method/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-module/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/duplicate-proto/in-new-expression/input.js
@@ -159,7 +158,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-nested/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-top-level/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target-invalid/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-inside-function/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/yield-in-class-property-in-generator/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-await/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js
@@ -540,6 +538,7 @@ babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-binary-left/
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-callee/input.js:1:9: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-for-in-init-concise-binary-in/input.js:1:17: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-ternary-test/input.js:1:10: Arrow function cannot be used as an unparenthesized operand
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-in-object-method/input.js:4:14: 'super' property access is only valid inside a method
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-outside-constructor/input.js:2:14: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-identifier/input.js:2:11: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-string/input.js:2:13: Expected (, got identifier
@@ -1125,6 +1124,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-static-prot
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-static-prototype/input.js:4:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/static-field-named-constructor/input.js:2:23: Class field cannot be named 'constructor'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-call/input.js:4:18: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/es2022/class-properties/super-inside-function/input.js:3:5: 'super' property access is only valid inside a method
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-async-arrow-function-in-static-block/input.js:3:29: 'await' is reserved as a binding name in this context
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-static-block/input.js:11:35: 'await' expression requires an operand
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-arguments/input.js:3:16: 'arguments' is not allowed in a class static block

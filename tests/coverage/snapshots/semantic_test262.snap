@@ -901,12 +901,12 @@ test262/test/language/expressions/async-arrow-function/early-errors-arrow-argume
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-await-in-formals-default.js:14:11: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-await-in-formals.js:14:7: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-call.js:15:22: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-property.js:15:17: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-property.js:15:17: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-duplicate-parameters.js:35:1: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-eval-in-formal-parameters.js:16:7: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js:15:17: Formal parameter 'bar' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-call.js:15:18: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-property.js:15:14: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-property.js:15:14: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js:34:1: Invalid expression for arrow function parameters
 test262/test/language/expressions/async-arrow-function/escaped-async.js:24:1: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/expressions/async-arrow-function/object-destructuring-param-strict-body.js:121:2: Illegal 'use strict' directive in function with non-simple parameter list
@@ -922,11 +922,11 @@ test262/test/language/expressions/async-function/early-errors-expression-NSPL-wi
 test262/test/language/expressions/async-function/early-errors-expression-binding-identifier-arguments.js:16:17: Function name 'arguments' is not allowed in strict mode
 test262/test/language/expressions/async-function/early-errors-expression-binding-identifier-eval.js:16:17: Function name 'eval' is not allowed in strict mode
 test262/test/language/expressions/async-function/early-errors-expression-body-contains-super-call.js:15:34: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/async-function/early-errors-expression-body-contains-super-property.js:15:29: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/expressions/async-function/early-errors-expression-body-contains-super-property.js:15:29: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-function/early-errors-expression-eval-in-formal-parameters.js:16:22: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-function/early-errors-expression-formals-body-duplicate.js:15:29: Formal parameter 'bar' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-call.js:15:33: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-property.js:15:28: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-property.js:15:28: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-function/early-errors-expression-not-simple-assignment-target.js:16:30: Invalid left-hand side in assignment
 test262/test/language/expressions/async-function/escaped-async.js:24:6: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/expressions/async-function/named-array-destructuring-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
@@ -986,14 +986,14 @@ test262/test/language/expressions/async-generator/early-errors-expression-await-
 test262/test/language/expressions/async-generator/early-errors-expression-binding-identifier-arguments.js:19:18: Function name 'arguments' is not allowed in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-binding-identifier-eval.js:19:18: Function name 'eval' is not allowed in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-body-contains-super-call.js:17:27: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/async-generator/early-errors-expression-body-contains-super-property.js:17:22: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/expressions/async-generator/early-errors-expression-body-contains-super-property.js:17:22: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-generator/early-errors-expression-eval-in-formal-parameters.js:18:18: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js:21:23: Formal parameter 'a' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-generator/early-errors-expression-formals-body-duplicate-let.js:18:23: Formal parameter 'a' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-await-expr.js:17:22: 'await' expression is not allowed in formal parameters of an async function
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-await.js:18:18: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-super-call.js:17:27: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-super-property.js:17:22: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-super-property.js:17:22: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield-expr.js:17:22: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield.js:18:18: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/async-generator/early-errors-expression-label-name-await.js:23:3: 'await' cannot be used as a label identifier in an async function
@@ -2026,13 +2026,13 @@ test262/test/language/expressions/function/dstr/dflt-ary-ptrn-rest-not-final-ary
 test262/test/language/expressions/function/dstr/dflt-ary-ptrn-rest-not-final-id.js:53:19: Rest element must be last in array pattern
 test262/test/language/expressions/function/dstr/dflt-ary-ptrn-rest-not-final-obj.js:53:23: Rest element must be last in array pattern
 test262/test/language/expressions/function/early-body-super-call.js:17:8: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/function/early-body-super-prop.js:17:3: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/expressions/function/early-body-super-prop.js:17:3: 'super' property access is only valid inside a method
 test262/test/language/expressions/function/early-errors/invalid-names-call-expression-bad-reference.js:40:36: Private field '#x' must be declared in an enclosing class
 test262/test/language/expressions/function/early-errors/invalid-names-call-expression-this.js:40:38: Private field '#x' must be declared in an enclosing class
 test262/test/language/expressions/function/early-errors/invalid-names-member-expression-bad-reference.js:40:33: Private field '#x' must be declared in an enclosing class
 test262/test/language/expressions/function/early-errors/invalid-names-member-expression-this.js:40:28: Private field '#x' must be declared in an enclosing class
 test262/test/language/expressions/function/early-params-super-call.js:16:22: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/function/early-params-super-prop.js:16:17: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/expressions/function/early-params-super-prop.js:16:17: 'super' property access is only valid inside a method
 test262/test/language/expressions/function/name-arguments-strict-body.js:18:11: Function name 'arguments' is not allowed in strict mode
 test262/test/language/expressions/function/name-arguments-strict.js:17:11: Function name 'arguments' is not allowed in strict mode
 test262/test/language/expressions/function/name-eval-strict-body.js:18:11: Function name 'eval' is not allowed in strict mode
@@ -2392,8 +2392,8 @@ test262/test/language/global-code/new.target.js:20:1: 'new.target' is only allow
 test262/test/language/global-code/return.js:22:7: 'return' outside of function
 test262/test/language/global-code/super-call-arrow.js:36:8: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/global-code/super-call.js:20:6: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/global-code/super-prop-arrow.js:36:3: 'super' is only allowed in class methods or object-literal methods
-test262/test/language/global-code/super-prop.js:20:1: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/global-code/super-prop-arrow.js:36:3: 'super' property access is only valid inside a method
+test262/test/language/global-code/super-prop.js:20:1: 'super' property access is only valid inside a method
 test262/test/language/global-code/yield-strict.js:25:1: 'yield' is a reserved identifier in strict mode
 test262/test/language/identifier-resolution/static-init-invalid-await.js:23:5: 'await' is reserved in a class static block
 test262/test/language/identifiers/start-zwj-escaped.js:15:5: Expected binding pattern
@@ -3093,12 +3093,12 @@ test262/test/language/statements/async-function/early-errors-declaration-await-i
 test262/test/language/statements/async-function/early-errors-declaration-binding-identifier-arguments.js:16:16: Function name 'arguments' is not allowed in strict mode
 test262/test/language/statements/async-function/early-errors-declaration-binding-identifier-eval.js:16:16: Function name 'eval' is not allowed in strict mode
 test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-call.js:15:33: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-property.js:15:28: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-property.js:15:28: 'super' property access is only valid inside a method
 test262/test/language/statements/async-function/early-errors-declaration-duplicate-parameters.js:17:1: Duplicate parameter name 'a' in strict mode
 test262/test/language/statements/async-function/early-errors-declaration-eval-in-formal-parameters.js:16:21: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/async-function/early-errors-declaration-formals-body-duplicate.js:15:28: Formal parameter 'bar' cannot be redeclared with let/const in function body
 test262/test/language/statements/async-function/early-errors-declaration-formals-contains-super-call.js:15:32: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/statements/async-function/early-errors-declaration-formals-contains-super-property.js:15:27: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/statements/async-function/early-errors-declaration-formals-contains-super-property.js:15:27: 'super' property access is only valid inside a method
 test262/test/language/statements/async-function/escaped-async.js:24:1: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/statements/async-function/let-newline-await-in-async-function.js:23:5: 'await' is reserved as a binding name in this context
 test262/test/language/statements/async-function/object-destructuring-param-strict-body.js:107:1: Illegal 'use strict' directive in function with non-simple parameter list
@@ -4220,13 +4220,13 @@ test262/test/language/statements/function/dstr/dflt-ary-ptrn-rest-not-final-ary.
 test262/test/language/statements/function/dstr/dflt-ary-ptrn-rest-not-final-id.js:53:17: Rest element must be last in array pattern
 test262/test/language/statements/function/dstr/dflt-ary-ptrn-rest-not-final-obj.js:53:21: Rest element must be last in array pattern
 test262/test/language/statements/function/early-body-super-call.js:17:8: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/statements/function/early-body-super-prop.js:17:3: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/statements/function/early-body-super-prop.js:17:3: 'super' property access is only valid inside a method
 test262/test/language/statements/function/early-errors/invalid-names-call-expression-bad-reference.js:40:30: Private field '#x' must be declared in an enclosing class
 test262/test/language/statements/function/early-errors/invalid-names-call-expression-this.js:40:32: Private field '#x' must be declared in an enclosing class
 test262/test/language/statements/function/early-errors/invalid-names-member-expression-bad-reference.js:40:27: Private field '#x' must be declared in an enclosing class
 test262/test/language/statements/function/early-errors/invalid-names-member-expression-this.js:40:22: Private field '#x' must be declared in an enclosing class
 test262/test/language/statements/function/early-params-super-call.js:16:21: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/statements/function/early-params-super-prop.js:16:16: 'super' is only allowed in class methods or object-literal methods
+test262/test/language/statements/function/early-params-super-prop.js:16:16: 'super' property access is only valid inside a method
 test262/test/language/statements/function/enable-strict-via-body.js:24:9: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/statements/function/enable-strict-via-outer-body.js:24:9: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/statements/function/enable-strict-via-outer-script.js:23:9: Assignment to 'eval' is not allowed in strict mode

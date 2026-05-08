@@ -75,7 +75,7 @@ tests/coverage/misc/fail/early_errors/006_octal_literal_strict.js:4:11: Legacy o
 tests/coverage/misc/fail/early_errors/007_assign_to_eval_strict.js:4:1: Assignment to 'eval' is not allowed in strict mode
 tests/coverage/misc/fail/early_errors/008_return_outside_function.js:4:8: 'return' outside of function
 tests/coverage/misc/fail/early_errors/009_break_without_label.js:4:1: 'break' must be inside a loop or switch
-tests/coverage/misc/fail/early_errors/010_super_outside_method.js:3:1: 'super' is only allowed in class methods or object-literal methods
+tests/coverage/misc/fail/early_errors/010_super_outside_method.js:3:1: 'super' property access is only valid inside a method
 tests/coverage/misc/fail/early_errors/011_await_outside_async.js:4:23: await outside of async function
 tests/coverage/misc/fail/early_errors/012_unicode_escape_hex_too_big.js:3:14: Invalid \u{} escape: code point out of range [0..0x10FFFF]
 tests/coverage/misc/fail/early_errors/013_hex_escape_too_short.js:3:14: Invalid \x escape: expected 2 hex digits
@@ -257,8 +257,8 @@ tests/coverage/misc/fail/oxc-12546-1.ts:1:25: Expected interface name after 'ext
 tests/coverage/misc/fail/oxc-12546-2.ts:1:21: Expected expression after 'extends'
 tests/coverage/misc/fail/oxc-12816.ts:1:5: Expected expression in 'if' condition
 tests/coverage/misc/fail/oxc-13284-1.js:2:6: 'super' call is only allowed in the constructor of a derived class
-tests/coverage/misc/fail/oxc-13284-2.js:2:1: 'super' is only allowed in class methods or object-literal methods
-tests/coverage/misc/fail/oxc-13323.js:3:5: 'super' is only allowed in class methods or object-literal methods
+tests/coverage/misc/fail/oxc-13284-2.js:2:1: 'super' property access is only valid inside a method
+tests/coverage/misc/fail/oxc-13323.js:3:5: 'super' property access is only valid inside a method
 tests/coverage/misc/fail/oxc-13617-1.ts:1:5: Expected expression after operator
 tests/coverage/misc/fail/oxc-13617-2.ts:1:9: Expected expression after operator
 tests/coverage/misc/fail/oxc-13617-3.ts:1:26: Type argument list cannot be empty

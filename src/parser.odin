@@ -11314,12 +11314,15 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return expression_from(p, pid)
 
 	case .Super:
-		// §13.3.7 SuperProperty outside [[HomeObject]] context: enforced
-		// by the semantic checker (^Super case in ck_walk_expr) using its
-		// own in_method tracker. Parser stays permissive.
+		// §13.3.7 SuperProperty / §15.7.6 SuperCall shape check.
 		if p.lexer.nxt.kind != .Dot && p.lexer.nxt.kind != .LBracket &&
 		   p.lexer.nxt.kind != .LParen {
 			report_error(p, "'super' can only be used with function calls or in property accesses")
+		}
+		// §13.3.7 SuperProperty requires [[HomeObject]] (→ in_method).
+		// `super.x` / `super[x]` outside a method body is a SyntaxError.
+		if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.in_method {
+			report_error(p, "'super' property access is only valid inside a method")
 		}
 		eat(p)
 		super := new_node(p, Super)
