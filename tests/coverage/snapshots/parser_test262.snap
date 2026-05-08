@@ -1,7 +1,7 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3251/4588 (70.86%)
+Negative Passed: 3393/4588 (73.95%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
@@ -111,17 +111,8 @@ Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/red
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-generator.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-let.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/10.1.1-2gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/10.1.1-5gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/10.1.1-8gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/14.1-4gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/14.1-5gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/func-decl-inside-func-decl-parse.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/func-decl-no-semi-parse.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/func-decl-parse.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/func-expr-inside-func-decl-parse.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/func-expr-no-semi-parse.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/func-expr-parse.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/array-destructuring-param-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/object-destructuring-param-strict-body.js
@@ -175,11 +166,9 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arro
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/await-as-param-nested-arrow-body-position.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/dflt-params-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-NSPL-with-USD.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-property.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-duplicate-parameters.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-property.js
@@ -189,32 +178,19 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-func
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-binding-identifier-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-body-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-body-contains-super-property.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-property.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-binding-identifier-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-binding-identifier-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-body-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-body-contains-super-property.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-body-duplicate-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-await-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-super-property.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield-expr.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/named-yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/named-yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-generator/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method-static/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/async-gen-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-await-escaped-module.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-await-module.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-let.js
@@ -222,23 +198,11 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/clas
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/class-name-ident-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/arrow-fnc-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/arrow-fnc-init-err-contains-super.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/async-gen-private-method/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/async-gen-private-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/comp-name-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/comp-name-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/equality-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/equality-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/fields-duplicate-privatenames.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/gen-private-method-static/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/gen-private-method-static/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/gen-private-method/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/gen-private-method/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/gen-private-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/literal-name-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/literal-name-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/nested-arrow-fnc-init-err-contains-arguments.js
@@ -458,12 +422,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elem
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/typeof-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/elements/typeof-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-param-dflt-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method-static/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/gen-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-init-await-binding.js
@@ -508,11 +466,7 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/n
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/name-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-dflt-yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/function/param-eval-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/named-yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/named-yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/param-dflt-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/generators/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-invalid-identifier-complex.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-invalid-identifier-simple.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-rhs-yield-absent.js
@@ -523,7 +477,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-as
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-nullish-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-or-arguments-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-or-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/11.1.5-1gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/__proto__-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/getter-body-strict-inside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/getter-body-strict-outside.js
@@ -535,14 +488,8 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/ide
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-protected-invalid-strict-mode.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-public-invalid-strict-mode.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/identifier-shorthand-static-invalid-strict-mode.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-body-contains-super-call.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-contains-super-call.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/gen-yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/gen-yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/generator-param-init-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/generator-param-redecl-const.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/method-definition/generator-param-redecl-let.js
@@ -554,9 +501,7 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/met
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-body-strict-inside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-body-strict-outside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-param-arguments-strict-inside.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-param-arguments-strict-outside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-param-eval-strict-inside.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-param-eval-strict-outside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/optional-chaining/call-expression-super-no-base.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-decrement/arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-decrement/eval.js
@@ -568,15 +513,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-dec
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-decrement/eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-increment/arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-increment/eval.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/implements-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/interface-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/let-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/package-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/private-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/protected-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/public-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/static-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/future-reserved-words/yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/export.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/import.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/invalid-private-names-call-expression-bad-reference.js
@@ -591,7 +527,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/global-code/super-prop
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/super-prop.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/identifier-resolution/static-init-invalid-await.js
-Expect Syntax Error: tasks/coverage/test262/test/language/identifiers/val-yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/7.8.3-1gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/7.8.3-2gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/literals/numeric/legacy-octal-integer-strict.js
@@ -632,7 +567,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-impo
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-import-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-lex-and-var.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-new-target.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-strict-mode.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-undef-break.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-undef-continue.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/export-default-asyncfunction-declaration-binding-exists.js
@@ -743,17 +677,13 @@ Expect Syntax Error: tasks/coverage/test262/test/language/module-code/privatenam
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/privatename-not-valid-earlyerr-module-8.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/top-level-await/new-await.js
 Expect Syntax Error: tasks/coverage/test262/test/language/reserved-words/await-module.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-binding-identifier-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-binding-identifier-eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-property.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-function/early-errors-declaration-formals-contains-super-property.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-generator/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/async-generator/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/await-using/redeclaration-error-from-within-strict-mode-function-await-using.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/await-using/syntax/await-using-not-allowed-at-top-level-of-script.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/block/early-errors/invalid-names-call-expression-bad-reference.js
@@ -772,43 +702,22 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A8_T1.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/S12.8_A8_T2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/break/static-init-without-label.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method-static/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/async-gen-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-await-escaped-module.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-await-module.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-static.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/class-name-ident-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-arguments-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-body-contains-super-call.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-eval-in-formal-parameters.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/early-errors-class-method-formals-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/methods-gen-yield-as-function-expression-binding-identifier.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/methods-gen-yield-as-identifier-in-nested-function.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/definition/methods-gen-yield-as-parameter.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/arrow-fnc-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/arrow-fnc-init-err-contains-super.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/async-gen-private-method-static/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/async-gen-private-method-static/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/async-gen-private-method/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/async-gen-private-method/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/async-gen-private-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/comp-name-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/comp-name-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/equality-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/equality-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/fields-duplicate-privatenames.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/gen-private-method-static/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/gen-private-method-static/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/gen-private-method-static/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/gen-private-method/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/gen-private-method/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/gen-private-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/literal-name-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/literal-name-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/nested-arrow-fnc-init-err-contains-arguments.js
@@ -1036,12 +945,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/eleme
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/typeof-init-err-contains-arguments.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/elements/typeof-init-err-contains-super.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-param-dflt-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method-static/yield-identifier-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/yield-as-binding-identifier.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/gen-method/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/method-param-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-non-static-setter-static-getter-early-error.js
@@ -1120,12 +1023,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/labe
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/labelled-fn-stmt-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/labelled-fn-stmt-lhs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/labelled-fn-stmt-var.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/var-arguments-fn-strict-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/var-arguments-fn-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/var-arguments-strict-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/var-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/var-eval-strict-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-in/var-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/decl-fun.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/array-elem-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/dstr/array-elem-nested-array-yield-ident-invalid.js
@@ -1180,8 +1077,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/labelle
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/labelled-fn-stmt-var.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.0_4-5gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-13gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-1gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-4gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-body-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-body-super-prop.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-errors/invalid-names-call-expression-bad-reference.js
@@ -1198,13 +1093,9 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/na
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-eval-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-arguments-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-arguments-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-dflt-yield-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-eval-strict-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/param-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/param-dflt-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/yield-identifier-spread-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/generators/yield-identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-decl-else-decl-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-decl-else-stmt-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/if/if-decl-no-else-strict.js
@@ -1290,44 +1181,11 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/switch/synt
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/switch/syntax/redeclaration/var-name-redeclaration-attempt-with-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/switch/syntax/redeclaration/var-name-redeclaration-attempt-with-generator.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/switch/syntax/redeclaration/var-name-redeclaration-attempt-with-let.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/try/catch-parameter-boundnames-restriction-arguments-negative-early.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/try/catch-parameter-boundnames-restriction-eval-negative-early.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/try/early-catch-duplicates.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/try/early-catch-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/try/early-catch-lex.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/using/redeclaration-error-from-within-strict-mode-function-using.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/using/syntax/using-not-allowed-at-top-level-of-script.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/12.2.1-1gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/12.2.1-4gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-list-final-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-list-final.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-list-first-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-list-first.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-list-middle-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-list-middle.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-list-repeated.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-single-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-fn-strict-single.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-list-final-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-list-final.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-list-first-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-list-first.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-list-middle-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-list-middle.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-list-repeated.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-single-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/arguments-strict-single.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-list-final-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-list-final.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-list-first-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-list-first.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-list-middle-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-list-middle.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-list-repeated.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-single-init.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/eval-strict-single.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/id-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/variable/id-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/while/decl-fun.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/while/labelled-fn-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/with/12.10.1-11gs.js
@@ -1592,6 +1450,15 @@ test262/test/language/comments/hashbang/preceding-whitespace.js:1:2: Private ide
 test262/test/language/comments/hashbang/statement-block.js:20:3: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 test262/test/language/comments/multi-line-html-close-extra.js:25:8: Expected semicolon
 test262/test/language/comments/single-line-html-close-without-lt.js:23:4: Unexpected token after prefix '--'
+test262/test/language/directive-prologue/10.1.1-2gs.js:17:5: 'public' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/10.1.1-5gs.js:17:5: 'public' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/10.1.1-8gs.js:18:5: 'public' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/func-decl-inside-func-decl-parse.js:22:9: 'static' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/func-decl-no-semi-parse.js:20:7: 'static' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/func-decl-parse.js:20:7: 'static' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/func-expr-inside-func-decl-parse.js:21:7: 'static' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/func-expr-no-semi-parse.js:21:7: 'static' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/func-expr-parse.js:21:7: 'static' is a reserved identifier in strict mode
 test262/test/language/export/escaped-as-export-specifier.js:25:11: Expected }, got identifier
 test262/test/language/export/escaped-default.js:24:8: Keyword 'default' must not contain escaped characters
 test262/test/language/export/escaped-from.js:24:11: 'from' keyword must not contain Unicode escape sequences
@@ -2055,8 +1922,10 @@ test262/test/language/expressions/async-arrow-function/await-as-param-ident-nest
 test262/test/language/expressions/async-arrow-function/await-as-param-nested-arrow-parameter-position.js:16:12: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/await-as-param-rest-nested-arrow-parameter-position.js:16:15: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/dflt-params-rest.js:54:14: Expected ), got =
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-arguments-in-formal-parameters.js:16:7: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-await-in-formals-default.js:14:11: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-await-in-formals.js:14:7: 'await' is reserved as a binding name in this context
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-eval-in-formal-parameters.js:16:7: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js:34:1: Invalid expression for arrow function parameters
 test262/test/language/expressions/async-arrow-function/escaped-async.js:24:1: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/expressions/async-arrow-function/rest-params-trailing-comma-early-error.js:46:13: A rest parameter or binding pattern may not have a trailing comma.
@@ -2067,6 +1936,7 @@ test262/test/language/expressions/async-function/await-as-identifier-reference.j
 test262/test/language/expressions/async-function/await-as-label-identifier-escaped.js:29:3: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/async-function/await-as-label-identifier.js:29:3: 'await' cannot be used as a label identifier in an async function
 test262/test/language/expressions/async-function/early-errors-expression-NSPL-with-USD.js:16:2: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/expressions/async-function/early-errors-expression-eval-in-formal-parameters.js:16:22: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-function/early-errors-expression-not-simple-assignment-target.js:16:30: Invalid left-hand side in assignment
 test262/test/language/expressions/async-function/escaped-async.js:24:6: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/expressions/async-function/named-array-destructuring-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
@@ -2121,7 +1991,9 @@ test262/test/language/expressions/async-generator/dstr/named-dflt-ary-ptrn-rest-
 test262/test/language/expressions/async-generator/dstr/named-dflt-ary-ptrn-rest-not-final-id.js:33:28: Rest element must be last in array pattern
 test262/test/language/expressions/async-generator/dstr/named-dflt-ary-ptrn-rest-not-final-obj.js:33:32: Rest element must be last in array pattern
 test262/test/language/expressions/async-generator/early-errors-expression-NSPL-with-USD.js:18:2: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/expressions/async-generator/early-errors-expression-arguments-in-formal-parameters.js:18:18: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-await-as-function-binding-identifier.js:17:18: 'await' cannot be used as the name of an async function expression
+test262/test/language/expressions/async-generator/early-errors-expression-eval-in-formal-parameters.js:18:18: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-await.js:18:18: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield.js:18:18: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/async-generator/early-errors-expression-label-name-await.js:23:3: 'await' cannot be used as a label identifier in an async function
@@ -2148,6 +2020,8 @@ test262/test/language/expressions/async-generator/named-yield-as-identifier-refe
 test262/test/language/expressions/async-generator/named-yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/async-generator/named-yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/async-generator/named-yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/async-generator/named-yield-identifier-spread-strict.js:36:15: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/async-generator/named-yield-identifier-strict.js:28:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/async-generator/object-destructuring-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-generator/rest-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-generator/rest-params-trailing-comma-early-error.js:36:24: A rest parameter or binding pattern may not have a trailing comma.
@@ -2157,6 +2031,8 @@ test262/test/language/expressions/async-generator/yield-as-identifier-reference-
 test262/test/language/expressions/async-generator/yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/async-generator/yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/async-generator/yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/async-generator/yield-identifier-spread-strict.js:36:15: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/async-generator/yield-identifier-strict.js:28:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/await/await-BindingIdentifier-nested.js:17:12: 'await' cannot be used as a function name in module / async context
 test262/test/language/expressions/await/early-errors-await-not-simple-assignment-target.js:17:16: Invalid left-hand side in assignment
 test262/test/language/expressions/await/no-operand.js:17:8: 'await' expression requires an operand
@@ -2174,10 +2050,13 @@ test262/test/language/expressions/class/async-gen-method-static/object-destructu
 test262/test/language/expressions/class/async-gen-method-static/rest-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-gen-method-static/rest-params-trailing-comma-early-error.js:60:28: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/async-gen-method-static/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/expressions/class/async-gen-method-static/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-gen-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method-static/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/async-gen-method-static/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/async-gen-method-static/yield-identifier-spread-strict.js:41:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/async-gen-method-static/yield-identifier-strict.js:33:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-gen-method/array-destructuring-param-strict-body.js:134:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-gen-method/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/class/async-gen-method/await-as-binding-identifier.js:35:9: 'await' is reserved as a binding name in this context
@@ -2191,10 +2070,13 @@ test262/test/language/expressions/class/async-gen-method/object-destructuring-pa
 test262/test/language/expressions/class/async-gen-method/rest-param-strict-body.js:134:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-gen-method/rest-params-trailing-comma-early-error.js:60:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/async-gen-method/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/expressions/class/async-gen-method/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-gen-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/async-gen-method/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/async-gen-method/yield-identifier-spread-strict.js:41:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/async-gen-method/yield-identifier-strict.js:33:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-method-static/array-destructuring-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-method-static/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/class/async-method-static/await-as-binding-identifier.js:36:9: 'await' is reserved as a binding name in this context
@@ -2373,10 +2255,13 @@ test262/test/language/expressions/class/elements/async-gen-private-method-static
 test262/test/language/expressions/class/elements/async-gen-private-method-static/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-gen-private-method-static/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-identifier-spread-strict.js:42:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-identifier-strict.js:34:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/async-gen-private-method/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/class/elements/async-gen-private-method/await-as-binding-identifier.js:35:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/class/elements/async-gen-private-method/await-as-identifier-reference-escaped.js:35:10: Keyword 'await' must not contain escaped characters
@@ -2384,10 +2269,13 @@ test262/test/language/expressions/class/elements/async-gen-private-method/await-
 test262/test/language/expressions/class/elements/async-gen-private-method/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-gen-private-method/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/elements/async-gen-private-method/yield-identifier-spread-strict.js:42:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/elements/async-gen-private-method/yield-identifier-strict.js:34:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/async-private-method-static/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/class/elements/async-private-method-static/await-as-binding-identifier.js:36:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/class/elements/async-private-method-static/await-as-identifier-reference-escaped.js:36:10: Keyword 'await' must not contain escaped characters
@@ -2411,15 +2299,21 @@ test262/test/language/expressions/class/elements/fields-string-name-propname-con
 test262/test/language/expressions/class/elements/fields-string-name-static-propname-constructor.js:29:23: Class field cannot be named 'constructor'
 test262/test/language/expressions/class/elements/fields-string-name-static-propname-prototype.js:30:2: Classes may not have a static member named 'prototype'
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/elements/gen-private-method-static/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/elements/gen-private-method-static/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/expressions/class/elements/gen-private-method/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/elements/gen-private-method/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/elements/gen-private-method/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/nested-equality-init-err-contains-arguments.js:32:16: Arrow function cannot be used as an unparenthesized operand
 test262/test/language/expressions/class/elements/nested-equality-init-err-contains-super.js:25:16: Arrow function cannot be used as an unparenthesized operand
 test262/test/language/expressions/class/elements/syntax/early-errors/class-heritage-array-literal-arrow-heritage.js:23:26: Expected {, got =>
@@ -2485,10 +2379,13 @@ test262/test/language/expressions/class/gen-method-static/object-destructuring-p
 test262/test/language/expressions/class/gen-method-static/rest-param-strict-body.js:155:17: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/gen-method-static/rest-params-trailing-comma-early-error.js:81:22: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/gen-method-static/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/expressions/class/gen-method-static/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/gen-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/gen-method-static/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/gen-method-static/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method/array-destructuring-param-strict-body.js:155:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/gen-method/dflt-params-duplicates.js:84:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/gen-method/dflt-params-rest.js:88:16: Expected ), got =
@@ -2496,10 +2393,13 @@ test262/test/language/expressions/class/gen-method/object-destructuring-param-st
 test262/test/language/expressions/class/gen-method/rest-param-strict-body.js:155:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/gen-method/rest-params-trailing-comma-early-error.js:81:15: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/gen-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/expressions/class/gen-method/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/gen-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/gen-method/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/class/gen-method/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/getter-param-dflt.js:23:16: Getter must not have any formal parameters
 test262/test/language/expressions/class/method-static/array-destructuring-param-strict-body.js:151:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/method-static/dflt-params-duplicates.js:80:16: Duplicate parameter name 'x' in strict mode
@@ -2895,6 +2795,8 @@ test262/test/language/expressions/generators/named-yield-as-identifier-reference
 test262/test/language/expressions/generators/named-yield-as-identifier-reference.js:28:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/generators/named-yield-as-label-identifier-escaped.js:28:3: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/generators/named-yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/generators/named-yield-identifier-spread-strict.js:34:15: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/generators/named-yield-identifier-strict.js:26:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/generators/object-destructuring-param-strict-body.js:131:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/generators/rest-param-strict-body.js:131:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/generators/rest-params-trailing-comma-early-error.js:57:18: A rest parameter or binding pattern may not have a trailing comma.
@@ -2908,6 +2810,8 @@ test262/test/language/expressions/generators/yield-as-label-identifier-escaped.j
 test262/test/language/expressions/generators/yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier inside a generator function
 test262/test/language/expressions/generators/yield-as-logical-or-expression.js:18:9: 'yield' expression cannot be used as an operand of a conditional or binary operator
 test262/test/language/expressions/generators/yield-as-parameter.js:17:19: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/generators/yield-identifier-spread-strict.js:34:15: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/generators/yield-identifier-strict.js:26:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/generators/yield-star-after-newline.js:18:3: Unexpected token '*'
 test262/test/language/expressions/generators/yield-weak-binding.js:16:40: 'yield' expression cannot be the right-hand side of a binary operator
 test262/test/language/expressions/import.meta/syntax/escape-sequence-import.js:34:1: Keyword 'import' must not contain escaped characters
@@ -2935,6 +2839,7 @@ test262/test/language/expressions/logical-assignment/lgcl-or-assignment-operator
 test262/test/language/expressions/logical-assignment/lgcl-or-non-simple.js:17:8: Invalid left-hand side in assignment
 test262/test/language/expressions/new.target/escaped-new.js:24:5: Keyword 'new' must not contain escaped characters
 test262/test/language/expressions/new.target/escaped-target.js:24:8: Expected expression after 'new'
+test262/test/language/expressions/object/11.1.5-1gs.js:18:31: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/cover-initialized-name.js:32:4: Invalid shorthand property initializer
 test262/test/language/expressions/object/dstr/async-gen-meth-ary-ptrn-rest-init-ary.js:38:27: Rest element must be last in array pattern
 test262/test/language/expressions/object/dstr/async-gen-meth-ary-ptrn-rest-init-id.js:38:23: Rest element must be last in array pattern
@@ -3002,6 +2907,8 @@ test262/test/language/expressions/object/method-definition/async-gen-yield-as-id
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-identifier-reference.js:29:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-label-identifier-escaped.js:29:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-spread-strict.js:35:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-strict.js:27:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/async-meth-array-destructuring-param-strict-body.js:108:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/async-meth-dflt-params-duplicates.js:37:16: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/async-meth-dflt-params-rest.js:41:22: Expected ), got =
@@ -3011,10 +2918,12 @@ test262/test/language/expressions/object/method-definition/async-meth-rest-param
 test262/test/language/expressions/object/method-definition/async-meth-rest-params-trailing-comma-early-error.js:34:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters.js:27:12: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-NSPL-with-USD.js:16:6: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/expressions/object/method-definition/early-errors-object-method-arguments-in-formal-parameters.js:17:14: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-async-lineterminator.js:21:3: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals-default.js:16:18: Top-level 'await' is only valid in module code
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals.js:16:14: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters.js:26:6: Duplicate parameter name 'a' in strict mode
+test262/test/language/expressions/object/method-definition/early-errors-object-method-eval-in-formal-parameters.js:17:13: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-body-duplicate.js:17:18: Generator/async shorthand property not allowed
 test262/test/language/expressions/object/method-definition/escaped-get-e.js:24:12: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/escaped-get-g.js:24:12: Expected }, got identifier
@@ -3036,6 +2945,8 @@ test262/test/language/expressions/object/method-definition/gen-yield-as-identifi
 test262/test/language/expressions/object/method-definition/gen-yield-as-identifier-reference.js:29:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier-escaped.js:29:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/object/method-definition/gen-yield-identifier-spread-strict.js:35:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/expressions/object/method-definition/gen-yield-identifier-strict.js:27:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/generator-param-id-yield.js:19:11: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/object/method-definition/generator-use-strict-with-non-simple-param.js:21:5: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/meth-array-destructuring-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3064,6 +2975,8 @@ test262/test/language/expressions/object/method-definition/yield-star-after-newl
 test262/test/language/expressions/object/method-definition/yield-weak-binding.js:17:27: 'yield' expression cannot be the right-hand side of a binary operator
 test262/test/language/expressions/object/prop-def-invalid-async-prefix.js:35:14: Generator/async shorthand property not allowed
 test262/test/language/expressions/object/prop-def-invalid-star-prefix.js:21:8: Generator/async shorthand property not allowed
+test262/test/language/expressions/object/setter-param-arguments-strict-outside.js:18:9: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/expressions/object/setter-param-eval-strict-outside.js:18:9: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/optional-chaining/early-errors-tail-position-null-op-template-string-esi.js:25:4: Unexpected token after ?.
 test262/test/language/expressions/optional-chaining/early-errors-tail-position-null-op-template-string.js:22:8: Unexpected token after ?.
 test262/test/language/expressions/optional-chaining/early-errors-tail-position-null-optchain-template-string-esi.js:25:4: Tagged template literals cannot appear in an optional chain
@@ -3127,16 +3040,25 @@ test262/test/language/future-reserved-words/enum.js:20:5: 'enum' is a reserved w
 test262/test/language/future-reserved-words/export.js:20:5: 'export' is a reserved word and cannot be used as a binding name
 test262/test/language/future-reserved-words/extends.js:20:5: 'extends' is a reserved word and cannot be used as a binding name
 test262/test/language/future-reserved-words/implements-strict-escaped.js:24:5: Keyword 'implements' must not contain escaped characters
+test262/test/language/future-reserved-words/implements-strict.js:23:5: 'implements' is a reserved identifier in strict mode
 test262/test/language/future-reserved-words/import.js:20:5: 'import' is a reserved word and cannot be used as a binding name
 test262/test/language/future-reserved-words/interface-strict-escaped.js:24:5: Keyword 'interface' must not contain escaped characters
+test262/test/language/future-reserved-words/interface-strict.js:23:5: 'interface' is a reserved identifier in strict mode
 test262/test/language/future-reserved-words/let-strict-escaped.js:24:5: Keyword 'let' must not contain escaped characters
+test262/test/language/future-reserved-words/let-strict.js:23:5: 'let' is a reserved identifier in strict mode
 test262/test/language/future-reserved-words/package-strict-escaped.js:24:5: Keyword 'package' must not contain escaped characters
+test262/test/language/future-reserved-words/package-strict.js:23:5: 'package' is a reserved identifier in strict mode
 test262/test/language/future-reserved-words/private-strict-escaped.js:24:5: Keyword 'private' must not contain escaped characters
+test262/test/language/future-reserved-words/private-strict.js:23:5: 'private' is a reserved identifier in strict mode
 test262/test/language/future-reserved-words/protected-strict-escaped.js:25:5: Keyword 'protected' must not contain escaped characters
+test262/test/language/future-reserved-words/protected-strict.js:23:5: 'protected' is a reserved identifier in strict mode
 test262/test/language/future-reserved-words/public-strict-escaped.js:24:5: Keyword 'public' must not contain escaped characters
+test262/test/language/future-reserved-words/public-strict.js:23:5: 'public' is a reserved identifier in strict mode
 test262/test/language/future-reserved-words/static-strict-escaped.js:24:5: Keyword 'static' must not contain escaped characters
+test262/test/language/future-reserved-words/static-strict.js:23:5: 'static' is a reserved identifier in strict mode
 test262/test/language/future-reserved-words/super.js:20:5: 'super' is a reserved word and cannot be used as a binding name
 test262/test/language/future-reserved-words/yield-strict-escaped.js:24:5: Keyword 'yield' must not contain escaped characters
+test262/test/language/future-reserved-words/yield-strict.js:22:5: 'yield' is a reserved identifier in strict mode
 test262/test/language/global-code/return.js:22:7: 'return' outside of function
 test262/test/language/identifiers/start-zwj-escaped.js:15:5: Expected binding pattern
 test262/test/language/identifiers/start-zwnj-escaped.js:15:5: Expected binding pattern
@@ -3249,6 +3171,7 @@ test262/test/language/identifiers/val-while.js:15:5: 'while' is a reserved word 
 test262/test/language/identifiers/val-with-via-escape-hex.js:16:5: Keyword 'with' must not contain escaped characters
 test262/test/language/identifiers/val-with-via-escape-hex4.js:16:5: Keyword 'with' must not contain escaped characters
 test262/test/language/identifiers/val-with.js:15:5: 'with' is a reserved word and cannot be used as a binding name
+test262/test/language/identifiers/val-yield-strict.js:17:5: 'yield' is a reserved identifier in strict mode
 test262/test/language/identifiers/vertical-tilde-continue-escaped.js:16:6: Expected '=', ',', or ';' after variable binding
 test262/test/language/identifiers/vertical-tilde-continue.js:16:6: Expected '=', ',', or ';' after variable binding
 test262/test/language/identifiers/vertical-tilde-start-escaped.js:16:5: Expected binding pattern
@@ -3613,6 +3536,7 @@ test262/test/language/module-code/early-dup-export-id-as.js:19:15: Duplicate exp
 test262/test/language/module-code/early-dup-export-id.js:18:10: Duplicate exported name 'x'
 test262/test/language/module-code/early-dup-export-star-as-dflt.js:19:13: Duplicate exported name 'default'
 test262/test/language/module-code/early-export-ill-formed-string.js:21:17: Export name string must not contain unpaired surrogates
+test262/test/language/module-code/early-strict-mode.js:15:5: 'public' is a reserved identifier in strict mode
 test262/test/language/module-code/early-super.js:15:1: 'super' can only be used with function calls or in property accesses
 test262/test/language/module-code/export-expname-from-as-unpaired-surrogate.js:21:19: Export name string must not contain unpaired surrogates
 test262/test/language/module-code/export-expname-from-star-unpaired-surrogate.js:21:8: Unexpected string literal after 'export'
@@ -3677,9 +3601,11 @@ test262/test/language/statements/async-function/await-as-label-identifier.js:29:
 test262/test/language/statements/async-function/dflt-params-duplicates.js:36:1: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/async-function/dflt-params-rest.js:40:23: Expected ), got =
 test262/test/language/statements/async-function/early-errors-declaration-NSPL-with-USD.js:16:1: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/statements/async-function/early-errors-declaration-arguments-in-formal-parameters.js:16:21: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/async-function/early-errors-declaration-await-in-formals-default.js:14:30: 'await' expression requires an operand
 test262/test/language/statements/async-function/early-errors-declaration-await-in-formals.js:14:21: 'await' is reserved as a binding name in this context
 test262/test/language/statements/async-function/early-errors-declaration-duplicate-parameters.js:17:1: Duplicate parameter name 'a' in strict mode
+test262/test/language/statements/async-function/early-errors-declaration-eval-in-formal-parameters.js:16:21: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/async-function/escaped-async.js:24:1: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/statements/async-function/let-newline-await-in-async-function.js:23:5: 'await' is reserved as a binding name in this context
 test262/test/language/statements/async-function/object-destructuring-param-strict-body.js:107:1: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3716,6 +3642,8 @@ test262/test/language/statements/async-generator/yield-as-identifier-reference-e
 test262/test/language/statements/async-generator/yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/async-generator/yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/async-generator/yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/async-generator/yield-identifier-spread-strict.js:36:15: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/async-generator/yield-identifier-strict.js:28:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/await-using/syntax/await-using-invalid-arraybindingpattern-after-bindingidentifier.js:18:1: 'await using' declaration requires a binding identifier
 test262/test/language/statements/await-using/syntax/await-using-invalid-arraybindingpattern.js:15:15: Function declaration requires a name
 test262/test/language/statements/await-using/syntax/await-using-invalid-for-in.js:15:25: 'await using' declaration is not allowed in a for-in loop
@@ -3763,10 +3691,13 @@ test262/test/language/statements/class/async-gen-method-static/object-destructur
 test262/test/language/statements/class/async-gen-method-static/rest-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method-static/rest-params-trailing-comma-early-error.js:60:28: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/async-gen-method-static/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/async-gen-method-static/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-gen-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method-static/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/async-gen-method-static/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/async-gen-method-static/yield-identifier-spread-strict.js:41:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/async-gen-method-static/yield-identifier-strict.js:33:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-gen-method/array-destructuring-param-strict-body.js:133:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/async-gen-method/await-as-binding-identifier.js:35:9: 'await' is reserved as a binding name in this context
@@ -3780,10 +3711,13 @@ test262/test/language/statements/class/async-gen-method/object-destructuring-par
 test262/test/language/statements/class/async-gen-method/rest-param-strict-body.js:133:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method/rest-params-trailing-comma-early-error.js:59:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/async-gen-method/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/async-gen-method/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-gen-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/async-gen-method/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/async-gen-method/yield-identifier-spread-strict.js:41:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/async-gen-method/yield-identifier-strict.js:33:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-meth-escaped-async.js:25:16: Expected (, got identifier
 test262/test/language/statements/class/async-method-static/array-destructuring-param-strict-body.js:131:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-method-static/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
@@ -3814,11 +3748,14 @@ test262/test/language/statements/class/class-name-ident-static-escaped.js:27:7: 
 test262/test/language/statements/class/class-name-ident-yield-escaped.js:27:7: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/definition/early-errors-class-async-method-duplicate-parameters.js:28:12: Duplicate parameter name 'a' in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-NSPL-with-USD.js:16:12: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/statements/class/definition/early-errors-class-method-arguments-in-formal-parameters.js:15:14: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-await-in-formals-default.js:15:18: Top-level 'await' is only valid in module code
 test262/test/language/statements/class/definition/early-errors-class-method-await-in-formals.js:15:14: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/definition/early-errors-class-method-duplicate-parameters.js:27:6: Duplicate parameter name 'a' in strict mode
+test262/test/language/statements/class/definition/early-errors-class-method-eval-in-formal-parameters.js:15:13: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-formals-body-duplicate.js:17:18: Expected (, got identifier
 test262/test/language/statements/class/definition/methods-gen-yield-as-logical-or-expression.js:18:11: 'yield' expression cannot be used as an operand of a conditional or binary operator
+test262/test/language/statements/class/definition/methods-gen-yield-as-parameter.js:18:6: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/definition/methods-gen-yield-star-after-newline.js:19:5: Unexpected token '*'
 test262/test/language/statements/class/definition/methods-gen-yield-weak-binding.js:17:27: 'yield' expression cannot be the right-hand side of a binary operator
 test262/test/language/statements/class/dstr/async-gen-meth-ary-ptrn-rest-init-ary.js:56:27: Rest element must be last in array pattern
@@ -3972,10 +3909,13 @@ test262/test/language/statements/class/elements/async-gen-private-method-static/
 test262/test/language/statements/class/elements/async-gen-private-method-static/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/elements/async-gen-private-method-static/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/elements/async-gen-private-method-static/yield-identifier-spread-strict.js:42:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/elements/async-gen-private-method-static/yield-identifier-strict.js:34:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/async-gen-private-method/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/elements/async-gen-private-method/await-as-binding-identifier.js:35:9: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/elements/async-gen-private-method/await-as-identifier-reference-escaped.js:35:10: Keyword 'await' must not contain escaped characters
@@ -3983,10 +3923,13 @@ test262/test/language/statements/class/elements/async-gen-private-method/await-a
 test262/test/language/statements/class/elements/async-gen-private-method/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/elements/async-gen-private-method/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
 test262/test/language/statements/class/elements/async-gen-private-method/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/elements/async-gen-private-method/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/async-gen-private-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/async-gen-private-method/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/elements/async-gen-private-method/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/async-gen-private-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/elements/async-gen-private-method/yield-identifier-spread-strict.js:42:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/elements/async-gen-private-method/yield-identifier-strict.js:34:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/async-private-method-static/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/elements/async-private-method-static/await-as-binding-identifier.js:36:9: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/elements/async-private-method-static/await-as-identifier-reference-escaped.js:36:10: Keyword 'await' must not contain escaped characters
@@ -4010,15 +3953,21 @@ test262/test/language/statements/class/elements/fields-string-name-propname-cons
 test262/test/language/statements/class/elements/fields-string-name-static-propname-constructor.js:29:23: Class field cannot be named 'constructor'
 test262/test/language/statements/class/elements/fields-string-name-static-propname-prototype.js:31:1: Classes may not have a static member named 'prototype'
 test262/test/language/statements/class/elements/gen-private-method-static/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/elements/gen-private-method-static/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/gen-private-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/gen-private-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/elements/gen-private-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/gen-private-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/elements/gen-private-method-static/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/elements/gen-private-method-static/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/gen-private-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/elements/gen-private-method/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/gen-private-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/gen-private-method/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/elements/gen-private-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/gen-private-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/elements/gen-private-method/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/elements/gen-private-method/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/nested-equality-init-err-contains-arguments.js:32:16: Arrow function cannot be used as an unparenthesized operand
 test262/test/language/statements/class/elements/nested-equality-init-err-contains-super.js:25:16: Arrow function cannot be used as an unparenthesized operand
 test262/test/language/statements/class/elements/syntax/early-errors/class-heritage-array-literal-arrow-heritage.js:23:20: Expected {, got =>
@@ -4084,10 +4033,13 @@ test262/test/language/statements/class/gen-method-static/object-destructuring-pa
 test262/test/language/statements/class/gen-method-static/rest-param-strict-body.js:153:17: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/gen-method-static/rest-params-trailing-comma-early-error.js:79:22: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/gen-method-static/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/gen-method-static/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/gen-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/gen-method-static/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/gen-method-static/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method/array-destructuring-param-strict-body.js:153:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/gen-method/dflt-params-duplicates.js:82:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/gen-method/dflt-params-rest.js:86:16: Expected ), got =
@@ -4095,10 +4047,13 @@ test262/test/language/statements/class/gen-method/object-destructuring-param-str
 test262/test/language/statements/class/gen-method/rest-param-strict-body.js:153:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/gen-method/rest-params-trailing-comma-early-error.js:79:15: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/gen-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
+test262/test/language/statements/class/gen-method/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/gen-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/gen-method/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/class/gen-method/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/getter-param-dflt.js:23:15: Getter must not have any formal parameters
 test262/test/language/statements/class/method-static/array-destructuring-param-strict-body.js:150:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method-static/dflt-params-duplicates.js:79:16: Duplicate parameter name 'x' in strict mode
@@ -4261,6 +4216,12 @@ test262/test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-ary.js:20:18
 test262/test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-obj.js:20:20: Invalid destructuring assignment target
 test262/test/language/statements/for-in/head-lhs-non-asnmt-trgt.js:18:14: Invalid left-hand side in for-in loop
 test262/test/language/statements/for-in/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/for-in/var-arguments-fn-strict-init.js:18:12: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/for-in/var-arguments-fn-strict.js:18:12: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/for-in/var-arguments-strict-init.js:17:10: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/for-in/var-arguments-strict.js:15:10: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/for-in/var-eval-strict-init.js:15:10: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/for-in/var-eval-strict.js:15:10: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/for-of/decl-async-fun.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/decl-async-gen.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/decl-cls.js:15:1: Class declaration cannot appear in a single-statement context
@@ -4352,6 +4313,8 @@ test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-ary.js:45:
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-id.js:45:15: Rest element must be last in array pattern
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-obj.js:45:19: Rest element must be last in array pattern
 test262/test/language/statements/for/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/function/13.1-1gs.js:18:22: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/function/13.1-4gs.js:18:29: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/13.1-5gs.js:17:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/13.1-8gs.js:17:19: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/S13_A7_T3.js:15:19: Unexpected token '\'
@@ -4378,12 +4341,14 @@ test262/test/language/statements/function/invalid-function-body-3.js:17:19: Priv
 test262/test/language/statements/function/invalid-name-dot.js:16:13: Expected (, got .
 test262/test/language/statements/function/invalid-name-two-dots.js:16:13: Expected (, got .
 test262/test/language/statements/function/object-destructuring-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
+test262/test/language/statements/function/param-arguments-strict.js:22:22: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/param-duplicated-strict-1.js:22:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-2.js:23:1: Duplicate parameter name 'param1' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-3.js:22:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-body-1.js:22:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-body-2.js:23:1: Duplicate parameter name 'param1' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-body-3.js:22:1: Duplicate parameter name 'param' in strict mode
+test262/test/language/statements/function/param-eval-strict.js:22:22: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/rest-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/function/rest-params-trailing-comma-early-error.js:56:16: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/function/static-init-await-binding-invalid.js:24:14: 'await' cannot be used as a function name in module / async context
@@ -4415,6 +4380,8 @@ test262/test/language/statements/generators/yield-as-label-identifier-escaped.js
 test262/test/language/statements/generators/yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier inside a generator function
 test262/test/language/statements/generators/yield-as-logical-or-expression.js:18:9: 'yield' expression cannot be used as an operand of a conditional or binary operator
 test262/test/language/statements/generators/yield-as-parameter.js:17:13: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/generators/yield-identifier-spread-strict.js:34:15: 'yield' is a reserved identifier in strict mode
+test262/test/language/statements/generators/yield-identifier-strict.js:26:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/generators/yield-star-after-newline.js:18:3: Unexpected token '*'
 test262/test/language/statements/generators/yield-weak-binding.js:16:34: 'yield' expression cannot be the right-hand side of a binary operator
 test262/test/language/statements/if/S12.5_A11.js:17:6: Numeric / string property name requires a value
@@ -4506,6 +4473,8 @@ test262/test/language/statements/try/S12.14_A16_T6.js:21:1: Unexpected reserved 
 test262/test/language/statements/try/S12.14_A16_T7.js:21:7: Catch parameter is missing
 test262/test/language/statements/try/S12.14_A16_T8.js:21:7: Catch parameter is missing
 test262/test/language/statements/try/S12.14_A16_T9.js:18:1: Unexpected 'catch' or 'finally' without matching 'try'
+test262/test/language/statements/try/catch-parameter-boundnames-restriction-arguments-negative-early.js:16:16: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/try/catch-parameter-boundnames-restriction-eval-negative-early.js:16:16: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/try/dstr/ary-ptrn-rest-init-ary.js:32:20: Rest element must be last in array pattern
 test262/test/language/statements/try/dstr/ary-ptrn-rest-init-id.js:32:16: Rest element must be last in array pattern
 test262/test/language/statements/try/dstr/ary-ptrn-rest-init-obj.js:32:20: Rest element must be last in array pattern
@@ -4539,6 +4508,8 @@ test262/test/language/statements/using/syntax/without-initializer-if-expression-
 test262/test/language/statements/using/syntax/without-initializer-if-expression-statement.js:17:1: Missing initializer in 'using' declaration
 test262/test/language/statements/using/syntax/without-initializer-label-statement.js:17:1: Missing initializer in 'using' declaration
 test262/test/language/statements/using/syntax/without-initializer-while-expression-statement.js:17:1: Missing initializer in 'using' declaration
+test262/test/language/statements/variable/12.2.1-1gs.js:17:10: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/12.2.1-4gs.js:17:5: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/variable/S12.2_A8_T1.js:17:7: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/variable/S12.2_A8_T2.js:17:7: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/variable/S12.2_A8_T3.js:17:7: Expected '=', ',', or ';' after variable binding
@@ -4547,6 +4518,24 @@ test262/test/language/statements/variable/S12.2_A8_T5.js:17:5: Expected binding 
 test262/test/language/statements/variable/S12.2_A8_T6.js:17:6: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/variable/S12.2_A8_T7.js:17:6: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/variable/S12.2_A8_T8.js:19:7: Expected semicolon
+test262/test/language/statements/variable/arguments-fn-strict-list-final-init.js:19:10: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-fn-strict-list-final.js:19:15: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-fn-strict-list-first-init.js:18:7: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-fn-strict-list-first.js:19:7: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-fn-strict-list-middle-init.js:18:10: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-fn-strict-list-middle.js:19:10: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-fn-strict-list-repeated.js:19:7: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-fn-strict-single-init.js:19:7: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-fn-strict-single.js:19:7: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-list-final-init.js:18:8: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-list-final.js:16:13: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-list-first-init.js:15:5: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-list-first.js:16:5: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-list-middle-init.js:15:8: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-list-middle.js:16:8: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-list-repeated.js:18:5: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-single-init.js:18:5: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/arguments-strict-single.js:16:5: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/variable/dstr/ary-ptrn-elem-id-static-init-await-invalid.js:24:10: 'await' is reserved as a binding name in this context
 test262/test/language/statements/variable/dstr/ary-ptrn-rest-init-ary.js:29:15: Rest element must be last in array pattern
 test262/test/language/statements/variable/dstr/ary-ptrn-rest-init-id.js:29:11: Rest element must be last in array pattern
@@ -4555,6 +4544,17 @@ test262/test/language/statements/variable/dstr/ary-ptrn-rest-not-final-ary.js:29
 test262/test/language/statements/variable/dstr/ary-ptrn-rest-not-final-id.js:29:10: Rest element must be last in array pattern
 test262/test/language/statements/variable/dstr/ary-ptrn-rest-not-final-obj.js:29:14: Rest element must be last in array pattern
 test262/test/language/statements/variable/dstr/obj-ptrn-elem-id-static-init-await-invalid.js:24:15: 'await' is reserved as a binding name inside an async function
+test262/test/language/statements/variable/eval-strict-list-final-init.js:15:8: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/eval-strict-list-final.js:16:8: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/eval-strict-list-first-init.js:18:5: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/eval-strict-list-first.js:16:5: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/eval-strict-list-middle-init.js:15:8: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/eval-strict-list-middle.js:15:8: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/eval-strict-list-repeated.js:18:5: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/eval-strict-single-init.js:18:5: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/eval-strict-single.js:18:5: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/id-arguments-strict.js:16:5: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/variable/id-eval-strict.js:16:5: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/variable/static-init-await-binding-invalid.js:24:9: 'await' is reserved as a binding name in this context
 test262/test/language/statements/while/S12.6.2_A15.js:17:9: Numeric / string property name requires a value
 test262/test/language/statements/while/S12.6.2_A6_T1.js:17:7: Expected (, got number

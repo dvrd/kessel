@@ -6505,17 +6505,19 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// BindingIdentifier are SyntaxErrors only in strict mode
 	// (ECMA-262 §13.2). In sloppy script they remain valid binding
 	// identifiers (`var let = 1;`). The strict-mode diagnostic is
-	// enforced by the semantic checker (ck_check_strict_binding_pattern
-	// via ck_walk_var_decl / ck_walk_function); the parser stays
-	// permissive but still has to convert the strict-reserved-token
-	// into an Identifier shape for the AST. Gate on p.strict_mode here
-	// so sloppy code falls through to the contextual-yield / await /
+	// promoted to the parser (mirrors
+	// ck_check_strict_binding_pattern in the semantic checker) so
+	// parser-only snaps reject `"use strict"; var yield;` etc.
+	//
+	// Sloppy code falls through to the contextual-yield / await /
 	// identifier branches below (e.g. `var yield = 1` inside a sloppy
-	// generator must reach the contextual `.Yield` branch and report a
+	// generator reaches the contextual `.Yield` branch and reports a
 	// structural error).
 	if p.strict_mode && is_strict_reserved_word(p.cur_type) {
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
+		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
+		report_error_at(p, LexerLoc(id_loc.span.start), msg)
 		eat(p)
 		ident := new_node(p, Identifier)
 		ident.loc = id_loc
@@ -6585,16 +6587,34 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// has_escape == true takes the slow path via
 		// `report_escaped_reserved_word(p)` already; we don't repeat the
 		// full check here.
-		if !p.cur_tok.has_escape && id_name == "enum" {
+		id_has_escape := p.cur_tok.has_escape
+		if !id_has_escape && id_name == "enum" {
 			msg := fmt.tprintf("'%s' is a reserved word and cannot be used as a binding identifier", id_name)
 			report_error(p, msg)
 		}
-		eat(p)
 		// §13.1.1 strict-mode `eval` / `arguments` and strict-reserved
-		// FutureReservedWords (lex-as-Identifier forms) as a Binding
-		// Identifier are SyntaxErrors. Enforced by the semantic checker
-		// (ck_check_strict_binding_pattern via ck_walk_var_decl /
-		// ck_walk_function); the parser stays permissive.
+		// FutureReservedWords (lex-as-Identifier forms) as a
+		// BindingIdentifier are SyntaxErrors. Promoted from the semantic
+		// checker (ck_check_strict_binding_pattern) so parser-only snaps
+		// reject the strict-mode-reserved-name binding clusters in
+		// test262 / babel without --show-semantic-errors.
+		//
+		// Both checks gate on p.strict_mode AND skip when the name has an
+		// escape sequence — escaped reserved words already produced a
+		// diagnostic via report_escaped_reserved_word above; firing again
+		// would double-report the same source location. id_has_escape was
+		// captured before eat(p) below because cur_tok then points at the
+		// next token, not the binding identifier.
+		if p.strict_mode && !id_has_escape {
+			if is_eval_or_arguments(id_name) {
+				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
+				report_error_at(p, LexerLoc(id_loc.span.start), msg)
+			} else if is_strict_reserved_name(id_name) {
+				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
+				report_error_at(p, LexerLoc(id_loc.span.start), msg)
+			}
+		}
+		eat(p)
 		ident := new_node(p, Identifier)
 		ident.loc = id_loc
 		ident.name = id_name

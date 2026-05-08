@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12551/12692 (98.89%)
 Positive Passed: 12551/12692 (98.89%)
-Negative Passed: 1616/3470 (46.57%)
+Negative Passed: 1617/3470 (46.60%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -760,7 +760,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticPropSu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticVisibility.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/statics.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeInConstructor.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWord2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWordInImportEqualDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWordInModuleDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeWordInImportDeclaration.ts
@@ -2353,8 +2352,8 @@ typescript/tests/cases/compiler/classMemberWithMissingIdentifier.ts:2:12: Expect
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier2.ts:2:12: Expected method or property name
 typescript/tests/cases/compiler/classUpdateTests.ts:93:10: Expected semicolon
 typescript/tests/cases/compiler/classWithEmptyTypeParameter.ts:1:9: Type parameter list cannot be empty
-typescript/tests/cases/compiler/collisionArgumentsClassConstructor.ts:3:31: Parameter name 'arguments' is not allowed in strict mode
-typescript/tests/cases/compiler/collisionArgumentsClassMethod.ts:2:30: Parameter name 'arguments' is not allowed in strict mode
+typescript/tests/cases/compiler/collisionArgumentsClassConstructor.ts:3:31: 'arguments' cannot be used as a binding name in strict mode
+typescript/tests/cases/compiler/collisionArgumentsClassMethod.ts:2:30: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/commonJsExportTypeDeclarationError.ts::./types1.ts:3:1: Expected =, got EOF
 typescript/tests/cases/compiler/commonMissingSemicolons.ts:2:7: Expected semicolon
 typescript/tests/cases/compiler/complicatedPrivacy.ts:11:24: Getter must not have any formal parameters
@@ -2373,8 +2372,8 @@ typescript/tests/cases/compiler/constDeclarations-invalidContexts.ts:4:1: Lexica
 typescript/tests/cases/compiler/constDeclarations-scopes.ts:44:5: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/constDeclarations-validContexts.ts:32:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/constInClassExpression.ts:2:11: Expected (, got identifier
-typescript/tests/cases/compiler/constructorArgsErrors1.ts:2:25: Expected ), got identifier
-typescript/tests/cases/compiler/constructorArgsErrors2.ts:2:32: Expected ), got identifier
+typescript/tests/cases/compiler/constructorArgsErrors1.ts:2:18: 'static' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/constructorArgsErrors2.ts:2:25: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorArgsErrors3.ts:2:25: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors5.ts:2:18: 'export' is a reserved word and cannot be used as a binding name
@@ -2536,10 +2535,10 @@ typescript/tests/cases/compiler/invalidUnicodeEscapeSequance4.ts:2:5: Expected b
 typescript/tests/cases/compiler/isolatedModulesExportDeclarationType.ts::/test1.ts:2:1: 'T' has already been declared
 typescript/tests/cases/compiler/jsFileCompilationAmbientVarDeclarationSyntax.ts:1:9: Expected semicolon
 typescript/tests/cases/compiler/jsFileCompilationBindDuplicateIdentifier.ts:2:7: Identifier 'a' has already been declared
-typescript/tests/cases/compiler/jsFileCompilationBindErrors.ts:2:1: 'C' has already been declared
+typescript/tests/cases/compiler/jsFileCompilationBindErrors.ts:11:9: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/jsFileCompilationBindMultipleDefaultExports.ts:3:16: 'export default' cannot be followed by a variable declaration
 typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::a.js:7:5: 'let' is a reserved identifier in strict mode
-typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::b.js:3:7: Parameter name 'eval' is not allowed in strict mode
+typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::b.js:3:7: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::c.js:1:12: 'let' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::d.js:2:9: Legacy octal literals are not allowed in strict mode
 typescript/tests/cases/compiler/jsFileCompilationConstructorOverloadSyntax.ts:2:16: Expected {, got ;
@@ -2551,7 +2550,7 @@ typescript/tests/cases/compiler/jsFileCompilationInterfaceSyntax.ts:1:11: Expect
 typescript/tests/cases/compiler/jsFileCompilationMethodOverloadSyntax.ts:2:8: Expected {, got ;
 typescript/tests/cases/compiler/jsFileCompilationModuleSyntax.ts:1:11: Expected semicolon
 typescript/tests/cases/compiler/jsFileCompilationOptionalParameter.ts:1:13: Expected ), got ?
-typescript/tests/cases/compiler/jsFileCompilationPublicParameterModifier.ts:1:30: Expected ), got identifier
+typescript/tests/cases/compiler/jsFileCompilationPublicParameterModifier.ts:1:23: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/jsFileCompilationReturnTypeSyntaxOfFunction.ts:1:13: Expected {, got :
 typescript/tests/cases/compiler/jsFileCompilationTypeAliasSyntax.ts:1:6: Expected semicolon
 typescript/tests/cases/compiler/jsFileCompilationTypeAssertions.ts:2:27: Expected <, got EOF
@@ -2568,7 +2567,7 @@ typescript/tests/cases/compiler/jsxIntrinsicElementsTypeArgumentErrors.tsx:5:16:
 typescript/tests/cases/compiler/jsxNamespacePrefixInName.tsx:7:32: Expected >, got :
 typescript/tests/cases/compiler/jsxNamespacePrefixInNameReact.tsx:9:32: Expected >, got :
 typescript/tests/cases/compiler/letAndVarRedeclaration.ts:2:1: Identifier 'e0' has already been declared
-typescript/tests/cases/compiler/letAsIdentifierInStrictMode.ts:5:1: Identifier 'a' has already been declared
+typescript/tests/cases/compiler/letAsIdentifierInStrictMode.ts:2:5: 'let' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/letDeclarations-invalidContexts.ts:4:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/letDeclarations-scopes-duplicates.ts:3:1: 'var1' has already been declared
 typescript/tests/cases/compiler/letDeclarations-scopes.ts:44:5: Lexical declaration cannot be a labeled item
@@ -2678,7 +2677,7 @@ typescript/tests/cases/compiler/reservedWords2.ts:1:8: Expected import source or
 typescript/tests/cases/compiler/reservedWords3.ts:1:13: 'enum' is a reserved word and cannot be used as a binding identifier
 typescript/tests/cases/compiler/restArgMissingName.ts:1:18: Expected binding pattern
 typescript/tests/cases/compiler/restParamAsOptional.ts:1:16: Expected ), got ?
-typescript/tests/cases/compiler/restParamModifier.ts:2:27: Expected ), got identifier
+typescript/tests/cases/compiler/restParamModifier.ts:2:20: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/restParamModifier2.ts:2:41: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/restParameterNotLast.ts:1:16: A rest parameter must be last in a parameter list
 typescript/tests/cases/compiler/restParameterWithBindingPattern3.ts:3:23: Rest element must be last in array pattern
@@ -2698,7 +2697,8 @@ typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifi
 typescript/tests/cases/compiler/staticPrototypeProperty.ts:5:1: Classes may not have a static member named 'prototype'
 typescript/tests/cases/compiler/staticsInAFunction.ts:1:13: Expected (, got {
 typescript/tests/cases/compiler/staticsInConstructorBodies.ts:3:10: Expected semicolon
-typescript/tests/cases/compiler/strictModeReservedWord.ts:1:1: 'let' is disallowed as a lexically bound name
+typescript/tests/cases/compiler/strictModeReservedWord.ts:5:9: 'public' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/strictModeReservedWord2.ts:4:9: 'package' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/strictModeReservedWordInClassDeclaration.ts:4:17: 'private' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/strictModeReservedWordInDestructuring.ts:2:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/strictOptionalProperties1.ts:206:1: Identifier 'e' has already been declared
@@ -2908,7 +2908,7 @@ typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertions.ts:6
 typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertionsWithObjectShortHand.ts:2:16: Expected }, got !
 typescript/tests/cases/conformance/decorators/class/accessor/decoratorOnClassAccessor3.ts:4:12: Expected method or property name
 typescript/tests/cases/conformance/decorators/class/accessor/decoratorOnClassAccessor6.ts:4:12: Expected method or property name
-typescript/tests/cases/conformance/decorators/class/constructor/parameter/decoratorOnClassConstructorParameter4.ts:4:24: Expected ), got @
+typescript/tests/cases/conformance/decorators/class/constructor/parameter/decoratorOnClassConstructorParameter4.ts:4:17: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/decorators/class/method/decoratorOnClassMethod17.ts:4:18: Expected (, got @
 typescript/tests/cases/conformance/decorators/class/method/decoratorOnClassMethod3.ts:4:12: Expected method or property name
 typescript/tests/cases/conformance/decorators/class/method/decoratorOnClassMethodOverload1.ts:6:5: A decorator can only decorate a method implementation, not an overload.
@@ -2955,12 +2955,12 @@ typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/ar
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-no-as.ts:1:22: String import names require 'as' binding
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-type-as.ts:1:18: Import binding name cannot be a string literal
 typescript/tests/cases/conformance/es6/arrowFunction/disallowLineTerminatorBeforeArrow.ts:2:5: Line terminator not permitted before '=>'
-typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12.ts:2:7: Parameter name 'arguments' is not allowed in strict mode
-typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12_ES6.ts:2:7: Parameter name 'arguments' is not allowed in strict mode
+typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12.ts:2:7: 'arguments' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12_ES6.ts:2:7: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/binaryIntegerLiteralError.ts:2:17: Expected semicolon
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/invalidBinaryIntegerLiteralAndOctalIntegerLiteral.ts:2:16: Expected semicolon
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/octalIntegerLiteralError.ts:2:19: Expected semicolon
-typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts:4:16: Parameter name 'arguments' is not allowed in strict mode
+typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts:4:16: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/es6/classDeclaration/superCallFromClassThatHasNoBaseTypeButWithSameSymbolInterface.ts:5:9: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES5.ts:7:6: 'super' is only allowed in class methods or object-literal methods
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES6.ts:9:6: 'super' is only allowed in class methods or object-literal methods
@@ -3727,10 +3727,10 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserReturnSta
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserVariableStatement1.d.ts:1:9: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement2.ts:2:9: 'return' outside of function
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/octalLiteralInStrictModeES3.ts:2:1: Legacy octal literals are not allowed in strict mode
-typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode10.ts:2:12: Parameter name 'eval' is not allowed in strict mode
-typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode11.ts:2:20: Parameter name 'eval' is not allowed in strict mode
-typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode12.ts:2:19: Parameter name 'eval' is not allowed in strict mode
-typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode13.ts:4:7: Parameter name 'eval' is not allowed in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode10.ts:2:12: 'eval' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode11.ts:2:20: 'eval' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode12.ts:2:19: 'eval' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode13.ts:4:7: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode14.ts:2:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode15.ts:2:1: Deleting local variable 'a' is not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode2.ts:5:1: 'static' is a reserved identifier in strict mode

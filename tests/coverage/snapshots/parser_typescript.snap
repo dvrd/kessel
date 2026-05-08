@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12692/12692 (100.00%)
 Positive Passed: 12692/12692 (100.00%)
-Negative Passed: 1349/3470 (38.88%)
+Negative Passed: 1377/3470 (39.68%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -46,8 +46,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/amdDependenc
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyIdenticalToItself.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/argumentsBindsToFunctionScopeArgumentList.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/argumentsReferenceInConstructor4_Js.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/argumentsReferenceInMethod4_Js.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/argumentsReferenceInObjectLiteral_Js.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/arrayConcatMap.ts
@@ -134,8 +132,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleWithD
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleWithDuplicateMember2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleWithPriorInstantiatedModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/collisionArgumentsArrowFunctions.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/collisionArgumentsClassConstructor.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/collisionArgumentsClassMethod.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/collisionArgumentsFunction.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/collisionArgumentsFunctionExpressions.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/collisionArgumentsInType.ts
@@ -182,8 +178,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorO
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorStaticParamName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorStaticParamNameErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorsWithSpecializedSignatures.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypeForInitalizedVariablesFiltersUndefined.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTyping.ts
@@ -554,10 +548,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsExportMemb
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationAbstractModifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationBindDeepExportsAssignment.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationBindDuplicateIdentifier.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationBindErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationBindReachabilityErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::a.js
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::b.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::c.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::d.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationDuplicateFunctionImplementation.ts::a.ts
@@ -588,7 +579,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/lastProperty
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letAndVarRedeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letAsIdentifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letAsIdentifier2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letAsIdentifierInStrictMode.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates2.ts::file1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates2.ts::file2.ts
@@ -847,9 +837,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticPropSu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticVisibility.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/statics.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeInConstructor.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWord.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWord2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWordInClassDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWordInDestructuring.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWordInImportEqualDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWordInModuleDeclaration.ts
@@ -928,7 +915,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unreachableD
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/useBeforeDeclaration_classDecorators.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varAndFunctionShareName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varNameConflictsWithImportInDifferentPartOfModule.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/variableDeclarationInStrictMode1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/variableDeclaratorResolvedDuringContextualTyping.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varianceReferences.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/voidAsNonAmbiguousReturnType.ts::voidAsNonAmbiguousReturnType_0.ts
@@ -1128,8 +1114,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrow
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments11_ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments13.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments13_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments14.ts
@@ -1142,7 +1126,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrow
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments17_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments18.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments19.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing6.ts
@@ -1504,7 +1487,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interface
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface02.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface03.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface04.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface05.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/interfacesExtendingClasses/implementingAnInterfaceExtendingClassWithPrivates2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/internalModules/DeclarationMerging/ClassAndModuleThatMergeWithModulesExportedGenericFunctionAndGenericClassStaticFunctionOfTheSameName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/internalModules/DeclarationMerging/ClassAndModuleThatMergeWithModulesExportedGenericFunctionAndNonGenericClassStaticFunctionOfTheSameName.ts
@@ -1756,7 +1738,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::yieldInParameterInitializerIsError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::yieldIsOk.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::yieldMethodNameIsOk.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::yieldParameterIsError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::yieldStarWithValueIsOk.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::yieldWithValueIsOk.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.functionDeclarations.es2018.ts::awaitAsTypeIsOk.ts
@@ -1887,8 +1868,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509618.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser642331.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser642331_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakTarget5.ts
@@ -1935,10 +1914,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/octalLiteralInStrictModeES3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode10.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode11.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode12.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode13.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode15.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode16.ts
@@ -1958,7 +1933,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Symbols/parserES5SymbolProperty4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Symbols/parserES5SymbolProperty5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parser10.1.1-8gs.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserNoASIOnCallAfterFunctionExpression1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource13.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource14.ts
@@ -2006,7 +1980,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/pla
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/plainJSGrammarErrors4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/plainJSRedeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/plainJSRedeclare2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/plainJSReservedStrict.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/prototypePropertyAssignmentMergeAcrossFiles2.ts::other.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/prototypePropertyAssignmentMergeAcrossFiles2.ts::prototypePropertyAssignmentMergeAcrossFiles2.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/requireOfESWithPropertyAccess.ts::ch.js
@@ -2019,7 +1992,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/typ
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/typeFromPrototypeAssignment.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/typeFromPrototypeAssignment2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/scanner/ecmascript3/scannerES3NumericLiteral2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/scanner/ecmascript5/scanner10.1.1-8gs.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/scanner/ecmascript5/scannerClass2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/scanner/ecmascript5/scannerNumericLiteral2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/scanner/ecmascript5/scannerNumericLiteral8.ts
@@ -2149,6 +2121,8 @@ typescript/tests/cases/compiler/ambientStatement1.ts:4:22: Initializers are not 
 typescript/tests/cases/compiler/ambientWithStatements.ts:11:11: 'return' outside of function
 typescript/tests/cases/compiler/ambiguousGenericAssertion1.ts:4:10: Expected initializer expression after '='
 typescript/tests/cases/compiler/anonymousModules.ts:1:8: Expected semicolon
+typescript/tests/cases/compiler/argumentsReferenceInConstructor4_Js.ts:18:9: 'arguments' cannot be used as a binding name in strict mode
+typescript/tests/cases/compiler/argumentsReferenceInMethod4_Js.ts:16:9: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/arraySigChecking.ts:11:28: An index signature must have a type annotation.
 typescript/tests/cases/compiler/arrowFunctionErrorSpan.ts:18:5: Line terminator not permitted before '=>'
 typescript/tests/cases/compiler/arrowFunctionMissingCurlyWithSemicolon.ts:2:15: Unexpected token
@@ -2180,6 +2154,8 @@ typescript/tests/cases/compiler/classMemberWithMissingIdentifier.ts:2:12: Expect
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier2.ts:2:12: Expected method or property name
 typescript/tests/cases/compiler/classUpdateTests.ts:93:10: Expected semicolon
 typescript/tests/cases/compiler/classWithEmptyTypeParameter.ts:1:9: Type parameter list cannot be empty
+typescript/tests/cases/compiler/collisionArgumentsClassConstructor.ts:3:31: 'arguments' cannot be used as a binding name in strict mode
+typescript/tests/cases/compiler/collisionArgumentsClassMethod.ts:2:30: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/commonJsExportTypeDeclarationError.ts::./types1.ts:3:1: Expected =, got EOF
 typescript/tests/cases/compiler/commonMissingSemicolons.ts:2:7: Expected semicolon
 typescript/tests/cases/compiler/complicatedPrivacy.ts:11:24: Getter must not have any formal parameters
@@ -2195,12 +2171,14 @@ typescript/tests/cases/compiler/constDeclarations-invalidContexts.ts:4:1: Lexica
 typescript/tests/cases/compiler/constDeclarations-scopes.ts:44:5: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/constDeclarations-validContexts.ts:32:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/constInClassExpression.ts:2:11: Expected (, got identifier
-typescript/tests/cases/compiler/constructorArgsErrors1.ts:2:25: Expected ), got identifier
-typescript/tests/cases/compiler/constructorArgsErrors2.ts:2:32: Expected ), got identifier
+typescript/tests/cases/compiler/constructorArgsErrors1.ts:2:18: 'static' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/constructorArgsErrors2.ts:2:25: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorArgsErrors3.ts:2:25: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors5.ts:2:18: 'export' is a reserved word and cannot be used as a binding name
 typescript/tests/cases/compiler/constructorOverloads6.ts:4:25: An implementation cannot be declared in ambient contexts
+typescript/tests/cases/compiler/constructorStaticParamName.ts:4:18: 'static' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/constructorStaticParamNameErrors.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorWithIncompleteTypeAnnotation.ts:11:13: 'module(...)' in import-equals is not supported; use 'require(...)' instead
 typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_1.ts:3:1: Missing initializer in 'const' declaration
 typescript/tests/cases/compiler/convertKeywordsYes.ts:175:29: Class field cannot be named 'constructor'
@@ -2320,7 +2298,10 @@ typescript/tests/cases/compiler/invalidUnicodeEscapeSequance2.ts:1:5: Expected b
 typescript/tests/cases/compiler/invalidUnicodeEscapeSequance3.ts:1:1: Unexpected token 'a\'
 typescript/tests/cases/compiler/invalidUnicodeEscapeSequance4.ts:2:5: Expected binding pattern
 typescript/tests/cases/compiler/jsFileCompilationAmbientVarDeclarationSyntax.ts:1:9: Expected semicolon
+typescript/tests/cases/compiler/jsFileCompilationBindErrors.ts:11:9: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/jsFileCompilationBindMultipleDefaultExports.ts:3:16: 'export default' cannot be followed by a variable declaration
+typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::a.js:7:5: 'let' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/jsFileCompilationBindStrictModeErrors.ts::b.js:3:7: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/jsFileCompilationConstructorOverloadSyntax.ts:2:16: Expected {, got ;
 typescript/tests/cases/compiler/jsFileCompilationEnumSyntax.ts:1:1: 'enum' is a reserved word
 typescript/tests/cases/compiler/jsFileCompilationFunctionOverloadSyntax.ts:1:15: Expected {, got ;
@@ -2330,7 +2311,7 @@ typescript/tests/cases/compiler/jsFileCompilationInterfaceSyntax.ts:1:11: Expect
 typescript/tests/cases/compiler/jsFileCompilationMethodOverloadSyntax.ts:2:8: Expected {, got ;
 typescript/tests/cases/compiler/jsFileCompilationModuleSyntax.ts:1:11: Expected semicolon
 typescript/tests/cases/compiler/jsFileCompilationOptionalParameter.ts:1:13: Expected ), got ?
-typescript/tests/cases/compiler/jsFileCompilationPublicParameterModifier.ts:1:30: Expected ), got identifier
+typescript/tests/cases/compiler/jsFileCompilationPublicParameterModifier.ts:1:23: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/jsFileCompilationReturnTypeSyntaxOfFunction.ts:1:13: Expected {, got :
 typescript/tests/cases/compiler/jsFileCompilationTypeAliasSyntax.ts:1:6: Expected semicolon
 typescript/tests/cases/compiler/jsFileCompilationTypeAssertions.ts:2:27: Expected <, got EOF
@@ -2346,6 +2327,7 @@ typescript/tests/cases/compiler/jsxAttributeWithoutExpressionReact.tsx:4:35: JSX
 typescript/tests/cases/compiler/jsxIntrinsicElementsTypeArgumentErrors.tsx:5:16: Type argument list cannot be empty
 typescript/tests/cases/compiler/jsxNamespacePrefixInName.tsx:7:32: Expected >, got :
 typescript/tests/cases/compiler/jsxNamespacePrefixInNameReact.tsx:9:32: Expected >, got :
+typescript/tests/cases/compiler/letAsIdentifierInStrictMode.ts:2:5: 'let' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/letDeclarations-invalidContexts.ts:4:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/letDeclarations-scopes.ts:44:5: Lexical declaration cannot be a labeled item
 typescript/tests/cases/compiler/letDeclarations-validContexts.ts:32:1: Lexical declaration cannot be a labeled item
@@ -2439,7 +2421,7 @@ typescript/tests/cases/compiler/reservedWords2.ts:1:8: Expected import source or
 typescript/tests/cases/compiler/reservedWords3.ts:1:13: 'enum' is a reserved word and cannot be used as a binding identifier
 typescript/tests/cases/compiler/restArgMissingName.ts:1:18: Expected binding pattern
 typescript/tests/cases/compiler/restParamAsOptional.ts:1:16: Expected ), got ?
-typescript/tests/cases/compiler/restParamModifier.ts:2:27: Expected ), got identifier
+typescript/tests/cases/compiler/restParamModifier.ts:2:20: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/restParamModifier2.ts:2:41: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/restParameterNotLast.ts:1:16: A rest parameter must be last in a parameter list
 typescript/tests/cases/compiler/restParameterWithBindingPattern3.ts:3:23: Rest element must be last in array pattern
@@ -2455,6 +2437,9 @@ typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifi
 typescript/tests/cases/compiler/staticPrototypeProperty.ts:5:1: Classes may not have a static member named 'prototype'
 typescript/tests/cases/compiler/staticsInAFunction.ts:1:13: Expected (, got {
 typescript/tests/cases/compiler/staticsInConstructorBodies.ts:3:10: Expected semicolon
+typescript/tests/cases/compiler/strictModeReservedWord.ts:5:9: 'public' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/strictModeReservedWord2.ts:4:9: 'package' is a reserved identifier in strict mode
+typescript/tests/cases/compiler/strictModeReservedWordInClassDeclaration.ts:4:17: 'private' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/stringLiteralsErrors.ts:18:25: Expected semicolon
 typescript/tests/cases/compiler/superAccess2.ts:7:10: 'super' can only be used with function calls or in property accesses
 typescript/tests/cases/compiler/superErrors.ts:3:13: 'super' can only be used with function calls or in property accesses
@@ -2500,6 +2485,7 @@ typescript/tests/cases/compiler/validRegexp.ts:1:24: Expected semicolon
 typescript/tests/cases/compiler/varArgConstructorMemberParameter.ts:10:42: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/varArgWithNoParamName.ts:1:16: Expected binding pattern
 typescript/tests/cases/compiler/varBlock.ts:8:18: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/variableDeclarationInStrictMode1.ts:2:5: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/yieldStringLiteral.ts:2:5: 'yield' expression is only allowed in a generator body
 typescript/tests/cases/conformance/ambient/ambientErrors.ts:2:17: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath.ts:11:9: Expected declaration after 'declare'
@@ -2617,7 +2603,7 @@ typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertions.ts:6
 typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertionsWithObjectShortHand.ts:2:16: Expected }, got !
 typescript/tests/cases/conformance/decorators/class/accessor/decoratorOnClassAccessor3.ts:4:12: Expected method or property name
 typescript/tests/cases/conformance/decorators/class/accessor/decoratorOnClassAccessor6.ts:4:12: Expected method or property name
-typescript/tests/cases/conformance/decorators/class/constructor/parameter/decoratorOnClassConstructorParameter4.ts:4:24: Expected ), got @
+typescript/tests/cases/conformance/decorators/class/constructor/parameter/decoratorOnClassConstructorParameter4.ts:4:17: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/decorators/class/method/decoratorOnClassMethod17.ts:4:18: Expected (, got @
 typescript/tests/cases/conformance/decorators/class/method/decoratorOnClassMethod3.ts:4:12: Expected method or property name
 typescript/tests/cases/conformance/decorators/class/method/decoratorOnClassMethodOverload1.ts:6:5: A decorator can only decorate a method implementation, not an overload.
@@ -2661,9 +2647,12 @@ typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/ar
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-no-as.ts:1:22: String import names require 'as' binding
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-type-as.ts:1:18: Import binding name cannot be a string literal
 typescript/tests/cases/conformance/es6/arrowFunction/disallowLineTerminatorBeforeArrow.ts:2:5: Line terminator not permitted before '=>'
+typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12.ts:2:7: 'arguments' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12_ES6.ts:2:7: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/binaryIntegerLiteralError.ts:2:17: Expected semicolon
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/invalidBinaryIntegerLiteralAndOctalIntegerLiteral.ts:2:16: Expected semicolon
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/octalIntegerLiteralError.ts:2:19: Expected semicolon
+typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts:4:16: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES5.ts:9:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES6.ts:9:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames50_ES5.ts:11:10: Setter must have exactly one formal parameter
@@ -2864,6 +2853,7 @@ typescript/tests/cases/conformance/importDefer/importDeferTypeConflict1.ts::b.ts
 typescript/tests/cases/conformance/importDefer/importDeferTypeConflict2.ts::b.ts:1:14: Expected from, got identifier
 typescript/tests/cases/conformance/importDefer/importMetaPropertyInvalidInCall.ts:1:11: The only valid meta property for import is import.meta (got 'import.foo')
 typescript/tests/cases/conformance/importDefer/typeofImportDefer.ts::b.ts:1:30: Expected (, got .
+typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface05.ts:3:5: 'interface' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/interfaceExtendingOptionalChain.ts:5:25: Expected {, got ?.
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/interfaceThatInheritsFromItself.ts:10:15: Expected {, got identifier
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/interfaceWithAccessibilityModifiers.ts:3:5: 'public' modifier cannot appear on a type member.
@@ -2959,6 +2949,7 @@ typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.
 typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::awaitParameterIsError.ts:2:15: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::nestedFunctionDeclarationNamedAwaitIsError.ts:3:18: 'await' cannot be used as a function name in module / async context
 typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::nestedFunctionDeclarationNamedYieldIsError.ts:3:18: 'yield' cannot be used as a function name in generator context
+typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::yieldParameterIsError.ts:2:15: 'yield' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::yieldStarMissingValueIsError.ts:3:16: 'yield*' requires an operand
 typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.functionDeclarations.es2018.ts::awaitMissingValueIsError.ts:2:10: 'await' expression requires an operand
 typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.functionDeclarations.es2018.ts::awaitParameterIsError.ts:1:21: 'await' is reserved as a binding name in this context
@@ -3307,6 +3298,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser5667
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser579071.ts:1:10: Unterminated group in regular expression
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser585151.ts:2:7: Expected (, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser618973.ts:1:8: 'export' modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser642331.ts:2:18: 'static' is a reserved identifier in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser642331_1.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser645086_1.ts:1:13: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser645086_2.ts:1:14: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/RegularExpressions/parserRegularExpressionDivideAmbiguity3.ts:1:16: Invalid regular expression flag
@@ -3344,6 +3337,10 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatem
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserReturnStatement1.d.ts:1:7: 'return' outside of function
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserVariableStatement1.d.ts:1:9: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement2.ts:2:9: 'return' outside of function
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode10.ts:2:12: 'eval' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode11.ts:2:20: 'eval' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode12.ts:2:19: 'eval' cannot be used as a binding name in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/parserStrictMode13.ts:4:7: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression2.ts:3:5: 'super' can only be used with function calls or in property accesses
 typescript/tests/cases/conformance/parser/ecmascript5/TupleTypes/TupleType4.ts:1:9: Expected ], got EOF
 typescript/tests/cases/conformance/parser/ecmascript5/TupleTypes/TupleType6.ts:1:16: Expected tuple element type, got ','
@@ -3353,6 +3350,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parse
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration5.ts:1:7: Expected binding pattern
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration6.ts:1:4: Expected binding pattern
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration8.ts:1:5: Expected binding pattern
+typescript/tests/cases/conformance/parser/ecmascript5/parser10.1.1-8gs.ts:17:5: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/parserKeywordsAsIdentifierName2.ts:2:10: Unterminated block comment
 typescript/tests/cases/conformance/parser/ecmascript5/parserNotRegex1.ts:3:12: 'return' outside of function
 typescript/tests/cases/conformance/parser/ecmascript5/parserObjectCreationArrayLiteral1.ts:1:9: Expected expression after 'new'
@@ -3385,9 +3383,11 @@ typescript/tests/cases/conformance/salsa/constructorNameInGenerator.ts:2:17: Cla
 typescript/tests/cases/conformance/salsa/plainJSBinderErrors.ts:6:11: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/salsa/plainJSGrammarErrors.ts:3:9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 typescript/tests/cases/conformance/salsa/plainJSGrammarErrors3.ts::/a.js:2:5: await outside of async function
+typescript/tests/cases/conformance/salsa/plainJSReservedStrict.ts:2:7: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/scanner/ecmascript3/scannerES3NumericLiteral3.ts:1:5: Legacy octal / non-octal-decimal literal cannot contain a decimal point
 typescript/tests/cases/conformance/scanner/ecmascript3/scannerES3NumericLiteral4.ts:1:3: Missing exponent digits
 typescript/tests/cases/conformance/scanner/ecmascript3/scannerES3NumericLiteral6.ts:1:4: Missing exponent digits
+typescript/tests/cases/conformance/scanner/ecmascript5/scanner10.1.1-8gs.ts:17:5: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/scanner/ecmascript5/scannerNumericLiteral3.ts:1:5: Legacy octal / non-octal-decimal literal cannot contain a decimal point
 typescript/tests/cases/conformance/scanner/ecmascript5/scannerNumericLiteral4.ts:1:3: Missing exponent digits
 typescript/tests/cases/conformance/scanner/ecmascript5/scannerNumericLiteral6.ts:1:4: Missing exponent digits

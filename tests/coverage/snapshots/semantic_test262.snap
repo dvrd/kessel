@@ -897,13 +897,13 @@ test262/test/language/expressions/async-arrow-function/await-as-param-rest-neste
 test262/test/language/expressions/async-arrow-function/dflt-params-duplicates.js:50:2: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/async-arrow-function/dflt-params-rest.js:54:14: Expected ), got =
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-NSPL-with-USD.js:16:1: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/async-arrow-function/early-errors-arrow-arguments-in-formal-parameters.js:16:7: Arrow parameter 'arguments' is not allowed in strict mode
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-arguments-in-formal-parameters.js:16:7: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-await-in-formals-default.js:14:11: Top-level 'await' is only valid in module code
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-await-in-formals.js:14:7: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-call.js:15:17: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-property.js:15:17: 'super' is only allowed in class methods or object-literal methods
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-duplicate-parameters.js:35:1: Duplicate parameter name 'a' in strict mode
-test262/test/language/expressions/async-arrow-function/early-errors-arrow-eval-in-formal-parameters.js:16:7: Arrow parameter 'eval' is not allowed in strict mode
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-eval-in-formal-parameters.js:16:7: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js:15:17: Formal parameter 'bar' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-call.js:15:13: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-property.js:15:14: 'super' is only allowed in class methods or object-literal methods
@@ -923,7 +923,7 @@ test262/test/language/expressions/async-function/early-errors-expression-binding
 test262/test/language/expressions/async-function/early-errors-expression-binding-identifier-eval.js:16:17: Function name 'eval' is not allowed in strict mode
 test262/test/language/expressions/async-function/early-errors-expression-body-contains-super-call.js:15:29: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/async-function/early-errors-expression-body-contains-super-property.js:15:29: 'super' is only allowed in class methods or object-literal methods
-test262/test/language/expressions/async-function/early-errors-expression-eval-in-formal-parameters.js:16:22: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/expressions/async-function/early-errors-expression-eval-in-formal-parameters.js:16:22: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-function/early-errors-expression-formals-body-duplicate.js:15:29: Formal parameter 'bar' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-call.js:15:28: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/async-function/early-errors-expression-formals-contains-super-property.js:15:28: 'super' is only allowed in class methods or object-literal methods
@@ -981,13 +981,13 @@ test262/test/language/expressions/async-generator/dstr/named-dflt-ary-ptrn-rest-
 test262/test/language/expressions/async-generator/dstr/named-dflt-ary-ptrn-rest-not-final-id.js:33:28: Rest element must be last in array pattern
 test262/test/language/expressions/async-generator/dstr/named-dflt-ary-ptrn-rest-not-final-obj.js:33:32: Rest element must be last in array pattern
 test262/test/language/expressions/async-generator/early-errors-expression-NSPL-with-USD.js:18:2: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/async-generator/early-errors-expression-arguments-in-formal-parameters.js:18:18: Parameter name 'arguments' is not allowed in strict mode
+test262/test/language/expressions/async-generator/early-errors-expression-arguments-in-formal-parameters.js:18:18: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-await-as-function-binding-identifier.js:17:18: 'await' cannot be used as the name of an async function expression
 test262/test/language/expressions/async-generator/early-errors-expression-binding-identifier-arguments.js:19:18: Function name 'arguments' is not allowed in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-binding-identifier-eval.js:19:18: Function name 'eval' is not allowed in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-body-contains-super-call.js:17:22: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/async-generator/early-errors-expression-body-contains-super-property.js:17:22: 'super' is only allowed in class methods or object-literal methods
-test262/test/language/expressions/async-generator/early-errors-expression-eval-in-formal-parameters.js:18:18: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/expressions/async-generator/early-errors-expression-eval-in-formal-parameters.js:18:18: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/async-generator/early-errors-expression-formals-body-duplicate-const.js:21:23: Formal parameter 'a' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-generator/early-errors-expression-formals-body-duplicate-let.js:18:23: Formal parameter 'a' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-await-expr.js:17:22: 'await' expression is not allowed in formal parameters of an async function
@@ -2125,7 +2125,7 @@ test262/test/language/expressions/logical-assignment/lgcl-or-eval-strict.js:17:1
 test262/test/language/expressions/logical-assignment/lgcl-or-non-simple.js:17:8: Invalid left-hand side in assignment
 test262/test/language/expressions/new.target/escaped-new.js:24:5: Keyword 'new' must not contain escaped characters
 test262/test/language/expressions/new.target/escaped-target.js:24:8: Expected expression after 'new'
-test262/test/language/expressions/object/11.1.5-1gs.js:18:31: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/expressions/object/11.1.5-1gs.js:18:31: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/__proto__-duplicate.js:22:3: Redefinition of __proto__ property
 test262/test/language/expressions/object/cover-initialized-name.js:32:4: Invalid shorthand property initializer
 test262/test/language/expressions/object/dstr/async-gen-meth-ary-ptrn-rest-init-ary.js:38:27: Rest element must be last in array pattern
@@ -2215,13 +2215,13 @@ test262/test/language/expressions/object/method-definition/async-meth-rest-param
 test262/test/language/expressions/object/method-definition/async-meth-rest-params-trailing-comma-early-error.js:34:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters.js:27:12: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-NSPL-with-USD.js:16:6: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/early-errors-object-method-arguments-in-formal-parameters.js:17:14: Parameter name 'arguments' is not allowed in strict mode
+test262/test/language/expressions/object/method-definition/early-errors-object-method-arguments-in-formal-parameters.js:17:14: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-async-lineterminator.js:21:3: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals-default.js:16:18: Top-level 'await' is only valid in module code
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals.js:16:14: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/object/method-definition/early-errors-object-method-body-contains-super-call.js:16:18: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters.js:26:6: Duplicate parameter name 'a' in strict mode
-test262/test/language/expressions/object/method-definition/early-errors-object-method-eval-in-formal-parameters.js:17:13: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/expressions/object/method-definition/early-errors-object-method-eval-in-formal-parameters.js:17:13: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-body-duplicate.js:17:18: Generator/async shorthand property not allowed
 test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-contains-super-call.js:15:19: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/object/method-definition/escaped-get-e.js:24:12: Expected }, got identifier
@@ -2285,9 +2285,9 @@ test262/test/language/expressions/object/prop-def-invalid-star-prefix.js:21:8: G
 test262/test/language/expressions/object/setter-body-strict-inside.js:20:5: 'public' is a reserved identifier in strict mode
 test262/test/language/expressions/object/setter-body-strict-outside.js:18:5: 'public' is a reserved identifier in strict mode
 test262/test/language/expressions/object/setter-param-arguments-strict-inside.js:18:9: Parameter name 'arguments' is not allowed in strict mode
-test262/test/language/expressions/object/setter-param-arguments-strict-outside.js:18:9: Parameter name 'arguments' is not allowed in strict mode
+test262/test/language/expressions/object/setter-param-arguments-strict-outside.js:18:9: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/setter-param-eval-strict-inside.js:18:9: Parameter name 'eval' is not allowed in strict mode
-test262/test/language/expressions/object/setter-param-eval-strict-outside.js:18:9: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/expressions/object/setter-param-eval-strict-outside.js:18:9: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/optional-chaining/call-expression-super-no-base.js:21:5: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/optional-chaining/early-errors-tail-position-null-op-template-string-esi.js:25:4: Unexpected token after ?.
 test262/test/language/expressions/optional-chaining/early-errors-tail-position-null-op-template-string.js:22:8: Unexpected token after ?.
@@ -3087,7 +3087,7 @@ test262/test/language/statements/async-function/await-as-label-identifier.js:29:
 test262/test/language/statements/async-function/dflt-params-duplicates.js:36:1: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/async-function/dflt-params-rest.js:40:23: Expected ), got =
 test262/test/language/statements/async-function/early-errors-declaration-NSPL-with-USD.js:16:1: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/async-function/early-errors-declaration-arguments-in-formal-parameters.js:16:21: Parameter name 'arguments' is not allowed in strict mode
+test262/test/language/statements/async-function/early-errors-declaration-arguments-in-formal-parameters.js:16:21: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/async-function/early-errors-declaration-await-in-formals-default.js:14:30: 'await' expression requires an operand
 test262/test/language/statements/async-function/early-errors-declaration-await-in-formals.js:14:21: 'await' is reserved as a binding name in this context
 test262/test/language/statements/async-function/early-errors-declaration-binding-identifier-arguments.js:16:16: Function name 'arguments' is not allowed in strict mode
@@ -3095,7 +3095,7 @@ test262/test/language/statements/async-function/early-errors-declaration-binding
 test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-call.js:15:28: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/async-function/early-errors-declaration-body-contains-super-property.js:15:28: 'super' is only allowed in class methods or object-literal methods
 test262/test/language/statements/async-function/early-errors-declaration-duplicate-parameters.js:17:1: Duplicate parameter name 'a' in strict mode
-test262/test/language/statements/async-function/early-errors-declaration-eval-in-formal-parameters.js:16:21: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/statements/async-function/early-errors-declaration-eval-in-formal-parameters.js:16:21: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/async-function/early-errors-declaration-formals-body-duplicate.js:15:28: Formal parameter 'bar' cannot be redeclared with let/const in function body
 test262/test/language/statements/async-function/early-errors-declaration-formals-contains-super-call.js:15:27: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/async-function/early-errors-declaration-formals-contains-super-property.js:15:27: 'super' is only allowed in class methods or object-literal methods
@@ -3264,12 +3264,12 @@ test262/test/language/statements/class/class-name-ident-yield-escaped.js:27:7: K
 test262/test/language/statements/class/class-name-ident-yield.js:25:7: 'yield' is a reserved identifier and cannot be a class name
 test262/test/language/statements/class/definition/early-errors-class-async-method-duplicate-parameters.js:28:12: Duplicate parameter name 'a' in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-NSPL-with-USD.js:16:12: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/definition/early-errors-class-method-arguments-in-formal-parameters.js:15:14: Parameter name 'arguments' is not allowed in strict mode
+test262/test/language/statements/class/definition/early-errors-class-method-arguments-in-formal-parameters.js:15:14: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-await-in-formals-default.js:15:18: Top-level 'await' is only valid in module code
 test262/test/language/statements/class/definition/early-errors-class-method-await-in-formals.js:15:14: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/definition/early-errors-class-method-body-contains-super-call.js:15:18: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/definition/early-errors-class-method-duplicate-parameters.js:27:6: Duplicate parameter name 'a' in strict mode
-test262/test/language/statements/class/definition/early-errors-class-method-eval-in-formal-parameters.js:15:13: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/statements/class/definition/early-errors-class-method-eval-in-formal-parameters.js:15:13: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-formals-body-duplicate.js:17:18: Expected (, got identifier
 test262/test/language/statements/class/definition/early-errors-class-method-formals-contains-super-call.js:15:19: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/definition/methods-gen-yield-as-function-expression-binding-identifier.js:19:15: 'yield' is a reserved identifier in strict mode
@@ -4048,11 +4048,11 @@ test262/test/language/statements/for-in/labelled-fn-stmt-let.js:18:35: Function 
 test262/test/language/statements/for-in/labelled-fn-stmt-lhs.js:18:31: Function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-in/labelled-fn-stmt-var.js:18:35: Function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-in/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
-test262/test/language/statements/for-in/var-arguments-fn-strict-init.js:18:8: for-in loop variable declaration may not have an initializer
+test262/test/language/statements/for-in/var-arguments-fn-strict-init.js:18:12: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/for-in/var-arguments-fn-strict.js:18:12: 'arguments' cannot be used as a binding name in strict mode
-test262/test/language/statements/for-in/var-arguments-strict-init.js:17:6: for-in loop variable declaration may not have an initializer
+test262/test/language/statements/for-in/var-arguments-strict-init.js:17:10: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/for-in/var-arguments-strict.js:15:10: 'arguments' cannot be used as a binding name in strict mode
-test262/test/language/statements/for-in/var-eval-strict-init.js:15:6: for-in loop variable declaration may not have an initializer
+test262/test/language/statements/for-in/var-eval-strict-init.js:15:10: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/for-in/var-eval-strict.js:15:10: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/for-of/decl-async-fun.js:21:1: Async / generator function declaration cannot appear in a single-statement context
 test262/test/language/statements/for-of/decl-async-gen.js:21:1: Async / generator function declaration cannot appear in a single-statement context
@@ -4199,8 +4199,8 @@ test262/test/language/statements/for/labelled-fn-stmt-var.js:18:38: Function dec
 test262/test/language/statements/for/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/function/13.0_4-5gs.js:17:28: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/statements/function/13.1-13gs.js:17:10: Function name 'arguments' is not allowed in strict mode
-test262/test/language/statements/function/13.1-1gs.js:18:22: Parameter name 'eval' is not allowed in strict mode
-test262/test/language/statements/function/13.1-4gs.js:18:29: Parameter name 'arguments' is not allowed in strict mode
+test262/test/language/statements/function/13.1-1gs.js:18:22: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/statements/function/13.1-4gs.js:18:29: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/13.1-5gs.js:17:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/13.1-8gs.js:17:19: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/S13_A7_T3.js:15:19: Unexpected token '\'
@@ -4243,7 +4243,7 @@ test262/test/language/statements/function/name-eval-strict-body.js:18:10: Functi
 test262/test/language/statements/function/name-eval-strict.js:17:10: Function name 'eval' is not allowed in strict mode
 test262/test/language/statements/function/object-destructuring-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/function/param-arguments-strict-body.js:22:23: Parameter name 'arguments' is not allowed in strict mode
-test262/test/language/statements/function/param-arguments-strict.js:22:22: Parameter name 'arguments' is not allowed in strict mode
+test262/test/language/statements/function/param-arguments-strict.js:22:22: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/param-dflt-yield-strict.js:22:18: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/function/param-duplicated-strict-1.js:22:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-2.js:23:1: Duplicate parameter name 'param1' in strict mode
@@ -4252,7 +4252,7 @@ test262/test/language/statements/function/param-duplicated-strict-body-1.js:22:1
 test262/test/language/statements/function/param-duplicated-strict-body-2.js:23:1: Duplicate parameter name 'param1' in strict mode
 test262/test/language/statements/function/param-duplicated-strict-body-3.js:22:1: Duplicate parameter name 'param' in strict mode
 test262/test/language/statements/function/param-eval-strict-body.js:22:23: Parameter name 'eval' is not allowed in strict mode
-test262/test/language/statements/function/param-eval-strict.js:22:22: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/statements/function/param-eval-strict.js:22:22: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/rest-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/function/rest-params-trailing-comma-early-error.js:56:16: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/function/static-init-await-binding-invalid.js:24:14: 'await' cannot be used as a function name in module / async context
@@ -4463,8 +4463,8 @@ test262/test/language/statements/try/S12.14_A16_T6.js:21:1: Unexpected reserved 
 test262/test/language/statements/try/S12.14_A16_T7.js:21:7: Catch parameter is missing
 test262/test/language/statements/try/S12.14_A16_T8.js:21:7: Catch parameter is missing
 test262/test/language/statements/try/S12.14_A16_T9.js:18:1: Unexpected 'catch' or 'finally' without matching 'try'
-test262/test/language/statements/try/catch-parameter-boundnames-restriction-arguments-negative-early.js:16:16: Parameter name 'arguments' is not allowed in strict mode
-test262/test/language/statements/try/catch-parameter-boundnames-restriction-eval-negative-early.js:16:16: Parameter name 'eval' is not allowed in strict mode
+test262/test/language/statements/try/catch-parameter-boundnames-restriction-arguments-negative-early.js:16:16: 'arguments' cannot be used as a binding name in strict mode
+test262/test/language/statements/try/catch-parameter-boundnames-restriction-eval-negative-early.js:16:16: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/try/dstr/ary-ptrn-rest-init-ary.js:32:20: Rest element must be last in array pattern
 test262/test/language/statements/try/dstr/ary-ptrn-rest-init-id.js:32:16: Rest element must be last in array pattern
 test262/test/language/statements/try/dstr/ary-ptrn-rest-init-obj.js:32:20: Rest element must be last in array pattern

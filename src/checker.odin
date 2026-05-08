@@ -3044,6 +3044,16 @@ CkBindingFlavour :: enum {
 // reserved phrasing is shared. Mirrors parser.odin's split between
 // `report_strict_param_pattern` (Parameter flavour) and
 // `parse_binding_identifier`'s eval/arguments branch (Generic flavour).
+//
+// The parser-side parse_binding_pattern now also fires for plain
+// top-level Identifier bindings under p.strict_mode, so a parameter
+// like `function f(eval) {}` in an enclosing-strict context gets two
+// diagnostics (parser Generic + checker Parameter). Body-strict
+// promotion (`function f(eval) { "use strict"; }` in a sloppy outer)
+// only the checker fires — the parser hadn't yet seen the directive
+// when it parsed the binding identifier. Removing the checker leg
+// would break that case, so we keep both for now and accept the
+// duplicate diagnostic on the enclosing-strict path.
 @(private="file")
 ck_check_strict_binding_pattern :: proc(c: ^Checker, pat: Pattern, flavour: CkBindingFlavour) {
 	if pat == nil { return }
