@@ -1,14 +1,13 @@
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)
-Negative Passed: 3661/4588 (79.80%)
+Negative Passed: 3716/4588 (80.99%)
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/const-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/let-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/strict-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/var-arraybindingpattern-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/annexB/language/statements/for-in/var-objectbindingpattern-initializer.js
-Expect Syntax Error: tasks/coverage/test262/test/language/arguments-object/10.5-1gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/for-in/disallow-initialization-assignment.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindings-with-and-without-initializer.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/for-in/disallow-multiple-lexical-bindings-with-initializer.js
@@ -111,8 +110,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/red
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-function.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-generator.js
 Expect Syntax Error: tasks/coverage/test262/test/language/block-scope/syntax/redeclaration/var-redeclaration-attempt-after-let.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/14.1-4gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/directive-prologue/14.1-5gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/param-dflt-yield-id-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/static-init-await-binding.js
@@ -129,24 +126,15 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-func
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-elem-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-elem-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-elem-nested-obj-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-elem-target-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-elem-target-yield-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-rest-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-rest-nested-obj-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/array-rest-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-id-init-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-id-init-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-prop-elem-init-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-prop-nested-array-yield-ident-invalid.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/dstr/obj-prop-nested-obj-yield-ident-invalid.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/id-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignment/id-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/direct-identifierreference-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/direct-identifierreference-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/parenthesized-identifierreference-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/assignmenttargettype/parenthesized-identifierreference-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/await-as-param-nested-arrow-body-position.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-property.js
@@ -309,29 +297,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/meth
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-gen-method-param-dflt-yield.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-init-await-binding.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/class/static-method-param-dflt-yield.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/11.13.2-6-1gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/add-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/add-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/and-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/and-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/div-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/div-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/lshift-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/lshift-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/mod-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/mod-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/mult-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/mult-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/or-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/or-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/srshift-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/srshift-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/sub-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/sub-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/urshift-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/urshift-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/xor-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/compound-assignment/xor-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/delete/identifier-strict-recursive.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/delete/identifier-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/dynamic-import/import-attributes/2nd-param-yield-ident-invalid.js
@@ -353,12 +318,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-invalid-identifier-simple.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/private-field-rhs-yield-absent.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/in/rhs-yield-absent-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-and-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-and-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-nullish-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-nullish-eval-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-or-arguments-strict.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/logical-assignment/lgcl-or-eval-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/__proto__-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/getter-body-strict-inside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/getter-body-strict-outside.js
@@ -383,16 +342,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/met
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-body-strict-inside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/object/setter-body-strict-outside.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/optional-chaining/call-expression-super-no-base.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-decrement/arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-decrement/eval.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-increment/11.3.1-2-1gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-increment/arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/postfix-increment/eval.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-decrement/11.4.5-2-2gs.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-decrement/arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-decrement/eval.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-increment/arguments.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/prefix-increment/eval.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/export.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/import.js
 Expect Syntax Error: tasks/coverage/test262/test/language/global-code/invalid-private-names-call-expression-bad-reference.js
@@ -817,7 +766,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/labelle
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/labelled-fn-stmt-expr.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/labelled-fn-stmt-let.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/labelled-fn-stmt-var.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.0_4-5gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/13.1-13gs.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-body-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-body-super-prop.js
@@ -827,9 +775,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/ea
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-errors/invalid-names-member-expression-this.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-params-super-call.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/early-params-super-prop.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/enable-strict-via-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/enable-strict-via-outer-body.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/enable-strict-via-outer-script.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-arguments-strict-body.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-arguments-strict.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/function/name-eval-strict-body.js
@@ -1122,6 +1067,7 @@ test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-
 test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-27.js:19:4: Invalid reserved double punctuator in v-mode character class
 test262/test/built-ins/RegExp/prototype/unicodeSets/breaking-change-from-u-to-v-28.js:19:4: Invalid reserved double punctuator in v-mode character class
 test262/test/built-ins/RegExp/prototype/unicodeSets/uv-flags.js:17:4: Regular expression flags 'u' and 'v' are mutually exclusive
+test262/test/language/arguments-object/10.5-1gs.js:17:5: Assignment to 'arguments' is not allowed in strict mode
 test262/test/language/asi/S7.9.2_A1_T1.js:16:5: Expected semicolon
 test262/test/language/asi/S7.9.2_A1_T3.js:17:1: Expected ;, got )
 test262/test/language/asi/S7.9.2_A1_T6.js:20:1: Unexpected reserved word 'else'
@@ -1185,6 +1131,8 @@ test262/test/language/comments/single-line-html-close-without-lt.js:23:4: Unexpe
 test262/test/language/directive-prologue/10.1.1-2gs.js:17:5: 'public' is a reserved identifier in strict mode
 test262/test/language/directive-prologue/10.1.1-5gs.js:17:5: 'public' is a reserved identifier in strict mode
 test262/test/language/directive-prologue/10.1.1-8gs.js:18:5: 'public' is a reserved identifier in strict mode
+test262/test/language/directive-prologue/14.1-4gs.js:17:1: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/directive-prologue/14.1-5gs.js:19:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/directive-prologue/func-decl-inside-func-decl-parse.js:22:9: 'static' is a reserved identifier in strict mode
 test262/test/language/directive-prologue/func-decl-no-semi-parse.js:20:7: 'static' is a reserved identifier in strict mode
 test262/test/language/directive-prologue/func-decl-parse.js:20:7: 'static' is a reserved identifier in strict mode
@@ -1278,6 +1226,7 @@ test262/test/language/expressions/assignment/dstr/array-elem-nested-array-invali
 test262/test/language/expressions/assignment/dstr/array-elem-nested-memberexpr-optchain-prop-ref-init.js:56:14: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/array-elem-nested-obj-invalid.js:23:27: Invalid destructuring assignment target
 test262/test/language/expressions/assignment/dstr/array-elem-put-obj-literal-optchain-prop-ref-init.js:59:10: Invalid left-hand side in assignment
+test262/test/language/expressions/assignment/dstr/array-elem-target-simple-strict.js:23:5: Assignment to 'arguments' is not allowed in strict mode
 test262/test/language/expressions/assignment/dstr/array-rest-before-element.js:23:18: Rest element must be last in array pattern
 test262/test/language/expressions/assignment/dstr/array-rest-before-elision.js:23:16: Rest element may not have a trailing comma
 test262/test/language/expressions/assignment/dstr/array-rest-before-rest.js:23:21: Rest element must be last in array pattern
@@ -1287,6 +1236,8 @@ test262/test/language/expressions/assignment/dstr/array-rest-nested-array-invali
 test262/test/language/expressions/assignment/dstr/array-rest-nested-obj-invalid.js:23:30: Invalid destructuring assignment target
 test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js:24:12: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid.js:23:12: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/assignment/dstr/obj-id-init-simple-strict.js:23:6: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js:23:6: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-memberexpr-optchain-prop-ref-init.js:56:19: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/obj-prop-elem-target-obj-literal-optchain-prop-ref-init.js:59:10: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/dstr/obj-prop-nested-array-invalid.js:23:31: Invalid destructuring assignment target
@@ -1337,6 +1288,8 @@ test262/test/language/expressions/assignment/dstr/syntax-error-ident-ref-var-esc
 test262/test/language/expressions/assignment/dstr/syntax-error-ident-ref-void-escaped.js:40:21: Keyword 'void' must not contain escaped characters
 test262/test/language/expressions/assignment/dstr/syntax-error-ident-ref-while-escaped.js:40:22: Keyword 'while' must not contain escaped characters
 test262/test/language/expressions/assignment/dstr/syntax-error-ident-ref-with-escaped.js:40:21: Keyword 'with' must not contain escaped characters
+test262/test/language/expressions/assignment/id-arguments-strict.js:16:2: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/assignment/id-eval-strict.js:16:2: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/assignment/non-simple-target.js:18:6: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/target-assignment-inside-function.js:22:11: Invalid left-hand side in assignment
 test262/test/language/expressions/assignment/target-assignment.js:21:9: Invalid left-hand side in assignment
@@ -1402,6 +1355,8 @@ test262/test/language/expressions/assignmenttargettype/direct-equalityexpression
 test262/test/language/expressions/assignmenttargettype/direct-expression-comma-assignmentexpression-0.js:20:12: Invalid left-hand side in assignment
 test262/test/language/expressions/assignmenttargettype/direct-expression-comma-assignmentexpression-1.js:20:12: Invalid left-hand side in assignment
 test262/test/language/expressions/assignmenttargettype/direct-expression-comma-assignmentexpression-2.js:20:15: Invalid left-hand side in assignment
+test262/test/language/expressions/assignmenttargettype/direct-identifierreference-arguments-strict.js:16:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/assignmenttargettype/direct-identifierreference-eval-strict.js:16:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/assignmenttargettype/direct-import.meta.js:20:13: 'import.meta' is only valid in module code
 test262/test/language/expressions/assignmenttargettype/direct-importcall-defer.js:21:14: 'import()' requires a specifier
 test262/test/language/expressions/assignmenttargettype/direct-importcall-source.js:21:15: 'import()' requires a specifier
@@ -1556,6 +1511,8 @@ test262/test/language/expressions/assignmenttargettype/parenthesized-equalityexp
 test262/test/language/expressions/assignmenttargettype/parenthesized-expression-comma-assignmentexpression-0.js:23:14: Invalid left-hand side in assignment
 test262/test/language/expressions/assignmenttargettype/parenthesized-expression-comma-assignmentexpression-1.js:23:14: Invalid left-hand side in assignment
 test262/test/language/expressions/assignmenttargettype/parenthesized-expression-comma-assignmentexpression-2.js:23:17: Invalid left-hand side in assignment
+test262/test/language/expressions/assignmenttargettype/parenthesized-identifierreference-arguments-strict.js:19:2: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/assignmenttargettype/parenthesized-identifierreference-eval-strict.js:19:2: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/assignmenttargettype/parenthesized-import.meta.js:23:13: 'import.meta' is only valid in module code
 test262/test/language/expressions/assignmenttargettype/parenthesized-importcall-defer.js:24:15: 'import()' requires a specifier
 test262/test/language/expressions/assignmenttargettype/parenthesized-importcall-source.js:24:16: 'import()' requires a specifier
@@ -2266,17 +2223,40 @@ test262/test/language/expressions/coalesce/cannot-chain-head-with-logical-and.js
 test262/test/language/expressions/coalesce/cannot-chain-head-with-logical-or.js:31:15: '&&' and '||' operators cannot be directly combined with '??' operator without parentheses
 test262/test/language/expressions/coalesce/cannot-chain-tail-with-logical-and.js:32:15: Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses
 test262/test/language/expressions/coalesce/cannot-chain-tail-with-logical-or.js:32:15: '&&' and '||' operators cannot be directly combined with '??' operator without parentheses
+test262/test/language/expressions/compound-assignment/11.13.2-6-1gs.js:17:1: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/add-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/add-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/compound-assignment/add-non-simple.js:17:7: Invalid left-hand side in assignment
+test262/test/language/expressions/compound-assignment/and-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/and-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/compound-assignment/btws-and-non-simple.js:17:7: Invalid left-hand side in assignment
 test262/test/language/expressions/compound-assignment/btws-or-non-simple.js:17:7: Invalid left-hand side in assignment
 test262/test/language/expressions/compound-assignment/btws-xor-non-simple.js:17:7: Invalid left-hand side in assignment
+test262/test/language/expressions/compound-assignment/div-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/div-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/compound-assignment/div-non-simple.js:17:7: Invalid left-hand side in assignment
 test262/test/language/expressions/compound-assignment/left-shift-non-simple.js:17:8: Invalid left-hand side in assignment
+test262/test/language/expressions/compound-assignment/lshift-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/lshift-eval-strict.js:19:1: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/mod-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
 test262/test/language/expressions/compound-assignment/mod-div-non-simple.js:17:7: Invalid left-hand side in assignment
+test262/test/language/expressions/compound-assignment/mod-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/mult-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/mult-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/compound-assignment/mult-non-simple.js:17:7: Invalid left-hand side in assignment
+test262/test/language/expressions/compound-assignment/or-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/or-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/compound-assignment/right-shift-non-simple.js:17:8: Invalid left-hand side in assignment
+test262/test/language/expressions/compound-assignment/srshift-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/srshift-eval-strict.js:19:1: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/sub-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/sub-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/compound-assignment/subtract-non-simple.js:17:7: Invalid left-hand side in assignment
 test262/test/language/expressions/compound-assignment/u-right-shift-non-simple.js:17:9: Invalid left-hand side in assignment
+test262/test/language/expressions/compound-assignment/urshift-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/urshift-eval-strict.js:19:1: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/xor-arguments-strict.js:19:1: Assignment to 'arguments' is not allowed in strict mode
+test262/test/language/expressions/compound-assignment/xor-eval-strict.js:18:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/conditional/in-branch-2.js:22:22: Invalid left-hand side in for-in loop
 test262/test/language/expressions/conditional/in-condition.js:22:12: Invalid left-hand side in for-in loop
 test262/test/language/expressions/dynamic-import/escape-sequence-import.js:35:1: Keyword 'import' must not contain escaped characters
@@ -2681,11 +2661,17 @@ test262/test/language/expressions/in/private-field-in.js:24:10: Private identifi
 test262/test/language/expressions/in/private-field-invalid-assignment-reference.js:23:10: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 test262/test/language/expressions/in/private-field-invalid-assignment-target.js:29:21: Invalid left-hand side in assignment
 test262/test/language/expressions/in/private-field-invalid-rhs.js:24:23: Invalid expression for arrow function parameters
+test262/test/language/expressions/logical-assignment/lgcl-and-arguments-strict.js:18:1: Assignment to 'arguments' is not allowed in strict mode
 test262/test/language/expressions/logical-assignment/lgcl-and-assignment-operator-non-simple-lhs.js:19:13: Invalid left-hand side in assignment
+test262/test/language/expressions/logical-assignment/lgcl-and-eval-strict.js:17:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/logical-assignment/lgcl-and-non-simple.js:17:8: Invalid left-hand side in assignment
+test262/test/language/expressions/logical-assignment/lgcl-nullish-arguments-strict.js:18:1: Assignment to 'arguments' is not allowed in strict mode
 test262/test/language/expressions/logical-assignment/lgcl-nullish-assignment-operator-non-simple-lhs.js:19:13: Invalid left-hand side in assignment
+test262/test/language/expressions/logical-assignment/lgcl-nullish-eval-strict.js:17:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/logical-assignment/lgcl-nullish-non-simple.js:17:8: Invalid left-hand side in assignment
+test262/test/language/expressions/logical-assignment/lgcl-or-arguments-strict.js:18:1: Assignment to 'arguments' is not allowed in strict mode
 test262/test/language/expressions/logical-assignment/lgcl-or-assignment-operator-non-simple-lhs.js:19:13: Invalid left-hand side in assignment
+test262/test/language/expressions/logical-assignment/lgcl-or-eval-strict.js:17:1: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/expressions/logical-assignment/lgcl-or-non-simple.js:17:8: Invalid left-hand side in assignment
 test262/test/language/expressions/new.target/escaped-new.js:24:5: Keyword 'new' must not contain escaped characters
 test262/test/language/expressions/new.target/escaped-target.js:24:8: Expected expression after 'new'
@@ -2840,6 +2826,8 @@ test262/test/language/expressions/optional-chaining/early-errors-tail-position-o
 test262/test/language/expressions/optional-chaining/static-semantics-simple-assignment.js:23:12: Invalid left-hand side in assignment
 test262/test/language/expressions/optional-chaining/update-expression-postfix.js:23:7: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/optional-chaining/update-expression-prefix.js:23:7: Invalid left-hand side expression in prefix operation
+test262/test/language/expressions/postfix-decrement/arguments.js:26:1: Update of 'arguments' is not allowed in strict mode
+test262/test/language/expressions/postfix-decrement/eval.js:26:1: Update of 'eval' is not allowed in strict mode
 test262/test/language/expressions/postfix-decrement/line-terminator-carriage-return.js:17:3: Unexpected token after prefix '--'
 test262/test/language/expressions/postfix-decrement/line-terminator-line-feed.js:17:3: Unexpected token after prefix '--'
 test262/test/language/expressions/postfix-decrement/line-terminator-line-separator.js:16:7: Unexpected token after prefix '--'
@@ -2848,6 +2836,9 @@ test262/test/language/expressions/postfix-decrement/target-cover-newtarget.js:30
 test262/test/language/expressions/postfix-decrement/target-cover-yieldexpr.js:33:12: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/postfix-decrement/target-newtarget.js:30:15: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/postfix-decrement/this.js:27:7: Invalid left-hand side expression in postfix operation
+test262/test/language/expressions/postfix-increment/11.3.1-2-1gs.js:17:1: Update of 'arguments' is not allowed in strict mode
+test262/test/language/expressions/postfix-increment/arguments.js:22:1: Update of 'arguments' is not allowed in strict mode
+test262/test/language/expressions/postfix-increment/eval.js:22:1: Update of 'eval' is not allowed in strict mode
 test262/test/language/expressions/postfix-increment/line-terminator-carriage-return.js:17:3: Unexpected token after prefix '++'
 test262/test/language/expressions/postfix-increment/line-terminator-line-feed.js:17:3: Unexpected token after prefix '++'
 test262/test/language/expressions/postfix-increment/line-terminator-line-separator.js:16:7: Unexpected token after prefix '++'
@@ -2856,10 +2847,15 @@ test262/test/language/expressions/postfix-increment/target-cover-newtarget.js:30
 test262/test/language/expressions/postfix-increment/target-cover-yieldexpr.js:33:12: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/postfix-increment/target-newtarget.js:30:15: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/postfix-increment/this.js:27:7: Invalid left-hand side expression in postfix operation
+test262/test/language/expressions/prefix-decrement/11.4.5-2-2gs.js:17:3: Update of 'arguments' is not allowed in strict mode
+test262/test/language/expressions/prefix-decrement/arguments.js:26:3: Update of 'arguments' is not allowed in strict mode
+test262/test/language/expressions/prefix-decrement/eval.js:26:3: Update of 'eval' is not allowed in strict mode
 test262/test/language/expressions/prefix-decrement/target-cover-newtarget.js:30:17: Invalid left-hand side expression in prefix operation
 test262/test/language/expressions/prefix-decrement/target-cover-yieldexpr.js:33:12: Invalid left-hand side expression in prefix operation
 test262/test/language/expressions/prefix-decrement/target-newtarget.js:30:15: Invalid left-hand side expression in prefix operation
 test262/test/language/expressions/prefix-decrement/this.js:27:7: Invalid left-hand side expression in prefix operation
+test262/test/language/expressions/prefix-increment/arguments.js:26:3: Update of 'arguments' is not allowed in strict mode
+test262/test/language/expressions/prefix-increment/eval.js:27:3: Update of 'eval' is not allowed in strict mode
 test262/test/language/expressions/prefix-increment/target-cover-newtarget.js:30:17: Invalid left-hand side expression in prefix operation
 test262/test/language/expressions/prefix-increment/target-cover-yieldexpr.js:33:12: Invalid left-hand side expression in prefix operation
 test262/test/language/expressions/prefix-increment/target-newtarget.js:30:15: Invalid left-hand side expression in prefix operation
@@ -4303,6 +4299,7 @@ test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-ary.js:45:
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-id.js:45:15: Rest element must be last in array pattern
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-obj.js:45:19: Rest element must be last in array pattern
 test262/test/language/statements/for/let-array-with-newline.js:22:1: Lexical declaration cannot appear in a single-statement context
+test262/test/language/statements/function/13.0_4-5gs.js:17:28: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/statements/function/13.1-1gs.js:18:22: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/13.1-4gs.js:18:29: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/13.1-5gs.js:17:1: Duplicate parameter name 'param' in strict mode
@@ -4323,6 +4320,9 @@ test262/test/language/statements/function/dstr/dflt-ary-ptrn-rest-init-obj.js:53
 test262/test/language/statements/function/dstr/dflt-ary-ptrn-rest-not-final-ary.js:53:19: Rest element must be last in array pattern
 test262/test/language/statements/function/dstr/dflt-ary-ptrn-rest-not-final-id.js:53:17: Rest element must be last in array pattern
 test262/test/language/statements/function/dstr/dflt-ary-ptrn-rest-not-final-obj.js:53:21: Rest element must be last in array pattern
+test262/test/language/statements/function/enable-strict-via-body.js:24:9: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/statements/function/enable-strict-via-outer-body.js:24:9: Assignment to 'eval' is not allowed in strict mode
+test262/test/language/statements/function/enable-strict-via-outer-script.js:23:9: Assignment to 'eval' is not allowed in strict mode
 test262/test/language/statements/function/invalid-2-names.js:16:11: Expected (, got ,
 test262/test/language/statements/function/invalid-3-names.js:16:11: Expected (, got ,
 test262/test/language/statements/function/invalid-function-body-1.js:18:1: Expected '}' at end of function body

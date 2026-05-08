@@ -5841,6 +5841,48 @@ arrow_body_lifts_strict :: proc(body: ArrowFunctionBody) -> bool {
 	return str.value == "use strict"
 }
 
+// report_strict_eval_arguments_in_target — §13.15.1 — walk an
+// assignment LHS expression and emit a diagnostic for every Identifier
+// position naming `eval` or `arguments` while p.strict_mode is true.
+// Recurses through ParenthesizedExpression / ArrayExpression /
+// ObjectExpression / SpreadElement / nested AssignmentExpression
+// default-init so destructuring forms are covered:
+//   `[eval] = []`, `({x: arguments} = {})`, `[...eval] = []`,
+//   `[a = (eval = 1)] = []`.
+// Mirrors ck_check_strict_eval_arguments_in_target.
+report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^Identifier:
+		if e == nil { return }
+		if is_eval_or_arguments(e.name) {
+			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
+			report_error_at(p, LexerLoc(e.loc.span.start), msg)
+		}
+	case ^ParenthesizedExpression:
+		if e != nil { report_strict_eval_arguments_in_target(p, e.expression) }
+	case ^ArrayExpression:
+		if e == nil { return }
+		for elem in e.elements {
+			if inner, ok := elem.(^Expression); ok && inner != nil {
+				report_strict_eval_arguments_in_target(p, inner)
+			}
+		}
+	case ^ObjectExpression:
+		if e == nil { return }
+		for prop in e.properties {
+			report_strict_eval_arguments_in_target(p, prop.value)
+		}
+	case ^SpreadElement:
+		if e != nil { report_strict_eval_arguments_in_target(p, e.argument) }
+	case ^AssignmentExpression:
+		if e == nil { return }
+		if e.operator == .Assign {
+			report_strict_eval_arguments_in_target(p, e.left)
+		}
+	}
+}
+
 // is_strict_reserved_binding_name — unified predicate for the names
 // kessel rejects as a BindingIdentifier in strict mode. Combines:
 //   * §13.1.1 — "eval" / "arguments"
@@ -10104,6 +10146,16 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if !is_simple_assignment_target(argument, !p.strict_mode) {
 			report_error(p, "Invalid left-hand side expression in prefix operation")
 		}
+		// §13.4.4 — in strict mode `++` / `--` may not target an
+		// IdentifierReference whose name is `eval` or `arguments`.
+		// Promoted from the semantic checker
+		// (ck_check_strict_update_eval_arguments).
+		if p.strict_mode {
+			if id, is_id := argument.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
+				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
+				report_error_at(p, LexerLoc(id.loc.span.start), msg)
+			}
+		}
 		return expression_from(p, update)
 
 	case .Await:
@@ -10346,6 +10398,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.loc.span.end = prev_end_offset(p)
 		if !is_simple_assignment_target(expr, !p.strict_mode) {
 			report_error(p, "Invalid left-hand side expression in postfix operation")
+		}
+		// §13.4.4 — strict-mode `++` / `--` cannot target eval / arguments.
+		if p.strict_mode {
+			if id, is_id := expr.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
+				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
+				report_error_at(p, LexerLoc(id.loc.span.start), msg)
+			}
 		}
 		return expression_from(p, update)
 	}
@@ -14120,12 +14179,14 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 		report_error(p, "Invalid left-hand side in assignment expression")
 	}
 
-	// ECMA-262 §13.15.1 - in strict mode it's a SyntaxError for the LHS
+	// ECMA-262 §13.15.1 — in strict mode it's a SyntaxError for the LHS
 	// of an AssignmentExpression to be an IdentifierReference whose name
 	// is `eval` or `arguments`. Applies at every target position inside a
 	// destructuring pattern too: `[eval] = []`, `({x: arguments} = {})`,
-	// and `[...eval] = []` are all SyntaxErrors.
+	// and `[...eval] = []` are all SyntaxErrors. Promoted from the
+	// semantic checker (ck_check_strict_eval_arguments_in_target).
 	if p.strict_mode {
+		report_strict_eval_arguments_in_target(p, left)
 	}
 
 	assign := new_node(p, AssignmentExpression)
