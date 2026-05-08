@@ -164,7 +164,7 @@ babel/packages/babel-parser/test/fixtures/core/create-parenthesized-expressions/
 babel/packages/babel-parser/test/fixtures/core/create-parenthesized-expressions/invalid-pattern-in-rest-binding/input.js:2:1: Binding element cannot be parenthesized
 babel/packages/babel-parser/test/fixtures/core/escape-keyword/invalid/input.js:3:1: Keyword 'break' must not contain escaped characters
 babel/packages/babel-parser/test/fixtures/core/escape-string/invalid-decimal-escape-strict-directive-function/input.js:2:3: Octal or \8 / \9 escape sequences are not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/escape-string/invalid-decimal-escape-strict-directive/input.js:1:1: Octal or \8 / \9 escape sequences are not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/core/escape-string/invalid-decimal-escape-strict-directive/input.js:8:1: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-directive/input.js:1:53: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/escape-template/non-octal-eight/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/core/escape-template/non-octal-nine/input.js:1:5: Invalid escape sequence in template literal

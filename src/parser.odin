@@ -4450,16 +4450,17 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		}
 	}
 
-	// §12.9.4 Annex B.1.2 / §12.9.4.1 - if the function body's prologue
+	// §12.9.4 Annex B.1.2 / §12.9.4.1 — if the function body's prologue
 	// contains a "use strict" directive, EVERY prologue StringLiteral
-	// Retroactive octal / \8 / \9 scan over directive-prologue strings:
-	// enforced by the semantic checker. ck_check_string_octal_escape
-	// runs against EVERY StringLiteral in strict scope, including the
-	// prologue strings (an ExpressionStatement.expression is still a
-	// StringLiteral the walker visits). When the body lifts strict via
-	// `"use strict"`, ck_walk_function sets ctx.strict_mode = true
-	// before walking body.body, so prologue strings PRECEDING the
-	// directive token still report correctly.
+	// (including those preceding the directive) is governed by strict
+	// rules: forbidden LegacyOctalEscapeSequence / \8 / \9.
+	if body_use_strict {
+		for str_lit in prologue_raws {
+			if str_lit != nil && string_raw_has_forbidden_escape(str_lit.raw) {
+				report_error_at(p, LexerLoc(str_lit.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			}
+		}
+	}
 
 	p.in_function = prev_in_function
 	p.in_non_arrow_function = prev_in_non_arrow
@@ -11436,12 +11437,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			str.value = val
 		}
 		str.loc.span.end = prev_end_offset(p)
-		// §12.9.4 octal / \8 / \9 escape in strict mode: enforced by
-		// the semantic checker (ck_check_string_octal_escape). Note this
-		// also covers the parser's old retroactive prologue scan: the
-		// checker walks every StringLiteral in the function body with
-		// strict_mode already lifted, so a bad escape in a directive
-		// prologue PRECEDING `"use strict"` fires correctly.
+		// §12.9.4 — LegacyOctalEscapeSequence and \8 / \9 are forbidden
+		// in StringLiterals when strict-mode is in effect. Eager check
+		// for already-strict scope. Body-promoted (retroactive) strict
+		// for prologue strings stays on the semantic checker.
+		if p.strict_mode && string_raw_has_forbidden_escape(str.raw) {
+			report_error_at(p, LexerLoc(str.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+		}
 		return str_e
 
 	case .BigInt:

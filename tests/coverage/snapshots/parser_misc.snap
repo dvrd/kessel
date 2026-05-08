@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 64/64 (100.00%)
 Positive Passed: 64/64 (100.00%)
-Negative Passed: 207/274 (75.55%)
+Negative Passed: 208/274 (75.91%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -11,7 +11,6 @@ Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_ex
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/012_octal_escape_string.js
 Expect Syntax Error: tests/coverage/misc/fail/escape-00.js
 Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
 Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
@@ -99,6 +98,7 @@ tests/coverage/misc/fail/early_errors/strict_mode/008_reserved_yield.js:2:5: 'yi
 tests/coverage/misc/fail/early_errors/strict_mode/009_duplicate_params_strict_nested.js:3:5: Duplicate parameter name 'a' in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/010_eval_arguments_assignment.js:2:1: Assignment to 'eval' is not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/011_with_statement.js:4:1: 'with' statements are not allowed in strict mode
+tests/coverage/misc/fail/early_errors/strict_mode/012_octal_escape_string.js:6:14: Octal or \8 / \9 escape sequences are not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/013_octal_escape_template.js:8:20: Invalid escape sequence in template literal
 tests/coverage/misc/fail/early_errors/strict_mode/014_update_eval_arguments.js:5:1: Update of 'eval' is not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/015_delete_identifier.js:6:1: Deleting an unqualified identifier is not allowed in strict mode
