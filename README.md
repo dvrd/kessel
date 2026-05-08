@@ -51,47 +51,53 @@ bin/kessel profile parse app.js
 ## Tests
 
 ```bash
-task test                     # Full gate chain (~20 tests)
-task test:unit                # 430 golden-output fixtures
+task test                     # Primary gate — coverage harness + unit fixtures (~12s)
+task test:coverage            # OXC-style conformance harness, 24 @(test) procs (~3s)
+task test:unit                # 291 positive-fixture golden-output gate
 task test:real                # 467 real-world JS files
-task test:negative            # Must-reject fixtures
-task test:estree              # ESTree shape conformance
-task test:test262             # 66 curated Test262 tests
-task test:oxc-corpus          # 25,140 fixture smoke gate
+task test:estree              # ESTree string-escape parity vs OXC
+task test:release             # Zero-tolerance pre-release chain
 task test:bench:regression    # Performance regression gate
+task test:conformance:report  # Print conformance summary (informational)
 ```
+
+The coverage harness classifies **62 261 fixtures** across 5 suites (test262, typescript, babel, estree, misc) × 2 tools (parser, semantic). Snap files at `tests/coverage/snapshots/` are the conformance proof. Run `task test:oxc-corpus:fetch` once to fetch the corpora before the first `task test`.
 
 ## Project Structure
 
 ```
 kessel/
-├── src/
-│   ├── main.odin            CLI dispatch + worker pool
-│   ├── parser.odin          Pratt parser (permissive)
-│   ├── emitter.odin         ESTree JSON emitter
-│   ├── lexer.odin           SIMD lexer
-│   ├── parse_job.odin       Source → parsed Program deep module
-│   ├── cli_config.odin      CliConfig + flag parser
-│   ├── ast.odin             ESTree AST struct/union definitions
-│   ├── checker.odin         Semantic checker — pass 3 (skeleton)
-│   ├── regex.odin           ES2025 §22.2.1 regex pattern validator
-│   ├── raw_transfer.odin    Zero-copy binary AST buffer
-│   ├── simd.odin            ARM64 NEON intrinsics
-│   ├── token.odin           TokenType enum, FastToken, LiteralValue
-│   ├── unicode_tables.odin  ID_Start / ID_Continue ranges
-│   ├── source_io.odin       Cross-platform source reader (mmap on POSIX)
-│   └── qos_darwin.odin      Apple Silicon P-core pinning
+├── src/                       ~40 100 LoC of Odin
+│   ├── main.odin              CLI dispatch + worker pool
+│   ├── parser.odin            Pratt parser (permissive, ~18.7K lines)
+│   ├── emitter.odin           ESTree JSON emitter
+│   ├── checker.odin           AST-walker semantic checker (pass 3)
+│   ├── lexer.odin             SIMD lexer
+│   ├── regex.odin             ES2025 §22.2.1 regex pattern validator
+│   ├── ast.odin               ESTree AST struct/union definitions
+│   ├── parse_job.odin         Source → parsed Program deep module
+│   ├── raw_transfer.odin      Zero-copy binary AST buffer
+│   ├── simd.odin              ARM64 NEON intrinsics
+│   ├── cli_config.odin        CliConfig + flag parser
+│   ├── token.odin             TokenType enum, FastToken, LiteralValue
+│   ├── unicode_tables.odin    ID_Start / ID_Continue ranges
+│   ├── source_io*.odin        Cross-platform source reader (mmap on POSIX)
+│   └── qos_darwin.odin        Apple Silicon P-core pinning
 ├── tests/
-│   ├── fixtures/             Hand-authored test fixtures by category
-│   ├── expected/             Golden JSON outputs
-│   ├── baselines/            Gate baselines (corpus, negative, bench)
-│   ├── runners/              Shell scripts (fetch corpora, run tests)
-│   ├── verifiers/            Node.js verifiers (one per gate)
-│   └── test262/              Curated Test262 subset
+│   ├── coverage/              OXC-style conformance harness (Odin)
+│   │   ├── src/                 Harness sources (~3 700 LoC)
+│   │   ├── snapshots/           Committed .snap golden files
+│   │   └── misc/                Regression museum + must-reject fixtures
+│   ├── fixtures/              Hand-authored positive (must-parse) fixtures
+│   ├── expected/              Golden JSON outputs for the unit gate
+│   ├── baselines/             Bench / fuzz baselines
+│   ├── runners/               Shell scripts (fetch corpora, run unit gate)
+│   ├── verifiers/             Node.js verifiers (deep JSON, fuzz, regression)
+│   └── vendor/                Vendored OXC corpora (gitignored)
 ├── bench/
-│   ├── real_world/           467 production JS files
-│   └── oxc_compare/          OXC microbench comparator (Rust)
-└── Taskfile.yml              All build/test/bench tasks
+│   ├── real_world/            467 production JS files
+│   └── oxc_compare/           OXC reference binary (Rust)
+└── Taskfile.yml               All build/test/bench tasks
 ```
 ## License
 
