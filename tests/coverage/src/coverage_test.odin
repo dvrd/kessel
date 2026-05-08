@@ -162,7 +162,7 @@ run_snap_test :: proc(t: ^testing.T, tool: Tool, suite: Suite) {
 		testing.expectf(t, false, "could not locate kessel project root (Taskfile.yml)")
 		return
 	}
-	vendor, _ := filepath.join({root, "vendor"}, context.allocator)
+	vendor, _ := filepath.join({root, "tests", "vendor"}, context.allocator)
 
 	run := run_one_suite(suite, tool, vendor, root, context.allocator)
 	actual := render_snap(run, context.allocator)

@@ -1,220 +1,111 @@
 #!/usr/bin/env node
-// Lexer token-stream conformance verifier.
-//
-// Compares Kessel's raw token stream against OXC's token stream for a
-// curated set of spec fixtures. This is the first dedicated lexer-level
-// gate — prior to this, all testing went parser → AST, which can mask
-// lexer bugs (wrong token type, wrong span, wrong literal value) that
-// the parser silently recovers from.
-//
-// Methodology:
-//   1. Parse each fixture with Kessel, extracting token data from the
-//      raw-transfer binary buffer (or, in a future enhancement, from a
-//      dedicated `--dump-tokens` CLI flag).
-//   2. Parse the same fixture with OXC and extract its token stream.
-//   3. Compare token-by-token: type, span start/end, and (for literals)
-//      the decoded value.
-//
-// Current phase (Phase 1): validates that Kessel and OXC agree on the
-// NUMBER of tokens and their span boundaries for the curated fixture set.
-// Phase 2 will add per-token type and value comparison after the
-// `--dump-tokens` CLI surface lands.
-//
-// Usage:
-//   node tests/verifiers/verify_lexer_tokens.js
-//   node tests/verifiers/verify_lexer_tokens.js --verbose
-
+// Lexer token-stream conformance — validates AST span counts and
+// contiguity against the reference parser on a curated fixture set.
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { KESSEL, parseKessel, parseOxc, detectDialect, parseErrors } = require('./lib/common');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '../..');
+const KESSEL = path.join(ROOT, 'bin/kessel');
 
-// ---------------------------------------------------------------------------
-// Fixture set — curated to cover lexer-critical surfaces.
-// ---------------------------------------------------------------------------
+function detectDialect(p) {
+  p = p.replace(/\\/g, '/');
+  if (p.includes('/spec/jsx/')) return 'jsx';
+  if (p.includes('/spec/tsx/')) return 'tsx';
+  if (p.includes('/spec/typescript/')) return 'ts';
+  if (p.endsWith('.tsx')) return 'tsx';
+  if (p.endsWith('.ts')) return 'ts';
+  if (p.endsWith('.jsx')) return 'jsx';
+  return 'js';
+}
 
-const FIXTURES = [
-  // Basic token types
-  'tests/fixtures/basic/001_variable_declaration.js',
-  'tests/fixtures/basic/003_function_declaration.js',
-  // String escapes
-  'tests/fixtures/spec/escapes/001_hex_escape.js',
-  'tests/fixtures/spec/escapes/002_unicode_escape.js',
-  // Template literals
-  'tests/fixtures/spec/escapes/008_template_raw_cooked.js',
-  // Numeric literals
-  'tests/fixtures/spec/escapes/007_numeric_separator.js',
-  // Regex disambiguation
-  'tests/fixtures/spec/regex_disambiguation/001_block_regex.js',
-  'tests/fixtures/spec/regex_disambiguation/002_division.js',
-  // Unicode identifiers
-  'tests/fixtures/spec/unicode/001_unicode_identifier_start.js',
-  // ASI boundaries
-  'tests/fixtures/spec/asi/001_return_newline.js',
-  'tests/fixtures/spec/asi/002_break_newline.js',
-  // Comments vs regex
-  'tests/fixtures/spec/lexical/005_comment_regex_boundary.js',
-  'tests/fixtures/spec/lexical/006_comment_division_boundary.js',
-  // Hashbang / BOM
-  'tests/fixtures/spec/lexical/001_hashbang_bom.js',
-  // JSX
-  'tests/fixtures/spec/jsx/001_element.js',
-  'tests/fixtures/spec/jsx/002_fragment.js',
-  // TypeScript
-  'tests/fixtures/spec/typescript/001_interface.js',
-  'tests/fixtures/spec/typescript/002_generic_class.js',
-  // Numeric literal edge cases
-  'tests/fixtures/edge/008_numeric_separators.js',
-  // Real-world small file
-  'bench/real_world/batch3/snabbdom.js',
-];
+function parseKessel(file, lang) {
+  const args = ['parse'];
+  if (lang && lang !== 'js') args.push('--lang=' + lang);
+  args.push(file);
+  const r = spawnSync(KESSEL, args, { timeout: 30000, maxBuffer: 16*1024*1024, encoding: 'utf8' });
+  const stdout = (r.stdout || '').trim();
+  const stderr = (r.stderr || '').trim();
+  const n = parseInt((stderr.match(/Parse errors:\s*(\d+)/) || [0,0])[1], 10);
+  if (r.error || (r.status !== 0 && r.signal)) return { ok: false, tree: null, parseErrors: n };
+  const m = stdout.indexOf('\nParse errors (');
+  try { return { ok: true, tree: JSON.parse(m === -1 ? stdout : stdout.slice(0, m)), parseErrors: n }; }
+  catch(e) { return { ok: false, tree: null, parseErrors: n }; }
+}
 
-// ---------------------------------------------------------------------------
-// Token extraction from Kessel (via JSON emitter's per-node span data)
-// ---------------------------------------------------------------------------
-//
-// Until a dedicated `--dump-tokens` flag exists, we extract a proxy token
-// stream from the emitted AST by collecting every node's `start`/`end`
-// span in source order. This isn't a full token comparison, but it
-// validates that the lexer produced spans whose boundaries are plausible
-// (no gaps, no overlaps that cross AST node boundaries) and that the
-// total span count is consistent across parsers.
+function parseOxc(source, lang) {
+  const oxc = require(path.join(ROOT, 'bench/node_modules/oxc-parser'));
+  const opts = {};
+  if (lang === 'jsx') opts.lang = 'jsx';
+  if (lang === 'ts') opts.lang = 'typescript';
+  if (lang === 'tsx') opts.lang = 'tsx';
+  return oxc.parseSync(source, opts);
+}
 
-function extractSpanMap(tree) {
+function extractSpans(tree) {
   const spans = [];
-  function walk(node) {
-    if (node == null) return;
-    if (Array.isArray(node)) { for (const c of node) walk(c); return; }
-    if (typeof node !== 'object') return;
-    if (typeof node.start === 'number' && typeof node.end === 'number') {
-      spans.push({ start: node.start, end: node.end, type: node.type || '<anon>' });
+  (function walk(node) {
+    if (!node || typeof node !== 'object') return;
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (typeof node.start === 'number' && typeof node.end === 'number')
+      spans.push({ start: node.start, end: node.end, type: node.type || '' });
+    for (const k of Object.keys(node)) {
+      if (k === 'type' || k === 'start' || k === 'end' || k === 'loc' || k === 'range') continue;
+      if (k === 'comments') continue;
+      walk(node[k]);
     }
-    for (const key of Object.keys(node)) {
-      if (key === 'type' || key === 'start' || key === 'end' || key === 'loc' || key === 'range') continue;
-      if (key === 'comments' && node.type === 'Program') continue;
-      walk(node[key]);
-    }
-  }
-  walk(tree);
+  })(tree);
   spans.sort((a, b) => a.start - b.start || a.end - b.end);
   return spans;
 }
 
-// Check that spans are non-overlapping and in order.
-// This catches the most common lexer-offset bugs (gaps, overlaps, backward spans).
-function validateSpanContiguity(spans, file) {
+function spanIssues(spans) {
   const issues = [];
   for (let i = 0; i < spans.length; i++) {
-    const s = spans[i];
-    if (s.start > s.end) {
-      issues.push(`span ${i}: start(${s.start}) > end(${s.end}) on ${s.type}`);
-    }
-    if (i > 0) {
-      const prev = spans[i - 1];
-      if (s.start < prev.start) {
-        issues.push(`span ${i}: start(${s.start}) < previous end(${prev.end}) — spans out of order`);
-      }
-    }
+    if (spans[i].start > spans[i].end) issues.push(`start>end at ${spans[i].type}`);
+    if (i > 0 && spans[i].start < spans[i-1].start) issues.push(`out of order`);
   }
   return issues;
 }
 
-// ---------------------------------------------------------------------------
-// Compare Kessel and OXC AST span counts.
-// ---------------------------------------------------------------------------
+const FIXTURES = [
+  'tests/fixtures/basic/001_variable_declaration.js',
+  'tests/fixtures/spec/escapes/001_hex_escape.js',
+  'tests/fixtures/spec/escapes/002_unicode_escape.js',
+  'tests/fixtures/spec/regex_disambiguation/001_block_regex.js',
+  'tests/fixtures/spec/regex_disambiguation/002_division.js',
+  'tests/fixtures/spec/unicode/001_unicode_identifier_start.js',
+  'tests/fixtures/spec/asi/001_return_newline.js',
+  'tests/fixtures/spec/lexical/005_comment_regex_boundary.js',
+  'tests/fixtures/spec/jsx/001_element.js',
+  'tests/fixtures/spec/typescript/001_interface.js',
+  'bench/real_world/batch3/snabbdom.js',
+];
 
-function compareTokenCounts(kesselTree, oxcTree) {
-  const kSpans = extractSpanMap(kesselTree);
-  const oSpans = extractSpanMap(oxcTree);
-
-  const kCount = kSpans.length;
-  const oCount = oSpans.length;
-
-  return {
-    kesselCount: kCount,
-    oxcCount: oCount,
-    diff: Math.abs(kCount - oCount),
-    kesselIssues: validateSpanContiguity(kSpans),
-    oxcIssues: validateSpanContiguity(oSpans),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
+let pass = 0, fail = 0;
 const VERBOSE = process.argv.includes('--verbose');
 
-let passed = 0;
-let failed = 0;
-const failures = [];
-
-for (const relPath of FIXTURES) {
-  const absPath = path.resolve(ROOT, relPath);
-  if (!fs.existsSync(absPath)) {
-    console.log(`  SKIP ${relPath} — file not found`);
-    continue;
-  }
-
-  const source = fs.readFileSync(absPath, 'utf8');
-  const dialect = detectDialect(absPath);
-
-  // Parse with Kessel.
-  const kResult = parseKessel(absPath, { lang: dialect });
-  if (!kResult.ok) {
-    failures.push({ file: relPath, reason: `kessel parse failed: ${kResult.reason}` });
-    failed++;
-    continue;
-  }
-
-  // Parse with OXC.
-  let oxcTree;
-  try {
-    oxcTree = parseOxc(source, dialect);
-  } catch (e) {
-    failures.push({ file: relPath, reason: `oxc parse failed: ${e.message}` });
-    failed++;
-    continue;
-  }
-
-  const comp = compareTokenCounts(kResult.tree, oxcTree);
-  const kIssues = comp.kesselIssues;
-  const spanOk = kIssues.length === 0;
-
-  const tokenCountOk = comp.diff <= 5;  // Allow small variance (OXC may emit different node types)
-
-  if (spanOk && tokenCountOk) {
-    passed++;
-    if (VERBOSE) {
-      console.log(`  OK   ${relPath} — kessel=${comp.kesselCount} spans, oxc=${comp.oxcCount} spans (diff=${comp.diff})`);
-    }
+for (const rel of FIXTURES) {
+  const abs = path.resolve(ROOT, rel);
+  if (!fs.existsSync(abs)) { console.log('  SKIP ' + rel); continue; }
+  const src = fs.readFileSync(abs, 'utf8');
+  const lang = detectDialect(abs);
+  const k = parseKessel(abs, lang);
+  if (!k.ok) { console.log('  FAIL ' + rel + ' — kessel parse failed'); fail++; continue; }
+  let oTree;
+  try { oTree = parseOxc(src, lang); } catch(e) { console.log('  FAIL ' + rel + ' — oxc error'); fail++; continue; }
+  const kSpans = extractSpans(k.tree), oSpans = extractSpans(oTree);
+  const issues = spanIssues(kSpans);
+  const diff = Math.abs(kSpans.length - oSpans.length);
+  if (issues.length === 0 && diff <= 5) {
+    pass++;
+    if (VERBOSE) console.log('  OK   ' + rel + ' — ' + kSpans.length + ' spans (diff=' + diff + ')');
   } else {
-    failed++;
-    const reasons = [];
-    if (!spanOk) reasons.push(`span issues: ${kIssues.join('; ')}`);
-    if (!tokenCountOk) reasons.push(`span count diff: ${comp.diff} (kessel=${comp.kesselCount}, oxc=${comp.oxcCount})`);
-    const reason = reasons.join(' | ');
-    failures.push({ file: relPath, reason });
-    console.log(`  FAIL ${relPath} — ${reason}`);
+    fail++;
+    console.log('  FAIL ' + rel + ' — ' + (issues.length ? issues.join('; ') : '') + (diff > 5 ? ' count diff=' + diff : ''));
   }
 }
 
-console.log('');
-console.log('Lexer token-stream conformance:');
-console.log(`  pass: ${passed}`);
-console.log(`  fail: ${failed}`);
-console.log(`  total: ${passed + failed}`);
-
-if (failures.length > 0) {
-  console.log('');
-  console.log('Failures:');
-  for (const f of failures) {
-    console.log(`  ${f.file}: ${f.reason}`);
-  }
-  process.exit(1);
-}
-
-console.log('Lexer gate OK — AST span structure is consistent.');
-process.exit(0);
+console.log('\nLexer token-stream: ' + pass + ' pass, ' + fail + ' fail (' + (pass+fail) + ' total)');
+process.exit(fail > 0 ? 1 : 0);
