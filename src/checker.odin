@@ -651,11 +651,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, true)
 		ck_check_for_in_of_init_eval_args(c, ctx, v.left_expr)
+		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
+		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
 		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil {
 			ck_check_for_head_body_shadow(c, d, v.body, "in")
 		}
-		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
-		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
 		ck_walk_expr(c, ctx, v.right)
 		ctx.iter_depth += 1
 		ck_check_single_stmt_function(c, v.body)
@@ -666,11 +666,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, false)
 		ck_check_for_in_of_init_eval_args(c, ctx, v.left_expr)
+		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
+		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
 		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil {
 			ck_check_for_head_body_shadow(c, d, v.body, "of")
 		}
-		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }
-		if d, have := v.left_decl.(^VariableDeclaration); have && d != nil { ck_walk_var_decl(c, ctx, d) }
 		ck_walk_expr(c, ctx, v.right)
 		ctx.iter_depth += 1
 		ck_check_single_stmt_function(c, v.body)
@@ -2604,9 +2604,7 @@ scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap
 // VarDeclaredNames of Statement". For for-in / for-of / vanilla
 // for-loop heads with a `let` / `const` / `using` declaration, the
 // loop body's hoisted `var` names cannot collide with the head's
-// bound names. Mirrors parser.odin's old inline check at parse-time
-// (parse_for_statement); migrated to a post-parse walk so the parser
-// stays a pure tree builder.
+// bound names.
 //
 // `kind_str` selects the diagnostic noun: "in" / "of" / "loop".
 @(private="file")

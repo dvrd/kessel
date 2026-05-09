@@ -399,6 +399,8 @@ parse_job_run :: proc(job: ^ParseJob) {
 	job.parser.preserve_parens  = job.config.preserve_parens
 	job.parser.ast_only         = job.config.ast_only
 	job.parser.is_commonjs      = job.is_commonjs
+	job.parser.is_node_ts_module = strings.has_suffix(job.source_path, ".cts") ||
+	                               strings.has_suffix(job.source_path, ".mts")
 
 	job.program = parse_program(&job.parser, job.initial_source_type)
 }

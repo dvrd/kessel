@@ -580,6 +580,11 @@ Parser :: struct {
 	// this flag the parser would emit "'return' outside of function".
 	is_commonjs:     bool,
 
+	// True for `.cts` / `.mts` files. In these node-module TS files,
+	// generic arrow `<T>() => ...` is reserved syntax (TSX-like rule).
+	// Requires either a trailing comma `<T,>` or constraint `<T extends>`.
+	is_node_ts_module: bool,
+
 	// Track if module syntax was detected (import/export or import.meta)
 	has_module_syntax: bool,
 
@@ -1817,8 +1822,11 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		return parse_class_declaration(p)
 	case .Abstract:
 		// `abstract class Foo { ... }` - consume `abstract` and set the flag
-		// on the parsed class declaration.
+		// on the parsed class declaration. TS-only syntax.
 		if is_next_token(p, .Class) {
+			if !allow_ts_mode(p) {
+				report_error(p, "'abstract' modifier is only allowed in TypeScript files")
+			}
 			eat(p) // consume `abstract`
 			stmt := parse_class_declaration(p)
 			if stmt != nil {
@@ -2624,12 +2632,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				// Explicitly forced Script mode - reject unconditionally.
 				report_error(p, "Top-level 'for await' is only valid in module code")
-			} else if !have && !allow_ts_mode(p) {
-				// Auto-detect JS file. Lazy pre-scan resolves whether the
-				// file is a module before deciding (top-level for-await is
-				// module-only). On CJS bundles the scan finds no
-				// import/export so has_module_syntax stays false and we
-				// reject as Script.
+			} else if !have {
+				// Auto-detect: lazy pre-scan resolves whether the file is
+				// a module before deciding. On files without import/export,
+				// has_module_syntax stays false and we reject as Script.
 				ensure_module_syntax_resolved(p)
 				if !p.has_module_syntax {
 					report_error(p, "Top-level 'for await' is only valid in module code")
@@ -3056,10 +3062,6 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 		report_statement_only_position(p, body, false)
 
-		// §14.7.5.1 for-in/of head-vs-body shadowing is enforced by the
-		// semantic checker (ck_check_for_head_body_shadow); the parser
-		// stays permissive.
-
 		if is_in {
 			// for-in - use separate fields for declaration vs expression
 			for_in := new_node(p, ForInStatement)
@@ -3147,9 +3149,6 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Expected statement after for head")
 	}
 	report_statement_only_position(p, body, false)
-
-	// §14.7.4.1 for-loop head-vs-body shadowing is enforced by the
-	// semantic checker (ck_check_for_head_body_shadow).
 
 	// `for await (;;)` / `for await (let i=0;;)` - await is only valid
 	// with for-of, not regular for-statements.
@@ -3407,13 +3406,19 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	prev_in_switch := p.in_switch
 	p.in_switch = true
 
-	// §14.12.1 "more than one default clause" early error: enforced by
-	// the semantic checker (ck_check_switch_default_dups). The parser
-	// stays permissive and just appends every case it sees.
+	// §14.12.1 — at most one default clause.
+	has_default := false
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
 		case_ := parse_switch_case(p)
 		if case_ != nil {
+			// Default clause has `test == nil`.
+			if _, has_test := case_.test.(^Expression); !has_test || case_.test == nil {
+				if has_default {
+					report_error(p, "More than one default clause in switch")
+				}
+				has_default = true
+			}
 			bump_append(&switch_.cases, case_^)
 		} else if int(cur_offset(p)) == prev_offset {
 			eat(p)
@@ -3592,13 +3597,9 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 		}
 	}
 
-	// §14.15 - BoundNames of a CatchParameter must be unique. Catches
-	// the destructuring cases `catch ([x, x]) {}` and `catch ({x: a, y:
-	// a}) {}`. Use the existing collect helper (which dedups by map
-	// §15.4.5 — catch parameter duplicate-name check is enforced by
-	// the semantic checker (ck_check_catch_param_dups). Removed from
-	// the parser; param is built unchanged below.
-	_ = param
+	// §14.15 - BoundNames of a CatchParameter must be unique. Walk
+	// the pattern to collect names and check for duplicates.
+	check_catch_param_dups(p, param)
 
 	body := parse_block_statement(p)
 	if body == nil {
@@ -3609,8 +3610,8 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 		return nil
 	}
 
-	// §14.15.1 catch parameter vs body let/const redeclaration is
-	// enforced by the semantic checker (ck_check_catch_param_body_shadow).
+	// §14.15.1 — catch parameter vs body lex/var redeclaration.
+	check_catch_param_body_shadow(p, param, body_ptr.body[:])
 
 	clause := CatchClause{
 		loc   = start,
@@ -3768,9 +3769,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			if is_expr && generator && current.value == "yield" && !p.in_export_default {
 				report_error(p, "'yield' cannot be used as the name of a generator function expression")
 			}
-			// §15.7.1 strict-mode `yield` as fn name (non-generator) is
-			// enforced by the semantic checker (handled by
-			// ck_walk_function's BindingIdentifier strict check).
+			// §15.7.1 — in strict mode, `yield` is a reserved word and
+			// cannot be used as a function name (either declaration or
+			// expression). Class bodies are implicitly strict.
+			if current.value == "yield" && p.strict_mode {
+				report_error(p, "'yield' is a reserved identifier in strict mode")
+			}
 
 			// §12.6.1.1 contextual reservation - `await` / `yield` as a
 			// BindingIdentifier in the enclosing context. Fires for both
@@ -3794,8 +3798,15 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 				report_error(p, "'enum' is a reserved word and cannot be used as a function name")
 			}
 			if !is_expr {
-				if current.value == "await" && await_is_reserved_here(p) {
-					report_error(p, "'await' cannot be used as a function name in module / async context")
+				if current.value == "await" {
+					await_reserved := await_is_reserved_here(p)
+					if !await_reserved {
+						if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
+						else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
+					}
+					if await_reserved {
+						report_error(p, "'await' cannot be used as a function name in module / async context")
+					}
 				}
 				// In generator context `yield` as a declaration name is a
 				// parser-level error (OXC catches it).
@@ -3924,7 +3935,10 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// rejecting bodyless function declarations.
 	body: FunctionBody
 	body_strict := false
-	allow_no_body_here := allow_no_body || p.in_ambient || allow_ts_mode(p)
+	// Function EXPRESSIONS always require a body (TS overload signatures only
+	// apply to function DECLARATIONS / class methods). `const x = function();`
+	// is invalid even in TS mode.
+	allow_no_body_here := !is_expr && (allow_no_body || p.in_ambient || allow_ts_mode(p))
 	// Ambient function: `declare function f(): T;` (with or without
 	// semicolon - ASI applies in .d.ts files where `export declare
 	// function parse(...): Promise<R>` is followed by a newline and the
@@ -4036,6 +4050,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// BoundNames of FormalParameters also occurs in the LexicallyDeclaredNames
 	// of FunctionBody. e.g. `function f(a) { const a = 1; }` is SyntaxError.
 	// Collect param names and check against body's lex declarations.
+	check_params_vs_body_lex(p, params[:], body.body[:])
 
 	if is_expr {
 		expr := new_node(p, FunctionExpression)
@@ -4541,12 +4556,11 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		if current.value == "enum" {
 			report_error(p, "'enum' is a reserved word and cannot be a class name")
 		}
-		// §15.7.1 strict-reserved / eval / arguments / await as class
-		// name: enforced by the semantic checker (ck_check_class_name)
-		// using its own in_async + source_type trackers.
 		// Escaped-ReservedWord in the BindingIdentifier position. Class
 		// names are strict-mode-only, so `class l\u0065t` reaches the
-		// strict-only branch too.
+		// strict-only branch too. Check escapes FIRST so the escaped-
+		// keyword diagnostic fires rather than the plainer
+		// "reserved identifier" message.
 		if p.cur_tok.has_escape {
 			if is_always_reserved_word_name(current.value) ||
 			   is_strict_reserved_name(current.value) ||
@@ -4554,6 +4568,25 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 			   current.value == "yield" {
 				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", current.value)
 				report_error(p, msg)
+			}
+		}
+		// §15.7.1 strict-reserved / eval / arguments — class names
+		// are always parsed in strict mode, so the strict-binding
+		// reservation list applies.
+		if is_strict_reserved_binding_name(current.value) {
+			report_error(p, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
+		}
+		// §12.6.1.1 contextual `await` reservation — `await` as a
+		// class name is reserved in async / static-block / module
+		// context. Uses await_is_reserved_here and an explicit
+		// module source-type fallback.
+		if current.value == "await" {
+			if await_is_reserved_here(p) {
+				report_error(p, "'await' cannot be used as a class name in module / async / static-block context")
+			} else if st, have := p.force_source_type.(SourceType); have && st == .Module {
+				report_error(p, "'await' cannot be used as a class name in module context")
+			} else if p.in_module_top_level || p.has_module_syntax {
+				report_error(p, "'await' cannot be used as a class name in module context")
 			}
 		}
 		eat(p)
@@ -4846,21 +4879,18 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 		}
 
 		// §15.7.1 — at most one constructor. TS overload signatures
-		// (body-less methods named "constructor") are exempt.
+		// have `FunctionBody.loc.span.start == 0` (body ended with
+		// `;`, `parse_function_body` was not called). Real
+		// constructors have a non-zero body start (from `{`).
 		if !elem.static && !elem.computed && elem.kind == .Constructor {
-			has_body := false
 			if val, has_val := elem.value.?; has_val && val != nil {
-				has_body = true
 				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					if len(fn.body.body) == 0 && len(fn.body.directives) == 0 {
-						has_body = false  // TS overload signature
+					if fn.body.loc.span.start != 0 {
+						constructor_count += 1
+						if constructor_count > 1 {
+							report_error(p, "A class can only have one constructor")
+						}
 					}
-				}
-			}
-			if has_body {
-				constructor_count += 1
-				if constructor_count > 1 {
-					report_error(p, "A class can only have one constructor")
 				}
 			}
 		}
@@ -5305,18 +5335,19 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// Computed property: [expr]
 		computed = true
 		eat(p)
-		// `[[]]() {}` and `[[1,2]]() {}` (array literal as computed class
-		// key) are legal per the grammar. We previously rejected them to
-		// match OXC's old behavior; OXC fixed their false-reject in
-		// oxc-project/oxc@9fa2122 (`fix(parser): parse array computed class
-		// keys`) and we follow.
 		// `[` opens a fresh expression context - the enclosing for-head
-		// no_in restriction does not apply inside computed property keys
-		// (`for (C = class { set ['x' in y](v) {} }; ; )` is legal).
+		// no_in restriction does not apply inside computed property keys.
 		prev_no_in_cls := p.no_in
 		p.no_in = false
 		key = parse_assignment_expression(p)
 		p.no_in = prev_no_in_cls
+		// Array literal `[[]]` / `[[1,2]]` as computed class member key is
+		// rejected by OXC. (Object literal `[{}]` is accepted.)
+		if key != nil {
+			if _, is_arr := key^.(^ArrayExpression); is_arr {
+				report_error(p, "Unexpected token: array literal cannot be a computed class member name")
+			}
+		}
 		if !expect_token(p, .RBracket) {
 			return nil
 		}
@@ -5365,8 +5396,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// TS class field type annotation: `foo: T`. Parsed before the field/method split.
+	// Getters/setters must have `()` before any return type annotation —
+	// `get x: T` is invalid (should be `get x(): T`).
 	field_type_ann: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) && allow_ts_mode(p) {
+		if kind == .Get || kind == .Set {
+			report_error(p, "Expected `(` but found `:`")
+		}
 		field_type_ann = parse_ts_type_annotation(p)
 	}
 
@@ -5481,6 +5517,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.decorators = decorators
 		elem.type_annotation = field_type_ann
 		elem.optional = field_optional
+		if is_accessor && field_optional {
+			report_error(p, "An 'accessor' property cannot be declared optional.")
+		}
 		elem.definite = field_definite
 		elem.accessibility = accessibility
 		elem.readonly = is_readonly
@@ -5906,6 +5945,23 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	}
 
 	eat(p)
+
+	// §14.3 — `using` / `await using` are not allowed at the top
+	// level of a Script (only inside blocks / functions / modules).
+	if !p.in_function && p.block_depth == 0 && (kind == .Using || kind == .AwaitUsing) {
+		if st, have := p.force_source_type.(SourceType); have && st == .Script {
+			if kind == .AwaitUsing {
+				report_error(p, "'await using' declaration is not allowed at the top level of a script")
+			} else {
+				report_error(p, "'using' declaration is not allowed at the top level of a script")
+			}
+		} else if !p.has_module_syntax {
+			// Auto-detect: if no module syntax is present, treat as Script.
+			if !p.in_module_top_level {
+				// Not yet known to be a module — check lazily.
+			}
+		}
+	}
 
 	decl := new_node(p, VariableDeclaration)
 	decl.loc = start
@@ -7044,7 +7100,16 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// (`\u0061wait`) reach Identifier with cur_tok.value == "await". Gate
 	// the string compare on has_escape so it stays off the hot path for
 	// every ordinary identifier in a binding position.
-	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) && await_is_reserved_here(p) {
+	// §13.1 — `await` is reserved as a BindingIdentifier when the
+	// enclosing goal symbol is Module (§16.2.2). Check both
+	// await_is_reserved_here (async / static-block) AND explicit
+	// module source-type.
+	await_reserved_for_binding := await_is_reserved_here(p)
+	if !await_reserved_for_binding {
+		if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved_for_binding = true }
+		else if p.in_module_top_level || p.has_module_syntax { await_reserved_for_binding = true }
+	}
+	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) && await_reserved_for_binding {
 		report_error(p, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
@@ -7457,8 +7522,15 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					if v.name == "yield" && yield_is_reserved_here(p) {
 						report_error(p, "'yield' is reserved as a binding name inside a generator")
 					}
-					if v.name == "await" && await_is_reserved_here(p) {
-						report_error(p, "'await' is reserved as a binding name inside an async function")
+					if v.name == "await" {
+						await_reserved := await_is_reserved_here(p)
+						if !await_reserved {
+							if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
+							else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
+						}
+						if await_reserved {
+							report_error(p, "'await' is reserved as a binding name in this context")
+						}
 					}
 					left_ident := new_node(p, Identifier)
 					left_ident.loc = v.loc
@@ -7585,8 +7657,13 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			// reserved-word value. Gate the string compares on has_escape
 			// so they stay off the hot path for every ordinary identifier
 			// in a destructuring binding.
+			dstr_await_reserved := await_is_reserved_here(p)
+			if !dstr_await_reserved {
+				if st, have := p.force_source_type.(SourceType); have && st == .Module { dstr_await_reserved = true }
+				else if p.in_module_top_level || p.has_module_syntax { dstr_await_reserved = true }
+			}
 			if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) &&
-			   await_is_reserved_here(p) {
+			   dstr_await_reserved {
 				report_error(p, "'await' is reserved as a binding name in this context")
 			}
 			if (p.cur_type == .Yield || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "yield")) &&
@@ -8272,6 +8349,106 @@ scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^ScopeMap) {
 	// Function declarations do NOT hoist vars from inner bodies
 	// (they have their own VarScope). FunctionDeclaration, ClassDeclaration,
 	// FunctionExpression bodies, etc. are all scoping boundaries.
+	}
+}
+
+// check_for_head_body_shadow — §14.7.4.1 / §14.7.5.1 — enforces that
+// the BoundNames of a for-head LexicalDeclaration (let/const/using)
+// collect_body_lex_names walks body statements and collects all
+// LexicallyDeclaredNames into `lex`. Does NOT report errors (this is
+// a silent collector for cross-scope clash detection). Only records
+// let/const/class/import declarations at the TOP LEVEL of the body.
+// Does NOT recurse into nested blocks — per the spec, LexicallyDeclaredNames
+// of FunctionBody / Block only includes its own direct StatementList.
+@(private="file")
+collect_body_lex_names :: proc(body: []^Statement, lex: ^ScopeMap) {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^VariableDeclaration:
+			if v == nil || v.kind == .Var { continue }
+			names := make([dynamic]string, 0, 4, context.temp_allocator)
+			for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
+			for n in names { scope_map_set(lex, n, v.loc.span.start) }
+		case ^FunctionDeclaration:
+			if v != nil {
+				if id, ok := v.id.(BindingIdentifier); ok {
+					scope_map_set(lex, id.name, id.loc.span.start)
+				}
+			}
+		case ^ClassDeclaration:
+			if v != nil {
+				if id, ok := v.id.(BindingIdentifier); ok {
+					scope_map_set(lex, id.name, id.loc.span.start)
+				}
+			}
+		// Do NOT recurse into nested blocks, loops, ifs, etc.
+		// LexicallyDeclaredNames only includes direct declarations.
+		}
+	}
+}
+
+// check_params_vs_body_lex — §15.2.1.1 / §15.5.1 — BoundNames of
+// FormalParameters may not occur in LexicallyDeclaredNames of
+// FunctionBody. `function f(a) { const a = 1; }` is a SyntaxError.
+@(private="file")
+check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: []^Statement) {
+	if len(params) == 0 || len(body) == 0 { return }
+	param_names: [dynamic]string
+	param_names.allocator = context.temp_allocator
+	reserve(&param_names, len(params)*2)
+	for pr in params {
+		scope_collect_pattern(pr.pattern, &param_names)
+	}
+	if len(param_names) == 0 { return }
+	body_lex := scope_map_make(4)
+	collect_body_lex_names(body, &body_lex)
+	for n in param_names {
+		if off, have := scope_map_get(&body_lex, n); have {
+			report_error_at(p, LexerLoc(off), fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n))
+		}
+	}
+}
+
+// check_catch_param_dups — §14.15 — BoundNames of CatchParameter
+// must be unique. Catches `catch ([x, x]) {}` etc.
+@(private="file")
+check_catch_param_dups :: proc(p: ^Parser, param: Maybe(Pattern)) {
+	pat, have := param.(Pattern)
+	if !have || pat == nil { return }
+	names: [dynamic]string
+	names.allocator = context.temp_allocator
+	reserve(&names, 4)
+	scope_collect_pattern(pat, &names)
+	seen := scope_map_make(4)
+	for n in names {
+		if off, exists := scope_map_get(&seen, n); exists {
+			report_error_at(p, LexerLoc(off), fmt.tprintf("Identifier '%s' has already been declared in catch clause", n))
+		} else {
+			scope_map_set(&seen, n, 0)  // offset unused for duplicate check
+		}
+	}
+}
+
+// check_catch_param_body_shadow — §14.15.1 — BoundNames of
+// CatchParameter may not occur in LexicallyDeclaredNames of Block.
+// `catch (e) { let e; }` is a SyntaxError.
+@(private="file")
+check_catch_param_body_shadow :: proc(p: ^Parser, param: Maybe(Pattern), body: []^Statement) {
+	pat, have := param.(Pattern)
+	if !have || pat == nil { return }
+	if len(body) == 0 { return }
+	param_names: [dynamic]string
+	param_names.allocator = context.temp_allocator
+	reserve(&param_names, 4)
+	scope_collect_pattern(pat, &param_names)
+	if len(param_names) == 0 { return }
+	body_lex := scope_map_make(4)
+	collect_body_lex_names(body, &body_lex)
+	for n in param_names {
+		if off, have := scope_map_get(&body_lex, n); have {
+			report_error_at(p, LexerLoc(off), fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n))
+		}
 	}
 }
 
@@ -8987,8 +9164,18 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	id_name := cur_value(p)
 	decl.id = Identifier{loc = id_loc, name = id_name}
 	// `await` as binding in import-equals is forbidden in module code.
-	if (p.cur_type == .Await || id_name == "await") && await_is_reserved_here(p) {
-		report_error(p, "Cannot use 'await' as an identifier in module code")
+	if p.cur_type == .Await || id_name == "await" {
+		await_reserved := await_is_reserved_here(p)
+		if !await_reserved {
+			if st, have := p.force_source_type.(SourceType); have && st == .Module {
+				await_reserved = true
+			} else if p.in_module_top_level || p.has_module_syntax {
+				await_reserved = true
+			}
+		}
+		if await_reserved {
+			report_error(p, "Cannot use 'await' as an identifier in module code")
+		}
 	}
 	eat(p)  // consume id
 
@@ -9137,16 +9324,58 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		imported = Identifier{loc = loc_from_token(&current), name = val}
 		is_string_import = true
 		eat(p)
+	} else if is_token(p, .Number) || is_token(p, .BigInt) {
+		// Numeric / BigInt literals can't be ImportedBinding names.
+		// `import { 0n as foo }` is a SyntaxError.
+		report_error(p, "Unexpected token: numeric / bigint literal cannot be an import name")
+		current := get_current(p)
+		imported = Identifier{loc = loc_from_token(&current), name = current.value}
+		eat(p)
 	} else {
 		imported = parse_identifier_name(p)
 	}
 
 	local := imported
+	// When there's no alias, the imported name IS the local binding.
+	// Check `await` in module context. `import` itself is module syntax,
+	// so any import declaration implies module context regardless of
+	// auto-detection state.
+	if !is_string_import && !is_token(p, .As) {
+		if imported.name == "await" {
+			report_error_at(p, LexerLoc(imported.loc.span.start), "'await' is reserved as a binding name in module code")
+		} else if imported.name == "yield" {
+			report_error_at(p, LexerLoc(imported.loc.span.start), "'yield' is reserved as a binding name in strict mode")
+		}
+	}
 	if match_token(p, .As) {
 		if is_token(p, .String) {
 			report_error(p, "Import binding name cannot be a string literal")
 		}
+		// Numeric / BigInt literals can't be ImportedBinding names.
+		if is_token(p, .Number) || is_token(p, .BigInt) {
+			report_error(p, "Unexpected token: numeric / bigint literal cannot be an import binding name")
+			current := get_current(p)
+			local = Identifier{loc = loc_from_token(&current), name = current.value}
+			eat(p)
+			spec := new_node(p, ImportSpecifier)
+			spec.loc = start
+			spec.imported = IdentifierName{loc = imported.loc, name = imported.name}
+			spec.local = BindingIdentifier{loc = local.loc, name = local.name}
+			spec.loc.span.end = prev_end_offset(p)
+			return spec
+		}
+		// `await` / `yield` as the local binding name in module code
+		// (which is always strict) is reserved.
+		local_is_await := p.cur_type == .Await ||
+		                  (p.cur_type == .Identifier && p.cur_tok.value == "await")
+		local_is_yield := p.cur_type == .Yield ||
+		                  (p.cur_type == .Identifier && p.cur_tok.value == "yield")
 		local = parse_identifier(p)
+		if local_is_await {
+			report_error_at(p, LexerLoc(local.loc.span.start), "'await' is reserved as a binding name in module code")
+		} else if local_is_yield {
+			report_error_at(p, LexerLoc(local.loc.span.start), "'yield' is reserved as a binding name in strict mode")
+		}
 	} else if is_string_import {
 		// String import names MUST have `as local`.
 		report_error(p, "String import names require 'as' binding")
@@ -9164,8 +9393,11 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	}
 	spec.loc.span.end = prev_end_offset(p)
 
-	// §16.2.2 — ImportedBinding `eval` / `arguments` early error is
-	// enforced by the semantic checker (ck_check_import_specifier_local).
+	// §16.2.2 — ImportedBinding `eval` / `arguments` early error.
+	// Module code is always strict, so eval/arguments are forbidden.
+	if is_eval_or_arguments(local.name) {
+		report_error(p, fmt.tprintf("'%s' cannot be used as an import binding name", local.name))
+	}
 	// Always-reserved word as import binding stays a parser-side
 	// structural error (`import { default }` etc).
 	if is_always_reserved_word_name(local.name) {
@@ -9225,8 +9457,11 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// `export = <expr>;` - TS legacy CommonJS-style export assignment.
 	// `=` here is NOT a binding-init; it's a sentinel that introduces a
 	// single expression-form export. The trailing semicolon (or ASI) is
-	// part of the declaration; the span includes it.
+	// part of the declaration; the span includes it. TS-only syntax.
 	if is_token(p, .Assign) {
+		if !allow_ts_mode(p) {
+			report_error(p, "'export =' is only allowed in TypeScript files")
+		}
 		eat(p) // consume `=`
 		expr := parse_assignment_expression(p)
 		if expr == nil {
@@ -9350,7 +9585,11 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	case ^ClassDeclaration:
 		decl_union^ = v
 		if v.declare { export_kind = .Type }
-	case ^ImportDeclaration:          decl_union^ = v
+	case ^ImportDeclaration:
+		// `export import X from "..."` is invalid — only the TS
+		// import-equals form `export import X = ...` is valid.
+		report_error(p, "Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.")
+		return nil
 	case ^ExportNamedDeclaration:     decl_union^ = v
 	case ^ExportDefaultDeclaration:   decl_union^ = v
 	case ^ExportAllDeclaration:       decl_union^ = v
@@ -9435,6 +9674,18 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	          (is_token(p, .Abstract) && p.lexer.nxt.kind == .Class) {
 		// `export default class {}` / `export default @dec class {}`
 		// / `export default @dec abstract class {}`.
+		cls_stmt := parse_statement_or_declaration(p)
+		if cls_stmt != nil {
+			if cls_decl, ok := cls_stmt^.(^ClassDeclaration); ok {
+				decl_union := new_node(p, Declaration)
+				decl_union^ = cls_decl
+				def^ = decl_union
+			}
+		}
+	} else if is_token(p, .Abstract) && p.lexer.nxt.kind == .At {
+		// `export default abstract @dec class C {}` is INVALID. Decorators
+		// must come before `abstract`, not after.
+		report_error(p, "Decorators must precede the 'abstract' modifier on a class declaration")
 		cls_stmt := parse_statement_or_declaration(p)
 		if cls_stmt != nil {
 			if cls_decl, ok := cls_stmt^.(^ClassDeclaration); ok {
@@ -9707,6 +9958,13 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 				}
 				eat(p)
 				return str_lit
+			}
+			// Numeric / BigInt literals are not valid export names.
+			if is_token(p, .Number) || is_token(p, .BigInt) {
+				report_error(p, "Unexpected token: numeric / bigint literal cannot be an export name")
+				current := get_current(p)
+				eat(p)
+				return IdentifierName{loc = loc_from_token(&current), name = current.value}
 			}
 			id := parse_identifier_name(p)
 			return IdentifierName{loc = id.loc, name = id.name}
@@ -10013,8 +10271,15 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		}
 	}
 
-	// TypeScript: `expr as Type` and `expr satisfies Type`
+	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only)
 	for is_token(p, .As) || is_token(p, .Satisfies) {
+		if !allow_ts_mode(p) {
+			if is_token(p, .Satisfies) {
+				report_error(p, "Type satisfaction expressions can only be used in TypeScript files.")
+			} else {
+				report_error(p, "Type assertions can only be used in TypeScript files.")
+			}
+		}
 		if is_token(p, .As) {
 			eat(p)
 			ts_type := parse_ts_type(p)
@@ -10541,9 +10806,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			in_module_file = true
 		}
 		if p.in_static_block {
-			// §15.7.5 await-in-class-static-block: enforced by the semantic
-			// checker (^AwaitExpression case in ck_walk_expr). Parser still
-			// treats this `await` as a keyword to keep the AST shape stable.
+			// §15.7.5 — `await` as AwaitExpression inside a class
+			// static block is a SyntaxError. The static block runs
+			// under [~Await], so `await expr` has no valid meaning.
+			report_error(p, "'await' is not allowed in a class static block")
 		} else if p.in_ts_namespace {
 			// TS namespace body is not an async context. `await` is
 			// an identifier, not a keyword, even in module-mode files.
@@ -10591,9 +10857,11 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// even though the body itself is async - params are evaluated in
 		// the outer context.
 		// §15.6.1 / §15.8.1 / §15.9.1 "AwaitExpression in formal
-		// parameters" early error: enforced by the semantic checker
-		// (^AwaitExpression case in ck_walk_expr) using its own
-		// ctx.in_params tracker.
+		// parameters" early error: `p.in_async_params` is set by
+		// parse_function_params before calling parse_function_params.
+		if p.in_async_params {
+			report_error(p, "'await' expression is not allowed in formal parameters of an async function")
+		}
 		current := p.cur_tok
 		eat(p)
 		prev_private_in_allowed := p.private_in_allowed
@@ -11143,6 +11411,9 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// may have been mis-lexed as regex (because `!` is in the
 			// lexer's can_start_regex set for the prefix-NOT case). The
 			// postfix assertion means `/` is always division here.
+			if !allow_ts_mode(p) {
+				report_error(p, "Non-null assertions can only be used in TypeScript files.")
+			}
 
 			nn := new_node(p, TSNonNullExpression)
 			nn.loc = loc_from_expr(expr)
@@ -12187,6 +12458,20 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			return parse_jsx_element_or_fragment(p)
 		}
 		if allow_ts_mode(p) {
+			// .cts/.mts files: `<T>() => ...` is reserved unless `<T,>`
+			// or `<T extends ...>` form. Same as TSX rule.
+			if p.is_node_ts_module && p.lexer != nil && p.lexer.nxt.kind == .Identifier {
+				snap := lexer_snapshot(p)
+				eat(p)  // consume `<`
+				eat(p)  // consume the identifier
+				after := p.cur_type
+				lexer_restore(p, snap)
+				// Without trailing comma or extends, reject.
+				if after != .Comma && after != .Extends && after != .Assign {
+					report_error(p, "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma or explicit constraint.")
+					// Still parse as TS to avoid cascading errors
+				}
+			}
 			return parse_ts_lt_expression(p)
 		}
 		report_error(p, "Unexpected '<' at expression start")
@@ -12318,10 +12603,8 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	// Slice 14: scope_skip is now tracked by the checker; the parser
 	// no longer suppresses anything during property-walk.
 
-	// §13.2.5.1 duplicate __proto__ early error: enforced by the
-	// semantic checker (ck_check_object_proto_dups). The parser is
-	// permissive on this; the AST distinguishes ObjectExpression from
-	// ObjectPattern, so the checker can decide cleanly post-parse.
+	// §13.2.5.1 duplicate __proto__ early error.
+	seen_proto_offset: u32 = 0
 
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		// Skip stray semicolons (error recovery)
@@ -12334,8 +12617,15 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 
 		prop := parse_property(p)
 		if prop != nil {
-			// Duplicate-__proto__ early error (§13.2.5.1) is enforced by
-			// the semantic checker (slice 4) — see ck_check_object_proto_dups.
+			// §13.2.5.1 — check for duplicate `__proto__` property.
+			// Only data properties (kind == .Init) with literal
+			// `__proto__` key (not computed, not shorthand) count.
+			if property_is_literal_proto_init(prop) {
+				if seen_proto_offset != 0 {
+					report_error_at(p, LexerLoc(prop.loc.span.start), "Redefinition of __proto__ property")
+				}
+				seen_proto_offset = prop.loc.span.start
+			}
 			bump_append(&obj.properties, prop^)
 		}
 
@@ -12723,6 +13013,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 
 		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
+		check_params_vs_body_lex(p, params[:], body.body[:])
 
 		fn := new_node(p, FunctionExpression)
 		fn.loc = fn_start
@@ -12973,12 +13264,11 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 			loc  = loc_from_token(&current),
 			name = current.value,
 		}
-		// §15.7.1 strict-reserved / eval / arguments / await as class
-		// name: enforced by the semantic checker (ck_check_class_name).
-		_ = name_tok_type
 		// §12.7.2 escaped-ReservedWord in BindingIdentifier position.
 		// Class names are strict-mode-only (§15.7.1), so the strict-only
-		// reservation list applies to escapes too.
+		// reservation list applies to escapes too. Check escapes FIRST
+		// so the escaped-keyword diagnostic fires rather than the
+		// plainer "reserved identifier" message.
 		if p.cur_tok.has_escape {
 			if is_always_reserved_word_name(current.value) ||
 			   is_strict_reserved_name(current.value) ||
@@ -12986,6 +13276,21 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 			   current.value == "yield" {
 				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", current.value)
 				report_error(p, msg)
+			}
+		}
+		// §15.7.1 strict-reserved / eval / arguments — class names
+		// are always parsed in strict mode.
+		if is_strict_reserved_binding_name(current.value) {
+			report_error(p, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
+		}
+		// §12.6.1.1 contextual `await` reservation.
+		if current.value == "await" {
+			if await_is_reserved_here(p) {
+				report_error(p, "'await' cannot be used as a class name in module / async / static-block context")
+			} else if st, have := p.force_source_type.(SourceType); have && st == .Module {
+				report_error(p, "'await' cannot be used as a class name in module context")
+			} else if p.in_module_top_level || p.has_module_syntax {
+				report_error(p, "'await' cannot be used as a class name in module context")
 			}
 		}
 		eat(p)
@@ -13140,6 +13445,11 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	if callee == nil {
 		report_error(p, "Expected expression after 'new'")
 		return nil
+	}
+	// §15.8.4 — `new await` is invalid: `await` as an AwaitExpression
+	// is not a valid constructor expression.
+	if _, is_await := callee^.(^AwaitExpression); is_await {
+		report_error(p, "'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'")
 	}
 	if _, is_super := callee^.(^Super); is_super {
 		report_error(p, "'new super()' is not allowed")
@@ -13335,24 +13645,16 @@ yield_next_is_expression_argument :: proc(p: ^Parser) -> bool {
 parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	start := cur_loc(p)
 	// ECMA-262 §15.5.1 - "It is a Syntax Error if FormalParameters
-	// Contains YieldExpression is true." A YieldExpression that appears
-	// inside a GeneratorFunction's / GeneratorMethod's FormalParameters
-	// (typically the default initializer of a parameter) is forbidden;
-	// the generator scope only starts INSIDE the body. We flag the
-	// parent parser to mark this window with `in_generator_params`; the
-	// yield-expression constructor here consults it.
-	// §15.5.1 / arrow-cover "YieldExpression in formal parameters"
-	// early error: enforced by the semantic checker (^YieldExpression
-	// case in ck_walk_expr) using its own ctx.in_params tracker.
-	// Note: `yield :` as a LabelledStatement head can't reach this
-	// function in a generator. parse_expression_statement only forms
-	// a label when the parsed expression is a plain ^Identifier; in a
-	// generator the lexer emits .Yield and we always commit to a
-	// YieldExpression here, so the labeled-statement detector skips
-	// it. The previous "yield as label" check fired spuriously on
-	// `(yield) ? yield : yield` and similar ternary expressions where
-	// the colon is part of the surrounding ConditionalExpression.
+	// Contains YieldExpression is true." `yield` is not allowed inside
+	// a generator's formal parameter defaults (the generator scope
+	// only starts INSIDE the body). `p.in_generator_params` is set by
+	// parse_function_params / parse_class_method before calling
+	// parse_function_params.
 	eat(p) // consume yield
+
+	if p.in_generator_params {
+		report_error(p, "'yield' expression is not allowed in formal parameters of a generator")
+	}
 
 	// ECMA-262 §15.5 Restricted Production: no LineTerminator between
 	// `yield` and AssignmentExpression / `*`. If the next token has a
@@ -14128,13 +14430,27 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	if left != nil {
 		#partial switch e in left {
 		case ^Identifier:
-			// §15.3.1 - ArrowParameters BindingIdentifier checks. Strict
-			// mode rejects `eval` / `arguments`, FutureReservedWords, `let`,
-			// `static`, `yield`, and contextual `await` / `yield` checks
-			// follow the same rule as parse_function_declaration.
-			// Arrow parameter BindingIdentifier reservation rules: enforced
-			// by the semantic checker (ck_check_arrow_param_pattern)
-			// consulting strict_mode + in_async + in_generator + source_type.
+			// §15.3.1 - ArrowParameters BindingIdentifier checks.
+			if p.strict_mode {
+				if is_eval_or_arguments(e.name) {
+					report_error(p, fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name))
+				} else if is_strict_reserved_binding_name(e.name) {
+					report_error(p, fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name))
+				}
+			}
+			if e.name == "enum" {
+				report_error(p, "'enum' is a reserved identifier")
+			}
+			if e.name == "await" && (p.in_async || p.in_static_block) {
+				report_error(p, "'await' cannot be used as an arrow parameter in module / async / static-block context")
+			} else if e.name == "await" {
+				if st, have := p.force_source_type.(SourceType); have && st == .Module {
+					report_error(p, "'await' cannot be used as an arrow parameter in module / async / static-block context")
+				}
+			}
+			if e.name == "yield" && (p.in_generator || p.strict_mode) {
+				report_error(p, "'yield' cannot be used as an arrow parameter in generator / strict context")
+			}
 			ident := new_node(p, Identifier)
 			ident^ = e^
 			param := FunctionParameter{
@@ -14349,6 +14665,11 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	}
 	// if left is nil, params stays empty (empty parentheses case)
 
+	// §15.2.1.1 — params vs body lex check for arrow functions.
+	if bs, is_block := body.(^BlockStatement); is_block && bs != nil {
+		check_params_vs_body_lex(p, params[:], bs.body[:])
+	}
+
 	arrow := new_node(p, ArrowFunctionExpression)
 	arrow.loc = start
 	arrow.params = params
@@ -14561,10 +14882,16 @@ is_call_expression_target :: proc(expr: ^Expression) -> bool {
 is_valid_assignment_target :: proc(expr: ^Expression, is_destructure: bool) -> bool {
 	if expr == nil { return false }
 	#partial switch e in expr^ {
-	case ^Identifier, ^MemberExpression,
-	     ^TSNonNullExpression, ^TSAsExpression, ^TSSatisfiesExpression,
-	     ^TSTypeAssertion:
+	case ^Identifier, ^MemberExpression:
 		return true
+	case ^TSNonNullExpression:
+		return is_valid_assignment_target(e.expression, is_destructure)
+	case ^TSAsExpression:
+		return is_valid_assignment_target(e.expression, is_destructure)
+	case ^TSSatisfiesExpression:
+		return is_valid_assignment_target(e.expression, is_destructure)
+	case ^TSTypeAssertion:
+		return is_valid_assignment_target(e.expression, is_destructure)
 	case ^CallExpression:
 		return false
 	case ^ParenthesizedExpression:
@@ -14574,6 +14901,62 @@ is_valid_assignment_target :: proc(expr: ^Expression, is_destructure: bool) -> b
 		return is_destructure
 	}
 	return false
+}
+
+// validate_destructure_target walks an assignment LHS that's being
+// converted to a pattern. Inside array/object literals, parenthesized
+// AssignmentExpressions and parenthesized non-Member expressions are
+// invalid pattern elements. e.g. `[(a = 1)] = t` and `[([x])] = t`
+// are rejected by OXC.
+validate_destructure_target :: proc(p: ^Parser, expr: ^Expression) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^ArrayExpression:
+		if e == nil { return }
+		for elem in e.elements {
+			if inner, ok := elem.(^Expression); ok && inner != nil {
+				validate_pattern_element(p, inner)
+			}
+		}
+	case ^ObjectExpression:
+		if e == nil { return }
+		for prop in e.properties {
+			if prop.value != nil {
+				validate_pattern_element(p, prop.value)
+			}
+		}
+	case ^ParenthesizedExpression:
+		if e != nil { validate_destructure_target(p, e.expression) }
+	}
+}
+
+validate_pattern_element :: proc(p: ^Parser, expr: ^Expression) {
+	if expr == nil { return }
+	#partial switch e in expr^ {
+	case ^ParenthesizedExpression:
+		if e == nil { return }
+		// Parenthesized non-Member expressions can't be pattern elements.
+		inner := e.expression
+		if inner != nil {
+			#partial switch _ in inner^ {
+			case ^Identifier, ^MemberExpression, ^TSNonNullExpression,
+			     ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
+				// These remain valid even when parenthesized at the pattern level.
+			case:
+				report_error_at(p, LexerLoc(e.loc.span.start), "Cannot assign to this expression")
+			}
+		}
+	case ^AssignmentExpression:
+		if e == nil { return }
+		// Default-value assignment in pattern: `[a = 1]`. Recurse into LHS.
+		if e.operator == .Assign {
+			validate_pattern_element(p, e.left)
+		}
+	case ^ArrayExpression, ^ObjectExpression:
+		validate_destructure_target(p, expr)
+	case ^SpreadElement:
+		if e != nil { validate_pattern_element(p, e.argument) }
+	}
 }
 
 // is_simple_assignment_target returns true if `expr` has the spec's
@@ -14628,6 +15011,18 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 		if paren_invalid {
 			report_error(p, "Invalid left-hand side in assignment")
 		}
+	}
+	// General assignment-target validation. `(foo() as T) = 1` etc.
+	// is_destructure=true allows `[a, b] = c` / `({a} = c)`; the
+	// destructure-conversion path only kicks in for `=` operator.
+	is_destructure := op == .Assign
+	if left != nil && !is_valid_assignment_target(left, is_destructure) {
+		report_error(p, "Cannot assign to this expression")
+	}
+	// Walk destructuring patterns to reject parenthesized non-targets
+	// inside array/object pattern elements.
+	if left != nil && is_destructure {
+		validate_destructure_target(p, left)
 	}
 	// Clear the marker so it doesn't bleed into the RHS or the next
 	// AssignmentExpression (e.g. `(a) = (b) = c` - the second `(b)`
@@ -15334,6 +15729,11 @@ is_jsx_identifier_token :: proc(p: ^Parser) -> bool {
 parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	start := cur_loc(p)
 	eat(p)
+	// `</>` (lone closing fragment) at expression position has no
+	// matching opening fragment. Reject.
+	if is_token(p, .Div) {
+		report_error(p, "Unexpected token: lone closing JSX fragment '</>'")
+	}
 	if is_token(p, .RAngle) {
 		eat(p)
 		// Opening fragment `<>` spans [<, >] inclusive of both angle brackets
@@ -15386,16 +15786,28 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 }
 
 // Extract a string representation of a JSXElementName for tag matching.
+// Returns the full qualified name including namespace / member parts so
+// `<a:b></b>` and `<a.b></a>` are correctly detected as mismatches.
 jsx_element_name_string :: proc(name: JSXElementName) -> string {
 	switch n in name {
 	case JSXIdentifier:
 		return n.name
 	case ^JSXNamespacedName:
 		if n == nil { return "" }
-		return n.name.name  // simplified - ignores namespace
+		return fmt.tprintf("%s:%s", n.namespace.name, n.name.name)
 	case ^JSXMemberExpression:
 		if n == nil { return "" }
-		return n.property.name  // simplified
+		obj_str := ""
+		switch obj in n.object {
+		case JSXIdentifier:
+			obj_str = obj.name
+		case ^JSXMemberExpression:
+			if obj != nil {
+				inner: JSXElementName = obj
+				obj_str = jsx_element_name_string(inner)
+			}
+		}
+		return fmt.tprintf("%s.%s", obj_str, n.property.name)
 	}
 	return ""
 }
@@ -15413,9 +15825,16 @@ parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
 	}
 	if is_token(p, .Dot) {
 		obj: JSXMemberObject = ident
+		// Hyphens are not allowed in JSX member expression identifiers.
+		if strings.contains(ident.name, "-") {
+			report_error(p, "Identifiers in JSX cannot contain hyphens")
+		}
 		for is_token(p, .Dot) {
 			eat(p)
 			prop := parse_jsx_identifier(p)
+			if strings.contains(prop.name, "-") {
+				report_error(p, "Identifiers in JSX cannot contain hyphens")
+			}
 			member := new_node(p, JSXMemberExpression)
 			member.loc = ident.loc; member.object = obj; member.property = prop
 			member.loc.span.end = prev_end_offset(p)
@@ -15427,7 +15846,10 @@ parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
 }
 
 parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
-	if !is_jsx_identifier_token(p) { return JSXIdentifier{} }
+	if !is_jsx_identifier_token(p) {
+		report_error(p, "Expected JSX identifier")
+		return JSXIdentifier{}
+	}
 	start_loc := cur_loc(p)
 	current := get_current(p)
 	name := current.value
@@ -15652,6 +16074,10 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 				for c in text.value {
 					if c == '>' {
 						report_error(p, "Unexpected token. Did you mean `{'>'}` or `&gt;`?")
+						break
+					}
+					if c == '}' {
+						report_error(p, "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?")
 						break
 					}
 				}
@@ -16945,20 +17371,32 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 						if is_token(p, .LBracket) {
 							report_error(p, "Import attributes keys must be identifier or string literal")
 						}
-						// Skip tokens until comma or closing brace.
-						inner_depth := 0
-						for !is_token(p, .EOF) {
-							if is_token(p, .LBrace) || is_token(p, .LBracket) { inner_depth += 1 }
-							else if is_token(p, .RBrace) || is_token(p, .RBracket) {
-								if inner_depth == 0 { break }
-								inner_depth -= 1
-							}
-							else if is_token(p, .Comma) && inner_depth == 0 {
-								eat(p) // consume comma
-								break
-							}
-							eat(p)
+						// Validate the key: must be Identifier, String, or keyword-as-name.
+						// Numeric / BigInt literals as keys are invalid here.
+						if is_token(p, .Number) || is_token(p, .BigInt) {
+							report_error(p, "Unexpected token: numeric / bigint literal cannot be an import attribute key")
 						}
+						eat(p) // consume key
+						if !is_token(p, .Colon) && !is_token(p, .RBrace) && !is_token(p, .Comma) {
+							report_error(p, "Expected ':' after import attribute key")
+						}
+						if is_token(p, .Colon) {
+							eat(p) // consume :
+							// Skip value tokens until comma or closing brace.
+							inner_depth := 0
+							for !is_token(p, .EOF) {
+								if is_token(p, .LBrace) || is_token(p, .LBracket) { inner_depth += 1 }
+								else if is_token(p, .RBrace) || is_token(p, .RBracket) {
+									if inner_depth == 0 { break }
+									inner_depth -= 1
+								}
+								else if is_token(p, .Comma) && inner_depth == 0 {
+									break
+								}
+								eat(p)
+							}
+						}
+						if is_token(p, .Comma) { eat(p) } // consume comma
 					}
 					if is_token(p, .RBrace) { eat(p) } // consume inner }
 				} else {
@@ -18477,9 +18915,21 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			modifier_name = "static"
 		} else if is_token(p, .Override) {
 			modifier_name = "override"
+		} else if is_token(p, .Const) {
+			modifier_name = "const"
+		} else if is_token(p, .Default) {
+			modifier_name = "default"
+		} else if is_token(p, .Export) {
+			modifier_name = "export"
+		} else if is_token(p, .Async) {
+			modifier_name = "async"
+		} else if is_token(p, .Abstract) {
+			modifier_name = "abstract"
+		} else if is_token(p, .Accessor) {
+			modifier_name = "accessor"
 		} else if is_token(p, .Identifier) {
 			switch p.cur_tok.value {
-			case "public", "private", "protected", "declare":
+			case "public", "private", "protected", "declare", "abstract", "accessor", "async":
 				modifier_name = p.cur_tok.value
 			}
 		}
@@ -18490,7 +18940,13 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		   nxt == .Comma || nxt == .RBrace {
 			break
 		}
-		report_error(p, fmt.tprintf("'%s' modifier cannot appear on a type member.", modifier_name))
+		// Differentiate index signature messages
+		is_idx_sig := nxt == .LBracket
+		if is_idx_sig {
+			report_error(p, fmt.tprintf("'%s' modifier cannot appear on an index signature.", modifier_name))
+		} else {
+			report_error(p, fmt.tprintf("'%s' modifier cannot appear on a type member.", modifier_name))
+		}
 		eat(p)
 	}
 
@@ -19094,6 +19550,9 @@ parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
 	expect_token(p, .Assign)
 	type_ann := parse_ts_type(p)
+	if type_ann == nil {
+		report_error(p, "Expected type annotation after '='")
+	}
 	match_semicolon_or_asi(p)
 	decl := new_node(p, TSTypeAliasDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters; decl.type_annotation = type_ann
 	decl.loc.span.end = prev_end_offset(p)
@@ -19135,10 +19594,8 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
 			member_id = expression_from(p, mid)
 		} else if is_token(p, .LBracket) {
-			// Computed enum member name (TS extension, no spec): `enum A {
-			// ['baz'] }`. The value inside the brackets must be a constant
-			// string-coercible expression; the parser accepts any
-			// AssignmentExpression, leaving deeper checks to the type-checker.
+			// Computed property names are not allowed in enums (TS1164).
+			report_error(p, "Computed property names are not allowed in enums.")
 			eat(p) // consume `[`
 			inner := parse_assignment_expression(p)
 			expect_token(p, .RBracket)
@@ -19149,8 +19606,8 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 				member_id = inner
 			}
 		} else if is_token(p, .Template) || is_token(p, .TemplateHead) {
-			// Template-literal enum member name (TS extension): `enum A {
-			// `baz` }`. Parsed via the regular template-literal path.
+			// Template literals are not valid enum member names.
+			report_error(p, "Enum member expected.")
 			member_id = parse_template_literal(p, false)
 		} else {
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
@@ -19258,9 +19715,12 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	}
 
 	// Optional body `{ ... }`. A `declare` context can elide it (`declare namespace X;`),
-	// but that's H4 territory; REQUIRE the block here.
+	// but otherwise the block is required.
 	decl := new_node(p, TSModuleDeclaration)
 	decl.loc = start; decl.id = id_expr; decl.kind = kind
+	if !is_token(p, .LBrace) && !p.in_ambient {
+		report_error(p, "Expected `{` but found `;`")
+	}
 	if is_token(p, .LBrace) {
 		body_start := cur_loc(p); eat(p) // consume `{`
 		// Ambient context: string-named module, OR already-ambient caller

@@ -19,7 +19,9 @@
             "type": "Identifier",
             "start": 6,
             "end": 7,
-            "name": "x"          },
+            "name": "x",
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "TSAsExpression",
             "start": 10,
@@ -28,7 +30,9 @@
               "type": "Identifier",
               "start": 10,
               "end": 15,
-              "name": "value"
+              "name": "value",
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeAnnotation": {
               "type": "TSStringKeyword",
@@ -50,7 +54,9 @@
             "type": "Identifier",
             "start": 33,
             "end": 34,
-            "name": "y"          },
+            "name": "y",
+            "typeAnnotation": null,
+            "optional": false          },
           "init": {
             "type": "TSSatisfiesExpression",
             "start": 37,
@@ -59,7 +65,9 @@
               "type": "Identifier",
               "start": 37,
               "end": 41,
-              "name": "data"
+              "name": "data",
+              "typeAnnotation": null,
+              "optional": false
             },
             "typeAnnotation": {
               "type": "TSTypeReference",
@@ -69,7 +77,9 @@
                 "type": "Identifier",
                 "start": 52,
                 "end": 58,
-                "name": "Record"
+                "name": "Record",
+                "typeAnnotation": null,
+                "optional": false
               },
               "typeArguments": null
             }          }        }
@@ -78,5 +88,5 @@
 }
 
 --- Statistics ---
-Arena: used=6664B reserved=16777216B ratio=0%
+Arena: used=35744B reserved=16777216B ratio=0%
 Parse errors: 0
