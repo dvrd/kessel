@@ -137,9 +137,17 @@ Bench numbers from `task test:bench:regression` end of session 3
 | typescript.js | 44908.38 | 44716.71 | 0.996 |
 | (geo-mean across all 10) | — | — | **1.015** |
 
-All within tolerance (per-file 10%, geo-mean 5%). The lodash
-regression flagged in session 2 settled at 1.086x — inside the per-file
-threshold, no re-baseline needed.
+All within tolerance (per-file 10%, geo-mean 5%) on a quiet machine.
+The lodash regression flagged in session 2 settled at 1.086x — inside
+the per-file threshold, no re-baseline needed.
+
+**Caveat**: `task test:bench:regression` is sensitive to system load.
+A repeat run on a busy machine (load avg > 5) consistently shows a
+~20% global slowdown across all 10 files, which is noise, not a real
+regression. If the gate fails, retry on a quiet system before
+assuming a code regression. The binary did not change between the
+1.015 geo-mean run and the noisy 1.20 geo-mean run — same SHA,
+identical md5.
 
 OXC-vs-kessel comparison is no longer the gating signal — see
 AGENTS.md: "conformance has overtaken raw speed as the work-on-next
