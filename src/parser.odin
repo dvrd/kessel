@@ -5812,6 +5812,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	elem.accessibility = accessibility
 	elem.readonly = is_readonly
 	elem.override_ = is_override
+	// TS optional method: `m?(): void`. The `?` was consumed by the
+	// shared field/method `?`/`!` parser higher in this proc, but only
+	// the field-element branch propagated `field_optional` into
+	// `elem.optional`. Mirror it for methods so downstream checks
+	// (e.g. ck_check_ts_class_overloads) can distinguish optional
+	// methods from overload signatures.
+	elem.optional = field_optional
 
 	elem.loc.span.end = prev_end_offset(p)
 	return elem

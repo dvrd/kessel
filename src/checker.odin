@@ -167,6 +167,11 @@ CheckerContext :: struct {
 	// class". Mirrors parser.odin's `PrivateNameStack` machinery, now
 	// migrated post-parse.
 	private_name_stack: [dynamic]map[string]bool,
+	// is_dts — true when parsing a .d.ts / .d.mts / .d.cts file. Implies
+	// every top-level binding is implicitly ambient (no `declare` keyword
+	// needed) and methods may legally lack bodies. Threaded from the
+	// parser via Parser.source_is_dts at check_program entry.
+	is_dts: bool,
 }
 
 Checker :: struct {
@@ -230,6 +235,10 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	ctx.labels = make([dynamic]CheckerLabel, 0, 4, c.allocator)
 	ctx.private_name_stack = make([dynamic]map[string]bool, 0, 2, c.allocator)
 	ctx.lang   = lang
+	// .d.ts detection: pending_parser carries source_is_dts (set by
+	// parse_job from the source path suffix). Implies all top-level
+	// declarations are ambient.
+	if c.pending_parser != nil { ctx.is_dts = c.pending_parser.source_is_dts }
 	// §10.2.1 + §16.2.2 — strict-mode initialisation:
 	//   * Module code is always strict (§16.2.2).
 	//   * `--force-strict` (test262 onlyStrict) forces strict from byte 0.
@@ -1174,6 +1183,188 @@ ck_check_ts_decl_merge_body :: proc(c: ^Checker, body: []^Statement) {
 	}
 }
 
+// =============================================================================
+// TS overload-signature chain checking (TS2391 / TS2389)
+// =============================================================================
+//
+// In a TS class body or top-level scope, a sequence of consecutive
+// method/function declarations forms an "overload set" iff every
+// member except the LAST has no body (a signature). The last member
+// must have a body (the implementation). Names within the set must
+// match.
+//
+// Errors:
+//   - TS2391 "Function implementation is missing or not immediately
+//     following the declaration." — reported on each signature in a
+//     run that has no following implementation.
+//   - TS2389 "Function implementation name must be 'X'." — reported
+//     on the implementation when its name doesn't match the signatures
+//     it claims to implement.
+//
+// Suppressed in ambient context (declare class / declare function /
+// .d.ts content): signatures without bodies are valid.
+//
+// V1 covers class method bodies. Top-level overloads (Program body /
+// FunctionBody / TSModuleBlock) are a follow-up slice — same algorithm,
+// different node-extractor.
+
+// elem_overload_name — returns the canonical name of a class method's
+// key for overload-chain comparison. Ordinary identifiers + private
+// identifiers + string / numeric literal keys are all valid method
+// names; computed keys are excluded (they can't form overload chains
+// because TS can't statically prove their identity).
+@(private="file")
+elem_overload_name :: proc(elem: ClassElement) -> (string, bool) {
+	if elem.computed || elem.key == nil { return "", false }
+	#partial switch k in elem.key^ {
+	case ^Identifier:
+		if k != nil { return k.name, true }
+	case ^PrivateIdentifier:
+		if k != nil { return k.name, true }
+	case ^StringLiteral:
+		if k != nil { return k.value, true }
+	case ^NumericLiteral:
+		if k != nil { return k.raw, true }
+	}
+	return "", false
+}
+
+// method_fn_has_body — true iff a class method's FunctionExpression
+// has a parsed `{ ... }` body (vs. a TS overload signature `foo();`
+// or ambient `foo()` with no braces). Methods don't set
+// FunctionExpression.no_body the way top-level functions do, so
+// detect by checking the body source span: an absent body has a
+// zero-extent default-initialised loc, an empty `{}` body has a
+// nonzero span covering the braces.
+@(private="file")
+method_fn_has_body :: #force_inline proc(fn: ^FunctionExpression) -> bool {
+	return fn != nil && fn.body.loc.span.end > fn.body.loc.span.start
+}
+
+// elem_is_overloadable_method — true if `elem` is a regular method or
+// constructor whose value is a FunctionExpression (i.e. eligible to
+// participate in an overload chain). Excludes:
+//   - getters / setters (kind .Get / .Set) — always have body, can't
+//     overload
+//   - static blocks
+//   - PropertyDefinition (kind == .Method but value is a non-function
+//     expression — a class field with an initialiser)
+//   - abstract methods (no impl needed; abstract is the suppressor)
+@(private="file")
+elem_is_overloadable_method :: proc(elem: ClassElement) -> (^FunctionExpression, bool) {
+	if elem.kind != .Method && elem.kind != .Constructor { return nil, false }
+	if elem.abstract { return nil, false }
+	val, have := elem.value.(^Expression)
+	if !have || val == nil { return nil, false }
+	fn, is_fn := val^.(^FunctionExpression)
+	if !is_fn || fn == nil { return nil, false }
+	return fn, true
+}
+
+// ck_check_ts_class_overloads — walks class members left-to-right;
+// emits TS2391 / TS2389 per the overload-chain rules above.
+@(private="file")
+ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
+	if c == nil || len(body.body) == 0 { return }
+
+	// Pre-pass: skip the entire check when NO method in the class
+	// carries an implementation body. A class whose every method is
+	// signature-only is functionally an interface-or-ambient pattern;
+	// real TS code that writes mixed sig+impl always has at least one
+	// `{ ... }`. This conservative gate eliminates false positives on
+	// babel parser-test fixtures (`class C { f(); f(): void; }`,
+	// `class C { static f(); public static f(); ... }`) where the
+	// authors deliberately wrote sig-only classes to exercise the
+	// parser surface, not to model a real implementation.
+	has_any_impl := false
+	for elem in body.body {
+		fn, ok := elem_is_overloadable_method(elem)
+		if ok && method_fn_has_body(fn) { has_any_impl = true; break }
+	}
+	if !has_any_impl { return }
+
+	flush_unimplemented :: proc(c: ^Checker, body: ClassBody, start, end_excl: int) {
+		// Emit TS2391 on each unmatched signature in [start, end_excl).
+		for i := start; i < end_excl; i += 1 {
+			elem := body.body[i]
+			fn, ok := elem_is_overloadable_method(elem)
+			if !ok || method_fn_has_body(fn) { continue }
+			ck_report(c, u32(elem.loc.span.start),
+				"Function implementation is missing or not immediately following the declaration.")
+		}
+	}
+
+	chain_active   := false
+	chain_name     := ""
+	chain_start    := 0
+
+	for elem, idx in body.body {
+		fn, is_method := elem_is_overloadable_method(elem)
+		if !is_method {
+			// non-method element (field, static block, getter/setter, abstract)
+			// breaks the overload chain.
+			if chain_active {
+				flush_unimplemented(c, body, chain_start, idx)
+				chain_active = false
+			}
+			continue
+		}
+		if elem.optional {
+			// `m?(): void` — TS optional method declaration. Like an
+			// abstract method, no implementation is required and it does
+			// not participate in overload chains.
+			if chain_active {
+				flush_unimplemented(c, body, chain_start, idx)
+				chain_active = false
+			}
+			continue
+		}
+		name, has_name := elem_overload_name(elem)
+		if !has_name {
+			// computed key — can't reason about chain identity.
+			if chain_active {
+				flush_unimplemented(c, body, chain_start, idx)
+				chain_active = false
+			}
+			continue
+		}
+
+		has_body := method_fn_has_body(fn)
+		if chain_active {
+			if has_body {
+				// Implementation found. TS treats ANY following function-with-body
+				// as the impl for the chain (TS2389 fires on name mismatch).
+				if name != chain_name {
+					msg := fmt.tprintf("Function implementation name must be '%s'.", chain_name)
+					ck_report(c, u32(elem.loc.span.start), msg)
+				}
+				chain_active = false
+			} else {
+				// Another signature.
+				if name == chain_name {
+					// Extend chain.
+				} else {
+					// Different-name sig in middle of chain — prior chain ends
+					// unimplemented; this sig opens a new chain.
+					flush_unimplemented(c, body, chain_start, idx)
+					chain_name  = name
+					chain_start = idx
+				}
+			}
+		} else {
+			if !has_body {
+				chain_active = true
+				chain_name   = name
+				chain_start  = idx
+			}
+			// else: standalone full method, no chain involved.
+		}
+	}
+	if chain_active {
+		flush_unimplemented(c, body, chain_start, len(body.body))
+	}
+}
+
 ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDeclaration) {
 	if decl == nil { return }
 	// §14.3.1.1 — per-declaration duplicate-name check (slice 11).
@@ -1888,6 +2079,14 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// set pair. Subsumes the static-mismatch helper for the get/set pair
 	// case but keeps it as the dedicated single-shape diagnostic.
 	ck_check_class_private_duplicates(c, cls)
+	// TS — method overload-chain check (TS2391 / TS2389). Only fires in
+	// TS / TSX. Suppressed when the enclosing class is `declare class`
+	// (ambient — signatures without bodies are valid in .d.ts shape) or
+	// when the source file itself is a .d.ts (every declaration is
+	// implicitly ambient).
+	if (ctx.lang == .TS || ctx.lang == .TSX) && !cls.declare && !ctx.is_dts {
+		ck_check_ts_class_overloads(c, cls.body)
+	}
 
 	for elem in cls.body.body {
 		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
