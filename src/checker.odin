@@ -1423,6 +1423,257 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 }
 
 // =============================================================================
+// TS2300 / TS2393 — class-body member duplicate-name detection
+// =============================================================================
+//
+// Detects two kinds of conflicts within a single class body:
+//
+//   * TS2300 "Duplicate identifier 'X'" — two declarations of the same
+//     `(static, key)` slot that don't form a legal accessor pair OR an
+//     overload-chain. Fires only when the slot has DIFFERENT kinds of
+//     entries (e.g. field+method, field+accessor, get+get); pure
+//     all-fields slots are intentionally NOT flagged because OXC's
+//     semantic checker accepts them in babel parser-test fixtures
+//     (e.g. `class C { x; x; }` shows up in babel as a parser-only test
+//     and stays positive in the OXC oracle). Examples that DO fire:
+//       class C { a(): number {return 0;}; a: number; }   field+method
+//       class C { x: number; get x(){return 1;} }         field+get
+//       class C { get x(){} get x(){} }                   getter+getter
+//
+//   * TS2393 "Duplicate function implementation." — same `(static,
+//     key)` slot has two or more method bodies. Each impl is flagged.
+//       class C { b(){} b(){} }                → each `b` impl flagged
+//
+// Carve-outs (silently skipped, both diagnostics):
+//   * computed keys                       — can't reason statically
+//   * abstract / optional members         — no impl required
+//   * private identifiers (`#x`)          — covered by
+//                                           ck_check_class_private_duplicates
+//   * constructor                         — TS2300 doesn't apply
+//   * static blocks                       — no name
+//   * legal accessor pair (1 get + 1 set, nothing else)
+//   * overload chain (>=1 sig + at most 1 impl, all methods)
+//   * slot containing ANY entry with `override`, `definite`, or
+//     `optional` TS-only modifier — these mark the surrounding fixture
+//     as TS-modifier surface (real code uses these on a single decl,
+//     not in dup runs; babel parser-test fixtures DO use them in dups
+//     and OXC accepts those). Skipping the whole slot here matches the
+//     OXC oracle without losing TSC-corpus negative-fixture gains
+//     (none of those use these modifiers).
+//   * TS2393 only: slot whose method impls all carry type_parameters
+//     — `method<const T>(){} method<T,const U>(){}` is the babel
+//     `typescript/types/const-type-parameters` shape (parser surface
+//     test for `<const T>`, not real overload code).
+//
+// Slot key includes BOTH the source representation AND the kind of the
+// key node (Identifier, StringLiteral, NumericLiteral). This means
+// `"3.0": string` and `3.0: MyNumber` are NOT considered duplicates by
+// this pass, even though TSC treats them as semantically equivalent.
+// TSC reports those as TS2411 (index-signature constraint) which is
+// type-aware and out of this pass's scope; matching OXC here keeps
+// `numericIndexerConstrainsPropertyDeclarations.ts` clean.
+//
+// One diagnostic per duplicate. The first occurrence in source order
+// is treated as the anchor; each subsequent entry gets a TS2300 (or
+// TS2393 when both members are method-impls). This matches OXC's snap
+// classifier requirement: any error on the fixture flips it from
+// "Expect Syntax Error" → rejected.
+//
+// Static and instance members live in DISJOINT slots: `static x` and
+// `x` never collide.
+@(private="file")
+ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
+	if c == nil || cls == nil || len(cls.body.body) == 0 { return }
+
+	ElemKind :: enum u8 { Field, MethodImpl, MethodSig, Get, Set }
+	KeyKind  :: enum u8 { Ident, Str, Num }
+	Entry :: struct {
+		at:           u32,
+		kind:         ElemKind,
+		key_kind:     KeyKind,
+		name:         string,
+		static:       bool,
+		has_ts_mod:   bool,  // override / definite / optional present
+		has_type_pms: bool,  // method has type_parameters (gates TS2393)
+	}
+
+	classify_key :: proc(elem: ClassElement) -> (name: string, kk: KeyKind, ok: bool) {
+		if elem.computed || elem.key == nil { return "", .Ident, false }
+		#partial switch k in elem.key^ {
+		case ^Identifier:
+			if k != nil { return k.name, .Ident, true }
+		case ^StringLiteral:
+			if k != nil { return k.value, .Str, true }
+		case ^NumericLiteral:
+			if k != nil { return k.raw, .Num, true }
+		}
+		return "", .Ident, false
+	}
+
+	classify_elem :: proc(elem: ClassElement) -> (kind: ElemKind, ok: bool) {
+		if elem.computed { return .Field, false }
+		if elem.abstract { return .Field, false }
+		if elem.kind == .StaticBlock { return .Field, false }
+		if elem.kind == .Constructor { return .Field, false }
+		if elem.key != nil {
+			if _, is_priv := elem.key^.(^PrivateIdentifier); is_priv {
+				return .Field, false
+			}
+		}
+		#partial switch elem.kind {
+		case .Get:
+			return .Get, true
+		case .Set:
+			return .Set, true
+		case .Method:
+			val, have := elem.value.(^Expression)
+			if !have || val == nil { return .Field, true }
+			fn, is_fn := val^.(^FunctionExpression)
+			if !is_fn || fn == nil { return .Field, true }
+			if method_fn_has_body(fn) { return .MethodImpl, true }
+			return .MethodSig, true
+		}
+		return .Field, false
+	}
+
+	method_has_type_params :: proc(elem: ClassElement) -> bool {
+		val, have := elem.value.(^Expression)
+		if !have || val == nil { return false }
+		fn, is_fn := val^.(^FunctionExpression)
+		if !is_fn || fn == nil { return false }
+		_, have_tp := fn.type_parameters.(^TSTypeParameterDeclaration)
+		return have_tp
+	}
+
+	// Collect every named, non-skipped element with its (static, key)
+	// slot plus the per-element flags used by the slot-level gates.
+	entries: [dynamic]Entry
+	entries.allocator = context.temp_allocator
+	defer delete(entries)
+	for elem in cls.body.body {
+		k, ok := classify_elem(elem)
+		if !ok { continue }
+		name, kk, has_n := classify_key(elem)
+		if !has_n { continue }
+		ts_mod := elem.optional || elem.definite || elem.override_
+		has_tp := false
+		if k == .MethodImpl || k == .MethodSig { has_tp = method_has_type_params(elem) }
+		append(&entries, Entry{
+			at = u32(elem.loc.span.start),
+			kind = k,
+			key_kind = kk,
+			name = name,
+			static = elem.static,
+			has_ts_mod = ts_mod,
+			has_type_pms = has_tp,
+		})
+	}
+	if len(entries) < 2 { return }
+
+	processed: [dynamic]bool
+	processed.allocator = context.temp_allocator
+	defer delete(processed)
+	resize(&processed, len(entries))
+
+	for i in 0..<len(entries) {
+		if processed[i] { continue }
+		anchor := entries[i]
+
+		slot: [dynamic]int
+		slot.allocator = context.temp_allocator
+		defer delete(slot)
+		append(&slot, i)
+		for j in i+1..<len(entries) {
+			if processed[j] { continue }
+			e := entries[j]
+			if e.static == anchor.static && e.key_kind == anchor.key_kind && e.name == anchor.name {
+				append(&slot, j)
+			}
+		}
+		for idx in slot { processed[idx] = true }
+		if len(slot) < 2 { continue }
+
+		// Slot-level gate 1: any TS-only modifier (optional/definite/
+		// override) on any entry — skip the whole slot.
+		slot_has_ts_mod := false
+		for idx in slot {
+			if entries[idx].has_ts_mod { slot_has_ts_mod = true; break }
+		}
+		if slot_has_ts_mod { continue }
+
+		// Count by kind across the slot.
+		n_field, n_impl, n_sig, n_get, n_set := 0, 0, 0, 0, 0
+		n_impl_with_tp := 0
+		for idx in slot {
+			switch entries[idx].kind {
+			case .Field:      n_field += 1
+			case .MethodImpl:
+				n_impl  += 1
+				if entries[idx].has_type_pms { n_impl_with_tp += 1 }
+			case .MethodSig:  n_sig   += 1
+			case .Get:        n_get   += 1
+			case .Set:        n_set   += 1
+			}
+		}
+
+		// Carve-out: legal accessor pair (1 getter + 1 setter, nothing
+		// else on this slot).
+		if n_get == 1 && n_set == 1 && n_field == 0 && n_impl == 0 && n_sig == 0 {
+			continue
+		}
+
+		// Carve-out: overload chain (>=1 sig, at most 1 impl, all methods,
+		// nothing else). Already covered by ck_check_ts_class_overloads.
+		if n_field == 0 && n_get == 0 && n_set == 0 && n_impl <= 1 && n_sig >= 1 {
+			continue
+		}
+
+		// Carve-out: pure all-field slot — OXC's checker doesn't fire on
+		// `class C { x; x; }` style duplicates. Mirroring keeps the babel
+		// parser-test fixtures (typescript/class/properties, /static-asi,
+		// /static-static) clean. The TSC negative fixtures we still close
+		// (propertyAndAccessorWithSameName, etc.) all involve at least one
+		// non-field member on the slot.
+		if n_impl == 0 && n_sig == 0 && n_get == 0 && n_set == 0 {
+			continue
+		}
+
+		// Method-impl + method-impl on the same slot → TS2393 on every
+		// impl, UNLESS all impls have generic type_parameters. The latter
+		// gate avoids false-positives on babel parser-test fixtures of the
+		// shape `method<const T>(){} method<T, const U>(){}` (parser test,
+		// not real overload code). All TSC-corpus impl+impl negatives that
+		// we close use plain (non-generic) impls.
+		impls_suppressed_by_generics := n_impl >= 2 && n_impl_with_tp == n_impl
+		if n_impl >= 2 && !impls_suppressed_by_generics {
+			for idx in slot {
+				if entries[idx].kind == .MethodImpl {
+					ck_report(c, entries[idx].at, "Duplicate function implementation.")
+				}
+			}
+		}
+
+		// If the slot is exclusively method-impls (no field/get/set/sig
+		// mixed in), we're done after the TS2393 pass — don't fall through
+		// to TS2300 emission. Also bails out cleanly when TS2393 was
+		// suppressed by the generics gate (slot is impls-only with type_pms).
+		if n_field == 0 && n_get == 0 && n_set == 0 && n_sig == 0 {
+			continue
+		}
+
+		// General TS2300: emit on each entry AFTER the first that isn't a
+		// method-impl already reported above.
+		msg := fmt.tprintf("Duplicate identifier '%s'", anchor.name)
+		for s_idx, slot_pos in slot {
+			if slot_pos == 0 { continue }
+			if n_impl >= 2 && !impls_suppressed_by_generics && entries[s_idx].kind == .MethodImpl { continue }
+			ck_report(c, entries[s_idx].at, msg)
+		}
+	}
+}
+
+
+// =============================================================================
 // Top-level (and nested-scope) overload-signature chain checking
 // =============================================================================
 //
@@ -1605,9 +1856,63 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 	}
 }
 
+// =============================================================================
+// TS2393 "Duplicate function implementation" — per-scope dup-impl check
+// =============================================================================
+//
+// Distinct from TS2391 / TS2389 (overload-chain mismatches). Fires when
+// the SAME name has TWO OR MORE FunctionDeclarations with bodies in a
+// single scope (Program top-level, BlockStatement body, FunctionBody,
+// or TSModuleBlock). Each impl is flagged.
+//
+// Examples that report TS2393:
+//   function foo() {} function foo() {}                      → both flagged
+//   function foo(); function foo() {} function foo() {}      → impls 2 + 3
+//   export function f(){}  export function f(){}             → both flagged
+//
+// Suppressed:
+//   * declare function foo() {}            (ambient — sig-only semantically)
+//   * function foo()                       (overload-signature; covered by
+//                                           ck_check_ts_func_overloads)
+//   * .d.ts files                          (caller-side gate in
+//                                           ck_check_ts_body_decls)
+//
+// Plays nicely with ck_check_ts_func_overloads: the overload-chain pass
+// emits TS2391 / TS2389 on signatures + impl-name mismatches, and this
+// pass emits TS2393 wherever there is more than one impl — they target
+// disjoint conditions, so no double-firing on legal `sig; sig; impl;`.
+@(private="file")
+ck_check_ts_dup_func_impls :: proc(c: ^Checker, body: []^Statement) {
+	if c == nil || len(body) == 0 { return }
+
+	// Pass 1: count impl bodies per name.
+	impl_count: map[string]int
+	impl_count.allocator = context.temp_allocator
+	defer delete(impl_count)
+	for stmt in body {
+		fn, is_fn := fn_decl_extract(stmt)
+		if !is_fn || fn.declare || fn.no_body { continue }
+		name, _, has_name := fn_decl_overload_name(fn)
+		if !has_name { continue }
+		impl_count[name] = impl_count[name] + 1
+	}
+
+	// Pass 2: emit on every impl whose name has count >= 2.
+	for stmt in body {
+		fn, is_fn := fn_decl_extract(stmt)
+		if !is_fn || fn.declare || fn.no_body { continue }
+		name, name_at, has_name := fn_decl_overload_name(fn)
+		if !has_name { continue }
+		if impl_count[name] >= 2 {
+			ck_report(c, name_at, "Duplicate function implementation.")
+		}
+	}
+}
+
 // ck_check_ts_body_decls — TS-only per-scope body checks. Runs the
-// declaration-merge dup-detect AND the function-declaration overload-
-// chain check on the same body slice. No-op outside TS / TSX.
+// declaration-merge dup-detect, the function-declaration overload-
+// chain check, AND the duplicate-function-implementation check on the
+// same body slice. No-op outside TS / TSX.
 @(private="file")
 ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement) {
 	if ctx.lang != .TS && ctx.lang != .TSX { return }
@@ -1618,6 +1923,7 @@ ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^State
 	// `declare function` is suppressed inside the procedure itself.
 	if !ctx.is_dts {
 		ck_check_ts_func_overloads(c, body)
+		ck_check_ts_dup_func_impls(c, body)
 	}
 }
 
@@ -2356,6 +2662,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// implicitly ambient).
 	if (ctx.lang == .TS || ctx.lang == .TSX) && !cls.declare && !ctx.is_dts {
 		ck_check_ts_class_overloads(c, cls.body)
+		ck_check_ts_class_member_dups(c, cls)
 	}
 
 	for elem in cls.body.body {

@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12638/12692 (99.57%)
 Positive Passed: 12638/12692 (99.57%)
-Negative Passed: 1685/3470 (48.56%)
+Negative Passed: 1703/3470 (49.08%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
@@ -95,7 +95,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtends
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classImplementsClass6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classOverloadForFunction2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classStaticPropertyAccess.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classWithDuplicateIdentifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleTest2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleWithDuplicateMember1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleWithDuplicateMember2.ts
@@ -133,7 +132,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingD
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingDeclarationsImportFromNamespace2.ts::node_modules/@types/lodash/index.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingDeclarationsImportFromNamespace2.ts::node_modules/@types/lodash/object.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingDeclarationsImportFromNamespace2.ts::node_modules/@types/lodash/pick.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingTypeAnnotatedVar.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-access.ts::file1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-access.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-access2.ts
@@ -222,7 +220,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/detachedComm
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/detachedCommentAtStartOfFunctionBody2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/didYouMeanSuggestionErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/downlevelLetConst16.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateClassElements.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateDefaultExport.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierComputedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierDifferentSpelling.ts
@@ -347,7 +344,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualE
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualErrorType.ts::exportEqualErrorType_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualMemberMissing.ts::exportEqualMemberMissing_0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualMemberMissing.ts::exportEqualMemberMissing_1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualsClassRedeclarationError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualsDefaultProperty.ts::exp.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualsDefaultProperty.ts::imp.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportStarFromEmptyModule.ts::exportStarFromEmptyModule_module1.ts
@@ -366,7 +362,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/externalModu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/externalModuleRefernceResolutionOrderInImportDeclaration.ts::externalModuleRefernceResolutionOrderInImportDeclaration_file1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/externalModuleRefernceResolutionOrderInImportDeclaration.ts::externalModuleRefernceResolutionOrderInImportDeclaration_file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/externalModuleRefernceResolutionOrderInImportDeclaration.ts::externalModuleRefernceResolutionOrderInImportDeclaration_file3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/fieldAndGetterWithSameName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::BaseA.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::SubA.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::SubB.js
@@ -377,7 +372,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/forwardRefIn
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionAndImportNameConflict.ts::f1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionAndImportNameConflict.ts::f2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionAndInterfaceWithSeparateErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionAndPropertyNameConflict.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionArgShadowing.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionAssignment.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionExpressionInWithBlock.ts
@@ -391,7 +385,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionOver
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionOverloads3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionOverloads4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionOverloads5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionWithSameNameAsField.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericCallSpecializedToTypeArg.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericChainedCalls.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericClassesRedeclaration.ts
@@ -615,7 +608,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/noMappedGetS
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/noRepeatedPropertyNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nonExportedElementsOfMergedModules.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nonIdenticalTypeConstraints.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nonMergedDeclarationsAndOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nonMergedOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nonexistentPropertyOnUnion.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nonexistentPropertyUnavailableOnPromisedType.ts
@@ -626,7 +618,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/omitTypeTest
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/omittedExpressionForOfLoop.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/operationsAvailableOnPromisedType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/operatorAddNullUndefined.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamArgsTest.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamReferencingOtherParams2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamReferencingOtherParams3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalSetterParam.ts
@@ -639,7 +630,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadOnCo
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadingOnConstants2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsInDifferentContainersDisagreeOnAmbient.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsWithComputedNames.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsWithinClasses.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overshifts.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/paramPropertiesInSignatures.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterDecoratorsEmitCrash.ts
@@ -877,10 +867,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/p
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/initializerReferencingConstructorLocals.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/memberFunctionDeclarations/memberFunctionOverloadMixingStaticAndInstance.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/memberFunctionDeclarations/memberFunctionsWithPublicPrivateOverloads.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndAccessorWithSameName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndFunctionWithSameName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/twoAccessorsWithSameName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/twoAccessorsWithSameName2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/constEnums/constEnum2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/constEnums/constEnumNoObjectPrototypePropertyAccess.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/constEnums/constEnumPropertyAccess2.ts
@@ -1002,8 +988,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/compu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/declarationsAndAssignments.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringArrayBindingPatternAndAssignment3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringControlFlow.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5iterable.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringSpread.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/missingAndExcessProperties.ts
@@ -1604,7 +1588,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration17.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclarationAmbiguities1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration10.ts
@@ -1735,7 +1718,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/loc
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/mapped/mappedTypeErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/mapped/mappedTypeWithAny.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/duplicateNumericIndexers.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/duplicatePropertyNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/duplicateStringIndexers.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/indexSignatures1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/objectTypeWithDuplicateNumericProperty.ts
@@ -2036,6 +2018,7 @@ typescript/tests/cases/compiler/classHeritageWithTrailingSeparator.ts:2:18: Expe
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier.ts:2:12: Expected method or property name
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier2.ts:2:12: Expected method or property name
 typescript/tests/cases/compiler/classUpdateTests.ts:43:23: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/compiler/classWithDuplicateIdentifier.ts:3:5: Duplicate identifier 'a'
 typescript/tests/cases/compiler/classWithEmptyTypeParameter.ts:1:9: Type parameter list cannot be empty
 typescript/tests/cases/compiler/classWithOverloadImplementationOfWrongName.ts:4:5: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/classWithOverloadImplementationOfWrongName2.ts:3:5: Function implementation name must be 'foo'.
@@ -2051,6 +2034,7 @@ typescript/tests/cases/compiler/conflictMarkerTrivia1.ts:2:1: Expected method or
 typescript/tests/cases/compiler/conflictMarkerTrivia2.ts:3:1: Unexpected token '<<'
 typescript/tests/cases/compiler/conflictMarkerTrivia3.tsx:2:1: Expected <, got <<
 typescript/tests/cases/compiler/conflictMarkerTrivia4.ts:1:11: Unexpected '<': not a valid TS type assertion or generic arrow
+typescript/tests/cases/compiler/conflictingTypeAnnotatedVar.ts:2:10: Duplicate function implementation.
 typescript/tests/cases/compiler/constDeclarationShadowedByVarDeclaration.ts:6:5: Identifier 'x' has already been declared
 typescript/tests/cases/compiler/constDeclarations-ambient-errors.ts:2:29: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/compiler/constDeclarations-errors.ts:3:1: Missing initializer in 'const' declaration
@@ -2103,6 +2087,7 @@ typescript/tests/cases/compiler/downlevelLetConst1.ts:1:6: Expected binding patt
 typescript/tests/cases/compiler/downlevelLetConst11.ts:2:1: 'let' declaration requires a binding name
 typescript/tests/cases/compiler/downlevelLetConst2.ts:1:8: Missing initializer in 'const' declaration
 typescript/tests/cases/compiler/downlevelLetConst4.ts:1:16: Missing initializer in 'const' declaration
+typescript/tests/cases/compiler/duplicateClassElements.ts:4:5: Duplicate function implementation.
 typescript/tests/cases/compiler/duplicateIdentifierBindingElementInParameterDeclaration1.ts:1:1: Duplicate parameter name 'a' with non-simple parameter list
 typescript/tests/cases/compiler/duplicateIdentifierBindingElementInParameterDeclaration2.ts:2:1: Duplicate parameter name 'a' in strict mode
 typescript/tests/cases/compiler/duplicateIdentifierEnum.ts::duplicateIdentifierEnum_A.ts:4:7: Duplicate identifier 'A'
@@ -2155,6 +2140,7 @@ typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::e.ts:1:17: 'awai
 typescript/tests/cases/compiler/exportDefaultDuplicateCrash.ts:5:16: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportDefaultInterfaceClassAndFunctionOverloads.ts:2:1: Expected {, got export
 typescript/tests/cases/compiler/exportDefaultTypeAndFunctionOverloads.ts:2:1: Expected {, got export
+typescript/tests/cases/compiler/exportEqualsClassRedeclarationError.ts:6:5: Duplicate identifier 'someProp'
 typescript/tests/cases/compiler/exportInFunction.ts:2:16: Expected '}' at end of function body
 typescript/tests/cases/compiler/exportInterfaceClassAndValue.ts:2:22: Duplicate exported name 'foo'
 typescript/tests/cases/compiler/exportInterfaceClassAndValueWithDuplicatesInImportList.ts:5:19: Duplicate exported name 'Foo'
@@ -2176,15 +2162,18 @@ typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors1.ts:2:9: Exp
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors2.ts:1:31: Expected identifier in arrow function parameters
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors3.ts:1:5: Expected binding pattern
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors4.ts:1:18: Expected expression after '?' in conditional expression
+typescript/tests/cases/compiler/fieldAndGetterWithSameName.ts:3:3: Duplicate identifier 'x'
 typescript/tests/cases/compiler/fileWithNextLine3.ts:3:9: 'return' outside of function
 typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::BaseB.js:2:23: Expected {, got <
 typescript/tests/cases/compiler/for.ts:29:6: Expected ;, got )
+typescript/tests/cases/compiler/functionAndPropertyNameConflict.ts:3:5: Duplicate identifier 'aaaaa'
 typescript/tests/cases/compiler/functionCall15.ts:1:1: Duplicate parameter name 'b' with non-simple parameter list
 typescript/tests/cases/compiler/functionOverloadImplementationOfWrongName.ts:3:10: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/functionOverloadImplementationOfWrongName2.ts:2:10: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/functionOverloads1.ts:1:10: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/functionOverloadsOutOfOrder.ts:6:5: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/functionTypesLackingReturnTypes.ts:2:17: Expected '=>' in function type
+typescript/tests/cases/compiler/functionWithSameNameAsField.ts:3:5: Duplicate identifier 'total'
 typescript/tests/cases/compiler/functionsMissingReturnStatementsAndExpressions.ts:153:5: Expected identifier after '.'
 typescript/tests/cases/compiler/functionsWithModifiersInBlocks1.ts:2:25: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/genericCallWithoutArgs.ts:4:17: An instantiation expression cannot be followed by a property access.
@@ -2310,6 +2299,7 @@ typescript/tests/cases/compiler/newMissingIdentifier.ts:1:15: Empty parenthesize
 typescript/tests/cases/compiler/newOperator.ts:18:21: Expected expression after 'new'
 typescript/tests/cases/compiler/noCrashOnMixin2.ts:11:41: A rest parameter cannot be optional
 typescript/tests/cases/compiler/noImplicitAnyDestructuringVarDeclaration.ts:3:1: Missing initializer in destructuring declaration
+typescript/tests/cases/compiler/nonMergedDeclarationsAndOverloads.ts:4:5: Duplicate identifier 'm1'
 typescript/tests/cases/compiler/numberLiteralsWithLeadingZeros.ts:8:5: Legacy octal / non-octal-decimal literal cannot contain a decimal point
 typescript/tests/cases/compiler/numericLiteralsWithTrailingDecimalPoints01.ts:3:3: Expected semicolon
 typescript/tests/cases/compiler/numericLiteralsWithTrailingDecimalPoints02.ts:3:3: Expected semicolon
@@ -2329,9 +2319,11 @@ typescript/tests/cases/compiler/objectTypeWithOptionalProperty1.ts:2:10: Expecte
 typescript/tests/cases/compiler/octalLiteralAndEscapeSequence.ts:88:5: Invalid escape sequence in template literal
 typescript/tests/cases/compiler/optionalArgsWithDefaultValues.ts:1:41: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/compiler/optionalChainWithInstantiationExpression1.ts:12:8: An instantiation expression cannot be followed by a property access.
+typescript/tests/cases/compiler/optionalParamArgsTest.ts:31:5: Duplicate function implementation.
 typescript/tests/cases/compiler/optionalPropertiesSyntax.ts:11:7: Expected }, got ?
 typescript/tests/cases/compiler/overloadConsecutiveness.ts:3:14: Expected {, got ,
 typescript/tests/cases/compiler/overloadingStaticFunctionsInFunctions.ts:1:14: Expected (, got {
+typescript/tests/cases/compiler/overloadsWithinClasses.ts:3:5: Duplicate function implementation.
 typescript/tests/cases/compiler/parameterPropertyOutsideConstructor.ts:2:17: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash1.ts:3:28: Expected ), got :
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash2.ts:3:44: Reserved word 'return' is not a valid binding identifier
@@ -2600,9 +2592,13 @@ typescript/tests/cases/conformance/classes/propertyMemberDeclarations/accessorsO
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/autoAccessorDisallowedModifiers.ts:2:23: Expected (, got identifier
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/canFollowGetSetKeyword.ts:7:6: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/derivedUninitializedPropertyDeclaration.ts:15:17: 'declare' modifier cannot be used here.
+typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndAccessorWithSameName.ts:3:5: Duplicate identifier 'x'
+typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndFunctionWithSameName.ts:3:5: Duplicate identifier 'x'
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyNamedConstructor.ts:2:20: Class field cannot be named 'constructor'
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyNamedPrototype.ts:4:2: Classes may not have a static member named 'prototype'
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts:57:1: Classes may not have a static member named 'prototype'
+typescript/tests/cases/conformance/classes/propertyMemberDeclarations/twoAccessorsWithSameName.ts:3:5: Duplicate identifier 'x'
+typescript/tests/cases/conformance/classes/propertyMemberDeclarations/twoAccessorsWithSameName2.ts:3:5: Duplicate identifier 'x'
 typescript/tests/cases/conformance/classes/staticIndexSignature/staticIndexSignature4.ts:12:5: 'static' modifier cannot appear on an index signature.
 typescript/tests/cases/conformance/classes/staticIndexSignature/staticIndexSignature5.ts:7:5: 'static' modifier cannot appear on a type member.
 typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertions.ts:69:10: Expected '=', ',', or ';' after variable binding
@@ -2683,6 +2679,8 @@ typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames5
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames50_ES6.ts:11:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/destructuring/declarationWithNoInitializer.ts:2:1: Missing initializer in destructuring declaration
 typescript/tests/cases/conformance/es6/destructuring/destructuringObjectBindingPatternAndAssignment3.ts:2:7: Expected }, got ?
+typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5.ts:62:10: Duplicate function implementation.
+typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5iterable.ts:62:10: Duplicate function implementation.
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES6.ts:96:1: Duplicate parameter name 'number' with non-simple parameter list
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration2.ts:7:29: Expected ], got )
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration4.ts:14:17: Expected ), got ?
@@ -3363,6 +3361,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations
 typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration3.ts:2:19: 'public' modifier must precede 'static' modifier.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration4.ts:2:12: Expected (, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration5.ts:2:19: 'declare' modifier cannot be used here.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclarationAmbiguities1.ts:2:3: Duplicate function implementation.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration1.ts:2:10: Accessibility modifier already seen.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration2.ts:2:17: Expected (, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration3.ts:2:17: 'public' modifier must precede 'static' modifier.
@@ -3599,6 +3598,7 @@ typescript/tests/cases/conformance/types/import/importTypeNestedNoRef.ts::chaine
 typescript/tests/cases/conformance/types/import/importTypeNonString.ts:1:31: String literal expected in import type
 typescript/tests/cases/conformance/types/import/importWithTypeArguments.ts:1:7: Expected import source or specifier
 typescript/tests/cases/conformance/types/mapped/mappedTypeProperties.ts:9:5: Expected }, got identifier
+typescript/tests/cases/conformance/types/members/duplicatePropertyNames.ts:22:5: Duplicate function implementation.
 typescript/tests/cases/conformance/types/namedTypes/interfaceWithPrivateMember.ts:4:5: 'private' modifier cannot appear on a type member.
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignatureWithOptionalParameterAndInitializer.ts:3:28: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithAccessibilityModifiersOnParameters.ts:3:33: 'public' modifier cannot appear on a parameter.
