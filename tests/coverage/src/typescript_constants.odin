@@ -198,7 +198,13 @@ TS_NOT_SUPPORTED_ERROR_CODES := [?]string{
 	"2445",
 	"2446",
 	"2447",
-	"2448",
+	// 2448 ("Block-scoped variable used before its declaration") was removed
+	// from the verbatim OXC list when kessel grew an opt-in TS2448 checker
+	// (ck_check_ts_use_before_decl). Keeping it in NOT_SUPPORTED would make
+	// fixtures whose ONLY errors are TS2448 + other NOT_SUPPORTED codes
+	// classify as positive, which would force every TS2448 we emit into a
+	// false positive. Treating 2448 as a supported (= gating) error code
+	// matches reality: kessel now implements the check.
 	"2449",
 	"2450",
 	"2454",

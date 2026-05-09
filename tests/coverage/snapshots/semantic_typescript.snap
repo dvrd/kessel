@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12638/12692 (99.57%)
-Positive Passed: 12638/12692 (99.57%)
-Negative Passed: 1718/3470 (49.51%)
+AST Parsed     : 12610/12664 (99.57%)
+Positive Passed: 12610/12664 (99.57%)
+Negative Passed: 1734/3498 (49.57%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
@@ -66,6 +66,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/binaryArithm
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/binaryArithmatic3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/binaryArithmatic4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/bindingPatternCannotBeOnlyInferenceSource.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/blockScopedBindingUsedBeforeDef.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/callOverloads3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/callOverloads4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/callOverloads5.ts
@@ -94,6 +95,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtends
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendsNull2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classImplementsClass6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classOverloadForFunction2.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classStaticInitializersUsePropertiesBeforeDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classStaticPropertyAccess.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleTest2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleWithDuplicateMember1.ts
@@ -135,6 +137,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingD
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-access.ts::file1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-access.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-access2.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-useBeforeDefinition2.ts::file1.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-useBeforeDefinition2.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumBadPropertyNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constWithNonNull.ts
@@ -147,15 +151,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTy
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypingOfLambdaReturnExpression.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypingOfObjectLiterals2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypingWithFixedTypeParameters1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_10.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/crashDeclareGlobalTypeofExport.ts::bar.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/crashDeclareGlobalTypeofExport.ts::foo.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/crashOnMethodSignatures.ts
@@ -202,6 +197,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationE
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitUsingTypeAlias1.ts::src/index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationFileNoCrashOnExtraExportModifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declareModifierOnImport1.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/decoratorUsedBeforeDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/decoratorsOnComputedProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/defaultArgsInOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/defaultBestCommonTypesHaveDecls.ts
@@ -343,6 +339,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportStarFr
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportStarFromEmptyModule.ts::exportStarFromEmptyModule_module2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportStarFromEmptyModule.ts::exportStarFromEmptyModule_module3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportStarFromEmptyModule.ts::exportStarFromEmptyModule_module4.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportedBlockScopedDeclarations.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/expressionWithJSDocTypeArguments.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/extBaseClass2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/extendFromAny.ts
@@ -455,6 +452,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompil
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationDuplicateFunctionImplementation.ts::b.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationDuplicateFunctionImplementationFileOrderReversed.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationDuplicateFunctionImplementationFileOrderReversed.ts::b.js
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationLetDeclarationOrder2.ts::a.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationLetDeclarationOrder2.ts::b.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationOptionalClassElementSyntaxOfClass.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationPublicMethodSyntaxOfClass.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFunctionWithPrototypeNoErrorTruncationNoCrash.ts
@@ -487,6 +486,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarati
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates6.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates7.ts::file1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates7.ts::file2.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-useBeforeDefinition2.ts::file1.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-useBeforeDefinition2.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInVarDeclOfForIn_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInVarDeclOfForIn_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letInVarDeclOfForOf_ES5.ts
@@ -673,6 +674,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/recursiveBas
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/recursiveBaseCheck6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/recursiveComplicatedClasses.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/recursiveFunctionTypes.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/recursiveLetConst.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/recursiveTypeRelations.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/regularExpressionCharacterClassRangeOrder.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requireOfJsonFileInJsFile.ts::/js.js
@@ -734,10 +736,12 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisKeyword.
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisPredicateInObjectLiteral.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/this_inside-enum-should-not-be-allowed.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/topLevelLambda.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/tryCatchFinallyControlFlow.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeAliasDeclarationEmit3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeCheckingInsideFunctionExpressionInArray.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeGuardConstructorClassAndNumber.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeGuardConstructorDerivedClass.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeGuardNarrowsIndexedAccessOfKnownProperty10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeInterfaceDeclarationsInBlockStatements1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeNamedUndefined1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeNamedUndefined2.ts
@@ -771,8 +775,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unionPropert
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/uniqueSymbolJs.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unknownSymbolOffContextualType1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unknownSymbols1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unreachableDeclarations.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/useBeforeDeclaration_classDecorators.2.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/useBeforeDeclaration_destructuring.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varAndFunctionShareName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varNameConflictsWithImportInDifferentPartOfModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/variableDeclaratorResolvedDuringContextualTyping.ts
@@ -811,6 +815,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/c
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classExpressions/classWithStaticFieldInParameterBindingPattern.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classExpressions/classWithStaticFieldInParameterInitializer.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock23.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlockUseBeforeDef3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/classConstructorOverloadsAccessibility.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorDefaultValuesReferencingThis.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts
@@ -861,7 +866,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/constEnum
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/constEnums/importElisionConstEnumMerge1.ts::index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/constEnums/importElisionConstEnumMerge1.ts::merge.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/controlFlow/assertionTypePredicates1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/controlFlow/controlFlowAliasing.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/controlFlow/controlFlowDeleteOperator.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/controlFlow/controlFlowGenericTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/controlFlow/exhaustiveSwitchStatements1.ts
@@ -894,6 +898,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2019/gl
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2019/globalThisVarDeclaration.ts::actual.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2019/globalThisVarDeclaration.ts::b.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2019/importMeta/importMeta.ts::example.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2020/modules/exportAsNamespace3.ts::0.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2020/modules/exportAsNamespace3.ts::2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-valid.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolDeclarationEmit12.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolProperty3.ts
@@ -975,6 +981,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/compu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/declarationsAndAssignments.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringArrayBindingPatternAndAssignment3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringControlFlow.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringObjectBindingPatternAndAssignment4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringSpread.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/missingAndExcessProperties.ts
@@ -984,6 +991,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destr
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/restElementWithAssignmentPattern2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/restElementWithAssignmentPattern4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/restElementWithBindingPattern2.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of55.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of56.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration11_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration13_es6.ts
@@ -992,6 +1000,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/funct
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration4_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration8_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/defaultExportsCannotMerge04.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportBinding.ts::exportConsts.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportBinding.ts::exportVars.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithContextualKeywordNames01.ts::t1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithContextualKeywordNames01.ts::t2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithContextualKeywordNames01.ts::t4.ts
@@ -1674,6 +1684,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/scanner/e
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/scanner/ecmascript5/scannerNumericLiteral8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/scanner/ecmascript5/scannerNumericLiteral9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.14.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForAwaitOf.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForOf.4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsArrayErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring.ts
@@ -1681,6 +1692,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statement
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsInvalid.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of17.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of27.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of29.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of35.ts
@@ -1981,6 +1993,7 @@ typescript/tests/cases/compiler/bigintArbirtraryIdentifier.ts::badExport2.ts:1:1
 typescript/tests/cases/compiler/bigintArbirtraryIdentifier.ts::badImport.ts:1:10: Unexpected token: numeric / bigint literal cannot be an import name
 typescript/tests/cases/compiler/bigintArbirtraryIdentifier.ts::badImport2.ts:1:17: Unexpected token: numeric / bigint literal cannot be an import binding name
 typescript/tests/cases/compiler/bigintPropertyName.ts::g.ts:2:5: Expected }, got bigint
+typescript/tests/cases/compiler/blockScopedVariablesUseBeforeDef.ts:2:13: Block-scoped variable 'x' used before its declaration.
 typescript/tests/cases/compiler/breakNotInIterationOrSwitchStatement1.ts:1:1: 'break' must be inside a loop or switch
 typescript/tests/cases/compiler/breakNotInIterationOrSwitchStatement2.ts:3:5: Illegal break statement: not in a loop or switch
 typescript/tests/cases/compiler/breakTarget5.ts:5:13: Undefined label 'target'
@@ -2025,6 +2038,7 @@ typescript/tests/cases/compiler/constDeclarations-ambient-errors.ts:2:29: Initia
 typescript/tests/cases/compiler/constDeclarations-errors.ts:3:1: Missing initializer in 'const' declaration
 typescript/tests/cases/compiler/constDeclarations-invalidContexts.ts:4:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/constDeclarations-scopes.ts:44:5: Lexical declaration cannot appear in a single-statement context
+typescript/tests/cases/compiler/constDeclarations-useBeforeDefinition.ts:2:5: Block-scoped variable 'c1' used before its declaration.
 typescript/tests/cases/compiler/constDeclarations-validContexts.ts:32:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/constInClassExpression.ts:2:11: Expected (, got identifier
 typescript/tests/cases/compiler/constructorArgsErrors1.ts:2:18: 'static' is a reserved identifier in strict mode
@@ -2046,6 +2060,15 @@ typescript/tests/cases/compiler/continueTarget1.ts:2:12: 'continue' must target 
 typescript/tests/cases/compiler/continueTarget5.ts:5:16: Undefined label 'target'
 typescript/tests/cases/compiler/continueTarget6.ts:2:12: Undefined label 'target'
 typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_1.ts:3:1: Missing initializer in 'const' declaration
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_10.ts:3:5: Block-scoped variable 'o' used before its declaration.
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_2.ts:1:1: Block-scoped variable 'unionOfDifferentReturnType1' used before its declaration.
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_3.ts:2:3: Block-scoped variable 'fn' used before its declaration.
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_4.ts:2:3: Block-scoped variable 'fn' used before its declaration.
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_5.ts:3:5: Block-scoped variable 'fn' used before its declaration.
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_6.ts:3:5: Block-scoped variable 'fn' used before its declaration.
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_7.ts:3:5: Block-scoped variable 'fn' used before its declaration.
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_8.ts:3:5: Block-scoped variable 'b' used before its declaration.
+typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_9.ts:3:5: Block-scoped variable 'o' used before its declaration.
 typescript/tests/cases/compiler/convertKeywordsYes.ts:175:29: Class field cannot be named 'constructor'
 typescript/tests/cases/compiler/corrupted.ts:1:4: Expected semicolon
 typescript/tests/cases/compiler/createArray.ts:1:19: Expected expression after 'new'
@@ -2159,6 +2182,7 @@ typescript/tests/cases/compiler/fieldAndGetterWithSameName.ts:3:3: Duplicate ide
 typescript/tests/cases/compiler/fileWithNextLine3.ts:3:9: 'return' outside of function
 typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::BaseB.js:2:23: Expected {, got <
 typescript/tests/cases/compiler/for.ts:29:6: Expected ;, got )
+typescript/tests/cases/compiler/forwardRefInClassProperties.ts:11:17: Block-scoped variable 'b' used before its declaration.
 typescript/tests/cases/compiler/functionAndPropertyNameConflict.ts:3:5: Duplicate identifier 'aaaaa'
 typescript/tests/cases/compiler/functionCall15.ts:1:1: Duplicate parameter name 'b' with non-simple parameter list
 typescript/tests/cases/compiler/functionOverloadImplementationOfWrongName.ts:3:10: Function implementation name must be 'foo'.
@@ -2256,6 +2280,7 @@ typescript/tests/cases/compiler/letAsIdentifierInStrictMode.ts:2:5: 'let' is a r
 typescript/tests/cases/compiler/letDeclarations-invalidContexts.ts:4:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/letDeclarations-scopes-duplicates.ts:25:9: 'var8' has already been declared
 typescript/tests/cases/compiler/letDeclarations-scopes.ts:44:5: Lexical declaration cannot be a labeled item
+typescript/tests/cases/compiler/letDeclarations-useBeforeDefinition.ts:2:5: Block-scoped variable 'l1' used before its declaration.
 typescript/tests/cases/compiler/letDeclarations-validContexts.ts:32:1: Lexical declaration cannot be a labeled item
 typescript/tests/cases/compiler/letInConstDeclarations_ES5.ts:2:1: 'let' is disallowed as a lexically bound name
 typescript/tests/cases/compiler/letInConstDeclarations_ES6.ts:2:1: 'let' is disallowed as a lexically bound name
@@ -2438,6 +2463,7 @@ typescript/tests/cases/compiler/unicodeEscapesInNames02.ts::astralAsSurrogatePai
 typescript/tests/cases/compiler/unicodeIdentifierName2.ts:1:6: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/compiler/unparenthesizedConstructorTypeInUnionOrIntersection.ts:1:34: Constructor type must be parenthesized in union or intersection
 typescript/tests/cases/compiler/unparenthesizedFunctionTypeInUnionOrIntersection.ts:1:30: Function type must be parenthesized in union or intersection
+typescript/tests/cases/compiler/unreachableDeclarations.ts:64:14: Block-scoped variable 'blah' used before its declaration.
 typescript/tests/cases/compiler/unterminatedRegexAtEndOfSource1.ts:1:9: Unterminated regular expression
 typescript/tests/cases/compiler/unterminatedStringLiteralWithBackslash1.ts:1:1: Unexpected token '"\'
 typescript/tests/cases/compiler/unusedLocalsAndParameters.ts:83:14: Expected ;, got )
@@ -2599,6 +2625,7 @@ typescript/tests/cases/conformance/classes/propertyMemberDeclarations/twoAccesso
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/twoAccessorsWithSameName2.ts:3:5: Duplicate identifier 'x'
 typescript/tests/cases/conformance/classes/staticIndexSignature/staticIndexSignature4.ts:12:5: 'static' modifier cannot appear on an index signature.
 typescript/tests/cases/conformance/classes/staticIndexSignature/staticIndexSignature5.ts:7:5: 'static' modifier cannot appear on a type member.
+typescript/tests/cases/conformance/controlFlow/controlFlowAliasing.ts:256:378: Block-scoped variable 'a' used before its declaration.
 typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertions.ts:69:10: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertionsWithObjectShortHand.ts:2:16: Expected }, got !
 typescript/tests/cases/conformance/decorators/class/accessor/decoratorOnClassAccessor3.ts:4:12: Expected method or property name
@@ -2637,6 +2664,7 @@ typescript/tests/cases/conformance/es2018/invalidTaggedTemplateEscapeSequences.t
 typescript/tests/cases/conformance/es2019/importMeta/importMeta.ts::assignmentTargets.ts:2:13: Cannot assign to this expression
 typescript/tests/cases/conformance/es2019/importMeta/importMeta.ts::moduleLookingFile01.ts:2:28: The only valid meta property for import is import.meta (got 'import.metal')
 typescript/tests/cases/conformance/es2019/importMeta/importMeta.ts::scriptLookingFile01.ts:2:27: The only valid meta property for import is import.meta (got 'import.metal')
+typescript/tests/cases/conformance/es2020/modules/exportAsNamespace3.ts::1.ts:2:1: Block-scoped variable 'ns' used before its declaration.
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-clause-bad-export.ts:1:15: A string literal cannot be used as an exported binding without `from`
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-clause-bad-import.ts:1:22: Import binding name cannot be a string literal
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-clause-no-as.ts:1:27: String import names require 'as' binding

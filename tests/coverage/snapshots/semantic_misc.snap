@@ -1,7 +1,7 @@
 semantic_misc Summary:
-AST Parsed     : 67/72 (93.06%)
-Positive Passed: 67/72 (93.06%)
-Negative Passed: 271/284 (95.42%)
+AST Parsed     : 68/73 (93.15%)
+Positive Passed: 68/73 (93.15%)
+Negative Passed: 272/285 (95.44%)
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
@@ -107,6 +107,7 @@ tests/coverage/misc/fail/kessel-ts2389-fn-decl-block-scope.ts:7:12: Function imp
 tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts:7:10: Function implementation name must be 'foo'.
 tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts:6:3: Duplicate function implementation.
 tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts:5:10: Duplicate function implementation.
+tests/coverage/misc/fail/kessel-ts2448-use-before-decl.ts:8:3: Block-scoped variable 'fn' used before its declaration.
 tests/coverage/misc/fail/let-member-expression.js:4:1: 'let' is a reserved identifier in strict mode
 tests/coverage/misc/fail/minus-yield-100.js:1:37: 'yield' expression cannot be the operand of a unary operator
 tests/coverage/misc/fail/missing-conditional-alternative-type.ts:2:1: Expected :, got EOF
