@@ -832,8 +832,26 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		//     `namespace M { function foo(); }` (FunctionDeclaration7.ts).
 		ck_walk_ts_module_decl(c, ctx, v)
 
+	case ^TSInterfaceDeclaration:
+		// TS-only checks (no break/continue/labels can escape an
+		// interface declaration body).
+		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			ck_check_ts_interface_member_dups(c, v.body)
+			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
+				ck_check_ts_type_param_dups(c, tp)
+			}
+		}
+		return
+
+	case ^TSTypeAliasDeclaration:
+		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
+				ck_check_ts_type_param_dups(c, tp)
+			}
+		}
+		return
+
 	case ^EmptyStatement, ^DebuggerStatement,
-	     ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
 	     ^TSEnumDeclaration,
 	     ^TSImportEqualsDeclaration,
 	     ^TSExportAssignment, ^TSNamespaceExportDeclaration:
@@ -851,6 +869,19 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 	case ^ClassDeclaration:    if inner != nil { ck_walk_class(c, ctx, &inner.expr) }
 	case ^VariableDeclaration: if inner != nil { ck_walk_var_decl(c, ctx, inner) }
 	case ^TSModuleDeclaration: if inner != nil { ck_walk_ts_module_decl(c, ctx, inner) }
+	case ^TSInterfaceDeclaration:
+		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			ck_check_ts_interface_member_dups(c, inner.body)
+			if tp, has := inner.type_parameters.(^TSTypeParameterDeclaration); has {
+				ck_check_ts_type_param_dups(c, tp)
+			}
+		}
+	case ^TSTypeAliasDeclaration:
+		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if tp, has := inner.type_parameters.(^TSTypeParameterDeclaration); has {
+				ck_check_ts_type_param_dups(c, tp)
+			}
+		}
 	}
 }
 
@@ -1721,6 +1752,202 @@ ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 	}
 }
 
+// =============================================================================
+// TS2300 — type-parameter duplicate-name detection
+// =============================================================================
+//
+// `function A<X, X>() { }`, `interface I<T, T> { }`, `class C<U, U>`,
+// `type Q<P, P>` and so on are all TS2300 errors. Detects via a
+// single-pass on the TSTypeParameterDeclaration's params — emit on
+// each entry that duplicates an earlier one.
+@(private="file")
+ck_check_ts_type_param_dups :: proc(c: ^Checker, tp: ^TSTypeParameterDeclaration) {
+	if c == nil || tp == nil || len(tp.params) < 2 { return }
+	seen: map[string]bool
+	seen.allocator = context.temp_allocator
+	defer delete(seen)
+	for p in tp.params {
+		name := p.name.name
+		if name == "" { continue }
+		if seen[name] {
+			msg := fmt.tprintf("Duplicate identifier '%s'", name)
+			ck_report(c, u32(p.name.loc.span.start), msg)
+		} else {
+			seen[name] = true
+		}
+	}
+}
+
+// =============================================================================
+// TS2300 — interface body member duplicate-name detection
+// =============================================================================
+//
+// `interface Bar { x; x; }`, `interface I { foo: any; foo: number; }`,
+// `interface I2 { item:any; item:number; }` etc. are all TS2300
+// errors. Detects via a single-pass over TSInterfaceBody.body,
+// bucketing TSPropertySignature / TSMethodSignature entries by name +
+// accessor kind. Skips computed keys, call/construct/index signatures
+// (those have no name), and the legal accessor pair (1 get + 1 set on
+// the same name). Method overloads (multiple TSMethodSignature with
+// kind=.Method on the same name) are LEGAL — interfaces declare
+// callable types, and method overloads are the canonical way to
+// express union return types.
+//
+// Same key-kind discipline as ck_check_ts_class_member_dups: only same-
+// kind keys collide (Identifier+Identifier, StringLiteral+StringLiteral,
+// etc.). EXCEPT — for plain identifiers vs single-quoted/double-quoted
+// string literals, TSC treats `"item"` and `item` as the same property
+// name (the canonical PropertyName equivalence), so we DO collide them.
+// This is required for `duplicateStringNamedProperty1.ts`-style fixtures
+// (`{ "artist": string; artist: string; }`).
+@(private="file")
+ck_check_ts_interface_member_dups :: proc(c: ^Checker, body: TSInterfaceBody) {
+	if c == nil || len(body.body) == 0 { return }
+
+	IfKind :: enum u8 { Property, Method, Get, Set }
+	IfEntry :: struct {
+		at:        u32,
+		kind:      IfKind,
+		name:      string,
+		has_anno:  bool,  // TSPropertySignature only: has type annotation
+	}
+
+	// Identifier and StringLiteral keys both map to the same PropertyName
+	// per the TS spec (a string literal of value "foo" is the same property
+	// as the identifier `foo`). NumericLiteral with value matching another
+	// numeric is also the same; we treat the raw form as the canonical
+	// representation here for simplicity.
+	extract_key :: proc(key: ^Expression, computed: bool) -> (name: string, ok: bool) {
+		if computed || key == nil { return "", false }
+		#partial switch k in key^ {
+		case ^Identifier:
+			if k != nil { return k.name, true }
+		case ^StringLiteral:
+			if k != nil { return k.value, true }
+		case ^NumericLiteral:
+			if k != nil { return k.raw, true }
+		}
+		return "", false
+	}
+
+	entries: [dynamic]IfEntry
+	entries.allocator = context.temp_allocator
+	defer delete(entries)
+
+	for sig in body.body {
+		if sig == nil { continue }
+		switch s in sig^ {
+		case TSPropertySignature:
+			name, ok := extract_key(s.key, s.computed)
+			if !ok { continue }
+			_, has_anno := s.type_annotation.(^TSTypeAnnotation)
+			append(&entries, IfEntry{
+				at = u32(s.loc.span.start), kind = .Property, name = name,
+				has_anno = has_anno,
+			})
+		case TSMethodSignature:
+			name, ok := extract_key(s.key, s.computed)
+			if !ok { continue }
+			k: IfKind
+			switch s.kind {
+			case .Method: k = .Method
+			case .Get:    k = .Get
+			case .Set:    k = .Set
+			}
+			append(&entries, IfEntry{
+				at = u32(s.loc.span.start), kind = k, name = name, has_anno = true,
+			})
+		case TSCallSignatureDeclaration, TSConstructSignatureDeclaration, TSIndexSignature:
+			// No name — can't form a name-keyed slot.
+			continue
+		}
+	}
+	if len(entries) < 2 { return }
+
+	processed: [dynamic]bool
+	processed.allocator = context.temp_allocator
+	defer delete(processed)
+	resize(&processed, len(entries))
+
+	for i in 0..<len(entries) {
+		if processed[i] { continue }
+		anchor := entries[i]
+
+		slot: [dynamic]int
+		slot.allocator = context.temp_allocator
+		defer delete(slot)
+		append(&slot, i)
+		for j in i+1..<len(entries) {
+			if processed[j] { continue }
+			if entries[j].name == anchor.name {
+				append(&slot, j)
+			}
+		}
+		for idx in slot { processed[idx] = true }
+		if len(slot) < 2 { continue }
+
+		n_prop, n_meth, n_get, n_set := 0, 0, 0, 0
+		for idx in slot {
+			switch entries[idx].kind {
+			case .Property: n_prop += 1
+			case .Method:   n_meth += 1
+			case .Get:      n_get  += 1
+			case .Set:      n_set  += 1
+			}
+		}
+
+		// Carve-out: legal accessor pair on the same name.
+		if n_get == 1 && n_set == 1 && n_prop == 0 && n_meth == 0 {
+			continue
+		}
+
+		// Carve-out: pure method overload set (multiple TSMethodSignature
+		// of kind .Method on the same name). Interfaces use this to
+		// express callable-type unions (e.g. `m(x: number): number;
+		// m(x: string): string;`).
+		if n_prop == 0 && n_get == 0 && n_set == 0 && n_meth >= 1 {
+			continue
+		}
+
+		// Carve-out: ANY entry on the slot is a TSPropertySignature
+		// without a type annotation. This conservatively skips two
+		// parser-bug-induced shapes the kessel parser currently produces:
+		//
+		//   1. Generic method  `m<U>(): T;`  is parsed as bare
+		//      `TSPropertySignature(m, no annotation)` followed by a
+		//      separate `TSCallSignatureDeclaration(<U>(): T)`. Multiple
+		//      generic methods of the same name produce a run of
+		//      identical bare-name property signatures that LOOK like
+		//      duplicates but are AST-shape artefacts.
+		//
+		//   2. Modifier prefix `readonly _A: T;` is parsed as bare
+		//      `TSPropertySignature(readonly, no annotation)` followed by
+		//      `TSPropertySignature(_A: T)`. Multiple `readonly`-prefixed
+		//      fields produce a run of bare `readonly` property signatures.
+		//
+		// Cost of this carve-out: we no longer close `interface Bar { x;
+		// x; }` (TSC's duplicateInterfaceMembers1.ts) where the
+		// duplicates are intentionally bare. Acceptable trade — the
+		// real-world duplicates that fixtures actually exercise all
+		// have type annotations (`x: number; x: number;` etc.) and we
+		// still close those.
+		any_bare_prop := false
+		for idx in slot {
+			if entries[idx].kind == .Property && !entries[idx].has_anno {
+				any_bare_prop = true; break
+			}
+		}
+		if any_bare_prop { continue }
+
+		// General TS2300: emit on each entry after the first.
+		msg := fmt.tprintf("Duplicate identifier '%s'", anchor.name)
+		for s_idx, slot_pos in slot {
+			if slot_pos == 0 { continue }
+			ck_report(c, entries[s_idx].at, msg)
+		}
+	}
+}
+
 
 // =============================================================================
 // Top-level (and nested-scope) overload-signature chain checking
@@ -2444,6 +2671,13 @@ ck_walk_jsx_attr :: proc(c: ^Checker, ctx: ^CheckerContext, attr: JSXAttributeIt
 ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression,
                         kind: CkFnKind = .Plain, derived_ctor: bool = false) {
 	if fn == nil { return }
+	// TS — function generic type-parameter duplicate-name check.
+	// `function foo<X, X>() {}` is TS2300. Independent of strict-mode.
+	if ctx.lang == .TS || ctx.lang == .TSX {
+		if tp, have := fn.type_parameters.(^TSTypeParameterDeclaration); have {
+			ck_check_ts_type_param_dups(c, tp)
+		}
+	}
 	// §15.2.1.1 — formal-parameter vs body let/const redeclaration.
 	if !fn.no_body {
 		ck_check_params_vs_body_lex(c, fn.params[:], fn.body.body[:])
@@ -2712,6 +2946,23 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	if (ctx.lang == .TS || ctx.lang == .TSX) && !cls.declare && !ctx.is_dts {
 		ck_check_ts_class_overloads(c, cls.body)
 		ck_check_ts_class_member_dups(c, cls)
+	}
+	// TS — class type-parameter duplicate-name check. Independent of the
+	// `declare class` / .d.ts gate above: `class C<X, X>` is rejected
+	// even in ambient context.
+	if ctx.lang == .TS || ctx.lang == .TSX {
+		if tp, has := cls.type_parameters.(^TSTypeParameterDeclaration); has {
+			ck_check_ts_type_param_dups(c, tp)
+		}
+		// Also check method-level type parameters on each overloadable
+		// member — `class C { m<X, X>() {} }`.
+		for elem in cls.body.body {
+			if fn, ok := elem_is_overloadable_method(elem); ok && fn != nil {
+				if tp, have := fn.type_parameters.(^TSTypeParameterDeclaration); have {
+					ck_check_ts_type_param_dups(c, tp)
+				}
+			}
+		}
 	}
 
 	for elem in cls.body.body {

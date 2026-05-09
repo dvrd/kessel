@@ -1,7 +1,7 @@
 parser_misc Summary:
-AST Parsed     : 67/69 (97.10%)
-Positive Passed: 67/69 (97.10%)
-Negative Passed: 252/281 (89.68%)
+AST Parsed     : 68/70 (97.14%)
+Positive Passed: 68/70 (97.14%)
+Negative Passed: 252/283 (89.05%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
@@ -16,6 +16,8 @@ Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts-import-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-decl-merge-namespace.ts
+Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-interface-dup-prop.ts
+Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-type-param-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2389-fn-decl-block-scope.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts
