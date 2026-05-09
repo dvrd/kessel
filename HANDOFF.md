@@ -43,8 +43,8 @@ Conformance summary (from `task test:conformance:report`):
 | Suite | Parser pos | Parser neg | Semantic pos | Semantic neg |
 |---|---|---|---|---|
 | **test262** | 47084/47090 (99.99%) | 4563/4588 (99.46%) | 47084/47090 | **4588/4588 (100%)** |
-| **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | **2212/2233 (99.06%)** | **1646/1711 (96.20%)** |
-| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12612/12664 (99.59%)** | **1734/3498 (49.57%)** |
+| **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | **2213/2233 (99.10%)** | **1646/1711 (96.20%)** |
+| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12612/12664 (99.59%)** | **1743/3498 (49.83%)** |
 | **ESTree** | 39/39 (100%) | — | 39/39 | — |
 | **misc** | 72/72 (100%) | 256/286 (89.51%) | 72/72 (100%) | 277/286 (96.85%) |
 
@@ -203,6 +203,50 @@ Remaining known misc gaps (tracked, low effort each):
     escape-00.js, oxc-5036.js, script-top-level-using.js,
     arguments-eval.ts, several kessel-ts* parser-only "misses"
     (by-design: parser passes through, checker catches them).
+
+
+### Session 6 progress
+
+Landed on top of session 5 (commit `ecf7001`):
+
+- **Slice G: TS2448 v2 — destructuring, self-init, class statics,
+  exports** (commit `9c03a0e`). Four targeted extensions to the v1
+  use-before-declaration walker:
+  1. **Destructuring pattern bindings** — New `ck_ubd_collect_bindings`
+     walks ObjectPattern / ArrayPattern / AssignmentPattern /
+     RestElement to collect all Identifier bindings in Pass 1 (was
+     bare-Identifier only). New `ck_ubd_walk_pattern_values` walks
+     computed keys and default values in Pass 2, catching
+     `let {[a]: a}` and `let {b, c = b}`.
+  2. **Self-init detection** — `ck_ubd_walk_expr` gains `self_name`
+     and `closure_depth` parameters. When walking the initializer of
+     a declarator that binds name N, any ref to N is flagged unless
+     inside a nested function/arrow/class. AssignmentPattern default
+     values thread the left-hand binding name as self_name.
+     Catches `let x = x + 1`, `const [e = e] = ...`, `let {f = f}`.
+  3. **Class static initializers + decorators** — New
+     `ck_ubd_walk_class_statics` walks static field initializers,
+     all element decorators, and class-level decorators for
+     ClassDeclaration and ClassExpression. These execute at
+     class-definition time (not deferred-by-closure). Catches
+     `static x = ObjLiteral.A` and `@lambda(Enum.No)` where
+     `ObjLiteral` / `lambda` are declared later.
+  4. **Export wrapper descent** — `ck_ubd_walk_stmt` now recurses
+     into ExportNamedDeclaration / ExportDefaultDeclaration inner
+     declarations and expressions, catching `export const x = x;`
+     and `export default x;`.
+  - Net: **+9 TS semantic negative passes** (1734→1743,
+    49.57%→49.83%). Zero false positives. No snap drift on babel /
+    test262 / estree / misc. Bench geo-mean 1.026 (tolerance 1.050).
+  - Fixtures closed: `blockScopedBindingUsedBeforeDef.ts`,
+    `classStaticInitializersUsePropertiesBeforeDeclaration.ts`,
+    `decoratorUsedBeforeDeclaration.ts`,
+    `exportedBlockScopedDeclarations.ts`,
+    `recursiveLetConst.ts`,
+    `useBeforeDeclaration_destructuring.ts`,
+    `destructuringArrayBindingPatternAndAssignment3.ts`,
+    `destructuringObjectBindingPatternAndAssignment4.ts`,
+    `exportBinding.ts::exportConsts.ts`.
 
 
 ### Session 4 progress
@@ -528,47 +572,10 @@ No `TODO` / `FIXME` / `HACK` markers in `src/` or `tests/coverage/src/`
 
 Numbered by impact-per-effort. Read AGENTS.md before starting any of
 these. Session 5 closed items 1 (parser-bug fix) and 3 (TS2448).
-Re-run the cluster script `node /tmp/cluster.js` (recipe captured in
-this doc's Verification section) for the live remaining-fixtures-by-
-error-code list.
+Session 6 closed item 1 (TS2448 v2 destructuring / self-init / class
+statics / exports).
 
-### 1. Tighten TS2448 walker — destructuring, class-static-init, decorators, self-init  (LOW-MEDIUM impact, MEDIUM effort)
-- **What**: Slice E v1 closed 16 negatives; 21 newly-classified
-  TS2448-bearing negatives still don't pass because the v1 walker
-  is conservative. Each is a small, targeted extension:
-  - **Destructuring patterns** — `for (let {[a]: a} of ...)`,
-    `let {[b]: b} = {}`. Pass-1 currently extracts only bare
-    Identifier bindings; extend to walk
-    ObjectPattern / ArrayPattern / AssignmentPattern / RestElement
-    leaves. Then for the ref check, computed-key positions inside
-    a pattern element ARE value positions — walk them too.
-  - **Class-static initializers** —
-    `classStaticInitializersUsePropertiesBeforeDeclaration.ts`. The
-    walker currently skips into `^ClassExpression` entirely (closure-
-    safe), but `static` field initializers RUN at class-definition
-    time. Walk static initializer expressions distinctly from
-    instance-method bodies.
-  - **Decorator references** — `@deco(Enum.X) class C`, before
-    `enum Enum`. Decorators run at class-def time. Same family as
-    static initializers.
-  - **Self-init in same statement** — `const x = x;`,
-    `let x = x + 1;`. Today the offset comparison is `ref < binding`
-    which skips initializer-side refs. The fix: when walking the
-    initializer of declarator `D` for name `N`, treat any ref to `N`
-    in the initializer as use-before-decl (not deferred-by-closure
-    — the initializer evaluates synchronously at declaration time).
-    Watch out for the closure carve-out: `let x = () => x;` is fine
-    because `() => x` is deferred. Discriminator: nested function/
-    arrow/class in the initializer pushes a `closure_depth` that
-    suppresses self-ref flagging.
-- **Where**: `src/checker.odin` — the new
-  `ck_check_ts_use_before_decl` / `ck_ubd_walk_*` family. Also the
-  pattern walker missing in Pass 1.
-- **Why**: The 21 missed-negs are specifically the fixtures that
-  TSC errors on with TS2448 only — closing them is direct, no false
-  positives expected (these fixtures are now classified negative
-  after the slice-E classifier change).
-- **Difficulty**: Medium — same shape as slice E, just more arms.
+### 1. ~~Tighten TS2448 walker~~ ✅ DONE (session 6 slice G, +9 negatives)
 
 ### 2. TS-specific semantic checker work — next clusters  (HIGH impact, MEDIUM-HIGH effort)
 - **What**: Continue extending `src/checker.odin` per the cluster
