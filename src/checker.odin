@@ -257,6 +257,13 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	// The Program body is function-scope (sloppy plain
 	// FunctionDeclarations hoist as .Var; let/const/class are .Lexical).
 	ck_run_scope_check(c, &ctx, program.body[:], false)
+	// TS — declaration-merge dup detection (TS2300 / TS2567). Runs only
+	// in TS / TSX; the parser-side scope walker skips Class / Function /
+	// Import in TS mode to avoid false positives on legal merges, so we
+	// pick up the slack here with the precise merge-pair table.
+	if lang == .TS || lang == .TSX {
+		ck_check_ts_decl_merge_body(c, program.body[:])
+	}
 	for stmt in program.body {
 		ck_walk_stmt(c, &ctx, stmt)
 	}
@@ -850,6 +857,320 @@ ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) 
 				return
 			}
 		}
+	}
+}
+
+// =============================================================================
+// TS declaration-merging (TS handbook "Declaration Merging")
+// =============================================================================
+//
+// In TypeScript, certain declaration kinds may legally bind the same
+// name in the same scope ("declaration merging"):
+//
+//   - namespace + (namespace | class | function | enum | interface)
+//   - interface + interface
+//   - interface + class            (interface adopts the instance type)
+//   - class     + namespace
+//   - function  + namespace        (function-and-module pattern)
+//   - enum      + namespace
+//   - enum      + enum             (member dups still rejected — TS1308)
+//   - function  + function         (overload signatures + impl)
+//   - var       + var              (legal in JS too)
+//   - var       + function         (sloppy hoisting; legal in TS too)
+//
+// Anything outside the merge whitelist with two value-space entries on
+// the same name is TS2300 "Duplicate identifier" (or TS2567 for enums
+// specifically: "Enum declarations can only merge with namespace or
+// other enum declarations").
+//
+// The parser-side scope walker (parser.odin:scope_process_statement)
+// short-circuits on Class / Function / Import in TS mode to avoid
+// false positives on the merge cases. This pass picks up the slack
+// by enforcing the precise merging rules. It runs ONLY in TS / TSX
+// (the JS scope walker covers JS dup detection).
+//
+// V1 scope: top-level Program body only. Nested block / function /
+// namespace bodies are handled by follow-up slices.
+
+@(private="file")
+DeclMergeKind :: enum u8 {
+	Var, Let, Const,
+	Class, Function, Enum, Namespace,
+	Interface, TypeAlias,
+	Import, ImportType, ImportEquals,
+}
+
+@(private="file")
+DeclMergeSet :: bit_set[DeclMergeKind; u16]
+
+@(private="file")
+DeclMergeEntry :: struct {
+	kinds:         DeclMergeSet,
+	ambient_kinds: DeclMergeSet,  // subset of `kinds` declared with `declare` modifier
+	first_loc:     u32,
+}
+
+// ts_decl_merge_pair_legal — order-independent: returns true if `a`
+// and `b` may legally coexist on the same bound name in the same
+// scope under TS rules. The deny list is intentionally narrow: pairs
+// not listed here default to legal, so adding a new declaration kind
+// (e.g. ImportEquals nuance) cannot accidentally fire false
+// positives on real-world TS.
+//
+// `both_ambient` is true when BOTH the existing declaration of `a`
+// and the new declaration of `b` carry the `declare` modifier (or
+// live in a `declare namespace { ... }` / `.d.ts` body). Ambient
+// context relaxes a few cross-kind rules:
+//   - declare class C + declare function C  — callable-class pattern
+//   - declare function C + declare namespace C  — fn + module
+//   - declare class C + declare class C       — STILL an error
+//
+// Pairs already caught by the parser-side JS scope walker (let+let,
+// const+const, var+let, etc.) are returned LEGAL here — emitting
+// would double-report. The walker still skips Class / Function /
+// Enum / Import in TS mode, which is exactly the surface this proc
+// covers.
+@(private="file")
+ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> bool {
+	// Canonicalise so we only need to write each pair once: the
+	// smaller-ordinal kind is `x`, the larger is `y`.
+	x, y := a, b
+	if int(y) < int(x) { x, y = y, x }
+	#partial switch x {
+	case .Var:
+		#partial switch y {
+		case .Class, .Enum:
+			if both_ambient { return true }   // ambient var + ambient class/enum is OK in .d.ts
+			return false
+		}
+		// Var + Var, Var + Function: legal (hoisting).
+		// Var + Let/Const: caught by JS walker.
+		// Var + Namespace/Interface/TypeAlias: legal.
+	case .Let:
+		#partial switch y {
+		case .Class, .Function, .Enum:
+			if both_ambient { return true }
+			return false
+		}
+	case .Const:
+		#partial switch y {
+		case .Class, .Function, .Enum:
+			if both_ambient { return true }
+			return false
+		}
+	case .Class:
+		#partial switch y {
+		case .Class:                                 return false   // even ambient: can't redeclare ambient class
+		case .Function:                              return true    // TS2813/2814 — not in OXC-supported error set
+		case .Enum:                                  return false
+		case .Import:                                return false
+		}
+		// Class + Namespace, Class + Interface, Class + TypeAlias: legal.
+		// Class + Function: TS reports TS2813 / TS2814 here, but OXC's
+		// classifier excludes those codes from supported_error_codes,
+		// so the conformance corpus treats this combo as legal-to-parse
+		// (kessel mirrors OXC). Real-world example: `declare class Foo`
+		// + plain `function Foo() {}` (callable-class implementation
+		// pattern at .d.ts boundaries).
+	case .Function:
+		#partial switch y {
+		case .Enum:
+			if both_ambient { return true }
+			return false
+		case .Import:                                return false
+		}
+		// Function + Function: legal (overloads).
+		// Function + Namespace, Function + Interface, Function + TypeAlias: legal.
+	case .Enum:
+		#partial switch y {
+		case .Enum:                                  return true   // enum-enum merge is legal
+		case .Import:                                return false
+		}
+		// Enum + Namespace, Enum + Interface, Enum + TypeAlias: legal.
+	case .Namespace:
+		// Namespace merges with everything by spec.
+		return true
+	case .Interface:
+		#partial switch y {
+		case .TypeAlias:                             return false
+		}
+		// Interface + Interface, Interface + Class/Function/Var/Enum/Namespace: legal.
+	case .TypeAlias:
+		#partial switch y {
+		case .TypeAlias:                             return false
+		}
+	case .Import, .ImportType, .ImportEquals:
+		// V1: don't enforce import-collision merging rules — TS allows
+		// `import` of value + same-named type alias / interface, and
+		// the rules around named-import vs. local fn merging are
+		// nuanced. Future slice.
+		return true
+	}
+	return true
+}
+
+// ts_decl_merge_add — record one declaration of `name` with kind
+// `kind` at byte offset `at`. Reports a "Duplicate identifier"
+// diagnostic if combining with any previously-seen kind for the same
+// name violates ts_decl_merge_pair_legal.
+//
+// `is_ambient` is true when the declaration carries the `declare`
+// modifier (FunctionDeclaration.declare / ClassDeclaration.declare /
+// TSEnumDeclaration.declare / TSModuleDeclaration.declare /
+// TSInterfaceDeclaration.declare / VariableDeclaration.declare).
+// Ambient declarations may merge across kinds in cases that
+// non-ambient ones cannot (e.g. `declare class C + declare function C`).
+@(private="file")
+ts_decl_merge_add :: proc(
+	c: ^Checker,
+	seen: ^map[string]DeclMergeEntry,
+	name: string,
+	kind: DeclMergeKind,
+	at: u32,
+	is_ambient: bool,
+) {
+	if name == "" { return }
+	entry, found := seen[name]
+	if !found {
+		new_entry := DeclMergeEntry{kinds = {kind}, first_loc = at}
+		if is_ambient { new_entry.ambient_kinds = {kind} }
+		seen[name] = new_entry
+		return
+	}
+	// For each existing kind on this name, check the pair.
+	for existing in DeclMergeKind {
+		if existing not_in entry.kinds { continue }
+		existing_ambient := existing in entry.ambient_kinds
+		both_ambient := existing_ambient && is_ambient
+		if !ts_decl_merge_pair_legal(existing, kind, both_ambient) {
+			msg := fmt.tprintf("Duplicate identifier '%s'", name)
+			ck_report(c, at, msg)
+			break  // one diagnostic per re-declaration is enough
+		}
+	}
+	entry.kinds += {kind}
+	if is_ambient { entry.ambient_kinds += {kind} }
+	seen[name] = entry
+}
+
+// ts_decl_merge_inspect — extract the (name, kind) pair from a single
+// statement (or its inner Declaration if it's an export wrapper) and
+// add it to `seen`. Recurses ONE level into ExportNamedDeclaration so
+// `export class C {}; export class C {}` still triggers.
+@(private="file")
+ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stmt: ^Statement) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^ClassDeclaration:
+		if v == nil { return }
+		if id, ok := v.id.(BindingIdentifier); ok {
+			ts_decl_merge_add(c, seen, id.name, .Class, u32(id.loc.span.start), v.declare)
+		}
+	case ^FunctionDeclaration:
+		if v == nil { return }
+		if id, ok := v.id.(BindingIdentifier); ok {
+			ts_decl_merge_add(c, seen, id.name, .Function, u32(id.loc.span.start), v.declare)
+		}
+	case ^TSEnumDeclaration:
+		if v == nil { return }
+		ts_decl_merge_add(c, seen, v.id.name, .Enum, u32(v.id.loc.span.start), v.declare)
+	case ^TSInterfaceDeclaration:
+		if v == nil { return }
+		ts_decl_merge_add(c, seen, v.id.name, .Interface, u32(v.id.loc.span.start), v.declare)
+	case ^TSTypeAliasDeclaration:
+		if v == nil { return }
+		ts_decl_merge_add(c, seen, v.id.name, .TypeAlias, u32(v.id.loc.span.start), v.declare)
+	case ^TSModuleDeclaration:
+		if v == nil || v.id == nil { return }
+		if ident, is := v.id^.(^Identifier); is && ident != nil {
+			ts_decl_merge_add(c, seen, ident.name, .Namespace, u32(ident.loc.span.start), v.declare)
+		}
+	case ^VariableDeclaration:
+		if v == nil { return }
+		kind: DeclMergeKind
+		switch v.kind {
+		case .Var:                       kind = .Var
+		case .Let:                       kind = .Let
+		case .Const, .Using, .AwaitUsing: kind = .Const
+		}
+		names: [dynamic]string
+		names.allocator = context.temp_allocator
+		reserve(&names, 4)
+		for d in v.declarations { collect_bound_names(d.id, &names) }
+		for n in names {
+			ts_decl_merge_add(c, seen, n, kind, u32(v.loc.span.start), v.declare)
+		}
+	case ^ExportNamedDeclaration:
+		if v == nil { return }
+		if d, have := v.declaration.(^Declaration); have && d != nil {
+			// Re-wrap the inner Declaration as a Statement union so we
+			// can re-enter the switch above. Each Declaration arm is
+			// also a Statement arm by construction.
+			inner_stmt: ^Statement
+			#partial switch inner in d^ {
+			case ^ClassDeclaration:
+				if inner != nil {
+					if id, ok := inner.id.(BindingIdentifier); ok {
+						ts_decl_merge_add(c, seen, id.name, .Class, u32(id.loc.span.start), inner.declare)
+					}
+				}
+			case ^FunctionDeclaration:
+				if inner != nil {
+					if id, ok := inner.id.(BindingIdentifier); ok {
+						ts_decl_merge_add(c, seen, id.name, .Function, u32(id.loc.span.start), inner.declare)
+					}
+				}
+			case ^TSEnumDeclaration:
+				if inner != nil {
+					ts_decl_merge_add(c, seen, inner.id.name, .Enum, u32(inner.id.loc.span.start), inner.declare)
+				}
+			case ^TSInterfaceDeclaration:
+				if inner != nil {
+					ts_decl_merge_add(c, seen, inner.id.name, .Interface, u32(inner.id.loc.span.start), inner.declare)
+				}
+			case ^TSTypeAliasDeclaration:
+				if inner != nil {
+					ts_decl_merge_add(c, seen, inner.id.name, .TypeAlias, u32(inner.id.loc.span.start), inner.declare)
+				}
+			case ^TSModuleDeclaration:
+				if inner != nil && inner.id != nil {
+					if ident, is := inner.id^.(^Identifier); is && ident != nil {
+						ts_decl_merge_add(c, seen, ident.name, .Namespace, u32(ident.loc.span.start), inner.declare)
+					}
+				}
+			case ^VariableDeclaration:
+				if inner != nil {
+					kind: DeclMergeKind
+					switch inner.kind {
+					case .Var:                       kind = .Var
+					case .Let:                       kind = .Let
+					case .Const, .Using, .AwaitUsing: kind = .Const
+					}
+					names: [dynamic]string
+					names.allocator = context.temp_allocator
+					reserve(&names, 4)
+					for d in inner.declarations { collect_bound_names(d.id, &names) }
+					for n in names {
+						ts_decl_merge_add(c, seen, n, kind, u32(inner.loc.span.start), inner.declare)
+					}
+				}
+			}
+			_ = inner_stmt
+		}
+	}
+}
+
+// ck_check_ts_decl_merge_body — walks ONE body level (no recursion)
+// and reports TS "Duplicate identifier" for any pair that violates
+// the merge rules. Caller-supplied body slice represents one scope.
+@(private="file")
+ck_check_ts_decl_merge_body :: proc(c: ^Checker, body: []^Statement) {
+	if c == nil || len(body) == 0 { return }
+	seen: map[string]DeclMergeEntry
+	seen.allocator = context.temp_allocator
+	defer delete(seen)
+	for stmt in body {
+		ts_decl_merge_inspect(c, &seen, stmt)
 	}
 }
 
