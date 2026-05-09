@@ -44,12 +44,120 @@ Conformance summary (from `task test:conformance:report`):
 |---|---|---|---|---|
 | **test262** | 47084/47090 (99.99%) | 4563/4588 (99.46%) | 47084/47090 | **4588/4588 (100%)** |
 | **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | **2212/2233 (99.06%)** | **1646/1711 (96.20%)** |
-| **TypeScript** | 12684/12692 (99.94%) | 1598/3470 (46.05%) | **12638/12692 (99.57%)** | **1718/3470 (49.51%)** |
+| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12610/12664 (99.57%)** | **1734/3498 (49.57%)** |
 | **ESTree** | 39/39 (100%) | — | 39/39 | — |
-| **misc** | 67/69 (97.10%) | 252/281 (89.68%) | 64/69 (92.75%) | 270/281 (95.37%) |
+| **misc** | 71/73 (97.26%) | 252/285 (88.42%) | 68/73 (93.15%) | 272/285 (95.44%) |
+
+Note: TypeScript suite **totals** changed (12692→12664 positives,
+3470→3498 negatives) because session 5 removed `2448` from
+`tests/coverage/src/typescript_constants.odin` NOT_SUPPORTED_ERROR_CODES.
+The net move is +28 fixtures from positive to negative (their only TSC
+errors were TS2448 + other not-supported codes), enabling kessel's new
+TS2448 checker to count those fixtures correctly. Detail in slice E
+below.
 
 Snap baselines pinned to OXC SHAs: `c543b031` (babel),
 `e4104a13` (estree), `c7a0ae10` (typescript).
+
+### Session 5 progress
+
+Landed on top of session 4 (commit `c792fe5`):
+
+- **Slice D: parser fix — generic interface methods + readonly
+  modifier on type members** (commit `1da6ad8`). Two long-standing
+  parser bugs in `parse_ts_object_member`:
+  1. Generic methods `m<U>(): T;` were misparsed as a bare
+     `TSPropertySignature(m, no annotation)` followed by a separate
+     `TSCallSignatureDeclaration(<U>(): T)`. Fix: at the key-parsed
+     branch, accept `LParen` *or* `LAngle`; if `LAngle`, eat the
+     `TSTypeParameterDeclaration` first, then continue as
+     `TSMethodSignature`. Same fix on the computed-key branch.
+  2. `readonly _A: T;` — the existing `readonly` handler only fired
+     on `Readonly + LBracket` (index sig), and the lexer emits
+     `readonly` as `.Identifier value="readonly"` (it's a contextual
+     keyword, not reserved). The modifier was therefore parsed as a
+     bare property name, leaving `_A: T` to be re-parsed as a
+     separate member. Fix: replace the narrow check with a general
+     one that uses the same is-modifier heuristic as the get/set
+     accessor path — `readonly` is the modifier unless the next token
+     is `( ? : ; , }` or a newline (which means `readonly` is the
+     member NAME).
+  3. Drop the bare-prop carve-out from
+     `ck_check_ts_interface_member_dups` that worked around #1 and
+     #2. Bare-name duplicates like `interface I { x; x; }` are now
+     correctly flagged TS2300.
+  - Lock-ins: `pass/kessel-ts-interface-generic-method.ts`,
+    `pass/kessel-ts-interface-readonly-prop.ts`,
+    `fail/kessel-ts2300-interface-bare-name-dup.ts`.
+  - Net: **+2 misc semantic positive (lock-ins), +1 misc semantic
+    negative**. No suite delta on babel/TS/test262 — the parser
+    output normalised but the carve-out was already absorbing both
+    shapes upstream of the dup check. The cleanup is structural:
+    cleaner AST, no dead carve-out code.
+
+- **Slice E: TS2448 "used before its declaration"** (commit
+  `d6f384b`). New per-scope check `ck_check_ts_use_before_decl` in
+  `src/checker.odin`, wired through `ck_check_ts_body_decls` so it
+  fires on Program / BlockStatement / FunctionBody / TSModuleBlock
+  bodies.
+  - Pass 1 collects (name → first binding-id offset) for every
+    `let` / `const` / `using` / `await using` top-level declaration
+    in the body slice. Skip `declare`. Identifier-pattern bindings
+    only (destructuring deferred).
+  - Pass 2 walks each statement looking for value-position
+    Identifier references whose name is in the map and whose
+    source offset is BEFORE the matching binding-id offset; emits
+    TS2448 "Block-scoped variable 'X' used before its declaration."
+    at the reference site.
+  - Walker descends into control-flow statement operands, and into
+    immediate expression operands. STOPS at function/arrow/class
+    boundaries (closures — their refs are evaluated when called,
+    not when the closure is defined). STOPS at TS type positions
+    (TSAsExpression / TSSatisfiesExpression / TSTypeAssertion /
+    TSNonNullExpression / TSInstantiationExpression — walks only
+    the value side).
+  - Self-init (`const x = x;`) NOT flagged: ref offset > binding
+    offset, comparison skips. Cost: TDZ self-ref case missed;
+    benefit: zero false positives on legitimate forward-references
+    inside initializer closures (`const f = () => x; let x = ...`).
+  - **Classifier change**: TS2448 removed from
+    `tests/coverage/src/typescript_constants.odin`
+    NOT_SUPPORTED_ERROR_CODES (one-entry, justified divergence
+    from OXC verbatim). Without the removal, fixtures whose ONLY
+    TSC errors are TS2448 + other NOT_SUPPORTED codes classify as
+    positive — every TS2448 we emit on those would be a false
+    positive. Treating 2448 as a SUPPORTED (= gating) error code
+    matches reality: kessel now implements the check.
+  - Lock-ins: `fail/kessel-ts2448-use-before-decl.ts` (canonical
+    case), `pass/kessel-ts-deferred-ref-in-closure.ts` (closure-
+    deferred refs and type-position refs must NOT trigger).
+  - Net: **+16 TS semantic negative pass, +1 misc semantic positive,
+    +1 misc semantic negative**. The TS denominator shifted by 28
+    (positives 12692→12664, negatives 3470→3498) due to the
+    classifier reclassification — of those 28, kessel correctly
+    detects 7 (close as negative pass) and 21 remain as
+    `Expect Syntax Error` (missed-negs the v1 walker doesn't reach
+    yet: destructuring-pattern self-ref, class-static-init refs,
+    decorator refs, `const x = x;` self-init).
+
+Session 5 net: **+16 TS negative, +3 misc positive, +2 misc
+negative**. Zero false positives across all 5 suites. test262 holds
+at 100% negative.
+
+**Newly visible known limits** (uncovered while writing slice E):
+  - Destructuring-pattern self-reference (`for (let {[a]: a} of ...)`)
+    — v1 only collects bare-Identifier bindings.
+  - Class-static-initializer refs to enum/namespace declared later
+    — the static initializer runs at class-definition time, but our
+    walker skips into class bodies. Closing this requires visiting
+    static-initializer expressions distinctly from instance-method
+    bodies.
+  - Decorator refs (`@deco(Enum.X)` before `enum Enum`) — same
+    family: decorators run at class-def time, but our walker skips
+    into class bodies.
+  - Self-init in same statement (`const x = x;`, `let x = x + 1;`)
+    — ref offset > binding offset, comparison skips.
+
 
 ### Session 4 progress
 
@@ -366,41 +474,55 @@ No `TODO` / `FIXME` / `HACK` markers in `src/` or `tests/coverage/src/`
 
 ## Incomplete Work
 
-`git status`: clean. All session 3 work is committed.
+`git status`: clean. All session 5 work is committed.
 
 `git stash list`: empty. No WIP commits.
 
 ## What To Work On Next
 
 Numbered by impact-per-effort. Read AGENTS.md before starting any of
-these. Session 4 closed items 1, 2, and parts of 3 (TS2440, TS2300
-interface/type-param structural cases). Re-run the cluster script
-`node /tmp/cluster.js` (recipe captured in this doc's Verification
-section) for the live remaining-fixtures-by-error-code list.
+these. Session 5 closed items 1 (parser-bug fix) and 3 (TS2448).
+Re-run the cluster script `node /tmp/cluster.js` (recipe captured in
+this doc's Verification section) for the live remaining-fixtures-by-
+error-code list.
 
-### 1. Fix the kessel parser bug for generic interface methods + modifier-prefix property signatures  (MEDIUM impact, MEDIUM effort)
-- **What**: kessel parser misparses two TS-interface signature shapes:
-  - `interface I { m<U>(): T; }` → produces a bare
-    `TSPropertySignature(m, no annotation)` followed by a separate
-    `TSCallSignatureDeclaration(<U>(): T)`. Should be a single
-    `TSMethodSignature(m, type_parameters=<U>, return_type=T)`.
-  - `interface I { readonly _A: T; }` → produces a bare
-    `TSPropertySignature(readonly, no annotation)` followed by a
-    separate `TSPropertySignature(_A: T)`. Should be a single
-    `TSPropertySignature(_A, readonly=true, type_annotation=T)`.
-- **Where**: `src/parser.odin` — the interface-body signature parser
-  (parse_ts_interface_body / parse_ts_signature). Look for the path
-  that decides between TSPropertySignature, TSMethodSignature,
-  TSCallSignatureDeclaration. The `<` lookahead after an identifier
-  needs to commit to TSMethodSignature; the `readonly` / `static` /
-  modifier prefix needs to be absorbed before the property-key parse.
-- **Why**: Fixing this lets us tighten the
-  `ck_check_ts_interface_member_dups` carve-out (currently the
-  bare-prop-no-annotation gate skips many real-world interfaces)
-  and likely closes 1–2 more TS negative fixtures (e.g. bare
-  `interface Bar { x; x; }`). Also improves AST shape for downstream
-  passes.
-- **Difficulty**: Medium — parser cover-grammar work.
+### 1. Tighten TS2448 walker — destructuring, class-static-init, decorators, self-init  (LOW-MEDIUM impact, MEDIUM effort)
+- **What**: Slice E v1 closed 16 negatives; 21 newly-classified
+  TS2448-bearing negatives still don't pass because the v1 walker
+  is conservative. Each is a small, targeted extension:
+  - **Destructuring patterns** — `for (let {[a]: a} of ...)`,
+    `let {[b]: b} = {}`. Pass-1 currently extracts only bare
+    Identifier bindings; extend to walk
+    ObjectPattern / ArrayPattern / AssignmentPattern / RestElement
+    leaves. Then for the ref check, computed-key positions inside
+    a pattern element ARE value positions — walk them too.
+  - **Class-static initializers** —
+    `classStaticInitializersUsePropertiesBeforeDeclaration.ts`. The
+    walker currently skips into `^ClassExpression` entirely (closure-
+    safe), but `static` field initializers RUN at class-definition
+    time. Walk static initializer expressions distinctly from
+    instance-method bodies.
+  - **Decorator references** — `@deco(Enum.X) class C`, before
+    `enum Enum`. Decorators run at class-def time. Same family as
+    static initializers.
+  - **Self-init in same statement** — `const x = x;`,
+    `let x = x + 1;`. Today the offset comparison is `ref < binding`
+    which skips initializer-side refs. The fix: when walking the
+    initializer of declarator `D` for name `N`, treat any ref to `N`
+    in the initializer as use-before-decl (not deferred-by-closure
+    — the initializer evaluates synchronously at declaration time).
+    Watch out for the closure carve-out: `let x = () => x;` is fine
+    because `() => x` is deferred. Discriminator: nested function/
+    arrow/class in the initializer pushes a `closure_depth` that
+    suppresses self-ref flagging.
+- **Where**: `src/checker.odin` — the new
+  `ck_check_ts_use_before_decl` / `ck_ubd_walk_*` family. Also the
+  pattern walker missing in Pass 1.
+- **Why**: The 21 missed-negs are specifically the fixtures that
+  TSC errors on with TS2448 only — closing them is direct, no false
+  positives expected (these fixtures are now classified negative
+  after the slice-E classifier change).
+- **Difficulty**: Medium — same shape as slice E, just more arms.
 
 ### 2. TS-specific semantic checker work — next clusters  (HIGH impact, MEDIUM-HIGH effort)
 - **What**: Continue extending `src/checker.odin` per the cluster
@@ -434,28 +556,17 @@ section) for the live remaining-fixtures-by-error-code list.
   structural slices.
 - **Difficulty**: HIGH (architectural, not slice-shaped).
 
-### 3. TS2448 use-before-declaration of block-scoped binding  (LOW-MEDIUM impact, MEDIUM effort)
-- **What**: `function test() { fn(); const fn = ...; }` should
-  emit "Block-scoped variable 'fn' used before its declaration."
-  Affects the `controlFlowFunctionLikeCircular_*` family of fixtures
-  (single-file ones).
-- **Where**: `src/checker.odin` — needs scope-aware reference
-  tracking. Walk a function body, collect all `let`/`const`
-  declarations with their offsets, then walk all identifier
-  references in the body and flag any reference whose offset is
-  BEFORE the declaration's offset.
-- **Why**: ~5–10 single-file fixtures in the
-  `controlFlowFunctionLikeCircular` family.
-- **Difficulty**: Medium — requires per-block scope walk + reference
-  collection. Most of the machinery doesn't exist yet in the checker.
-  Could reuse the parser's scope walker as a model.
-
-### 4. Decorator + class member combinatorial fixtures  (LOW impact, MEDIUM effort)
+### 3. Decorator + class member combinatorial fixtures  (LOW impact, MEDIUM effort)
 - Various ES decorator fixtures still in the snap. Decorator semantic
   rules are a separate cluster; out of scope until ES2026 decorators
   stabilise in the conformance corpus.
 
 ### 4. Fix the 14 babel parser-side gaps  (MEDIUM impact, MEDIUM-HIGH effort)
+_(Note: items 4 and 5 below were originally numbered 4 and 5 in session 4's
+handoff; renumbering kept their identity stable. Item 5 was the duplicate
+#4 — 'Decorator + class member' — deleted in session 5 because it had no
+actionable detail.)
+
 - **What**: 8 invalid-assignment-pattern fixtures + 2 arrow inner-paren
   + 4 JSX-in-JS-without-plugin.
 - **Where**:
