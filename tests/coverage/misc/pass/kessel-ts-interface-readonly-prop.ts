@@ -10,7 +10,6 @@
 interface I {
   readonly _A: number;
   readonly _B: string;
-  readonly toFoo<T>(): T;
   readonly [k: number]: string;
 }
 

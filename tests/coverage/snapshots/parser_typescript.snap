@@ -2548,7 +2548,7 @@ typescript/tests/cases/conformance/decorators/invalid/decoratorOnEnum.ts:4:1: Ex
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnEnum2.ts:4:6: Expected }, got identifier
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnFunctionDeclaration.ts:4:1: Expected class after decorator
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnFunctionExpression.ts:3:14: Decorators can only be applied to class expressions
-typescript/tests/cases/conformance/decorators/invalid/decoratorOnFunctionParameter.ts:5:22: Decorators cannot be applied to 'this' parameters.
+typescript/tests/cases/conformance/decorators/invalid/decoratorOnFunctionParameter.ts:5:17: Decorators are not valid here.
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnImportEquals1.ts:9:5: Expected class after decorator
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnImportEquals2.ts::decoratorOnImportEquals2_1.ts:2:1: Expected class after decorator
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnInterface.ts:4:1: Expected class after decorator
@@ -3110,7 +3110,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserCl
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration4.ts:1:32: Expected {, got extends
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration5.ts:1:32: Expected {, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration6.ts:1:18: Expected {, got ,
-typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:3: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:7: Computed property names are not allowed in enums.
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration10.ts:2:25: Type annotation cannot appear on a constructor declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration11.ts:2:15: Type parameter list cannot be empty
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration3.ts:2:10: Expected (, got identifier
@@ -3393,12 +3393,12 @@ typescript/tests/cases/conformance/parser/ecmascript5/parserS12.11_A3_T4.ts:16:9
 typescript/tests/cases/conformance/parser/ecmascript5/parserS7.9_A5.7_T1.ts:19:1: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/parser/ecmascript5/parservoidInQualifiedName1.ts:1:13: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName1.ts:1:15: Computed property name requires a value
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName16.ts:2:3: Computed property names are not allowed in enums.
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName26.ts:3:5: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName16.ts:2:7: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName26.ts:3:9: Computed property names are not allowed in enums.
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName27.ts:4:9: Expected semicolon or line terminator after class field
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName30.ts:3:5: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName30.ts:3:9: Computed property names are not allowed in enums.
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName33.ts:4:12: Expected semicolon or line terminator after class field
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName34.ts:3:5: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName34.ts:3:9: Computed property names are not allowed in enums.
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName35.ts:2:7: Expected ], got ,
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName36.ts:2:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName38.ts:2:6: 'public' is a reserved identifier in strict mode

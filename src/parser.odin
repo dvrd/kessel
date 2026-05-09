@@ -1700,6 +1700,17 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		}
 	}
 
+	// ECMA-262 §B.1.3: Annex B HTML-like comments (`<!--`, `-->`) are
+	// ONLY valid in script source. The lexer skips them eagerly while
+	// `is_module_mode` is false, so when the file turns out to be a Module
+	// (auto-promoted via top-level import/export, or via `export = X` in
+	// TS) the comments need a retroactive rejection. Anchor at the offset
+	// of the FIRST skipped HTML comment to match OXC's diagnostic location.
+	if program.type == .Module && p.lexer != nil && p.lexer.html_comment_skipped {
+		report_error_at(p, LexerLoc(p.lexer.html_comment_offset),
+			"HTML comments are not allowed in modules")
+	}
+
 	// §16.2.2 ExportedBindings resolution: `export { foo };` (no `from`)
 	// must refer to a binding actually declared in the module. This runs
 	// after source-type is finalized so we skip the check for scripts
@@ -4173,17 +4184,22 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	param := new_node(p, FunctionParameter)
 	param.loc = cur_loc(p)
 
-	// TS parameter decorators: `foo(@dec x: T)`. Consume any leading `@expr`
-	// chain so the param parses; we don't yet attach the decorators to the
-	// FunctionParameter / inner Identifier (OXC does, on the Identifier's
-	// `decorators[]` field). Closes ~21 OXC corpus rejects in the
-	// "Expected binding pattern" cluster (the immediate symptom is
-	// parse_binding_pattern hitting `@`). Proper round-trip ATTACH is a
-	// follow-on AST extension.
+	// TS parameter decorators: `foo(@dec x: T)`. ES decorators (stage 3)
+	// only permit `@dec` before class elements and class constructor
+	// params; function params outside class bodies are rejected. Gate on
+	// `p.class_depth > 0` so constructor-param decorators (legal per
+	// ES2025) are accepted. Consume the decorator chain either way so
+	// the parser stays alive on syntactically-valid-but-invalid-position
+	// decorators rather than crashing in parse_binding_pattern.
 	decorators_seen := false
 	if allow_ts_mode(p) {
 		for is_token(p, .At) {
-			decorators_seen = true
+			if !decorators_seen {
+				decorators_seen = true
+				if p.class_depth == 0 {
+					report_error(p, "Decorators are not valid here.")
+				}
+			}
 			eat(p) // consume `@`
 			// Decorator expression: identifier (optionally member-chained / called).
 			// parse_left_hand_side_expr handles `dec`, `a.b`, `dec(args)`.
@@ -19271,6 +19287,13 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	// a separate `TSCallSignatureDeclaration(<U>(): T)`. Recognise the LAngle
 	// here so the result is a single TSMethodSignature with type_parameters.
 	if is_token(p, .LParen) || is_token(p, .LAngle) {
+		// `readonly method(): T` — the `readonly` modifier is only valid on
+		// PropertySignature and IndexSignature, not on MethodSignature.
+		// TSC: TS1024. OXC: "'readonly' modifier can only appear on a
+		// property declaration or index signature.".
+		if readonly {
+			report_error(p, "'readonly' modifier can only appear on a property declaration or index signature.")
+		}
 		sig := new_node(p, TSSignature)
 		method := TSMethodSignature{loc = start, key = key, computed = computed, optional = optional, kind = .Method}
 		if is_token(p, .LAngle) {
@@ -19639,16 +19662,34 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
 			member_id = expression_from(p, mid)
 		} else if is_token(p, .LBracket) {
-			// Computed property names are not allowed in enums (TS1164).
-			report_error(p, "Computed property names are not allowed in enums.")
+			// Computed enum member names. OXC accepts `['baz']` (string
+			// literal in brackets) because a computed enum member with a
+			// static string key is indistinguishable (at parse time) from
+			// a regular named enum member. OXC rejects every other
+			// computed form (`[foo]`, `[1]`, `` [`test${foo}`] ``,
+			// `['baz' + 'baz']`) with "Computed property names are not
+			// allowed in enums" (TS1164). Mirror that two-part rule.
 			eat(p) // consume `[`
 			inner := parse_assignment_expression(p)
 			expect_token(p, .RBracket)
-			if inner == nil {
+			// Only `['literal']` and `` [`no-expr`] `` (template literal with
+			// zero interpolations) escape the rejection. Both produce a
+			// static, known-at-compile-time string key indistinguishable
+			// from a regular named enum member.
+			if inner != nil {
+				is_static := false
+				if _, is_str := inner^.(^StringLiteral); is_str {
+					is_static = true
+				} else if tmpl, is_tmpl := inner^.(^TemplateLiteral); is_tmpl && len(tmpl.expressions) == 0 {
+					is_static = true
+				}
+				if !is_static {
+					report_error(p, "Computed property names are not allowed in enums.")
+				}
+				member_id = inner
+			} else {
 				mid := new_node(p, Identifier); mid.loc = ms; mid.name = ""
 				member_id = expression_from(p, mid)
-			} else {
-				member_id = inner
 			}
 		} else if is_token(p, .Template) || is_token(p, .TemplateHead) {
 			// Template literals are not valid enum member names.

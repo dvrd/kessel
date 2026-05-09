@@ -1,35 +1,16 @@
 semantic_misc Summary:
-AST Parsed     : 68/73 (93.15%)
-Positive Passed: 68/73 (93.15%)
-Negative Passed: 272/285 (95.44%)
+AST Parsed     : 72/72 (100.00%)
+Positive Passed: 72/72 (100.00%)
+Negative Passed: 277/286 (96.85%)
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
-Expect Syntax Error: tests/coverage/misc/fail/html-comment-with-esm.js
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
-Expect Syntax Error: tests/coverage/misc/fail/oxc-11485.ts
-Expect Syntax Error: tests/coverage/misc/fail/oxc-11713-23.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
-Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
 Expect Syntax Error: tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs
-Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-new-target.cjs
-tests/coverage/misc/pass/commonjs-top-level-new-target.cjs:2:1: 'new.target' is only allowed inside functions
-
-Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-new-target.cts
-tests/coverage/misc/pass/commonjs-top-level-new-target.cts:2:1: 'new.target' is only allowed inside functions
-
-Expect to Parse: tests/coverage/misc/pass/oxc-13284.js
-tests/coverage/misc/pass/oxc-13284.js:173:8: 'super' call is only allowed in the constructor of a derived class
-
-Expect to Parse: tests/coverage/misc/pass/oxc-22157.js
-tests/coverage/misc/pass/oxc-22157.js:2:6: Unexpected token: array literal cannot be a computed class member name
-
-Expect to Parse: tests/coverage/misc/pass/oxc-4449.ts
-tests/coverage/misc/pass/oxc-4449.ts:1:10: Computed property names are not allowed in enums.
-
 tests/coverage/misc/fail/arguments-eval.ts:1:10: Function name 'arguments' is not allowed in strict mode
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
 tests/coverage/misc/fail/commonjs-export-statement.cjs:2:1: 'export' is only valid in module code
@@ -75,6 +56,7 @@ tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js
 tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js:7:6: for-in loop variable declaration may not have an initializer
 tests/coverage/misc/fail/escape-00.js:1:25: Octal or \8 / \9 escape sequences are not allowed in strict mode
 tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected >, got !
+tests/coverage/misc/fail/html-comment-with-esm.js:1:1: HTML comments are not allowed in modules
 tests/coverage/misc/fail/imbalanced-array-expr.js:2:1: Expected ], got const
 tests/coverage/misc/fail/imbalanced-call-expr.js:2:1: Expected ), got const
 tests/coverage/misc/fail/imbalanced-enum-expr.ts:4:1: Expected }, got const
@@ -219,6 +201,7 @@ tests/coverage/misc/fail/oxc-11453.js:2:1: Unexpected 'import' after 'export'. O
 tests/coverage/misc/fail/oxc-11472.js:1:7: Decorators may not appear after 'export' or 'export default' if they also appear before 'export'
 tests/coverage/misc/fail/oxc-11484.ts:2:1: Expected from, got EOF
 tests/coverage/misc/fail/oxc-11485.js:2:10: Expected binding pattern
+tests/coverage/misc/fail/oxc-11485.ts:2:10: Decorators are not valid here.
 tests/coverage/misc/fail/oxc-11487.cjs:1:13: 'await' cannot be used as an async arrow parameter
 tests/coverage/misc/fail/oxc-11487.mjs:1:13: 'await' cannot be used as an async arrow parameter
 tests/coverage/misc/fail/oxc-11532.js:1:15: Expected from, got {
@@ -241,6 +224,7 @@ tests/coverage/misc/fail/oxc-11713-2.ts:2:2: 'static' modifier cannot appear on 
 tests/coverage/misc/fail/oxc-11713-20.ts:2:2: 'default' modifier cannot appear on an index signature.
 tests/coverage/misc/fail/oxc-11713-21.ts:2:2: 'export' modifier cannot appear on a type member.
 tests/coverage/misc/fail/oxc-11713-22.ts:2:2: 'export' modifier cannot appear on a type member.
+tests/coverage/misc/fail/oxc-11713-23.ts:2:18: 'readonly' modifier can only appear on a property declaration or index signature.
 tests/coverage/misc/fail/oxc-11713-24.ts:2:20: 'declare' modifier cannot be used here.
 tests/coverage/misc/fail/oxc-11713-25.ts:2:18: 'readonly' modifier can only appear on a property declaration
 tests/coverage/misc/fail/oxc-11713-26.ts:1:32: 'readonly' modifier cannot appear on a parameter.
@@ -276,6 +260,8 @@ tests/coverage/misc/fail/oxc-169.js:2:1: Expected expression after operator
 tests/coverage/misc/fail/oxc-18231.mjs:2:10: 'f' has already been declared
 tests/coverage/misc/fail/oxc-1942-1.ts:2:8: Expected `(` but found `:`
 tests/coverage/misc/fail/oxc-1942-2.ts:2:8: Expected `(` but found `:`
+tests/coverage/misc/fail/oxc-2144.js:1:1: A class name is required.
+tests/coverage/misc/fail/oxc-22157.js:2:6: Unexpected token: array literal cannot be a computed class member name
 tests/coverage/misc/fail/oxc-2253.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-232.js:2:1: Empty parenthesized expression
 tests/coverage/misc/fail/oxc-2394.ts:20:22: Expected 'with' in import type options
@@ -283,12 +269,12 @@ tests/coverage/misc/fail/oxc-3528.jsx:1:25: Expected corresponding JSX closing t
 tests/coverage/misc/fail/oxc-3948.ts:2:14: Expected }, got identifier
 tests/coverage/misc/fail/oxc-4111-1.js:1:19: Type assertions can only be used in TypeScript files.
 tests/coverage/misc/fail/oxc-4212-1.ts:1:17: Expected (, got identifier
-tests/coverage/misc/fail/oxc-4449-1.ts:1:10: Computed property names are not allowed in enums.
-tests/coverage/misc/fail/oxc-4449-2.ts:1:10: Computed property names are not allowed in enums.
+tests/coverage/misc/fail/oxc-4449-1.ts:1:16: Computed property names are not allowed in enums.
+tests/coverage/misc/fail/oxc-4449-2.ts:1:14: Computed property names are not allowed in enums.
 tests/coverage/misc/fail/oxc-4449-3.ts:1:10: An enum member cannot have a numeric name.
-tests/coverage/misc/fail/oxc-4449-4.ts:1:10: Computed property names are not allowed in enums.
+tests/coverage/misc/fail/oxc-4449-4.ts:1:25: Computed property names are not allowed in enums.
 tests/coverage/misc/fail/oxc-4449-5.ts:1:11: Enum member expected.
-tests/coverage/misc/fail/oxc-4449-6.ts:1:10: Computed property names are not allowed in enums.
+tests/coverage/misc/fail/oxc-4449-6.ts:2:1: Computed property names are not allowed in enums.
 tests/coverage/misc/fail/oxc-5036.js:2:5: Label 'Test' has already been declared
 tests/coverage/misc/fail/oxc-5177.ts:5:1: An 'accessor' property cannot be declared optional.
 tests/coverage/misc/fail/oxc-5355.jsx:1:14: Identifiers in JSX cannot contain hyphens

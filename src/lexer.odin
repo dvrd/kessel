@@ -128,6 +128,16 @@ Lexer :: struct {
 	// in JSX attribute position, cleared after.
 	jsx_string_mode: bool,
 
+	// `html_comment_skipped` records whether the lexer skipped at least one
+	// Annex B HTML-like comment (`<!--` / `-->`) while is_module_mode was
+	// false. The parser doesn't know up-front whether a `.js` file is
+	// Module or Script (it auto-promotes on encountering import/export);
+	// when promotion happens AFTER an HTML comment was skipped, the parser
+	// retroactively emits a syntax error using `html_comment_offset`.
+	// Cold field — written at most once per source on the slow path.
+	html_comment_skipped: bool,
+	html_comment_offset: u32,
+
 	// Comment collection — populated during lexing
 	comments: [dynamic]Comment,
 	collect_comments: bool,
@@ -713,8 +723,15 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 				// ECMA-262 §B.1.3 SingleLineHTMLOpenComment: `<!--` opens
 				// a single-line comment in script source. Module mode
 				// rejects this (no Annex B). Test262: annexB/language/
-				// comments/single-line-html-open.js.
+				// comments/single-line-html-open.js. The parser may promote
+				// to Module mode AFTER we skip this comment (auto-promotion
+				// on first import/export); record the first occurrence so
+				// the parser can retroactively reject.
 				comment_start := off
+				if !l.html_comment_skipped {
+					l.html_comment_skipped = true
+					l.html_comment_offset  = u32(comment_start)
+				}
 				off += 4 // skip `<!--`
 				content_start := off
 				end, had_nl := simd_skip_line_comment(src, off)
@@ -731,6 +748,10 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 			} else if c == '-' && !l.is_module_mode && at_logical_line_start &&
 			          off + 2 < src_len &&
 			          src[off+1] == '-' && src[off+2] == '>' {
+				if !l.html_comment_skipped {
+					l.html_comment_skipped = true
+					l.html_comment_offset  = u32(off)
+				}
 				// ECMA-262 §B.1.3 SingleLineHTMLCloseComment: `-->` opens
 				// a single-line comment when the preceding input contains
 				// a LineTerminator (or a multi-line block comment, or is

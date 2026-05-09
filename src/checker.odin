@@ -179,6 +179,13 @@ CheckerContext :: struct {
 	// needed) and methods may legally lack bodies. Threaded from the
 	// parser via Parser.source_is_dts at check_program entry.
 	is_dts: bool,
+	// is_commonjs — true for `.cjs` / `.cts` files. The CommonJS module
+	// wrapper turns the file body into the function body of
+	// `(exports, require, module, __filename, __dirname) => { ... }`,
+	// which means top-level constructs that require an enclosing
+	// function (`new.target`, `return` at top level) are valid. Threaded
+	// from the parser via Parser.is_commonjs at check_program entry.
+	is_commonjs: bool,
 }
 
 Checker :: struct {
@@ -245,7 +252,10 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	// .d.ts detection: pending_parser carries source_is_dts (set by
 	// parse_job from the source path suffix). Implies all top-level
 	// declarations are ambient.
-	if c.pending_parser != nil { ctx.is_dts = c.pending_parser.source_is_dts }
+	if c.pending_parser != nil {
+		ctx.is_dts      = c.pending_parser.source_is_dts
+		ctx.is_commonjs = c.pending_parser.is_commonjs
+	}
 	// §10.2.1 + §16.2.2 — strict-mode initialisation:
 	//   * Module code is always strict (§16.2.2).
 	//   * `--force-strict` (test262 onlyStrict) forces strict from byte 0.
@@ -792,7 +802,16 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil { ck_walk_function(c, ctx, &v.expr) }
 
 	case ^ClassDeclaration:
-		if v != nil { ck_walk_class(c, ctx, &v.expr) }
+		if v == nil { return }
+		// §15.7.1 — ClassDeclaration must have a BindingIdentifier unless
+		// it is the direct child of `export default`. At this point we're
+		// walking a standalone statement; `export default class {}` goes
+		// through `ck_walk_export_decl` and is not checked here.
+		// OXC: "A class name is required.".
+		if _, has_id := v.id.(BindingIdentifier); !has_id {
+			ck_report(c, u32(v.loc.span.start), "A class name is required.")
+		}
+		ck_walk_class(c, ctx, &v.expr)
 
 	case ^ExportNamedDeclaration:
 		if v == nil { return }
@@ -3216,13 +3235,29 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 		// `arguments` or `await` from inside an outer static block.
 		// (test262 static-init-invalid-arguments.js / -await.js.)
 		if elem.computed && elem.key != nil {
+			// Computed keys ALSO inherit `in_method` and
+			// `in_derived_constructor` from the enclosing class-element
+			// scope. ECMA-262: ClassDefinitionEvaluation evaluates each
+			// element's PropertyName in the enclosing lexical scope, which
+			// means the surrounding [[HomeObject]] / [[NewTarget]] /
+			// [[ConstructorKind]] still apply. So when an inner class is
+			// declared inside a derived-class constructor body, its
+			// computed keys (and field-initializer expressions) may legally
+			// reference `super(...)` and `super.foo` because the surrounding
+			// constructor is the home for those constructs. (oxc-13284.js).
 			saved_static_b := ctx.in_class_static_block
 			saved_field_i  := ctx.in_field_init
+			saved_method   := ctx.in_method
+			saved_dctor    := ctx.in_derived_constructor
 			ctx.in_class_static_block = prev_in_static_b
 			ctx.in_field_init         = prev_in_field
+			ctx.in_method             = prev_in_method
+			ctx.in_derived_constructor = prev_in_dctor
 			ck_walk_expr(c, ctx, elem.key)
 			ctx.in_class_static_block = saved_static_b
 			ctx.in_field_init         = saved_field_i
+			ctx.in_method             = saved_method
+			ctx.in_derived_constructor = saved_dctor
 		}
 
 		ck_walk_class_element_value(c, ctx, elem, has_extends)
@@ -3561,6 +3596,11 @@ ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty
 	if mp == nil { return }
 	if mp.meta.name != "new" || mp.property.name != "target" { return }
 	if ctx.function_depth > 0 { return }
+	// CommonJS files (.cjs / .cts) wrap the module body in a synthetic
+	// function (`(exports, require, module, __filename, __dirname) => { … }`),
+	// so top-level `new.target` is legal there. Mirror the parser-side
+	// `p.is_commonjs` carve-out (parser.odin parse_meta_property).
+	if ctx.is_commonjs { return }
 	ck_report(c, u32(mp.loc.span.start), "'new.target' is only allowed inside functions")
 }
 
