@@ -46,13 +46,44 @@ Conformance summary (from `task test:conformance:report`):
 | Suite | Parser pos | Parser neg | Semantic pos | Semantic neg |
 |---|---|---|---|---|
 | **test262** | 47084/47090 (99.99%) | 4563/4588 (99.46%) | 47084/47090 | **4588/4588 (100%)** |
-| **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | 2210/2233 | 1634/1711 (95.50%) |
-| **TypeScript** | 12684/12692 (99.94%) | 1598/3470 (46.05%) | 12637/12692 | 1641/3470 (47.29%) |
+| **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | 2210/2233 | **1645/1711 (96.14%)** |
+| **TypeScript** | 12684/12692 (99.94%) | 1598/3470 (46.05%) | 12637/12692 | **1673/3470 (48.21%)** |
 | **ESTree** | 39/39 (100%) | — | 39/39 | — |
 | **misc** | 62/64 (96.88%) | 252/274 (91.97%) | 58/64 | 261/274 (95.26%) |
 
 Snap baselines pinned to OXC SHAs: `c543b031` (babel),
 `e4104a13` (estree), `c7a0ae10` (typescript).
+
+### Session 2 (resumed) progress
+
+Landed on top of session 1's already-committed work:
+
+- **TS declaration-merge dup detection (TS2300 / TS2567)** — new
+  `ck_check_ts_decl_merge_body` in `src/checker.odin`. Catches
+  illegal pairs like `class C; class C`, `class C; var C`, `enum E;
+  function E`. Honours TypeScript declaration-merging rules
+  (namespace + class, function + namespace, interface + interface,
+  etc.) and ambient (`declare`) relaxation (`declare class C +
+  declare function C` is the callable-class pattern). V1 covers
+  Program top-level only — nested scopes (block / function body /
+  namespace body) are a follow-up. Net: +11 babel, +18 TS.
+- **TS class method overload-chain checks (TS2391 / TS2389)** — new
+  `ck_check_ts_class_overloads` in `src/checker.odin`. Walks
+  ClassBody members tracking the active overload-signature run;
+  emits TS2391 on each unimplemented signature and TS2389 on impl
+  name mismatch. Detects body-presence via the FunctionExpression's
+  body source span (methods don't set `no_body` the way top-level
+  functions do). Suppressed when class is `declare class`, when
+  source is `.d.ts`, when method is optional (`m?(): void`) or
+  abstract, OR when the entire class has no method implementations
+  (catches babel parser-test fixtures of `class C { f(); f(): void; }`
+  shape that are intentionally signature-only). Bundled with a
+  one-line parser fix to propagate `field_optional` into
+  `elem.optional` for the method branch (the field branch already
+  did this). Net: +14 TS.
+- Combined session 2: **+32 TS, +11 babel** semantic-negative gains.
+  Test262 holds at 100%. All positive counts unchanged across all 5
+  suites — zero false positives.
 
 ### Performance
 
