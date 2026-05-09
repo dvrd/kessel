@@ -18999,10 +18999,36 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		sig := new_node(p, TSSignature); sig^ = ctor_sig; return sig
 	}
 
-	// --- NEW: detect index signature `[ident : type]: type` or `readonly [ident : type]: type`
-	if is_token(p, .Readonly) && p.lexer.nxt.kind == .LBracket {
-		idx_readonly = true
-		eat(p) // consume `readonly`
+	// Handle `readonly` modifier on a property / method / index signature.
+	// `readonly` is a contextual keyword, NOT a reserved word, so the lexer
+	// emits it as `.Identifier` with value "readonly" rather than a dedicated
+	// token type — mirror the convention used elsewhere in this file (see the
+	// comment at line ~18485 "`.Readonly` is not in the lexer").
+	// Distinguish from a member literally named `readonly` (e.g. `readonly: T`,
+	// `readonly?: T`, `readonly()`, `readonly;`, `readonly,`, `readonly}`,
+	// or `readonly` followed by a newline).
+	// Covers BOTH index-sig (`readonly [k: K]: V`) and ordinary property /
+	// method members (`readonly _A: T`, `readonly m(): U`). The previous
+	// implementation only matched `readonly [` which let the parser drop the
+	// modifier and re-parse the property as a separate bare signature.
+	if p.cur_type == .Identifier && p.cur_tok.value == "readonly" {
+		readonly_is_modifier := false
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+			#partial switch p.lexer.nxt.kind {
+			case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
+				// `readonly` IS the member name — leave it alone.
+			case:
+				readonly_is_modifier = true
+			}
+		}
+		if readonly_is_modifier {
+			if p.lexer.nxt.kind == .LBracket {
+				idx_readonly = true   // signal to the index-sig branch below
+			} else {
+				readonly = true
+			}
+			eat(p) // consume `readonly`
+		}
 	}
 
 	// §A.5 - Invalid index signature forms: `[]`, `[...x]`, etc.
@@ -19103,9 +19129,14 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		optional := match_token(p, .Question)
 
 		// Check if it's a method signature after computed property.
-		if is_token(p, .LParen) {
+		// `[expr]<T>(): U` — generic computed-key method, same fix as the
+		// non-computed path below. Match LAngle in addition to LParen.
+		if is_token(p, .LParen) || is_token(p, .LAngle) {
 			sig := new_node(p, TSSignature)
 			method := TSMethodSignature{loc = start, key = key, computed = true, optional = optional, kind = .Method}
+			if is_token(p, .LAngle) {
+				method.type_parameters = parse_ts_type_parameters(p)
+			}
 			method.params = parse_ts_sig_params(p)
 			if is_token(p, .Colon) { method.return_type = parse_ts_return_type_annotation(p) }
 			method.loc.span.end = prev_end_offset(p)
@@ -19235,9 +19266,16 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	optional := match_token(p, .Question)
 
 	// Method signature: key is followed by `(` (or `<` for generics).
-	if is_token(p, .LParen) {
+	// Generic interface methods (`m<U>(): T;`, `m<T extends X>?(arg: T): T;`)
+	// were previously misparsed as a bare `TSPropertySignature(m)` followed by
+	// a separate `TSCallSignatureDeclaration(<U>(): T)`. Recognise the LAngle
+	// here so the result is a single TSMethodSignature with type_parameters.
+	if is_token(p, .LParen) || is_token(p, .LAngle) {
 		sig := new_node(p, TSSignature)
 		method := TSMethodSignature{loc = start, key = key, computed = computed, optional = optional, kind = .Method}
+		if is_token(p, .LAngle) {
+			method.type_parameters = parse_ts_type_parameters(p)
+		}
 		method.params = parse_ts_sig_params(p)
 		if is_token(p, .Colon) { method.return_type = parse_ts_return_type_annotation(p) }
 		method.loc.span.end = prev_end_offset(p)

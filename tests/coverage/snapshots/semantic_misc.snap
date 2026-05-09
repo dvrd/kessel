@@ -1,7 +1,7 @@
 semantic_misc Summary:
-AST Parsed     : 65/70 (92.86%)
-Positive Passed: 65/70 (92.86%)
-Negative Passed: 270/283 (95.41%)
+AST Parsed     : 67/72 (93.06%)
+Positive Passed: 67/72 (93.06%)
+Negative Passed: 271/284 (95.42%)
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
@@ -100,6 +100,7 @@ tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected >, got ;
 tests/coverage/misc/fail/kessel-ts-import-dup.ts:9:8: Duplicate identifier 'x'
 tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts:8:3: Duplicate identifier 'a'
 tests/coverage/misc/fail/kessel-ts2300-decl-merge-namespace.ts:7:9: Duplicate identifier 'C'
+tests/coverage/misc/fail/kessel-ts2300-interface-bare-name-dup.ts:11:3: Duplicate identifier 'x'
 tests/coverage/misc/fail/kessel-ts2300-interface-dup-prop.ts:8:3: Duplicate identifier 'x'
 tests/coverage/misc/fail/kessel-ts2300-type-param-dup.ts:4:15: Duplicate identifier 'X'
 tests/coverage/misc/fail/kessel-ts2389-fn-decl-block-scope.ts:7:12: Function implementation name must be 'foo'.

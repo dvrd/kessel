@@ -1909,35 +1909,12 @@ ck_check_ts_interface_member_dups :: proc(c: ^Checker, body: TSInterfaceBody) {
 			continue
 		}
 
-		// Carve-out: ANY entry on the slot is a TSPropertySignature
-		// without a type annotation. This conservatively skips two
-		// parser-bug-induced shapes the kessel parser currently produces:
-		//
-		//   1. Generic method  `m<U>(): T;`  is parsed as bare
-		//      `TSPropertySignature(m, no annotation)` followed by a
-		//      separate `TSCallSignatureDeclaration(<U>(): T)`. Multiple
-		//      generic methods of the same name produce a run of
-		//      identical bare-name property signatures that LOOK like
-		//      duplicates but are AST-shape artefacts.
-		//
-		//   2. Modifier prefix `readonly _A: T;` is parsed as bare
-		//      `TSPropertySignature(readonly, no annotation)` followed by
-		//      `TSPropertySignature(_A: T)`. Multiple `readonly`-prefixed
-		//      fields produce a run of bare `readonly` property signatures.
-		//
-		// Cost of this carve-out: we no longer close `interface Bar { x;
-		// x; }` (TSC's duplicateInterfaceMembers1.ts) where the
-		// duplicates are intentionally bare. Acceptable trade — the
-		// real-world duplicates that fixtures actually exercise all
-		// have type annotations (`x: number; x: number;` etc.) and we
-		// still close those.
-		any_bare_prop := false
-		for idx in slot {
-			if entries[idx].kind == .Property && !entries[idx].has_anno {
-				any_bare_prop = true; break
-			}
-		}
-		if any_bare_prop { continue }
+		// (Previously: a `bare-prop` carve-out skipped any slot containing
+		// a TSPropertySignature without a type annotation, to work around
+		// kessel parser bugs that mis-split `m<U>(): T` and `readonly _A: T`
+		// into two signatures. Those bugs are fixed in `parse_ts_object_member`,
+		// so the carve-out is no longer needed. Bare-name duplicates such as
+		// `interface Bar { x; x; }` are now correctly flagged.)
 
 		// General TS2300: emit on each entry after the first.
 		msg := fmt.tprintf("Duplicate identifier '%s'", anchor.name)
