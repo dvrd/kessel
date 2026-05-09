@@ -1,8 +1,8 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2210/2233 (98.97%)
-Positive Passed: 2210/2233 (98.97%)
+AST Parsed     : 2212/2233 (99.06%)
+Positive Passed: 2212/2233 (99.06%)
 Negative Passed: 1645/1711 (96.14%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -126,12 +126,6 @@ babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/private-method-overload/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/private-method-overload/input.ts:4:3: Duplicate private name '#f' in class body
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/declare/eval-dts/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/declare/eval-dts/input.ts:9:18: Function name 'eval' is not allowed in strict mode
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/declare/eval/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/declare/eval/input.ts:8:18: Function name 'eval' is not allowed in strict mode
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/export-default/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/function/export-default/input.ts:1:42: Expected {, got ;

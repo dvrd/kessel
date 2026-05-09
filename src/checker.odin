@@ -145,6 +145,13 @@ CheckerContext :: struct {
 	params_is_arrow:       bool,
 	source_type:           SourceType,
 	at_top_level:          bool,
+	// ts_namespace_depth — number of enclosing TS namespace / module
+	// bodies. When > 0, the import/export-position check is suppressed
+	// (`export` inside a `namespace M { ... }` is legal even when the
+	// outer file is a Script and even though the export is not at the
+	// program top level). Pushed by ck_walk_ts_module_decl on body
+	// entry, popped on exit.
+	ts_namespace_depth:    int,
 	in_async:              bool,
 	in_generator:          bool,
 	// scope_skip — set true while walking the immediate body of an
@@ -266,13 +273,13 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	// The Program body is function-scope (sloppy plain
 	// FunctionDeclarations hoist as .Var; let/const/class are .Lexical).
 	ck_run_scope_check(c, &ctx, program.body[:], false)
-	// TS — declaration-merge dup detection (TS2300 / TS2567). Runs only
-	// in TS / TSX; the parser-side scope walker skips Class / Function /
-	// Import in TS mode to avoid false positives on legal merges, so we
-	// pick up the slack here with the precise merge-pair table.
-	if lang == .TS || lang == .TSX {
-		ck_check_ts_decl_merge_body(c, program.body[:])
-	}
+	// TS — declaration-merge dup detection (TS2300 / TS2567) + top-level
+	// FunctionDeclaration overload-chain check (TS2391 / TS2389). Runs
+	// only in TS / TSX; the parser-side scope walker skips Class /
+	// Function / Import in TS mode to avoid false positives on legal
+	// merges, so we pick up the slack here with the precise merge-pair
+	// table.
+	ck_check_ts_body_decls(c, &ctx, program.body[:])
 	for stmt in program.body {
 		ck_walk_stmt(c, &ctx, stmt)
 	}
@@ -602,6 +609,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		// §14.2.1 / §14.3.1.1 — block-scope lex/var clash detection.
 		ck_run_scope_check(c, ctx, v.body[:], true)
+		// TS — nested-scope decl-merge + FunctionDeclaration overload-chain
+		// (FunctionDeclaration6.ts: `{ function foo(); function bar(){} }`).
+		// Block scope is one binding scope, so the chain doesn't cross
+		// the brace boundary.
+		ck_check_ts_body_decls(c, ctx, v.body[:])
 		for s in v.body { ck_walk_stmt(c, ctx, s) }
 
 	case ^IfStatement:
@@ -810,17 +822,23 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			ck_check_import_export_position(c, ctx, v.loc, false, was_top_level)
 		}
 
+	case ^TSModuleDeclaration:
+		if v == nil { return }
+		// TS namespace / module body. Most ECMA early errors don't apply
+		// across namespace boundaries (no break/continue/labels can
+		// escape), but TS-specific per-scope checks DO need to descend:
+		//   * decl-merge dup-detect — `namespace M { class C; class C; }`
+		//   * FunctionDeclaration overload-chain —
+		//     `namespace M { function foo(); }` (FunctionDeclaration7.ts).
+		ck_walk_ts_module_decl(c, ctx, v)
+
 	case ^EmptyStatement, ^DebuggerStatement,
 	     ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
-	     ^TSEnumDeclaration, ^TSModuleDeclaration,
+	     ^TSEnumDeclaration,
 	     ^TSImportEqualsDeclaration,
 	     ^TSExportAssignment, ^TSNamespaceExportDeclaration:
 		// No iteration / switch / label / function bodies inside these
-		// for break/continue purposes. (TS namespace bodies CAN contain
-		// statements but the parser builds them as Statements that
-		// would be visited via TSModuleDeclaration's body in a future
-		// slice; today these checks don't apply across TS namespace
-		// boundaries.)
+		// for break/continue purposes.
 		return
 	}
 }
@@ -832,6 +850,45 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 	case ^FunctionDeclaration: if inner != nil { ck_walk_function(c, ctx, &inner.expr) }
 	case ^ClassDeclaration:    if inner != nil { ck_walk_class(c, ctx, &inner.expr) }
 	case ^VariableDeclaration: if inner != nil { ck_walk_var_decl(c, ctx, inner) }
+	case ^TSModuleDeclaration: if inner != nil { ck_walk_ts_module_decl(c, ctx, inner) }
+	}
+}
+
+// ck_walk_ts_module_decl — walk a TS namespace / module body. Pushes
+// `is_dts` for `declare namespace M { ... }` so the FunctionDeclaration
+// overload-chain check (TS2391) is suppressed for ambient bodies, and
+// re-asserts `at_top_level = true` so import / export declarations
+// directly inside the namespace body don't false-positive against the
+// "not at top level" check (TS namespace bodies are module-like for
+// import/export-position purposes — babel/typescript/declare/eval-dts
+// shape).
+//
+// Handles both shapes the parser produces:
+//   * `namespace M { ... }`     → body = TSModuleBlock
+//   * `namespace A.B { ... }`   → body = TSModuleDeclaration (nested)
+@(private="file")
+ck_walk_ts_module_decl :: proc(c: ^Checker, ctx: ^CheckerContext, m: ^TSModuleDeclaration) {
+	if m == nil { return }
+	body_opt, have := m.body.(^TSModuleBody)
+	if !have || body_opt == nil { return }
+	prev_dts := ctx.is_dts
+	prev_top := ctx.at_top_level
+	if m.declare { ctx.is_dts = true }
+	ctx.at_top_level = true
+	ctx.ts_namespace_depth += 1
+	defer {
+		ctx.is_dts = prev_dts
+		ctx.at_top_level = prev_top
+		ctx.ts_namespace_depth -= 1
+	}
+	#partial switch inner in body_opt^ {
+	case ^TSModuleBlock:
+		if inner == nil { return }
+		ck_check_ts_body_decls(c, ctx, inner.body[:])
+		for s in inner.body { ck_walk_stmt(c, ctx, s) }
+	case ^TSModuleDeclaration:
+		if inner == nil { return }
+		ck_walk_ts_module_decl(c, ctx, inner)
 	}
 }
 
@@ -1365,6 +1422,205 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 	}
 }
 
+// =============================================================================
+// Top-level (and nested-scope) overload-signature chain checking
+// =============================================================================
+//
+// Same algorithm as the class version, but applied to a `[]^Statement`
+// (Program top-level body, BlockStatement body, FunctionBody, or a
+// TSModuleBlock body). Detects the shape:
+//
+//   function foo();           // sig — no body
+//   function foo();           // sig — extends chain (same name)
+//   function foo() { ... }    // impl — completes chain (must match name)
+//
+// Errors:
+//   - TS2391 "Function implementation is missing or not immediately
+//     following the declaration." — emitted on each unmatched signature
+//     in a chain that is not closed by an implementation, or whose
+//     implementation never appears.
+//   - TS2389 "Function implementation name must be 'X'." — emitted on
+//     the implementation when its name doesn't match the open chain.
+//
+// Suppressed:
+//   * `declare function foo();` — ambient (declaration is complete on
+//     its own; doesn't open / extend / close a chain).
+//   * Whole pass skipped at the top level when ctx.is_dts (every decl
+//     is implicitly ambient in a .d.ts file).
+//
+// Recurses into ExportNamedDeclaration so `export function foo();
+// export function foo() { }` is handled identically to the unwrapped
+// shape (canonical TS overload pattern in .d.ts and ambient libraries).
+//
+// One important difference vs. the class version: there is no
+// conservative "all signatures, no impl in scope -> skip" pre-pass.
+// At the top level a single bare `function foo();` IS an error
+// (TS2391) per FunctionDeclaration3.ts. The class pre-pass exists to
+// suppress false positives on babel parser-test fixtures of
+// signature-only classes; that babel pattern doesn't occur for
+// top-level FunctionDeclarations.
+
+// fn_decl_extract — pull a FunctionDeclaration out of a Statement,
+// looking through one ExportNamedDeclaration wrapper. Returns the
+// underlying FunctionDeclaration plus a stable name-loc for diagnostics.
+// `nil, false` for any non-function statement.
+@(private="file")
+fn_decl_extract :: proc(stmt: ^Statement) -> (fn: ^FunctionDeclaration, ok: bool) {
+	if stmt == nil { return nil, false }
+	#partial switch v in stmt^ {
+	case ^FunctionDeclaration:
+		if v == nil { return nil, false }
+		return v, true
+	case ^ExportNamedDeclaration:
+		if v == nil { return nil, false }
+		d, have := v.declaration.(^Declaration)
+		if !have || d == nil { return nil, false }
+		#partial switch inner in d^ {
+		case ^FunctionDeclaration:
+			if inner == nil { return nil, false }
+			return inner, true
+		}
+	}
+	return nil, false
+}
+
+// fn_decl_overload_name — overloadable name + name-loc for a
+// FunctionDeclaration. Anonymous declarations (legal only as
+// `export default function() {}`) cannot participate in chains.
+@(private="file")
+fn_decl_overload_name :: proc(fn: ^FunctionDeclaration) -> (name: string, at: u32, ok: bool) {
+	if fn == nil { return "", 0, false }
+	id, have := fn.id.(BindingIdentifier)
+	if !have { return "", 0, false }
+	return id.name, u32(id.loc.span.start), true
+}
+
+// ck_check_ts_func_overloads — walks a Statement-list left-to-right;
+// emits TS2391 / TS2389 per the overload-chain rules.
+//
+// Pre-pass: skip the entire check when NO FunctionDeclaration in this
+// scope carries an implementation body. Mirrors the class-version
+// pre-pass and is needed because babel's TS conformance corpus (and
+// oxc-semantic, which is the gating oracle) treats sig-only files as
+// legal ambient patterns —
+//   `export function f(x: number): number;`
+//   `export function f(x: string): string;`
+// is accepted by oxc-semantic even though tsc would TS2391. We match
+// oxc-semantic to keep babel positive fixtures clean and still emit
+// TS2391 / TS2389 wherever an impl IS present and the chain is
+// inconsistent (FunctionDeclaration4.ts / 6.ts shape).
+@(private="file")
+ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
+	if c == nil || len(body) == 0 { return }
+
+	has_any_impl := false
+	for stmt in body {
+		fn, is_fn := fn_decl_extract(stmt)
+		if !is_fn || fn.declare { continue }
+		if !fn.no_body { has_any_impl = true; break }
+	}
+	if !has_any_impl { return }
+
+	flush_unimplemented :: proc(c: ^Checker, body: []^Statement, sigs: []u32) {
+		for at in sigs {
+			ck_report(c, at,
+				"Function implementation is missing or not immediately following the declaration.")
+		}
+	}
+
+	// Per-chain state. `chain_sigs` accumulates the name-loc of each
+	// signature in the active chain so flush_unimplemented can emit
+	// TS2391 at the precise identifier offset (matching the class
+	// version's per-element loc).
+	chain_active := false
+	chain_name   := ""
+	chain_sigs:  [dynamic]u32
+	chain_sigs.allocator = context.temp_allocator
+	defer delete(chain_sigs)
+
+	for stmt in body {
+		fn, is_fn := fn_decl_extract(stmt)
+		if !is_fn {
+			if chain_active {
+				flush_unimplemented(c, body, chain_sigs[:])
+				chain_active = false
+				clear(&chain_sigs)
+			}
+			continue
+		}
+		if fn.declare {
+			// `declare function foo();` is a complete ambient decl.
+			// Doesn't participate in chains; flushes any active chain.
+			if chain_active {
+				flush_unimplemented(c, body, chain_sigs[:])
+				chain_active = false
+				clear(&chain_sigs)
+			}
+			continue
+		}
+		name, name_at, has_name := fn_decl_overload_name(fn)
+		if !has_name {
+			if chain_active {
+				flush_unimplemented(c, body, chain_sigs[:])
+				chain_active = false
+				clear(&chain_sigs)
+			}
+			continue
+		}
+		has_body := !fn.no_body
+		if chain_active {
+			if has_body {
+				// Implementation found. TS treats ANY following
+				// function-with-body as the impl for the chain — TS2389
+				// fires on name mismatch (FunctionDeclaration4.ts shape).
+				if name != chain_name {
+					msg := fmt.tprintf("Function implementation name must be '%s'.", chain_name)
+					ck_report(c, name_at, msg)
+				}
+				chain_active = false
+				clear(&chain_sigs)
+			} else {
+				if name == chain_name {
+					append(&chain_sigs, name_at)
+				} else {
+					// Different-name sig in middle of chain — prior chain ends
+					// unimplemented; this sig opens a new chain.
+					flush_unimplemented(c, body, chain_sigs[:])
+					clear(&chain_sigs)
+					chain_name = name
+					append(&chain_sigs, name_at)
+				}
+			}
+		} else {
+			if !has_body {
+				chain_active = true
+				chain_name   = name
+				append(&chain_sigs, name_at)
+			}
+			// else: standalone full function, no chain involved.
+		}
+	}
+	if chain_active {
+		flush_unimplemented(c, body, chain_sigs[:])
+	}
+}
+
+// ck_check_ts_body_decls — TS-only per-scope body checks. Runs the
+// declaration-merge dup-detect AND the function-declaration overload-
+// chain check on the same body slice. No-op outside TS / TSX.
+@(private="file")
+ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement) {
+	if ctx.lang != .TS && ctx.lang != .TSX { return }
+	if len(body) == 0 { return }
+	ck_check_ts_decl_merge_body(c, body)
+	// Top-level overload-chain check is suppressed inside .d.ts files
+	// (every declaration is implicitly ambient there). Per-element
+	// `declare function` is suppressed inside the procedure itself.
+	if !ctx.is_dts {
+		ck_check_ts_func_overloads(c, body)
+	}
+}
+
 ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDeclaration) {
 	if decl == nil { return }
 	// §14.3.1.1 — per-declaration duplicate-name check (slice 11).
@@ -1378,7 +1634,12 @@ ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDecla
 	// parse_binding_identifier diagnostics. Runs FIRST (matching the
 	// parser's parse-order) so the per-binding-id diagnostic appears
 	// before the per-declaration `let`-as-lex diagnostic below.
-	if ctx.strict_mode {
+	//
+	// Skipped for TS ambient declarations — `declare var static: any;`,
+	// or any var inside `declare namespace M { ... }` / .d.ts. Type-
+	// only declarations don't bind real values and the strict-mode
+	// reservation doesn't apply (matches OXC).
+	if ctx.strict_mode && !decl.declare && !ctx.is_dts {
 		for d in decl.declarations {
 			ck_check_strict_binding_pattern(c, d.id, .Generic)
 		}
@@ -1844,7 +2105,13 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	// runs only for FunctionExpression-as-expression / FunctionDecl
 	// (kind == .Plain); class methods / accessors / static blocks /
 	// constructors don't have their own BindingIdentifier name.
-	if kind == .Plain {
+	//
+	// Skipped for TS ambient declarations — `declare function eval();`,
+	// `declare function arguments();`, plus any FunctionDeclaration
+	// nested inside a `declare namespace M { ... }` body or in a .d.ts
+	// file. These are type-level signatures, not real bindings, and
+	// the strict-mode reservation doesn't apply (matches OXC).
+	if kind == .Plain && !fn.declare && !fn.no_body && !ctx.is_dts {
 		if id, have := fn.id.(BindingIdentifier); have {
 			// Determine the strict-mode environment the function name
 			// is parsed under. For FunctionExpression the name is in
@@ -1954,6 +2221,9 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		// §14.1.3 / Annex B.3.2. Static-block bodies and class-method
 		// bodies share the same scoping rule.
 		ck_run_scope_check(c, ctx, fn.body.body[:], false)
+		// TS — nested-scope decl-merge + FunctionDeclaration overload-chain
+		// for the function-body scope.
+		ck_check_ts_body_decls(c, ctx, fn.body.body[:])
 		for s in fn.body.body { ck_walk_stmt(c, ctx, s) }
 	}
 	ctx.function_depth -= 1
@@ -2555,6 +2825,12 @@ ck_check_import_export_position :: proc(
 	is_import: bool,
 	was_top_level: bool,
 ) {
+	// TS allows `import` / `export` directly inside a namespace /
+	// module body even when the outer file is a Script and even
+	// though the namespace body isn't the program top level. Skip
+	// both branches under that context (`namespace M { export var
+	// x = 1; }` in a .ts script is legal).
+	if ctx.ts_namespace_depth > 0 { return }
 	if ctx.source_type == .Script {
 		msg := "'export' is only valid in module code"
 		if is_import { msg = "'import' is only valid in module code" }

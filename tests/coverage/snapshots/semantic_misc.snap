@@ -1,7 +1,7 @@
 semantic_misc Summary:
-AST Parsed     : 58/64 (90.62%)
-Positive Passed: 58/64 (90.62%)
-Negative Passed: 261/274 (95.26%)
+AST Parsed     : 61/66 (92.42%)
+Positive Passed: 61/66 (92.42%)
+Negative Passed: 264/277 (95.31%)
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
@@ -20,9 +20,6 @@ tests/coverage/misc/pass/commonjs-top-level-new-target.cjs:2:1: 'new.target' is 
 
 Expect to Parse: tests/coverage/misc/pass/commonjs-top-level-new-target.cts
 tests/coverage/misc/pass/commonjs-top-level-new-target.cts:2:1: 'new.target' is only allowed inside functions
-
-Expect to Parse: tests/coverage/misc/pass/declare-let-private.ts
-tests/coverage/misc/pass/declare-let-private.ts:1:13: 'private' is a reserved identifier in strict mode
 
 Expect to Parse: tests/coverage/misc/pass/oxc-13284.js
 tests/coverage/misc/pass/oxc-13284.js:173:8: 'super' call is only allowed in the constructor of a derived class
@@ -100,6 +97,9 @@ tests/coverage/misc/fail/import-type-source-not-string.ts:3:25: String literal e
 tests/coverage/misc/fail/import-type-without-from.ts:1:13: Expected from, got string
 tests/coverage/misc/fail/import-without-from.js:1:16: Expected from, got string
 tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected >, got ;
+tests/coverage/misc/fail/kessel-ts2300-decl-merge-namespace.ts:7:9: Duplicate identifier 'C'
+tests/coverage/misc/fail/kessel-ts2389-fn-decl-block-scope.ts:7:12: Function implementation name must be 'foo'.
+tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts:7:10: Function implementation name must be 'foo'.
 tests/coverage/misc/fail/let-member-expression.js:4:1: 'let' is a reserved identifier in strict mode
 tests/coverage/misc/fail/minus-yield-100.js:1:37: 'yield' expression cannot be the operand of a unary operator
 tests/coverage/misc/fail/missing-conditional-alternative-type.ts:2:1: Expected :, got EOF
