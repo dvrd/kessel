@@ -3,7 +3,7 @@ commit: c543b031
 semantic_babel Summary:
 AST Parsed     : 2212/2233 (99.06%)
 Positive Passed: 2212/2233 (99.06%)
-Negative Passed: 1645/1711 (96.14%)
+Negative Passed: 1646/1711 (96.20%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -64,7 +64,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-constenum/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-interface/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-type/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-import-type-import/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-interface-enum/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-class/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-enum/input.ts
@@ -1707,6 +1706,7 @@ babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-fu
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-let/input.ts:2:1: Duplicate identifier 'Foo'
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-var/input.ts:2:1: Duplicate identifier 'Foo'
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-function-enum/input.ts:2:6: Duplicate identifier 'Foo'
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-import-type-import/input.ts:2:10: Duplicate identifier 'Context'
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-let-enum/input.ts:2:6: Duplicate identifier 'Foo'
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-interface/input.ts:2:11: Duplicate identifier 'A'
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-type/input.ts:2:6: Duplicate identifier 'A'

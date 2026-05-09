@@ -1012,65 +1012,86 @@ ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> boo
 		// Var + Var, Var + Function: legal (hoisting).
 		// Var + Let/Const: caught by JS walker.
 		// Var + Namespace/Interface/TypeAlias: legal.
+		// Var + Import / ImportEquals: TSC fires TS2440 here but OXC's
+		// checker accepts (per babel's typescript/scope/redeclaration-
+		// import-{var,equals-var} positive fixtures). Mirror OXC — don't
+		// fire. Some TSC import-merge fixtures still close because they
+		// also have a duplicate-import shape (handled below).
 	case .Let:
 		#partial switch y {
 		case .Class, .Function, .Enum:
 			if both_ambient { return true }
 			return false
 		}
+		// Let + Import / ImportEquals: see Var case — OXC accepts.
 	case .Const:
 		#partial switch y {
 		case .Class, .Function, .Enum:
 			if both_ambient { return true }
 			return false
 		}
+		// Const + Import / ImportEquals: see Var case.
 	case .Class:
 		#partial switch y {
 		case .Class:                                 return false   // even ambient: can't redeclare ambient class
 		case .Function:                              return true    // TS2813/2814 — not in OXC-supported error set
 		case .Enum:                                  return false
-		case .Import:                                return false
 		}
+		// Class + Import: TSC TS2440 but OXC accepts (per babel's
+		// typescript/scope/redeclaration-import-ambient-class positive
+		// fixture: `import Something from '.'; declare class Something {}`).
 		// Class + Namespace, Class + Interface, Class + TypeAlias: legal.
 		// Class + Function: TS reports TS2813 / TS2814 here, but OXC's
-		// classifier excludes those codes from supported_error_codes,
-		// so the conformance corpus treats this combo as legal-to-parse
-		// (kessel mirrors OXC). Real-world example: `declare class Foo`
-		// + plain `function Foo() {}` (callable-class implementation
-		// pattern at .d.ts boundaries).
+		// classifier excludes those codes from supported_error_codes.
 	case .Function:
 		#partial switch y {
 		case .Enum:
 			if both_ambient { return true }
 			return false
-		case .Import:                                return false
 		}
 		// Function + Function: legal (overloads).
-		// Function + Namespace, Function + Interface, Function + TypeAlias: legal.
+		// Function + Import / Namespace / Interface / TypeAlias: legal
+		// per OXC.
 	case .Enum:
 		#partial switch y {
 		case .Enum:                                  return true   // enum-enum merge is legal
-		case .Import:                                return false
 		}
-		// Enum + Namespace, Enum + Interface, Enum + TypeAlias: legal.
+		// Enum + Namespace / Interface / TypeAlias / Import: legal.
 	case .Namespace:
-		// Namespace merges with everything by spec.
+		// Namespace merges with everything else by spec, including imports
+		// (TSC fires TS2440 on `import {N}; namespace N {}` but OXC accepts).
 		return true
 	case .Interface:
 		#partial switch y {
 		case .TypeAlias:                             return false
 		}
-		// Interface + Interface, Interface + Class/Function/Var/Enum/Namespace: legal.
+		// Interface + Import is LEGAL — type-only interface can coexist
+		// with a value-import of the same name (TSC: "shouldn't be error"
+		// per es6ImportNamedImportMergeErrors fixture).
 	case .TypeAlias:
 		#partial switch y {
 		case .TypeAlias:                             return false
 		}
-	case .Import, .ImportType, .ImportEquals:
-		// V1: don't enforce import-collision merging rules — TS allows
-		// `import` of value + same-named type alias / interface, and
-		// the rules around named-import vs. local fn merging are
-		// nuanced. Future slice.
-		return true
+		// TypeAlias + Import: legal (analogous to Interface).
+	case .Import:
+		// Import-vs-Import IS enforced — OXC fires on truly duplicate
+		// imports. Catches `import {x}; import {x};` and the type-vs-value
+		// import collision (typescript/scope/redeclaration-import-type-
+		// import babel fixture is NEGATIVE).
+		#partial switch y {
+		case .Import:                                return false   // duplicate value-import
+		case .ImportEquals:                          return false   // duplicate value-binding
+		case .ImportType:                            return false   // value + type-only of same name
+		}
+	case .ImportType:
+		#partial switch y {
+		case .ImportType:                            return false   // duplicate type-import
+		case .ImportEquals:                          return false   // type-only + value-binding via =
+		}
+	case .ImportEquals:
+		#partial switch y {
+		case .ImportEquals:                          return false   // duplicate value-binding
+		}
 	}
 	return true
 }
@@ -1166,6 +1187,34 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 		for n in names {
 			ts_decl_merge_add(c, seen, n, kind, u32(v.loc.span.start), v.declare)
 		}
+	case ^ImportDeclaration:
+		// Each specifier introduces a local binding. `import type` makes
+		// the whole declaration's bindings type-only (kind=ImportType,
+		// which only conflicts with another type-only import on the same
+		// name). Plain imports introduce value bindings (kind=Import) that
+		// conflict with var/let/const/function/class/enum/namespace/import
+		// per TS2440. Per-specifier `import {type X}` granularity is V2.
+		if v == nil { return }
+		kind: DeclMergeKind = v.import_kind == .Type ? .ImportType : .Import
+		for spec in v.specifiers {
+			if spec == nil { continue }
+			switch s in spec^ {
+			case ImportSpecifier:
+				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.span.start), false)
+			case ImportDefaultSpecifier:
+				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.span.start), false)
+			case ImportNamespaceSpecifier:
+				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.span.start), false)
+			}
+		}
+	case ^TSImportEqualsDeclaration:
+		// `import x = ns.member;` / `import x = require("m");` introduces a
+		// value binding (kind=ImportEquals) unless `import type x = ...`
+		// (kind=ImportType). Conflicts with same-name local declarations
+		// per TS2440.
+		if v == nil { return }
+		kind: DeclMergeKind = v.import_kind == .Type ? .ImportType : .ImportEquals
+		ts_decl_merge_add(c, seen, v.id.name, kind, u32(v.id.loc.span.start), false)
 	case ^ExportNamedDeclaration:
 		if v == nil { return }
 		if d, have := v.declaration.(^Declaration); have && d != nil {

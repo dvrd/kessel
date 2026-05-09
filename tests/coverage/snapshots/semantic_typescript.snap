@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12638/12692 (99.57%)
 Positive Passed: 12638/12692 (99.57%)
-Negative Passed: 1703/3470 (49.08%)
+Negative Passed: 1709/3470 (49.25%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
@@ -301,13 +301,10 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDef
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamespaceBinding1WithExport.ts::server.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamespaceBindingWithExport.ts::server.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingMergeErrors.ts::es6ImportDefaultBindingMergeErrors_0.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingMergeErrors.ts::es6ImportDefaultBindingMergeErrors_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingWithExport.ts::server.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNameSpaceImportMergeErrors.ts::es6ImportNameSpaceImportMergeErrors_0.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNameSpaceImportMergeErrors.ts::es6ImportNameSpaceImportMergeErrors_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNameSpaceImportWithExport.ts::server.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNamedImportMergeErrors.ts::es6ImportNamedImportMergeErrors_0.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNamedImportMergeErrors.ts::es6ImportNamedImportMergeErrors_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNamedImportParsingError.ts::es6ImportNamedImportParsingError_0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNamedImportWithExport.ts::server.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportWithoutFromClause.ts::es6ImportWithoutFromClause_0.ts
@@ -400,7 +397,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/getterMissin
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/gettersAndSetters.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAliasInModuleAugmentation.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAssertionsDeprecated.ts::/a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAssertionsDeprecated.ts::/b.ts
@@ -583,8 +579,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreser
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/main4.cjs
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleProperty2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleResolutionWithExtensions_unexpected2.ts::/a.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleVariableArrayIndexer.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleVisibilityTest2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/module_augmentExistingAmbientVariable.ts
@@ -2119,9 +2113,12 @@ typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamedImport1W
 typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamedImportWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamespaceBinding1WithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamespaceBindingWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
+typescript/tests/cases/compiler/es6ImportDefaultBindingMergeErrors.ts::es6ImportDefaultBindingMergeErrors_1.ts:8:8: Duplicate identifier 'defaultBinding3'
 typescript/tests/cases/compiler/es6ImportDefaultBindingWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
+typescript/tests/cases/compiler/es6ImportNameSpaceImportMergeErrors.ts::es6ImportNameSpaceImportMergeErrors_1.ts:5:13: Duplicate identifier 'nameSpaceBinding1'
 typescript/tests/cases/compiler/es6ImportNameSpaceImportWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportNamedImportIdentifiersParsing.ts:1:10: 'yield' is reserved as a binding name in strict mode
+typescript/tests/cases/compiler/es6ImportNamedImportMergeErrors.ts::es6ImportNamedImportMergeErrors_1.ts:10:16: Duplicate identifier 'z'
 typescript/tests/cases/compiler/es6ImportNamedImportParsingError.ts::es6ImportNamedImportParsingError_1.ts:1:12: 'import' is a reserved word and cannot be used as an import binding
 typescript/tests/cases/compiler/es6ImportNamedImportWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportParseErrors.ts:1:8: Expected import source or specifier
@@ -2184,6 +2181,7 @@ typescript/tests/cases/compiler/illegalModifiersOnClassElements.ts:2:20: Initial
 typescript/tests/cases/compiler/illegalSuperCallsInConstructor.ts:9:37: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/implementClausePrecedingExtends.ts:2:22: Expected {, got extends
 typescript/tests/cases/compiler/implementsClauseAlreadySeen.ts:4:22: Expected {, got identifier
+typescript/tests/cases/compiler/importAndVariableDeclarationConflict3.ts:6:8: Duplicate identifier 'x'
 typescript/tests/cases/compiler/importAssertionNonstring.ts:1:50: Only string literals are allowed as import attribute values
 typescript/tests/cases/compiler/importDeclWithDeclareModifier.ts:5:9: Expected semicolon
 typescript/tests/cases/compiler/importDeclWithDeclareModifierInAmbientContext.ts:6:13: Expected semicolon
@@ -2288,6 +2286,8 @@ typescript/tests/cases/compiler/moduleElementsInWrongContext2.ts:3:5: 'export' d
 typescript/tests/cases/compiler/moduleKeywordRepeatError.ts:3:15: Expected semicolon
 typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:2:11: Expected from, got =
 typescript/tests/cases/compiler/moduleProperty1.ts:9:13: Expected semicolon
+typescript/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt3.ts:11:12: Duplicate identifier 'M'
+typescript/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt5.ts:11:12: Duplicate identifier 'M'
 typescript/tests/cases/compiler/multiLinePropertyAccessAndArrowFunctionIndent1.ts:1:8: 'return' outside of function
 typescript/tests/cases/compiler/multipleClassPropertyModifiers.ts:3:19: 'public' modifier must precede 'static' modifier.
 typescript/tests/cases/compiler/multipleClassPropertyModifiersErrors.ts:2:9: Accessibility modifier already seen.
