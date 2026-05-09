@@ -44,9 +44,9 @@ Conformance summary (from `task test:conformance:report`):
 |---|---|---|---|---|
 | **test262** | 47084/47090 (99.99%) | 4563/4588 (99.46%) | 47084/47090 | **4588/4588 (100%)** |
 | **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | **2212/2233 (99.06%)** | **1646/1711 (96.20%)** |
-| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12610/12664 (99.57%)** | **1734/3498 (49.57%)** |
+| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12612/12664 (99.59%)** | **1734/3498 (49.57%)** |
 | **ESTree** | 39/39 (100%) | — | 39/39 | — |
-| **misc** | 71/73 (97.26%) | 252/285 (88.42%) | 68/73 (93.15%) | 272/285 (95.44%) |
+| **misc** | 72/72 (100%) | 256/286 (89.51%) | 72/72 (100%) | 277/286 (96.85%) |
 
 Note: TypeScript suite **totals** changed (12692→12664 positives,
 3470→3498 negatives) because session 5 removed `2448` from
@@ -157,6 +157,52 @@ at 100% negative.
     into class bodies.
   - Self-init in same statement (`const x = x;`, `let x = x + 1;`)
     — ref offset > binding offset, comparison skips.
+
+
+### Slice F: Close all misc false positives + misc missed negatives
+
+Commit `ea1632c`. After slice E left the misc suite with 7 false
+positives and several missed negatives, this slice takes the misc
+suite to ZERO false positives (semantic 72/72, parser 72/72) and
+closes 5 previously-missed negatives.
+
+Changes:
+  - **checker**: CJS top-level `new.target` — applied `ctx.is_commonjs`
+    gate matching the parser-side carve-out. 2 false positives closed.
+  - **checker**: `super()` in computed class-element keys now inherits
+    `in_derived_constructor` / `in_method` from the outer class scope.
+    1 false positive closed (oxc-13284.js).
+  - **parser**: computed enum member names mirror OXC's two-part rule:
+    string literals (`['baz']`) and no-interpolation template literals
+    accepted; everything else rejected as TS1164. 1 false positive +
+    3 missed negatives closed.
+  - **parser**: `readonly` on method signatures now errors (TS1024).
+    Updated readonly-prop pass fixture. 1 missed negative closed.
+  - **parser**: decorators on function params only error when
+    `class_depth == 0` (constructor param decorators are ES2025-legal).
+    1 missed negative closed.
+  - **parser**: HTML comments in module code retro-rejected via new
+    lexer cold-field recording `(html_comment_skipped, offset)` +
+    parser post-source-type-finalization check. 1 missed negative
+    closed.
+  - **checker**: anonymous ClassDeclarations (`class {}`) now emit
+    "A class name is required." (suppressed for `export default`).
+    1 missed negative closed.
+  - **moved**: oxc-22157.js pass→fail (OXC rejects; fixture was
+    misclassified).
+
+Net slice F: **+5 semantic_misc negative (+3 parser negative),
+-7 false positives (zero remaining)**. No babel/TS/test262 regression.
+test262 holds at 100% negative. Bench geo-mean 1.005.
+
+Remaining known misc gaps (tracked, low effort each):
+  - 4 module_context script-mode fixtures (kessel auto-promotion)
+  - oxc-10503.ts (ASI for `await using\n`)
+  - oxc-13284.ts (TS2337 semantic rule for `super()`)
+  - export-equal-with-normal-export.ts, semantic-for-await-in-block,
+    escape-00.js, oxc-5036.js, script-top-level-using.js,
+    arguments-eval.ts, several kessel-ts* parser-only "misses"
+    (by-design: parser passes through, checker catches them).
 
 
 ### Session 4 progress
