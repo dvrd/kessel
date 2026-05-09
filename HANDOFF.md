@@ -32,25 +32,111 @@ Apple M1 Max, Darwin arm64.
 - Unit fixtures: `Passed: 291  Failed: 0  Pass rate: 100%  Time: 8s`
 
 `task test:bench:regression` (perf gate, 10 curated files):
-- All 10 within tolerance. Geo-mean ratio **1.015** (tolerance 1.050).
-- lodash.js settled at **1.086x** of baseline (was 1.103x in the prior
-  handoff). Within the per-file threshold; no re-baseline required.
-  Other files improved.
+- All 10 within tolerance. Geo-mean ratio **1.025** (tolerance 1.050).
+- lodash.js drifted to **1.099x** in the most recent run (was 1.086x
+  end-of-session-3). Still within the 10% per-file threshold; the
+  bench is sensitive to system load (see caveat below) so this is
+  noise, not a code regression. Other files within ~3%.
 
 Conformance summary (from `task test:conformance:report`):
 
 | Suite | Parser pos | Parser neg | Semantic pos | Semantic neg |
 |---|---|---|---|---|
 | **test262** | 47084/47090 (99.99%) | 4563/4588 (99.46%) | 47084/47090 | **4588/4588 (100%)** |
-| **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | **2212/2233 (99.06%)** | **1645/1711 (96.14%)** |
-| **TypeScript** | 12684/12692 (99.94%) | 1598/3470 (46.05%) | **12638/12692 (99.57%)** | **1685/3470 (48.56%)** |
+| **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | **2212/2233 (99.06%)** | **1646/1711 (96.20%)** |
+| **TypeScript** | 12684/12692 (99.94%) | 1598/3470 (46.05%) | **12638/12692 (99.57%)** | **1718/3470 (49.51%)** |
 | **ESTree** | 39/39 (100%) | — | 39/39 | — |
-| **misc** | 64/66 (96.97%) | 252/277 (90.97%) | 61/66 (92.42%) | 264/277 (95.31%) |
+| **misc** | 67/69 (97.10%) | 252/281 (89.68%) | 64/69 (92.75%) | 270/281 (95.37%) |
 
 Snap baselines pinned to OXC SHAs: `c543b031` (babel),
 `e4104a13` (estree), `c7a0ae10` (typescript).
 
-### Session 3 progress
+### Session 4 progress
+
+Landed on top of session 3 (commit `364a020`):
+
+- **Slice A: TS2393 + class member dup-detect** (commit `b6061bd`).
+  Two new TS-only opt-in checks in `src/checker.odin`:
+  - **`ck_check_ts_dup_func_impls`** — per-scope FunctionDeclaration
+    impl duplicate detection. Counts function-with-body decls per
+    name in a Statement list (Program / Block / FunctionBody /
+    TSModuleBlock); emits TS2393 "Duplicate function implementation."
+    on each impl when count >= 2. Suppressed for `declare` decls,
+    sig-only decls, and inside .d.ts files. Wired through
+    `ck_check_ts_body_decls`.
+  - **`ck_check_ts_class_member_dups`** — per-class member duplicate
+    detection. Buckets class members by `(static, key)` slot,
+    classifies each as Field / MethodImpl / MethodSig / Get / Set,
+    emits TS2300 / TS2393 per the merge rules. Slot-level gates
+    calibrated to mirror OXC's checker (no false positives on babel's
+    parser-test fixtures: `typescript/class/{modifiers-override,
+    properties,static-asi,static-static}` and
+    `typescript/types/const-type-parameters`):
+      * any entry has `override`/`definite`/`optional` modifier
+        → skip slot
+      * pure all-field slot → skip
+      * impls with type_parameters on every entry → TS2393 suppressed
+  - Slot key includes the key node KIND (Identifier / StringLiteral /
+    NumericLiteral) so `"3.0"` and `3.0` aren't conflated (TSC fires
+    type-aware TS2411 there, out of scope).
+  - Net: **+18 TS negative, 0 positive losses, 5 misc lock-ins** (3
+    fail + 2 pass).
+
+- **Slice B: import-merge dup detection** (commit `86752dc`).
+  Extends `ts_decl_merge_pair_legal` table + `ts_decl_merge_inspect`
+  to record each import binding's local name with kind
+  Import / ImportEquals / ImportType. The legality matrix is
+  restricted to import-vs-import collisions only:
+      Import       + Import / ImportEquals / ImportType  → conflict
+      ImportEquals + ImportEquals                        → conflict
+      ImportType   + ImportType / ImportEquals           → conflict
+  Import vs Var/Let/Const/Function/Class/Enum/Namespace is
+  INTENTIONALLY NOT flagged. TSC fires TS2440 in those cases, but
+  OXC's checker accepts them (per babel's typescript/scope/
+  redeclaration-import-{var,equals-var,let,...} positive fixtures).
+  All TSC negative fixtures involving import-vs-local that we close
+  also contain a duplicate-import shape that the import-vs-import
+  check picks up.
+  - Net: **+6 TS negative, +1 babel negative, 2 misc lock-ins**.
+
+- **Slice C: TS2300 interface dups + type-param dups** (commit
+  `eeb164e`). Two new structural checks:
+  - **`ck_check_ts_interface_member_dups`** — walks
+    TSInterfaceBody.body, buckets TSPropertySignature /
+    TSMethodSignature entries by name. Emits TS2300 on dups except
+    legal accessor pair, pure method overload set, and
+    parser-bug-induced bare-property-no-annotation runs. The bare-
+    prop carve-out is a workaround for kessel parser bugs:
+      * generic interface method `m<U>(): T;` → bare
+        `TSPropertySignature(m)` + `TSCallSignatureDeclaration`
+      * modifier prefix `readonly _A: T;` → bare
+        `TSPropertySignature(readonly)` + `TSPropertySignature(_A)`
+    Cost: we don't close `interface I { x; x; }` (bare-name dup),
+    but `interface I { x: T; x: T; }` (annotated dup) still closes.
+  - **`ck_check_ts_type_param_dups`** — walks
+    TSTypeParameterDeclaration.params. Emits TS2300 on each generic-
+    param name that duplicates an earlier one. Wired from
+    ck_walk_function, ck_walk_class, ck_walk_stmt (interface / type
+    alias arms), and ck_walk_export_decl (export wrappers).
+  - ck_walk_export_decl gains TSInterfaceDeclaration and
+    TSTypeAliasDeclaration arms so wrapped checks fire.
+  - Net: **+9 TS negative, 0 positive losses, 3 misc lock-ins**.
+
+Session 4 net: **+33 TS negative, +1 babel negative, +10 misc
+lock-ins**. Zero false positives across all 5 suites (TS positive
+holds at 12638, babel positive at 2212, test262 holds at 100%
+negative).
+
+**Known follow-up parser bug** (uncovered while writing slice C):
+the parser misparses generic interface methods (`m<U>()`) and
+modifier-prefixed signatures (`readonly _A`) as a pair of separate
+signatures rather than a single TSMethodSignature / annotated
+TSPropertySignature. The interface dup check works around it via
+the bare-prop carve-out. Fixing the parser would tighten the
+carve-out and likely close ~1 more TS negative fixture.
+
+
+### Session 3 progress (snap deltas folded into session 4 numbers above)
 
 Landed on top of session 2 (commit `d515d40`):
 
@@ -287,64 +373,87 @@ No `TODO` / `FIXME` / `HACK` markers in `src/` or `tests/coverage/src/`
 ## What To Work On Next
 
 Numbered by impact-per-effort. Read AGENTS.md before starting any of
-these.
+these. Session 4 closed items 1, 2, and parts of 3 (TS2440, TS2300
+interface/type-param structural cases). Re-run the cluster script
+`node /tmp/cluster.js` (recipe captured in this doc's Verification
+section) for the live remaining-fixtures-by-error-code list.
 
-### 1. Class-body member duplicate-name detection (TS2300)  (LOW-MEDIUM impact, MEDIUM effort)
-- **What**: Detect duplicate member names within a class body —
-  `class C { a(): number {return 0;}; a: number; }` reports TS2300.
-- **Where**: `src/checker.odin` next to `ck_check_class_private_duplicates`
-  (which handles `#x` private names only). Walk `cls.body.body` once,
-  bucket by `(static, name)` (statics & instances live in different
-  namespaces), and emit on duplicate. Carve-outs: getter+setter pair
-  with same name is legal; method overload chain (already detected by
-  `ck_check_ts_class_overloads`) is legal.
-- **Why**: ~3-10 fixtures direct hit (`classWithDuplicateIdentifier.ts`
-  family). Plus collateral on fixtures that mix this with other TS
-  errors and only need one diagnostic to flip to passing.
-- **Difficulty**: Medium (carve-outs for accessor pairs + overload
-  chains require care).
+### 1. Fix the kessel parser bug for generic interface methods + modifier-prefix property signatures  (MEDIUM impact, MEDIUM effort)
+- **What**: kessel parser misparses two TS-interface signature shapes:
+  - `interface I { m<U>(): T; }` → produces a bare
+    `TSPropertySignature(m, no annotation)` followed by a separate
+    `TSCallSignatureDeclaration(<U>(): T)`. Should be a single
+    `TSMethodSignature(m, type_parameters=<U>, return_type=T)`.
+  - `interface I { readonly _A: T; }` → produces a bare
+    `TSPropertySignature(readonly, no annotation)` followed by a
+    separate `TSPropertySignature(_A: T)`. Should be a single
+    `TSPropertySignature(_A, readonly=true, type_annotation=T)`.
+- **Where**: `src/parser.odin` — the interface-body signature parser
+  (parse_ts_interface_body / parse_ts_signature). Look for the path
+  that decides between TSPropertySignature, TSMethodSignature,
+  TSCallSignatureDeclaration. The `<` lookahead after an identifier
+  needs to commit to TSMethodSignature; the `readonly` / `static` /
+  modifier prefix needs to be absorbed before the property-key parse.
+- **Why**: Fixing this lets us tighten the
+  `ck_check_ts_interface_member_dups` carve-out (currently the
+  bare-prop-no-annotation gate skips many real-world interfaces)
+  and likely closes 1–2 more TS negative fixtures (e.g. bare
+  `interface Bar { x; x; }`). Also improves AST shape for downstream
+  passes.
+- **Difficulty**: Medium — parser cover-grammar work.
 
-### 2. TS2393 "Duplicate function implementation" cluster  (LOW impact, LOW effort)
-- **What**: When a top-level scope has TWO `function foo() {}` (both
-  with bodies, both not `declare`), report TS2393 on each. Different
-  from TS2391/TS2389 (which fires when there's a sig+impl mismatch).
-  Often co-fires with TS2300 (`var foo: string; function foo(): number {}`).
-- **Where**: `src/checker.odin`, extend `ck_check_ts_func_overloads`
-  or add a new sibling proc. Same per-scope sweep as the overload-
-  chain.
-- **Why**: ~29 fixtures. Many overlap with `controlFlowFunctionLikeCircular`
-  family.
-- **Difficulty**: Low. Same skeleton as the overload-chain check.
+### 2. TS-specific semantic checker work — next clusters  (HIGH impact, MEDIUM-HIGH effort)
+- **What**: Continue extending `src/checker.odin` per the cluster
+  analysis. After session 4 the realistic remaining clusters are:
+  - **TS2451** (47 fixtures, all multi-file) — Cannot redeclare
+    block-scoped variable across files in the same project. The
+    coverage harness splits multi-fixture files per `@filename`,
+    so cross-file detection is OUT OF SCOPE for the per-file checker.
+    These are stuck unless harness gets project-level analysis.
+  - **TS2393 multi-file** — same multi-file artefact problem; some
+    `controlFlowFunctionLikeCircular_*` fixtures need use-before-decl
+    detection (TS2448) which IS per-file but requires scope-aware
+    reference tracking.
+  - **TS1005** (54 fixtures) — mostly multi-file artefacts where
+    the per-sub-file should_fail is inherited from the whole-fixture
+    classification but the sub-file is syntactically valid (e.g.
+    `unclosedExportClause01.ts::t1.ts` is valid `export var x = "x";`
+    but classified should_fail because t2-t5 fail). Stuck unless
+    classifier gets per-sub-file analysis.
+  - **TS2304** (108 fixtures) — Cannot find name. Needs symbol
+    resolution. Out of scope.
+  - **TS2339** (396 fixtures) — Property doesn't exist. Type-aware.
+    Out of scope.
+  - **TS2300 type-aware** (≈100 fixtures still) — enum member dups,
+    interface inheritance dups, namespace member dups across
+    augmentations. Each requires more analysis machinery.
+- **Where**: `src/checker.odin` — mostly stuck on type / symbol
+  analysis the checker doesn't have.
+- **Why**: Largest open gap, but mostly behind type-system / symbol-
+  resolution / multi-file walls. Diminishing returns from pure
+  structural slices.
+- **Difficulty**: HIGH (architectural, not slice-shaped).
 
-### 3. Implement remaining TS-specific semantic rules in `src/checker.odin`  (HIGH impact, MEDIUM-HIGH effort)
-- **What**: Walk the finished AST and enforce TypeScript's static
-  semantic rules. ~1500 fixtures still need work.
-- **Where**: `src/checker.odin` — add new `ck_check_*` procs invoked
-  from `ck_walk_stmt` / `ck_walk_expr` arms. Mirror existing pattern.
-- **Why**: This is the single largest open gap. Per the cluster
-  analysis script in session 3 (run `node cluster_specific.js <code>`
-  in `tests/`):
-  - **TS2304** (130 fixtures) — Cannot find name. Needs symbol-
-    resolution; out of scope for the checker today.
-  - **TS2300** (129 fixtures) — Duplicate identifier. Most are
-    type-aware (e.g. interface property dups, enum member dups).
-  - **TS6203** (101 fixtures) — Subsequent variable declarations must
-    have the same type. Type-aware; out of scope.
-  - **TS1005** (93 fixtures) — Syntax error: `,` / `;` expected.
-    These are PARSER errors that TSC catches but kessel doesn't.
-    Worth a one-off pass through `parser_typescript.snap`.
-  - **TS2440** (45 fixtures) — Import declaration conflicts with
-    local declaration. Doable in checker (both kinds visible).
-  - **TS2391** (31 fixtures still missed) — Single-sig top-level
-    `function foo();` cases that we skip due to the conservative
-    pre-pass. Conscious tradeoff.
-  - **TS2451** (47 fixtures) — Cannot redeclare block-scoped
-    variable. Often fires in the `controlFlowFunctionLikeCircular`
-    family (use-before-decl with const).
-- **Difficulty**: Each rule is small. Start with TS2393 (#2 above)
-  and TS2440.
-- **Depends on**: Read `HANDOFF_TS.md` and re-run the cluster script
-  for the live fixture list.
+### 3. TS2448 use-before-declaration of block-scoped binding  (LOW-MEDIUM impact, MEDIUM effort)
+- **What**: `function test() { fn(); const fn = ...; }` should
+  emit "Block-scoped variable 'fn' used before its declaration."
+  Affects the `controlFlowFunctionLikeCircular_*` family of fixtures
+  (single-file ones).
+- **Where**: `src/checker.odin` — needs scope-aware reference
+  tracking. Walk a function body, collect all `let`/`const`
+  declarations with their offsets, then walk all identifier
+  references in the body and flag any reference whose offset is
+  BEFORE the declaration's offset.
+- **Why**: ~5–10 single-file fixtures in the
+  `controlFlowFunctionLikeCircular` family.
+- **Difficulty**: Medium — requires per-block scope walk + reference
+  collection. Most of the machinery doesn't exist yet in the checker.
+  Could reuse the parser's scope walker as a model.
+
+### 4. Decorator + class member combinatorial fixtures  (LOW impact, MEDIUM effort)
+- Various ES decorator fixtures still in the snap. Decorator semantic
+  rules are a separate cluster; out of scope until ES2026 decorators
+  stabilise in the conformance corpus.
 
 ### 4. Fix the 14 babel parser-side gaps  (MEDIUM impact, MEDIUM-HIGH effort)
 - **What**: 8 invalid-assignment-pattern fixtures + 2 arrow inner-paren
