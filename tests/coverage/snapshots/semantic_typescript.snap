@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12566/12692 (99.01%)
-Positive Passed: 12566/12692 (99.01%)
-Negative Passed: 1595/3470 (45.97%)
+AST Parsed     : 12644/12692 (99.62%)
+Positive Passed: 12644/12692 (99.62%)
+Negative Passed: 1586/3470 (45.71%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -520,7 +520,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompil
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationNonNullAssertion.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationOptionalClassElementSyntaxOfClass.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationPublicMethodSyntaxOfClass.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationTypeArgumentSyntaxOfCall.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFunctionWithPrototypeNoErrorTruncationNoCrash.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsdocFunctionTypeFalsePositive.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsdocIllegalTags.ts
@@ -630,6 +629,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreser
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/dummy.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/e.mts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/f.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/g.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/main1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/main2.mts
@@ -1450,7 +1450,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsdoc/typ
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsdoc/typedefTagWrapping.ts::mod6.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsdoc/typedefTagWrapping.ts::mod7.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxCheckJsxNoTypeArgumentsAllowed.tsx::component.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxCheckJsxNoTypeArgumentsAllowed.tsx::file.jsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::1.tsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::13.tsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::30.tsx
@@ -1485,9 +1484,11 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleRes
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts::/project/e.txt.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts::/project/main.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerImportTsExtensions.ts::/project/types.d.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/main.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/main.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/main.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/node_modules/dual/index.cjs
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/node_modules/dual/index.d.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/node_modules/dual/index.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/node_modules/dual/index.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/node10Alternateresult_noTypes.ts::/index.ts
@@ -1530,13 +1531,16 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/lega
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesCJSEmit1.ts::/1.cjs
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesCJSEmit1.ts::/2.cjs
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesCJSEmit1.ts::/4.cjs
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::index.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::index.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::index.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts::index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts::node_modules/inner/index.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts::node_modules/inner/other.d.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksTypesVersions.ts::/main.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksTypesVersions.ts::/main.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksTypesVersions.ts::/node_modules/exports-and-types-versions/dist/foo.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksTypesVersions.ts::/node_modules/exports-and-types-versions/types/foo.d.ts
@@ -1544,12 +1548,16 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/node
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsSourceTs.ts::index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsSourceTs.ts::node_modules/inner/index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsSourceTs.ts::node_modules/inner/other.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder/index.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder/index.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder/index.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder2/another/index.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder2/another/index.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder2/another/index.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder2/index.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder2/index.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder2/index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesGeneratedNameCollisions.ts::index.ts
@@ -1564,6 +1572,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/node
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/node_modules/pkg/require.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/other2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/other5.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesJson.ts::/loosey.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesJson.ts::/main.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesJson.ts::/node_modules/actually-json/typed.d.json.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesJson.ts::/node_modules/not.json/index.d.ts
@@ -1879,12 +1888,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uni
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsPropertyNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/witness/witness.ts
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/ctsFileInEsnextHelpers.ts
-typescript/tests/cases/compiler/ctsFileInEsnextHelpers.ts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/declarationEmitBundlerConditions.ts::/node_modules/pkg/index.d.cts
-typescript/tests/cases/compiler/declarationEmitBundlerConditions.ts::/node_modules/pkg/index.d.cts:1:1: 'export' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/declarationEmitUnknownImport.ts
 typescript/tests/cases/compiler/declarationEmitUnknownImport.ts:2:9: Export 'Foo' is not defined in the module
 
@@ -1903,50 +1906,11 @@ typescript/tests/cases/compiler/exportSpecifierReferencingOuterDeclaration2.ts::
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/globalThisDeclarationEmit3.ts::variable.ts
 typescript/tests/cases/compiler/globalThisDeclarationEmit3.ts::variable.ts:2:10: Export 'mod' is not defined in the module
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit1.ts::/c.cts
-typescript/tests/cases/compiler/impliedNodeFormatEmit1.ts::/c.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit1.ts::/i.cts
-typescript/tests/cases/compiler/impliedNodeFormatEmit1.ts::/i.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit2.ts::/c.cts
-typescript/tests/cases/compiler/impliedNodeFormatEmit2.ts::/c.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit2.ts::/i.cts
-typescript/tests/cases/compiler/impliedNodeFormatEmit2.ts::/i.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit3.ts::/c.cts
-typescript/tests/cases/compiler/impliedNodeFormatEmit3.ts::/c.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit3.ts::/i.cts
-typescript/tests/cases/compiler/impliedNodeFormatEmit3.ts::/i.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit4.ts::/c.cts
-typescript/tests/cases/compiler/impliedNodeFormatEmit4.ts::/c.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/impliedNodeFormatEmit4.ts::/i.cts
-typescript/tests/cases/compiler/impliedNodeFormatEmit4.ts::/i.cts:1:1: 'import' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/literalTypeNameAssertionNotTriggered.ts::/a.ts
 typescript/tests/cases/compiler/literalTypeNameAssertionNotTriggered.ts::/a.ts:2:10: Export 'x' is not defined in the module
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/moduleNodeDefaultImports.ts::mod.cts
-typescript/tests/cases/compiler/moduleNodeDefaultImports.ts::mod.cts:2:1: 'export' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserve1.ts::/main.ts
 typescript/tests/cases/compiler/modulePreserve1.ts::/main.ts:3:13: Export 'B' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserveImportHelpers.ts::/b.cts
-typescript/tests/cases/compiler/modulePreserveImportHelpers.ts::/b.cts:5:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/nodeNextCjsNamespaceImportDefault1.ts::src/a.cts
-typescript/tests/cases/compiler/nodeNextCjsNamespaceImportDefault1.ts::src/a.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/nodeNextCjsNamespaceImportDefault2.ts::src/a.cts
-typescript/tests/cases/compiler/nodeNextCjsNamespaceImportDefault2.ts::src/a.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/nodeNextImportModeImplicitIndexResolution2.ts::/index.cts
-typescript/tests/cases/compiler/nodeNextImportModeImplicitIndexResolution2.ts::/index.cts:1:1: 'import' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/reExportGlobalDeclaration1.ts::file2.ts
 typescript/tests/cases/compiler/reExportGlobalDeclaration1.ts::file2.ts:1:9: Export 'x' is not defined in the module
@@ -2020,9 +1984,6 @@ typescript/tests/cases/conformance/es6/modules/reExportDefaultExport.ts::m1.ts:3
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/exportNonLocalDeclarations.ts
 typescript/tests/cases/conformance/externalModules/exportNonLocalDeclarations.ts:1:10: Export 'string' is not defined in the module
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/moduleResolutionWithoutExtension6.ts
-typescript/tests/cases/conformance/externalModules/moduleResolutionWithoutExtension6.ts:4:1: 'import' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts
 typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts:3:15: 'await' is reserved as a binding name in module code
 
@@ -2032,41 +1993,11 @@ typescript/tests/cases/conformance/externalModules/typeOnly/importEquals3.ts::b.
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/preserveValueImports_errors.ts::a.ts
 typescript/tests/cases/conformance/externalModules/typeOnly/preserveValueImports_errors.ts::a.ts:2:15: Export 'A' is not defined in the module
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/typeOnlyESMImportFromCJS.ts::common.cts
-typescript/tests/cases/conformance/externalModules/typeOnly/typeOnlyESMImportFromCJS.ts::common.cts:1:1: 'import' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/jsdoc/declarations/jsDeclarationsDefault.ts::index2.js
 typescript/tests/cases/conformance/jsdoc/declarations/jsDeclarationsDefault.ts::index2.js:5:10: Export 'foo' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/jsdoc/declarations/jsDeclarationsDefault.ts::index3.js
 typescript/tests/cases/conformance/jsdoc/declarations/jsDeclarationsDefault.ts::index3.js:5:10: Export 'Foo' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/jsdoc/importTag17.ts::/node_modules/@types/foo/index.d.cts
-typescript/tests/cases/conformance/jsdoc/importTag17.ts::/node_modules/@types/foo/index.d.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/bundler/bundlerImportESM.ts::/not-actually-cjs.cts
-typescript/tests/cases/conformance/moduleResolution/bundler/bundlerImportESM.ts::/not-actually-cjs.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/resolutionModeImportType1.ts::/node_modules/@types/foo/index.d.cts
-typescript/tests/cases/conformance/moduleResolution/resolutionModeImportType1.ts::/node_modules/@types/foo/index.d.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash1.ts::/node_modules/@types/foo/index.d.cts
-typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash1.ts::/node_modules/@types/foo/index.d.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash2.ts::/node_modules/@types/foo/index.d.cts
-typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash2.ts::/node_modules/@types/foo/index.d.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash3.ts::/node_modules/@types/foo/index.d.cts
-typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash3.ts::/node_modules/@types/foo/index.d.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash4.ts::/node_modules/@types/foo/index.d.cts
-typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash4.ts::/node_modules/@types/foo/index.d.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash5.ts::/node_modules/@types/foo/index.d.cts
-typescript/tests/cases/conformance/moduleResolution/resolutionModeTripleSlash5.ts::/node_modules/@types/foo/index.d.cts:1:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/moduleResolution/resolutionModeTypeOnlyImport1.ts::/node_modules/@types/foo/index.d.cts
-typescript/tests/cases/conformance/moduleResolution/resolutionModeTypeOnlyImport1.ts::/node_modules/@types/foo/index.d.cts:1:1: 'export' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeAllowJsPackageSelfName.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeAllowJsPackageSelfName.ts::index.cjs:2:1: 'import' is only valid in module code
@@ -2074,20 +2005,8 @@ typescript/tests/cases/conformance/node/allowJs/nodeAllowJsPackageSelfName.ts::i
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts::index.cjs:2:1: 'import' is only valid in module code
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsConditionalPackageExports.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts::index.cjs:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageExports.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageImports.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageImports.ts::index.cjs:2:1: 'import' is only valid in module code
@@ -2095,161 +2014,17 @@ typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackageImports
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts::index.cjs:2:1: 'import' is only valid in module code
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExports.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts::index.cjs:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts::node_modules/inner/exclude/index.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsExclude.ts::node_modules/inner/exclude/index.d.cts:2:1: 'import' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::index.cjs:2:1: 'import' is only valid in module code
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports1.ts::/exporter.mts
 typescript/tests/cases/conformance/node/esmModuleExports1.ts::/exporter.mts:2:10: Export 'Foo' is not defined in the module
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports1.ts::/importer-cts.cts
-typescript/tests/cases/conformance/node/esmModuleExports1.ts::/importer-cts.cts:4:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports2.ts::/importer-cts.cts
-typescript/tests/cases/conformance/node/esmModuleExports2.ts::/importer-cts.cts:4:1: 'import' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports3.ts::/exporter.mts
 typescript/tests/cases/conformance/node/esmModuleExports3.ts::/exporter.mts:2:15: Export 'Foo' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports3.ts::/importer-cts.cts
-typescript/tests/cases/conformance/node/esmModuleExports3.ts::/importer-cts.cts:4:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModules1.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModules1.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModules1.ts::subfolder/index.cts
-typescript/tests/cases/conformance/node/nodeModules1.ts::subfolder/index.cts:3:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModules1.ts::subfolder2/another/index.cts
-typescript/tests/cases/conformance/node/nodeModules1.ts::subfolder2/another/index.cts:3:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModules1.ts::subfolder2/index.cts
-typescript/tests/cases/conformance/node/nodeModules1.ts::subfolder2/index.cts:3:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesCJSResolvingToESM1_emptyPackageJson.ts::/ctsExtension.cts
-typescript/tests/cases/conformance/node/nodeModulesCJSResolvingToESM1_emptyPackageJson.ts::/ctsExtension.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesCJSResolvingToESM2_cjsPackageJson.ts::/ctsExtension.cts
-typescript/tests/cases/conformance/node/nodeModulesCJSResolvingToESM2_cjsPackageJson.ts::/ctsExtension.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesCJSResolvingToESM3_modulePackageJson.ts::/ctsExtension.cts
-typescript/tests/cases/conformance/node/nodeModulesCJSResolvingToESM3_modulePackageJson.ts::/ctsExtension.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesCJSResolvingToESM4_noPackageJson.ts::/ctsExtension.cts
-typescript/tests/cases/conformance/node/nodeModulesCJSResolvingToESM4_noPackageJson.ts::/ctsExtension.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesConditionalPackageExports.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesConditionalPackageExports.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesConditionalPackageExports.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/nodeModulesConditionalPackageExports.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesConditionalPackageExports.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/nodeModulesConditionalPackageExports.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts::index.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts::other.cts
-typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts::other.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts::other2.cts
-typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts::other2.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesImportAssertions.ts::otherc.cts
-typescript/tests/cases/conformance/node/nodeModulesImportAssertions.ts::otherc.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesImportAttributes.ts::otherc.cts
-typescript/tests/cases/conformance/node/nodeModulesImportAttributes.ts::otherc.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesImportResolutionIntoExport.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesImportResolutionIntoExport.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesImportResolutionNoCycle.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesImportResolutionNoCycle.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackageExports.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesPackageExports.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackageExports.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackageExports.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackageExports.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackageExports.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackageImports.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesPackageImports.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackageImportsRootWildcard.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesPackageImportsRootWildcard.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExports.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExports.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExports.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExports.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExports.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExports.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::node_modules/inner/exclude/index.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::node_modules/inner/exclude/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::node_modules/inner/exclude/test.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::node_modules/inner/exclude/test.d.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsExclude.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsTrailers.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsTrailers.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsTrailers.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsTrailers.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsTrailers.ts::node_modules/inner/test.d.cts
-typescript/tests/cases/conformance/node/nodeModulesPackagePatternExportsTrailers.ts::node_modules/inner/test.d.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesResolveJsonModule.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesResolveJsonModule.ts::index.cts:1:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesTypesVersionPackageExports.ts::index.cts
-typescript/tests/cases/conformance/node/nodeModulesTypesVersionPackageExports.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesTypesVersionPackageExports.ts::node_modules/inner/index.d.cts
-typescript/tests/cases/conformance/node/nodeModulesTypesVersionPackageExports.ts::node_modules/inner/index.d.cts:2:1: 'export' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodePackageSelfName.ts::index.cts
-typescript/tests/cases/conformance/node/nodePackageSelfName.ts::index.cts:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/nodePackageSelfNameScoped.ts::index.cts
-typescript/tests/cases/conformance/node/nodePackageSelfNameScoped.ts::index.cts:2:1: 'import' is only valid in module code
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.2.ts
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.2.ts:1:1: 'using' declaration is not allowed at the top level of a script
@@ -2513,6 +2288,7 @@ typescript/tests/cases/compiler/jsFileCompilationOptionalParameter.ts:1:13: Expe
 typescript/tests/cases/compiler/jsFileCompilationPublicParameterModifier.ts:1:23: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/jsFileCompilationReturnTypeSyntaxOfFunction.ts:1:13: Expected {, got :
 typescript/tests/cases/compiler/jsFileCompilationTypeAliasSyntax.ts:1:6: Expected semicolon
+typescript/tests/cases/compiler/jsFileCompilationTypeArgumentSyntaxOfCall.ts:1:14: Empty parenthesized expression
 typescript/tests/cases/compiler/jsFileCompilationTypeAssertions.ts:2:27: Expected <, got EOF
 typescript/tests/cases/compiler/jsFileCompilationTypeOfParameter.ts:1:13: Expected ), got :
 typescript/tests/cases/compiler/jsFileCompilationTypeParameterSyntaxOfClass.ts:1:8: Expected {, got <
@@ -2556,7 +2332,6 @@ typescript/tests/cases/compiler/moduleDuplicateIdentifiers.ts:2:12: Duplicate ex
 typescript/tests/cases/compiler/moduleElementsInWrongContext.ts:3:5: 'export' declarations are only allowed at the top level of a module
 typescript/tests/cases/compiler/moduleElementsInWrongContext2.ts:3:5: 'export' declarations are only allowed at the top level of a module
 typescript/tests/cases/compiler/moduleKeywordRepeatError.ts:3:15: Expected semicolon
-typescript/tests/cases/compiler/modulePreserve4.ts::/f.cts:1:1: 'export' is only valid in module code
 typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:2:11: Expected from, got =
 typescript/tests/cases/compiler/moduleProperty1.ts:9:13: Expected semicolon
 typescript/tests/cases/compiler/multiLinePropertyAccessAndArrowFunctionIndent1.ts:1:8: 'return' outside of function
@@ -3167,6 +2942,7 @@ typescript/tests/cases/conformance/jsdoc/typedefOnStatements.ts:26:1: 'break' mu
 typescript/tests/cases/conformance/jsx/checkJsxNamespaceNamesQuestionableForms.tsx:12:5: Expected >, got .
 typescript/tests/cases/conformance/jsx/jsxAndTypeAssertion.tsx:6:17: Expected }, got :
 typescript/tests/cases/conformance/jsx/jsxAttributeInitializer.ts:7:16: JSX attributes must only be assigned a non-empty expression
+typescript/tests/cases/conformance/jsx/jsxCheckJsxNoTypeArgumentsAllowed.tsx::file.jsx:5:16: Expected >, got <
 typescript/tests/cases/conformance/jsx/jsxEsprimaFbTestSuite.tsx:40:51: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::10.tsx:1:5: Expected >, got :
 typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::11.tsx:1:12: Expected corresponding JSX closing tag for 'c'.
@@ -3216,8 +2992,6 @@ typescript/tests/cases/conformance/jsx/tsxGenericArrowFunctionParsing.tsx:8:19: 
 typescript/tests/cases/conformance/jsx/tsxStatelessFunctionComponents1.tsx:43:16: Unexpected ';' in object literal
 typescript/tests/cases/conformance/jsx/tsxTypeArgumentResolution.tsx:26:13: Type argument list cannot be empty
 typescript/tests/cases/conformance/jsx/unicodeEscapesInJsxtags.tsx:17:1: Expected corresponding JSX closing tag for '\u0061'.
-typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/main.cts:1:1: 'import' is only valid in module code
-typescript/tests/cases/conformance/moduleResolution/bundler/bundlerNodeModules1.ts::/node_modules/dual/index.d.cts:1:1: 'export' is only valid in module code
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.cjs:51:12: Expected from, got =
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.js:50:12: Expected from, got =
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.mjs:50:12: Expected from, got =
@@ -3231,20 +3005,12 @@ typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsSynchronousCal
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts::subfolder/index.js:3:12: Expected from, got =
 typescript/tests/cases/conformance/node/nodeModulesCJSEmit1.ts::/3.cjs:1:1: 'import' is only valid in module code
 typescript/tests/cases/conformance/node/nodeModulesCJSEmit1.ts::/5.cjs:1:1: 'import' is only valid in module code
-typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::index.cts:2:1: 'import' is only valid in module code
-typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.cts:2:1: 'import' is only valid in module code
-typescript/tests/cases/conformance/node/nodeModulesExportsBlocksTypesVersions.ts::/main.cts:1:1: 'import' is only valid in module code
-typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.cts:3:1: 'export' is only valid in module code
-typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder/index.cts:3:1: 'export' is only valid in module code
-typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder2/another/index.cts:3:1: 'export' is only valid in module code
-typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder2/index.cts:3:1: 'export' is only valid in module code
 typescript/tests/cases/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts::/other.ts:3:22: Expected 'with' in import type options
 typescript/tests/cases/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts::/other3.ts:3:21: Expected ), got [
 typescript/tests/cases/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts::/other4.ts:6:21: Expected ), got identifier
 typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/other.ts:3:22: Expected 'with' in import type options
 typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/other3.ts:3:21: Expected ), got [
 typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/other4.ts:6:21: Expected ), got identifier
-typescript/tests/cases/conformance/node/nodeModulesJson.ts::/loosey.cts:1:1: 'import' is only valid in module code
 typescript/tests/cases/conformance/override/override11.ts:6:34: 'public' modifier must precede 'override' modifier.
 typescript/tests/cases/conformance/override/override5.ts:22:23: Expected (, got identifier
 typescript/tests/cases/conformance/override/override7.ts:19:23: Expected (, got identifier

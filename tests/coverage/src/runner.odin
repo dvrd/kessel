@@ -60,7 +60,16 @@ run_parser_one :: proc(
 	job: kessel.ParseJob
 	defer kessel.parse_job_close(&job)
 
-	source_label := fix.path  // routes through detect_lang_from_path / dts detection
+	// Use the relative path which includes the sub-unit name (e.g.
+	// `.../foo.ts::subfolder/index.mts`). The sub-unit's extension matters
+	// for .cts/.mts detection.
+	source_label := fix.rel
+	if idx := strings.last_index(fix.rel, "::"); idx >= 0 {
+		source_label = fix.rel[idx+2:]
+	}
+	if source_label == "" {
+		source_label = fix.path
+	}
 	if !kessel.parse_job_open_inline(&job, fix.code, cfg, source_label) {
 		return TestResult{
 			tag        = .GenericError,

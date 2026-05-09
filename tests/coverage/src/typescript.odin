@@ -401,7 +401,7 @@ resolve_ts_lang :: proc(name: string, settings: CompilerSettings) -> kessel.Lang
 	has_jsx_setting := len(settings.jsx) > 0
 	switch ext {
 	case ".tsx": return .TSX
-	case ".jsx": return .TSX  // .jsx in TS corpus implies TS+JSX; OXC matches.
+	case ".jsx": return .JSX  // OXC distinguishes .jsx (no TS types) from .tsx.
 	case ".ts", ".cts", ".mts":
 		if has_jsx_setting { return .TSX }
 		return .TS
@@ -421,7 +421,13 @@ resolve_ts_source_type :: proc(
 	if strings.has_suffix(name, ".mts") || strings.has_suffix(name, ".mjs") {
 		return .Module
 	}
-	if strings.has_suffix(name, ".cts") || strings.has_suffix(name, ".cjs") {
+	// .cts files are CommonJS TypeScript but can use ESM syntax
+	// (TypeScript compiles to CJS). OXC treats them as Module.
+	if strings.has_suffix(name, ".cts") {
+		return .Module
+	}
+	// .cjs files are CommonJS JavaScript — no ESM syntax.
+	if strings.has_suffix(name, ".cjs") {
 		return .Script
 	}
 	return nil

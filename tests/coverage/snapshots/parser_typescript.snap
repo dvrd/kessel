@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 12692/12692 (100.00%)
 Positive Passed: 12692/12692 (100.00%)
-Negative Passed: 1512/3470 (43.57%)
+Negative Passed: 1514/3470 (43.63%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -542,7 +542,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompil
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationNonNullAssertion.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationOptionalClassElementSyntaxOfClass.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationPublicMethodSyntaxOfClass.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFileCompilationTypeArgumentSyntaxOfCall.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsFunctionWithPrototypeNoErrorTruncationNoCrash.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsdocFunctionTypeFalsePositive.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsdocIllegalTags.ts
@@ -1497,7 +1496,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsdoc/typ
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsdoc/typedefTagWrapping.ts::mod6.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsdoc/typedefTagWrapping.ts::mod7.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxCheckJsxNoTypeArgumentsAllowed.tsx::component.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxCheckJsxNoTypeArgumentsAllowed.tsx::file.jsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::1.tsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::13.tsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::30.tsx
@@ -2196,6 +2194,7 @@ typescript/tests/cases/compiler/jsFileCompilationOptionalParameter.ts:1:13: Expe
 typescript/tests/cases/compiler/jsFileCompilationPublicParameterModifier.ts:1:23: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/jsFileCompilationReturnTypeSyntaxOfFunction.ts:1:13: Expected {, got :
 typescript/tests/cases/compiler/jsFileCompilationTypeAliasSyntax.ts:1:6: Expected semicolon
+typescript/tests/cases/compiler/jsFileCompilationTypeArgumentSyntaxOfCall.ts:1:14: Empty parenthesized expression
 typescript/tests/cases/compiler/jsFileCompilationTypeAssertions.ts:2:27: Expected <, got EOF
 typescript/tests/cases/compiler/jsFileCompilationTypeOfParameter.ts:1:13: Expected ), got :
 typescript/tests/cases/compiler/jsFileCompilationTypeParameterSyntaxOfClass.ts:1:8: Expected {, got <
@@ -2825,6 +2824,7 @@ typescript/tests/cases/conformance/jsdoc/typedefOnStatements.ts:26:1: 'break' mu
 typescript/tests/cases/conformance/jsx/checkJsxNamespaceNamesQuestionableForms.tsx:12:5: Expected >, got .
 typescript/tests/cases/conformance/jsx/jsxAndTypeAssertion.tsx:6:17: Expected }, got :
 typescript/tests/cases/conformance/jsx/jsxAttributeInitializer.ts:7:16: JSX attributes must only be assigned a non-empty expression
+typescript/tests/cases/conformance/jsx/jsxCheckJsxNoTypeArgumentsAllowed.tsx::file.jsx:5:16: Expected >, got <
 typescript/tests/cases/conformance/jsx/jsxEsprimaFbTestSuite.tsx:40:51: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::10.tsx:1:5: Expected >, got :
 typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::11.tsx:1:12: Expected corresponding JSX closing tag for 'c'.
