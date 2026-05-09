@@ -2181,6 +2181,126 @@ ck_check_ts_dup_func_impls :: proc(c: ^Checker, body: []^Statement) {
 	}
 }
 
+// ck_ubd_collect_bindings — walk a destructuring pattern tree and collect
+// every Identifier binding into `decls` (name → first-seen source offset).
+// Recurses through ObjectPattern / ArrayPattern / AssignmentPattern /
+// RestElement so that destructured `let { a, b: [c] }` tracks a, b, c.
+// v2 addition (session 6 slice G): replaces the v1 bare-Identifier-only
+// collection so `let {[a]: a}` and `let [x2 = x2]` are caught.
+@(private="file")
+ck_ubd_collect_bindings :: proc(pattern: Pattern, decls: ^map[string]u32) {
+	#partial switch p in pattern {
+	case ^Identifier:
+		if p != nil {
+			if _, exists := decls[p.name]; !exists {
+				decls[p.name] = u32(p.loc.span.start)
+			}
+		}
+	case ^ObjectPattern:
+		if p == nil { return }
+		for prop in p.properties {
+			ck_ubd_collect_bindings(prop.value, decls)
+		}
+	case ^ArrayPattern:
+		if p == nil { return }
+		for el in p.elements {
+			if inner, ok := el.(Pattern); ok {
+				ck_ubd_collect_bindings(inner, decls)
+			}
+		}
+	case ^AssignmentPattern:
+		if p != nil { ck_ubd_collect_bindings(p.left, decls) }
+	case ^RestElement:
+		if p != nil { ck_ubd_collect_bindings(p.argument, decls) }
+	case ^MemberExpression:
+		// Destructuring target (e.g. `[obj.prop] = arr`) — not a binding.
+	}
+}
+
+// ck_ubd_walk_pattern_values — walk the value-position sub-expressions of
+// a destructuring pattern: computed keys inside ObjectPattern properties
+// and default-value expressions in AssignmentPattern right-hand sides.
+// Does NOT walk the binding names themselves (they're declarations, not
+// references). Used by the UBD walker to flag refs like `let {[a]: a}`
+// where the computed key is a value-position use before the declaration.
+@(private="file")
+ck_ubd_walk_pattern_values :: proc(c: ^Checker, pattern: Pattern, decls: ^map[string]u32, self_name: string, closure_depth: int) {
+	#partial switch p in pattern {
+	case ^ObjectPattern:
+		if p == nil { return }
+		for prop in p.properties {
+			// Walk the computed key expression (value position).
+			// When computed, the parser stores a ^Expression as the key
+			// inside the Maybe(ObjectPatternPropertyKey). The value is
+			// live at runtime; we use a #partial switch to extract it.
+			if prop.computed && prop.key != nil {
+				#partial switch key in prop.key.? {
+				case ^Expression:
+					if key != nil {
+						ck_ubd_walk_expr(c, key, decls, self_name, closure_depth)
+					}
+				}
+			}
+			// Recurse into the value pattern (may contain AssignmentPattern
+			// default values).
+			ck_ubd_walk_pattern_values(c, prop.value, decls, self_name, closure_depth)
+		}
+	case ^ArrayPattern:
+		if p == nil { return }
+		for el in p.elements {
+			if inner, ok := el.(Pattern); ok {
+				ck_ubd_walk_pattern_values(c, inner, decls, self_name, closure_depth)
+			}
+		}
+	case ^AssignmentPattern:
+		if p == nil { return }
+		// The right-hand default value is evaluated BEFORE the left-hand
+		// binding is initialized. A ref to the left-hand name inside the
+		// right side is self-init (TS2448, e.g. `let [e = e] = ...`).
+		// Extract the binding name from the left pattern and use it as
+		// self_name for the right-side walk, overriding any outer name.
+		left_name := ck_ubd_binding_name(p.left)
+		effective_name := self_name
+		if len(left_name) > 0 { effective_name = left_name }
+		ck_ubd_walk_expr(c, p.right, decls, effective_name, closure_depth)
+		// Recurse into the left-hand binding pattern (its computed keys).
+		ck_ubd_walk_pattern_values(c, p.left, decls, effective_name, closure_depth)
+	case ^RestElement:
+		if p != nil { ck_ubd_walk_pattern_values(c, p.argument, decls, self_name, closure_depth) }
+	case ^MemberExpression:
+		// Destructuring target (e.g. `[obj.prop] = arr`) — value-position
+		// expression, walk it fully. Must cast to ^Expression because
+		// MemberExpression is in both Pattern and Expression unions.
+		if p != nil { ck_ubd_walk_expr(c, (^Expression)(p), decls, self_name, closure_depth) }
+	// ^Identifier: no value-position sub-expressions (the name itself is a
+	// binding, not a ref — handled by ck_ubd_collect_bindings in Pass 1).
+	}
+}
+
+// ck_ubd_walk_class_statics — walk the static field initializers and
+// decorators of a class body looking for UBD refs. These execute at
+// class-DEFINITION time (not deferred-by-closure), so they must be
+// checked for use-before-decl violations. Instance members are NOT
+// walked — their bodies are evaluated when CALLED, not when defined.
+@(private="file")
+ck_ubd_walk_class_statics :: proc(c: ^Checker, body: ClassBody, decls: ^map[string]u32) {
+	for elem in body.body {
+		// Decorators on every element run at class-definition time.
+		for deco in elem.decorators {
+			ck_ubd_walk_expr(c, deco.expression, decls, "", 0)
+		}
+		if !elem.static { continue }
+		// Static field initializers run at class-definition time.
+		if val, ok := elem.value.(^Expression); ok && val != nil {
+			// The walk may descend into a FunctionExpression for methods;
+			// ck_ubd_walk_expr stops at closure boundaries, so method
+			// bodies are skipped. Field initializers are bare expressions —
+			// they get walked fully.
+			ck_ubd_walk_expr(c, val, decls, "", 0)
+		}
+	}
+}
+
 // ck_check_ts_use_before_decl — TS2448 "Block-scoped variable 'X' used
 // before its declaration." Walks `body` (the statements of one block-scope
 // region: Program / BlockStatement / FunctionBody / TSModuleBlock) and
@@ -2193,17 +2313,19 @@ ck_check_ts_dup_func_impls :: proc(c: ^Checker, body: []^Statement) {
 // the closure is defined) and at TS type positions (typeof X, T<X>, etc.
 // — they're erased at runtime and don't count as a use).
 //
-// Implementation notes:
-//   * Only Identifier-pattern bindings are tracked. Destructured names
-//     (`const { a } = ...`) are ignored in v1 because the controlFlow
-//     fixtures we're targeting all use bare-name bindings, and a partial
-//     pattern walker risks false positives.
-//   * The reference-offset check uses the binding-id offset (the position
-//     of the name token in `const fn = ...`), not the keyword offset, so
-//     `const fn = fn;` self-references inside the initializer are NOT
-//     flagged — that's the temporal-dead-zone case which TS handles via
-//     control-flow analysis we don't have. Cost: we miss `const x = x;`
-//     style; benefit: zero false positives on legitimate forward references.
+// v2 (session 6 slice G) additions:
+//   * Destructuring patterns — Pass 1 now walks ObjectPattern /
+//     ArrayPattern / AssignmentPattern / RestElement to collect all
+//     Identifier bindings (was bare-Identifier only). Pass 2 walks
+//     computed keys and default values in binding patterns.
+//   * Self-init — `let x = x + 1;` is now caught via the `self_name`
+//     mechanism: when walking the initializer of a declarator that
+//     binds name N, any ref to N is flagged unless it's inside a
+//     closure (function/arrow/class body).
+//   * Class static initializers and decorators — ClassDeclaration
+//     decorators + static field initializers + all element decorators
+//     are now walked (they execute at class-definition time, not
+//     deferred-by-closure).
 //   * Nested BlockStatements get their own scope via `ck_check_ts_body_decls`
 //     recursion (called from `ck_walk_stmt` for every block body), so we
 //     don't need to descend into them ourselves — we just need to check
@@ -2231,11 +2353,7 @@ ck_check_ts_use_before_decl :: proc(c: ^Checker, body: []^Statement) {
 			continue
 		}
 		for d in var_decl.declarations {
-			id, is_id := d.id.(^Identifier)
-			if !is_id || id == nil { continue }
-			if _, exists := decls[id.name]; !exists {
-				decls[id.name] = u32(id.loc.span.start)
-			}
+			ck_ubd_collect_bindings(d.id, &decls)
 		}
 	}
 	if len(decls) == 0 { return }
@@ -2253,51 +2371,77 @@ ck_check_ts_use_before_decl :: proc(c: ^Checker, body: []^Statement) {
 // are closures and their refs are deferred). Also does NOT enter nested
 // BlockStatement bodies — they have their own scopes that get a separate
 // ck_check_ts_use_before_decl pass via ck_check_ts_body_decls.
+//
+// v2 (session 6 slice G): walks pattern value positions (computed keys,
+// default values), self-init initializers, and ClassDeclaration static
+// members + decorators.
 @(private="file")
 ck_ubd_walk_stmt :: proc(c: ^Checker, stmt: ^Statement, decls: ^map[string]u32) {
 	if stmt == nil { return }
 	#partial switch s in stmt^ {
 	case ^ExpressionStatement:
-		if s != nil { ck_ubd_walk_expr(c, s.expression, decls) }
+		if s != nil { ck_ubd_walk_expr(c, s.expression, decls, "", 0) }
 	case ^ReturnStatement:
 		if s != nil {
-			if a, ok := s.argument.(^Expression); ok { ck_ubd_walk_expr(c, a, decls) }
+			if a, ok := s.argument.(^Expression); ok { ck_ubd_walk_expr(c, a, decls, "", 0) }
 		}
 	case ^IfStatement:
 		if s != nil {
-			ck_ubd_walk_expr(c, s.test, decls)
+			ck_ubd_walk_expr(c, s.test, decls, "", 0)
 			ck_ubd_walk_stmt(c, s.consequent, decls)
 			if alt, ok := s.alternate.(^Statement); ok { ck_ubd_walk_stmt(c, alt, decls) }
 		}
 	case ^WhileStatement:
-		if s != nil { ck_ubd_walk_expr(c, s.test, decls); ck_ubd_walk_stmt(c, s.body, decls) }
+		if s != nil { ck_ubd_walk_expr(c, s.test, decls, "", 0); ck_ubd_walk_stmt(c, s.body, decls) }
 	case ^DoWhileStatement:
-		if s != nil { ck_ubd_walk_stmt(c, s.body, decls); ck_ubd_walk_expr(c, s.test, decls) }
+		if s != nil { ck_ubd_walk_stmt(c, s.body, decls); ck_ubd_walk_expr(c, s.test, decls, "", 0) }
 	case ^ForStatement:
 		if s != nil {
-			if e, ok := s.init_expr.(^Expression); ok { ck_ubd_walk_expr(c, e, decls) }
+			if e, ok := s.init_expr.(^Expression); ok { ck_ubd_walk_expr(c, e, decls, "", 0) }
 			if d, ok := s.init_decl.(^VariableDeclaration); ok && d != nil {
 				for declr in d.declarations {
+					// Walk computed keys + default values in the pattern.
+					ck_ubd_walk_pattern_values(c, declr.id, decls, "", 0)
+					// Walk the initializer with self-init detection.
 					if init, have := declr.init.(^Expression); have {
-						ck_ubd_walk_expr(c, init, decls)
+						self_name := ck_ubd_binding_name(declr.id)
+						ck_ubd_walk_expr(c, init, decls, self_name, 0)
 					}
 				}
 			}
-			if e, ok := s.test.(^Expression); ok { ck_ubd_walk_expr(c, e, decls) }
-			if e, ok := s.update.(^Expression); ok { ck_ubd_walk_expr(c, e, decls) }
+			if e, ok := s.test.(^Expression); ok { ck_ubd_walk_expr(c, e, decls, "", 0) }
+			if e, ok := s.update.(^Expression); ok { ck_ubd_walk_expr(c, e, decls, "", 0) }
 			ck_ubd_walk_stmt(c, s.body, decls)
 		}
 	case ^ForInStatement:
-		if s != nil { ck_ubd_walk_expr(c, s.right, decls); ck_ubd_walk_stmt(c, s.body, decls) }
+		if s != nil {
+			ck_ubd_walk_expr(c, s.right, decls, "", 0)
+			// Walk computed keys / default values in the left-hand pattern
+			// when the left is a VariableDeclaration.
+			if d, ok := s.left_decl.(^VariableDeclaration); ok && d != nil {
+				for declr in d.declarations {
+					ck_ubd_walk_pattern_values(c, declr.id, decls, "", 0)
+				}
+			}
+			ck_ubd_walk_stmt(c, s.body, decls)
+		}
 	case ^ForOfStatement:
-		if s != nil { ck_ubd_walk_expr(c, s.right, decls); ck_ubd_walk_stmt(c, s.body, decls) }
+		if s != nil {
+			ck_ubd_walk_expr(c, s.right, decls, "", 0)
+			if d, ok := s.left_decl.(^VariableDeclaration); ok && d != nil {
+				for declr in d.declarations {
+					ck_ubd_walk_pattern_values(c, declr.id, decls, "", 0)
+				}
+			}
+			ck_ubd_walk_stmt(c, s.body, decls)
+		}
 	case ^ThrowStatement:
-		if s != nil { ck_ubd_walk_expr(c, s.argument, decls) }
+		if s != nil { ck_ubd_walk_expr(c, s.argument, decls, "", 0) }
 	case ^SwitchStatement:
 		if s != nil {
-			ck_ubd_walk_expr(c, s.discriminant, decls)
+			ck_ubd_walk_expr(c, s.discriminant, decls, "", 0)
 			for ca in s.cases {
-				if t, ok := ca.test.(^Expression); ok { ck_ubd_walk_expr(c, t, decls) }
+				if t, ok := ca.test.(^Expression); ok { ck_ubd_walk_expr(c, t, decls, "", 0) }
 				for cs in ca.consequent { ck_ubd_walk_stmt(c, cs, decls) }
 			}
 		}
@@ -2318,118 +2462,232 @@ ck_ubd_walk_stmt :: proc(c: ^Checker, stmt: ^Statement, decls: ^map[string]u32) 
 		// here may reference a name declared LATER in the same scope.
 		// `var` is hoisted (no TDZ for var), but TS still emits TS2448 if
 		// you put a value-side ref to a let/const before its declaration.
+		// Also walk computed keys and default values inside the binding
+		// pattern (v2: `let {[a]: a}` → `a` in the computed key is a
+		// value-position ref before the binding).
 		if s != nil {
 			for d in s.declarations {
-				if init, ok := d.init.(^Expression); ok { ck_ubd_walk_expr(c, init, decls) }
+				// Walk computed keys + default values in the pattern.
+				ck_ubd_walk_pattern_values(c, d.id, decls, "", 0)
+				// Walk the initializer with self-init detection.
+				if init, ok := d.init.(^Expression); ok {
+					self_name := ck_ubd_binding_name(d.id)
+					ck_ubd_walk_expr(c, init, decls, self_name, 0)
+				}
+			}
+		}
+	case ^ClassDeclaration:
+		// v2: class-decl decorators + static member initializers/decorators
+		// execute at class-definition time (NOT deferred-by-closure).
+		// The class name itself is hoisted (like a function declaration)
+		// so refs inside the class body to the class name are fine —
+		// but refs to OTHER names declared later (e.g. const ObjLiteral
+		// in `static x = ObjLiteral.A`) are use-before-decl.
+		if s != nil {
+			for deco in s.decorators {
+				ck_ubd_walk_expr(c, deco.expression, decls, "", 0)
+			}
+			ck_ubd_walk_class_statics(c, s.body, decls)
+		}
+	case ^ExportNamedDeclaration:
+		// Walk the inner declaration (e.g. `export const x = x;`).
+		if s != nil {
+			if decl, ok := s.declaration.(^Declaration); ok && decl != nil {
+				// Recurse into the wrapped declaration. Switch on its type
+				// so we walk VariableDeclaration / ClassDeclaration correctly.
+				#partial switch inner in decl^ {
+				case ^VariableDeclaration:
+					ck_ubd_walk_stmt(c, cast(^Statement) inner, decls)
+				case ^ClassDeclaration:
+					ck_ubd_walk_stmt(c, cast(^Statement) inner, decls)
+				case ^FunctionDeclaration:
+					// Hoisted — skip (function names are available early).
+				}
+			}
+		}
+	case ^ExportDefaultDeclaration:
+		// Walk the inner declaration/expression.
+		if s != nil {
+			#partial switch def in s.declaration^ {
+			case ^Declaration:
+				#partial switch inner in def^ {
+				case ^VariableDeclaration:
+					ck_ubd_walk_stmt(c, cast(^Statement) inner, decls)
+				case ^ClassDeclaration:
+					ck_ubd_walk_stmt(c, cast(^Statement) inner, decls)
+				case ^FunctionDeclaration:
+					// Hoisted.
+				}
+			case ^Expression:
+				ck_ubd_walk_expr(c, def, decls, "", 0)
 			}
 		}
 	// Skip: BlockStatement (own scope, handled by recursion), FunctionDeclaration
-	// / ClassDeclaration (closure / hoisted name), TS*Declaration (type-level).
+	// (closure / hoisted name), TS*Declaration (type-level).
 	}
+}
+
+// ck_ubd_binding_name — return the first Identifier binding name from a
+// pattern, or "" if the pattern doesn't start with a bare Identifier.
+// Used for self-init detection (`let x = x + 1` — "x" is the self-name).
+@(private="file")
+ck_ubd_binding_name :: proc(pattern: Pattern) -> string {
+	if id, ok := pattern.(^Identifier); ok && id != nil {
+		return id.name
+	}
+	return ""
 }
 
 // Walk an expression looking for Identifier refs to names in `decls`.
 // Skips nested function/arrow/class bodies (closures — deferred refs)
 // and TS type-only sub-trees (typeof, type args, type assertion target).
+//
+// Parameters:
+//   self_name — if non-empty, any ref to this name is flagged regardless
+//     of offset (unless inside a closure). Used for self-init detection.
+//   closure_depth — incremented when entering a function/arrow/class body.
+//     When > 0, self_name refs are deferred (not flagged).
 @(private="file")
-ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32) {
+ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32, self_name: string, closure_depth: int) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
 	case ^Identifier:
 		if e == nil { return }
+		// Self-init: if this ref matches the current declarator's binding
+		// name AND we're not inside a closure, flag it.
+		if len(self_name) > 0 && e.name == self_name && closure_depth == 0 {
+			msg := fmt.tprintf("Block-scoped variable '%s' used before its declaration.", e.name)
+			ck_report(c, u32(e.loc.span.start), msg)
+			return
+		}
 		decl_off, ok := decls^[e.name]
 		if !ok { return }
 		ref_off := u32(e.loc.span.start)
 		if ref_off >= decl_off { return }
 		msg := fmt.tprintf("Block-scoped variable '%s' used before its declaration.", e.name)
 		ck_report(c, ref_off, msg)
+	case ^FunctionExpression:
+		// Entering a closure: increment closure_depth so self-init refs
+		// inside are deferred. Also stop walking — the body is evaluated
+		// when called, not when the closure is defined.
+		// BUT: default parameter values ARE evaluated at definition time.
+		if e != nil {
+			for param in e.params {
+				if dv, ok := param.default_val.(^Expression); ok && dv != nil {
+					ck_ubd_walk_expr(c, dv, decls, self_name, closure_depth)
+				}
+			}
+		}
+	case ^ArrowFunctionExpression:
+		// Same as FunctionExpression: default params are value positions,
+		// the body is a closure.
+		if e != nil {
+			for param in e.params {
+				if dv, ok := param.default_val.(^Expression); ok && dv != nil {
+					ck_ubd_walk_expr(c, dv, decls, self_name, closure_depth)
+				}
+			}
+		}
+	case ^ClassExpression:
+		// The class name is hoisted, and decorators / static initializers
+		// run at class-definition time. If this ClassExpression appears
+		// as an expression (e.g. inside a default value), walk its
+		// decorators and static members. The instance members are
+		// deferred-by-closure.
+		if e != nil {
+			for deco in e.decorators {
+				ck_ubd_walk_expr(c, deco.expression, decls, self_name, closure_depth)
+			}
+			// Static members execute immediately; walk them. Instance
+			// members are deferred (their bodies are evaluated when
+			// called). ck_ubd_walk_class_statics only touches statics.
+			ck_ubd_walk_class_statics(c, e.body, decls)
+		}
 	case ^CallExpression:
 		if e == nil { return }
-		ck_ubd_walk_expr(c, e.callee, decls)
-		for a in e.arguments { ck_ubd_walk_expr(c, a, decls) }
+		ck_ubd_walk_expr(c, e.callee, decls, self_name, closure_depth)
+		for a in e.arguments { ck_ubd_walk_expr(c, a, decls, self_name, closure_depth) }
 	case ^NewExpression:
 		if e == nil { return }
-		ck_ubd_walk_expr(c, e.callee, decls)
-		for a in e.arguments { ck_ubd_walk_expr(c, a, decls) }
+		ck_ubd_walk_expr(c, e.callee, decls, self_name, closure_depth)
+		for a in e.arguments { ck_ubd_walk_expr(c, a, decls, self_name, closure_depth) }
 	case ^MemberExpression:
 		if e == nil { return }
-		ck_ubd_walk_expr(c, e.object, decls)
-		if e.computed { ck_ubd_walk_expr(c, e.property, decls) }
+		ck_ubd_walk_expr(c, e.object, decls, self_name, closure_depth)
+		if e.computed { ck_ubd_walk_expr(c, e.property, decls, self_name, closure_depth) }
 	case ^BinaryExpression:
 		if e == nil { return }
-		ck_ubd_walk_expr(c, e.left, decls)
-		ck_ubd_walk_expr(c, e.right, decls)
+		ck_ubd_walk_expr(c, e.left, decls, self_name, closure_depth)
+		ck_ubd_walk_expr(c, e.right, decls, self_name, closure_depth)
 	case ^LogicalExpression:
 		if e == nil { return }
-		ck_ubd_walk_expr(c, e.left, decls)
-		ck_ubd_walk_expr(c, e.right, decls)
+		ck_ubd_walk_expr(c, e.left, decls, self_name, closure_depth)
+		ck_ubd_walk_expr(c, e.right, decls, self_name, closure_depth)
 	case ^UnaryExpression:
-		if e != nil { ck_ubd_walk_expr(c, e.argument, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.argument, decls, self_name, closure_depth) }
 	case ^UpdateExpression:
-		if e != nil { ck_ubd_walk_expr(c, e.argument, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.argument, decls, self_name, closure_depth) }
 	case ^ConditionalExpression:
 		if e == nil { return }
-		ck_ubd_walk_expr(c, e.test, decls)
-		ck_ubd_walk_expr(c, e.consequent, decls)
-		ck_ubd_walk_expr(c, e.alternate, decls)
+		ck_ubd_walk_expr(c, e.test, decls, self_name, closure_depth)
+		ck_ubd_walk_expr(c, e.consequent, decls, self_name, closure_depth)
+		ck_ubd_walk_expr(c, e.alternate, decls, self_name, closure_depth)
 	case ^AssignmentExpression:
 		if e == nil { return }
-		ck_ubd_walk_expr(c, e.left, decls)
-		ck_ubd_walk_expr(c, e.right, decls)
+		ck_ubd_walk_expr(c, e.left, decls, self_name, closure_depth)
+		ck_ubd_walk_expr(c, e.right, decls, self_name, closure_depth)
 	case ^SequenceExpression:
 		if e == nil { return }
-		for s in e.expressions { ck_ubd_walk_expr(c, s, decls) }
+		for s in e.expressions { ck_ubd_walk_expr(c, s, decls, self_name, closure_depth) }
 	case ^ArrayExpression:
 		if e == nil { return }
 		for el in e.elements {
-			if inner, ok := el.(^Expression); ok && inner != nil { ck_ubd_walk_expr(c, inner, decls) }
+			if inner, ok := el.(^Expression); ok && inner != nil { ck_ubd_walk_expr(c, inner, decls, self_name, closure_depth) }
 		}
 	case ^ObjectExpression:
 		if e == nil { return }
 		for prop in e.properties {
-			if prop.computed && prop.key != nil { ck_ubd_walk_expr(c, prop.key, decls) }
-			ck_ubd_walk_expr(c, prop.value, decls)
+			if prop.computed && prop.key != nil { ck_ubd_walk_expr(c, prop.key, decls, self_name, closure_depth) }
+			ck_ubd_walk_expr(c, prop.value, decls, self_name, closure_depth)
 		}
 	case ^SpreadElement:
-		if e != nil { ck_ubd_walk_expr(c, e.argument, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.argument, decls, self_name, closure_depth) }
 	case ^TemplateLiteral:
 		if e == nil { return }
-		for ex in e.expressions { ck_ubd_walk_expr(c, ex, decls) }
+		for ex in e.expressions { ck_ubd_walk_expr(c, ex, decls, self_name, closure_depth) }
 	case ^TaggedTemplateExpression:
 		if e == nil { return }
-		ck_ubd_walk_expr(c, e.tag, decls)
-		ck_ubd_walk_expr(c, e.quasi, decls)
+		ck_ubd_walk_expr(c, e.tag, decls, self_name, closure_depth)
+		ck_ubd_walk_expr(c, e.quasi, decls, self_name, closure_depth)
 	case ^ChainExpression:
-		if e != nil { ck_ubd_walk_expr(c, e.expression, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.expression, decls, self_name, closure_depth) }
 	case ^ParenthesizedExpression:
-		if e != nil { ck_ubd_walk_expr(c, e.expression, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.expression, decls, self_name, closure_depth) }
 	case ^AwaitExpression:
-		if e != nil { ck_ubd_walk_expr(c, e.argument, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.argument, decls, self_name, closure_depth) }
 	case ^YieldExpression:
 		if e != nil {
-			if a, ok := e.argument.(^Expression); ok { ck_ubd_walk_expr(c, a, decls) }
+			if a, ok := e.argument.(^Expression); ok { ck_ubd_walk_expr(c, a, decls, self_name, closure_depth) }
 		}
 	case ^ImportExpression:
-		if e != nil { ck_ubd_walk_expr(c, e.source, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.source, decls, self_name, closure_depth) }
 	case ^TSAsExpression:
 		// `expr as T` — walk the value side, skip the type annotation.
-		if e != nil { ck_ubd_walk_expr(c, e.expression, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.expression, decls, self_name, closure_depth) }
 	case ^TSSatisfiesExpression:
-		if e != nil { ck_ubd_walk_expr(c, e.expression, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.expression, decls, self_name, closure_depth) }
 	case ^TSNonNullExpression:
-		if e != nil { ck_ubd_walk_expr(c, e.expression, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.expression, decls, self_name, closure_depth) }
 	case ^TSTypeAssertion:
 		// `<T>expr` — walk only the value side.
-		if e != nil { ck_ubd_walk_expr(c, e.expression, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.expression, decls, self_name, closure_depth) }
 	case ^TSInstantiationExpression:
 		// `f<T>` — the LHS is a value position, the type args are TS-only.
-		if e != nil { ck_ubd_walk_expr(c, e.expression, decls) }
+		if e != nil { ck_ubd_walk_expr(c, e.expression, decls, self_name, closure_depth) }
 	// Skip closure shapes — their bodies are evaluated when CALLED, not
 	// when defined: ^FunctionExpression, ^ArrowFunctionExpression,
-	// ^ClassExpression. (Their decorators / default param values would
-	// technically evaluate at definition time, but no fixtures we're
-	// targeting hit that case; conservative skip preserves zero false
-	// positives.)
+	// ^ClassExpression are handled above with decorator / default-value
+	// walking, but their inner bodies are deferred.
 	// Skip leaves and non-value nodes: literals, ^ThisExpression, ^Super,
 	// ^MetaProperty, ^PrivateIdentifier, JSX*.
 	}
