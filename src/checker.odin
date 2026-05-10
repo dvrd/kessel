@@ -3366,6 +3366,12 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 			}
 		}
 	}
+	// TS — function implementations are not allowed in ambient
+	// contexts (.d.ts files, declare module/namespace bodies).
+	if ctx.is_dts && kind == .Plain && !fn.declare && !fn.no_body {
+		ck_report(c, u32(fn.loc.span.start),
+			"An implementation cannot be declared in ambient contexts.")
+	}
 	saved := ck_enter_function(ctx)
 	// Reset the [[HomeObject]] / constructor / class-element flags. The
 	// caller's request below restores any that the new body should keep
