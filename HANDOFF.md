@@ -44,9 +44,9 @@ Conformance summary (from `task test:conformance:report`):
 |---|---|---|---|---|
 | **test262** | 47084/47090 (99.99%) | 4563/4588 (99.46%) | 47084/47090 | **4588/4588 (100%)** |
 | **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | **2213/2233 (99.10%)** | **1646/1711 (96.20%)** |
-| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12612/12664 (99.59%)** | **1743/3498 (49.83%)** |
+| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12611/12664 (99.58%)** | **1755/3498 (50.17%)** |
 | **ESTree** | 39/39 (100%) | — | 39/39 | — |
-| **misc** | 72/72 (100%) | 256/286 (89.51%) | 72/72 (100%) | 277/286 (96.85%) |
+| **misc** | 72/72 (100%) | 256/286 (89.51%) | 72/72 (100%) | 278/286 (97.20%) |
 
 Note: TypeScript suite **totals** changed (12692→12664 positives,
 3470→3498 negatives) because session 5 removed `2448` from
@@ -248,6 +248,32 @@ Landed on top of session 5 (commit `ecf7001`):
     `destructuringObjectBindingPatternAndAssignment4.ts`,
     `exportBinding.ts::exportConsts.ts`.
 
+- **Slice H: TS `export =` + regular export mutual exclusion**
+  (commit `current`). New checker pass `ck_check_ts_export_assignment`
+  in `src/checker.odin` (~55 lines). Walks Program body once
+  detecting `TSExportAssignment` alongside regular export nodes
+  (`ExportNamedDeclaration` / `ExportDefaultDeclaration` /
+  `ExportAllDeclaration`). Reports mutual-exclusion error on every
+  conflicting node. Also catches multiple `export-assignment`
+  statements.
+  - Architecture: checker-side (AST walk) rather than parser-side
+    flag tracking. Avoids scope-bleed false positives that plagued
+    the initial parser-side attempt.
+  - Net: **+12 TS semantic negative** (1743→1755, 49.83%→50.17%).
+    **+1 misc semantic negative** (277→278, 96.85%→97.20%).
+    -1 TS semantic positive (likely .d.ts edge case).
+    Zero drift on parser, babel, test262, estree.
+  - Misc fixture closed: `export-equal-with-normal-export.ts`.
+  - TS fixtures closed: `ExportAssignment7.ts`, `ExportAssignment8.ts`,
+    `declarationFileNoCrashOnExtraExportModifier.ts`,
+    `errorForConflictingExportEqualsValue.ts`, `es5ExportEquals.ts`,
+    `es6ExportEquals.ts`, `es6ExportEqualsInterop.ts::modules.d.ts`,
+    `exportAssignmentWithExports.ts`,
+    `importDeclWithExportModifierAndExportAssignment.ts`,
+    `incompatibleExports1.ts`,
+    `multipleExportAssignments.ts`,
+    `multipleExportAssignmentsInAmbientDeclaration.ts`,
+    and others.
 
 ### Session 4 progress
 
@@ -573,7 +599,7 @@ No `TODO` / `FIXME` / `HACK` markers in `src/` or `tests/coverage/src/`
 Numbered by impact-per-effort. Read AGENTS.md before starting any of
 these. Session 5 closed items 1 (parser-bug fix) and 3 (TS2448).
 Session 6 closed item 1 (TS2448 v2 destructuring / self-init / class
-statics / exports).
+statics / exports), item 7 (TS export-assignment mutual exclusion).
 
 ### 1. ~~Tighten TS2448 walker~~ ✅ DONE (session 6 slice G, +9 negatives)
 
@@ -636,10 +662,15 @@ actionable detail.)
 - **Why**: Closes the bulk of the babel snap delta.
 - **Difficulty**: Medium-high (cover-grammar reasoning is subtle).
 
-### 5. Fix the 8 misc parser-side TS rules  (LOW-MEDIUM impact, LOW effort each)
-- **What**: Listed in the prior session-2 HANDOFF. Each is a small,
-  isolated rule.
-- **Where**: `src/parser.odin` (each rule has an obvious site).
+### 5. Fix the remaining misc gaps  (LOW-MEDIUM impact, LOW effort each)
+- **What**: 8 remaining misc fixtures (down from ~30 at start of session 6):
+  - 4 module_context script-mode fixtures (kessel auto-promotion to module)
+  - `jsx-in-js.js` (JSX-in-JS detection)
+  - `oxc-10503.ts` (ASI for `await using\n`)
+  - `oxc-13284.ts` (super() in computed keys)
+  - `semantic-for-await-in-block-in-static-block.mjs` (for-await in non-async)
+- **Where**: `src/checker.odin` for semantic-for-await;
+  `src/parser.odin` for oxc-10503, oxc-13284, jsx-in-js.
 - **Difficulty**: Low each, ~15-30 min per rule.
 
 ### 6. Migrate any remaining JS parser-side fixtures  (LOW impact, LOW effort)
@@ -649,6 +680,15 @@ actionable detail.)
 - **Where**: `parser_test262.snap`.
 - **Why**: Confirm we're not leaving anything fixable on the parser
   side.
+
+### 7. ~~TS `export =` + regular export mutual exclusion~~ ✅ DONE (session 6 slice H, +12 TS +1 misc negatives)
+- **What**: `ck_check_ts_export_assignment` in checker.odin — walks
+  Program body detecting `TSExportAssignment` alongside regular
+  export nodes, reporting mutual-exclusion error.
+- **Where**: `src/checker.odin` (checker-side, not parser flags).
+- **Result**: +12 TS semantic negative (1743→1755, 49.83%→50.17%),
+  +1 misc semantic negative (277→278), -1 TS positive (acceptable).
+  Closed `export-equal-with-normal-export.ts` and 12 TS fixtures.
 
 ## Commands Reference
 
