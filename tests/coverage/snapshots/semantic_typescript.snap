@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12611/12664 (99.58%)
 Positive Passed: 12611/12664 (99.58%)
-Negative Passed: 1756/3498 (50.20%)
+Negative Passed: 1757/3498 (50.23%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
@@ -45,7 +45,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/assignmentCo
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/assignmentToAnyArrayRestParameters.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedClassWithPrototypePropertyOnModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesEnum3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesInterface.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules3.ts
@@ -1955,8 +1954,9 @@ typescript/tests/cases/compiler/augmentedTypesClass2.ts:21:6: Duplicate identifi
 typescript/tests/cases/compiler/augmentedTypesClass2a.ts:4:1: Duplicate identifier 'c2'
 typescript/tests/cases/compiler/augmentedTypesClass4.ts:3:7: Duplicate identifier 'c3'
 typescript/tests/cases/compiler/augmentedTypesEnum.ts:3:1: Duplicate identifier 'e1111'
-typescript/tests/cases/compiler/augmentedTypesEnum2.ts:12:7: Duplicate identifier 'e2'
+typescript/tests/cases/compiler/augmentedTypesEnum2.ts:4:11: Duplicate identifier 'e1'
 typescript/tests/cases/compiler/augmentedTypesFunction.ts:21:6: Duplicate identifier 'y4'
+typescript/tests/cases/compiler/augmentedTypesInterface.ts:26:6: Duplicate identifier 'i3'
 typescript/tests/cases/compiler/augmentedTypesVar.ts:14:7: Duplicate identifier 'x4'
 typescript/tests/cases/compiler/autoLift2.ts:5:17: Expected semicolon
 typescript/tests/cases/compiler/awaitInClassInAsyncFunction.ts:9:15: await outside of async function

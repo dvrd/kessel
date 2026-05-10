@@ -1022,7 +1022,7 @@ ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) 
 @(private="file")
 DeclMergeKind :: enum u8 {
 	Var, Let, Const,
-	Class, Function, Enum, Namespace,
+	Class, Function, Enum, ConstEnum, Namespace,
 	Interface, TypeAlias,
 	Import, ImportType, ImportEquals,
 }
@@ -1066,7 +1066,7 @@ ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> boo
 	#partial switch x {
 	case .Var:
 		#partial switch y {
-		case .Class, .Enum:
+		case .Class, .Enum, .ConstEnum:
 			if both_ambient { return true }   // ambient var + ambient class/enum is OK in .d.ts
 			return false
 		}
@@ -1080,14 +1080,14 @@ ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> boo
 		// also have a duplicate-import shape (handled below).
 	case .Let:
 		#partial switch y {
-		case .Class, .Function, .Enum:
+		case .Class, .Function, .Enum, .ConstEnum:
 			if both_ambient { return true }
 			return false
 		}
 		// Let + Import / ImportEquals: see Var case — OXC accepts.
 	case .Const:
 		#partial switch y {
-		case .Class, .Function, .Enum:
+		case .Class, .Function, .Enum, .ConstEnum:
 			if both_ambient { return true }
 			return false
 		}
@@ -1096,7 +1096,8 @@ ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> boo
 		#partial switch y {
 		case .Class:                                 return false   // even ambient: can't redeclare ambient class
 		case .Function:                              return true    // TS2813/2814 — not in OXC-supported error set
-		case .Enum:                                  return false
+		case .Enum, .ConstEnum:                      return false
+		case .TypeAlias:                             return false   // class + type alias is illegal
 		}
 		// Class + Import: TSC TS2440 but OXC accepts (per babel's
 		// typescript/scope/redeclaration-import-ambient-class positive
@@ -1106,7 +1107,7 @@ ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> boo
 		// classifier excludes those codes from supported_error_codes.
 	case .Function:
 		#partial switch y {
-		case .Enum:
+		case .Enum, .ConstEnum:
 			if both_ambient { return true }
 			return false
 		}
@@ -1115,7 +1116,16 @@ ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> boo
 		// per OXC.
 	case .Enum:
 		#partial switch y {
-		case .Enum:                                  return true   // enum-enum merge is legal
+		case .Enum:                                  return true    // enum-enum merge is legal (both non-const)
+		case .ConstEnum:                             return false   // const enum + regular enum is illegal
+		case .Interface:                             return false   // enum + interface is illegal
+		case .TypeAlias:                             return false   // enum + type alias is illegal
+		}
+	case .ConstEnum:
+		#partial switch y {
+		case .ConstEnum:                             return true    // const enum + const enum merge is legal
+		case .Interface:                             return false   // const enum + interface is illegal
+		case .TypeAlias:                             return false   // const enum + type alias is illegal
 		}
 		// Enum + Namespace / Interface / TypeAlias / Import: legal.
 	case .Namespace:
@@ -1221,7 +1231,8 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 		}
 	case ^TSEnumDeclaration:
 		if v == nil { return }
-		ts_decl_merge_add(c, seen, v.id.name, .Enum, u32(v.id.loc.span.start), v.declare)
+		ek: DeclMergeKind = v.const_ ? .ConstEnum : .Enum
+		ts_decl_merge_add(c, seen, v.id.name, ek, u32(v.id.loc.span.start), v.declare)
 	case ^TSInterfaceDeclaration:
 		if v == nil { return }
 		ts_decl_merge_add(c, seen, v.id.name, .Interface, u32(v.id.loc.span.start), v.declare)
