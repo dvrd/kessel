@@ -152,6 +152,12 @@ CheckerContext :: struct {
 	// program top level). Pushed by ck_walk_ts_module_decl on body
 	// entry, popped on exit.
 	ts_namespace_depth:    int,
+	// block_nest_depth — number of enclosing block / loop / conditional
+	// bodies. Used to reject type aliases / interfaces / enums appearing
+	// inside control-flow statements. NOT incremented for function
+	// bodies (handled separately via function_depth) or namespace
+	// bodies (handled via ts_namespace_depth).
+	block_nest_depth:      int,
 	in_async:              bool,
 	in_generator:          bool,
 	// scope_skip — set true while walking the immediate body of an
@@ -620,12 +626,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^BlockStatement:
 		if v == nil { return }
-		// §14.2.1 / §14.3.1.1 — block-scope lex/var clash detection.
 		ck_run_scope_check(c, ctx, v.body[:], true)
-		// TS — nested-scope decl-merge + FunctionDeclaration overload-chain
-		// (FunctionDeclaration6.ts: `{ function foo(); function bar(){} }`).
-		// Block scope is one binding scope, so the chain doesn't cross
-		// the brace boundary.
 		ck_check_ts_body_decls(c, ctx, v.body[:])
 		for s in v.body { ck_walk_stmt(c, ctx, s) }
 
@@ -685,7 +686,9 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if u, have := v.update.(^Expression); have && u != nil { ck_walk_expr(c, ctx, u) }
 		ctx.iter_depth += 1
 		ck_check_single_stmt_function(c, v.body)
+		ctx.block_nest_depth += 1
 		ck_walk_stmt(c, ctx, v.body)
+		ctx.block_nest_depth -= 1
 		ctx.iter_depth -= 1
 
 	case ^ForInStatement:
@@ -863,9 +866,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		ck_walk_ts_module_decl(c, ctx, v)
 
 	case ^TSInterfaceDeclaration:
-		// TS-only checks (no break/continue/labels can escape an
-		// interface declaration body).
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
+				ck_report(c, u32(v.loc.span.start),
+					"Interface declarations are only valid at the top level of a module or namespace.")
+			}
 			ck_check_ts_interface_member_dups(c, v.body)
 			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
 				ck_check_ts_type_param_dups(c, tp)
@@ -875,6 +880,10 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^TSTypeAliasDeclaration:
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
+				ck_report(c, u32(v.loc.span.start),
+					"Type aliases are only valid at the top level of a module or namespace.")
+			}
 			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
 				ck_check_ts_type_param_dups(c, tp)
 			}

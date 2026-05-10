@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12611/12664 (99.58%)
 Positive Passed: 12611/12664 (99.58%)
-Negative Passed: 1768/3498 (50.54%)
+Negative Passed: 1769/3498 (50.57%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
@@ -716,7 +716,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisPredicat
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/this_inside-enum-should-not-be-allowed.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/topLevelLambda.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/tryCatchFinallyControlFlow.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeAliasDeclarationEmit3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeCheckingInsideFunctionExpressionInArray.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeGuardConstructorClassAndNumber.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeGuardConstructorDerivedClass.ts
@@ -2431,6 +2430,7 @@ typescript/tests/cases/compiler/thisAssignmentInNamespaceDeclaration1.ts::a.js:1
 typescript/tests/cases/compiler/thisAssignmentInNamespaceDeclaration1.ts::b.js:1:11: Expected semicolon
 typescript/tests/cases/compiler/throwWithoutNewLine1.ts:1:6: Expected expression after throw
 typescript/tests/cases/compiler/throwWithoutNewLine2.ts:2:1: Illegal newline after 'throw'
+typescript/tests/cases/compiler/typeAliasDeclarationEmit3.ts:3:9: Type aliases are only valid at the top level of a module or namespace.
 typescript/tests/cases/compiler/typeAliasDeclareKeywordNewlines.ts:5:9: Line terminator not permitted after 'type'
 typescript/tests/cases/compiler/unaryOperatorsInStrictMode.ts:3:3: Update of 'eval' is not allowed in strict mode
 typescript/tests/cases/compiler/uncaughtCompilerError2.ts:2:6: Empty parenthesized expression

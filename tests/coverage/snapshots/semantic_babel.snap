@@ -3,7 +3,7 @@ commit: c543b031
 semantic_babel Summary:
 AST Parsed     : 2213/2233 (99.10%)
 Positive Passed: 2213/2233 (99.10%)
-Negative Passed: 1661/1711 (97.08%)
+Negative Passed: 1663/1711 (97.19%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -49,10 +49,8 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-require-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/export-import-type/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/type-equals/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-within-single-statement-context/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-identifier-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-2/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/type-alias/invalid-within-single-statement-context/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js:4:10: Export 'encrypt' is not defined in the module
@@ -1679,6 +1677,7 @@ babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-get-prope
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-method/input.ts:2:3: 'private' modifier cannot appear on a type member.
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-property/input.ts:2:3: 'private' modifier cannot appear on a type member.
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-set-properties/input.ts:2:10: Expected (, got :
+babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-within-single-statement-context/input.ts:2:3: Interface declarations are only valid at the top level of a module or namespace.
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line-error/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/property-initializer/input.ts:1:25: Expected }, got =
@@ -1728,6 +1727,7 @@ babel/packages/babel-parser/test/fixtures/typescript/tsx/anonymous-function-gene
 babel/packages/babel-parser/test/fixtures/typescript/tsx/cast-invalid/input.tsx:3:22: Expected ], got :
 babel/packages/babel-parser/test/fixtures/typescript/tsx/invalid-gt-arrow-like/input.ts:1:10: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 babel/packages/babel-parser/test/fixtures/typescript/type-alias/declare-new-line/input.ts:1:9: Line terminator not permitted after 'type'
+babel/packages/babel-parser/test/fixtures/typescript/type-alias/invalid-within-single-statement-context/input.ts:2:3: Type aliases are only valid at the top level of a module or namespace.
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/call-optional-chain-invalid/input.ts:1:12: Expected '(' after type arguments in optional call
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-function/input.ts:1:5: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-interface-extends/input.ts:1:23: Type argument list cannot be empty
