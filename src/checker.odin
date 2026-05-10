@@ -279,6 +279,9 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	// §16.2.2 — every non-re-export ExportSpecifier.local must reference
 	// a name declared at module top level.
 	ck_check_export_local_defined(c, program)
+	// TS — `export =` cannot coexist with other export statements,
+	// and only one `export =` per module.
+	ck_check_ts_export_assignment(c, program)
 	// §14.2.1 / §14.3.1.1 — program-scope lex/var clash detection.
 	// The Program body is function-scope (sloppy plain
 	// FunctionDeclarations hoist as .Var; let/const/class are .Lexical).
@@ -4323,6 +4326,54 @@ ck_check_export_local_defined :: proc(c: ^Checker, program: ^Program) {
 				msg := fmt.tprintf("Export '%s' is not defined in the module", local_name.name)
 				ck_report(c, u32(local_name.loc.span.start), msg)
 			}
+		}
+	}
+}
+
+// ck_check_ts_export_assignment — TS only. `export = <expr>;`
+// (TSExportAssignment) cannot coexist with other export statements
+// (named, default, all, or type) in the same module. Also, only one
+// `export =` is allowed per module.
+//
+// Single pass over the Program body: detects whether both regular
+// exports and export-assignments exist. If so, reports on every
+// export node (both regular and assignment).
+@(private="file")
+ck_check_ts_export_assignment :: proc(c: ^Checker, program: ^Program) {
+	if program == nil { return }
+	if program.type != .Module { return }
+	has_reg: bool
+	has_assign: bool
+	assign_seen: bool
+	for stmt in program.body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^ExportNamedDeclaration:  has_reg = true
+		case ^ExportDefaultDeclaration: has_reg = true
+		case ^ExportAllDeclaration:     has_reg = true
+		case ^TSExportAssignment:
+			// Multiple `export =` (no regular exports): report duplicates.
+			if assign_seen && !has_reg {
+				msg := "An export assignment cannot be used in a module with other exported elements."
+				ck_report(c, u32(v.loc.span.start), msg)
+			}
+			assign_seen = true
+			has_assign = true
+		}
+	}
+	if !has_reg || !has_assign { return }
+	msg := "An export assignment cannot be used in a module with other exported elements."
+	for stmt in program.body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^ExportNamedDeclaration:
+			ck_report(c, u32(v.loc.span.start), msg)
+		case ^ExportDefaultDeclaration:
+			ck_report(c, u32(v.loc.span.start), msg)
+		case ^ExportAllDeclaration:
+			ck_report(c, u32(v.loc.span.start), msg)
+		case ^TSExportAssignment:
+			ck_report(c, u32(v.loc.span.start), msg)
 		}
 	}
 }

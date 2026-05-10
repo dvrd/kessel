@@ -1,12 +1,11 @@
 semantic_misc Summary:
 AST Parsed     : 72/72 (100.00%)
 Positive Passed: 72/72 (100.00%)
-Negative Passed: 277/286 (96.85%)
+Negative Passed: 278/286 (97.20%)
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
-Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
@@ -55,6 +54,7 @@ tests/coverage/misc/fail/early_errors/strict_mode/017_labeled_function_declarati
 tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js:10:5: Keyword 'let' must not contain escaped characters
 tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js:7:6: for-in loop variable declaration may not have an initializer
 tests/coverage/misc/fail/escape-00.js:1:25: Octal or \8 / \9 escape sequences are not allowed in strict mode
+tests/coverage/misc/fail/export-equal-with-normal-export.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected >, got !
 tests/coverage/misc/fail/html-comment-with-esm.js:1:1: HTML comments are not allowed in modules
 tests/coverage/misc/fail/imbalanced-array-expr.js:2:1: Expected ], got const
