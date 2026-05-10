@@ -2910,6 +2910,20 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// Arrow PARAMS are evaluated under the enclosing [+Await]
 		// context (so `static { (await => 0); }` correctly rejects
 		// the `await` arrow param). Keep in_class_static_block here.
+		// §15.2.1 / §10.2.1 — if the arrow body contains a `"use strict"`
+		// directive, the entire arrow function (including params) is
+		// strict-mode code. Lift strict_mode for the param checks.
+		prev_strict := ctx.strict_mode
+		arrow_body_lifts := false
+		if blk, is_blk := e.body.(^BlockStatement); is_blk && blk != nil && len(blk.body) > 0 {
+			es, eok := blk.body[0]^.(^ExpressionStatement)
+			if eok && es != nil {
+				if sl, sok := es.expression.(^StringLiteral); sok && sl != nil && sl.value == "use strict" {
+					arrow_body_lifts = true
+				}
+			}
+		}
+		if arrow_body_lifts { ctx.strict_mode = true }
 		// §15.3.1 / §15.9.1 — ArrowFunction params are ALWAYS
 		// UniqueFormalParameters, regardless of strict / sloppy or
 		// simple / non-simple. Match parser.odin's old
@@ -2924,6 +2938,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			ck_walk_pattern(c, ctx, pr.pattern)
 			if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
 		}
+		ctx.strict_mode       = prev_strict
 		ctx.in_params       = prev_in_params
 		ctx.params_is_arrow = prev_arrow_par
 		ctx.in_async        = e.async

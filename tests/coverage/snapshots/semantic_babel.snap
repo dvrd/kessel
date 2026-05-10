@@ -3,7 +3,7 @@ commit: c543b031
 semantic_babel Summary:
 AST Parsed     : 2213/2233 (99.10%)
 Positive Passed: 2213/2233 (99.10%)
-Negative Passed: 1664/1711 (97.25%)
+Negative Passed: 1667/1711 (97.43%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -19,11 +19,8 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-arr-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-obj-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/297/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-optional-private-property/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-param-strict-mode/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no-plugin-fragment/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no-plugin-jsx-expression/input.js
@@ -594,6 +591,7 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/293/input.js:1:13
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/294/input.js:1:10: Unexpected spread/rest element outside of arrow parameters
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/295/input.js:2:1: Expected '}' at end of switch statement
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/296/input.js:1:27: Arrow parameter 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/297/input.js:1:2: Arrow parameter 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/298/input.js:1:27: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/324/input.js:1:8: Missing initializer in destructuring declaration
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/325/input.js:1:8: Missing initializer in destructuring declaration
@@ -1171,6 +1169,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/arrow-wi
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/complex-rest-in-arrow-not-allowed/input.js:1:1: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-duplicated-params/input.js:1:1: Duplicate parameter name 'x' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-line-terminator-arrow/input.js:2:1: Unexpected line terminator before '=>' (restricted production)
+babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-param-strict-mode/input.js:1:1: Arrow parameter 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-rest/input.js:1:16: Binding element cannot be parenthesized
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/object-binding-pattern-invalid-member-expr/input.js:2:1: Member expression cannot be used as a binding target
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/object-binding-pattern-invalid-method-in-pattern/input.js:1:19: Invalid destructuring assignment target
@@ -1393,6 +1392,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0097/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0098/input.js:2:1: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0099/input.js:2:1: Expected identifier in arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0100/input.js:2:1: Arrow parameter 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js:1:2: Arrow parameter 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0102/input.js:1:8: Expected }, got /
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0103/input.js:1:10: Numeric / string property name requires a value
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0112/input.js:1:3: Expected semicolon
