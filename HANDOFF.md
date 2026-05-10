@@ -299,6 +299,21 @@ Landed on top of session 5 (commit `ecf7001`):
     **+1 TS semantic negative** (1756→1757, 50.20%→50.23%).
     Zero false positives. test262, estree, misc, parser unchanged.
 
+- **Slice K: Abstract methods in non-abstract classes**
+  (commit `current`). New check in `ck_walk_class`: if a class is not
+  declared `abstract` but contains abstract members, report
+  "Abstract methods can only appear within an abstract class."
+  - Closes 3 babel `abstract-method-in-non-abstract-class-{1,2,3}` gaps.
+  - Net: **+3 babel semantic negative** (1654→1657, 96.67%→96.84%).
+    **+4 TS semantic negative** (1757→1761, 50.23%→50.34%).
+    Zero false positives.
+
+**Session 6 net (slices G–K):** +11 babel, +27 TS, +2 misc negatives.
+Zero false positives across all 5 suites. test262 holds at 100%.
+TS semantic crossed 50% (1743→1761, 49.83%→50.34%).
+Babel semantic at 96.84% (1646→1657).
+Misc down to 7 remaining gaps (286→279).
+
 ### Session 4 progress
 
 Landed on top of session 3 (commit `364a020`):
@@ -622,9 +637,8 @@ No `TODO` / `FIXME` / `HACK` markers in `src/` or `tests/coverage/src/`
 
 Numbered by impact-per-effort. Read AGENTS.md before starting any of
 these. Session 5 closed items 1 (parser-bug fix) and 3 (TS2448).
-Session 6 closed item 1 (TS2448 v2 destructuring / self-init / class
-statics / exports), item 7 (TS export-assignment mutual exclusion),
-item 8 (for-await context check).
+Session 6 closed items 1, 7, 8, and 9 (slices G–K: +27 TS, +11 babel,
++2 misc negatives; TS crossed 50%).
 
 ### 1. ~~Tighten TS2448 walker~~ ✅ DONE (session 6 slice G, +9 negatives)
 
