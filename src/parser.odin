@@ -5813,6 +5813,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	fn_expr.async = is_async
 	fn_expr.type_parameters = method_type_parameters
 	fn_expr.return_type = method_return_type
+	// Mark overload signatures / abstract methods as no_body so the
+	// checker can distinguish them from implementation methods.
+	fn_expr.no_body = (is_overload_sig || is_ambient_method || is_abstract)
 	fn_expr.loc.span.end = prev_end_offset(p)
 
 	elem := new_node(p, ClassElement)

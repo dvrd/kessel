@@ -1793,6 +1793,39 @@ ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 	}
 }
 
+// ck_check_ts_constructor_modifiers — TS only. Constructor overload
+// signatures (constructors with no_body = true) cannot have parameter
+// properties (accessibility / readonly / override on params). Only the
+// implementation constructor (with a body) may have these.
+@(private="file")
+ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression) {
+	if c == nil || cls == nil { return }
+	for elem in cls.body.body {
+		if elem.kind != .Constructor { continue }
+		fn, have := elem.value.(^Expression)
+		if !have || fn == nil { continue }
+		func, is_fn := fn^.(^FunctionExpression)
+		if !is_fn || func == nil { continue }
+		// Only check overload signatures (no_body = true). The
+		// implementation constructor can have parameter properties.
+		if !func.no_body { continue }
+		for param in func.params {
+			if param.accessibility != .None {
+				ck_report(c, u32(param.loc.span.start),
+					"Parameter properties are only allowed in the implementation constructor.")
+			}
+			if param.readonly {
+				ck_report(c, u32(param.loc.span.start),
+					"'readonly' parameter properties are only allowed in the implementation constructor.")
+			}
+			if param.override_ {
+				ck_report(c, u32(param.loc.span.start),
+					"'override' parameter properties are only allowed in the implementation constructor.")
+			}
+		}
+	}
+}
+
 // =============================================================================
 // TS2300 — type-parameter duplicate-name detection
 // =============================================================================
@@ -3496,7 +3529,6 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 			}
 		}
 		// TS — abstract methods are only allowed in abstract classes.
-		// Also: abstract cannot be combined with private / static.
 		if !cls.abstract {
 			for elem in cls.body.body {
 				if elem.abstract {
@@ -3506,6 +3538,9 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 				}
 			}
 		}
+		// TS — constructor overload signatures cannot have accessibility
+		// modifiers, readonly, static, or async.
+		ck_check_ts_constructor_modifiers(c, cls)
 	}
 
 	for elem in cls.body.body {

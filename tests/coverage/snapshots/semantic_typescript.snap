@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12611/12664 (99.58%)
 Positive Passed: 12611/12664 (99.58%)
-Negative Passed: 1761/3498 (50.34%)
+Negative Passed: 1768/3498 (50.54%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
@@ -13,8 +13,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclara
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/InterfaceDeclaration8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ParameterList7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ParameterList8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -604,10 +602,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadingO
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsInDifferentContainersDisagreeOnAmbient.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsWithComputedNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overshifts.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/paramPropertiesInSignatures.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterDecoratorsEmitCrash.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterPropertyInConstructor1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterPropertyInConstructor2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterPropertyInConstructor3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parseAssertEntriesError.ts::/node_modules/pkg/import.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parseAssertEntriesError.ts::/node_modules/pkg/require.d.ts
@@ -1570,8 +1565,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList16.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList17.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509618.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBlockStatement1.d.ts
@@ -1917,6 +1910,8 @@ typescript/tests/cases/compiler/ParameterList13.ts:2:17: Expected ), got identif
 typescript/tests/cases/compiler/ParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ParameterList5.ts:1:23: Expected ), got identifier
 typescript/tests/cases/compiler/ParameterList6.ts:2:26: Expected ), got identifier
+typescript/tests/cases/compiler/ParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/compiler/ParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/TransportStream.ts:1:2: Expected semicolon
 typescript/tests/cases/compiler/abstractPropertyNegative.ts:15:5: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/compiler/accessorBodyInTypeContext.ts:2:15: Unexpected token in TS object type
@@ -2332,6 +2327,9 @@ typescript/tests/cases/compiler/optionalPropertiesSyntax.ts:11:7: Expected }, go
 typescript/tests/cases/compiler/overloadConsecutiveness.ts:3:14: Expected {, got ,
 typescript/tests/cases/compiler/overloadingStaticFunctionsInFunctions.ts:1:14: Expected (, got {
 typescript/tests/cases/compiler/overloadsWithinClasses.ts:3:5: Duplicate function implementation.
+typescript/tests/cases/compiler/paramPropertiesInSignatures.ts:2:21: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/compiler/parameterPropertyInConstructor1.ts:3:24: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/compiler/parameterPropertyInConstructor2.ts:3:24: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/parameterPropertyOutsideConstructor.ts:2:17: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash1.ts:3:28: Expected ), got :
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash2.ts:3:44: Reserved word 'return' is not a valid binding identifier
@@ -3401,6 +3399,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParam
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList5.ts:1:23: Expected ), got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList6.ts:2:26: Expected ), got identifier
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList9.ts:2:14: Expected ), got ?
 typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected1.ts:1:11: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected2.ts:1:11: Expected semicolon
