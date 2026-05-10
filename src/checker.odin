@@ -2890,6 +2890,11 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		outer_in_gen   := ctx.in_generator
 		// Arrow function = function boundary for break/continue/labels.
 		saved := ck_enter_function(ctx)
+		// Arrows inherit [[HomeObject]] / field-init context from the
+		// enclosing scope (unlike regular functions), but `await` /
+		// `arguments` inside the arrow body are governed by the arrow's
+		// own async/generator flags, NOT by the outer field-init context.
+		ctx.in_field_init = false
 		// Arrow block-body "use strict" prologue: parse_block_statement does
 		// NOT set ExpressionStatement.directive (only parse_function_body /
 		// parse_program do), and the parser itself never lifts strict_mode
@@ -3108,6 +3113,10 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// §15.7.5 — ClassStaticBlockBody Contains await is a SyntaxError.
 		if ctx.in_class_static_block {
 			ck_report(c, u32(e.loc.span.start), "'await' is not allowed in a class static block")
+		}
+		// §15.7.10 — class field initializers are not async.
+		if ctx.in_field_init {
+			ck_report(c, u32(e.loc.span.start), "'await' is not allowed in a class field initializer")
 		}
 		// §15.6.1 / arrow-cover: AwaitExpression in formal-parameter
 		// position is forbidden. Same arrow-vs-regular message split as
