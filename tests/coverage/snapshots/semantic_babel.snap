@@ -3,7 +3,7 @@ commit: c543b031
 semantic_babel Summary:
 AST Parsed     : 2213/2233 (99.10%)
 Positive Passed: 2213/2233 (99.10%)
-Negative Passed: 1670/1711 (97.60%)
+Negative Passed: 1671/1711 (97.66%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -19,7 +19,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-arr-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-obj-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-optional-private-property/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no-plugin-fragment/input.js
@@ -1042,6 +1041,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/asi-failure-generator/input.js:3:9: Expected semicolon or line terminator after class field
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/asi-failure-inline/input.js:2:6: Expected (, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-computed/input.js:3:4: Expected (, got [
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-optional-private-property/input.js:4:5: Private fields cannot be deleted
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-private-property/input.js:4:5: Private fields cannot be deleted
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-name-constructor/input.js:4:1: Class private member name cannot be '#constructor'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-numeric-literal/input.js:2:4: Expected (, got number

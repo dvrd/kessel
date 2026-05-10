@@ -3842,7 +3842,12 @@ ck_check_unary_delete_private :: proc(c: ^Checker, e: ^UnaryExpression) {
 	if e == nil { return }
 	if e.operator != .Delete { return }
 	if e.argument == nil { return }
-	me, is_member := e.argument^.(^MemberExpression)
+	arg := e.argument
+	// Unwrap ChainExpression (optional chaining: `delete this?.#x`).
+	if chain, is_chain := arg^.(^ChainExpression); is_chain && chain != nil {
+		arg = chain.expression
+	}
+	me, is_member := arg^.(^MemberExpression)
 	if !is_member || me == nil { return }
 	if me.property == nil { return }
 	if _, is_private := me.property^.(^PrivateIdentifier); is_private {
