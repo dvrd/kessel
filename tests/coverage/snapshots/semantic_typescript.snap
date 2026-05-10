@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12611/12664 (99.58%)
 Positive Passed: 12611/12664 (99.58%)
-Negative Passed: 1757/3498 (50.23%)
+Negative Passed: 1761/3498 (50.34%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
@@ -15,7 +15,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDecl
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/InterfaceDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ParameterList7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ParameterList8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -269,7 +268,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSynt
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::index.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::other.d.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorForUsingPropertyOfTypeAsType03.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorInUnnamedClassExpression.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorMessageOnObjectLiteralType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorSupression1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es5-asyncFunctionWithStatements.ts
@@ -791,9 +789,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6/await_unaryExpression_es6_2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration3_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractInstantiations2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractProperties.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractUsingAbstractMethods2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classWithPredefinedTypesAsNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file3.ts
@@ -1922,6 +1918,7 @@ typescript/tests/cases/compiler/ParameterList4.ts:1:20: 'public' modifier cannot
 typescript/tests/cases/compiler/ParameterList5.ts:1:23: Expected ), got identifier
 typescript/tests/cases/compiler/ParameterList6.ts:2:26: Expected ), got identifier
 typescript/tests/cases/compiler/TransportStream.ts:1:2: Expected semicolon
+typescript/tests/cases/compiler/abstractPropertyNegative.ts:15:5: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/compiler/accessorBodyInTypeContext.ts:2:15: Unexpected token in TS object type
 typescript/tests/cases/compiler/accessorParameterAccessibilityModifier.ts:2:19: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/accessorWithInitializer.ts:2:11: A 'set' accessor cannot have an initializer.
@@ -2102,6 +2099,7 @@ typescript/tests/cases/compiler/erasableSyntaxOnly2.ts:1:10: Unexpected '<': not
 typescript/tests/cases/compiler/errorElaboration.ts:22:1: Duplicate identifier 'foo'
 typescript/tests/cases/compiler/errorForConflictingExportEqualsValue.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/errorForUsingPropertyOfTypeAsType01.ts:44:24: Expected identifier after '.' in import-equals module reference
+typescript/tests/cases/compiler/errorInUnnamedClassExpression.ts:7:5: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/compiler/errorOnInitializerInInterfaceProperty.ts:2:17: Expected }, got =
 typescript/tests/cases/compiler/errorOnInitializerInObjectTypeLiteralProperty.ts:2:17: Unexpected token in TS object type
 typescript/tests/cases/compiler/errorRecoveryInClassDeclaration.ts:4:13: 'public' is a reserved identifier in strict mode
@@ -2520,12 +2518,14 @@ typescript/tests/cases/conformance/classes/awaitAndYieldInProperty.ts:3:21: awai
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractAccessor.ts:3:22: Method 'aa' cannot have an implementation because it is marked abstract.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractCrashedOnce.ts:8:5: Expected identifier after '.'
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractDeclarations.d.ts:2:28: An implementation cannot be declared in ambient contexts
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractInstantiations2.ts:50:5: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractManyKeywords.ts:3:1: Unexpected reserved word 'default'
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMergedDeclaration.ts:14:7: Duplicate identifier 'CC1'
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMethodInNonAbstractClass.ts:6:20: Method 'foo' cannot have an implementation because it is marked abstract.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMethodWithImplementation.ts:2:20: Method 'foo' cannot have an implementation because it is marked abstract.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMixedWithModifiers.ts:16:20: Expected (, got identifier
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractOverloads.ts:7:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractUsingAbstractMethods2.ts:2:5: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractWithInterface.ts:1:10: Expected semicolon
 typescript/tests/cases/conformance/classes/classDeclarations/classAndVariableWithSameName.ts:2:1: Duplicate identifier 'C'
 typescript/tests/cases/conformance/classes/classDeclarations/classBody/classBodyWithStatements.ts:2:9: Expected (, got identifier

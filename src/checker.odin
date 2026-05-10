@@ -3495,6 +3495,17 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 				}
 			}
 		}
+		// TS — abstract methods are only allowed in abstract classes.
+		// Also: abstract cannot be combined with private / static.
+		if !cls.abstract {
+			for elem in cls.body.body {
+				if elem.abstract {
+					ck_report(c, u32(elem.loc.span.start),
+						"Abstract methods can only appear within an abstract class.")
+					break  // one diagnostic per class is enough
+				}
+			}
+		}
 	}
 
 	for elem in cls.body.body {
