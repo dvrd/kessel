@@ -44,9 +44,9 @@ Conformance summary (from `task test:conformance:report`):
 |---|---|---|---|---|
 | **test262** | 47084/47090 (99.99%) | 4563/4588 (99.46%) | 47084/47090 | **4588/4588 (100%)** |
 | **Babel** | 2219/2233 (99.37%) | 1588/1711 (92.81%) | **2213/2233 (99.10%)** | **1646/1711 (96.20%)** |
-| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12611/12664 (99.58%)** | **1755/3498 (50.17%)** |
+| **TypeScript** | 12656/12664 (99.94%) | 1598/3498 (45.68%) | **12611/12664 (99.58%)** | **1756/3498 (50.20%)** |
 | **ESTree** | 39/39 (100%) | — | 39/39 | — |
-| **misc** | 72/72 (100%) | 256/286 (89.51%) | 72/72 (100%) | 278/286 (97.20%) |
+| **misc** | 72/72 (100%) | 256/286 (89.51%) | 72/72 (100%) | 279/286 (97.55%) |
 
 Note: TypeScript suite **totals** changed (12692→12664 positives,
 3470→3498 negatives) because session 5 removed `2448` from
@@ -274,6 +274,17 @@ Landed on top of session 5 (commit `ecf7001`):
     `multipleExportAssignments.ts`,
     `multipleExportAssignmentsInAmbientDeclaration.ts`,
     and others.
+
+- **Slice I: `for await` context check** (commit `current`).
+  New check in ForOfStatement walker: `for await` is only valid in
+  async functions/generators or at module scope. Uses `function_depth`
+  (not `at_top_level`) to correctly allow `for await` inside blocks at
+  module top level while rejecting it inside non-async functions within
+  modules.
+  - Net: **+1 TS semantic negative** (1755→1756, 50.17%→50.20%).
+    **+1 misc semantic negative** (278→279, 96.85%→97.55%).
+    Zero drift on parser, babel, test262, estree.
+  - Misc fixture closed: `semantic-for-await-in-block-in-static-block.mjs`.
 
 ### Session 4 progress
 
@@ -599,7 +610,8 @@ No `TODO` / `FIXME` / `HACK` markers in `src/` or `tests/coverage/src/`
 Numbered by impact-per-effort. Read AGENTS.md before starting any of
 these. Session 5 closed items 1 (parser-bug fix) and 3 (TS2448).
 Session 6 closed item 1 (TS2448 v2 destructuring / self-init / class
-statics / exports), item 7 (TS export-assignment mutual exclusion).
+statics / exports), item 7 (TS export-assignment mutual exclusion),
+item 8 (for-await context check).
 
 ### 1. ~~Tighten TS2448 walker~~ ✅ DONE (session 6 slice G, +9 negatives)
 
@@ -663,12 +675,11 @@ actionable detail.)
 - **Difficulty**: Medium-high (cover-grammar reasoning is subtle).
 
 ### 5. Fix the remaining misc gaps  (LOW-MEDIUM impact, LOW effort each)
-- **What**: 8 remaining misc fixtures (down from ~30 at start of session 6):
+- **What**: 7 remaining misc fixtures (down from ~30 at start of session 6):
   - 4 module_context script-mode fixtures (kessel auto-promotion to module)
   - `jsx-in-js.js` (JSX-in-JS detection)
   - `oxc-10503.ts` (ASI for `await using\n`)
   - `oxc-13284.ts` (super() in computed keys)
-  - `semantic-for-await-in-block-in-static-block.mjs` (for-await in non-async)
 - **Where**: `src/checker.odin` for semantic-for-await;
   `src/parser.odin` for oxc-10503, oxc-13284, jsx-in-js.
 - **Difficulty**: Low each, ~15-30 min per rule.
