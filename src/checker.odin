@@ -705,6 +705,14 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^ForOfStatement:
 		if v == nil { return }
+		// §14.7.5 — `for await` is only valid in async functions /
+		// generators or at module scope (not inside a non-async function,
+		// even within a module). Use function_depth to check: at module
+		// top-level, function_depth is 0.
+		if v.await && !ctx.in_async && !(ctx.source_type == .Module && ctx.function_depth == 0) {
+			ck_report(c, u32(v.loc.span.start),
+				"'for await' is only valid in async functions or at the top level of a module")
+		}
 		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, false)
 		ck_check_for_in_of_init_eval_args(c, ctx, v.left_expr)
 		if e, have := v.left_expr.(^Expression); have && e != nil { ck_walk_expr(c, ctx, e) }

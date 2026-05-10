@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12611/12664 (99.58%)
 Positive Passed: 12611/12664 (99.58%)
-Negative Passed: 1755/3498 (50.17%)
+Negative Passed: 1756/3498 (50.20%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
@@ -800,7 +800,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/c
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classExpressions/classWithStaticFieldInParameterBindingPattern.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classExpressions/classWithStaticFieldInParameterInitializer.2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock23.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlockUseBeforeDef3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/classConstructorOverloadsAccessibility.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorDefaultValuesReferencingThis.ts
@@ -2541,6 +2540,7 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock16.t
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock19.ts:3:5: Decorators are not valid here.
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock20.ts:2:18: Expected (, got {
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock22.ts:4:9: 'await' is reserved as a binding name in this context
+typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock23.ts:5:5: 'for await' is only valid in async functions or at the top level of a module
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock26.ts:3:9: 'await' is not allowed in a class static block
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock6.ts:7:13: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock7.ts:3:9: 'await' is not allowed in a class static block
