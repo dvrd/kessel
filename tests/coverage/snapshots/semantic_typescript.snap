@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12611/12664 (99.58%)
 Positive Passed: 12611/12664 (99.58%)
-Negative Passed: 1796/3498 (51.34%)
+Negative Passed: 1800/3498 (51.46%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -329,8 +329,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/externalModu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::BaseA.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::SubA.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::SubB.js
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/forIn.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/forInStatement4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/forInStatement7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/forwardRefInEnum.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionAndImportNameConflict.ts::f1.ts
@@ -1550,7 +1548,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserExpressionStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement5.ts
@@ -1630,7 +1627,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statement
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsInvalid.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of17.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of27.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of29.ts
@@ -2142,6 +2138,8 @@ typescript/tests/cases/compiler/fieldAndGetterWithSameName.ts:3:3: Duplicate ide
 typescript/tests/cases/compiler/fileWithNextLine3.ts:3:9: 'return' outside of function
 typescript/tests/cases/compiler/fillInMissingTypeArgsOnJSConstructCalls.ts::BaseB.js:2:23: Expected {, got <
 typescript/tests/cases/compiler/for.ts:29:6: Expected ;, got )
+typescript/tests/cases/compiler/forIn.ts:2:6: The left-hand side of a 'for...in' statement cannot use a type annotation.
+typescript/tests/cases/compiler/forInStatement4.ts:2:6: The left-hand side of a 'for...in' statement cannot use a type annotation.
 typescript/tests/cases/compiler/forwardRefInClassProperties.ts:11:17: Block-scoped variable 'b' used before its declaration.
 typescript/tests/cases/compiler/functionAndPropertyNameConflict.ts:3:5: Duplicate identifier 'aaaaa'
 typescript/tests/cases/compiler/functionCall15.ts:1:1: Duplicate parameter name 'b' with non-simple parameter list
@@ -3472,6 +3470,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfS
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement7.ts:1:6: Only a single declaration is allowed in a for-of loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement2.ts:1:10: 'in' is a reserved word and cannot be used as a binding name
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement3.ts:1:6: Only a single declaration is allowed in a for-in loop
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement5.ts:1:6: The left-hand side of a 'for...in' statement cannot use a type annotation.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement6.ts:1:6: Only a single declaration is allowed in a for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement7.ts:1:6: Only a single declaration is allowed in a for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement4.ts:1:15: Invalid left-hand side in for-in loop
@@ -3602,6 +3601,7 @@ typescript/tests/cases/conformance/statements/continueStatements/invalidForConti
 typescript/tests/cases/conformance/statements/continueStatements/invalidForInContinueStatements.ts:4:1: 'continue' must be inside a loop
 typescript/tests/cases/conformance/statements/continueStatements/invalidSwitchContinueStatement.ts:5:9: 'continue' must be inside a loop
 typescript/tests/cases/conformance/statements/continueStatements/invalidWhileContinueStatements.ts:4:1: 'continue' must be inside a loop
+typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsInvalid.ts:10:6: The left-hand side of a 'for...in' statement cannot use a type annotation.
 typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of12.ts:1:14: Invalid destructuring assignment target
 typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of20.ts:5:5: Missing initializer in 'const' declaration
 typescript/tests/cases/conformance/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash1.ts:3:11: Expected binding pattern

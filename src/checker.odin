@@ -4949,14 +4949,28 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 			for_in_init_ok = false
 		}
 	}
-	if for_in_init_ok { return }
-	for d in decl.declarations {
-		if _, have_init := d.init.(^Expression); have_init {
-			msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_str)
-			ck_report(c, u32(decl.loc.span.start), msg)
-			return // one diagnostic per head, matching parser behaviour
+	// TS2404 — type annotation in for-in loop head is not allowed
+	// (checked before the for_in_init_ok gate so it fires regardless
+	// of Annex B sloppy-mode carve-out).
+	if is_in && (ctx.lang == .TS || ctx.lang == .TSX) {
+		for d in decl.declarations {
+			has_ann := false
+			#partial switch pat in d.id {
+			case ^Identifier:
+				if _, ok := pat.type_annotation.(^TSTypeAnnotation); ok { has_ann = true }
+			case ^ObjectPattern:
+				if _, ok := pat.type_annotation.(^TSTypeAnnotation); ok { has_ann = true }
+			case ^ArrayPattern:
+				if _, ok := pat.type_annotation.(^TSTypeAnnotation); ok { has_ann = true }
+			}
+			if has_ann {
+				ck_report(c, u32(decl.loc.span.start),
+					"The left-hand side of a 'for...in' statement cannot use a type annotation.")
+				return
+			}
 		}
 	}
+	if for_in_init_ok { return }
 }
 
 // ck_check_unary_delete_local — §13.5.1 — in strict mode,
