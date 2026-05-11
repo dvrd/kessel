@@ -1876,7 +1876,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			// forbidden there, so `let` is an identifier. block_depth > 0
 			// signals we're inside such a context (set by parse_if_statement
 			// et al. before calling parse_statement_or_declaration).
-			is_let_asi := nxt_let.had_line_terminator && !p.strict_mode &&
+			is_let_asi := nxt_let.had_line_terminator && !p.strict_mode && !allow_ts_mode(p) &&
 			              (nxt_let.type == .Identifier ||
 			               (nxt_let.type == .LBrace && p.block_depth > 0))
 			if !is_let_asi {
