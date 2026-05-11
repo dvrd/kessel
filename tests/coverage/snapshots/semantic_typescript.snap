@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12608/12664 (99.56%)
 Positive Passed: 12608/12664 (99.56%)
-Negative Passed: 1985/3498 (56.75%)
+Negative Passed: 1986/3498 (56.78%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -995,7 +995,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalM
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/exportNamespace_js.ts::c.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/exportSpecifiers.ts::/imports.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/grammarErrors.ts::/a.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/grammarErrors.ts::/c.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/importEquals2.ts::/a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/importEquals2.ts::/b.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/importEquals2.ts::/c.ts
@@ -2861,6 +2860,7 @@ typescript/tests/cases/conformance/externalModules/typeOnly/exportSpecifiers.ts:
 typescript/tests/cases/conformance/externalModules/typeOnly/exportSpecifiers_js.ts:2:15: Expected }, got identifier
 typescript/tests/cases/conformance/externalModules/typeOnly/grammarErrors.ts::/a.js:1:13: Expected from, got identifier
 typescript/tests/cases/conformance/externalModules/typeOnly/grammarErrors.ts::/b.ts:1:16: A type-only import cannot combine default and named bindings
+typescript/tests/cases/conformance/externalModules/typeOnly/grammarErrors.ts::/c.ts:4:1: An import alias can not use 'import type'.
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers1.ts::/d.ts:1:24: Expected }, got as
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers1.ts::/f.ts:1:22: 'import' is a reserved word and cannot be used as an import binding
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers1.ts::/g.ts:1:15: The 'type' modifier cannot be used in a type-only import

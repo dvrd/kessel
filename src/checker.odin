@@ -943,8 +943,23 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		}
 		return
 
+	case ^TSImportEqualsDeclaration:
+		// TS — `import type X = Y.Z` (namespace alias) cannot use `type`.
+		// Only namespace aliases are rejected; `import type X = require("...")`
+		// (TSExternalModuleReference) is valid TypeScript.
+		if v != nil && v.import_kind == .Type && (ctx.lang == .TS || ctx.lang == .TSX) {
+			is_require := false
+			if _, ok := v.module_reference.(^TSExternalModuleReference); ok {
+				is_require = true
+			}
+			if !is_require {
+				ck_report(c, u32(v.loc.span.start),
+					"An import alias can not use 'import type'.")
+			}
+		}
+		return
+
 	case ^EmptyStatement, ^DebuggerStatement,
-	     ^TSImportEqualsDeclaration,
 	     ^TSNamespaceExportDeclaration:
 		// No iteration / switch / label / function bodies inside these
 		// for break/continue purposes.

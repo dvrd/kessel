@@ -3,7 +3,7 @@ commit: c543b031
 semantic_babel Summary:
 AST Parsed     : 2213/2233 (99.10%)
 Positive Passed: 2213/2233 (99.10%)
-Negative Passed: 1676/1711 (97.95%)
+Negative Passed: 1677/1711 (98.01%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
@@ -35,7 +35,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-require-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/export-import-type/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/type-equals/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-identifier-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-2/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
@@ -1660,6 +1659,7 @@ babel/packages/babel-parser/test/fixtures/typescript/export/double-declare/input
 babel/packages/babel-parser/test/fixtures/typescript/export/equals-in-script/input.ts:1:1: 'export' is only valid in module code
 babel/packages/babel-parser/test/fixtures/typescript/function/empty-type-parameters/input.ts:1:14: Type parameter list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/function/parameter-properties/input.ts:9:1: A parameter cannot have a question mark and an initializer.
+babel/packages/babel-parser/test/fixtures/typescript/import/type-equals/input.ts:1:1: An import alias can not use 'import type'.
 babel/packages/babel-parser/test/fixtures/typescript/interface/abstract/input.ts:1:10: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/interface/declare-new-line/input.ts:1:9: Line terminator not permitted after 'interface'
 babel/packages/babel-parser/test/fixtures/typescript/interface/export-abstract-interface/input.ts:1:17: Expected semicolon
