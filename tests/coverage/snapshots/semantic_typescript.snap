@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12607/12664 (99.55%)
 Positive Passed: 12607/12664 (99.55%)
-Negative Passed: 1926/3498 (55.06%)
+Negative Passed: 1936/3498 (55.35%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -620,7 +620,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/restUnion.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/returnValueInSetter.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/scopeCheckExtendedClassInsideStaticMethod1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/scopeCheckInsideStaticMethod1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/selfReferencesInFunctionParameters.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/semicolonsInModuleDeclarations.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/setterWithReturn.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shadowingViaLocalValueOrBindingElement.ts
@@ -713,16 +712,10 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/a
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/ambientDeclarationsPatterns_merging3.ts::types.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/ambientExternalModuleInsideNonAmbient.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/ambientExternalModuleInsideNonAmbientExternalModule.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction3_es2017.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration3_es2017.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunction3_es5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunctionCapturesArguments_es5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/asyncDeclare_es5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration3_es5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclarationCapturesArguments_es5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6/asyncArrowFunction/asyncArrowFunction3_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6/asyncDeclare_es6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration3_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file2.ts
@@ -1083,8 +1076,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionOverloadCompatibilityWithVoid01.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing1_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::2.ts
@@ -1575,7 +1566,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uni
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/union/unionTypeWithIndexSignature.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsPropertyNames.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/witness/witness.ts
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/ambientNameRestrictions.ts
 typescript/tests/cases/compiler/ambientNameRestrictions.ts:2:14: 'static' is a reserved identifier in strict mode
 
@@ -2284,6 +2274,7 @@ typescript/tests/cases/compiler/restParamModifier.ts:2:20: 'public' is a reserve
 typescript/tests/cases/compiler/restParamModifier2.ts:2:41: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/restParameterNotLast.ts:1:16: A rest parameter must be last in a parameter list
 typescript/tests/cases/compiler/restParameterWithBindingPattern3.ts:3:23: Rest element must be last in array pattern
+typescript/tests/cases/compiler/selfReferencesInFunctionParameters.ts:1:14: Parameter 'x' cannot reference itself.
 typescript/tests/cases/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes.ts:16:13: Identifier 'x' has already been declared
 typescript/tests/cases/compiler/shadowedReservedCompilerDeclarationsWithNoEmit.ts:23:13: Parameter name 'arguments' is not allowed in strict mode
 typescript/tests/cases/compiler/shadowingViaLocalValue.ts:4:9: Identifier 'x' has already been declared
@@ -2372,6 +2363,7 @@ typescript/tests/cases/compiler/yieldStringLiteral.ts:2:5: 'yield' expression is
 typescript/tests/cases/conformance/ambient/ambientErrors.ts:2:17: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath.ts:11:9: Expected declaration after 'declare'
 typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath2.ts:9:9: Expected declaration after 'declare'
+typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction3_es2017.ts:1:12: Parameter 'await' cannot reference itself.
 typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction5_es2017.ts:1:18: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction6_es2017.ts:1:22: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction7_es2017.ts:3:24: 'await' expression is not allowed in formal parameters of an async function
@@ -2382,10 +2374,12 @@ typescript/tests/cases/conformance/async/es2017/await_unaryExpression_es2017_2.t
 typescript/tests/cases/conformance/async/es2017/await_unaryExpression_es2017_3.ts:2:15: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration10_es2017.ts:1:24: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration12_es2017.ts:1:24: 'await' cannot be used as the name of an async function expression
+typescript/tests/cases/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration3_es2017.ts:1:12: Parameter 'await' cannot reference itself.
 typescript/tests/cases/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration5_es2017.ts:1:20: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration6_es2017.ts:1:24: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration7_es2017.ts:3:26: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es2017/functionDeclarations/asyncFunctionDeclaration9_es2017.ts:2:19: 'await' expression requires an operand
+typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunction3_es5.ts:1:12: Parameter 'await' cannot reference itself.
 typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunction5_es5.ts:1:18: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunction6_es5.ts:1:22: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunction7_es5.ts:3:24: 'await' expression is not allowed in formal parameters of an async function
@@ -2400,10 +2394,12 @@ typescript/tests/cases/conformance/async/es5/asyncModule_es5.ts:1:7: Expected se
 typescript/tests/cases/conformance/async/es5/asyncSetter_es5.ts:2:9: 'async' modifier cannot be used here.
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts:1:24: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration12_es5.ts:1:24: 'await' cannot be used as the name of an async function expression
+typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration3_es5.ts:1:12: Parameter 'await' cannot reference itself.
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration5_es5.ts:1:20: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration6_es5.ts:1:24: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration7_es5.ts:3:26: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration9_es5.ts:2:19: 'await' expression requires an operand
+typescript/tests/cases/conformance/async/es6/asyncArrowFunction/asyncArrowFunction3_es6.ts:1:12: Parameter 'await' cannot reference itself.
 typescript/tests/cases/conformance/async/es6/asyncArrowFunction/asyncArrowFunction5_es6.ts:1:18: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/async/es6/asyncArrowFunction/asyncArrowFunction6_es6.ts:1:22: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es6/asyncArrowFunction/asyncArrowFunction7_es6.ts:3:24: 'await' expression is not allowed in formal parameters of an async function
@@ -2421,6 +2417,7 @@ typescript/tests/cases/conformance/async/es6/await_unaryExpression_es6_2.ts:2:5:
 typescript/tests/cases/conformance/async/es6/await_unaryExpression_es6_3.ts:2:15: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration10_es6.ts:1:24: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration12_es6.ts:1:24: 'await' cannot be used as the name of an async function expression
+typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration3_es6.ts:1:12: Parameter 'await' cannot reference itself.
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration5_es6.ts:1:20: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration6_es6.ts:1:24: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration7_es6.ts:3:26: 'await' expression is not allowed in formal parameters of an async function
@@ -2880,6 +2877,8 @@ typescript/tests/cases/conformance/functions/functionNameConflicts.ts:24:10: Fun
 typescript/tests/cases/conformance/functions/functionOverloadErrors.ts:89:10: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/functions/functionOverloadErrorsSyntax.ts:9:36: A rest parameter must be last in a parameter list
 typescript/tests/cases/conformance/functions/functionWithUseStrictAndSimpleParameterList_es2016.ts:1:1: Illegal 'use strict' directive in function with non-simple parameter list
+typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing1.ts:21:14: Parameter 'a' cannot reference itself.
+typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing1_es6.ts:21:14: Parameter 'a' cannot reference itself.
 typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::3.ts:8:18: 'import()' requires a specifier
 typescript/tests/cases/conformance/importAssertion/importAssertion4.ts:1:34: Expected {, got EOF
 typescript/tests/cases/conformance/importAssertion/importAssertion5.ts:1:36: Expected }, got EOF
@@ -3673,3 +3672,4 @@ typescript/tests/cases/conformance/types/typeParameters/typeArgumentLists/instan
 typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/typesWithDuplicateTypeParameters.ts:1:12: Duplicate identifier 'T'
 typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/varianceAnnotations.ts:95:17: Expected >, got identifier
 typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/varianceAnnotationsWithCircularlyReferencesError.ts:1:12: Identifier expected. 'in' is a reserved word that cannot be used here.
+typescript/tests/cases/conformance/types/witness/witness.ts:4:13: Parameter 'pInit' cannot reference itself.

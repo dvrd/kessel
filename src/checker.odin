@@ -3501,6 +3501,24 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 			}
 		}
 	}
+	// TS2372 — parameter default value must not reference itself.
+	if ctx.lang == .TS || ctx.lang == .TSX {
+		for pr in fn.params {
+			if def, has := pr.default_val.(^Expression); has && def != nil {
+				names: [dynamic]string
+				names.allocator = context.temp_allocator
+				reserve(&names, 2)
+				scope_collect_pattern(pr.pattern, &names)
+				for n in names {
+					if ck_expr_has_identifier_ref(def, n, context.temp_allocator) {
+						msg := fmt.tprintf("Parameter '%s' cannot reference itself.", n)
+						ck_report(c, u32(pr.loc.span.start), msg)
+						break
+					}
+				}
+			}
+		}
+	}
 	// §15.5.1 / §15.6.1 / §15.8.1 — duplicate parameter names.
 	//
 	// MethodDefinition (§15.4) ALWAYS has UniqueFormalParameters —
@@ -4957,6 +4975,51 @@ ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, bo
 			ck_report(c, off, msg)
 		}
 	}
+}
+
+// ck_expr_has_identifier_ref — walk expression tree looking for
+// Identifier with given name. Skips closures (function/arrow/class).
+@(private="file")
+ck_expr_has_identifier_ref :: proc(expr: ^Expression, name: string, alloc: mem.Allocator) -> bool {
+	if expr == nil { return false }
+	#partial switch e in expr^ {
+	case ^Identifier:
+		return e != nil && e.name == name
+	case ^BinaryExpression:
+		return e != nil && (ck_expr_has_identifier_ref(e.left, name, alloc) || ck_expr_has_identifier_ref(e.right, name, alloc))
+	case ^CallExpression:
+		if e != nil {
+			if ck_expr_has_identifier_ref(e.callee, name, alloc) { return true }
+			for a in e.arguments { if ck_expr_has_identifier_ref(a, name, alloc) { return true } }
+		}
+		return false
+	case ^NewExpression:
+		if e != nil { for a in e.arguments { if ck_expr_has_identifier_ref(a, name, alloc) { return true } } }
+		return false
+	case ^MemberExpression:
+		return e != nil && ck_expr_has_identifier_ref(e.object, name, alloc)
+	case ^UnaryExpression:
+		return e != nil && ck_expr_has_identifier_ref(e.argument, name, alloc)
+	case ^ConditionalExpression:
+		return e != nil && (ck_expr_has_identifier_ref(e.test, name, alloc) || ck_expr_has_identifier_ref(e.consequent, name, alloc) || ck_expr_has_identifier_ref(e.alternate, name, alloc))
+	case ^ParenthesizedExpression:
+		return e != nil && ck_expr_has_identifier_ref(e.expression, name, alloc)
+	case ^LogicalExpression:
+		return e != nil && (ck_expr_has_identifier_ref(e.left, name, alloc) || ck_expr_has_identifier_ref(e.right, name, alloc))
+	case ^ArrayExpression:
+		if e != nil { for el in e.elements { if el != nil { if ex, ok := el.(^Expression); ok { if ck_expr_has_identifier_ref(ex, name, alloc) { return true } } } } }
+		return false
+	case ^TemplateLiteral:
+		if e != nil { for ex in e.expressions { if ex != nil && ck_expr_has_identifier_ref(ex, name, alloc) { return true } } }
+		return false
+	case ^AssignmentExpression:
+		return e != nil && ck_expr_has_identifier_ref(e.right, name, alloc)
+	case ^SpreadElement:
+		return e != nil && ck_expr_has_identifier_ref(e.argument, name, alloc)
+	case ^FunctionExpression, ^ArrowFunctionExpression, ^ClassExpression:
+		return false  // skip closures
+	}
+	return false
 }
 
 // ck_check_for_in_of_head — bundle of three for-in/of head rules.
