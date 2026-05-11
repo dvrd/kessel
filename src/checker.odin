@@ -3615,6 +3615,10 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		// §14.1.3 / Annex B.3.2. Static-block bodies and class-method
 		// bodies share the same scoping rule.
 		ck_run_scope_check(c, ctx, fn.body.body[:], false)
+		// TS17009 — `this` before `super()` in derived constructor.
+		if kind == .Constructor && derived_ctor {
+			ck_check_this_before_super(c, ctx, fn.body.body[:])
+		}
 		// TS — nested-scope decl-merge + FunctionDeclaration overload-chain
 		// for the function-body scope.
 		ck_check_ts_body_decls(c, ctx, fn.body.body[:])
@@ -4300,6 +4304,228 @@ ck_check_var_decl_let_binding :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 // in_derived_constructor, in_field_init, in_class_static_block}`. See the
 // CheckerContext field comments for who pushes/restores each flag.
 // ============================================================================
+
+// TS17009 — `this` before `super()` in a derived constructor.
+//
+// In the instance constructor of a `class X extends Y`, `this` must not
+// be accessed before `super()` is called. Two shapes:
+//   1. `this` in a statement preceding the first `super()` call:
+//      `this.x = 1; super();` — error on `this.x = 1`.
+//   2. `this` inside the arguments of `super(...)`:
+//      `super(this)` — error on `this`.
+//
+// This check does a linear top-level scan of the constructor body.
+// It does NOT recurse into nested functions/arrows/classes (those
+// have their own `this` binding). Control-flow analysis is NOT
+// performed — we only check the sequential case.
+@(private="file")
+ck_check_this_before_super :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement) {
+	// Only enforce in TS/TSX mode. In JS, accessing `this` before `super()`
+	// is a runtime ReferenceError, not a parse-time error.
+	if ctx.lang != .TS && ctx.lang != .TSX { return }
+	// Phase 1: find the index of the first top-level statement that
+	// contains a `super(...)` call.
+	super_idx := -1
+	for stmt, i in body {
+		if stmt == nil { continue }
+		if stmt_contains_super_call(stmt) {
+			super_idx = i
+			break
+		}
+	}
+
+	// Phase 2: for every statement before super_idx, report TS17009 on
+	// any `this` reference. If no super() was found at all, don't report
+	// (the missing-super diagnostic is separate).
+	if super_idx < 0 { return }
+
+	for i := 0; i < super_idx; i += 1 {
+		this_loc := stmt_find_this(body[i])
+		if this_loc != 0 {
+			ck_report_this_before_super(c, this_loc)
+		}
+	}
+
+	// Phase 3: check the super() call's OWN arguments for `this`.
+	super_stmt := body[super_idx]
+	if super_stmt == nil { return }
+	es, ok := super_stmt^.(^ExpressionStatement)
+	if !ok || es == nil { return }
+	super_call := expr_extract_super_call(es.expression)
+	if super_call == nil { return }
+	for a in super_call.arguments {
+		this_loc := expr_find_this(a)
+		if this_loc != 0 {
+			ck_report_this_before_super(c, this_loc)
+		}
+	}
+}
+
+// stmt_find_this — finds the first `this` in the top-level expressions of
+// a statement. Handles ExpressionStatement, VariableDeclaration (init
+// expressions), ReturnStatement. Does not recurse into nested blocks.
+@(private="file")
+stmt_find_this :: proc(stmt: ^Statement) -> u32 {
+	if stmt == nil { return 0 }
+	#partial switch v in stmt^ {
+	case ^ExpressionStatement:
+		if v != nil { return expr_find_this(v.expression) }
+	case ^VariableDeclaration:
+		if v == nil { return 0 }
+		for d in v.declarations {
+			if init, have := d.init.(^Expression); have {
+				if r := expr_find_this(init); r != 0 { return r }
+			}
+		}
+	case ^ReturnStatement:
+		if v != nil {
+			if arg, have := v.argument.(^Expression); have {
+				return expr_find_this(arg)
+			}
+		}
+	}
+	return 0
+}
+
+// stmt_contains_super_call — does this statement contain a `super()` call?
+@(private="file")
+stmt_contains_super_call :: proc(stmt: ^Statement) -> bool {
+	if stmt == nil { return false }
+	#partial switch v in stmt^ {
+	case ^ExpressionStatement:
+		if v != nil { return expr_is_or_contains_super_call(v.expression) }
+	case ^VariableDeclaration:
+		if v == nil { return false }
+		for d in v.declarations {
+			if init, have := d.init.(^Expression); have {
+				if expr_is_or_contains_super_call(init) { return true }
+			}
+		}
+	case ^ReturnStatement:
+		if v != nil {
+			if arg, have := v.argument.(^Expression); have {
+				return expr_is_or_contains_super_call(arg)
+			}
+		}
+	}
+	return false
+}
+
+@(private="file")
+ck_report_this_before_super :: proc(c: ^Checker, this_loc: u32) {
+	ck_report(c, this_loc,
+		"'super' must be called before accessing 'this' in the constructor of a derived class.")
+}
+
+// expr_find_this — returns the source offset of the first ThisExpression
+// in the expression tree, or 0 if none found. Stops at function/arrow/
+// class boundaries (those have their own `this`).
+@(private="file")
+expr_find_this :: proc(e: ^Expression) -> u32 {
+	if e == nil { return 0 }
+	#partial switch v in e^ {
+	case ^ThisExpression:
+		if v != nil { return u32(v.loc.span.start) }
+	case ^MemberExpression:
+		if v == nil { return 0 }
+		if r := expr_find_this(v.object); r != 0 { return r }
+		if v.computed { return expr_find_this(v.property) }
+	case ^CallExpression:
+		if v == nil { return 0 }
+		if r := expr_find_this(v.callee); r != 0 { return r }
+		for a in v.arguments {
+			if r := expr_find_this(a); r != 0 { return r }
+		}
+	case ^AssignmentExpression:
+		if v == nil { return 0 }
+		if r := expr_find_this(v.left); r != 0 { return r }
+		return expr_find_this(v.right)
+	case ^BinaryExpression:
+		if v == nil { return 0 }
+		if r := expr_find_this(v.left); r != 0 { return r }
+		return expr_find_this(v.right)
+	case ^LogicalExpression:
+		if v == nil { return 0 }
+		if r := expr_find_this(v.left); r != 0 { return r }
+		return expr_find_this(v.right)
+	case ^ConditionalExpression:
+		if v == nil { return 0 }
+		if r := expr_find_this(v.test); r != 0 { return r }
+		if r := expr_find_this(v.consequent); r != 0 { return r }
+		return expr_find_this(v.alternate)
+	case ^UnaryExpression:
+		if v != nil { return expr_find_this(v.argument) }
+	case ^UpdateExpression:
+		if v != nil { return expr_find_this(v.argument) }
+	case ^SequenceExpression:
+		if v != nil { for s in v.expressions { if r := expr_find_this(s); r != 0 { return r } } }
+	case ^SpreadElement:
+		if v != nil { return expr_find_this(v.argument) }
+	case ^ParenthesizedExpression:
+		if v != nil { return expr_find_this(v.expression) }
+	case ^TSAsExpression:
+		if v != nil { return expr_find_this(v.expression) }
+	case ^TSSatisfiesExpression:
+		if v != nil { return expr_find_this(v.expression) }
+	case ^TSNonNullExpression:
+		if v != nil { return expr_find_this(v.expression) }
+	case ^TSTypeAssertion:
+		if v != nil { return expr_find_this(v.expression) }
+	// Arrow / function / class create a new `this` binding — stop.
+	case ^ArrowFunctionExpression, ^FunctionExpression, ^ClassExpression:
+		return 0
+	}
+	return 0
+}
+
+// expr_is_or_contains_super_call — true if the expression IS or CONTAINS
+// a `super(...)` CallExpression. Stops at function/arrow/class boundaries.
+@(private="file")
+expr_is_or_contains_super_call :: proc(e: ^Expression) -> bool {
+	if e == nil { return false }
+	#partial switch v in e^ {
+	case ^CallExpression:
+		if v == nil { return false }
+		if _, is_super := v.callee^.(^Super); is_super { return true }
+		if expr_is_or_contains_super_call(v.callee) { return true }
+		for a in v.arguments { if expr_is_or_contains_super_call(a) { return true } }
+	case ^AssignmentExpression:
+		if v == nil { return false }
+		return expr_is_or_contains_super_call(v.left) || expr_is_or_contains_super_call(v.right)
+	case ^SequenceExpression:
+		if v != nil { for s in v.expressions { if expr_is_or_contains_super_call(s) { return true } } }
+	case ^ParenthesizedExpression:
+		if v != nil { return expr_is_or_contains_super_call(v.expression) }
+	case ^ConditionalExpression:
+		if v == nil { return false }
+		return expr_is_or_contains_super_call(v.test) ||
+		       expr_is_or_contains_super_call(v.consequent) ||
+		       expr_is_or_contains_super_call(v.alternate)
+	case ^LogicalExpression:
+		if v == nil { return false }
+		return expr_is_or_contains_super_call(v.left) || expr_is_or_contains_super_call(v.right)
+	case ^ArrowFunctionExpression, ^FunctionExpression, ^ClassExpression:
+		return false
+	}
+	return false
+}
+
+// expr_extract_super_call — extracts the CallExpression from an expression
+// that is a `super(...)` call (possibly wrapped in parens / assignment).
+@(private="file")
+expr_extract_super_call :: proc(e: ^Expression) -> ^CallExpression {
+	if e == nil { return nil }
+	#partial switch v in e^ {
+	case ^CallExpression:
+		if v == nil { return nil }
+		if _, is_super := v.callee^.(^Super); is_super { return v }
+	case ^ParenthesizedExpression:
+		if v != nil { return expr_extract_super_call(v.expression) }
+	case ^AssignmentExpression:
+		if v != nil { return expr_extract_super_call(v.right) }
+	}
+	return nil
+}
 
 // §15.7.6 / §13.3.7 — `super(...)` is only legal in the instance
 // constructor body of a class declared with `extends` (or descendants
