@@ -1454,21 +1454,39 @@ elem_is_overloadable_method :: proc(elem: ClassElement) -> (^FunctionExpression,
 ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 	if c == nil || len(body.body) == 0 { return }
 
-	// Pre-pass: skip the entire check when NO method in the class
-	// carries an implementation body. A class whose every method is
-	// signature-only is functionally an interface-or-ambient pattern;
-	// real TS code that writes mixed sig+impl always has at least one
-	// `{ ... }`. This conservative gate eliminates false positives on
-	// babel parser-test fixtures (`class C { f(); f(): void; }`,
-	// `class C { static f(); public static f(); ... }`) where the
-	// authors deliberately wrote sig-only classes to exercise the
-	// parser surface, not to model a real implementation.
+	// Pre-pass: skip the entire check when the class is a pure overload-
+	// set pattern (all method signatures for the same name, no constructor
+	// signatures, no implementations). This avoids false positives on
+	// babel parser-test fixtures (`class C { f(); f(): void; }`).
+	// But we still check classes with constructor signatures or with
+	// signatures for different names.
 	has_any_impl := false
+	has_constructor_sig := false
+	method_names: map[string]bool
+	method_names.allocator = context.temp_allocator
+	total_sigs := 0
 	for elem in body.body {
 		fn, ok := elem_is_overloadable_method(elem)
-		if ok && method_fn_has_body(fn) { has_any_impl = true; break }
+		if !ok { continue }
+		if method_fn_has_body(fn) {
+			has_any_impl = true
+			break
+		}
+		total_sigs += 1
+		if elem.kind == .Constructor {
+			has_constructor_sig = true
+		} else {
+			name, has_name := elem_overload_name(elem)
+			if has_name {
+				method_names[name] = true
+			}
+		}
 	}
-	if !has_any_impl { return }
+	if !has_any_impl {
+		if !has_constructor_sig && len(method_names) <= 1 && total_sigs >= 2 {
+			return
+		}
+	}
 
 	flush_unimplemented :: proc(c: ^Checker, body: ClassBody, start, end_excl: int) {
 		// Emit TS2391 on each unmatched signature in [start, end_excl).

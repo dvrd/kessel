@@ -1,8 +1,8 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2213/2233 (99.10%)
-Positive Passed: 2213/2233 (99.10%)
+AST Parsed     : 2210/2233 (98.97%)
+Positive Passed: 2210/2233 (98.97%)
 Negative Passed: 1674/1711 (97.84%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -88,6 +88,15 @@ babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts:5:1: A class can only have one constructor
+
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/members-with-modifier-names/input.ts
+babel/packages/babel-parser/test/fixtures/typescript/class/members-with-modifier-names/input.ts:2:5: Function implementation is missing or not immediately following the declaration.
+
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/members-with-reserved-names/input.ts
+babel/packages/babel-parser/test/fixtures/typescript/class/members-with-reserved-names/input.ts:2:5: Function implementation is missing or not immediately following the declaration.
+
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/method-with-newline-without-body/input.ts
+babel/packages/babel-parser/test/fixtures/typescript/class/method-with-newline-without-body/input.ts:3:5: Function implementation is missing or not immediately following the declaration.
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts:10:30: A parameter cannot have a question mark and an initializer.
