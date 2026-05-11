@@ -867,6 +867,10 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^TSInterfaceDeclaration:
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if is_ts_predefined_type_name(v.id.name) {
+				msg := fmt.tprintf("Interface name cannot be '%s'.", v.id.name)
+				ck_report(c, u32(v.id.loc.span.start), msg)
+			}
 			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
 				ck_report(c, u32(v.loc.span.start),
 					"Interface declarations are only valid at the top level of a module or namespace.")
@@ -890,8 +894,16 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		}
 		return
 
+	case ^TSEnumDeclaration:
+		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if is_ts_predefined_type_name(v.id.name) {
+				msg := fmt.tprintf("Enum name cannot be '%s'.", v.id.name)
+				ck_report(c, u32(v.id.loc.span.start), msg)
+			}
+		}
+		return
+
 	case ^EmptyStatement, ^DebuggerStatement,
-	     ^TSEnumDeclaration,
 	     ^TSImportEqualsDeclaration,
 	     ^TSExportAssignment, ^TSNamespaceExportDeclaration:
 		// No iteration / switch / label / function bodies inside these
@@ -910,9 +922,20 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 	case ^TSModuleDeclaration: if inner != nil { ck_walk_ts_module_decl(c, ctx, inner) }
 	case ^TSInterfaceDeclaration:
 		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if is_ts_predefined_type_name(inner.id.name) {
+				msg := fmt.tprintf("Interface name cannot be '%s'.", inner.id.name)
+				ck_report(c, u32(inner.id.loc.span.start), msg)
+			}
 			ck_check_ts_interface_member_dups(c, inner.body)
 			if tp, has := inner.type_parameters.(^TSTypeParameterDeclaration); has {
 				ck_check_ts_type_param_dups(c, tp)
+			}
+		}
+	case ^TSEnumDeclaration:
+		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if is_ts_predefined_type_name(inner.id.name) {
+				msg := fmt.tprintf("Enum name cannot be '%s'.", inner.id.name)
+				ck_report(c, u32(inner.id.loc.span.start), msg)
 			}
 		}
 	case ^TSTypeAliasDeclaration:
@@ -3532,6 +3555,15 @@ ck_walk_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
 @(private="file")
 ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	if cls == nil { return }
+	// TS2414 — class name cannot be a predefined type name.
+	if (ctx.lang == .TS || ctx.lang == .TSX) {
+		if id, ok := cls.id.(BindingIdentifier); ok {
+			if is_ts_predefined_type_name(id.name) {
+				msg := fmt.tprintf("Class name cannot be '%s'.", id.name)
+				ck_report(c, u32(id.loc.span.start), msg)
+			}
+		}
+	}
 	has_extends := false
 	// super_class is evaluated in the OUTER scope (no function boundary,
 	// no private-name visibility from THIS class — the heritage clause
@@ -4196,6 +4228,20 @@ is_strict_reserved_simple_name :: proc(name: string) -> bool {
 	switch name {
 	case "implements", "interface", "package", "private",
 	     "protected", "public", "let", "static", "yield":
+		return true
+	}
+	return false
+}
+
+// is_ts_predefined_type_name — true if `name` matches a TypeScript
+// built-in primitive type that cannot be reused as a class, interface,
+// or enum name (TS2414 / TS2427 / TS2431). Mirrors TSC's reserved
+// primitive-type name list.
+@(private="file")
+is_ts_predefined_type_name :: proc(name: string) -> bool {
+	switch name {
+	case "any", "number", "boolean", "string", "undefined",
+	     "null", "unknown", "never", "object", "bigint", "symbol", "void":
 		return true
 	}
 	return false

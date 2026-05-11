@@ -3,11 +3,9 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12611/12664 (99.58%)
 Positive Passed: 12611/12664 (99.58%)
-Negative Passed: 1784/3498 (51.00%)
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
+Negative Passed: 1796/3498 (51.34%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/InterfaceDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -251,7 +249,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumNoInitia
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumNoInitializerFollowsNonLiteralInitializer.ts::./helpers.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumPropertyAccess.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumWithComputedMember.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumWithPrimitiveName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumsWithMultipleDeclarations1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumsWithMultipleDeclarations2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts::commonjs.d.cts
@@ -611,9 +608,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/pathMappingB
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/pathsValidation4.ts::src/main.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/pathsValidation5.ts::src/main.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/primitiveMembers.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/primitiveTypeAsClassName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/primitiveTypeAsInterfaceName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/primitiveTypeAsInterfaceNameGeneric.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/privacyGloImportParseErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithExport.ts::privacyTopLevelAmbientExternalModuleImportWithExport_require.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithExport.ts::privacyTopLevelAmbientExternalModuleImportWithExport_require1.ts
@@ -737,7 +731,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedSym
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedTypeAssignment1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedTypeAssignment2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedTypeAssignment3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedTypeAssignment4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unicodeEscapesInNames02.ts::extendedEscapesForAstralsInVarsAndClasses.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unionPropertyExistence.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unionPropertyOfProtectedAndIntersectionProperty.ts
@@ -775,7 +768,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration3_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractProperties.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classWithPredefinedTypesAsNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classExpressions/classWithStaticFieldInParameterBindingPattern.2.ts
@@ -878,7 +870,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbo
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolProperty54.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolProperty59.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolType13.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolType20.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolType3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolType4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionThisCapturing.ts
@@ -1518,7 +1509,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression17.ts::fileTs.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClass2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration12.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration2.ts
@@ -1531,7 +1521,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessor1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration17.ts
@@ -1682,7 +1671,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/obj
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/indexSignatures/multipleStringIndexers.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/methodSignatures/methodSignaturesWithOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/objectTypeLiteralSyntax2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/specifyingTypes/predefinedTypes/objectTypesWithPredefinedTypesAsName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/specifyingTypes/typeQueries/typeofThis.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/specifyingTypes/typeReferences/genericTypeReferenceWithoutTypeArgument.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/specifyingTypes/typeReferences/genericTypeReferenceWithoutTypeArgument.ts
@@ -1885,6 +1873,7 @@ typescript/tests/cases/compiler/ClassDeclaration14.ts:2:4: Function implementati
 typescript/tests/cases/compiler/ClassDeclaration15.ts:3:4: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/ClassDeclaration21.ts:3:5: Function implementation name must be '0'.
 typescript/tests/cases/compiler/ClassDeclaration22.ts:3:5: Function implementation name must be 'foo'.
+typescript/tests/cases/compiler/ClassDeclaration24.ts:1:7: Class name cannot be 'any'.
 typescript/tests/cases/compiler/ClassDeclaration25.ts:6:5: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/ClassDeclaration26.ts:2:18: Expected (, got var
 typescript/tests/cases/compiler/ClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
@@ -1894,6 +1883,7 @@ typescript/tests/cases/compiler/ExportAssignment7.ts:1:1: An export assignment c
 typescript/tests/cases/compiler/ExportAssignment8.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/FunctionDeclaration4.ts:2:10: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/FunctionDeclaration6.ts:3:14: Function implementation name must be 'foo'.
+typescript/tests/cases/compiler/InterfaceDeclaration8.ts:1:11: Interface name cannot be 'string'.
 typescript/tests/cases/compiler/MemberAccessorDeclaration15.ts:2:28: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/ParameterList13.ts:2:17: Expected ), got identifier
 typescript/tests/cases/compiler/ParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
@@ -2080,6 +2070,7 @@ typescript/tests/cases/compiler/enumIdentifierLiterals.ts:2:5: An enum member ca
 typescript/tests/cases/compiler/enumMemberResolution.ts:5:5: Expected semicolon
 typescript/tests/cases/compiler/enumWithBigint.ts:2:3: An enum member cannot have a numeric name.
 typescript/tests/cases/compiler/enumWithParenthesizedInitializer1.ts:3:1: Expected ), got }
+typescript/tests/cases/compiler/enumWithPrimitiveName.ts:1:6: Enum name cannot be 'string'.
 typescript/tests/cases/compiler/erasableSyntaxOnly2.ts:1:10: Unexpected '<': not a valid TS type assertion or generic arrow
 typescript/tests/cases/compiler/errorElaboration.ts:22:1: Duplicate identifier 'foo'
 typescript/tests/cases/compiler/errorForConflictingExportEqualsValue.ts:1:1: An export assignment cannot be used in a module with other exported elements.
@@ -2349,6 +2340,9 @@ typescript/tests/cases/compiler/parserPrivateIdentifierInArrayAssignment.ts:1:2:
 typescript/tests/cases/compiler/parserUnparsedTokenCrash1.ts:1:9: Expected ), got ;
 typescript/tests/cases/compiler/parserUnparsedTokenCrash2.ts:1:10: Expected expression after 'export ='
 typescript/tests/cases/compiler/prettyContextNotDebugAssertion.ts:1:12: Expected '}' at end of block
+typescript/tests/cases/compiler/primitiveTypeAsClassName.ts:1:7: Class name cannot be 'any'.
+typescript/tests/cases/compiler/primitiveTypeAsInterfaceName.ts:1:11: Interface name cannot be 'number'.
+typescript/tests/cases/compiler/primitiveTypeAsInterfaceNameGeneric.ts:1:11: Interface name cannot be 'number'.
 typescript/tests/cases/compiler/privacyImportParseErrors.ts:326:9: Expected semicolon
 typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithExport.ts::privacyTopLevelAmbientExternalModuleImportWithExport_core.ts:17:12: Duplicate exported name 'publicUse_im_public_mi_public'
 typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithoutExport.ts::privacyTopLevelAmbientExternalModuleImportWithoutExport_core.ts:17:12: Duplicate exported name 'publicUse_im_private_mi_public'
@@ -2436,6 +2430,7 @@ typescript/tests/cases/compiler/unclosedExportClause02.ts::t2.ts:2:5: Expected }
 typescript/tests/cases/compiler/unclosedExportClause02.ts::t3.ts:2:5: Expected }, got string
 typescript/tests/cases/compiler/unclosedExportClause02.ts::t4.ts:1:17: Expected }, got from
 typescript/tests/cases/compiler/unclosedExportClause02.ts::t5.ts:2:5: Expected }, got string
+typescript/tests/cases/compiler/undefinedTypeAssignment4.ts:1:7: Class name cannot be 'undefined'.
 typescript/tests/cases/compiler/unexpectedStatementBlockTerminator.ts:4:1: Unexpected reserved word 'case'
 typescript/tests/cases/compiler/unicodeEscapesInNames02.ts::astralAsSurrogatePair.ts:1:25: Expected }, got INVALID
 typescript/tests/cases/compiler/unicodeIdentifierName2.ts:1:6: Expected '=', ',', or ';' after variable binding
@@ -2526,6 +2521,7 @@ typescript/tests/cases/conformance/classes/classDeclarations/classHeritageSpecif
 typescript/tests/cases/conformance/classes/classDeclarations/classHeritageSpecification/classExtendingPrimitive2.ts:3:19: Expected expression after 'extends'
 typescript/tests/cases/conformance/classes/classDeclarations/classHeritageSpecification/classExtendsEveryObjectType.ts:6:31: Unexpected ';' in object literal
 typescript/tests/cases/conformance/classes/classDeclarations/classHeritageSpecification/classExtendsEveryObjectType2.ts:1:31: Unexpected ';' in object literal
+typescript/tests/cases/conformance/classes/classDeclarations/classWithPredefinedTypesAsNames.ts:3:7: Class name cannot be 'any'.
 typescript/tests/cases/conformance/classes/classDeclarations/classWithPredefinedTypesAsNames2.ts:3:7: Expected {, got void
 typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file1.ts:3:15: Duplicate identifier 'C1'
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock16.ts:11:28: Private field '#y' must be declared in an enclosing class
@@ -2661,6 +2657,7 @@ typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/ar
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-bad-import.ts:1:17: Import binding name cannot be a string literal
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-no-as.ts:1:22: String import names require 'as' binding
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-type-as.ts:1:18: Import binding name cannot be a string literal
+typescript/tests/cases/conformance/es6/Symbols/symbolType20.ts:1:11: Interface name cannot be 'symbol'.
 typescript/tests/cases/conformance/es6/arrowFunction/disallowLineTerminatorBeforeArrow.ts:2:5: Line terminator not permitted before '=>'
 typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12.ts:2:7: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12_ES6.ts:2:7: 'arguments' cannot be used as a binding name in strict mode
@@ -3214,6 +3211,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserCl
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration2.ts:1:22: Expected {, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration21.ts:3:5: Function implementation name must be '0'.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration22.ts:3:5: Function implementation name must be 'foo'.
+typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration24.ts:1:7: Class name cannot be 'any'.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration25.ts:6:5: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration3.ts:1:22: Expected {, got extends
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration4.ts:1:32: Expected {, got extends
@@ -3366,6 +3364,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/pars
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration3.ts:1:8: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration4.ts:1:8: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration6.ts:1:8: 'export' modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration8.ts:1:11: Interface name cannot be 'string'.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration10.ts:2:12: Expected (, got UNKNOWN
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration11.ts:2:23: 'declare' modifier cannot be used here.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration12.ts:2:8: Getter must not have any formal parameters
@@ -3641,6 +3640,7 @@ typescript/tests/cases/conformance/types/objectTypeLiteral/propertySignatures/st
 typescript/tests/cases/conformance/types/rest/objectRestNegative.ts:2:20: Rest element must be last in object pattern
 typescript/tests/cases/conformance/types/rest/objectRestPropertyMustBeLast.ts:1:10: Rest element must be last in object pattern
 typescript/tests/cases/conformance/types/rest/restElementMustBeLast.ts:1:10: Rest element must be last in array pattern
+typescript/tests/cases/conformance/types/specifyingTypes/predefinedTypes/objectTypesWithPredefinedTypesAsName.ts:3:7: Class name cannot be 'any'.
 typescript/tests/cases/conformance/types/specifyingTypes/predefinedTypes/objectTypesWithPredefinedTypesAsName2.ts:3:7: Expected {, got void
 typescript/tests/cases/conformance/types/specifyingTypes/typeQueries/invalidTypeOfTarget.ts:2:18: Empty parenthesized expression
 typescript/tests/cases/conformance/types/specifyingTypes/typeQueries/typeofANonExportedType.ts:21:12: Duplicate exported name 'r5'
