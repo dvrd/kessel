@@ -47,6 +47,8 @@ CompilerSettings :: struct {
 	use_define_for_class_fields: []string,
 	experimental_decorators:     []string,
 	module_detection:            []string,
+	strict:                      []string,  // "strict" — controls alwaysStrict
+	always_strict:               []string,  // "alwaysStrict" — explicit override
 }
 
 // ============================================================================
@@ -236,6 +238,8 @@ compiler_settings_from_map :: proc(m: map[string]string, allocator: runtime.Allo
 		use_define_for_class_fields   = split_csv(m["usedefineforclassfields"],      allocator),
 		experimental_decorators       = split_csv(m["experimentaldecorators"],       allocator),
 		module_detection              = split_csv(m["moduledetection"],              allocator),
+		strict                        = split_csv(m["strict"],                        allocator),
+		always_strict                 = split_csv(m["alwaysstrict"],                  allocator),
 	}
 }
 
@@ -351,6 +355,28 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 				rel_with_unit = strings.concatenate({f.rel, "::", unit.name}, allocator)
 			}
 
+			// Determine force_strict from compiler settings.
+			// TypeScript defaults to alwaysStrict=true when target >= ES2015 and
+			// @strict is not explicitly false.
+			force_strict := false
+			if lang == .TS || lang == .TSX {
+				has_strict_false := false
+				for s in content.settings.strict {
+					if s == "false" { has_strict_false = true }
+				}
+				has_always_strict_false := false
+				has_always_strict_true := false
+				for s in content.settings.always_strict {
+					if s == "false" { has_always_strict_false = true }
+					if s == "true"  { has_always_strict_true  = true }
+				}
+				if has_always_strict_true {
+					force_strict = true
+				} else if !has_always_strict_false && !has_strict_false {
+					force_strict = true
+				}
+			}
+
 			// .cjs / .cts sub-units are CommonJS — set the override so
 			// the parser knows import/export in script-mode is valid.
 			cjs: Maybe(bool)
@@ -367,6 +393,7 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 				lang          = lang,
 				source_is_dts = dts,
 				is_commonjs   = cjs,
+				force_strict  = force_strict,
 				should_fail   = should_fail,
 				suite         = .TypeScript,
 			})
