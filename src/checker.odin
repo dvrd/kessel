@@ -192,6 +192,12 @@ CheckerContext :: struct {
 	// function (`new.target`, `return` at top level) are valid. Threaded
 	// from the parser via Parser.is_commonjs at check_program entry.
 	is_commonjs: bool,
+	// in_assignment_target — true while walking the left-hand side of an
+	// `=` assignment whose LHS is an ObjectExpression / ArrayExpression
+	// (destructuring assignment pattern). Suppresses the TS1117 duplicate
+	// property check, since the ObjectExpression is semantically an
+	// ObjectPattern where duplicate property names are legal.
+	in_assignment_target: bool,
 }
 
 Checker :: struct {
@@ -3100,7 +3106,29 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if ctx.strict_mode {
 			ck_check_strict_eval_arguments_in_target(c, e.left)
 		}
-		ck_walk_expr(c, ctx, e.left)
+		// When the LHS is an ObjectExpression or ArrayExpression under a
+		// plain `=` operator, it's a destructuring assignment pattern.
+		// Suppress checks that only apply to true object/array literals
+		// (e.g., TS1117 duplicate properties) while walking the LHS.
+		if e.operator == .Assign {
+			is_destructure := false
+			if e.left != nil {
+				#partial switch _ in e.left^ {
+				case ^ObjectExpression, ^ArrayExpression:
+					is_destructure = true
+				}
+			}
+			if is_destructure {
+				prev := ctx.in_assignment_target
+				ctx.in_assignment_target = true
+				ck_walk_expr(c, ctx, e.left)
+				ctx.in_assignment_target = prev
+			} else {
+				ck_walk_expr(c, ctx, e.left)
+			}
+		} else {
+			ck_walk_expr(c, ctx, e.left)
+		}
 		ck_walk_expr(c, ctx, e.right)
 
 	case ^SequenceExpression:
@@ -3121,7 +3149,14 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^ObjectExpression:
 		if e == nil { return }
-		ck_check_object_proto_dups(c, e)
+		// Skip duplicate-property checks when this ObjectExpression is the
+		// LHS of a destructuring assignment `({a, b} = rhs)`. The parser
+		// stores the original ObjectExpression in AssignmentExpression.left;
+		// semantically it's an ObjectPattern where duplicate keys are legal.
+		if !ctx.in_assignment_target {
+			ck_check_object_proto_dups(c, e)
+			ck_check_object_duplicate_props(c, ctx, e)
+		}
 		// ObjectExpression interior is an uncovered context (same
 		// rationale as ArrayExpression above).
 		prev_skip := ctx.scope_skip
@@ -3864,6 +3899,154 @@ ck_check_object_proto_dups :: proc(c: ^Checker, obj: ^ObjectExpression) {
 			ck_report(c, u32(err_off), "Redefinition of __proto__ property")
 		} else {
 			proto_seen = true
+		}
+	}
+}
+
+// ---------------------------------------------------------------
+// §13.2.5 — object literal duplicate property detection (TS1117/TS1118).
+//
+// TypeScript forbids duplicate property names in object literals unless
+// they form a valid get/set accessor pair. Non-computed keys
+// (Identifier, StringLiteral, NumericLiteral) are always checked.
+// Computed keys that are simple literal expressions (e.g., [1], ["x"],
+// [+1], [-1]) are also evaluated statically. Dynamic computed keys
+// (identifiers, member expressions, etc.) are skipped — catching those
+// requires type inference infrastructure.
+// ---------------------------------------------------------------
+
+// property_key_to_name_literal extracts a property name from a key
+// expression when it is a literal value (StringLiteral, NumericLiteral,
+// or UnaryExpression wrapping one of those). Used for COMPUTED keys
+// where Identifier references are variable lookups, not literal names.
+@(private="file")
+property_key_to_name_literal :: proc(key: ^Expression) -> string {
+	if key == nil { return "" }
+	#partial switch k in key^ {
+	case ^StringLiteral:
+		if k != nil { return k.value }
+	case ^NumericLiteral:
+		if k != nil { return k.raw }
+	case ^UnaryExpression:
+		if k == nil { return "" }
+		if k.operator == .Plus {
+			// +1 evaluates to 1; the property name is just the inner value.
+			return property_key_to_name_literal(k.argument)
+		}
+		if k.operator == .Minus {
+			inner := property_key_to_name_literal(k.argument)
+			if inner == "" { return "" }
+			// -1 → "-1" (negation survives into the property name).
+			return strings.concatenate({"-", inner}, context.temp_allocator)
+		}
+	}
+	return ""
+}
+
+// property_key_to_name extracts a canonical property name from a
+// non-computed key expression. Handles Identifier, StringLiteral,
+// NumericLiteral. For computed keys use property_key_to_name_literal.
+@(private="file")
+property_key_to_name :: proc(key: ^Expression) -> string {
+	if key == nil { return "" }
+	#partial switch k in key^ {
+	case ^Identifier:
+		if k != nil { return k.name }
+	case ^StringLiteral:
+		if k != nil { return k.value }
+	case ^NumericLiteral:
+		if k != nil { return k.raw }
+	}
+	return ""
+}
+
+// PropertySeen tracks the state of a property name in an object literal.
+PropertySeen :: enum u8 {
+	Unseen,
+	Data,       // .Init or .Method seen
+	Getter,
+	Setter,
+	GetterSetter, // valid get+set pair seen
+}
+
+// ck_check_object_duplicate_props enforces TS1117 and TS1118:
+//   - TS1117: "An object literal cannot have multiple properties with the
+//     same name."
+//   - TS1118: "An object literal cannot have multiple get/set accessors
+//     with the same name."
+//
+// Only active in TS / TSX mode. Computed keys that cannot be statically
+// evaluated are ignored.
+@(private="file")
+ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: ^ObjectExpression) {
+	if obj == nil { return }
+	if ctx.lang != .TS && ctx.lang != .TSX { return }
+
+	// State per canonical property name.
+	seen: map[string]PropertySeen
+	seen.allocator = context.temp_allocator
+
+	for i := 0; i < len(obj.properties); i += 1 {
+		prop := &obj.properties[i]
+		if prop.key == nil { continue }
+
+		// For non-computed keys, Identifier.name IS the property name.
+		// For computed keys, Identifier is a variable reference — only
+		// extract from literal expressions to avoid false positives like
+		// `{ a: 1, [a]: 2 }` where `a` is a variable, not the string "a".
+		name := prop.computed \
+			? property_key_to_name_literal(prop.key) \
+			: property_key_to_name(prop.key)
+		if name == "" { continue }
+		// Skip `__proto__` — already handled by ck_check_object_proto_dups
+		// which fires in all modes (JS + TS). Avoids double-counting.
+		if name == "__proto__" { continue }
+
+		state, exists := seen[name]
+		if !exists {
+			state = .Unseen
+		}
+
+		switch prop.kind {
+		case .Init, .Method:
+			switch state {
+			case .Unseen:
+				seen[name] = .Data
+			case .Data, .Getter, .Setter, .GetterSetter:
+				err_off := u32(loc_from_expr(prop.key).span.start)
+				ck_report(c, err_off,
+					"An object literal cannot have multiple properties with the same name.")
+			}
+		case .Get:
+			switch state {
+			case .Unseen:
+				seen[name] = .Getter
+			case .Getter, .GetterSetter:
+				err_off := u32(loc_from_expr(prop.key).span.start)
+				ck_report(c, err_off,
+					"An object literal cannot have multiple get/set accessors with the same name.")
+			case .Setter:
+				seen[name] = .GetterSetter
+			case .Data:
+				err_off := u32(loc_from_expr(prop.key).span.start)
+				ck_report(c, err_off,
+					"An object literal cannot have multiple properties with the same name.")
+			}
+		case .Set:
+			switch state {
+			case .Unseen:
+				seen[name] = .Setter
+			case .Setter, .GetterSetter:
+				err_off := u32(loc_from_expr(prop.key).span.start)
+				ck_report(c, err_off,
+					"An object literal cannot have multiple get/set accessors with the same name.")
+			case .Getter:
+				seen[name] = .GetterSetter
+			case .Data:
+				err_off := u32(loc_from_expr(prop.key).span.start)
+				ck_report(c, err_off,
+					"An object literal cannot have multiple properties with the same name.")
+			}
 		}
 	}
 }
