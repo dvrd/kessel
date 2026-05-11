@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12608/12664 (99.56%)
 Positive Passed: 12608/12664 (99.56%)
-Negative Passed: 1977/3498 (56.52%)
+Negative Passed: 1985/3498 (56.75%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -53,7 +53,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkJsFiles
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkMergedGlobalUMDSymbol.ts::global.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkMergedGlobalUMDSymbol.ts::test.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkMergedGlobalUMDSymbol.ts::three.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkSuperCallBeforeThisAccess.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkTypePredicateForRedundantProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkerInitializationCrash.ts::/index.tsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkerInitializationCrash.ts::/node_modules/@fullcalendar/core/index.d.ts
@@ -65,8 +64,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkingObje
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExpressionWithDecorator1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendingQualifiedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendsInterface_not.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendsNull.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendsNull2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classImplementsClass6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classOverloadForFunction2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classStaticPropertyAccess.ts
@@ -111,7 +108,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumBad
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constWithNonNull.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constantEnumAssert.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorsWithSpecializedSignatures.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypeForInitalizedVariablesFiltersUndefined.ts
@@ -616,7 +612,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticAnonym
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticClassMemberError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticInstanceResolution4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticMemberExportAccess.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticPropSuper.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/staticVisibility.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/statics.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeReservedWordInImportEqualDeclaration.ts
@@ -624,9 +619,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeRe
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/strictModeWordInImportDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/super.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/super1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superCallInsideClassDeclaration.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superCallInsideClassExpression.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superInConstructorParam1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superPropertyAccess2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superPropertyAccessInSuperCall01.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/systemModule9.ts
@@ -1791,6 +1783,7 @@ typescript/tests/cases/compiler/cannotInvokeNewOnErrorExpression.ts:5:22: Expect
 typescript/tests/cases/compiler/capturedParametersInInitializers1.ts:30:33: 'yield' expression is not allowed in formal parameters of a generator
 typescript/tests/cases/compiler/castOfYield.ts:4:21: Cannot use `yield` as an identifier in a generator context
 typescript/tests/cases/compiler/catchClauseWithInitializer1.ts:3:10: Expected ), got =
+typescript/tests/cases/compiler/checkSuperCallBeforeThisAccess.ts:7:18: 'super' must be called before accessing 'this' in the constructor of a derived class.
 typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing2.ts:5:9: 'super' must be called before accessing 'this' in the constructor of a derived class.
 typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing5.ts:5:15: 'super' must be called before accessing 'this' in the constructor of a derived class.
 typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing8.ts:7:20: 'super' must be called before accessing 'this' in the constructor of a derived class.
@@ -1800,6 +1793,8 @@ typescript/tests/cases/compiler/class2.ts:1:29: 'static' is a reserved identifie
 typescript/tests/cases/compiler/classCannotExtendVar.ts:3:7: Duplicate identifier 'Markup'
 typescript/tests/cases/compiler/classExpressionPropertyModifiers.ts:2:40: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/compiler/classExtendsMultipleBaseClasses.ts:3:18: Expected {, got ,
+typescript/tests/cases/compiler/classExtendsNull.ts:3:9: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/compiler/classExtendsNull2.ts:7:5: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/classFieldsBrokenConstructorEmitNoCrash1.ts:4:1: Class field cannot be named 'constructor'
 typescript/tests/cases/compiler/classHeritageWithTrailingSeparator.ts:2:18: Expected {, got ,
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier.ts:2:12: Expected method or property name
@@ -1842,6 +1837,7 @@ typescript/tests/cases/compiler/constructorArgsErrors3.ts:2:25: Accessibility mo
 typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors5.ts:2:18: 'export' is a reserved word and cannot be used as a binding name
 typescript/tests/cases/compiler/constructorOverloads1.ts:14:1: A class can only have one constructor
+typescript/tests/cases/compiler/constructorOverloads3.ts:12:16: Constructors for derived classes must contain a 'super' call.
 typescript/tests/cases/compiler/constructorOverloads6.ts:4:25: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/constructorOverloads8.ts:6:1: A class can only have one constructor
 typescript/tests/cases/compiler/constructorStaticParamName.ts:4:18: 'static' is a reserved identifier in strict mode
@@ -2262,6 +2258,7 @@ typescript/tests/cases/compiler/staticAsIdentifier.ts:12:19: Expected (, got ide
 typescript/tests/cases/compiler/staticClassProps.ts:4:9: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/staticModifierAlreadySeen.ts:2:19: Expected (, got identifier
 typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifier must precede 'static' modifier.
+typescript/tests/cases/compiler/staticPropSuper.ts:16:16: Constructors for derived classes must contain a 'super' call.
 typescript/tests/cases/compiler/staticPrototypeProperty.ts:5:1: Classes may not have a static member named 'prototype'
 typescript/tests/cases/compiler/staticsInAFunction.ts:1:13: Expected (, got {
 typescript/tests/cases/compiler/staticsInConstructorBodies.ts:3:3: 'static' is a reserved identifier in strict mode
@@ -2275,9 +2272,12 @@ typescript/tests/cases/compiler/stringLiteralsErrors.ts:18:25: Expected semicolo
 typescript/tests/cases/compiler/superAccess2.ts:7:10: 'super' can only be used with function calls or in property accesses
 typescript/tests/cases/compiler/superCallFromClassThatHasNoBaseType1.ts:8:26: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/superCallFromFunction1.ts:2:10: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/compiler/superCallInsideClassDeclaration.ts:8:16: Constructors for derived classes must contain a 'super' call.
+typescript/tests/cases/compiler/superCallInsideClassExpression.ts:8:16: Constructors for derived classes must contain a 'super' call.
 typescript/tests/cases/compiler/superCallOutsideConstructor.ts:6:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/superCallsInConstructor.ts:12:9: 'with' statements are not allowed in strict mode
 typescript/tests/cases/compiler/superErrors.ts:3:13: 'super' can only be used with function calls or in property accesses
+typescript/tests/cases/compiler/superInConstructorParam1.ts:8:14: Constructors for derived classes must contain a 'super' call.
 typescript/tests/cases/compiler/superInLambdas.ts:61:29: 'super' can only be used with function calls or in property accesses
 typescript/tests/cases/compiler/superInObjectLiterals_ES5.ts:17:9: 'super' property access is only valid inside a method
 typescript/tests/cases/compiler/superInObjectLiterals_ES6.ts:17:9: 'super' property access is only valid inside a method
@@ -2599,7 +2599,7 @@ typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/invalidBinar
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/octalIntegerLiteralError.ts:2:19: Expected semicolon
 typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts:4:16: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing3.ts:9:9: 'super' must be called before accessing 'this' in the constructor of a derived class.
-typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing4.ts:4:9: 'super' must be called before accessing 'this' in the constructor of a derived class.
+typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing4.ts:5:9: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing6.ts:7:15: 'super' must be called before accessing 'this' in the constructor of a derived class.
 typescript/tests/cases/conformance/es6/classDeclaration/superCallFromClassThatHasNoBaseTypeButWithSameSymbolInterface.ts:5:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts:5:8: Unexpected token: array literal cannot be a computed class member name

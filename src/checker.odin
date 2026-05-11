@@ -3615,9 +3615,19 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		// §14.1.3 / Annex B.3.2. Static-block bodies and class-method
 		// bodies share the same scoping rule.
 		ck_run_scope_check(c, ctx, fn.body.body[:], false)
-		// TS17009 — `this` before `super()` in derived constructor.
-		if kind == .Constructor && derived_ctor {
+		if kind == .Constructor && derived_ctor && (ctx.lang == .TS || ctx.lang == .TSX) {
+			// TS17009 — `this` before `super()` in derived constructor.
 			ck_check_this_before_super(c, ctx, fn.body.body[:])
+			// TS2377 — derived constructors must contain a `super()` call.
+			// Scan the body for any super() call. If none found, report.
+			has_super := false
+			for s in fn.body.body {
+				if stmt_contains_super_call(s) { has_super = true; break }
+			}
+			if !has_super {
+				ck_report(c, u32(fn.loc.span.start),
+					"Constructors for derived classes must contain a 'super' call.")
+			}
 		}
 		// TS — nested-scope decl-merge + FunctionDeclaration overload-chain
 		// for the function-body scope.
@@ -3700,7 +3710,13 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// re-applies it anyway).
 	prev_strict_heritage := ctx.strict_mode
 	if sc, have := cls.super_class.(^Expression); have && sc != nil {
-		has_extends = true
+		// `extends null` is a special case: NullLiteral as super_class
+		// means no base constructor to call. Don't set has_extends so
+		// TS2377 (missing super) and TS17009 (this before super) are
+		// suppressed.
+		is_null := false
+		if _, nok := sc^.(^NullLiteral); nok { is_null = true }
+		if !is_null { has_extends = true }
 		ctx.strict_mode = true
 		ck_walk_expr(c, ctx, sc)
 		ctx.strict_mode = prev_strict_heritage
@@ -4387,7 +4403,9 @@ stmt_find_this :: proc(stmt: ^Statement) -> u32 {
 	return 0
 }
 
-// stmt_contains_super_call — does this statement contain a `super()` call?
+// stmt_contains_super_call — does this statement (or any nested block)
+// contain a `super()` call? Recurses into if/else, try/catch, blocks,
+// switch, loops. Stops at function/arrow/class boundaries.
 @(private="file")
 stmt_contains_super_call :: proc(stmt: ^Statement) -> bool {
 	if stmt == nil { return false }
@@ -4407,6 +4425,40 @@ stmt_contains_super_call :: proc(stmt: ^Statement) -> bool {
 				return expr_is_or_contains_super_call(arg)
 			}
 		}
+	case ^BlockStatement:
+		if v != nil { for s in v.body { if stmt_contains_super_call(s) { return true } } }
+	case ^IfStatement:
+		if v == nil { return false }
+		if stmt_contains_super_call(v.consequent) { return true }
+		if alt, have := v.alternate.(^Statement); have {
+			return stmt_contains_super_call(alt)
+		}
+	case ^TryStatement:
+		if v == nil { return false }
+		for s in v.block.body { if stmt_contains_super_call(s) { return true } }
+		if handler, have := v.handler.(CatchClause); have {
+			for s in handler.body.body { if stmt_contains_super_call(s) { return true } }
+		}
+		if fin, have := v.finalizer.(BlockStatement); have {
+			for s in fin.body { if stmt_contains_super_call(s) { return true } }
+		}
+	case ^SwitchStatement:
+		if v == nil { return false }
+		for sc in v.cases {
+			for s in sc.consequent { if stmt_contains_super_call(s) { return true } }
+		}
+	case ^WhileStatement:
+		if v != nil { return stmt_contains_super_call(v.body) }
+	case ^DoWhileStatement:
+		if v != nil { return stmt_contains_super_call(v.body) }
+	case ^ForStatement:
+		if v != nil { return stmt_contains_super_call(v.body) }
+	case ^ForInStatement:
+		if v != nil { return stmt_contains_super_call(v.body) }
+	case ^ForOfStatement:
+		if v != nil { return stmt_contains_super_call(v.body) }
+	case ^LabeledStatement:
+		if v != nil { return stmt_contains_super_call(v.body) }
 	}
 	return false
 }
@@ -4504,6 +4556,34 @@ expr_is_or_contains_super_call :: proc(e: ^Expression) -> bool {
 	case ^LogicalExpression:
 		if v == nil { return false }
 		return expr_is_or_contains_super_call(v.left) || expr_is_or_contains_super_call(v.right)
+	case ^ObjectExpression:
+		if v == nil { return false }
+		for prop in v.properties {
+			if prop.key != nil && expr_is_or_contains_super_call(prop.key) { return true }
+			if prop.value != nil && expr_is_or_contains_super_call(prop.value) { return true }
+		}
+	case ^ArrayExpression:
+		if v == nil { return false }
+		for elem in v.elements {
+			if inner, have := elem.(^Expression); have {
+				if expr_is_or_contains_super_call(inner) { return true }
+			}
+		}
+	case ^MemberExpression:
+		if v == nil { return false }
+		if expr_is_or_contains_super_call(v.object) { return true }
+		if v.computed { return expr_is_or_contains_super_call(v.property) }
+	case ^SpreadElement:
+		if v != nil { return expr_is_or_contains_super_call(v.argument) }
+	case ^BinaryExpression:
+		if v == nil { return false }
+		return expr_is_or_contains_super_call(v.left) || expr_is_or_contains_super_call(v.right)
+	case ^UnaryExpression:
+		if v != nil { return expr_is_or_contains_super_call(v.argument) }
+	case ^TSAsExpression:
+		if v != nil { return expr_is_or_contains_super_call(v.expression) }
+	case ^TSNonNullExpression:
+		if v != nil { return expr_is_or_contains_super_call(v.expression) }
 	case ^ArrowFunctionExpression, ^FunctionExpression, ^ClassExpression:
 		return false
 	}
