@@ -3157,6 +3157,28 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if e == nil { return }
 		ck_check_unary_delete_private(c, e)
 		ck_check_unary_delete_local(c, ctx, e)
+		// TS2703 — delete operand must be a property reference.
+		if e.operator == .Delete && e.argument != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			is_valid := false
+			inner := e.argument
+			for inner != nil {
+				pe, is_paren := inner^.(^ParenthesizedExpression)
+				if !is_paren || pe == nil { break }
+				inner = pe.expression
+			}
+			#partial switch _ in inner^ {
+			case ^Identifier:
+				is_valid = true
+			case ^MemberExpression:
+				is_valid = true
+			case ^ChainExpression:
+				is_valid = true
+			}
+			if !is_valid {
+				ck_report(c, u32(e.loc.span.start),
+					"The operand of a 'delete' operator must be a property reference.")
+			}
+		}
 		ck_walk_expr(c, ctx, e.argument)
 	case ^UpdateExpression:
 		if e == nil { return }
