@@ -935,9 +935,17 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		}
 		return
 
+	case ^TSExportAssignment:
+		// TS export assignment (`export = X`). Check position: in script
+		// mode this is "'export' is only valid in module code".
+		if v != nil {
+			ck_check_import_export_position(c, ctx, v.loc, false, was_top_level)
+		}
+		return
+
 	case ^EmptyStatement, ^DebuggerStatement,
 	     ^TSImportEqualsDeclaration,
-	     ^TSExportAssignment, ^TSNamespaceExportDeclaration:
+	     ^TSNamespaceExportDeclaration:
 		// No iteration / switch / label / function bodies inside these
 		// for break/continue purposes.
 		return
