@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12607/12664 (99.55%)
-Positive Passed: 12607/12664 (99.55%)
-Negative Passed: 1945/3498 (55.60%)
+AST Parsed     : 12608/12664 (99.56%)
+Positive Passed: 12608/12664 (99.56%)
+Negative Passed: 1957/3498 (55.95%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -475,12 +475,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmen
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationEnumClassMergeOfReexportIsError.ts::augment.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationEnumClassMergeOfReexportIsError.ts::file.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationEnumClassMergeOfReexportIsError.ts::reexport.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal6_1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal7_1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal8_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationImportsAndExports2.ts::f1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationImportsAndExports2.ts::f2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationImportsAndExports2.ts::f3.ts
@@ -509,7 +503,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleVariab
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleVisibilityTest2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/module_augmentExistingAmbientVariable.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/module_augmentExistingVariable.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/multipleExportAssignments.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/multipleExportAssignmentsInAmbientDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/multipleExports.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/multivar.ts
@@ -970,11 +963,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/expressio
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/expressions/unaryOperators/voidOperator/voidOperatorWithAnyOtherType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/circularReference.ts::foo1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/circularReference.ts::foo2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/exportAssignNonIdentifier.ts::foo1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/exportAssignNonIdentifier.ts::foo2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/exportAssignNonIdentifier.ts::foo3.ts
@@ -1719,9 +1707,6 @@ typescript/tests/cases/conformance/node/esmModuleExports1.ts::/exporter.mts:2:10
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports3.ts::/exporter.mts
 typescript/tests/cases/conformance/node/esmModuleExports3.ts::/exporter.mts:2:15: Export 'Foo' is not defined in the module
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.2.ts
-typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.2.ts:1:1: 'using' declaration is not allowed at the top level of a script
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.3.ts
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.3.ts:1:10: Export 'y' is not defined in the module
 
@@ -2169,6 +2154,12 @@ typescript/tests/cases/compiler/misspelledNewMetaProperty.ts:1:19: Expected expr
 typescript/tests/cases/compiler/modifierOnParameter1.ts:2:24: Expected ), got identifier
 typescript/tests/cases/compiler/modifiersInObjectLiterals.ts:2:2: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/modifiersOnInterfaceIndexSignature1.ts:2:3: 'public' modifier cannot appear on an index signature.
+typescript/tests/cases/compiler/moduleAugmentationGlobal6.ts:1:1: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
+typescript/tests/cases/compiler/moduleAugmentationGlobal6_1.ts:1:1: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
+typescript/tests/cases/compiler/moduleAugmentationGlobal7.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
+typescript/tests/cases/compiler/moduleAugmentationGlobal7_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
+typescript/tests/cases/compiler/moduleAugmentationGlobal8.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
+typescript/tests/cases/compiler/moduleAugmentationGlobal8_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
 typescript/tests/cases/compiler/moduleDuplicateIdentifiers.ts:2:12: Duplicate exported name 'Foo'
 typescript/tests/cases/compiler/moduleElementsInWrongContext.ts:3:5: 'export' declarations are only allowed at the top level of a module
 typescript/tests/cases/compiler/moduleElementsInWrongContext2.ts:3:5: 'export' declarations are only allowed at the top level of a module
@@ -2180,6 +2171,7 @@ typescript/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt5.t
 typescript/tests/cases/compiler/multiLinePropertyAccessAndArrowFunctionIndent1.ts:1:8: 'return' outside of function
 typescript/tests/cases/compiler/multipleClassPropertyModifiers.ts:3:19: 'public' modifier must precede 'static' modifier.
 typescript/tests/cases/compiler/multipleClassPropertyModifiersErrors.ts:2:9: Accessibility modifier already seen.
+typescript/tests/cases/compiler/multipleExportAssignments.ts:14:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/multipleInheritance.ts:9:19: Expected {, got ,
 typescript/tests/cases/compiler/nestedGlobalNamespaceInClass.ts:3:12: Expected (, got identifier
 typescript/tests/cases/compiler/nestedUnaryExpressionHang.ts:1:34: Expected expression after unary operator
@@ -2829,6 +2821,11 @@ typescript/tests/cases/conformance/expressions/unaryOperators/negateOperator/neg
 typescript/tests/cases/conformance/expressions/unaryOperators/plusOperator/plusOperatorInvalidOperations.ts:5:17: Expected expression after operator
 typescript/tests/cases/conformance/expressions/unaryOperators/typeofOperator/typeofOperatorInvalidOperations.ts:4:15: Expected semicolon
 typescript/tests/cases/conformance/expressions/unaryOperators/voidOperator/voidOperatorInvalidOperations.ts:4:15: Expected semicolon
+typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo1.ts:4:1: An export assignment cannot be used in a module with other exported elements.
+typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo2.ts:4:1: An export assignment cannot be used in a module with other exported elements.
+typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo3.ts:8:1: An export assignment cannot be used in a module with other exported elements.
+typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo4.ts:8:1: An export assignment cannot be used in a module with other exported elements.
+typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo5.ts:5:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/externalModules/exportAssignNonIdentifier.ts::foo6.ts:1:14: Expected expression after unary operator
 typescript/tests/cases/conformance/externalModules/exportAssignmentAndDeclaration.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/externalModules/exportNonInitializedVariablesAMD.ts:1:4: Expected binding pattern

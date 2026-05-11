@@ -1691,7 +1691,8 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 				if stmt == nil { continue }
 				#partial switch _ in stmt^ {
 				case ^ImportDeclaration, ^ExportNamedDeclaration,
-				     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
+				     ^ExportDefaultDeclaration, ^ExportAllDeclaration,
+				     ^TSExportAssignment:
 					program.type = .Module
 					break
 				}

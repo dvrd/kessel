@@ -198,6 +198,10 @@ CheckerContext :: struct {
 	// property check, since the ObjectExpression is semantically an
 	// ObjectPattern where duplicate property names are legal.
 	in_assignment_target: bool,
+	// in_ambient_module_decl — true while walking the body of an ambient
+	// module declaration with a string literal id (`declare module "..."`).
+	// Used by TS2669 to allow `declare global {}` inside ambient modules.
+	in_ambient_module_decl: bool,
 }
 
 Checker :: struct {
@@ -863,6 +867,28 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^TSModuleDeclaration:
 		if v == nil { return }
+		// TS2669 — `declare global {}` is only valid directly nested in an
+		// external module (top-level of a module file) or inside an ambient
+		// module declaration (`declare module "..." {}`). Anywhere else
+		// (script top-level, inside a namespace, etc.) is an error.
+		if (v.global || v.kind == .Global) && (ctx.lang == .TS || ctx.lang == .TSX) {
+			global_ok := false
+			if ctx.is_dts {
+				// .d.ts files are ambient declaration files — `declare global`
+				// is always valid because the entire file is ambient context.
+				global_ok = true
+			} else if ctx.in_ambient_module_decl {
+				// Inside `declare module "..." {}` — always valid.
+				global_ok = true
+			} else if ctx.ts_namespace_depth == 0 && ctx.source_type == .Module {
+				// Top level of a module file — valid.
+				global_ok = true
+			}
+			if !global_ok {
+				ck_report(c, u32(v.loc.span.start),
+					"Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.")
+			}
+		}
 		// TS namespace / module body. Most ECMA early errors don't apply
 		// across namespace boundaries (no break/continue/labels can
 		// escape), but TS-specific per-scope checks DO need to descend:
@@ -972,12 +998,21 @@ ck_walk_ts_module_decl :: proc(c: ^Checker, ctx: ^CheckerContext, m: ^TSModuleDe
 	if !have || body_opt == nil { return }
 	prev_dts := ctx.is_dts
 	prev_top := ctx.at_top_level
+	prev_ambient_mod := ctx.in_ambient_module_decl
 	if m.declare { ctx.is_dts = true }
 	ctx.at_top_level = true
 	ctx.ts_namespace_depth += 1
+	// Track `declare module "..."` bodies (ambient module declarations).
+	// Used by TS2669 to allow `declare global {}` inside them.
+	if m.id != nil {
+		if _, is_str := m.id^.(^StringLiteral); is_str {
+			ctx.in_ambient_module_decl = true
+		}
+	}
 	defer {
 		ctx.is_dts = prev_dts
 		ctx.at_top_level = prev_top
+		ctx.in_ambient_module_decl = prev_ambient_mod
 		ctx.ts_namespace_depth -= 1
 	}
 	#partial switch inner in body_opt^ {
