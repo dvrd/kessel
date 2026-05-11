@@ -3,7 +3,7 @@ commit: c543b031
 semantic_babel Summary:
 AST Parsed     : 2213/2233 (99.10%)
 Positive Passed: 2213/2233 (99.10%)
-Negative Passed: 1675/1711 (97.90%)
+Negative Passed: 1676/1711 (97.95%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
@@ -30,7 +30,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/decorators/type-arguments-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-assertion/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-parameter/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-initializer/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters-arrow/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-in-script/input.ts
@@ -1650,6 +1649,7 @@ babel/packages/babel-parser/test/fixtures/typescript/declare/module-function/inp
 babel/packages/babel-parser/test/fixtures/typescript/declare/namespace-class/input.ts:3:20: Initializers are not allowed in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/declare/namespace-function/input.ts:2:3: An implementation cannot be declared in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-implementation/input.ts:1:1: An implementation cannot be declared in ambient contexts.
+babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-initializer/input.ts:2:10: Initializers are not allowed in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/expect-plugin/export-interface/input.js:1:8: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/expect-plugin/export-type-named/input.js:2:13: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/expect-plugin/export-type/input.js:1:13: Expected semicolon

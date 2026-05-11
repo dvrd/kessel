@@ -5483,7 +5483,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				// TS: `declare` fields must not have initializers,
 				// UNLESS both `declare` and `readonly` are present
 				// (OXC allows `declare readonly x = 1;`).
-				if (is_declare || p.in_ambient) && !is_readonly {
+				if (is_declare || p.in_ambient || p.source_is_dts) && !is_readonly {
 					report_error(p, "Initializers are not allowed in ambient contexts.")
 				}
 				if is_abstract {
