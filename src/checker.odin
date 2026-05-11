@@ -4802,9 +4802,14 @@ ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: C
 			msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
 			ck_report(c, off, msg)
 		}
-		// Annex B §B.3.4 allows var redeclaration of catch parameter
-		// in sloppy mode; strict mode always rejects it.
-		if ctx.strict_mode {
+		// Annex B §B.3.4 allows var redeclaration of a simple catch
+		// parameter in sloppy mode. For destructuring patterns, var
+		// redeclaration is always an error.
+		is_simple_id := false
+		if _, ok := param.(^Identifier); ok {
+			is_simple_id = true
+		}
+		if ctx.strict_mode || !is_simple_id {
 			if off, ok := scope_map_get(&body_vars, n); ok {
 				msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with 'var' in catch block", n)
 				ck_report(c, off, msg)
