@@ -782,7 +782,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			// (§15.4.5 covers `catch ({a, a})` and the like).
 			ck_check_catch_param_dups(c, h)
 			// §15.4.5 — catch param vs body let/const redeclaration.
-			ck_check_catch_param_body_shadow(c, h)
+			ck_check_catch_param_body_shadow(c, ctx, h)
 			// Catch parameter is a BindingIdentifier (or pattern containing
 			// BindingIdentifiers). §13.1.1 strict-mode check applies.
 			if ctx.strict_mode {
@@ -4784,7 +4784,7 @@ ck_check_for_head_body_shadow :: proc(c: ^Checker, decl: ^VariableDeclaration,
 // body. `catch (e) { let e; }` is a SyntaxError. Mirrors parser.odin's
 // old inline check (parse_catch_clause).
 @(private="file")
-ck_check_catch_param_body_shadow :: proc(c: ^Checker, h: CatchClause) {
+ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: CatchClause) {
 	param, have := h.param.(Pattern)
 	if !have || param == nil { return }
 	param_names: [dynamic]string
@@ -4801,6 +4801,14 @@ ck_check_catch_param_body_shadow :: proc(c: ^Checker, h: CatchClause) {
 		if off, ok := scope_map_get(&body_lex, n); ok {
 			msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
 			ck_report(c, off, msg)
+		}
+		// Annex B §B.3.4 allows var redeclaration of catch parameter
+		// in sloppy mode; strict mode always rejects it.
+		if ctx.strict_mode {
+			if off, ok := scope_map_get(&body_vars, n); ok {
+				msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with 'var' in catch block", n)
+				ck_report(c, off, msg)
+			}
 		}
 	}
 }
