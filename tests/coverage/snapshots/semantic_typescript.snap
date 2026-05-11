@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12607/12664 (99.55%)
 Positive Passed: 12607/12664 (99.55%)
-Negative Passed: 1893/3498 (54.12%)
+Negative Passed: 1910/3498 (54.60%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -184,7 +184,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/detachedComm
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/detachedCommentAtStartOfFunctionBody2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/didYouMeanSuggestionErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/downlevelLetConst16.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateDefaultExport.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierComputedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierDifferentSpelling.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierEnum.ts::duplicateIdentifierEnum_B.ts
@@ -282,13 +281,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportClassW
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDeclarationsInAmbientNamespaces2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultAlias_excludesEverything.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::b.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultClassAndValue.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultClassInNamespace.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultFunctionInNamespace.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultInterfaceAndTwoFunctions.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultInterfaceClassAndValue.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultTypeAndClass.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultTypeClassAndValue.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualErrorType.ts::exportEqualErrorType_0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualErrorType.ts::exportEqualErrorType_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualMemberMissing.ts::exportEqualMemberMissing_0.ts
@@ -897,13 +891,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modul
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithContextualKeywordNames01.ts::t2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithContextualKeywordNames01.ts::t4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithUnderscores1.ts::m2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports01.ts::m1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports01.ts::m2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports02.ts::m1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports02.ts::m2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports03.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports04.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports05.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/shorthandPropertyAssignment/objectLiteralShorthandPropertiesErrorFromNoneExistingIdentifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/templates/taggedTemplateStringsWithOverloadResolution3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/templates/taggedTemplateStringsWithOverloadResolution3_ES6.ts
@@ -1024,12 +1013,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalM
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithAMD.ts::0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithCommonjs.ts::0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithSystem.ts::0.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/multipleExportDefault1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/multipleExportDefault2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/multipleExportDefault3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/multipleExportDefault4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/multipleExportDefault5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/multipleExportDefault6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/rewriteRelativeImportExtensions/emit.ts::globals.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/rewriteRelativeImportExtensions/emit.ts::js.js
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/rewriteRelativeImportExtensions/emit.ts::lol.ts
@@ -1978,6 +1961,7 @@ typescript/tests/cases/compiler/downlevelLetConst11.ts:2:1: 'let' declaration re
 typescript/tests/cases/compiler/downlevelLetConst2.ts:1:8: Missing initializer in 'const' declaration
 typescript/tests/cases/compiler/downlevelLetConst4.ts:1:16: Missing initializer in 'const' declaration
 typescript/tests/cases/compiler/duplicateClassElements.ts:4:5: Duplicate function implementation.
+typescript/tests/cases/compiler/duplicateDefaultExport.ts:2:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/duplicateIdentifierBindingElementInParameterDeclaration1.ts:1:1: Duplicate parameter name 'a' in strict mode
 typescript/tests/cases/compiler/duplicateIdentifierBindingElementInParameterDeclaration2.ts:2:1: Duplicate parameter name 'a' in strict mode
 typescript/tests/cases/compiler/duplicateIdentifierEnum.ts::duplicateIdentifierEnum_A.ts:4:7: Duplicate identifier 'A'
@@ -2042,9 +2026,14 @@ typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::asyncawait.ts:2:
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::c.ts:1:17: 'await' is reserved as a binding name in module code
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::d.ts:1:17: 'await' is reserved as a binding name in module code
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::e.ts:1:17: 'await' is reserved as a binding name in module code
-typescript/tests/cases/compiler/exportDefaultDuplicateCrash.ts:5:16: Duplicate exported name 'default'
+typescript/tests/cases/compiler/exportDefaultClassAndValue.ts:3:1: Duplicate exported name 'default'
+typescript/tests/cases/compiler/exportDefaultDuplicateCrash.ts:4:10: Duplicate exported name 'default'
+typescript/tests/cases/compiler/exportDefaultInterfaceAndTwoFunctions.ts:3:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportDefaultInterfaceClassAndFunctionOverloads.ts:2:1: Expected {, got export
+typescript/tests/cases/compiler/exportDefaultInterfaceClassAndValue.ts:3:1: Duplicate exported name 'default'
+typescript/tests/cases/compiler/exportDefaultTypeAndClass.ts:3:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportDefaultTypeAndFunctionOverloads.ts:2:1: Expected {, got export
+typescript/tests/cases/compiler/exportDefaultTypeClassAndValue.ts:3:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportEqualsClassRedeclarationError.ts:6:5: Duplicate identifier 'someProp'
 typescript/tests/cases/compiler/exportInFunction.ts:2:16: Expected '}' at end of function body
 typescript/tests/cases/compiler/exportInterfaceClassAndValue.ts:2:22: Duplicate exported name 'foo'
@@ -2708,6 +2697,11 @@ typescript/tests/cases/conformance/es6/memberFunctionDeclarations/MemberFunction
 typescript/tests/cases/conformance/es6/modules/exportBinding.ts::exportConsts.ts:3:16: Block-scoped variable 'x' used before its declaration.
 typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithContextualKeywordNames01.ts::t3.ts:1:17: 'yield' is reserved as a binding name in strict mode
 typescript/tests/cases/conformance/es6/modules/exportsAndImportsWithUnderscores1.ts::m1.ts:5:5: Expected }, got string
+typescript/tests/cases/conformance/es6/modules/multipleDefaultExports01.ts::m1.ts:5:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/es6/modules/multipleDefaultExports02.ts::m1.ts:5:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/es6/modules/multipleDefaultExports03.ts:4:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/es6/modules/multipleDefaultExports04.ts:4:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/es6/modules/multipleDefaultExports05.ts:3:1: Duplicate exported name 'default'
 typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es5.ts:1:21: 'new.target' is only allowed inside functions
 typescript/tests/cases/conformance/es6/newTarget/invalidNewTarget.es6.ts:1:21: 'new.target' is only allowed inside functions
 typescript/tests/cases/conformance/es6/shorthandPropertyAssignment/objectLiteralShorthandPropertiesErrorFromNotUsingIdentifier.ts:3:20: Numeric / string property name requires a value
@@ -2860,6 +2854,12 @@ typescript/tests/cases/conformance/externalModules/initializersInDeclarations.ts
 typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithAMD.ts::1.ts:1:10: Expected as, got from
 typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithCommonjs.ts::1.ts:1:10: Expected as, got from
 typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithSystem.ts::1.ts:1:10: Expected as, got from
+typescript/tests/cases/conformance/externalModules/multipleExportDefault1.ts:5:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/externalModules/multipleExportDefault2.ts:5:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/externalModules/multipleExportDefault3.ts:5:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/externalModules/multipleExportDefault4.ts:3:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/externalModules/multipleExportDefault5.ts:2:1: Duplicate exported name 'default'
+typescript/tests/cases/conformance/externalModules/multipleExportDefault6.ts:5:1: Duplicate exported name 'default'
 typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.1.ts:4:11: Parenthesized expressions may not have a trailing comma.
 typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.10.ts::index.ts:2:19: 'await' is reserved as a binding name in module code
 typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.12.ts:2:31: 'await' is reserved as a binding name in this context

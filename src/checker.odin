@@ -4450,6 +4450,23 @@ ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Progra
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
 				record(c, &exported, ns_name.name, u32(ns_name.loc.span.start))
 			}
+		case ^ExportDefaultDeclaration:
+			if v == nil { continue }
+			// TS2528 — a module cannot have multiple default exports.
+			// Type-only defaults (interface, type alias) coexist with
+			// value defaults and are not counted here.
+			is_type_only := false
+			if d, have := v.declaration.(^Declaration); have && d != nil {
+				#partial switch inner in d^ {
+				case ^TSInterfaceDeclaration:
+					is_type_only = true
+				case ^TSTypeAliasDeclaration:
+					is_type_only = true
+				}
+			}
+			if !is_type_only {
+				record(c, &exported, "default", u32(v.loc.span.start))
+			}
 		}
 	}
 }
