@@ -1,8 +1,8 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2209/2233 (98.93%)
-Positive Passed: 2209/2233 (98.93%)
+AST Parsed     : 2213/2233 (99.10%)
+Positive Passed: 2213/2233 (99.10%)
 Negative Passed: 1674/1711 (97.84%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -55,18 +55,6 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/264/input.js:1:18: 
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class-methods/linebreaks/input.js
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/linebreaks/input.js:42:2: A class can only have one constructor
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/duplicate-proto-1/input.js
-babel/packages/babel-parser/test/fixtures/es2015/destructuring/duplicate-proto-1/input.js:1:18: Redefinition of __proto__ property
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/duplicate-proto-2/input.js
-babel/packages/babel-parser/test/fixtures/es2015/destructuring/duplicate-proto-2/input.js:1:19: Redefinition of __proto__ property
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/duplicate-proto-3/input.js
-babel/packages/babel-parser/test/fixtures/es2015/destructuring/duplicate-proto-3/input.js:1:18: Redefinition of __proto__ property
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/destructuring/duplicate-proto-4/input.js
-babel/packages/babel-parser/test/fixtures/es2015/destructuring/duplicate-proto-4/input.js:1:18: Redefinition of __proto__ property
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-async-function-body-inside-parameters-of-function/input.js
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-async-function-body-inside-parameters-of-function/input.js:1:37: 'await' expression is not allowed in formal parameters of an async function

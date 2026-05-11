@@ -12630,9 +12630,6 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	// Slice 14: scope_skip is now tracked by the checker; the parser
 	// no longer suppresses anything during property-walk.
 
-	// §13.2.5.1 duplicate __proto__ early error.
-	seen_proto_offset: u32 = 0
-
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		// Skip stray semicolons (error recovery)
 		for is_token(p, .Semi) {
@@ -12644,15 +12641,11 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 
 		prop := parse_property(p)
 		if prop != nil {
-			// §13.2.5.1 — check for duplicate `__proto__` property.
-			// Only data properties (kind == .Init) with literal
-			// `__proto__` key (not computed, not shorthand) count.
-			if property_is_literal_proto_init(prop) {
-				if seen_proto_offset != 0 {
-					report_error_at(p, LexerLoc(prop.loc.span.start), "Redefinition of __proto__ property")
-				}
-				seen_proto_offset = prop.loc.span.start
-			}
+			// §13.2.5.1 duplicate `__proto__` is now enforced post-parse by
+			// the semantic checker (ck_check_object_proto_dups), which can
+			// distinguish ObjectExpression from ObjectPattern and suppresses
+			// the diagnostic for destructuring assignment targets where
+			// Annex B.3.1 makes duplicate __proto__ legal.
 			bump_append(&obj.properties, prop^)
 		}
 
