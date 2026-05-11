@@ -4,7 +4,7 @@
 
 Kessel is a JavaScript/TypeScript/JSX/TSX parser written in Odin that emits ESTree-compatible JSON ASTs. Targets ES2015–ES2025. Zero runtime dependencies, arena-only memory, ARM64 NEON SIMD lexer, hand-written Pratt expression parser. Three-pass pipeline: SIMD lexer → permissive Pratt parser → opt-in semantic checker. Mirrors OXC's `oxc_parser` / `oxc_semantic` architecture.
 
-## Current State (2026-05-11T16:15)
+## Current State (2026-05-11T17:00)
 
 ### Build
 ```bash
