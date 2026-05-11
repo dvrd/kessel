@@ -3492,6 +3492,15 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	if ctx.strict_mode {
 		for pr in fn.params { ck_check_strict_param_pattern(c, pr.pattern) }
 	}
+	// TS2371 — overload signatures may not have parameter initializers.
+	if fn.no_body && (ctx.lang == .TS || ctx.lang == .TSX) {
+		for pr in fn.params {
+			if _, has := pr.default_val.(^Expression); has {
+				msg := fmt.tprintf("A parameter initializer is only allowed in a function or constructor implementation.")
+				ck_report(c, u32(pr.loc.span.start), msg)
+			}
+		}
+	}
 	// §15.5.1 / §15.6.1 / §15.8.1 — duplicate parameter names.
 	//
 	// MethodDefinition (§15.4) ALWAYS has UniqueFormalParameters —
