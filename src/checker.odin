@@ -851,7 +851,14 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil { ck_walk_var_decl(c, ctx, v) }
 
 	case ^FunctionDeclaration:
-		if v != nil { ck_walk_function(c, ctx, &v.expr) }
+		if v != nil {
+			// TS1221 — generators in ambient context (declare function* or .d.ts).
+			if (ctx.lang == .TS || ctx.lang == .TSX) && v.generator && (v.declare || ctx.is_dts) {
+				ck_report(c, u32(v.loc.span.start),
+					"Generators are not allowed in an ambient context.")
+			}
+			ck_walk_function(c, ctx, &v.expr)
+		}
 
 	case ^ClassDeclaration:
 		if v == nil { return }
@@ -3248,7 +3255,13 @@ ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allo
 		#partial switch v in stmt^ {
 		// Allowed declaration forms:
 		case ^VariableDeclaration:              continue
-		case ^FunctionDeclaration:              continue
+		case ^FunctionDeclaration:
+			// TS1221 — generators are not allowed in ambient contexts.
+			if v != nil && v.generator {
+				ck_report(c, u32(v.loc.span.start),
+					"Generators are not allowed in an ambient context.")
+			}
+			continue
 		case ^ClassDeclaration:                 continue
 		case ^TSInterfaceDeclaration:           continue
 		case ^TSTypeAliasDeclaration:           continue

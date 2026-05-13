@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12650/12664 (99.89%)
 Positive Passed: 12650/12664 (99.89%)
-Negative Passed: 2069/3498 (59.15%)
+Negative Passed: 2072/3498 (59.23%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -814,11 +814,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/short
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/templates/taggedTemplateStringsWithOverloadResolution3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/templates/taggedTemplateStringsWithOverloadResolution3_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext3.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext4.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/yieldExpressions/generatorOverloads1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/yieldExpressions/generatorOverloads2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/yieldExpressions/generatorOverloads3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/yieldExpressions/generatorTypeCheck9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es7/exponentiationOperator/compoundExponentiationAssignmentLHSCanBeAssigned1.ts
@@ -2565,6 +2562,9 @@ typescript/tests/cases/conformance/es6/yieldExpressions/YieldExpression8_es6.ts:
 typescript/tests/cases/conformance/es6/yieldExpressions/YieldStarExpression1_es6.ts:1:1: 'yield' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/es6/yieldExpressions/YieldStarExpression2_es6.ts:1:1: 'yield' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/es6/yieldExpressions/YieldStarExpression3_es6.ts:2:12: 'yield*' requires an operand
+typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext2.ts:2:5: Generators are not allowed in an ambient context.
+typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext4.d.ts:2:5: Generators are not allowed in an ambient context.
+typescript/tests/cases/conformance/es6/yieldExpressions/generatorOverloads2.ts:2:5: Generators are not allowed in an ambient context.
 typescript/tests/cases/conformance/es6/yieldExpressions/generatorTypeCheck32.ts:2:29: 'yield' expression is only allowed in a generator body
 typescript/tests/cases/conformance/es6/yieldExpressions/generatorTypeCheck38.ts:1:5: 'yield' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/es6/yieldExpressions/generatorTypeCheck39.ts:7:13: 'yield' expression is only allowed in a generator body
