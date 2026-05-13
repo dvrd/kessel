@@ -1,8 +1,8 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2213/2233 (99.10%)
-Positive Passed: 2213/2233 (99.10%)
+AST Parsed     : 2215/2233 (99.19%)
+Positive Passed: 2215/2233 (99.19%)
 Negative Passed: 1677/1711 (98.01%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -43,12 +43,6 @@ babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js:
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js:1:7: 'using' declaration is not allowed at the top level of a script
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/263/input.js
-babel/packages/babel-parser/test/fixtures/core/uncategorised/263/input.js:1:18: 'with' statements are not allowed in strict mode
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/264/input.js
-babel/packages/babel-parser/test/fixtures/core/uncategorised/264/input.js:1:18: 'with' statements are not allowed in strict mode
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class-methods/linebreaks/input.js
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/linebreaks/input.js:42:2: A class can only have one constructor

@@ -1608,9 +1608,14 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		loop_start_offset := int(cur_offset(p))
 
 		if is_token(p, .String) && string_literal_can_be_directive(p) {
-			// Check for "use strict" directive
+			// Check for "use strict" directive.
+			// §11.1.1 — directive prologues must be exact string literals
+			// with no escape sequences. `'use\x20strict'` decodes to
+			// "use strict" but is NOT a valid directive because the raw
+			// source contains an escape sequence.
 			current := get_current(p)
-			if current.literal == "use strict" {
+			has_escape := strings.contains(current.value, "\\") 
+			if current.literal == "use strict" && !has_escape {
 				p.strict_mode = true
 				directive := Directive{
 					loc   = loc_from_token(&current),
@@ -4472,7 +4477,9 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 					if is_str && str_lit != nil {
 						es.directive = str_lit.value
 						bump_append(&prologue_raws, str_lit)
-						if str_lit.value == "use strict" {
+						// §11.1.1 — directive must be an exact string literal
+						// with no escape sequences. Check raw for backslash.
+						if str_lit.value == "use strict" && !strings.contains(str_lit.raw, "\\") {
 							body_use_strict = true
 							p.strict_mode = true
 						}
