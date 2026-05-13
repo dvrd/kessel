@@ -202,6 +202,10 @@ CheckerContext :: struct {
 	// module declaration with a string literal id (`declare module "..."`).
 	// Used by TS2669 to allow `declare global {}` inside ambient modules.
 	in_ambient_module_decl: bool,
+	// in_arrow_body — true while walking an arrow function body. Used
+	// by TS2331 to allow `this` inside arrow functions even when inside
+	// a namespace (arrows inherit `this` from the enclosing scope).
+	in_arrow_body: bool,
 }
 
 Checker :: struct {
@@ -3376,6 +3380,9 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// expressions/object/identifier-shorthand-static-init-await-valid.js.
 		ctx.in_class_static_block = false
 		defer ctx.in_class_static_block = prev_static_blk
+		prev_arrow_body := ctx.in_arrow_body
+		ctx.in_arrow_body = true
+		defer ctx.in_arrow_body = prev_arrow_body
 		#partial switch body in e.body {
 		case ^Expression:     if body != nil { ck_walk_expr(c, ctx, body) }
 		case ^BlockStatement:
@@ -3715,6 +3722,20 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if e != nil && !ctx.in_method {
 			ck_report(c, u32(e.loc.span.start), "'super' is only allowed in class methods or object-literal methods")
 		}
+	// TS2331 — 'this' cannot be referenced in a module or namespace body.
+	// `this` at the top level of a namespace (not inside a function/method/
+	// arrow) is an error. The function_depth counter tracks whether we've
+	// entered a function boundary since the namespace was opened.
+	case ^ThisExpression:
+		// TS2331 — 'this' at the direct body level of a namespace (not
+		// inside any function, arrow, method, or class body).
+		if e != nil && ctx.ts_namespace_depth > 0 &&
+		   ctx.function_depth == 0 && !ctx.in_arrow_body &&
+		   (ctx.lang == .TS || ctx.lang == .TSX) {
+			ck_report(c, u32(e.loc.span.start),
+				"'this' cannot be referenced in a module or namespace body.")
+		}
+
 	case ^MetaProperty:
 		if e != nil { ck_check_new_target(c, ctx, e) }
 	case ^Identifier:

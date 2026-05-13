@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12648/12664 (99.87%)
 Positive Passed: 12648/12664 (99.87%)
-Negative Passed: 2053/3498 (58.69%)
+Negative Passed: 2059/3498 (58.86%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -387,7 +387,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/jsxNamespace
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/keyofIsLiteralContexualType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/knockout.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/lambdaParamTypes.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/lambdaPropSelf.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates2.ts::file1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates2.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/letDeclarations-scopes-duplicates3.ts::file1.ts
@@ -605,9 +604,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/targetTypeTe
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/templateLiteralsInTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/temporal.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisBinding.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisInModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisInOuterClassBody.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisKeyword.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisPredicateInObjectLiteral.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/this_inside-enum-should-not-be-allowed.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/topLevelLambda.ts
@@ -774,8 +771,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrow
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames19_ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames19_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames21_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames21_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames23_ES5.ts
@@ -1427,7 +1422,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/str
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/stringLiteral/stringLiteralTypesWithVariousOperators02.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/thisType/declarationFiles.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/thisType/looseThisTypeInFunctions.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/thisType/thisTypeErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/thisType/thisTypeErrors2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/thisType/thisTypeInAccessors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/thisType/thisTypeInAccessorsNegative.ts
@@ -1925,6 +1919,7 @@ typescript/tests/cases/compiler/jsxAttributeWithoutExpressionReact.tsx:4:35: JSX
 typescript/tests/cases/compiler/jsxIntrinsicElementsTypeArgumentErrors.tsx:5:16: Type argument list cannot be empty
 typescript/tests/cases/compiler/jsxNamespacePrefixInName.tsx:7:32: Expected >, got :
 typescript/tests/cases/compiler/jsxNamespacePrefixInNameReact.tsx:9:32: Expected >, got :
+typescript/tests/cases/compiler/lambdaPropSelf.ts:21:13: 'this' cannot be referenced in a module or namespace body.
 typescript/tests/cases/compiler/lastPropertyInLiteralWins.ts:9:5: An object literal cannot have multiple properties with the same name.
 typescript/tests/cases/compiler/letAndVarRedeclaration.ts:7:5: Identifier 'x1' has already been declared
 typescript/tests/cases/compiler/letAsIdentifier.ts:1:5: 'let' is a reserved identifier in strict mode
@@ -2133,10 +2128,12 @@ typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions
 typescript/tests/cases/compiler/templateLiteralEscapeSequence.ts:3:5: Invalid escape sequence in template literal
 typescript/tests/cases/compiler/thisAssignmentInNamespaceDeclaration1.ts::a.js:1:11: Expected semicolon
 typescript/tests/cases/compiler/thisAssignmentInNamespaceDeclaration1.ts::b.js:1:11: Expected semicolon
+typescript/tests/cases/compiler/thisInModule.ts:3:5: 'this' cannot be referenced in a module or namespace body.
 typescript/tests/cases/compiler/thisInSuperCall.ts:7:15: 'super' must be called before accessing 'this' in the constructor of a derived class.
 typescript/tests/cases/compiler/thisInSuperCall1.ts:7:15: 'super' must be called before accessing 'this' in the constructor of a derived class.
 typescript/tests/cases/compiler/thisInSuperCall2.ts:8:15: 'super' must be called before accessing 'this' in the constructor of a derived class.
 typescript/tests/cases/compiler/thisInSuperCall3.ts:9:15: 'super' must be called before accessing 'this' in the constructor of a derived class.
+typescript/tests/cases/compiler/thisKeyword.ts:2:5: 'this' cannot be referenced in a module or namespace body.
 typescript/tests/cases/compiler/throwWithoutNewLine1.ts:1:6: Expected expression after throw
 typescript/tests/cases/compiler/throwWithoutNewLine2.ts:2:1: Illegal newline after 'throw'
 typescript/tests/cases/compiler/typeAliasDeclarationEmit3.ts:3:9: Type aliases are only valid at the top level of a module or namespace.
@@ -2438,6 +2435,8 @@ typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames1
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES6.ts:5:8: Unexpected token: array literal cannot be a computed class member name
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames17_ES5.ts:5:12: Unexpected token: array literal cannot be a computed class member name
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames17_ES6.ts:5:12: Unexpected token: array literal cannot be a computed class member name
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames19_ES5.ts:3:10: 'this' cannot be referenced in a module or namespace body.
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames19_ES6.ts:3:10: 'this' cannot be referenced in a module or namespace body.
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES5.ts:7:6: 'super' property access is only valid inside a method
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES6.ts:9:6: 'super' property access is only valid inside a method
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames26_ES5.ts:8:12: 'super' property access is only valid inside a method
@@ -3534,6 +3533,7 @@ typescript/tests/cases/conformance/types/specifyingTypes/typeQueries/typeofAnExp
 typescript/tests/cases/conformance/types/spread/objectSpreadNegative.ts:28:36: An object literal cannot have multiple properties with the same name.
 typescript/tests/cases/conformance/types/spread/objectSpreadNegativeParse.ts:1:18: Expected expression after '?' in conditional expression
 typescript/tests/cases/conformance/types/stringLiteral/stringLiteralTypesInVariableDeclarations01.ts:6:1: Missing initializer in 'const' declaration
+typescript/tests/cases/conformance/types/thisType/thisTypeErrors.ts:36:20: 'this' cannot be referenced in a module or namespace body.
 typescript/tests/cases/conformance/types/thisType/thisTypeInFunctionsNegative.ts:168:26: Expected ), got this
 typescript/tests/cases/conformance/types/tuple/named/namedTupleMembersErrors.ts:10:35: Expected ], got ?
 typescript/tests/cases/conformance/types/tuple/optionalTupleElements1.ts:11:36: A required tuple element cannot follow an optional element
