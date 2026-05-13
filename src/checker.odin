@@ -3407,6 +3407,13 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 				if prop.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
 					ck_check_setter_return_value(c, fn.body.body[:])
 				}
+				// TS2378 — getters must return a value.
+				if prop.kind == .Get && !fn.no_body && (ctx.lang == .TS || ctx.lang == .TSX) {
+					if !ck_body_has_return_value(fn.body.body[:]) {
+						ck_report(c, u32(fn.loc.span.start),
+							"A 'get' accessor must return a value.")
+					}
+				}
 			} else {
 				ck_walk_expr(c, ctx, prop.value)
 			}
@@ -4113,6 +4120,13 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
 				ck_check_setter_return_value(c, fn.body.body[:])
 			}
+			// TS2378 — getters must return a value.
+			if elem.kind == .Get && !fn.no_body && (ctx.lang == .TS || ctx.lang == .TSX) {
+				if !ck_body_has_return_value(fn.body.body[:]) {
+					ck_report(c, u32(fn.loc.span.start),
+						"A 'get' accessor must return a value.")
+				}
+			}
 		case .StaticBlock:
 			unreachable() // handled above
 		}
@@ -4150,7 +4164,62 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 // recursively looking for `return <expr>;` statements. `return;`
 // (without expression) is allowed. Recurses into blocks, if/else,
 // try/catch, switch, loops. Stops at function/arrow boundaries.
+// ck_body_has_return_value — true if the body always produces a value:
+// either a `return <expr>` or a `throw`. Recurses into control-flow
+// blocks but NOT into nested functions/methods/arrows.
+// Used for TS2378 getter-must-return.
 @(private="file")
+ck_body_has_return_value :: proc(body: []^Statement) -> bool {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^ReturnStatement:
+			// Any `return` (with or without a value) counts. OXC only flags
+			// getters that have NO return/throw path at all.
+			return true
+		case ^ThrowStatement:
+			return true  // Throw always terminates — no return needed.
+		case ^BlockStatement:
+			if v != nil && ck_body_has_return_value(v.body[:]) { return true }
+		case ^IfStatement:
+			if v == nil { continue }
+			if ck_body_has_return_value({v.consequent}) { return true }
+			if alt, have := v.alternate.(^Statement); have {
+				if ck_body_has_return_value({alt}) { return true }
+			}
+		case ^TryStatement:
+			if v == nil { continue }
+			if ck_body_has_return_value(v.block.body[:]) { return true }
+			if handler, have := v.handler.(CatchClause); have {
+				if ck_body_has_return_value(handler.body.body[:]) { return true }
+			}
+			if fin, have := v.finalizer.(BlockStatement); have {
+				if ck_body_has_return_value(fin.body[:]) { return true }
+			}
+		case ^SwitchStatement:
+			if v == nil { continue }
+			for sc in v.cases {
+				if ck_body_has_return_value(sc.consequent[:]) { return true }
+			}
+		case ^WhileStatement:
+			if v != nil && ck_body_has_return_value({v.body}) { return true }
+		case ^DoWhileStatement:
+			if v != nil && ck_body_has_return_value({v.body}) { return true }
+		case ^ForStatement:
+			if v != nil && ck_body_has_return_value({v.body}) { return true }
+		case ^ForInStatement:
+			if v != nil && ck_body_has_return_value({v.body}) { return true }
+		case ^ForOfStatement:
+			if v != nil && ck_body_has_return_value({v.body}) { return true }
+		case ^LabeledStatement:
+			if v != nil && ck_body_has_return_value({v.body}) { return true }
+		// Do NOT descend into FunctionDeclaration, ClassDeclaration,
+		// ArrowFunctionExpression — those are nested scopes.
+		}
+	}
+	return false
+}
+
 ck_check_setter_return_value :: proc(c: ^Checker, body: []^Statement) {
 	for stmt in body {
 		if stmt == nil { continue }

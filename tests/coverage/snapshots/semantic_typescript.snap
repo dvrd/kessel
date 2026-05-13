@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12646/12664 (99.86%)
 Positive Passed: 12646/12664 (99.86%)
-Negative Passed: 2017/3498 (57.66%)
+Negative Passed: 2031/3498 (58.06%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -307,7 +307,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericRecur
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericReduce.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericSpecializations2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericUnboundedTypeParamAssignability.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/getterMissingReturnError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/gettersAndSetters.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAliasInModuleAugmentation.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict1.ts
@@ -783,8 +782,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/compu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames21_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames23_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames23_ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2_ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames30_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames30_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames40_ES5.ts
@@ -1308,11 +1305,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::34.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::35.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::36.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript3/Accessors/parserES3Accessors1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript3/Accessors/parserES3Accessors3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserGetAccessorWithTypeParameters1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeAnnotation1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeParameters1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression10.ts::fileTs.ts
@@ -1323,17 +1315,12 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression17.ts::fileTs.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClass2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration12.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration3.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserCommaInTypeMemberList2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessor1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration17.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration2.d.ts
@@ -1369,7 +1356,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName41.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement20.ts
@@ -1881,6 +1867,7 @@ typescript/tests/cases/compiler/functionsMissingReturnStatementsAndExpressions.t
 typescript/tests/cases/compiler/functionsWithModifiersInBlocks1.ts:2:25: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/genericCallWithoutArgs.ts:4:17: An instantiation expression cannot be followed by a property access.
 typescript/tests/cases/compiler/genericsWithDuplicateTypeParameters1.ts:1:15: Duplicate identifier 'x'
+typescript/tests/cases/compiler/getterMissingReturnError.ts:2:18: A 'get' accessor must return a value.
 typescript/tests/cases/compiler/gettersAndSettersErrors.ts:6:16: Getter must not have any formal parameters
 typescript/tests/cases/compiler/giant.ts:62:17: An index signature must have a type annotation.
 typescript/tests/cases/compiler/identifierStartAfterNumericLiteral.ts:3:2: Expected semicolon
@@ -2483,6 +2470,8 @@ typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames26_ES6.ts:10:12: 'super' property access is only valid inside a method
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames27_ES5.ts:4:12: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames27_ES6.ts:4:12: 'super' call is only allowed in the constructor of a derived class
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2_ES5.ts:6:23: A 'get' accessor must return a value.
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames2_ES6.ts:6:23: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames3_ES5.ts:5:10: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames3_ES6.ts:5:10: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames49_ES5.ts:9:10: Setter must have exactly one formal parameter
@@ -3046,12 +3035,17 @@ typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parse
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::7.ts:2:1: Invalid escape sequence in template literal
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::8.ts:1:2: Invalid '\u' escape: expected 4 hex digits
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::9.ts:1:2: Invalid \x escape: expected 2 hex digits
+typescript/tests/cases/conformance/parser/ecmascript3/Accessors/parserES3Accessors1.ts:2:12: A 'get' accessor must return a value.
+typescript/tests/cases/conformance/parser/ecmascript3/Accessors/parserES3Accessors3.ts:1:18: A 'get' accessor must return a value.
+typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors1.ts:2:12: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors10.ts:2:3: 'public' is a reserved identifier in strict mode
+typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors3.ts:1:18: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors5.ts:2:13: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors6.ts:2:14: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors7.ts:1:15: Getter must not have any formal parameters
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors8.ts:1:15: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors9.ts:1:15: Setter must have exactly one formal parameter
+typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserGetAccessorWithTypeParameters1.ts:2:13: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression10.ts::fileJs.js:1:20: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression13.ts::fileJs.js:1:19: Empty parenthesized expression
@@ -3080,6 +3074,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserCl
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration7.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName4.ts:1:18: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:7: Computed property names are not allowed in enums.
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration10.ts:2:25: Type annotation cannot appear on a constructor declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration11.ts:2:15: Type parameter list cannot be empty
@@ -3231,6 +3226,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/pars
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration4.ts:1:1: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration6.ts:1:8: 'export' modifier already seen.
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration8.ts:1:11: Interface name cannot be 'string'.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessor1.ts:2:10: A 'get' accessor must return a value.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration1.ts:2:8: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration10.ts:2:12: Expected (, got UNKNOWN
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration11.ts:2:23: 'declare' modifier cannot be used here.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration12.ts:2:8: Getter must not have any formal parameters
@@ -3239,6 +3236,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration15.ts:2:28: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration16.ts:2:12: A 'set' accessor cannot have an initializer.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration18.ts:2:12: Setter parameter cannot be a rest element
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration2.ts:2:10: A 'get' accessor must return a value.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration3.ts:2:8: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration7.ts:2:12: Accessibility modifier already seen.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration8.ts:2:19: Expected (, got UNKNOWN
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration9.ts:2:19: 'public' modifier must precede 'static' modifier.
@@ -3412,6 +3411,7 @@ typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/pars
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName37.ts:2:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName38.ts:2:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName39.ts:3:6: 'public' is a reserved identifier in strict mode
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName4.ts:1:18: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName5.ts:1:11: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement2.ts:1:13: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement21.ts:1:13: 'for (var of of)' is ambiguous
