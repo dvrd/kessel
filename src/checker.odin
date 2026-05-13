@@ -5191,8 +5191,24 @@ ck_collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string
 				case ^ClassDeclaration:
 					if inner == nil { break }
 					if id, ok := inner.id.(BindingIdentifier); ok { names[id.name] = true }
+				case ^TSInterfaceDeclaration:
+					if inner != nil { names[inner.id.name] = true }
+				case ^TSTypeAliasDeclaration:
+					if inner != nil { names[inner.id.name] = true }
+				case ^TSEnumDeclaration:
+					if inner != nil { names[inner.id.name] = true }
+				case ^TSModuleDeclaration:
+					if inner != nil && inner.id != nil {
+						if ident, is_id := inner.id.(^Identifier); is_id && ident != nil {
+							names[ident.name] = true
+						}
+					}
+				case ^TSImportEqualsDeclaration:
+					if inner != nil { names[inner.id.name] = true }
 				}
 			}
+		case ^TSImportEqualsDeclaration:
+			if v != nil { names[v.id.name] = true }
 		case ^TSInterfaceDeclaration: if v != nil { names[v.id.name] = true }
 		case ^TSTypeAliasDeclaration: if v != nil { names[v.id.name] = true }
 		case ^TSEnumDeclaration:      if v != nil { names[v.id.name] = true }
@@ -5229,6 +5245,10 @@ ck_check_export_local_defined :: proc(c: ^Checker, program: ^Program) {
 		// Re-exports (`export ... from "m"`) refer to the source module's
 		// table, not this module's local bindings.
 		if _, from_source := export.source.(StringLiteral); from_source { continue }
+		// Type-only exports (`export type { X }`) reference the type namespace;
+		// the name need not exist as a value binding. This is a TS type-check
+		// concern, not an early error.
+		if export.export_kind == .Type { continue }
 		for spec in export.specifiers {
 			local_name, ok := spec.local.(IdentifierName)
 			if !ok { continue }

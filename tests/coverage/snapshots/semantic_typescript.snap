@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12608/12664 (99.56%)
-Positive Passed: 12608/12664 (99.56%)
-Negative Passed: 1994/3498 (57.00%)
+AST Parsed     : 12628/12664 (99.72%)
+Positive Passed: 12628/12664 (99.72%)
+Negative Passed: 1992/3498 (56.95%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -762,6 +762,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2019/gl
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2019/importMeta/importMeta.ts::example.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2020/modules/exportAsNamespace3.ts::0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2020/modules/exportAsNamespace3.ts::2.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-clause-valid.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-decls-valid.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-valid.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolDeclarationEmit12.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolProperty3.ts
@@ -1517,12 +1519,6 @@ typescript/tests/cases/compiler/augmentExportEquals5.ts::express.d.ts:59:13: 'st
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/declarationEmitModuleWithScopeMarker.ts
 typescript/tests/cases/compiler/declarationEmitModuleWithScopeMarker.ts:6:48: Expected {, got ;
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/declarationEmitUnknownImport.ts
-typescript/tests/cases/compiler/declarationEmitUnknownImport.ts:2:9: Export 'Foo' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/duplicateErrorNameNotFound.ts
-typescript/tests/cases/compiler/duplicateErrorNameNotFound.ts:4:5: Export 'RoomInterface' is not defined in the module
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts
 typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts:8:18: 'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'
 
@@ -1537,15 +1533,6 @@ typescript/tests/cases/compiler/exportSpecifierForAGlobal.ts::b.ts:1:9: Export '
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/exportSpecifierReferencingOuterDeclaration2.ts::exportSpecifierReferencingOuterDeclaration2_B.ts
 typescript/tests/cases/compiler/exportSpecifierReferencingOuterDeclaration2.ts::exportSpecifierReferencingOuterDeclaration2_B.ts:1:10: Export 'X' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/globalThisDeclarationEmit3.ts::variable.ts
-typescript/tests/cases/compiler/globalThisDeclarationEmit3.ts::variable.ts:2:10: Export 'mod' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/literalTypeNameAssertionNotTriggered.ts::/a.ts
-typescript/tests/cases/compiler/literalTypeNameAssertionNotTriggered.ts::/a.ts:2:10: Export 'x' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserve1.ts::/main.ts
-typescript/tests/cases/compiler/modulePreserve1.ts::/main.ts:3:13: Export 'B' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts
 typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts:1:11: Top-level 'for await' is only valid in module code
@@ -1571,15 +1558,6 @@ typescript/tests/cases/compiler/reactTransitiveImportHasValidDeclaration.ts::nod
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/stackDepthLimitCastingType.ts::node_modules/backbone/index.d.ts
 typescript/tests/cases/compiler/stackDepthLimitCastingType.ts::node_modules/backbone/index.d.ts:17:5: Export 'Model' is not defined in the module
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/systemModule10.ts
-typescript/tests/cases/compiler/systemModule10.ts:7:9: Export 'n2' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/systemModule10_ES5.ts
-typescript/tests/cases/compiler/systemModule10_ES5.ts:7:9: Export 'n2' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/systemModule17.ts::f2.ts
-typescript/tests/cases/compiler/systemModule17.ts::f2.ts:28:9: Export 'IX' is not defined in the module
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/withStatementInternalComments.ts
 typescript/tests/cases/compiler/withStatementInternalComments.ts:2:7: 'with' statements are not allowed in strict mode
 
@@ -1592,33 +1570,6 @@ typescript/tests/cases/conformance/es6/moduleExportsSystem/topLevelVarHoistingSy
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/defaultExportWithOverloads01.ts
 typescript/tests/cases/conformance/es6/modules/defaultExportWithOverloads01.ts:1:28: Expected {, got ;
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports1-amd.ts::t1.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports1-amd.ts::t1.ts:23:37: Export 'a' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports1-es6.ts::t1.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports1-es6.ts::t1.ts:23:37: Export 'a' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports1.ts::t1.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports1.ts::t1.ts:23:37: Export 'a' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports3-amd.ts::t1.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports3-amd.ts::t1.ts:23:37: Export 'I' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports3-es6.ts::t1.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports3-es6.ts::t1.ts:23:37: Export 'I' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports3.ts::t1.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports3.ts::t1.ts:23:37: Export 'I' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports4-amd.ts::t3.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports4-amd.ts::t3.ts:15:10: Export 'a' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports4-es6.ts::t3.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports4-es6.ts::t3.ts:15:10: Export 'a' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/exportsAndImports4.ts::t3.ts
-typescript/tests/cases/conformance/es6/modules/exportsAndImports4.ts::t3.ts:15:10: Export 'a' is not defined in the module
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/reExportDefaultExport.ts::m1.ts
 typescript/tests/cases/conformance/es6/modules/reExportDefaultExport.ts::m1.ts:3:9: Export 'f' is not defined in the module
 
@@ -1627,12 +1578,6 @@ typescript/tests/cases/conformance/externalModules/exportNonLocalDeclarations.ts
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts
 typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts:3:15: 'await' is reserved as a binding name in this context
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/importEquals3.ts::b.ts
-typescript/tests/cases/conformance/externalModules/typeOnly/importEquals3.ts::b.ts:6:13: Export 'A' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/preserveValueImports_errors.ts::a.ts
-typescript/tests/cases/conformance/externalModules/typeOnly/preserveValueImports_errors.ts::a.ts:2:15: Export 'A' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/jsdoc/declarations/jsDeclarationsDefault.ts::index2.js
 typescript/tests/cases/conformance/jsdoc/declarations/jsDeclarationsDefault.ts::index2.js:5:10: Export 'foo' is not defined in the module
@@ -1666,9 +1611,6 @@ typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePattern
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports1.ts::/exporter.mts
 typescript/tests/cases/conformance/node/esmModuleExports1.ts::/exporter.mts:2:10: Export 'Foo' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports3.ts::/exporter.mts
-typescript/tests/cases/conformance/node/esmModuleExports3.ts::/exporter.mts:2:15: Export 'Foo' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.3.ts
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.3.ts:1:10: Export 'y' is not defined in the module
@@ -2553,12 +2495,10 @@ typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/ar
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-clause-bad-import.ts:1:22: Import binding name cannot be a string literal
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-clause-no-as.ts:1:27: String import names require 'as' binding
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-clause-type-as-as.ts:1:21: Import binding name cannot be a string literal
-typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-clause-valid.ts:2:15: Export 'foo' is not defined in the module
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-decls-bad-export.ts:1:15: A string literal cannot be used as an exported binding without `from`
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-decls-bad-import.ts:1:22: Import binding name cannot be a string literal
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-decls-no-as.ts:1:27: String import names require 'as' binding
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-decls-type-as.ts:1:23: Import binding name cannot be a string literal
-typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::type-decls-valid.ts:2:15: Export 'foo' is not defined in the module
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-bad-export.ts:1:10: A string literal cannot be used as an exported binding without `from`
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-bad-import.ts:1:17: Import binding name cannot be a string literal
 typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_syntax.ts::values-no-as.ts:1:22: String import names require 'as' binding
