@@ -3955,7 +3955,11 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// Function EXPRESSIONS always require a body (TS overload signatures only
 	// apply to function DECLARATIONS / class methods). `const x = function();`
 	// is invalid even in TS mode.
-	allow_no_body_here := !is_expr && (allow_no_body || p.in_ambient || allow_ts_mode(p))
+	//
+	// Exception: `export default function foo(): T;` is parsed with is_expr=true
+	// (expression form) but is semantically a declaration with overload signatures.
+	// Allow no-body when in_export_default so TS overload sigs work.
+	allow_no_body_here := (!is_expr || p.in_export_default) && (allow_no_body || p.in_ambient || allow_ts_mode(p))
 	// Ambient function: `declare function f(): T;` (with or without
 	// semicolon - ASI applies in .d.ts files where `export declare
 	// function parse(...): Promise<R>` is followed by a newline and the

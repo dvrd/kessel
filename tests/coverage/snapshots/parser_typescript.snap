@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 parser_typescript Summary:
-AST Parsed     : 12653/12664 (99.91%)
-Positive Passed: 12653/12664 (99.91%)
-Negative Passed: 1691/3498 (48.34%)
+AST Parsed     : 12658/12664 (99.95%)
+Positive Passed: 12658/12664 (99.95%)
+Negative Passed: 1689/3498 (48.28%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -362,8 +362,10 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaul
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultDuplicateCrash.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultFunctionInNamespace.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultInterfaceAndTwoFunctions.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultInterfaceClassAndFunctionOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultInterfaceClassAndValue.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultTypeAndClass.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultTypeAndFunctionOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultTypeClassAndValue.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualErrorType.ts::exportEqualErrorType_0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualErrorType.ts::exportEqualErrorType_1.ts
@@ -1817,29 +1819,14 @@ typescript/tests/cases/compiler/ambientNameRestrictions.ts:2:14: 'static' is a r
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/augmentExportEquals5.ts::express.d.ts
 typescript/tests/cases/compiler/augmentExportEquals5.ts::express.d.ts:59:13: 'static' is a reserved identifier in strict mode
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/declarationEmitModuleWithScopeMarker.ts
-typescript/tests/cases/compiler/declarationEmitModuleWithScopeMarker.ts:6:48: Expected {, got ;
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts
 typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts:8:18: 'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/es5ExportDefaultFunctionDeclaration4.ts
-typescript/tests/cases/compiler/es5ExportDefaultFunctionDeclaration4.ts:4:48: Expected {, got ;
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/exportDefaultInterfaceAndFunctionOverloads.ts
-typescript/tests/cases/compiler/exportDefaultInterfaceAndFunctionOverloads.ts:2:1: Expected {, got export
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts
 typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts:1:11: Top-level 'for await' is only valid in module code
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/reactTransitiveImportHasValidDeclaration.ts::node_modules/react-emotion/index.d.ts
-typescript/tests/cases/compiler/reactTransitiveImportHasValidDeclaration.ts::node_modules/react-emotion/index.d.ts:2:123: Expected {, got ;
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/withStatementInternalComments.ts
 typescript/tests/cases/compiler/withStatementInternalComments.ts:2:7: 'with' statements are not allowed in strict mode
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/defaultExportWithOverloads01.ts
-typescript/tests/cases/conformance/es6/modules/defaultExportWithOverloads01.ts:1:28: Expected {, got ;
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts
 typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts:3:15: 'await' is reserved as a binding name in this context
@@ -2031,8 +2018,6 @@ typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::asyncawait.ts:2:
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::c.ts:1:17: 'await' is reserved as a binding name in module code
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::d.ts:1:17: 'await' is reserved as a binding name in module code
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::e.ts:1:17: 'await' is reserved as a binding name in module code
-typescript/tests/cases/compiler/exportDefaultInterfaceClassAndFunctionOverloads.ts:2:1: Expected {, got export
-typescript/tests/cases/compiler/exportDefaultTypeAndFunctionOverloads.ts:2:1: Expected {, got export
 typescript/tests/cases/compiler/exportInFunction.ts:2:16: Expected '}' at end of function body
 typescript/tests/cases/compiler/expressionTypeNodeShouldError.ts::base.d.ts:1:23: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/compiler/expressionTypeNodeShouldError.ts::boolean.ts:7:23: Expected '=', ',', or ';' after variable binding
