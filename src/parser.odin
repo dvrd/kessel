@@ -13482,11 +13482,11 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		report_error(p, "Expected expression after 'new'")
 		return nil
 	}
-	// §15.8.4 — `new await` is invalid: `await` as an AwaitExpression
-	// is not a valid constructor expression.
-	if _, is_await := callee^.(^AwaitExpression); is_await {
-		report_error(p, "'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'")
-	}
+	// Note: `new await` in module context is caught by the checker
+	// (ck_walk_expr, NewExpression case) because the parser treats `await`
+	// as an Identifier in MemberExpression position. `new (await X)` is
+	// valid — the parens force a full expression whose result is the
+	// constructor.
 	if _, is_super := callee^.(^Super); is_super {
 		report_error(p, "'new super()' is not allowed")
 	}

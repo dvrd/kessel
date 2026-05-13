@@ -1,6 +1,6 @@
 parser_test262 Summary:
-AST Parsed     : 47085/47090 (99.99%)
-Positive Passed: 47085/47090 (99.99%)
+AST Parsed     : 47086/47090 (99.99%)
+Positive Passed: 47086/47090 (99.99%)
 Negative Passed: 4562/4588 (99.43%)
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-6.js
@@ -30,9 +30,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-le
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
 Expect to Parse: tasks/coverage/test262/test/language/function-code/S10.2.1_A4_T1.js
 test262/test/language/function-code/S10.2.1_A4_T1.js:19:12: Formal parameter 'x' cannot be redeclared with let/const in function body
-
-Expect to Parse: tasks/coverage/test262/test/language/module-code/top-level-await/new-await-parens.js
-test262/test/language/module-code/top-level-await/new-await-parens.js:12:37: 'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'
 
 Expect to Parse: tasks/coverage/test262/test/language/statements/for-of/head-using-fresh-binding-per-iteration.js
 test262/test/language/statements/for-of/head-using-fresh-binding-per-iteration.js:17:12: 'using' declaration is not allowed at the top level of a script

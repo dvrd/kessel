@@ -1,12 +1,9 @@
 semantic_test262 Summary:
-AST Parsed     : 47084/47090 (99.99%)
-Positive Passed: 47084/47090 (99.99%)
+AST Parsed     : 47085/47090 (99.99%)
+Positive Passed: 47085/47090 (99.99%)
 Negative Passed: 4588/4588 (100.00%)
 Expect to Parse: tasks/coverage/test262/test/language/function-code/S10.2.1_A4_T1.js
 test262/test/language/function-code/S10.2.1_A4_T1.js:19:12: Formal parameter 'x' cannot be redeclared with let/const in function body
-
-Expect to Parse: tasks/coverage/test262/test/language/module-code/top-level-await/new-await-parens.js
-test262/test/language/module-code/top-level-await/new-await-parens.js:12:37: 'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'
 
 Expect to Parse: tasks/coverage/test262/test/language/statements/class/subclass/class-definition-null-proto-super.js
 test262/test/language/statements/class/subclass/class-definition-null-proto-super.js:42:5: 'super' call is only allowed in the constructor of a derived class

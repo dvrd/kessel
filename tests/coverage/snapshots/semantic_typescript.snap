@@ -1,8 +1,8 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12648/12664 (99.87%)
-Positive Passed: 12648/12664 (99.87%)
+AST Parsed     : 12649/12664 (99.88%)
+Positive Passed: 12649/12664 (99.88%)
 Negative Passed: 2067/3498 (59.09%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
@@ -1435,9 +1435,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uni
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/union/unionTypeReadonly.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/union/unionTypeWithIndexSignature.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsErrors.ts
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts
-typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts:8:18: 'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts
 typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts:1:11: Top-level 'for await' is only valid in module code
 
