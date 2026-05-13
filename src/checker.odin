@@ -310,6 +310,13 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	// if ctx.is_dts && (lang == .TS || lang == .TSX) {
 	// 	ck_check_ts1046_dts_top_level(c, program)
 	// }
+	// TS1036 — .d.ts files: statements (if, while, for, etc.) are not
+	// allowed at top level — only declarations.
+	// Allow EmptyStatements at .d.ts top level: they arise from semicolons
+	// after shorthand module declarations (`declare module "m";`).
+	if ctx.is_dts && (lang == .TS || lang == .TSX) {
+		ck_check_ts1036_ambient_statements(c, program.body[:], true)
+	}
 	// §14.2.1 / §14.3.1.1 — program-scope lex/var clash detection.
 	// The Program body is function-scope (sloppy plain
 	// FunctionDeclarations hoist as .Var; let/const/class are .Lexical).
@@ -1058,6 +1065,7 @@ ck_walk_ts_module_decl :: proc(c: ^Checker, ctx: ^CheckerContext, m: ^TSModuleDe
 		// ambient. An explicit `declare` on a child is redundant and an error.
 		if m.declare || prev_dts {
 			ck_check_ts1038_nested_declare(c, inner.body[:])
+			ck_check_ts1036_ambient_statements(c, inner.body[:], false)
 		}
 		ck_check_ts_body_decls(c, ctx, inner.body[:])
 		for s in inner.body { ck_walk_stmt(c, ctx, s) }
@@ -2945,6 +2953,67 @@ ck_pattern_display_name :: proc(pat: Pattern) -> string {
 		if len(names) > 0 { return names[0] }
 	}
 	return "<pattern>"
+}
+
+// ck_check_ts1036_ambient_statements — TS1036 "Statements are not allowed
+// in ambient contexts." Walks a body (top-level of .d.ts file, or inside
+// declare namespace/module) and flags any statement that is not a
+// declaration form. Allowed: variable/function/class/interface/type/enum/
+// module/import/export declarations. Disallowed: if, while, for, switch,
+// try, throw, return, expression statements, blocks, do, labeled, with,
+// debugger, empty statements.
+@(private="file")
+ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allow_empty: bool) {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		// Allowed declaration forms:
+		case ^VariableDeclaration:              continue
+		case ^FunctionDeclaration:              continue
+		case ^ClassDeclaration:                 continue
+		case ^TSInterfaceDeclaration:           continue
+		case ^TSTypeAliasDeclaration:           continue
+		case ^TSEnumDeclaration:                continue
+		case ^TSModuleDeclaration:              continue
+		case ^TSImportEqualsDeclaration:        continue
+		case ^ImportDeclaration:                continue
+		case ^ExportNamedDeclaration:           continue
+		case ^ExportDefaultDeclaration:         continue
+		case ^ExportAllDeclaration:             continue
+		case ^TSExportAssignment:               continue
+		case ^TSNamespaceExportDeclaration:     continue
+		case ^EmptyStatement:
+			// At .d.ts top level, EmptyStatements are benign (`;` after
+			// shorthand module declarations). Inside declare-namespace
+			// bodies, they are flagged (`;` after interface is a statement).
+			if allow_empty { continue }
+		// Everything else is a statement — flag it.
+		case:
+			// Get offset from the statement.
+			off := u32(0)
+			#partial switch s in stmt^ {
+			case ^IfStatement:              if s != nil { off = u32(s.loc.span.start) }
+			case ^WhileStatement:           if s != nil { off = u32(s.loc.span.start) }
+			case ^DoWhileStatement:         if s != nil { off = u32(s.loc.span.start) }
+			case ^ForStatement:             if s != nil { off = u32(s.loc.span.start) }
+			case ^ForInStatement:           if s != nil { off = u32(s.loc.span.start) }
+			case ^ForOfStatement:           if s != nil { off = u32(s.loc.span.start) }
+			case ^SwitchStatement:          if s != nil { off = u32(s.loc.span.start) }
+			case ^TryStatement:             if s != nil { off = u32(s.loc.span.start) }
+			case ^ThrowStatement:           if s != nil { off = u32(s.loc.span.start) }
+			case ^ReturnStatement:          if s != nil { off = u32(s.loc.span.start) }
+			case ^BlockStatement:           if s != nil { off = u32(s.loc.span.start) }
+			case ^EmptyStatement:           if s != nil { off = u32(s.loc.span.start) }
+			case ^ExpressionStatement:      if s != nil { off = u32(s.loc.span.start) }
+			case ^LabeledStatement:         if s != nil { off = u32(s.loc.span.start) }
+			case ^BreakStatement:           if s != nil { off = u32(s.loc.span.start) }
+			case ^ContinueStatement:        if s != nil { off = u32(s.loc.span.start) }
+			case ^WithStatement:            if s != nil { off = u32(s.loc.span.start) }
+			case ^DebuggerStatement:        if s != nil { off = u32(s.loc.span.start) }
+			}
+			ck_report(c, off, "Statements are not allowed in ambient contexts.")
+		}
+	}
 }
 
 // ck_check_ts1038_nested_declare — TS1038 "A 'declare' modifier cannot

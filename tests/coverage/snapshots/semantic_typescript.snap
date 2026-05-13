@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12646/12664 (99.86%)
 Positive Passed: 12646/12664 (99.86%)
-Negative Passed: 2031/3498 (58.06%)
+Negative Passed: 2048/3498 (58.55%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -1206,9 +1206,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/node
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::index.cts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::index.mts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::index.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.cts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.mts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts::index.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts::node_modules/inner/index.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts::node_modules/inner/other.d.ts
@@ -1327,25 +1324,12 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509618.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBlockStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDebuggerStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDoStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement20.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserEmptyStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserExpressionStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserIfStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserLabeledStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserSwitchStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserThrowStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserTryStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserVariableStatement2.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWhileStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression4.ts
@@ -1357,7 +1341,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName41.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement20.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/salsa/assignmentToVoidZero2.ts::assignmentToVoidZero2.js
@@ -2852,6 +2835,9 @@ typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsSynchronousCal
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts::subfolder/index.js:3:12: Expected from, got =
 typescript/tests/cases/conformance/node/nodeModulesCJSEmit1.ts::/3.cjs:1:1: 'import' is only valid in module code
 typescript/tests/cases/conformance/node/nodeModulesCJSEmit1.ts::/5.cjs:1:1: 'import' is only valid in module code
+typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.cts:5:1: Statements are not allowed in ambient contexts.
+typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.mts:5:1: Statements are not allowed in ambient contexts.
+typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.ts:5:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.cts:2:11: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma or explicit constraint.
 typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.mts:2:11: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma or explicit constraint.
 typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::subfolder/index.cts:2:11: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma or explicit constraint.
@@ -3335,26 +3321,39 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/LabeledStatemen
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/LabeledStatements/parser_duplicateLabel2.ts:3:3: Label 'target' has already been declared
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ReturnStatements/parserReturnStatement1.ts:1:7: 'return' outside of function
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ReturnStatements/parserReturnStatement2.ts:2:10: 'return' outside of function
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBlockStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBreakStatement1.d.ts:1:1: 'break' must be inside a loop or switch
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserContinueStatement1.d.ts:1:1: 'continue' must be inside a loop
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDebuggerStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDoStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement2.ts:1:13: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement21.ts:1:13: 'for (var of of)' is ambiguous
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement3.ts:1:6: Only a single declaration is allowed in a for-of loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement4.ts:1:6: for-of loop variable declaration may not have an initializer
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement6.ts:1:6: Only a single declaration is allowed in a for-of loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement7.ts:1:6: Only a single declaration is allowed in a for-of loop
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserExpressionStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement2.ts:1:10: 'in' is a reserved word and cannot be used as a binding name
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement3.ts:1:6: Only a single declaration is allowed in a for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement4.ts:1:6: for-in loop variable declaration may not have an initializer
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement5.ts:1:6: The left-hand side of a 'for...in' statement cannot use a type annotation.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement6.ts:1:6: Only a single declaration is allowed in a for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement7.ts:1:6: Only a single declaration is allowed in a for-in loop
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement4.ts:1:15: Invalid left-hand side in for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement6.ts:1:15: Invalid left-hand side in for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement7.ts:1:19: Invalid left-hand side in for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement8.ts:1:14: Invalid left-hand side in for-in loop
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserIfStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserLabeledStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserReturnStatement1.d.ts:1:7: 'return' outside of function
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserSwitchStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserThrowStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserTryStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserVariableStatement1.d.ts:1:9: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWhileStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement1.d.ts:1:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement2.ts:1:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/octalLiteralInStrictModeES3.ts:2:1: Legacy octal literals are not allowed in strict mode
@@ -3413,6 +3412,7 @@ typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/pars
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName39.ts:3:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName4.ts:1:18: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName5.ts:1:11: 'public' is a reserved identifier in strict mode
+typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement2.ts:1:13: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement21.ts:1:13: 'for (var of of)' is ambiguous
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement22.ts:2:15: The left-hand side of a for-of loop may not be 'async'
