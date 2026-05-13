@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12608/12664 (99.56%)
 Positive Passed: 12608/12664 (99.56%)
-Negative Passed: 1990/3498 (56.89%)
+Negative Passed: 1994/3498 (57.00%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -266,8 +266,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportClassW
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDeclarationsInAmbientNamespaces2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultAlias_excludesEverything.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::b.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultClassInNamespace.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultFunctionInNamespace.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualErrorType.ts::exportEqualErrorType_0.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualErrorType.ts::exportEqualErrorType_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualMemberMissing.ts::exportEqualMemberMissing_0.ts
@@ -474,7 +472,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmen
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationImportsAndExports3.ts::f2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationImportsAndExports3.ts::f3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationImportsAndExports3.ts::f4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleElementsInWrongContext3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleKeywordDeprecated.ts::decl.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleKeywordDeprecated.ts::foo.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/modulePreserve4.ts::/a.js
@@ -1346,7 +1343,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration3.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserCommaInTypeMemberList2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration7.ts
@@ -1959,7 +1955,9 @@ typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::c.ts:1:17: 'awai
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::d.ts:1:17: 'await' is reserved as a binding name in module code
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::e.ts:1:17: 'await' is reserved as a binding name in module code
 typescript/tests/cases/compiler/exportDefaultClassAndValue.ts:3:1: Duplicate exported name 'default'
+typescript/tests/cases/compiler/exportDefaultClassInNamespace.ts:2:5: A default export must be at the top level of a file or module declaration.
 typescript/tests/cases/compiler/exportDefaultDuplicateCrash.ts:4:10: Duplicate exported name 'default'
+typescript/tests/cases/compiler/exportDefaultFunctionInNamespace.ts:2:5: A default export must be at the top level of a file or module declaration.
 typescript/tests/cases/compiler/exportDefaultInterfaceAndTwoFunctions.ts:3:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportDefaultInterfaceClassAndFunctionOverloads.ts:2:1: Expected {, got export
 typescript/tests/cases/compiler/exportDefaultInterfaceClassAndValue.ts:3:1: Duplicate exported name 'default'
@@ -2139,6 +2137,7 @@ typescript/tests/cases/compiler/moduleAugmentationGlobal8_1.ts:2:5: Augmentation
 typescript/tests/cases/compiler/moduleDuplicateIdentifiers.ts:2:12: Duplicate exported name 'Foo'
 typescript/tests/cases/compiler/moduleElementsInWrongContext.ts:3:5: 'export' declarations are only allowed at the top level of a module
 typescript/tests/cases/compiler/moduleElementsInWrongContext2.ts:3:5: 'export' declarations are only allowed at the top level of a module
+typescript/tests/cases/compiler/moduleElementsInWrongContext3.ts:21:9: A default export must be at the top level of a file or module declaration.
 typescript/tests/cases/compiler/moduleKeywordRepeatError.ts:3:15: Expected semicolon
 typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:2:11: Expected from, got =
 typescript/tests/cases/compiler/moduleProperty1.ts:9:5: 'private' is a reserved identifier in strict mode
@@ -3296,6 +3295,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserEx
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment4.ts:1:10: Expected expression after 'export ='
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment7.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment8.ts:1:1: An export assignment cannot be used in a module with other exported elements.
+typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment9.ts:2:3: A default export must be at the top level of a file or module declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parseIncompleteBinaryExpression1.ts:1:9: Expected initializer expression after '='
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserAssignmentExpression1.ts:1:9: Cannot assign to this expression
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserMemberAccessAfterPostfixExpression1.ts:1:4: Expected semicolon

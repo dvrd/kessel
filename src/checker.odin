@@ -848,7 +848,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^ExportDefaultDeclaration:
 		if v == nil || v.declaration == nil { return }
-		ck_check_import_export_position(c, ctx, v.loc, false, was_top_level)
+		ck_check_import_export_position(c, ctx, v.loc, false, was_top_level, true)
 		#partial switch inner in v.declaration^ {
 		case ^Expression:  if inner != nil { ck_walk_expr(c, ctx, inner) }
 		case ^Declaration: if inner != nil { ck_walk_export_decl(c, ctx, inner) }
@@ -4833,13 +4833,24 @@ ck_check_import_export_position :: proc(
 	loc: Loc,
 	is_import: bool,
 	was_top_level: bool,
+	is_default: bool = false,
 ) {
 	// TS allows `import` / `export` directly inside a namespace /
 	// module body even when the outer file is a Script and even
 	// though the namespace body isn't the program top level. Skip
 	// both branches under that context (`namespace M { export var
 	// x = 1; }` in a .ts script is legal).
-	if ctx.ts_namespace_depth > 0 { return }
+	// Exception: `export default` inside a namespace is TS1319.
+	if ctx.ts_namespace_depth > 0 {
+		// TS1319 — `export default` inside a namespace is invalid.
+		// Exception: inside `declare module "..."` (ambient module
+		// declarations) and .d.ts files, `export default` IS valid.
+		if is_default && !ctx.is_dts && !ctx.in_ambient_module_decl && (ctx.lang == .TS || ctx.lang == .TSX) {
+			ck_report(c, u32(loc.span.start),
+				"A default export must be at the top level of a file or module declaration.")
+		}
+		return
+	}
 	if ctx.source_type == .Script {
 		msg := "'export' is only valid in module code"
 		if is_import { msg = "'import' is only valid in module code" }
