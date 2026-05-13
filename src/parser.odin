@@ -7102,7 +7102,10 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// identifier branches below (e.g. `var yield = 1` inside a sloppy
 	// generator reaches the contextual `.Yield` branch and reports a
 	// structural error).
-	if p.strict_mode && is_strict_reserved_word(p.cur_type) {
+	// In TS ambient contexts (declare namespace/module, .d.ts), strict-mode
+	// reserved words ARE allowed as identifiers.
+	if p.strict_mode && is_strict_reserved_word(p.cur_type) &&
+	   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
@@ -7203,7 +7206,9 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// would double-report the same source location. id_has_escape was
 		// captured before eat(p) below because cur_tok then points at the
 		// next token, not the binding identifier.
-		if p.strict_mode && !id_has_escape {
+		// In TS ambient contexts (declare namespace/module, .d.ts),
+		// strict-mode reserved words ARE allowed as identifiers.
+		if p.strict_mode && !id_has_escape && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 			if is_eval_or_arguments(id_name) {
 				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
 				report_error_at(p, LexerLoc(id_loc.span.start), msg)

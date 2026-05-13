@@ -1,8 +1,8 @@
 commit: c7a0ae10
 
 parser_typescript Summary:
-AST Parsed     : 12658/12664 (99.95%)
-Positive Passed: 12658/12664 (99.95%)
+AST Parsed     : 12660/12664 (99.97%)
+Positive Passed: 12660/12664 (99.97%)
 Negative Passed: 1689/3498 (48.28%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
@@ -1813,12 +1813,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uni
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsPropertyNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/witness/witness.ts
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/ambientNameRestrictions.ts
-typescript/tests/cases/compiler/ambientNameRestrictions.ts:2:14: 'static' is a reserved identifier in strict mode
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/augmentExportEquals5.ts::express.d.ts
-typescript/tests/cases/compiler/augmentExportEquals5.ts::express.d.ts:59:13: 'static' is a reserved identifier in strict mode
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts
 typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts:8:18: 'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'
 
