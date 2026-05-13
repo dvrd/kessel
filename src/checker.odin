@@ -4072,7 +4072,9 @@ property_key_to_name_literal :: proc(key: ^Expression) -> string {
 	case ^StringLiteral:
 		if k != nil { return k.value }
 	case ^NumericLiteral:
-		if k != nil { return k.raw }
+		// Use the numeric VALUE (not raw text) so that 0b11 and 3
+		// (same number, different spellings) are detected as duplicates.
+		if k != nil { return fmt.tprintf("%v", k.value) }
 	case ^UnaryExpression:
 		if k == nil { return "" }
 		if k.operator == .Plus {
@@ -4101,7 +4103,7 @@ property_key_to_name :: proc(key: ^Expression) -> string {
 	case ^StringLiteral:
 		if k != nil { return k.value }
 	case ^NumericLiteral:
-		if k != nil { return k.raw }
+		if k != nil { return fmt.tprintf("%v", k.value) }
 	}
 	return ""
 }
