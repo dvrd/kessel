@@ -3238,6 +3238,10 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			}
 			if fn, ok := prop.value^.(^FunctionExpression); ok && fn != nil {
 				ck_walk_function(c, ctx, fn, .Method, false)
+				// TS2408 — setters cannot return a value.
+				if prop.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
+					ck_check_setter_return_value(c, fn.body.body[:])
+				}
 			} else {
 				ck_walk_expr(c, ctx, prop.value)
 			}
@@ -3920,6 +3924,10 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			ck_walk_function(c, ctx, fn, .Constructor, has_extends)
 		case .Get, .Set, .Method:
 			ck_walk_function(c, ctx, fn, .Method, false)
+			// TS2408 — setters cannot return a value.
+			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
+				ck_check_setter_return_value(c, fn.body.body[:])
+			}
 		case .StaticBlock:
 			unreachable() // handled above
 		}
@@ -3952,6 +3960,66 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 //
 // so the parser stays a pure tree builder.
 // ============================================================================
+
+// TS2408 — setters cannot return a value. Walks the setter body
+// recursively looking for `return <expr>;` statements. `return;`
+// (without expression) is allowed. Recurses into blocks, if/else,
+// try/catch, switch, loops. Stops at function/arrow boundaries.
+@(private="file")
+ck_check_setter_return_value :: proc(c: ^Checker, body: []^Statement) {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^ReturnStatement:
+			if v == nil { continue }
+			if _, has_arg := v.argument.(^Expression); has_arg {
+				ck_report(c, u32(v.loc.span.start),
+					"Setters cannot return a value.")
+			}
+		case ^BlockStatement:
+			if v != nil { ck_check_setter_return_value(c, v.body[:]) }
+		case ^IfStatement:
+			if v == nil { continue }
+			ck_check_setter_return_value(c, {v.consequent})
+			if alt, have := v.alternate.(^Statement); have {
+				ck_check_setter_return_value(c, {alt})
+			}
+		case ^TryStatement:
+			if v == nil { continue }
+			ck_check_setter_return_value(c, v.block.body[:])
+			if handler, have := v.handler.(CatchClause); have {
+				ck_check_setter_return_value(c, handler.body.body[:])
+			}
+			if fin, have := v.finalizer.(BlockStatement); have {
+				ck_check_setter_return_value(c, fin.body[:])
+			}
+		case ^SwitchStatement:
+			if v == nil { continue }
+			for sc in v.cases {
+				ck_check_setter_return_value(c, sc.consequent[:])
+			}
+		case ^WhileStatement:
+			if v != nil { ck_check_setter_return_value(c, {v.body}) }
+		case ^DoWhileStatement:
+			if v != nil { ck_check_setter_return_value(c, {v.body}) }
+		case ^ForStatement:
+			if v != nil { ck_check_setter_return_value(c, {v.body}) }
+		case ^ForInStatement:
+			if v != nil { ck_check_setter_return_value(c, {v.body}) }
+		case ^ForOfStatement:
+			if v != nil { ck_check_setter_return_value(c, {v.body}) }
+		case ^LabeledStatement:
+			if v != nil { ck_check_setter_return_value(c, {v.body}) }
+		// Functions/arrows/classes create new scopes — don't recurse.
+		case ^FunctionDeclaration, ^ClassDeclaration:
+			continue
+		case ^ExpressionStatement:
+			// Arrow/function expressions inside expression statements
+			// create new scopes — skip.
+			continue
+		}
+	}
+}
 
 // §13.2.5.1 — an ObjectLiteral may not contain more than one
 // PropertyDefinition whose PropertyName is the literal identifier /

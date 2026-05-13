@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12608/12664 (99.56%)
 Positive Passed: 12608/12664 (99.56%)
-Negative Passed: 1986/3498 (56.78%)
+Negative Passed: 1988/3498 (56.83%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
@@ -596,11 +596,9 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requiredMapp
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/reservedNameOnInterfaceImport.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/reservedNameOnModuleImportWithInterface.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/restUnion.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/returnValueInSetter.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/scopeCheckExtendedClassInsideStaticMethod1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/scopeCheckInsideStaticMethod1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/semicolonsInModuleDeclarations.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/setterWithReturn.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shadowingViaLocalValueOrBindingElement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shorthandPropertyUndefined.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/sideEffectImports1.ts
@@ -2242,7 +2240,9 @@ typescript/tests/cases/compiler/restParamModifier.ts:2:20: 'public' is a reserve
 typescript/tests/cases/compiler/restParamModifier2.ts:2:41: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/restParameterNotLast.ts:1:16: A rest parameter must be last in a parameter list
 typescript/tests/cases/compiler/restParameterWithBindingPattern3.ts:3:23: Rest element must be last in array pattern
+typescript/tests/cases/compiler/returnValueInSetter.ts:3:9: Setters cannot return a value.
 typescript/tests/cases/compiler/selfReferencesInFunctionParameters.ts:1:14: Parameter 'x' cannot reference itself.
+typescript/tests/cases/compiler/setterWithReturn.ts:4:13: Setters cannot return a value.
 typescript/tests/cases/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes.ts:16:13: Identifier 'x' has already been declared
 typescript/tests/cases/compiler/shadowedReservedCompilerDeclarationsWithNoEmit.ts:23:13: Parameter name 'arguments' is not allowed in strict mode
 typescript/tests/cases/compiler/shadowingViaLocalValue.ts:4:9: Identifier 'x' has already been declared
