@@ -1,8 +1,8 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12631/12664 (99.74%)
-Positive Passed: 12631/12664 (99.74%)
+AST Parsed     : 12644/12664 (99.84%)
+Positive Passed: 12644/12664 (99.84%)
 Negative Passed: 1992/3498 (56.95%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
@@ -1522,50 +1522,17 @@ typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts:8:18: 'await'
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/exportDefaultInterfaceAndFunctionOverloads.ts
 typescript/tests/cases/compiler/exportDefaultInterfaceAndFunctionOverloads.ts:2:1: Duplicate exported name 'default'
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/exportSpecifierForAGlobal.ts::b.ts
-typescript/tests/cases/compiler/exportSpecifierForAGlobal.ts::b.ts:1:9: Export 'X' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/exportSpecifierReferencingOuterDeclaration2.ts::exportSpecifierReferencingOuterDeclaration2_B.ts
-typescript/tests/cases/compiler/exportSpecifierReferencingOuterDeclaration2.ts::exportSpecifierReferencingOuterDeclaration2_B.ts:1:10: Export 'X' is not defined in the module
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts
 typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts:1:11: Top-level 'for await' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/reExportGlobalDeclaration1.ts::file2.ts
-typescript/tests/cases/compiler/reExportGlobalDeclaration1.ts::file2.ts:1:9: Export 'x' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/reExportGlobalDeclaration2.ts::file2.ts
-typescript/tests/cases/compiler/reExportGlobalDeclaration2.ts::file2.ts:1:9: Export 'I1' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/reExportGlobalDeclaration3.ts::file2.ts
-typescript/tests/cases/compiler/reExportGlobalDeclaration3.ts::file2.ts:1:9: Export 'NS1' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/reExportGlobalDeclaration4.ts::file2.ts
-typescript/tests/cases/compiler/reExportGlobalDeclaration4.ts::file2.ts:1:9: Export 'Cls1' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/reExportUndefined1.ts
-typescript/tests/cases/compiler/reExportUndefined1.ts:1:10: Export 'undefined' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/stackDepthLimitCastingType.ts::node_modules/backbone/index.d.ts
-typescript/tests/cases/compiler/stackDepthLimitCastingType.ts::node_modules/backbone/index.d.ts:17:5: Export 'Model' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/withStatementInternalComments.ts
 typescript/tests/cases/compiler/withStatementInternalComments.ts:2:7: 'with' statements are not allowed in strict mode
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/moduleExportsSystem/topLevelVarHoistingCommonJS.ts
-typescript/tests/cases/conformance/es6/moduleExportsSystem/topLevelVarHoistingCommonJS.ts:70:10: Export 'a' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/moduleExportsSystem/topLevelVarHoistingSystem.ts
-typescript/tests/cases/conformance/es6/moduleExportsSystem/topLevelVarHoistingSystem.ts:9:10: Export 'y' is not defined in the module
+typescript/tests/cases/conformance/es6/moduleExportsSystem/topLevelVarHoistingCommonJS.ts:64:1: 'with' statements are not allowed in strict mode
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/defaultExportWithOverloads01.ts
 typescript/tests/cases/conformance/es6/modules/defaultExportWithOverloads01.ts:2:1: Duplicate exported name 'default'
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/reExportDefaultExport.ts::m1.ts
-typescript/tests/cases/conformance/es6/modules/reExportDefaultExport.ts::m1.ts:3:9: Export 'f' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/exportNonLocalDeclarations.ts
-typescript/tests/cases/conformance/externalModules/exportNonLocalDeclarations.ts:1:10: Export 'string' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts
 typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts:3:15: 'await' is reserved as a binding name in this context
@@ -1599,12 +1566,6 @@ typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePattern
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::index.cjs:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/esmModuleExports1.ts::/exporter.mts
-typescript/tests/cases/conformance/node/esmModuleExports1.ts::/exporter.mts:2:10: Export 'Foo' is not defined in the module
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.3.ts
-typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsTopLevelOfModule.3.ts:1:10: Export 'y' is not defined in the module
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/statements/tryStatements/tryStatements.ts
 typescript/tests/cases/conformance/statements/tryStatements/tryStatements.ts:11:25: Catch parameter 'x' cannot be redeclared with 'var' in catch block

@@ -293,8 +293,13 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	// is a parse-time structural error there).
 	ck_check_export_dups(c, &ctx, program)
 	// §16.2.2 — every non-re-export ExportSpecifier.local must reference
-	// a name declared at module top level.
-	ck_check_export_local_defined(c, program)
+	// a name declared at module top level. Skip for TS/TSX: TypeScript
+	// allows re-exporting global/ambient declarations from other files
+	// that kessel cannot see (single-file, no cross-file resolution).
+	// The TS type-checker owns this diagnostic.
+	if lang != .TS && lang != .TSX {
+		ck_check_export_local_defined(c, program)
+	}
 	// TS — `export =` cannot coexist with other export statements,
 	// and only one `export =` per module.
 	ck_check_ts_export_assignment(c, program)
