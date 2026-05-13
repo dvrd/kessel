@@ -857,6 +857,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				ck_report(c, u32(v.loc.span.start),
 					"Generators are not allowed in an ambient context.")
 			}
+			// TS1040 — async modifier in ambient context.
+			if (ctx.lang == .TS || ctx.lang == .TSX) && v.async && (v.declare || ctx.is_dts) {
+				ck_report(c, u32(v.loc.span.start),
+					"'async' modifier cannot be used in an ambient context.")
+			}
 			ck_walk_function(c, ctx, &v.expr)
 		}
 
@@ -3256,10 +3261,17 @@ ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allo
 		// Allowed declaration forms:
 		case ^VariableDeclaration:              continue
 		case ^FunctionDeclaration:
-			// TS1221 — generators are not allowed in ambient contexts.
-			if v != nil && v.generator {
-				ck_report(c, u32(v.loc.span.start),
-					"Generators are not allowed in an ambient context.")
+			if v != nil {
+				// TS1221 — generators are not allowed in ambient contexts.
+				if v.generator {
+					ck_report(c, u32(v.loc.span.start),
+						"Generators are not allowed in an ambient context.")
+				}
+				// TS1040 — async modifier in ambient context.
+				if v.async {
+					ck_report(c, u32(v.loc.span.start),
+						"'async' modifier cannot be used in an ambient context.")
+				}
 			}
 			continue
 		case ^ClassDeclaration:                 continue

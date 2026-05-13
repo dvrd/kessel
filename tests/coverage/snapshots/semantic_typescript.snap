@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12650/12664 (99.89%)
 Positive Passed: 12650/12664 (99.89%)
-Negative Passed: 2072/3498 (59.23%)
+Negative Passed: 2074/3498 (59.29%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -656,9 +656,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/a
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/ambientExternalModuleInsideNonAmbient.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/ambientExternalModuleInsideNonAmbientExternalModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunctionCapturesArguments_es5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/asyncDeclare_es5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclarationCapturesArguments_es5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es6/asyncDeclare_es6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file2.ts
@@ -2179,6 +2177,7 @@ typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFuncti
 typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunction9_es5.ts:1:22: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es5/asyncClass_es5.ts:1:7: Expected semicolon
 typescript/tests/cases/conformance/async/es5/asyncConstructor_es5.ts:2:20: Constructor can't be an async method
+typescript/tests/cases/conformance/async/es5/asyncDeclare_es5.ts:1:1: 'async' modifier cannot be used in an ambient context.
 typescript/tests/cases/conformance/async/es5/asyncEnum_es5.ts:1:7: Expected semicolon
 typescript/tests/cases/conformance/async/es5/asyncGetter_es5.ts:2:9: 'async' modifier cannot be used here.
 typescript/tests/cases/conformance/async/es5/asyncInterface_es5.ts:1:7: Expected semicolon
@@ -2199,6 +2198,7 @@ typescript/tests/cases/conformance/async/es6/asyncArrowFunction/asyncArrowFuncti
 typescript/tests/cases/conformance/async/es6/asyncArrowFunction/asyncArrowFunction9_es6.ts:1:22: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es6/asyncClass_es6.ts:1:7: Expected semicolon
 typescript/tests/cases/conformance/async/es6/asyncConstructor_es6.ts:2:20: Constructor can't be an async method
+typescript/tests/cases/conformance/async/es6/asyncDeclare_es6.ts:1:1: 'async' modifier cannot be used in an ambient context.
 typescript/tests/cases/conformance/async/es6/asyncEnum_es6.ts:1:7: Expected semicolon
 typescript/tests/cases/conformance/async/es6/asyncGetter_es6.ts:2:9: 'async' modifier cannot be used here.
 typescript/tests/cases/conformance/async/es6/asyncInterface_es6.ts:1:7: Expected semicolon
