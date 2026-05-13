@@ -27,7 +27,7 @@ $ odin build tests/coverage/src -out:bin/kessel_coverage -o:speed -no-bounds-che
 ```
 ES2025 (test262):  Parser 47085/47090 (99.99%) | Semantic 4588/4588 (100.00%)
 Babel:             Parser 2227/2233  (99.73%) | Semantic 1677/1711 (98.01%)
-TypeScript:        Parser 12660/12664 (99.97%) | Semantic 2053/3498 (58.69%)
+TypeScript:        Parser 12660/12664 (99.97%) | Semantic 2061/3498 (58.92%)
 ESTree:            Parser 39/39 (100%)         | Semantic 39/39 (100%)
 Misc:              Parser 72/72 (100%)         | Semantic 280/286 (97.90%)
 ```
@@ -124,7 +124,7 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 | Optional `?` on destructuring patterns not tracked in AST | low | Parser doesn't set `optional` for `[]?` / `{}?` patterns | Blocks TS1051 check |
 | Type-system errors (TS2339 ×265, etc.) unfixable without type inference | high | Represents bulk of remaining ~1467 TS gaps | Requires type resolution infrastructure |
 
-## Session 9 Changes (13 feature/fix commits)
+## Session 9 Changes (15 feature/fix commits)
 
 1. **fix(checker): export-local-defined** — track TSImportEquals bindings, TS decls in exports, skip type-only. +21 FP fixed.
 2. **fix(parser): export-default-function overloads** — allow bodyless `export default function` in TS. +5 parser, +3 semantic.
@@ -137,8 +137,10 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 9. **feat(checker): TS1036** — reject statements in ambient contexts (.d.ts + declare-ns). +17 negatives.
 10. **feat(checker): TS2428** — interface merge type-parameter mismatch. +5 negatives.
 11. **fix(parser): strict-reserved in TS ambient** — allow `static`/`let`/`yield` as bindings in declare-namespace. +2 parser, +2 semantic.
+12. **feat(checker): TS2331** — reject `this` in namespace body (not inside functions/arrows). +6 negatives.
+13. **feat(checker): TS1268** — index sig param must be string/number/symbol/template literal. +2 negatives.
 
-**Net session 9 impact**: TS parser positive 12653→12660 (+7), TS semantic positive 12608→12648 (+40), TS semantic negative 1994→2053 (+59, 57.00%→58.69%).
+**Net session 9 impact**: TS parser positive 12653→12660 (+7), TS semantic positive 12608→12648 (+40), TS semantic negative 1994→2061 (+67, 57.00%→58.92%).
 
 ## Incomplete Work
 
