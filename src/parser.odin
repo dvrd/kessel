@@ -5986,7 +5986,9 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 
 	// §14.3 — `using` / `await using` are not allowed at the top
 	// level of a Script (only inside blocks / functions / modules).
-	if !p.in_function && p.block_depth == 0 && (kind == .Using || kind == .AwaitUsing) {
+	// Exceptions: `for (using x = ...)` is a for-loop init, not a
+	// top-level statement, so skip when in_for.
+	if !p.in_function && p.block_depth == 0 && !in_for && (kind == .Using || kind == .AwaitUsing) {
 		if st, have := p.force_source_type.(SourceType); have && st == .Script {
 			if kind == .AwaitUsing {
 				report_error(p, "'await using' declaration is not allowed at the top level of a script")

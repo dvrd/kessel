@@ -1130,11 +1130,11 @@ babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/in
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-export-default-using/input.js:1:16: 'export default' cannot be followed by a using declaration
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-export-using/input.js:2:1: Using declarations cannot be exported directly
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-await-using-binding-of-of/input.mjs:1:24: Expected ), got of
-babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-binding-in/input.js:1:12: 'using' declaration is not allowed at the top level of a script
+babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-binding-in/input.js:1:19: 'using' declaration is not allowed in a for-in loop
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-binding-of-in/input.js:1:15: Unexpected reserved word 'in'
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-binding-of-of/input.js:1:18: Expected ), got of
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-of-equal-equal/input.js:1:22: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-of-no-initializer/input.js:1:12: 'using' declaration is not allowed at the top level of a script
+babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-of-no-initializer/input.js:1:14: Using declarations must have an initializer
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-in-single-statement-context/input.js:3:3: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-labeled-using-binding/input.js:3:1: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-module-bare-case-using-binding/input.js:6:5: 'using' declaration is not allowed directly inside a switch case clause

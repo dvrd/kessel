@@ -1,21 +1,12 @@
 semantic_test262 Summary:
-AST Parsed     : 47085/47090 (99.99%)
-Positive Passed: 47085/47090 (99.99%)
+AST Parsed     : 47088/47090 (100.00%)
+Positive Passed: 47088/47090 (100.00%)
 Negative Passed: 4588/4588 (100.00%)
 Expect to Parse: tasks/coverage/test262/test/language/function-code/S10.2.1_A4_T1.js
 test262/test/language/function-code/S10.2.1_A4_T1.js:19:12: Formal parameter 'x' cannot be redeclared with let/const in function body
 
 Expect to Parse: tasks/coverage/test262/test/language/statements/class/subclass/class-definition-null-proto-super.js
 test262/test/language/statements/class/subclass/class-definition-null-proto-super.js:42:5: 'super' call is only allowed in the constructor of a derived class
-
-Expect to Parse: tasks/coverage/test262/test/language/statements/for-of/head-using-fresh-binding-per-iteration.js
-test262/test/language/statements/for-of/head-using-fresh-binding-per-iteration.js:17:12: 'using' declaration is not allowed at the top level of a script
-
-Expect to Parse: tasks/coverage/test262/test/language/statements/using/initializer-disposed-at-end-of-forstatement.js
-test262/test/language/statements/using/initializer-disposed-at-end-of-forstatement.js:53:12: 'using' declaration is not allowed at the top level of a script
-
-Expect to Parse: tasks/coverage/test262/test/language/statements/using/syntax/using-for-statement.js
-test262/test/language/statements/using/syntax/using-for-statement.js:10:12: 'using' declaration is not allowed at the top level of a script
 
 test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js:18:4: Octal or \8 / \9 escape sequences are not allowed in strict mode
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
@@ -4147,9 +4138,9 @@ test262/test/language/statements/for-of/head-lhs-invalid-asnmt-ptrn-ary.js:20:18
 test262/test/language/statements/for-of/head-lhs-invalid-asnmt-ptrn-obj.js:20:20: Invalid destructuring assignment target
 test262/test/language/statements/for-of/head-lhs-let.js:25:14: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/for-of/head-lhs-non-asnmt-trgt.js:18:14: Invalid left-hand side in for-of loop
-test262/test/language/statements/for-of/head-using-bound-names-in-stmt.js:17:12: 'using' declaration is not allowed at the top level of a script
-test262/test/language/statements/for-of/head-using-bound-names-let.js:17:12: 'using' declaration is not allowed at the top level of a script
-test262/test/language/statements/for-of/head-using-init.js:20:12: 'using' declaration is not allowed at the top level of a script
+test262/test/language/statements/for-of/head-using-bound-names-in-stmt.js:18:3: 'x' is already declared in for-of head
+test262/test/language/statements/for-of/head-using-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
+test262/test/language/statements/for-of/head-using-init.js:20:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-var-init.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-var-no-expr.js:17:17: Expected ), got ,
 test262/test/language/statements/for-of/labelled-fn-stmt-const.js:19:1: Function declarations are not allowed in a single-statement context
@@ -4492,7 +4483,7 @@ test262/test/language/statements/using/syntax/block-scope-syntax-using-declarati
 test262/test/language/statements/using/syntax/block-scope-syntax-using-declarations-without-initializer.js:30:1: Missing initializer in 'using' declaration
 test262/test/language/statements/using/syntax/using-invalid-arraybindingpattern-after-bindingidentifier.js:18:1: 'using' declaration requires a binding identifier
 test262/test/language/statements/using/syntax/using-invalid-arraybindingpattern.js:17:10: Unexpected closing token
-test262/test/language/statements/using/syntax/using-invalid-for-in.js:14:12: 'using' declaration is not allowed at the top level of a script
+test262/test/language/statements/using/syntax/using-invalid-for-in.js:14:17: 'using' declaration is not allowed in a for-in loop
 test262/test/language/statements/using/syntax/using-invalid-objectbindingpattern-after-bindingidentifier.js:18:1: 'using' declaration requires a binding identifier
 test262/test/language/statements/using/syntax/using-invalid-objectbindingpattern.js:17:9: Expected semicolon
 test262/test/language/statements/using/syntax/using-invalid-switchstatement-caseclause.js:21:5: 'using' declaration is not allowed directly inside a switch case clause
