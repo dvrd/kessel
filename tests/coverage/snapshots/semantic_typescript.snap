@@ -1,8 +1,8 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12644/12664 (99.84%)
-Positive Passed: 12644/12664 (99.84%)
+AST Parsed     : 12646/12664 (99.86%)
+Positive Passed: 12646/12664 (99.86%)
 Negative Passed: 1992/3498 (56.95%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
@@ -1519,9 +1519,6 @@ typescript/tests/cases/compiler/augmentExportEquals5.ts::express.d.ts:59:13: 'st
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts
 typescript/tests/cases/compiler/es5-asyncFunctionNewExpressions.ts:8:18: 'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/exportDefaultInterfaceAndFunctionOverloads.ts
-typescript/tests/cases/compiler/exportDefaultInterfaceAndFunctionOverloads.ts:2:1: Duplicate exported name 'default'
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts
 typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts:1:11: Top-level 'for await' is only valid in module code
 
@@ -1530,9 +1527,6 @@ typescript/tests/cases/compiler/withStatementInternalComments.ts:2:7: 'with' sta
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/moduleExportsSystem/topLevelVarHoistingCommonJS.ts
 typescript/tests/cases/conformance/es6/moduleExportsSystem/topLevelVarHoistingCommonJS.ts:64:1: 'with' statements are not allowed in strict mode
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/es6/modules/defaultExportWithOverloads01.ts
-typescript/tests/cases/conformance/es6/modules/defaultExportWithOverloads01.ts:2:1: Duplicate exported name 'default'
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts
 typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts:3:15: 'await' is reserved as a binding name in this context
@@ -1853,10 +1847,10 @@ typescript/tests/cases/compiler/exportDefaultClassInNamespace.ts:2:5: A default 
 typescript/tests/cases/compiler/exportDefaultDuplicateCrash.ts:4:10: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportDefaultFunctionInNamespace.ts:2:5: A default export must be at the top level of a file or module declaration.
 typescript/tests/cases/compiler/exportDefaultInterfaceAndTwoFunctions.ts:3:1: Duplicate exported name 'default'
-typescript/tests/cases/compiler/exportDefaultInterfaceClassAndFunctionOverloads.ts:2:1: Duplicate exported name 'default'
+typescript/tests/cases/compiler/exportDefaultInterfaceClassAndFunctionOverloads.ts:7:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportDefaultInterfaceClassAndValue.ts:3:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportDefaultTypeAndClass.ts:3:1: Duplicate exported name 'default'
-typescript/tests/cases/compiler/exportDefaultTypeAndFunctionOverloads.ts:2:1: Duplicate exported name 'default'
+typescript/tests/cases/compiler/exportDefaultTypeAndFunctionOverloads.ts:7:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportDefaultTypeClassAndValue.ts:3:1: Duplicate exported name 'default'
 typescript/tests/cases/compiler/exportEqualsClassRedeclarationError.ts:6:5: Duplicate identifier 'someProp'
 typescript/tests/cases/compiler/exportInFunction.ts:2:16: Expected '}' at end of function body

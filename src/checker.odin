@@ -5137,16 +5137,27 @@ ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Progra
 			// TS2528 — a module cannot have multiple default exports.
 			// Type-only defaults (interface, type alias) coexist with
 			// value defaults and are not counted here.
-			is_type_only := false
+			// TS overload signatures (`export default function foo(): T;`
+			// without a body) also don’t contribute a binding — only the
+			// implementation does.
+			skip := false
 			if d, have := v.declaration.(^Declaration); have && d != nil {
 				#partial switch inner in d^ {
 				case ^TSInterfaceDeclaration:
-					is_type_only = true
+					skip = true
 				case ^TSTypeAliasDeclaration:
-					is_type_only = true
+					skip = true
+				case ^FunctionDeclaration:
+					if inner != nil && inner.no_body { skip = true }
 				}
 			}
-			if !is_type_only {
+			// Also skip function expressions from export-default overloads.
+			if e, have := v.declaration.(^Expression); !skip && have && e != nil {
+				if fn, ok := e^.(^FunctionExpression); ok && fn != nil && fn.no_body {
+					skip = true
+				}
+			}
+			if !skip {
 				record(c, &exported, "default", u32(v.loc.span.start))
 			}
 		}
