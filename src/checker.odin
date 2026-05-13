@@ -6120,7 +6120,12 @@ ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: C
 		if _, ok := param.(^Identifier); ok {
 			is_simple_id = true
 		}
-		if ctx.strict_mode || !is_simple_id {
+		// In TS/TSX mode, OXC (and TSC) allow `catch(x) { var x; }` even
+		// in strict mode when the catch parameter is a simple identifier.
+		// Only fire for destructuring patterns in TS, or always in JS
+		// strict mode per ECMA-262 §B.3.4.
+		is_ts := ctx.lang == .TS || ctx.lang == .TSX
+		if (!is_ts && ctx.strict_mode) || !is_simple_id {
 			if off, ok := scope_map_get(&body_vars, n); ok {
 				msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with 'var' in catch block", n)
 				ck_report(c, off, msg)

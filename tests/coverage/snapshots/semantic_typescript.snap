@@ -1,8 +1,8 @@
 commit: c7a0ae10
 
 semantic_typescript Summary:
-AST Parsed     : 12649/12664 (99.88%)
-Positive Passed: 12649/12664 (99.88%)
+AST Parsed     : 12650/12664 (99.89%)
+Positive Passed: 12650/12664 (99.89%)
 Negative Passed: 2064/3498 (59.01%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
@@ -1479,9 +1479,6 @@ typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePattern
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::index.cjs
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsPackagePatternExportsTrailers.ts::index.cjs:2:1: 'import' is only valid in module code
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/statements/tryStatements/tryStatements.ts
-typescript/tests/cases/conformance/statements/tryStatements/tryStatements.ts:11:25: Catch parameter 'x' cannot be redeclared with 'var' in catch block
 
 typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
