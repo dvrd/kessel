@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12649/12664 (99.88%)
 Positive Passed: 12649/12664 (99.88%)
-Negative Passed: 2067/3498 (59.09%)
+Negative Passed: 2064/3498 (59.01%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -57,6 +57,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/checkingObje
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExpressionWithDecorator1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendingQualifiedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendsInterface_not.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendsNull.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classExtendsNull2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classImplementsClass6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classStaticPropertyAccess.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/cloduleTest2.ts
@@ -765,6 +767,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrow
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments18.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/arrowFunction/emitArrowFunctionWhenUsingArguments19.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames15_ES6.ts
@@ -1595,8 +1598,6 @@ typescript/tests/cases/compiler/class2.ts:1:29: 'static' is a reserved identifie
 typescript/tests/cases/compiler/classCannotExtendVar.ts:3:7: Duplicate identifier 'Markup'
 typescript/tests/cases/compiler/classExpressionPropertyModifiers.ts:2:40: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/compiler/classExtendsMultipleBaseClasses.ts:3:18: Expected {, got ,
-typescript/tests/cases/compiler/classExtendsNull.ts:3:9: 'super' call is only allowed in the constructor of a derived class
-typescript/tests/cases/compiler/classExtendsNull2.ts:7:5: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/classFieldsBrokenConstructorEmitNoCrash1.ts:4:1: Class field cannot be named 'constructor'
 typescript/tests/cases/compiler/classHeritageWithTrailingSeparator.ts:2:18: Expected {, got ,
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier.ts:2:12: Expected method or property name
@@ -2420,7 +2421,6 @@ typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/invalidBinar
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/octalIntegerLiteralError.ts:2:19: Expected semicolon
 typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts:4:16: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing3.ts:9:9: 'super' must be called before accessing 'this' in the constructor of a derived class.
-typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing4.ts:5:9: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/es6/classDeclaration/superCallBeforeThisAccessing6.ts:7:15: 'super' must be called before accessing 'this' in the constructor of a derived class.
 typescript/tests/cases/conformance/es6/classDeclaration/superCallFromClassThatHasNoBaseTypeButWithSameSymbolInterface.ts:5:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts:5:8: Unexpected token: array literal cannot be a computed class member name

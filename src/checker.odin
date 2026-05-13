@@ -206,6 +206,11 @@ CheckerContext :: struct {
 	// by TS2331 to allow `this` inside arrow functions even when inside
 	// a namespace (arrows inherit `this` from the enclosing scope).
 	in_arrow_body: bool,
+	// extends_null — true while walking the constructor of a class that
+	// extends null. super() is syntactically valid but TS2377 (must call
+	// super) and TS17009 (this before super) should not fire because
+	// null has no constructor to call.
+	extends_null: bool,
 }
 
 Checker :: struct {
@@ -4087,7 +4092,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		// §14.1.3 / Annex B.3.2. Static-block bodies and class-method
 		// bodies share the same scoping rule.
 		ck_run_scope_check(c, ctx, fn.body.body[:], false)
-		if kind == .Constructor && derived_ctor && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if kind == .Constructor && derived_ctor && (ctx.lang == .TS || ctx.lang == .TSX) && !ctx.extends_null {
 			// TS17009 — `this` before `super()` in derived constructor.
 			ck_check_this_before_super(c, ctx, fn.body.body[:])
 			// TS2377 — derived constructors must contain a `super()` call.
@@ -4181,14 +4186,15 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// restore for the rest of ck_walk_class (the body-scope lift below
 	// re-applies it anyway).
 	prev_strict_heritage := ctx.strict_mode
+	extends_null := false
 	if sc, have := cls.super_class.(^Expression); have && sc != nil {
 		// `extends null` is a special case: NullLiteral as super_class
-		// means no base constructor to call. Don't set has_extends so
-		// TS2377 (missing super) and TS17009 (this before super) are
-		// suppressed.
-		is_null := false
-		if _, nok := sc^.(^NullLiteral); nok { is_null = true }
-		if !is_null { has_extends = true }
+		// means no base constructor to call. The class IS derived (super()
+		// is syntactically valid in the constructor), but TS2377 (missing
+		// super) and TS17009 (this before super) are suppressed because
+		// the null prototype has no constructor to call.
+		if _, nok := sc^.(^NullLiteral); nok { extends_null = true }
+		has_extends = true
 		ctx.strict_mode = true
 		ck_walk_expr(c, ctx, sc)
 		ctx.strict_mode = prev_strict_heritage
@@ -4329,7 +4335,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 			ctx.in_derived_constructor = saved_dctor
 		}
 
-		ck_walk_class_element_value(c, ctx, elem, has_extends)
+		ck_walk_class_element_value(c, ctx, elem, has_extends, extends_null)
 	}
 }
 
@@ -4352,7 +4358,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 //     function, but `new.target` and break/continue do not propagate so
 //     we don't need a function_depth bump).
 @(private="file")
-ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: ClassElement, has_extends: bool) {
+ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: ClassElement, has_extends: bool, extends_null := false) {
 	val, have := elem.value.(^Expression)
 	if !have || val == nil { return }
 
@@ -4366,7 +4372,10 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 	if fn, ok := val^.(^FunctionExpression); ok && fn != nil {
 		switch elem.kind {
 		case .Constructor:
+			prev_extends_null := ctx.extends_null
+			ctx.extends_null = extends_null
 			ck_walk_function(c, ctx, fn, .Constructor, has_extends)
+			ctx.extends_null = prev_extends_null
 		case .Get, .Set, .Method:
 			ck_walk_function(c, ctx, fn, .Method, false)
 			// TS2408 — setters cannot return a value.
