@@ -2930,6 +2930,23 @@ ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32,
 // ck_check_ts_body_decls — TS-only per-scope body checks. Runs the
 // declaration-merge dup-detect, the function-declaration overload-
 // chain check, the duplicate-function-implementation check, AND the
+// ck_pattern_display_name — short display name for a Pattern.
+// For BindingIdentifier: just the name. For destructuring: first bound name.
+@(private="file")
+ck_pattern_display_name :: proc(pat: Pattern) -> string {
+	#partial switch p in pat {
+	case ^Identifier:
+		if p != nil { return p.name }
+	case ^ObjectPattern, ^ArrayPattern:
+		names: [dynamic]string
+		names.allocator = context.temp_allocator
+		reserve(&names, 2)
+		scope_collect_pattern(pat, &names)
+		if len(names) > 0 { return names[0] }
+	}
+	return "<pattern>"
+}
+
 // ck_check_ts1038_nested_declare — TS1038 "A 'declare' modifier cannot
 // be used in an already ambient context." Walks the body of a
 // `declare namespace/module` or a `.d.ts` namespace body. Any child
@@ -3747,18 +3764,38 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		}
 	}
 	// TS2372 — parameter default value must not reference itself.
+	// TS2373 — parameter default value must not forward-reference a
+	// parameter declared after it in the same parameter list.
 	if ctx.lang == .TS || ctx.lang == .TSX {
-		for pr in fn.params {
+		for pi in 0..<len(fn.params) {
+			pr := fn.params[pi]
 			if def, has := pr.default_val.(^Expression); has && def != nil {
-				names: [dynamic]string
-				names.allocator = context.temp_allocator
-				reserve(&names, 2)
-				scope_collect_pattern(pr.pattern, &names)
-				for n in names {
+				// TS2372: self-reference.
+				self_names: [dynamic]string
+				self_names.allocator = context.temp_allocator
+				reserve(&self_names, 2)
+				scope_collect_pattern(pr.pattern, &self_names)
+				for n in self_names {
 					if ck_expr_has_identifier_ref(def, n, context.temp_allocator) {
 						msg := fmt.tprintf("Parameter '%s' cannot reference itself.", n)
 						ck_report(c, u32(pr.loc.span.start), msg)
 						break
+					}
+				}
+				// TS2373: forward-reference to a later parameter.
+				for fwd_i in (pi + 1)..<len(fn.params) {
+					fwd := fn.params[fwd_i]
+					fwd_names: [dynamic]string
+					fwd_names.allocator = context.temp_allocator
+					reserve(&fwd_names, 2)
+					scope_collect_pattern(fwd.pattern, &fwd_names)
+					for fwd_n in fwd_names {
+						if ck_expr_has_identifier_ref(def, fwd_n, context.temp_allocator) {
+							msg := fmt.tprintf("Parameter '%s' cannot reference identifier '%s' declared after it.",
+								ck_pattern_display_name(pr.pattern), fwd_n)
+							ck_report(c, u32(pr.loc.span.start), msg)
+							break  // one diagnostic per param is enough
+						}
 					}
 				}
 			}
