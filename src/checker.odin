@@ -1573,20 +1573,26 @@ elem_is_overloadable_method :: proc(elem: ClassElement) -> (^FunctionExpression,
 ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 	if c == nil || len(body.body) == 0 { return }
 
-	// Pre-pass: skip the entire check when the class is a pure overload-
-	// set pattern (all method signatures for the same name, no constructor
-	// signatures, no implementations). This avoids false positives on
-	// babel parser-test fixtures (`class C { f(); f(): void; }`).
-	// But we still check classes with constructor signatures or with
-	// signatures for different names.
+	// Pre-pass: skip when there's no implementation AND the class body
+	// consists ONLY of method sigs for a single name (pure overload-set
+	// pattern: `class C { f(); f(): void; }` accepted by OXC/babel).
+	// When there are non-method elements (properties, static blocks) OR
+	// sigs for multiple different names, the check runs normally.
 	has_any_impl := false
+	has_non_method := false
 	has_constructor_sig := false
 	method_names: map[string]bool
 	method_names.allocator = context.temp_allocator
 	total_sigs := 0
 	for elem in body.body {
 		fn, ok := elem_is_overloadable_method(elem)
-		if !ok { continue }
+		if !ok {
+			// PropertyDefinition, getter, setter, static block, etc.
+			if elem.kind != .Get && elem.kind != .Set {
+				has_non_method = true
+			}
+			continue
+		}
 		if method_fn_has_body(fn) {
 			has_any_impl = true
 			break
@@ -1596,12 +1602,11 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 			has_constructor_sig = true
 		} else {
 			name, has_name := elem_overload_name(elem)
-			if has_name {
-				method_names[name] = true
-			}
+			if has_name { method_names[name] = true }
 		}
 	}
-	if !has_any_impl {
+	if !has_any_impl && !has_non_method {
+		// Pure overload-set class: only skip if single method name.
 		if !has_constructor_sig && len(method_names) <= 1 && total_sigs >= 2 {
 			return
 		}
