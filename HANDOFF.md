@@ -37,13 +37,13 @@ Benchmark baseline re-locked at session-9 start (geo-mean ~1.01x).
 
 ## Project Structure
 
-### `src/` — 44 577 LoC
+### `src/` — 45 149 LoC
 
 | File | Lines | Purpose |
 |---|---:|---|
-| `parser.odin` | 20 166 | Hand-written Pratt parser. `Parser` struct, ~200 parsing procedures. Permissive — builds AST without early errors. |
+| `parser.odin` | 20 185 | Hand-written Pratt parser. `Parser` struct, ~200 parsing procedures. Permissive — builds AST without early errors. |
 | `emitter.odin` | 6 381 | ESTree JSON emitter. `Emitter` owns writer buffer + UTF-16 offset tables + line maps. 39 node printers. |
-| `checker.odin` | 6 276 | Pass-3 semantic checker. Walks finished AST, enforces ECMA-262 + TS early errors. Opt-in via `--show-semantic-errors`. |
+| `checker.odin` | 6 829 | Pass-3 semantic checker. Walks finished AST, enforces ECMA-262 + TS early errors. Opt-in via `--show-semantic-errors`. |
 | `lexer.odin` | 3 118 | SIMD-accelerated tokenizer. Two-token lookahead (`cur` + `nxt`). 16-byte `FastToken` by value. |
 | `regex.odin` | 2 235 | ES2025 §22.2.1 regex pattern validator. Decoupled from `Lexer`. |
 | `ast.odin` | 1 618 | All AST struct/union definitions. `Expression`, `Statement`, `Pattern` unions. |
@@ -107,7 +107,7 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 | Permissive parser + separate checker | Mirrors OXC. Parser is pure tree builder. Checker is opt-in pass 3. | Inline early errors during parse (rejected — couples parsing decisions to error policy). |
 | Arena-only allocation | Predictable latency, bulk reset, no use-after-free. | malloc/GC (rejected). |
 | `__proto__` dup check in checker only | Parser can't distinguish ObjectExpression from ObjectPattern before conversion. Checker has `in_assignment_target` guard. | Pending-list approach in parser (was used before, removed in session 8). |
-| `extends null` suppresses has_extends | `class X extends null` has no base constructor. TS2377/TS17009 should not fire. | Separate `extends_null` flag (over-engineering). |
+| `extends null` — derived but no super checks | `class X extends null`: `has_extends=true` (super() is valid) but `extends_null` flag suppresses TS2377/TS17009 (no base constructor). | Single flag approach (prior sessions). |
 | Numeric property keys compared by f64 value | `0b11` and `3` are the same property. `.raw` comparison misses this. | Raw string comparison (incorrect for alternate bases). |
 | Directive escape check | `'use\x20strict'` must NOT activate strict mode per §11.1.1. Check raw for backslash. | Compare decoded value only (spec-non-compliant). |
 
@@ -115,7 +115,7 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 
 | Issue | Severity | Where | Workaround |
 |---|---|---|---|
-| 18 TS semantic false positives ("Expect to Parse") | medium | topLevelAwait, node/allowJs patterns, `new await` in async | Pre-existing; tracked in snap |
+| 16 TS semantic false positives ("Expect to Parse") | medium | topLevelAwait, node/allowJs patterns, jsdoc | Pre-existing; tracked in snap |
 | 4 Babel semantic FPs (getter-setter, private-method-overload, etc.) | low | OXC/babel accept empty getters; private overload dup name | Accept as known |
 | 1 misc semantic false positive (oxc-13284.ts) | low | TS2377 fires on nested-class edge case OXC skips | Accept as known |
 | 6 Babel parser false positives | medium | `with` in sloppy mode, dup constructor with linebreaks, `await` in static block | Various parser-level issues |
@@ -126,30 +126,35 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 
 ## Session 9 Changes (23 feature/fix commits)
 
-1. **fix(checker): export-local-defined** — track TSImportEquals bindings, TS decls in exports, skip type-only. +21 FP fixed.
-2. **fix(parser): export-default-function overloads** — allow bodyless `export default function` in TS. +5 parser, +3 semantic.
-3. **fix(checker): skip export-local-defined for TS/TSX** — TS re-exports of globals are not early errors. +13 FP.
-4. **fix(checker): export-default dup check** — skip overload sigs in dup-default. +2 FP.
-5. **feat(checker): TS2391** — flag sig-only non-exported function overloads. +12 negatives.
-6. **feat(checker): TS1038** — reject `declare` in already-ambient context. +10 negatives.
-7. **feat(checker): TS2373** — reject forward references in parameter defaults. +3 negatives.
-8. **feat(checker): TS2378** — getter must return a value (return/throw/empty-body). +14 negatives.
-9. **feat(checker): TS1036** — reject statements in ambient contexts (.d.ts + declare-ns). +17 negatives.
-10. **feat(checker): TS2428** — interface merge type-parameter mismatch. +5 negatives.
-11. **fix(parser): strict-reserved in TS ambient** — allow `static`/`let`/`yield` as bindings in declare-namespace. +2 parser, +2 semantic.
-12. **feat(checker): TS2331** — reject `this` in namespace body (not inside functions/arrows). +6 negatives.
-13. **feat(checker): TS1268** — index sig param must be string/number/symbol/template literal. +2 negatives.
-14. **feat(checker): TS2374** — duplicate index signature for same type. +5 negatives.
-15. **feat(checker): TS2331** — reject `this` in namespace body. +6 negatives.
-16. **feat(checker): TS1268** — index sig param type validation. +2 negatives.
-17. **fix(parser): strict-reserved in TS ambient** — allow `static`/`let`/`yield` in declare-ns. +2 parser, +2 semantic.
-18. **fix(checker): class overload pre-pass** — detect non-method interleaving. +1 negative.
-19. **fix(parser): new (await expr)** — parenthesized await is valid constructor. +1 test262, +1 TS each.
-20. **fix(parser): using in for-loop init** — for(using x = ...) at script top level is valid. +3 test262 parser, +3 test262 semantic.
-21. **fix(checker): extends null** — allow super() but suppress TS2377/TS17009. +1 test262 semantic.
-22. **fix(parser+checker): sloppy-mode FunctionDecl var-hoist** — Annex B.3.2. test262 parser **47090/47090 (100.00%)**.
+**FP fixes (parser + semantic positives):**
+1. fix(checker): export-local-defined — TSImportEquals, TS decls, type-only skip. +21 TS FP.
+2. fix(parser): export-default-function overloads in TS mode. +5 parser, +3 semantic.
+3. fix(checker): skip export-local-defined for TS/TSX entirely. +13 TS FP.
+4. fix(checker): export-default dup check — skip overload sigs. +2 TS FP.
+5. fix(parser): strict-reserved words in TS ambient context. +2 parser, +2 semantic.
+6. fix(parser): `new (await expr)` — parenthesized await is valid. +1 test262, +1 TS.
+7. fix(parser): `using` in for-loop init at script top level. +3 test262, +3 test262 semantic.
+8. fix(checker): `extends null` — allow super(), suppress TS2377/TS17009. +1 test262.
+9. fix(parser+checker): sloppy-mode FunctionDecl var-hoist (Annex B.3.2). **test262 100.00%**.
 
-**Net session 9 impact**: test262 parser 47085→47090 (+5, **100.00%**), test262 semantic 47084→47090 (+6, **100.00%**), TS parser 12653→12661 (+8), TS semantic positive 12608→12649 (+41), TS semantic negative 1994→2064 (+70, 57.00%→59.01%).
+**New TS checks (semantic negatives):**
+10. feat(checker): TS2391 — sig-only non-exported overloads. +12.
+11. feat(checker): TS1038 — `declare` in already-ambient context. +10.
+12. feat(checker): TS1036 — statements in ambient contexts. +17.
+13. feat(checker): TS2378 — getter must return a value. +14.
+14. feat(checker): TS2331 — `this` in namespace body. +6.
+15. feat(checker): TS2428 — interface merge type-parameter mismatch. +5.
+16. feat(checker): TS2374 — duplicate index signature for same type. +5.
+17. feat(checker): TS2373 — forward references in parameter defaults. +3.
+18. feat(checker): TS1268 — index sig param type validation. +2.
+19. fix(checker): class overload pre-pass — non-method interleaving. +1.
+
+**Net session 9 impact:**
+- test262 parser: 47085 → **47090 (100.00%)** (+5)
+- test262 semantic: 47084 → **47090 (100.00%)** (+6), negative 4588/4588 (100%)
+- TS parser: 12653 → 12661 (+8, 99.98%)
+- TS semantic positive: 12608 → 12649 (+41, 99.88%)
+- TS semantic negative: 1994 → 2064 (+70, 59.01%)
 
 ## Incomplete Work
 
