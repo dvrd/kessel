@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12650/12664 (99.89%)
 Positive Passed: 12650/12664 (99.89%)
-Negative Passed: 2066/3498 (59.06%)
+Negative Passed: 2069/3498 (59.15%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -1315,7 +1315,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement20.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserEmptyStatement1.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserVariableStatement2.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression1.ts
@@ -1370,8 +1369,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statement
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForAwaitOf.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForOf.4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsArrayErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of17.ts
@@ -3323,6 +3320,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStat
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement5.ts:1:6: The left-hand side of a 'for...in' statement cannot use a type annotation.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement6.ts:1:6: Only a single declaration is allowed in a for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement7.ts:1:6: Only a single declaration is allowed in a for-in loop
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement8.ts:3:6: The left-hand side of a 'for...in' statement cannot be a destructuring pattern.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement1.d.ts:1:1: Statements are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement4.ts:1:15: Invalid left-hand side in for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement6.ts:1:15: Invalid left-hand side in for-in loop
@@ -3471,6 +3469,8 @@ typescript/tests/cases/conformance/statements/continueStatements/invalidForConti
 typescript/tests/cases/conformance/statements/continueStatements/invalidForInContinueStatements.ts:4:1: 'continue' must be inside a loop
 typescript/tests/cases/conformance/statements/continueStatements/invalidSwitchContinueStatement.ts:5:9: 'continue' must be inside a loop
 typescript/tests/cases/conformance/statements/continueStatements/invalidWhileContinueStatements.ts:4:1: 'continue' must be inside a loop
+typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring.ts:1:6: The left-hand side of a 'for...in' statement cannot be a destructuring pattern.
+typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsDestructuring2.ts:1:6: The left-hand side of a 'for...in' statement cannot be a destructuring pattern.
 typescript/tests/cases/conformance/statements/for-inStatements/for-inStatementsInvalid.ts:10:6: The left-hand side of a 'for...in' statement cannot use a type annotation.
 typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of12.ts:1:14: Invalid destructuring assignment target
 typescript/tests/cases/conformance/statements/for-ofStatements/ES5For-of20.ts:5:5: Missing initializer in 'const' declaration

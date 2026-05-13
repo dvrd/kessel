@@ -6379,6 +6379,22 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 		}
 	}
 	if for_in_init_ok { return }
+	// TS2491 — destructuring patterns in for-in LHS are not allowed
+	// in TS. `for (var [a, b] in []) {}` is a SyntaxError.
+	if is_in && (ctx.lang == .TS || ctx.lang == .TSX) {
+		for d in decl.declarations {
+			is_destructuring := false
+			#partial switch _ in d.id {
+			case ^ArrayPattern, ^ObjectPattern:
+				is_destructuring = true
+			}
+			if is_destructuring {
+				ck_report(c, u32(decl.loc.span.start),
+					"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+				return
+			}
+		}
+	}
 }
 
 // ck_check_unary_delete_local — §13.5.1 — in strict mode,
