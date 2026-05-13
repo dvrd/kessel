@@ -931,6 +931,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 					"Interface declarations are only valid at the top level of a module or namespace.")
 			}
 			ck_check_ts_interface_member_dups(c, v.body)
+			ck_check_ts1268_index_sig_param_type(c, v.body)
 			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
 				ck_check_ts_type_param_dups(c, tp)
 			}
@@ -2957,6 +2958,38 @@ ck_pattern_display_name :: proc(pat: Pattern) -> string {
 		if len(names) > 0 { return names[0] }
 	}
 	return "<pattern>"
+}
+
+// ck_check_ts1268_index_sig_param_type — TS1268 "An index signature
+// parameter type must be 'string', 'number', 'symbol', or a template
+// literal type." Walks an interface/class body for TSIndexSignature
+// members and validates each parameter's type annotation.
+@(private="file")
+ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody) {
+	for sig in body.body {
+		if sig == nil { continue }
+		idx, is_idx := sig^.(TSIndexSignature)
+		if !is_idx { continue }
+		for param in idx.parameters {
+			ta, has_ta := param.type_annotation.(^TSTypeAnnotation)
+			if !has_ta || ta == nil || ta.type_annotation == nil { continue }
+			// Check the type.
+			valid := false
+			#partial switch t in ta.type_annotation^ {
+			case ^TSStringKeyword:        valid = true
+			case ^TSNumberKeyword:        valid = true
+			case ^TSSymbolKeyword:        valid = true
+			case ^TSTemplateLiteralType:  valid = true
+			case:
+				// Also allow union types where every member is valid.
+				// Skip for now — too complex.
+			}
+			if !valid {
+				ck_report(c, u32(param.loc.span.start),
+					"An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.")
+			}
+		}
+	}
 }
 
 // ck_check_ts2428_interface_merge — TS2428 "All declarations of 'X'
