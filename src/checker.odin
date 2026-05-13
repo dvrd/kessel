@@ -2251,15 +2251,7 @@ fn_decl_overload_name :: proc(fn: ^FunctionDeclaration) -> (name: string, at: u3
 ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 	if c == nil || len(body) == 0 { return }
 
-	has_any_impl := false
-	for stmt in body {
-		fn, is_fn := fn_decl_extract(stmt)
-		if !is_fn || fn.declare { continue }
-		if !fn.no_body { has_any_impl = true; break }
-	}
-	if !has_any_impl { return }
-
-	flush_unimplemented :: proc(c: ^Checker, body: []^Statement, sigs: []u32) {
+	flush_unimplemented :: proc(c: ^Checker, sigs: []u32) {
 		for at in sigs {
 			ck_report(c, at,
 				"Function implementation is missing or not immediately following the declaration.")
@@ -2270,42 +2262,51 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 	// signature in the active chain so flush_unimplemented can emit
 	// TS2391 at the precise identifier offset (matching the class
 	// version's per-element loc).
-	chain_active := false
-	chain_name   := ""
+	chain_active   := false
+	chain_name     := ""
+	chain_exported := false // True if ALL sigs in the chain are exported.
 	chain_sigs:  [dynamic]u32
 	chain_sigs.allocator = context.temp_allocator
 	defer delete(chain_sigs)
 
+	// Helper: check if a statement is wrapped in ExportNamedDeclaration.
+	is_exported :: proc(stmt: ^Statement) -> bool {
+		if stmt == nil { return false }
+		_, ok := stmt^.(^ExportNamedDeclaration)
+		return ok
+	}
+
 	for stmt in body {
 		fn, is_fn := fn_decl_extract(stmt)
 		if !is_fn {
-			if chain_active {
-				flush_unimplemented(c, body, chain_sigs[:])
-				chain_active = false
-				clear(&chain_sigs)
+			if chain_active && !chain_exported {
+				flush_unimplemented(c, chain_sigs[:])
 			}
+			chain_active = false
+			clear(&chain_sigs)
 			continue
 		}
 		if fn.declare {
 			// `declare function foo();` is a complete ambient decl.
 			// Doesn't participate in chains; flushes any active chain.
-			if chain_active {
-				flush_unimplemented(c, body, chain_sigs[:])
-				chain_active = false
-				clear(&chain_sigs)
+			if chain_active && !chain_exported {
+				flush_unimplemented(c, chain_sigs[:])
 			}
+			chain_active = false
+			clear(&chain_sigs)
 			continue
 		}
 		name, name_at, has_name := fn_decl_overload_name(fn)
 		if !has_name {
-			if chain_active {
-				flush_unimplemented(c, body, chain_sigs[:])
-				chain_active = false
-				clear(&chain_sigs)
+			if chain_active && !chain_exported {
+				flush_unimplemented(c, chain_sigs[:])
 			}
+			chain_active = false
+			clear(&chain_sigs)
 			continue
 		}
 		has_body := !fn.no_body
+		exported := is_exported(stmt)
 		if chain_active {
 			if has_body {
 				// Implementation found. TS treats ANY following
@@ -2320,26 +2321,31 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 			} else {
 				if name == chain_name {
 					append(&chain_sigs, name_at)
+					if !exported { chain_exported = false }
 				} else {
 					// Different-name sig in middle of chain — prior chain ends
 					// unimplemented; this sig opens a new chain.
-					flush_unimplemented(c, body, chain_sigs[:])
+					if !chain_exported {
+						flush_unimplemented(c, chain_sigs[:])
+					}
 					clear(&chain_sigs)
 					chain_name = name
+					chain_exported = exported
 					append(&chain_sigs, name_at)
 				}
 			}
 		} else {
 			if !has_body {
-				chain_active = true
-				chain_name   = name
+				chain_active   = true
+				chain_name     = name
+				chain_exported = exported
 				append(&chain_sigs, name_at)
 			}
 			// else: standalone full function, no chain involved.
 		}
 	}
-	if chain_active {
-		flush_unimplemented(c, body, chain_sigs[:])
+	if chain_active && !chain_exported {
+		flush_unimplemented(c, chain_sigs[:])
 	}
 }
 
