@@ -25,9 +25,9 @@ $ odin build tests/coverage/src -out:bin/kessel_coverage -o:speed -no-bounds-che
 
 ### Conformance
 ```
-ES2025 (test262):  Parser 47086/47090 (99.99%) | Semantic 47085/47090 (99.99%)
-Babel:             Parser 2227/2233  (99.73%) | Semantic 1677/1711 (98.01%)
-TypeScript:        Parser 12661/12664 (99.98%) | Semantic 2067/3498 (59.09%)
+ES2025 (test262):  Parser 47089/47090 (100.00%) | Semantic 47089/47090 (100.00%)
+Babel:             Parser 2227/2233  (99.73%)  | Semantic 1677/1711 (98.01%)
+TypeScript:        Parser 12661/12664 (99.98%) | Semantic 2064/3498 (59.01%)
 ESTree:            Parser 39/39 (100%)         | Semantic 39/39 (100%)
 Misc:              Parser 72/72 (100%)         | Semantic 280/286 (97.90%)
 ```
@@ -124,7 +124,7 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 | Optional `?` on destructuring patterns not tracked in AST | low | Parser doesn't set `optional` for `[]?` / `{}?` patterns | Blocks TS1051 check |
 | Type-system errors (TS2339 ×265, etc.) unfixable without type inference | high | Represents bulk of remaining ~1467 TS gaps | Requires type resolution infrastructure |
 
-## Session 9 Changes (19 feature/fix commits)
+## Session 9 Changes (21 feature/fix commits)
 
 1. **fix(checker): export-local-defined** — track TSImportEquals bindings, TS decls in exports, skip type-only. +21 FP fixed.
 2. **fix(parser): export-default-function overloads** — allow bodyless `export default function` in TS. +5 parser, +3 semantic.
@@ -145,8 +145,10 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 17. **fix(parser): strict-reserved in TS ambient** — allow `static`/`let`/`yield` in declare-ns. +2 parser, +2 semantic.
 18. **fix(checker): class overload pre-pass** — detect non-method interleaving. +1 negative.
 19. **fix(parser): new (await expr)** — parenthesized await is valid constructor. +1 test262, +1 TS each.
+20. **fix(parser): using in for-loop init** — for(using x = ...) at script top level is valid. +3 test262 parser, +3 test262 semantic.
+21. **fix(checker): extends null** — allow super() but suppress TS2377/TS17009. +1 test262 semantic.
 
-**Net session 9 impact**: test262 parser 47085→47086 (+1), test262 semantic 47084→47085 (+1), TS parser 12653→12661 (+8), TS semantic positive 12608→12649 (+41), TS semantic negative 1994→2067 (+73, 57.00%→59.09%).
+**Net session 9 impact**: test262 parser 47085→47089 (+4, **100.00%**), test262 semantic 47084→47089 (+5), TS parser 12653→12661 (+8), TS semantic positive 12608→12649 (+41), TS semantic negative 1994→2064 (+70, 57.00%→59.01%).
 
 ## Incomplete Work
 
