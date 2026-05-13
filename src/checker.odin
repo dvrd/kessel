@@ -2955,6 +2955,87 @@ ck_pattern_display_name :: proc(pat: Pattern) -> string {
 	return "<pattern>"
 }
 
+// ck_check_ts2428_interface_merge — TS2428 "All declarations of 'X'
+// must have identical type parameters." When multiple interfaces share
+// the same name in one scope, their type parameter lists must match:
+// same count, same names, same constraints (structural compare of the
+// source text is sufficient — OXC does the same).
+@(private="file")
+ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
+	// First interface with each name: store (name → type-param-count).
+	InterfaceInfo :: struct {
+		param_count: int,
+		param_names: [dynamic]string,
+		first_loc:   u32,
+	}
+	seen: map[string]InterfaceInfo
+	seen.allocator = context.temp_allocator
+	defer delete(seen)
+
+	extract_iface :: proc(stmt: ^Statement) -> (iface: ^TSInterfaceDeclaration, ok: bool) {
+		if stmt == nil { return nil, false }
+		#partial switch v in stmt^ {
+		case ^TSInterfaceDeclaration:
+			if v != nil { return v, true }
+		case ^ExportNamedDeclaration:
+			if v == nil { return nil, false }
+			d, have := v.declaration.(^Declaration)
+			if !have || d == nil { return nil, false }
+			#partial switch inner in d^ {
+			case ^TSInterfaceDeclaration:
+				if inner != nil { return inner, true }
+			}
+		}
+		return nil, false
+	}
+
+	for stmt in body {
+		iface, ok := extract_iface(stmt)
+		if !ok { continue }
+		name := iface.id.name
+		// Collect type parameter names.
+		pcount := 0
+		pnames: [dynamic]string
+		pnames.allocator = context.temp_allocator
+		if tp, has := iface.type_parameters.(^TSTypeParameterDeclaration); has && tp != nil {
+			pcount = len(tp.params)
+			for p in tp.params { append(&pnames, p.name.name) }
+		}
+		if prev, exists := seen[name]; exists {
+			// Only compare when BOTH declarations have type parameters.
+			// An interface with zero type params merging with one that has
+			// defaulted type params is valid in TSC (e.g.
+			// `interface X {} interface X<T = number> {}`).
+			if pcount > 0 && prev.param_count > 0 {
+				if pcount != prev.param_count {
+					msg := fmt.tprintf("All declarations of '%s' must have identical type parameters.", name)
+					ck_report(c, u32(iface.id.loc.span.start), msg)
+				} else {
+					// Compare parameter names.
+					mismatch := false
+					for i in 0..<pcount {
+						if pnames[i] != prev.param_names[i] { mismatch = true; break }
+					}
+					if mismatch {
+						msg := fmt.tprintf("All declarations of '%s' must have identical type parameters.", name)
+						ck_report(c, u32(iface.id.loc.span.start), msg)
+					}
+				}
+			} else if pcount > 0 && prev.param_count == 0 {
+				// Non-generic merging with generic is TS2428 only when the generic
+				// form has no defaults. Skip for now — requires type parameter
+				// default analysis.
+			}
+		} else {
+			seen[name] = InterfaceInfo{
+				param_count = pcount,
+				param_names = pnames,
+				first_loc   = u32(iface.id.loc.span.start),
+			}
+		}
+	}
+}
+
 // ck_check_ts1036_ambient_statements — TS1036 "Statements are not allowed
 // in ambient contexts." Walks a body (top-level of .d.ts file, or inside
 // declare namespace/module) and flags any statement that is not a
@@ -3147,6 +3228,9 @@ ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^State
 	if ctx.lang != .TS && ctx.lang != .TSX { return }
 	if len(body) == 0 { return }
 	ck_check_ts_decl_merge_body(c, body)
+	// TS2428 — All declarations of interface 'X' must have identical
+	// type parameters.
+	ck_check_ts2428_interface_merge(c, body)
 	// Top-level overload-chain check is suppressed inside .d.ts files
 	// (every declaration is implicitly ambient there). Per-element
 	// `declare function` is suppressed inside the procedure itself.

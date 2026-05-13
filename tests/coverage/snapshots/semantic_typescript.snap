@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12646/12664 (99.86%)
 Positive Passed: 12646/12664 (99.86%)
-Negative Passed: 2048/3498 (58.55%)
+Negative Passed: 2053/3498 (58.69%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -300,7 +300,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionOver
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericCallSpecializedToTypeArg.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericChainedCalls.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericClassesRedeclaration.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericDefaultsErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericFunctionTypedArgumentsAreFixed.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericMemberFunction.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericRecursiveImplicitConstructorErrors3.ts
@@ -339,7 +338,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/instanceofWi
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/interfaceAssignmentCompat.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/interfaceMemberValidation.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/interfaceMergeWithNonGenericTypeArguments.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/interfaceWithMultipleDeclarations.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/internalAliasClassInsideLocalModuleWithoutExportAccessError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/internalAliasEnumInsideLocalModuleWithoutExportAccessError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/internalAliasFunctionInsideLocalModuleWithoutExportAccessError.ts
@@ -1031,10 +1029,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/importDef
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/importDefer/importDeferTypeConflict2.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/importDefer/typeofImportDefer.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/declarationMerging/genericAndNonGenericInterfaceWithTheSameName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/declarationMerging/twoGenericInterfacesDifferingByTypeParameterName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/declarationMerging/twoGenericInterfacesDifferingByTypeParameterName2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/declarationMerging/twoGenericInterfacesWithDifferentConstraints.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/declarationMerging/twoGenericInterfacesWithTheSameNameButDifferentArity.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/declarationMerging/twoInterfacesDifferentRootModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/declarationMerging/twoInterfacesDifferentRootModule2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/interfaces/interfacesExtendingClasses/implementingAnInterfaceExtendingClassWithPrivates2.ts
@@ -1816,7 +1811,7 @@ typescript/tests/cases/compiler/expressionTypeNodeShouldError.ts::boolean.ts:7:2
 typescript/tests/cases/compiler/expressionTypeNodeShouldError.ts::number.ts:7:26: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/compiler/expressionTypeNodeShouldError.ts::string.ts:7:20: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/compiler/expressionsForbiddenInParameterInitializers.ts:1:35: 'await' expression is not allowed in formal parameters of an async function
-typescript/tests/cases/compiler/extendedInterfacesWithDuplicateTypeParameters.ts:1:42: Duplicate identifier 'A'
+typescript/tests/cases/compiler/extendedInterfacesWithDuplicateTypeParameters.ts:9:11: All declarations of 'InterfaceWithSomeTypars' must have identical type parameters.
 typescript/tests/cases/compiler/extendsClauseAlreadySeen.ts:4:19: Expected {, got extends
 typescript/tests/cases/compiler/extendsClauseAlreadySeen2.ts:4:30: Expected {, got extends
 typescript/tests/cases/compiler/extension.ts:16:22: Expected semicolon
@@ -1849,6 +1844,7 @@ typescript/tests/cases/compiler/functionWithSameNameAsField.ts:3:5: Duplicate id
 typescript/tests/cases/compiler/functionsMissingReturnStatementsAndExpressions.ts:153:5: Expected identifier after '.'
 typescript/tests/cases/compiler/functionsWithModifiersInBlocks1.ts:2:25: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/genericCallWithoutArgs.ts:4:17: An instantiation expression cannot be followed by a property access.
+typescript/tests/cases/compiler/genericDefaultsErrors.ts:20:11: All declarations of 'i00' must have identical type parameters.
 typescript/tests/cases/compiler/genericsWithDuplicateTypeParameters1.ts:1:15: Duplicate identifier 'x'
 typescript/tests/cases/compiler/getterMissingReturnError.ts:2:18: A 'get' accessor must return a value.
 typescript/tests/cases/compiler/gettersAndSettersErrors.ts:6:16: Getter must not have any formal parameters
@@ -1888,6 +1884,7 @@ typescript/tests/cases/compiler/interfaceDeclaration4.ts:39:14: Expected {, got 
 typescript/tests/cases/compiler/interfaceMayNotBeExtendedWitACall.ts:3:29: Expected {, got (
 typescript/tests/cases/compiler/interfaceNaming1.ts:1:1: 'interface' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/interfaceWithImplements1.ts:3:16: Expected {, got identifier
+typescript/tests/cases/compiler/interfaceWithMultipleDeclarations.ts:3:11: All declarations of 'I1' must have identical type parameters.
 typescript/tests/cases/compiler/invalidContinueInDownlevelAsync.ts:3:9: 'continue' must be inside a loop
 typescript/tests/cases/compiler/invalidLetInForOfAndForIn_ES5.ts:4:5: 'let' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/invalidLetInForOfAndForIn_ES6.ts:4:5: 'let' is a reserved identifier in strict mode
@@ -2736,6 +2733,9 @@ typescript/tests/cases/conformance/importDefer/importDeferTypeConflict1.ts::b.ts
 typescript/tests/cases/conformance/importDefer/importDeferTypeConflict2.ts::b.ts:1:14: Expected from, got identifier
 typescript/tests/cases/conformance/importDefer/importMetaPropertyInvalidInCall.ts:1:11: The only valid meta property for import is import.meta (got 'import.foo')
 typescript/tests/cases/conformance/importDefer/typeofImportDefer.ts::b.ts:1:30: Expected (, got .
+typescript/tests/cases/conformance/interfaces/declarationMerging/twoGenericInterfacesDifferingByTypeParameterName.ts:7:11: All declarations of 'A' must have identical type parameters.
+typescript/tests/cases/conformance/interfaces/declarationMerging/twoGenericInterfacesDifferingByTypeParameterName2.ts:7:11: All declarations of 'B' must have identical type parameters.
+typescript/tests/cases/conformance/interfaces/declarationMerging/twoGenericInterfacesWithTheSameNameButDifferentArity.ts:5:11: All declarations of 'A' must have identical type parameters.
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface01.ts:1:5: 'interface' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface02.ts:1:12: 'interface' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface03.ts:1:5: 'interface' is a reserved identifier in strict mode
