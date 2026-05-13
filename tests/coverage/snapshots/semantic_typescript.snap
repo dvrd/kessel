@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12648/12664 (99.87%)
 Positive Passed: 12648/12664 (99.87%)
-Negative Passed: 2061/3498 (58.92%)
+Negative Passed: 2066/3498 (59.06%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -335,7 +335,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/innerAliases
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/instanceofOnInstantiationExpression.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/instanceofWithStructurallyIdenticalTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/interfaceAssignmentCompat.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/interfaceMemberValidation.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/interfaceMergeWithNonGenericTypeArguments.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/internalAliasClassInsideLocalModuleWithoutExportAccessError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/internalAliasEnumInsideLocalModuleWithoutExportAccessError.ts
@@ -1398,16 +1397,12 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/lit
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/localTypes/localTypes4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/mapped/mappedTypeErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/mapped/mappedTypeWithAny.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/duplicateNumericIndexers.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/duplicateStringIndexers.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/nonPrimitive/nonPrimitiveAccessProperty.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/nonPrimitive/nonPrimitiveNarrow.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/nonPrimitive/nonPrimitiveStrictNull.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/specializedSignatureIsNotSubtypeOfNonSpecializedSignature.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/constructSignatures/constructSignaturesWithOverloads2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/indexSignatures/multipleNumericIndexers.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/indexSignatures/multipleStringIndexers.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/methodSignatures/methodSignaturesWithOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/objectTypeLiteralSyntax2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/specifyingTypes/typeQueries/typeofThis.ts
@@ -1869,6 +1864,7 @@ typescript/tests/cases/compiler/intTypeCheck.ts:37:17: An index signature must h
 typescript/tests/cases/compiler/interfaceDeclaration1.ts:3:5: Duplicate identifier 'item'
 typescript/tests/cases/compiler/interfaceDeclaration4.ts:39:14: Expected {, got .
 typescript/tests/cases/compiler/interfaceMayNotBeExtendedWitACall.ts:3:29: Expected {, got (
+typescript/tests/cases/compiler/interfaceMemberValidation.ts:10:2: Duplicate index signature for type 'string'.
 typescript/tests/cases/compiler/interfaceNaming1.ts:1:1: 'interface' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/interfaceWithImplements1.ts:3:16: Expected {, got identifier
 typescript/tests/cases/compiler/interfaceWithMultipleDeclarations.ts:3:11: All declarations of 'I1' must have identical type parameters.
@@ -3501,7 +3497,9 @@ typescript/tests/cases/conformance/types/import/importTypeNestedNoRef.ts::chaine
 typescript/tests/cases/conformance/types/import/importTypeNonString.ts:1:31: String literal expected in import type
 typescript/tests/cases/conformance/types/import/importWithTypeArguments.ts:1:7: Expected import source or specifier
 typescript/tests/cases/conformance/types/mapped/mappedTypeProperties.ts:9:5: Expected }, got identifier
+typescript/tests/cases/conformance/types/members/duplicateNumericIndexers.ts:5:5: Duplicate index signature for type 'number'.
 typescript/tests/cases/conformance/types/members/duplicatePropertyNames.ts:5:5: Duplicate identifier 'foo'
+typescript/tests/cases/conformance/types/members/duplicateStringIndexers.ts:6:9: Duplicate index signature for type 'string'.
 typescript/tests/cases/conformance/types/members/indexSignatures1.ts:107:17: An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.
 typescript/tests/cases/conformance/types/members/objectTypeWithDuplicateNumericProperty.ts:27:5: An object literal cannot have multiple properties with the same name.
 typescript/tests/cases/conformance/types/members/objectTypeWithStringNamedNumericProperty.ts:33:13: Legacy octal literals are not allowed in strict mode
@@ -3517,6 +3515,8 @@ typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restPa
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restParametersOfNonArrayTypes2.ts:9:24: A rest parameter must be last in a parameter list
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restParametersWithArrayTypeAnnotations.ts:5:25: A rest parameter must be last in a parameter list
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/stringLiteralTypesInImplementationSignatures2.ts:27:5: An object literal cannot have multiple properties with the same name.
+typescript/tests/cases/conformance/types/objectTypeLiteral/indexSignatures/multipleNumericIndexers.ts:10:5: Duplicate index signature for type 'number'.
+typescript/tests/cases/conformance/types/objectTypeLiteral/indexSignatures/multipleStringIndexers.ts:10:5: Duplicate index signature for type 'string'.
 typescript/tests/cases/conformance/types/objectTypeLiteral/methodSignatures/objectTypesWithOptionalProperties.ts:24:6: Expected }, got ?
 typescript/tests/cases/conformance/types/objectTypeLiteral/methodSignatures/objectTypesWithOptionalProperties2.ts:4:8: Unexpected token in TS object type
 typescript/tests/cases/conformance/types/objectTypeLiteral/propertySignatures/numericNamedPropertyDuplicates.ts:20:5: Expected }, got number

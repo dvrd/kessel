@@ -932,6 +932,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			}
 			ck_check_ts_interface_member_dups(c, v.body)
 			ck_check_ts1268_index_sig_param_type(c, v.body)
+			ck_check_ts2374_dup_index_sig(c, v.body)
 			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
 				ck_check_ts_type_param_dups(c, tp)
 			}
@@ -2987,6 +2988,46 @@ ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody)
 			if !valid {
 				ck_report(c, u32(param.loc.span.start),
 					"An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.")
+			}
+		}
+	}
+}
+
+// ck_check_ts2374_dup_index_sig — TS2374 "Duplicate index signature for
+// type 'X'." Walks an interface/class body. If two or more TSIndexSignature
+// members have parameters with the same key type (string, number, symbol),
+// the second and subsequent are flagged.
+@(private="file")
+ck_check_ts2374_dup_index_sig :: proc(c: ^Checker, body: TSInterfaceBody) {
+	seen_string := false
+	seen_number := false
+	seen_symbol := false
+	for sig in body.body {
+		if sig == nil { continue }
+		idx, is_idx := sig^.(TSIndexSignature)
+		if !is_idx { continue }
+		for param in idx.parameters {
+			ta, has_ta := param.type_annotation.(^TSTypeAnnotation)
+			if !has_ta || ta == nil || ta.type_annotation == nil { continue }
+			#partial switch t in ta.type_annotation^ {
+			case ^TSStringKeyword:
+				if seen_string {
+					ck_report(c, u32(idx.loc.span.start),
+						"Duplicate index signature for type 'string'.")
+				}
+				seen_string = true
+			case ^TSNumberKeyword:
+				if seen_number {
+					ck_report(c, u32(idx.loc.span.start),
+						"Duplicate index signature for type 'number'.")
+				}
+				seen_number = true
+			case ^TSSymbolKeyword:
+				if seen_symbol {
+					ck_report(c, u32(idx.loc.span.start),
+						"Duplicate index signature for type 'symbol'.")
+				}
+				seen_symbol = true
 			}
 		}
 	}
