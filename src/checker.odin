@@ -962,6 +962,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				msg := fmt.tprintf("Enum name cannot be '%s'.", v.id.name)
 				ck_report(c, u32(v.id.loc.span.start), msg)
 			}
+			ck_check_ts_enum_member_dups(c, v)
 		}
 		return
 
@@ -1982,6 +1983,76 @@ ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression) {
 	}
 }
 
+// ck_check_ts_constructor_param_property_dups — TS2300. A constructor
+// parameter property (public / private / protected / readonly modifier
+// on a constructor parameter) introduces a class property. If the class
+// body already declares a field with the same name, it's a duplicate.
+//
+// Example:
+//   class D { y: number; constructor(public y: number) {} }  → TS2300
+//   class C { y: number; constructor(y: number) {} }         → OK (no modifier)
+@(private="file")
+ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
+	if c == nil || cls == nil { return }
+	// Collect instance field names.
+	field_names: map[string]bool
+	field_names.allocator = context.temp_allocator
+	defer delete(field_names)
+	for elem in cls.body.body {
+		if elem.static { continue }
+		// Skip constructors, getters, setters, static blocks.
+		#partial switch elem.kind {
+		case .Get, .Set, .Constructor, .StaticBlock:
+			continue
+		}
+		// Skip methods (FunctionExpression value = method, not field).
+		if val, have := elem.value.(^Expression); have && val != nil {
+			if _, is_fn := val^.(^FunctionExpression); is_fn {
+				continue
+			}
+		}
+		if elem.computed || elem.key == nil { continue }
+		if id, ok := elem.key^.(^Identifier); ok && id != nil {
+			field_names[id.name] = true
+		}
+	}
+	if len(field_names) == 0 { return }
+	// Find the implementation constructor (has body).
+	for elem in cls.body.body {
+		if elem.kind != .Constructor { continue }
+		fn_expr, have := elem.value.(^Expression)
+		if !have || fn_expr == nil { continue }
+		func, is_fn := fn_expr^.(^FunctionExpression)
+		if !is_fn || func == nil || func.no_body { continue }
+		// Check each parameter for a property modifier.
+		for param in func.params {
+			if param.accessibility == .None && !param.readonly { continue }
+			// Extract the parameter name.
+			param_name: string
+			param_loc: u32
+			#partial switch p in param.pattern {
+			case ^Identifier:
+				if p != nil {
+					param_name = p.name
+					param_loc  = u32(p.loc.span.start)
+				}
+			case ^AssignmentPattern:
+				if p != nil {
+					if id, ok := p.left.(^Identifier); ok && id != nil {
+						param_name = id.name
+						param_loc  = u32(id.loc.span.start)
+					}
+				}
+			}
+			if param_name != "" && field_names[param_name] {
+				msg := fmt.tprintf("Duplicate identifier '%s'", param_name)
+				ck_report(c, param_loc, msg)
+			}
+		}
+		break  // only check the implementation constructor
+	}
+}
+
 // ck_check_ts_class_modifier_conflicts — TS only. Checks for
 // incompatible modifier combinations on class elements:
 //   - static + abstract is illegal
@@ -2019,6 +2090,45 @@ ck_check_ts_class_modifier_conflicts :: proc(c: ^Checker, cls: ^ClassExpression)
 						"'abstract' modifier cannot be used with a private identifier.")
 				}
 			}
+		}
+	}
+}
+
+// =============================================================================
+// TS2300 — enum member duplicate-name detection
+// =============================================================================
+//
+// `enum E { x, y, x }` — duplicate enum member names are TS2300.
+// Both Identifier and StringLiteral keys are checked. Computed
+// member names are excluded (can't reason statically).
+@(private="file")
+ck_check_ts_enum_member_dups :: proc(c: ^Checker, decl: ^TSEnumDeclaration) {
+	if c == nil || decl == nil || len(decl.body.members) < 2 { return }
+	seen: map[string]u32
+	seen.allocator = context.temp_allocator
+	defer delete(seen)
+	for member in decl.body.members {
+		if member.id == nil { continue }
+		name: string
+		loc: u32
+		#partial switch k in member.id^ {
+		case ^Identifier:
+			if k == nil { continue }
+			name = k.name
+			loc  = u32(k.loc.span.start)
+		case ^StringLiteral:
+			if k == nil { continue }
+			name = k.value
+			loc  = u32(k.loc.span.start)
+		case:
+			continue  // computed key — skip
+		}
+		if name == "" { continue }
+		if _, already := seen[name]; already {
+			msg := fmt.tprintf("Duplicate identifier '%s'", name)
+			ck_report(c, loc, msg)
+		} else {
+			seen[name] = loc
 		}
 	}
 }
@@ -4258,6 +4368,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	if (ctx.lang == .TS || ctx.lang == .TSX) && !cls.declare && !ctx.is_dts {
 		ck_check_ts_class_overloads(c, cls.body)
 		ck_check_ts_class_member_dups(c, cls)
+		ck_check_ts_constructor_param_property_dups(c, cls)
 	}
 	// TS — class type-parameter duplicate-name check. Independent of the
 	// `declare class` / .d.ts gate above: `class C<X, X>` is rejected
