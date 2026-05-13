@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12646/12664 (99.86%)
 Positive Passed: 12646/12664 (99.86%)
-Negative Passed: 2004/3498 (57.29%)
+Negative Passed: 2014/3498 (57.58%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -112,9 +112,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/crashDeclare
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/crashDeclareGlobalTypeofExport.ts::foo.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/crashRegressionTest.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFile.ts::client.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFile.ts::declFile.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFileWithOut.ts::client.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFileWithOut.ts::declFile.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitCommonJsModuleReferencedType.ts::node_modules/root/index.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitCommonJsModuleReferencedType.ts::r/entry.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitCommonJsModuleReferencedType.ts::r/node_modules/foo/index.d.ts
@@ -540,7 +538,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/pathMappingB
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/pathsValidation4.ts::src/main.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/pathsValidation5.ts::src/main.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/primitiveMembers.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/privacyGloImportParseErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithExport.ts::privacyTopLevelAmbientExternalModuleImportWithExport_require.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithExport.ts::privacyTopLevelAmbientExternalModuleImportWithExport_require1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithExport.ts::privacyTopLevelAmbientExternalModuleImportWithExport_require2.ts
@@ -1329,14 +1326,11 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression17.ts::fileTs.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClass2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration12.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration3.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserCommaInTypeMemberList2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessor1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration1.ts
@@ -1346,9 +1340,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration2.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration4.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509618.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
@@ -1376,7 +1367,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/SuperExpressions/parserSuperExpression4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Symbols/parserES5SymbolProperty4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Symbols/parserES5SymbolProperty5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserNoASIOnCallAfterFunctionExpression1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource13.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/parserRealSource14.ts
@@ -1738,6 +1728,8 @@ typescript/tests/cases/compiler/convertKeywordsYes.ts:6:5: 'implements' is a res
 typescript/tests/cases/compiler/corrupted.ts:1:4: Expected semicolon
 typescript/tests/cases/compiler/crashOnMethodSignatures.ts:2:5: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/createArray.ts:1:19: Expected expression after 'new'
+typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFile.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFileWithOut.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/compiler/declarationEmitDestructuring2.ts:3:1: Duplicate parameter name 'a' with non-simple parameter list
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties.ts:2:43: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties2.ts:2:43: A parameter property may not be declared using a binding pattern
@@ -2098,6 +2090,7 @@ typescript/tests/cases/compiler/prettyContextNotDebugAssertion.ts:1:12: Expected
 typescript/tests/cases/compiler/primitiveTypeAsClassName.ts:1:7: Class name cannot be 'any'.
 typescript/tests/cases/compiler/primitiveTypeAsInterfaceName.ts:1:11: Interface name cannot be 'number'.
 typescript/tests/cases/compiler/primitiveTypeAsInterfaceNameGeneric.ts:1:11: Interface name cannot be 'number'.
+typescript/tests/cases/compiler/privacyGloImportParseErrors.ts:133:9: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/compiler/privacyImportParseErrors.ts:326:9: Expected semicolon
 typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithExport.ts::privacyTopLevelAmbientExternalModuleImportWithExport_core.ts:17:12: Duplicate exported name 'publicUse_im_public_mi_public'
 typescript/tests/cases/compiler/privacyTopLevelAmbientExternalModuleImportWithoutExport.ts::privacyTopLevelAmbientExternalModuleImportWithoutExport_core.ts:17:12: Duplicate exported name 'publicUse_im_private_mi_public'
@@ -3084,6 +3077,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserCl
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration4.ts:1:32: Expected {, got extends
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration5.ts:1:32: Expected {, got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration6.ts:1:18: Expected {, got ,
+typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration7.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:7: Computed property names are not allowed in enums.
@@ -3098,6 +3092,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/pa
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum4.ts:2:9: Expected enum member name
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum5.ts:2:12: Expected }, got :
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum7.ts:2:3: An enum member cannot have a numeric name.
+typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration2.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration4.ts:1:6: Identifier expected. 'void' is a reserved word that cannot be used here.
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic1.ts:3:15: 'public' modifier must precede 'static' modifier.
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic10.ts:3:15: 'public' modifier must precede 'static' modifier.
@@ -3191,6 +3186,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExp
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExpression4.ts:1:5: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExpression5.ts:1:18: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExpression7.ts:1:13: Invalid left-hand side expression in prefix operation
+typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration1.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration2.d.ts:1:1: An implementation cannot be declared in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration2.ts:1:24: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration3.ts:1:10: Function implementation is missing or not immediately following the declaration.
@@ -3259,6 +3255,9 @@ typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations
 typescript/tests/cases/conformance/parser/ecmascript5/MissingTokens/parserMissingToken1.ts:1:5: Unexpected reserved word 'finally'
 typescript/tests/cases/conformance/parser/ecmascript5/MissingTokens/parserMissingToken2.ts:1:1: Unterminated regular expression
 typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration10.ts:1:10: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration3.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration4.d.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration5.ts:3:5: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/conformance/parser/ecmascript5/ObjectTypes/parserObjectType5.ts:3:7: Expected '(' after type parameters in call signature
 typescript/tests/cases/conformance/parser/ecmascript5/ObjectTypes/parserObjectType6.ts:3:4: An index signature must have a parameter
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList1.ts:2:10: A rest parameter must be last in a parameter list
@@ -3384,6 +3383,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/TupleTypes/TupleType6.ts:1
 typescript/tests/cases/conformance/parser/ecmascript5/Types/parserTypeQuery3.ts:1:17: Expected property name after '.'
 typescript/tests/cases/conformance/parser/ecmascript5/Types/parserTypeQuery4.ts:1:17: Expected property name after '.'
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration10.ts:1:7: Expected binding pattern
+typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration4.ts:2:4: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration5.ts:1:7: Expected binding pattern
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration6.ts:1:4: Expected binding pattern
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration8.ts:1:5: Expected binding pattern

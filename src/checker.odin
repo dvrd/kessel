@@ -303,6 +303,13 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	// TS — `export =` cannot coexist with other export statements,
 	// and only one `export =` per module.
 	ck_check_ts_export_assignment(c, program)
+	// TS1046 — .d.ts files: top-level declarations must have `declare` or `export`.
+	// Disabled: OXC’s semantic pass does not implement TS1046; enabling it
+	// causes false positives against both the babel and TS conformance
+	// corpora. Re-enable when OXC starts enforcing this.
+	// if ctx.is_dts && (lang == .TS || lang == .TSX) {
+	// 	ck_check_ts1046_dts_top_level(c, program)
+	// }
 	// §14.2.1 / §14.3.1.1 — program-scope lex/var clash detection.
 	// The Program body is function-scope (sloppy plain
 	// FunctionDeclarations hoist as .Var; let/const/class are .Lexical).
@@ -1046,6 +1053,12 @@ ck_walk_ts_module_decl :: proc(c: ^Checker, ctx: ^CheckerContext, m: ^TSModuleDe
 	#partial switch inner in body_opt^ {
 	case ^TSModuleBlock:
 		if inner == nil { return }
+		// TS1038 — “A 'declare' modifier cannot be used in an already ambient context.”
+		// Inside `declare namespace/module`, child declarations are implicitly
+		// ambient. An explicit `declare` on a child is redundant and an error.
+		if m.declare || prev_dts {
+			ck_check_ts1038_nested_declare(c, inner.body[:])
+		}
 		ck_check_ts_body_decls(c, ctx, inner.body[:])
 		for s in inner.body { ck_walk_stmt(c, ctx, s) }
 	case ^TSModuleDeclaration:
@@ -2917,6 +2930,130 @@ ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32,
 // ck_check_ts_body_decls — TS-only per-scope body checks. Runs the
 // declaration-merge dup-detect, the function-declaration overload-
 // chain check, the duplicate-function-implementation check, AND the
+// ck_check_ts1038_nested_declare — TS1038 "A 'declare' modifier cannot
+// be used in an already ambient context." Walks the body of a
+// `declare namespace/module` or a `.d.ts` namespace body. Any child
+// declaration that carries an explicit `declare` modifier is flagged.
+@(private="file")
+ck_check_ts1038_nested_declare :: proc(c: ^Checker, body: []^Statement) {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^VariableDeclaration:
+			if v != nil && v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"A 'declare' modifier cannot be used in an already ambient context.")
+			}
+		case ^FunctionDeclaration:
+			if v != nil && v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"A 'declare' modifier cannot be used in an already ambient context.")
+			}
+		case ^ClassDeclaration:
+			if v != nil && v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"A 'declare' modifier cannot be used in an already ambient context.")
+			}
+		case ^TSModuleDeclaration:
+			if v != nil && v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"A 'declare' modifier cannot be used in an already ambient context.")
+			}
+		case ^TSEnumDeclaration:
+			if v != nil && v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"A 'declare' modifier cannot be used in an already ambient context.")
+			}
+		case ^TSInterfaceDeclaration:
+			if v != nil && v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"A 'declare' modifier cannot be used in an already ambient context.")
+			}
+		case ^TSTypeAliasDeclaration:
+			if v != nil && v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"A 'declare' modifier cannot be used in an already ambient context.")
+			}
+		case ^ExportNamedDeclaration:
+			// Check the inner declaration: `export declare class C {}` inside
+			// a declare-namespace.
+			if v == nil { continue }
+			d, have := v.declaration.(^Declaration)
+			if !have || d == nil { continue }
+			#partial switch inner in d^ {
+			case ^VariableDeclaration:
+				if inner != nil && inner.declare {
+					ck_report(c, u32(inner.loc.span.start),
+						"A 'declare' modifier cannot be used in an already ambient context.")
+				}
+			case ^FunctionDeclaration:
+				if inner != nil && inner.declare {
+					ck_report(c, u32(inner.loc.span.start),
+						"A 'declare' modifier cannot be used in an already ambient context.")
+				}
+			case ^ClassDeclaration:
+				if inner != nil && inner.declare {
+					ck_report(c, u32(inner.loc.span.start),
+						"A 'declare' modifier cannot be used in an already ambient context.")
+				}
+			case ^TSModuleDeclaration:
+				if inner != nil && inner.declare {
+					ck_report(c, u32(inner.loc.span.start),
+						"A 'declare' modifier cannot be used in an already ambient context.")
+				}
+			case ^TSEnumDeclaration:
+				if inner != nil && inner.declare {
+					ck_report(c, u32(inner.loc.span.start),
+						"A 'declare' modifier cannot be used in an already ambient context.")
+				}
+			}
+		}
+	}
+}
+
+// ck_check_ts1046_dts_top_level — TS1046 "Top-level declarations in .d.ts
+// files must start with either a 'declare' or 'export' modifier."
+// Walks Program.body in .d.ts files. Any top-level statement that is
+// not `declare`, `export`, or a type-only declaration (interface, type)
+// is flagged.
+@(private="file")
+ck_check_ts1046_dts_top_level :: proc(c: ^Checker, program: ^Program) {
+	if program == nil { return }
+	for stmt in program.body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^VariableDeclaration:
+			if v != nil && !v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+			}
+		case ^FunctionDeclaration:
+			if v != nil && !v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+			}
+		case ^ClassDeclaration:
+			if v != nil && !v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+			}
+		case ^TSModuleDeclaration:
+			if v != nil && !v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+			}
+		case ^TSEnumDeclaration:
+			if v != nil && !v.declare {
+				ck_report(c, u32(v.loc.span.start),
+					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+			}
+		// TSInterfaceDeclaration, TSTypeAliasDeclaration, ImportDeclaration,
+		// ExportNamedDeclaration, ExportDefaultDeclaration, ExportAllDeclaration
+		// are all valid without `declare` in .d.ts — type-only or export forms.
+		}
+	}
+}
+
 // use-before-declaration (TS2448) check on the same body slice.
 // No-op outside TS / TSX.
 @(private="file")
