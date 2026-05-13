@@ -1,6 +1,6 @@
 parser_test262 Summary:
-AST Parsed     : 47089/47090 (100.00%)
-Positive Passed: 47089/47090 (100.00%)
+AST Parsed     : 47090/47090 (100.00%)
+Positive Passed: 47090/47090 (100.00%)
 Negative Passed: 4561/4588 (99.41%)
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-6.js
@@ -29,9 +29,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/for-of/head
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-const-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-let-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
-Expect to Parse: tasks/coverage/test262/test/language/function-code/S10.2.1_A4_T1.js
-test262/test/language/function-code/S10.2.1_A4_T1.js:19:12: Formal parameter 'x' cannot be redeclared with let/const in function body
-
 test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js:18:4: Octal or \8 / \9 escape sequences are not allowed in strict mode
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
 test262/test/annexB/language/statements/for-in/const-initializer.js:14:6: for-in loop variable declaration may not have an initializer

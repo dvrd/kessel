@@ -3477,7 +3477,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 				// not occur in LexicallyDeclaredNames of FunctionBody.
 				// `(bar) => { let bar; }` is a SyntaxError. ck_walk_function
 				// already runs this for non-arrow shapes; mirror it here.
-				ck_check_params_vs_body_lex(c, e.params[:], body.body[:])
+				ck_check_params_vs_body_lex(c, e.params[:], body.body[:], ctx.strict_mode)
 				for s in body.body { ck_walk_stmt(c, ctx, s) }
 			}
 		}
@@ -3909,7 +3909,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	}
 	// §15.2.1.1 — formal-parameter vs body let/const redeclaration.
 	if !fn.no_body {
-		ck_check_params_vs_body_lex(c, fn.params[:], fn.body.body[:])
+		ck_check_params_vs_body_lex(c, fn.params[:], fn.body.body[:], ctx.strict_mode)
 	}
 	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 	// !IsSimpleParameterList early error. Fires before the function-body
@@ -5996,7 +5996,7 @@ scope_hoist_vars_no_parser :: proc(stmt: ^Statement, vars: ^ScopeMap) {
 // needs: VariableDeclaration (let/const/using/await using → lex; var
 // → vars), FunctionDeclaration (always lex), ClassDeclaration (lex).
 @(private="file")
-scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap, is_block_scope: bool) {
+scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap, is_block_scope: bool, strict := true) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
 	case ^VariableDeclaration:
@@ -6020,7 +6020,13 @@ scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			scope_map_set(lex, id.name, id.loc.span.start)
+			// In sloppy-mode function bodies (not block scope),
+			// FunctionDeclarations hoist as var-like (Annex B.3.2).
+			if strict || is_block_scope {
+				scope_map_set(lex, id.name, id.loc.span.start)
+			} else {
+				scope_map_set_first(vars, id.name, id.loc.span.start)
+			}
 		}
 	case ^ClassDeclaration:
 		if v == nil { return }
@@ -6130,7 +6136,7 @@ ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: C
 // caller passes the parsed param list and body slice directly so the
 // checker doesn't need to introspect FunctionExpression internals.
 @(private="file")
-ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, body: []^Statement) {
+ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, body: []^Statement, strict := true) {
 	if len(params) == 0 || len(body) == 0 { return }
 	param_names: [dynamic]string
 	param_names.allocator = context.temp_allocator
@@ -6142,7 +6148,7 @@ ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, bo
 	body_lex := scope_map_make(4)
 	body_vars := scope_map_make(4)
 	for stmt in body {
-		scope_process_statement_no_parser(stmt, &body_lex, &body_vars, false)
+		scope_process_statement_no_parser(stmt, &body_lex, &body_vars, false, strict)
 	}
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {

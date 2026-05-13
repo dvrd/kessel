@@ -8406,7 +8406,7 @@ scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^ScopeMap) {
 // Does NOT recurse into nested blocks — per the spec, LexicallyDeclaredNames
 // of FunctionBody / Block only includes its own direct StatementList.
 @(private="file")
-collect_body_lex_names :: proc(body: []^Statement, lex: ^ScopeMap) {
+collect_body_lex_names :: proc(body: []^Statement, lex: ^ScopeMap, strict := true) {
 	for stmt in body {
 		if stmt == nil { continue }
 		#partial switch v in stmt^ {
@@ -8416,7 +8416,11 @@ collect_body_lex_names :: proc(body: []^Statement, lex: ^ScopeMap) {
 			for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
 			for n in names { scope_map_set(lex, n, v.loc.span.start) }
 		case ^FunctionDeclaration:
-			if v != nil {
+			// In sloppy mode (non-strict function bodies), function
+			// declarations hoist as var-like per Annex B.3.2, so they
+			// are NOT LexicallyDeclaredNames. Only count them as
+			// lexical in strict mode.
+			if strict && v != nil {
 				if id, ok := v.id.(BindingIdentifier); ok {
 					scope_map_set(lex, id.name, id.loc.span.start)
 				}
@@ -8447,7 +8451,10 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 	}
 	if len(param_names) == 0 { return }
 	body_lex := scope_map_make(4)
-	collect_body_lex_names(body, &body_lex)
+	// In sloppy mode, FunctionDeclarations in function bodies are var-hoisted
+	// (Annex B.3.2), not lexical. Pass strict so they're only counted as
+	// lexical in strict mode.
+	collect_body_lex_names(body, &body_lex, p.strict_mode)
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
 			report_error_at(p, LexerLoc(off), fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n))
@@ -8489,7 +8496,8 @@ check_catch_param_body_shadow :: proc(p: ^Parser, param: Maybe(Pattern), body: [
 	scope_collect_pattern(pat, &param_names)
 	if len(param_names) == 0 { return }
 	body_lex := scope_map_make(4)
-	collect_body_lex_names(body, &body_lex)
+	// Catch body is block-scope: function declarations are always lexical.
+	collect_body_lex_names(body, &body_lex, true)
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
 			report_error_at(p, LexerLoc(off), fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n))
