@@ -27,7 +27,7 @@ $ odin build tests/coverage/src -out:bin/kessel_coverage -o:speed -no-bounds-che
 ```
 ES2025 (test262):  Parser 47085/47090 (99.99%) | Semantic 4588/4588 (100.00%)
 Babel:             Parser 2227/2233  (99.73%) | Semantic 1677/1711 (98.01%)
-TypeScript:        Parser 12658/12664 (99.95%) | Semantic 2031/3498 (58.06%)
+TypeScript:        Parser 12658/12664 (99.95%) | Semantic 2053/3498 (58.69%)
 ESTree:            Parser 39/39 (100%)         | Semantic 39/39 (100%)
 Misc:              Parser 72/72 (100%)         | Semantic 280/286 (97.90%)
 ```
@@ -124,18 +124,20 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 | Optional `?` on destructuring patterns not tracked in AST | low | Parser doesn't set `optional` for `[]?` / `{}?` patterns | Blocks TS1051 check |
 | Type-system errors (TS2339 ×265, etc.) unfixable without type inference | high | Represents bulk of remaining ~1467 TS gaps | Requires type resolution infrastructure |
 
-## Session 9 Changes (8 commits)
+## Session 9 Changes (11 commits)
 
-1. **fix(checker): export-local-defined** — track TSImportEquals bindings, add TS declarations inside ExportNamedDeclaration, skip type-only exports. +21 FP fixed.
-2. **fix(parser): export-default-function overloads** — allow bodyless `export default function` in TS mode. +5 parser, +3 semantic positives.
-3. **fix(checker): skip export-local-defined for TS/TSX** — TS allows re-exporting globals/ambient declarations. +13 FP fixed.
-4. **fix(checker): export-default dup check** — skip overload sigs in duplicate-default check. +2 FP fixed.
+1. **fix(checker): export-local-defined** — track TSImportEquals bindings, TS decls in exports, skip type-only. +21 FP fixed.
+2. **fix(parser): export-default-function overloads** — allow bodyless `export default function` in TS. +5 parser, +3 semantic.
+3. **fix(checker): skip export-local-defined for TS/TSX** — TS re-exports of globals are not early errors. +13 FP.
+4. **fix(checker): export-default dup check** — skip overload sigs in dup-default. +2 FP.
 5. **feat(checker): TS2391** — flag sig-only non-exported function overloads. +12 negatives.
 6. **feat(checker): TS1038** — reject `declare` in already-ambient context. +10 negatives.
 7. **feat(checker): TS2373** — reject forward references in parameter defaults. +3 negatives.
-8. **feat(checker): TS2378** — getter must return a value. +14 negatives.
+8. **feat(checker): TS2378** — getter must return a value (return/throw/empty-body). +14 negatives.
+9. **feat(checker): TS1036** — reject statements in ambient contexts (.d.ts + declare-ns). +17 negatives.
+10. **feat(checker): TS2428** — interface merge type-parameter mismatch. +5 negatives.
 
-**Net session 9 impact**: TS semantic positive 12608→12646 (+38), TS semantic negative 1994→2031 (+37).
+**Net session 9 impact**: TS semantic positive 12608→12646 (+38), TS semantic negative 1994→2053 (+59, 57.00%→58.69%).
 
 ## Incomplete Work
 
