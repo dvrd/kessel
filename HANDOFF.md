@@ -27,7 +27,7 @@ $ odin build tests/coverage/src -out:bin/kessel_coverage -o:speed -no-bounds-che
 ```
 ES2025 (test262):  Parser 47090/47090 (100.00%) | Semantic 47090/47090 (100.00%) + neg 4588/4588 (100%)
 Babel:             Parser 2227/2233  (99.73%)  | Semantic 2216/2233 (99.24%) pos, 1677/1711 (98.01%) neg
-TypeScript:        Parser 12661/12664 (99.98%) | Semantic 12649/12664 (99.88%) pos, 2096/3498 (59.92%) neg
+TypeScript:        Parser 12661/12664 (99.98%) | Semantic 12649/12664 (99.88%) pos, 2103/3498 (60.12%) neg
 ESTree:            Parser 39/39 (100%)         | Semantic 39/39 (100%)
 Misc:              Parser 72/72 (100%)         | Semantic 71/72 pos, 280/286 (97.90%) neg
 ```
@@ -124,9 +124,9 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 | Optional `?` on destructuring patterns not tracked in AST | low | Parser doesn't set `optional` for `[]?` / `{}?` patterns | Blocks TS1051 check |
 | Type-system errors (TS2339 ×265, etc.) unfixable without type inference | high | Represents bulk of remaining ~1467 TS gaps | Requires type resolution infrastructure |
 
-## Session 10 Changes (15 commits)
+## Session 10 Changes (19 commits)
 
-**Checker + parser improvements (TS semantic negative: 2064→2096, +32):**
+**Checker + parser improvements (TS semantic negative: 2064→2103, +39):**
 1. fix(checker): skip catch-var redecl in TS mode for simple identifiers. Fixes tryStatements.ts FP. TS positive: 12649→12650 (+1).
 2. feat(checker): TS2300 — enum member dups (`enum E { x, y, x }`) + constructor param property vs class field conflicts. +2 negative.
 3. feat(checker): TS2491 — destructuring pattern in for-in LHS. `for (var [a,b] in [])` now rejected in TS. +3 negative.
@@ -142,6 +142,10 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 13. feat(checker): TS2384 — overload signatures must all be ambient or non-ambient. +4 negative.
 14. feat(checker): TS2465 — 'this' in computed property names of class elements. +6 negative, -1 positive (FP from @ts-ignore fixture).
 15. feat(checker): TS2784 — get/set accessors cannot declare 'this' parameters. +1 negative.
+16. feat(checker): TS2466 + TS1051 + TS1095 — super in computed keys, setter optional param, setter return type. +3 negative.
+17. feat(checker): TS2457 — type alias name cannot be predefined type. +1 negative.
+18. feat(checker): TS2438 — import alias name cannot be predefined type. +3 negative.
+19. fix(parser): TS1009 — trailing comma in import() for TS. +1 negative.
 
 **Attempted and reverted:**
 - TS2395 (merged decl export visibility): caused 16 FPs — interface+namespace merges don't require matching export status.
