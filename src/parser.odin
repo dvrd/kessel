@@ -452,6 +452,10 @@ Parser :: struct {
 	// declarations so inner classes don't leak their extends state.
 	class_has_extends: bool,
 
+	// True when the current class being parsed was declared `abstract`.
+	// Saved / restored across nested class declarations.
+	class_is_abstract: bool,
+
 	// Depth counter for nested classes. Incremented on entry to
 	// parse_class_body, decremented on exit. Used to enforce §15.7.3
 	// PrivateName references (`#x`, `obj.#x`, `#x in y`) outside any
@@ -1851,6 +1855,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 				report_error(p, "'abstract' modifier is only allowed in TypeScript files")
 			}
 			eat(p) // consume `abstract`
+			p.class_is_abstract = true
 			stmt := parse_class_declaration(p)
 			if stmt != nil {
 				if cls, ok := stmt^.(^ClassDeclaration); ok { cls.expr.abstract = true }
@@ -2316,11 +2321,14 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				loc  = e.loc,
 				name = e.name,
 			}
-			// §14.13.1 — duplicate-label check is enforced by the
-			// semantic checker (ck_check_label_redeclared). Parser keeps
-			// the label_stack so `continue label;` validation can
-			// piggy-back on `label_chain_leads_to_iteration` below; the
-			// duplicate-name check is dropped from here.
+			// §14.13.1 — duplicate labels within the same function are
+			// a SyntaxError. Scan from label_floor (function boundary).
+			for i := p.label_floor; i < len(p.label_stack); i += 1 {
+				if p.label_stack[i] == e.name {
+					report_error(p, fmt.tprintf("Label '%s' has already been declared", e.name))
+					break
+				}
+			}
 			bump_append(&p.label_stack, e.name)
 			// ECMA-262 §14.8.1 - `continue label` requires the target label
 			// to name an IterationStatement (directly or via a chain of
@@ -4698,6 +4706,12 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	p.class_has_extends = (super_class != nil)
 	defer p.class_has_extends = prev_class_has_extends
 
+	// Thread abstract status so validate_class_body can reject abstract
+	// members in non-abstract classes. The `abstract` keyword was consumed
+	// by the caller; p.class_is_abstract is set before we enter the body.
+	prev_class_is_abstract := p.class_is_abstract
+	defer p.class_is_abstract = prev_class_is_abstract
+
 	// TS: `class X implements Y, Z<T>` - optional after `extends`. OXC emits
 	// `implements: [TSClassImplements{expression, typeArguments}]`. Kessel's
 	// ClassDeclaration already has an `implements` field; it was simply
@@ -4792,7 +4806,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 	}
 
 	body.loc.span.end = prev_end_offset(p)
-	report_private_class_member_errors(p, body.body[:])
+	report_private_class_member_errors(p, body.body[:], p.class_is_abstract)
 
 	// §15.7.3 — resolve pending private-name references against the
 	// declared names in this class body. Unresolved refs bubble up to
@@ -4891,7 +4905,7 @@ class_element_prop_name :: proc(key: ^Expression) -> string {
 	return ""
 }
 
-report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
+report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, class_is_abstract := false) {
 	PrivateSeen :: struct {
 		has_get: bool,
 		has_set: bool,
@@ -4907,8 +4921,39 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 	// Track non-TS-overload constructors and report duplicates.
 	constructor_count := 0
 
+	// TS: abstract members in non-abstract class.
+	if allow_ts_mode(p) && !class_is_abstract {
+		for elem in elems {
+			if elem.abstract {
+				report_error(p, "Abstract methods can only appear within an abstract class.")
+				break  // one diagnostic per class
+			}
+		}
+	}
+
 	for elem in elems {
 		if elem.key == nil { continue }
+
+		// TS: static + abstract is invalid.
+		if elem.static && elem.abstract && allow_ts_mode(p) {
+			report_error(p, "'static' modifier cannot be used with 'abstract' modifier.")
+		}
+
+		// TS: abstract on a private identifier (#name) is invalid for
+		// fields/properties. Private methods CAN be abstract.
+		if elem.abstract && allow_ts_mode(p) {
+			if _, is_priv := elem.key.(^PrivateIdentifier); is_priv {
+				is_method := false
+				if val, have := elem.value.?; have && val != nil {
+					if _, is_fn := val^.(^FunctionExpression); is_fn {
+						is_method = true
+					}
+				}
+				if !is_method {
+					report_error(p, "'abstract' modifier cannot be used with a private identifier.")
+				}
+			}
+		}
 
 		// §15.7.1 - static ClassElement whose PropName is `"prototype"`
 		// is a SyntaxError. Applies to every static kind: field, method,
@@ -11202,8 +11247,12 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				} else if pid.name != "" {
 					append(&p.pending_priv_refs, PendingPrivRef{name = pid.name, loc = pid.loc, depth = p.class_depth})
 				}
-				// §15.7.3 "super.#name" early error: enforced by the
-				// semantic checker (ck_check_member_super_private).
+				// §15.7.3 — `super.#name` is a SyntaxError.
+				if expr != nil {
+					if _, is_super := expr^.(^Super); is_super {
+						report_error(p, "Private fields cannot be accessed through 'super'")
+					}
+				}
 			} else {
 				// Create regular Identifier
 				id, id_e := new_expr(p, Identifier)
@@ -15802,6 +15851,7 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Expected class after decorator")
 		return nil
 	}
+	if is_abstract_class { p.class_is_abstract = true }
 	stmt := parse_class_declaration(p)
 	if stmt != nil {
 		#partial switch s in stmt^ {
@@ -19472,6 +19522,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 				report_error(p, "Line terminator not permitted between 'abstract' and 'class'")
 			}
 			eat(p) // consume `abstract`
+			p.class_is_abstract = true
 			stmt = parse_class_declaration(p)
 			if stmt != nil {
 				if cls, ok := stmt^.(^ClassDeclaration); ok {

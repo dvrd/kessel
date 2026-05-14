@@ -662,7 +662,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			}
 		}
 		// §14.13.1 — duplicate label declared in scope.
-		ck_check_label_redeclared(c, ctx, v.label.name, u32(v.label.loc.span.start))
+		// §14.13.1 duplicate-label — migrated to parser.
 		entry := CheckerLabel{
 			name         = v.label.name,
 			is_iteration = label_is_iteration_target(v.body),
@@ -2255,47 +2255,8 @@ ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpr
 	}
 }
 
-// ck_check_ts_class_modifier_conflicts — TS only. Checks for
-// incompatible modifier combinations on class elements:
-//   - static + abstract is illegal
-//   - declare + override is illegal
-//   - abstract on a private identifier (#name) is illegal
-@(private="file")
-ck_check_ts_class_modifier_conflicts :: proc(c: ^Checker, cls: ^ClassExpression) {
-	if c == nil || cls == nil { return }
-	for elem in cls.body.body {
-		// static + abstract is invalid
-		if elem.static && elem.abstract {
-			ck_report(c, u32(elem.loc.span.start),
-				"'static' modifier cannot be used with 'abstract' modifier.")
-		}
-
-		// declare + override is invalid
-		// elem doesn't have a declare field; look for it on the value's
-		// FunctionExpression or check the declare_ pattern.
-		// Actually, the 'declare' keyword on class elements sets
-		// is_declare in the parser, but it's not stored on ClassElement.
-		// Skip for now — the parser catches some of these.
-		// abstract on private identifier (#name) — only invalid for
-		// fields/properties, not methods. Private methods CAN be abstract.
-		if elem.abstract && elem.key != nil {
-			if priv, is_priv := elem.key^.(^PrivateIdentifier); is_priv && priv != nil {
-				// Check if it's a method (has FunctionExpression body)
-				// or a field (no body / expression initializer).
-				is_method := false
-				if fn_maybe, have := elem.value.(^Expression); have && fn_maybe != nil {
-					if _, is_fn := fn_maybe^.(^FunctionExpression); is_fn {
-						is_method = true
-					}
-				}
-				if !is_method {
-					ck_report(c, u32(elem.loc.span.start),
-						"'abstract' modifier cannot be used with a private identifier.")
-				}
-			}
-		}
-	}
-}
+// ck_check_ts_class_modifier_conflicts — migrated to parser
+// (validate_class_body_elements). static+abstract, abstract+#name.
 
 // =============================================================================
 // TS2300 — enum member duplicate-name detection
@@ -3876,7 +3837,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	case ^MemberExpression:
 		if e == nil { return }
-		ck_check_member_super_private(c, e)
+		// §15.7.3 super.#name — migrated to parser.
 		// §15.7.3 — PrivateIdentifier on the property side must be
 		// declared in an enclosing class. Non-private property names are
 		// IdentifierName literals — not subject to scope resolution.
@@ -4681,21 +4642,12 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 				}
 			}
 		}
-		// TS — abstract methods are only allowed in abstract classes.
-		if !cls.abstract {
-			for elem in cls.body.body {
-				if elem.abstract {
-					ck_report(c, u32(elem.loc.span.start),
-						"Abstract methods can only appear within an abstract class.")
-					break  // one diagnostic per class is enough
-				}
-			}
-		}
+		// Abstract-in-non-abstract — migrated to parser.
 		// TS — constructor overload signatures cannot have parameter
 		// properties (accessibility / readonly / override on params).
 		ck_check_ts_constructor_modifiers(c, cls)
 		// TS — incompatible modifier combinations on class elements.
-		ck_check_ts_class_modifier_conflicts(c, cls)
+		// static+abstract, abstract+#name — migrated to parser.
 	}
 
 	for elem in cls.body.body {
@@ -5235,19 +5187,7 @@ ck_check_unary_delete_private :: proc(c: ^Checker, e: ^UnaryExpression) {
 	}
 }
 
-// §15.7.3 — `super.#name` is a SyntaxError. PrivateNames may only be
-// accessed via `this`, a local variable, or a computed member
-// expression — never through `super`. The diagnostic anchors at the
-// member expression (matching the original parser-side anchor).
-@(private="file")
-ck_check_member_super_private :: proc(c: ^Checker, e: ^MemberExpression) {
-	if e == nil || e.object == nil || e.property == nil { return }
-	if e.computed { return }
-	if _, is_super := e.object^.(^Super); !is_super { return }
-	if _, is_private := e.property^.(^PrivateIdentifier); is_private {
-		ck_report(c, u32(e.loc.span.start), "Private fields cannot be accessed through 'super'")
-	}
-}
+// §15.7.3 — `super.#name` migrated to parser (parse_member_expression).
 
 // ============================================================================
 // Slice 5 — strict-mode-driven early errors and two strict-independent
@@ -6325,18 +6265,7 @@ ck_check_using_at_script_top :: proc(c: ^Checker, program: ^Program) {
 	}
 }
 
-// ck_check_label_redeclared — §14.13.1 — `LabelledStatement :
-// LabelIdentifier : LabelledItem` is a SyntaxError if `LabelIdentifier`
-// is already in the enclosing LabelSet for the current function. Called
-// from the LabeledStatement branch of ck_walk_stmt BEFORE the new
-// label is pushed.
-@(private="file")
-ck_check_label_redeclared :: proc(c: ^Checker, ctx: ^CheckerContext, name: string, off: u32) {
-	if _, have := label_in_scope(ctx, name); have {
-		msg := fmt.tprintf("Label '%s' has already been declared", name)
-		ck_report(c, off, msg)
-	}
-}
+// §14.13.1 duplicate-label check — migrated to parser (parse_labelled_statement).
 
 // ck_check_if_labelled_function — §13.6.1 — LABELLED function
 // declarations are never allowed as the consequent / alternate of an

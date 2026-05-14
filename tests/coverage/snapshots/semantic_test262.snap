@@ -1481,7 +1481,7 @@ test262/test/language/expressions/class/elements/syntax/early-errors/grammar-pri
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive.js:36:54: Private field '#foo' must be declared in an enclosing class
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage.js:36:40: Private field '#foo' must be declared in an enclosing class
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-field-on-object-destructuring.js:30:13: Expected property key in object pattern
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js:28:14: Private fields cannot be accessed through 'super'
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-private-field-super-access.js:28:22: Private fields cannot be accessed through 'super'
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async-gen.js:25:3: Duplicate private name '#m'
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async.js:25:3: Duplicate private name '#m'
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-gen.js:25:3: Duplicate private name '#m'
@@ -1591,7 +1591,7 @@ test262/test/language/expressions/class/elements/syntax/early-errors/private-fie
 test262/test/language/expressions/class/elements/syntax/early-errors/private-generator-cannot-escape-token.js:24:5: Expected method or property name
 test262/test/language/expressions/class/elements/syntax/early-errors/private-member-exp-cannot-escape-token.js:31:10: Expected identifier after '.'
 test262/test/language/expressions/class/elements/syntax/early-errors/private-method-cannot-escape-token.js:24:3: Expected method or property name
-test262/test/language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js:34:5: Private fields cannot be accessed through 'super'
+test262/test/language/expressions/class/elements/syntax/early-errors/super-private-access-invalid.js:34:13: Private fields cannot be accessed through 'super'
 test262/test/language/expressions/class/elements/ternary-init-err-contains-arguments.js:33:19: 'arguments' cannot appear in a class field initializer
 test262/test/language/expressions/class/elements/ternary-init-err-contains-super.js:26:24: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/class/elements/typeof-init-err-contains-arguments.js:33:14: 'arguments' cannot appear in a class field initializer
@@ -2891,7 +2891,7 @@ test262/test/language/module-code/early-dup-export-dflt.js:16:16: 'export defaul
 test262/test/language/module-code/early-dup-export-id-as.js:19:15: Duplicate exported name 'z'
 test262/test/language/module-code/early-dup-export-id.js:18:10: Duplicate exported name 'x'
 test262/test/language/module-code/early-dup-export-star-as-dflt.js:19:13: Duplicate exported name 'default'
-test262/test/language/module-code/early-dup-lables.js:17:3: Label 'label' has already been declared
+test262/test/language/module-code/early-dup-lables.js:17:10: Label 'label' has already been declared
 test262/test/language/module-code/early-dup-lex.js:18:1: 'x' has already been declared
 test262/test/language/module-code/early-dup-top-function-async-generator.js:20:17: 'x' has already been declared
 test262/test/language/module-code/early-dup-top-function-async.js:20:16: 'x' has already been declared
@@ -3658,7 +3658,7 @@ test262/test/language/statements/class/elements/syntax/early-errors/grammar-priv
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage-recursive.js:36:48: Private field '#foo' must be declared in an enclosing class
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-environment-on-class-heritage.js:36:34: Private field '#foo' must be declared in an enclosing class
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-field-on-object-destructuring.js:30:13: Expected property key in object pattern
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access.js:28:14: Private fields cannot be accessed through 'super'
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-private-field-super-access.js:28:22: Private fields cannot be accessed through 'super'
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async-gen.js:25:3: Duplicate private name '#m'
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-async.js:25:3: Duplicate private name '#m'
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-privatemeth-duplicate-gen.js:25:3: Duplicate private name '#m'
@@ -3768,7 +3768,7 @@ test262/test/language/statements/class/elements/syntax/early-errors/private-fiel
 test262/test/language/statements/class/elements/syntax/early-errors/private-generator-cannot-escape-token.js:24:5: Expected method or property name
 test262/test/language/statements/class/elements/syntax/early-errors/private-member-exp-cannot-escape-token.js:31:10: Expected identifier after '.'
 test262/test/language/statements/class/elements/syntax/early-errors/private-method-cannot-escape-token.js:24:3: Expected method or property name
-test262/test/language/statements/class/elements/syntax/early-errors/super-private-access-invalid.js:34:5: Private fields cannot be accessed through 'super'
+test262/test/language/statements/class/elements/syntax/early-errors/super-private-access-invalid.js:34:13: Private fields cannot be accessed through 'super'
 test262/test/language/statements/class/elements/ternary-init-err-contains-arguments.js:33:20: 'arguments' cannot appear in a class field initializer
 test262/test/language/statements/class/elements/ternary-init-err-contains-super.js:26:25: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/elements/typeof-init-err-contains-arguments.js:33:14: 'arguments' cannot appear in a class field initializer
@@ -3824,7 +3824,7 @@ test262/test/language/statements/class/static-gen-method-param-dflt-yield.js:26:
 test262/test/language/statements/class/static-init-await-binding-invalid.js:24:11: 'await' cannot be used as a class name in module / async / static-block context
 test262/test/language/statements/class/static-init-invalid-arguments.js:21:15: 'arguments' is not allowed in a class static block
 test262/test/language/statements/class/static-init-invalid-await.js:30:7: 'await' is not allowed in a class static block
-test262/test/language/statements/class/static-init-invalid-label-dup.js:21:8: Label 'x' has already been declared
+test262/test/language/statements/class/static-init-invalid-label-dup.js:21:11: Label 'x' has already been declared
 test262/test/language/statements/class/static-init-invalid-lex-dup.js:22:5: 'x' has already been declared
 test262/test/language/statements/class/static-init-invalid-lex-var.js:23:5: Identifier 'x' has already been declared
 test262/test/language/statements/class/static-init-invalid-return.js:24:13: 'return' is not allowed in a class static block

@@ -3,7 +3,7 @@ commit: c543b031
 parser_babel Summary:
 AST Parsed     : 2235/2237 (99.91%)
 Positive Passed: 2235/2237 (99.91%)
-Negative Passed: 1577/1725 (91.42%)
+Negative Passed: 1585/1725 (91.88%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -27,7 +27,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/463/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/464/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/465/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/491/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/512/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/513/input.js
@@ -53,7 +52,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-instance-set/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-instance-get/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-optional-private-property/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-private-member-access/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-binding-pattern/invalid-dup-param/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-1/input.js
@@ -75,28 +73,22 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0180/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0181/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0182/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0208/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0234/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0239/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0248/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0250/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0274/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/estree/class-private-property/typescript-invalid-abstract/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no-plugin-fragment/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no-plugin-jsx-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no_plugin-non-BMP-identifier/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/jsx/errors/_no_plugin/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/cast/unparenthesized-assert-and-assign/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/cast/unparenthesized-type-assertion-and-assign/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-1/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-2/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-3/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/constructor-overload-modifiers-invalid/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-incompatible/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-abstract/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-ambiguity/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-like/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-param/input.ts
@@ -339,6 +331,7 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/459/input.js:1:22: 
 babel/packages/babel-parser/test/fixtures/core/uncategorised/460/input.js:1:25: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/461/input.js:1:40: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/462/input.js:1:43: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/465/input.js:1:22: Label 'x' has already been declared
 babel/packages/babel-parser/test/fixtures/core/uncategorised/466/input.js:1:30: Deleting an unqualified identifier is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/467/input.js:1:30: 'with' statements are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/468/input.js:1:37: 'eval' cannot be used as a binding name in strict mode
@@ -1074,6 +1067,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invali
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property/input.js:2:11: Expected }, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-ts-type-literal/input.js:2:3: Expected }, got private_identifier
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-call/input.js:4:19: 'super' call is only allowed in the constructor of a derived class
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-private-member-access/input.js:5:13: Private fields cannot be accessed through 'super'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-nested/input.js:4:20: Private field '#priv' must be declared in an enclosing class
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-top-level/input.js:1:21: Private name reference is not allowed outside of a class
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-arrow-function/input.js:3:17: 'arguments' cannot appear in a class field initializer
@@ -1463,6 +1457,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0176/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0177/input.js:1:25: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0178/input.js:1:40: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0179/input.js:1:43: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0182/input.js:1:22: Label 'x' has already been declared
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0183/input.js:1:30: Deleting an unqualified identifier is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0184/input.js:1:30: 'with' statements are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0185/input.js:1:37: 'eval' cannot be used as a binding name in strict mode
@@ -1521,6 +1516,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0244/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0245/input.js:1:31: Duplicate parameter name 't' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0246/input.js:1:13: Parameter name 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0247/input.js:1:13: 'package' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0248/input.js:1:23: Label '__proto__' has already been declared
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0249/input.js:1:15: Duplicate parameter name '__proto__' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0252/input.js:2:1: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0254/input.js:2:1: Expected binding pattern
@@ -1552,6 +1548,7 @@ babel/packages/babel-parser/test/fixtures/esprima/statement-expression/migrated_
 babel/packages/babel-parser/test/fixtures/esprima/statement-expression/migrated_0004/input.js:1:1: Unexpected token '\'
 babel/packages/babel-parser/test/fixtures/esprima/statement-expression/migrated_0005/input.js:1:1: Unexpected token '\'
 babel/packages/babel-parser/test/fixtures/esprima/statement-variable/complex-pattern-requires-init/input.js:2:1: Missing initializer in destructuring declaration
+babel/packages/babel-parser/test/fixtures/estree/class-private-property/typescript-invalid-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/estree/typescript/getter-setter/input.ts:3:8: Setter must have exactly one formal parameter
 babel/packages/babel-parser/test/fixtures/estree/typescript/invalid-class-method-empty-body/input.js:4:19: 'declare' modifier cannot be used here.
 babel/packages/babel-parser/test/fixtures/flow/expect-plugin/export-interface/input.js:1:8: 'interface' is a reserved identifier in strict mode
@@ -1579,6 +1576,7 @@ babel/packages/babel-parser/test/fixtures/typescript/cast/destructuring-assignen
 babel/packages/babel-parser/test/fixtures/typescript/cast/invalid/input.ts:1:3: Expected ), got :
 babel/packages/babel-parser/test/fixtures/typescript/cast/null-assertion-invalid-arrow-param/input.ts:1:10: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/typescript/cast/parameter-typecast/input.ts:1:7: Expected ), got :
+babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-1/input.ts:4:1: Abstract methods can only appear within an abstract class.
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-with-body-computed/input.ts:2:22: Method cannot have an implementation because it is marked abstract.
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-with-body/input.ts:2:21: Method 'method' cannot have an implementation because it is marked abstract.
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-property-initializer/input.ts:3:3: Abstract property cannot have an initializer.
@@ -1605,6 +1603,7 @@ babel/packages/babel-parser/test/fixtures/typescript/class/index-signature-error
 babel/packages/babel-parser/test/fixtures/typescript/class/invalid-modifiers-order/input.ts:3:20: 'private' modifier must precede 'readonly' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/method-readonly/input.ts:2:15: 'readonly' modifier can only appear on a property declaration
 babel/packages/babel-parser/test/fixtures/typescript/class/modifier-name-parameters/input.ts:2:15: 'private' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-incompatible/input.ts:8:1: 'static' modifier cannot be used with 'abstract' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-index-signatures/input.ts:4:11: 'private' modifier cannot appear on an index signature.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-invalid-order/input.ts:21:17: 'public' modifier must precede 'static' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override-errors/input.ts:2:23: 'override' modifier cannot appear on a constructor declaration
@@ -1612,6 +1611,7 @@ babel/packages/babel-parser/test/fixtures/typescript/class/optional-async-error/
 babel/packages/babel-parser/test/fixtures/typescript/class/optional-generator-method-with-invalid-modifiers/input.ts:2:18: Method 'd' cannot have an implementation because it is marked abstract.
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties-binding-patterns/input.ts:2:26: A parameter property may not be declared using a binding pattern
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties-not-constructor/input.ts:10:30: A parameter cannot have a question mark and an initializer.
+babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-private/input.ts:2:11: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-protected/input.ts:2:13: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-public/input.ts:2:10: An accessibility modifier cannot be used with a private identifier.

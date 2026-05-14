@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 9773/9828 (99.44%)
 Positive Passed: 9773/9828 (99.44%)
-Negative Passed: 1378/2583 (53.35%)
+Negative Passed: 1384/2583 (53.58%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -177,8 +177,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIde
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifiersAcrossContainerBoundaries.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifiersAcrossFileBoundaries.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateInterfaceMembers1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateLabel1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateLabel2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateLocalVariable1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateLocalVariable2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateObjectLiteralProperty.ts
@@ -210,7 +208,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSynt
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorElaboration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorForConflictingExportEqualsValue.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorForUsingPropertyOfTypeAsType03.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorInUnnamedClassExpression.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorMessageOnObjectLiteralType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorSupression1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es5ExportEquals.ts
@@ -625,7 +622,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/c
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMergedDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractProperties.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractUsingAbstractMethods2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAndVariableWithSameName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classWithPredefinedTypesAsNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts
@@ -1067,8 +1063,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/LabeledStatements/parser_duplicateLabel1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/LabeledStatements/parser_duplicateLabel2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBlockStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDebuggerStatement1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDoStatement1.d.ts
@@ -1498,6 +1492,8 @@ typescript/tests/cases/compiler/downlevelLetConst4.ts:1:16: Missing initializer 
 typescript/tests/cases/compiler/duplicateIdentifierBindingElementInParameterDeclaration1.ts:1:1: Duplicate parameter name 'a' in strict mode
 typescript/tests/cases/compiler/duplicateIdentifierBindingElementInParameterDeclaration2.ts:2:1: Duplicate parameter name 'a' in strict mode
 typescript/tests/cases/compiler/duplicateIdentifierInCatchBlock.ts:14:14: Catch parameter 'e' cannot be redeclared with let/const in catch block
+typescript/tests/cases/compiler/duplicateLabel1.ts:3:1: Label 'target' has already been declared
+typescript/tests/cases/compiler/duplicateLabel2.ts:4:3: Label 'target' has already been declared
 typescript/tests/cases/compiler/dynamicImportTrailingComma.ts:2:13: Trailing comma not allowed.
 typescript/tests/cases/compiler/emitThisInSuperMethodCall.ts:10:17: 'super' property access is only valid inside a method
 typescript/tests/cases/compiler/emptyGenericParamList.ts:2:10: Type argument list cannot be empty
@@ -1511,6 +1507,7 @@ typescript/tests/cases/compiler/enumWithBigint.ts:2:3: An enum member cannot hav
 typescript/tests/cases/compiler/enumWithParenthesizedInitializer1.ts:3:1: Expected ), got }
 typescript/tests/cases/compiler/erasableSyntaxOnly2.ts:1:10: Unexpected '<': not a valid TS type assertion or generic arrow
 typescript/tests/cases/compiler/errorForUsingPropertyOfTypeAsType01.ts:44:24: Expected identifier after '.' in import-equals module reference
+typescript/tests/cases/compiler/errorInUnnamedClassExpression.ts:8:2: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/compiler/errorOnInitializerInInterfaceProperty.ts:2:17: Expected }, got =
 typescript/tests/cases/compiler/errorOnInitializerInObjectTypeLiteralProperty.ts:2:17: Unexpected token in TS object type
 typescript/tests/cases/compiler/errorRecoveryInClassDeclaration.ts:4:13: 'public' is a reserved identifier in strict mode
@@ -1879,9 +1876,10 @@ typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeywor
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractCrashedOnce.ts:8:5: Expected identifier after '.'
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractDeclarations.d.ts:2:28: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractManyKeywords.ts:3:1: Unexpected reserved word 'default'
-typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMethodInNonAbstractClass.ts:6:20: Method 'foo' cannot have an implementation because it is marked abstract.
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMethodInNonAbstractClass.ts:5:1: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMethodWithImplementation.ts:2:20: Method 'foo' cannot have an implementation because it is marked abstract.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMixedWithModifiers.ts:16:20: Expected (, got identifier
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractUsingAbstractMethods2.ts:5:1: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractWithInterface.ts:1:10: Expected semicolon
 typescript/tests/cases/conformance/classes/classDeclarations/classBody/classBodyWithStatements.ts:2:9: Expected (, got identifier
 typescript/tests/cases/conformance/classes/classDeclarations/classHeritageSpecification/classExtendingOptionalChain.ts:9:22: Expected {, got ?.
@@ -2549,6 +2547,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStateme
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueTarget1.ts:2:12: 'continue' must target an iteration label, 'target' does not
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueTarget5.ts:5:16: Undefined label 'target'
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueTarget6.ts:2:12: Undefined label 'target'
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/LabeledStatements/parser_duplicateLabel1.ts:3:1: Label 'target' has already been declared
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/LabeledStatements/parser_duplicateLabel2.ts:4:3: Label 'target' has already been declared
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ReturnStatements/parserReturnStatement1.ts:1:7: 'return' outside of function
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ReturnStatements/parserReturnStatement2.ts:2:10: 'return' outside of function
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBreakStatement1.d.ts:1:1: 'break' must be inside a loop or switch

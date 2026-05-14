@@ -1,7 +1,7 @@
 parser_misc Summary:
-AST Parsed     : 72/72 (100.00%)
-Positive Passed: 72/72 (100.00%)
-Negative Passed: 255/286 (89.16%)
+AST Parsed     : 71/72 (98.61%)
+Positive Passed: 71/72 (98.61%)
+Negative Passed: 257/286 (89.86%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
@@ -24,15 +24,16 @@ Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2448-use-before-decl.ts
-Expect Syntax Error: tests/coverage/misc/fail/negative/012_duplicate_label.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/049_yield_in_async_arrow_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/054_export_undefined_local.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
-Expect Syntax Error: tests/coverage/misc/fail/oxc-5036.js
 Expect Syntax Error: tests/coverage/misc/fail/script-top-level-using.js
 Expect Syntax Error: tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs
+Expect to Parse: tests/coverage/misc/pass/oxc-12679.js
+tests/coverage/misc/pass/oxc-12679.js:3:12: Label 'label' has already been declared
+
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
 tests/coverage/misc/fail/commonjs-top-level-await.cjs:2:1: Top-level 'await' is only valid in module code
@@ -111,6 +112,7 @@ tests/coverage/misc/fail/negative/008_bare_function_expression.js:2:9: Function 
 tests/coverage/misc/fail/negative/009_unexpected_token_after_return.js:2:1: Unexpected '}' — unmatched closing brace
 tests/coverage/misc/fail/negative/010_reserved_word_as_var.js:2:5: 'class' is a reserved word and cannot be used as a binding name
 tests/coverage/misc/fail/negative/011_duplicate_default_in_switch.js:10:1: More than one default clause in switch
+tests/coverage/misc/fail/negative/012_duplicate_label.js:5:9: Label 'outer' has already been declared
 tests/coverage/misc/fail/negative/013_break_unknown_label.js:6:8: Undefined label 'bar'
 tests/coverage/misc/fail/negative/014_duplicate_private_class_member.js:7:2: Duplicate private name '#x'
 tests/coverage/misc/fail/negative/015_for_await_outside_async.js:8:12: 'for await' outside of async function
@@ -277,6 +279,7 @@ tests/coverage/misc/fail/oxc-4449-3.ts:1:10: An enum member cannot have a numeri
 tests/coverage/misc/fail/oxc-4449-4.ts:1:25: Computed property names are not allowed in enums.
 tests/coverage/misc/fail/oxc-4449-5.ts:1:11: Enum member expected.
 tests/coverage/misc/fail/oxc-4449-6.ts:2:1: Computed property names are not allowed in enums.
+tests/coverage/misc/fail/oxc-5036.js:2:11: Label 'Test' has already been declared
 tests/coverage/misc/fail/oxc-5177.ts:5:1: An 'accessor' property cannot be declared optional.
 tests/coverage/misc/fail/oxc-5355.jsx:1:14: Identifiers in JSX cannot contain hyphens
 tests/coverage/misc/fail/oxc-5955-1.ts:1:8: Expected '=', ',', or ';' after variable binding
