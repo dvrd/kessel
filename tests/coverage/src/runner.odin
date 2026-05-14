@@ -155,15 +155,104 @@ run_parser_suite :: proc(
 	sorted := records[:]
 	slice.sort_by(sorted, proc(a, b: CoverageRecord) -> bool { return a.rel < b.rel })
 
-	stats := stats_compute(sorted)
+	// TypeScript suite: collapse per-unit records into per-parent-file
+	// records to match OXC's classification granularity. OXC produces
+	// one CoverageResult per TypeScriptFile (which may contain multiple
+	// @filename units). Their rule: run all units, if ANY unit has an
+	// error the whole file fails. This avoids inflating the negative
+	// denominator with 0-error sub-units of multi-file fixtures.
+	final := sorted
+	if suite == .TypeScript {
+		final = collapse_ts_units(sorted, record_alloc)
+	}
+
+	stats := stats_compute(final)
 
 	return CoverageRun{
 		tool    = tool,
 		suite   = suite,
-		records = sorted,
+		records = final,
 		stats   = stats,
 		elapsed = time.since(t0),
 	}
+}
+
+// collapse_ts_units — merge per-unit CoverageRecords into per-parent-file
+// records. Mirrors OXC's one-result-per-TypeScriptFile approach.
+//
+// Groups records by parent path (everything before "::"). For each group:
+//   - should_fail: inherited from the parent (same for all units)
+//   - result: if ANY unit produced a non-Passed result, use the first
+//     non-Passed result. Otherwise Passed.
+//
+// Single-file fixtures (no "::") pass through unchanged.
+@(private="file")
+collapse_ts_units :: proc(records: []CoverageRecord, alloc: runtime.Allocator) -> []CoverageRecord {
+	out := make([dynamic]CoverageRecord, 0, len(records), alloc)
+
+	i := 0
+	for i < len(records) {
+		rec := records[i]
+		parent := parent_path(rec.rel)
+
+		// Find extent of this group (consecutive records with same parent).
+		j := i + 1
+		for j < len(records) && parent_path(records[j].rel) == parent {
+			j += 1
+		}
+
+		if j == i + 1 {
+			// Single record — pass through (may or may not have "::").
+			append(&out, rec)
+		} else {
+			// Multi-unit group. Merge: if any unit failed, whole file fails.
+			merged := CoverageRecord{
+				rel         = strings.clone(parent, alloc),
+				should_fail = rec.should_fail,
+				result      = TestResult{tag = .Passed},
+			}
+			for k := i; k < j; k += 1 {
+				r := records[k]
+				// Any non-Passed result means the file has errors.
+				if r.result.tag != .Passed && r.result.tag != .IncorrectlyPassed {
+					// CorrectError or ParseError — file has errors.
+					if merged.result.tag == .Passed || merged.result.tag == .IncorrectlyPassed {
+						merged.result = r.result
+					}
+				}
+				if r.result.tag == .IncorrectlyPassed && merged.result.tag == .Passed {
+					merged.result = r.result
+				}
+			}
+			// Re-evaluate: should_fail + has_errors → CorrectError / IncorrectlyPassed
+			has_errors := merged.result.tag == .CorrectError || merged.result.tag == .ParseError
+			if merged.should_fail {
+				if has_errors {
+					merged.result.tag = .CorrectError
+				} else {
+					merged.result.tag = .IncorrectlyPassed
+				}
+			} else {
+				if has_errors {
+					merged.result.tag = .ParseError
+				} else {
+					merged.result.tag = .Passed
+				}
+			}
+			append(&out, merged)
+		}
+		i = j
+	}
+	return out[:]
+}
+
+// parent_path strips the "::unit_name" suffix from a TS multi-file rel path.
+@(private="file")
+parent_path :: proc(rel: string) -> string {
+	if idx := strings.index(rel, "::"); idx >= 0 {
+		return rel[:idx]
+	}
+	return rel
 }
 
 // Forwarder used by the standalone CLI / @test wrappers. Same code path
