@@ -13,4 +13,4 @@
 import X = N;
 import Y = A.B.C;
 import Z = require("./mod");
-import type T = Foo;
+import type T = require("./typed");

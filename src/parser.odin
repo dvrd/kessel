@@ -4001,10 +4001,10 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			directives = make([dynamic]Directive, 0, 0, p.allocator),
 		}
 	} else {
-		// §14.1 - an explicit `declare function f() {}` is a SyntaxError
-		// (the body contradicts declare). But a function inside
-		// `declare module "m" { function f() {} }` IS allowed by OXC.
-		if allow_no_body {
+		// §14.1 — function body in ambient context is a SyntaxError.
+		// Covers both `declare function f() {}` (explicit) and
+		// `declare module { function f() {} }` (inherited ambient).
+		if allow_no_body || p.in_ambient || p.source_is_dts {
 			report_error(p, "An implementation cannot be declared in ambient contexts")
 		}
 		body = parse_function_body(p)
@@ -9405,6 +9405,12 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	decl.loc = start
 	decl.import_kind = import_kind
 
+	// TS1392: `import type X = Y.Z` is invalid (namespace alias can't
+	// use `import type`). `import type X = require("...")` IS valid.
+	// We check the require case after parsing the module reference.
+	// For now, flag it; we'll suppress below if it's require().
+	type_alias_error := import_kind == .Type
+
 	// Binding identifier.
 	id_loc := cur_loc(p)
 	id_name := cur_value(p)
@@ -9502,6 +9508,15 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 			current_expr = expression_from(p, mem)
 		}
 		decl.module_reference = current_expr
+	}
+
+	// TS1392: emit now that we know the module reference type.
+	// `import type X = require("...")` is valid; namespace alias is not.
+	if type_alias_error {
+		if _, is_require := decl.module_reference.(^TSExternalModuleReference); !is_require {
+			report_error_at(p, LexerLoc(start.span.start),
+				"An import alias can not use 'import type'.")
+		}
 	}
 
 	match_semicolon_or_asi(p)

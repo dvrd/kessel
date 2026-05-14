@@ -1,7 +1,7 @@
 {
   "type": "Program",
   "start": 628,
-  "end": 710,
+  "end": 725,
   "sourceType": "script",
   "hashbang": null,
   "body": [
@@ -101,7 +101,7 @@
     {
       "type": "TSImportEqualsDeclaration",
       "start": 689,
-      "end": 709,
+      "end": 724,
       "id": {
         "type": "Identifier",
         "start": 701,
@@ -111,12 +111,16 @@
         "optional": false
       },
       "moduleReference": {
-        "type": "Identifier",
+        "type": "TSExternalModuleReference",
         "start": 705,
-        "end": 708,
-        "name": "Foo",
-        "typeAnnotation": null,
-        "optional": false
+        "end": 723,
+        "expression": {
+          "type": "Literal",
+          "start": 713,
+          "end": 722,
+          "value": "./typed",
+          "raw": "\"./typed\""
+        }
       },
       "importKind": "type"    }
   ],
@@ -197,5 +201,5 @@
 }
 
 --- Statistics ---
-Arena: used=35888B reserved=16777216B ratio=0%
+Arena: used=35488B reserved=16777216B ratio=0%
 Parse errors: 0
