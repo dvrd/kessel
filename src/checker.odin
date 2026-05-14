@@ -2669,6 +2669,20 @@ ck_ubd_walk_class_statics :: proc(c: ^Checker, body: ClassBody, decls: ^map[stri
 		for deco in elem.decorators {
 			ck_ubd_walk_expr(c, deco.expression, decls, "", 0)
 		}
+		// Static blocks (kind == .StaticBlock) execute at class-definition
+		// time. Their body is stored as a FunctionExpression in elem.value
+		// but elem.static is false (the kind implies it). Walk the block
+		// body statements directly for UBD refs.
+		if elem.kind == .StaticBlock {
+			if val, ok := elem.value.(^Expression); ok && val != nil {
+				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
+					for sub in fn.body.body {
+						ck_ubd_walk_stmt(c, sub, decls)
+					}
+				}
+			}
+			continue
+		}
 		if !elem.static { continue }
 		// Static field initializers run at class-definition time.
 		if val, ok := elem.value.(^Expression); ok && val != nil {
