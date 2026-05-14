@@ -4782,6 +4782,15 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 						"A 'get' accessor must return a value.")
 				}
 			}
+			// TS2784 — get/set accessors cannot declare 'this' parameter.
+			if (elem.kind == .Get || elem.kind == .Set) && (ctx.lang == .TS || ctx.lang == .TSX) {
+				if len(fn.params) > 0 {
+					if id, ok := fn.params[0].pattern.(^Identifier); ok && id != nil && id.name == "this" {
+						ck_report(c, u32(id.loc.span.start),
+							"'get' and 'set' accessors cannot declare 'this' parameters.")
+					}
+				}
+			}
 		case .StaticBlock:
 			unreachable() // handled above
 		}
