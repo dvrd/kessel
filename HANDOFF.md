@@ -23,9 +23,10 @@ Same corpus SHAs. Same exclude list. Same fixture granularity.
 
 ```
 TypeScript (OXC target = 100%):
-  Parser positive:  9773/9828 (99.44%)  — OXC: 9818/9832 (99.86%)
-  Parser negative:  1407/2583 (54.47%)  — OXC: 1532/2587 (59.22%)
-  Kessel catches 91.8% of OXC's negative catches (1407/1532)
+  Parser positive:  9810/9828 (99.82%)  — OXC: 9818/9832 (99.86%)
+  Parser negative:  1390/2583 (53.81%)  — OXC: 1532/2587 (59.22%)
+  Kessel catches 90.7% of OXC's negative catches (1390/1532)
+  FPs: 18 (9 shared with OXC, 9 kessel-only)
 
 Babel:    parser pos 2230/2237 (99.69%) | neg 1597/1725 (92.58%)
 test262:  parser pos 47090/47090 (100%) | neg 4568/4588 (99.56%)
@@ -37,11 +38,20 @@ Corpus SHAs (pinned to OXC's `clone-parallel.mjs`):
 - Babel: `4079bcda`
 - ESTree: `9c67f5e3`
 
-## PRIORITY 1 — Fix TS parser false positives
+## PRIORITY 1 — Fix 9 remaining kessel-only TS parser FPs
 
-55 valid TS files kessel incorrectly rejects (OXC has 14). These are real
-bugs. 3 are from `__proto__` destructuring edge cases. Investigate each
-`Expect to Parse` entry in `parser_typescript.snap`.
+9 fixtures kessel rejects but OXC accepts. Each is a distinct issue:
+1. `convertKeywordsYes.ts` — class field named 'constructor'
+2. `corrupted.ts` — binary file, Expected semicolon
+3. `missingCloseParenStatements.ts` — Expected ), got {
+4. `modulePreserveTopLevelAwait1.ts` — for-await source-type detection
+5. `withStatementInternalComments.ts` — 'with' in non-strict TS
+6. `esDecorators-decoratorExpression.1.ts` — Expected class after decorator
+7. `esDecorators-decoratorExpression.3.ts` — Type args in decorator
+8. `topLevelAwait.3.ts` — 'await' as binding name
+9. `NonInitializedExportInInternalModule.ts` — Expected binding pattern
+
+Plus 3 `__proto__` destructuring FPs (arrow params, nested array).
 
 ## PRIORITY 2 — Close remaining TS parser negative gap
 
