@@ -7401,7 +7401,9 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// next token, not the binding identifier.
 		// In TS ambient contexts (declare namespace/module, .d.ts),
 		// strict-mode reserved words ARE allowed as identifiers.
-		if p.strict_mode && !id_has_escape && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+		// TS allows `eval` and `arguments` as binding names even in strict
+		// mode (unlike JS). OXC accepts them; so do we.
+		if p.strict_mode && !id_has_escape && !allow_ts_mode(p) {
 			if is_eval_or_arguments(id_name) {
 				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
 				report_error_at(p, LexerLoc(id_loc.span.start), msg)

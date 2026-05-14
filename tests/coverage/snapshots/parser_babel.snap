@@ -1617,7 +1617,7 @@ babel/packages/babel-parser/test/fixtures/typescript/class/implements-empty/inpu
 babel/packages/babel-parser/test/fixtures/typescript/class/index-signature-errors/input.ts:2:21: 'static' modifier must precede 'readonly' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/invalid-modifiers-order/input.ts:3:20: 'private' modifier must precede 'readonly' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/method-readonly/input.ts:2:15: 'readonly' modifier can only appear on a property declaration
-babel/packages/babel-parser/test/fixtures/typescript/class/modifier-name-parameters/input.ts:2:15: 'private' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/typescript/class/modifier-name-parameters/input.ts:2:32: 'static' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-incompatible/input.ts:8:1: 'static' modifier cannot be used with 'abstract' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-index-signatures/input.ts:4:11: 'private' modifier cannot appear on an index signature.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-invalid-order/input.ts:21:17: 'public' modifier must precede 'static' modifier.
