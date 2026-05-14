@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12649/12664 (99.88%)
 Positive Passed: 12649/12664 (99.88%)
-Negative Passed: 2099/3498 (60.01%)
+Negative Passed: 2100/3498 (60.03%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -622,7 +622,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unclosedExpo
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undeclaredBase.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undeclaredMethod.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedSymbolReferencedInArrayLiteral1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedTypeAssignment1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedTypeAssignment2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedTypeAssignment3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unicodeEscapesInNames02.ts::extendedEscapesForAstralsInVarsAndClasses.ts
@@ -2119,6 +2118,7 @@ typescript/tests/cases/compiler/unclosedExportClause02.ts::t2.ts:2:5: Expected }
 typescript/tests/cases/compiler/unclosedExportClause02.ts::t3.ts:2:5: Expected }, got string
 typescript/tests/cases/compiler/unclosedExportClause02.ts::t4.ts:1:17: Expected }, got from
 typescript/tests/cases/compiler/unclosedExportClause02.ts::t5.ts:2:5: Expected }, got string
+typescript/tests/cases/compiler/undefinedTypeAssignment1.ts:1:6: Type alias name cannot be 'undefined'.
 typescript/tests/cases/compiler/undefinedTypeAssignment4.ts:1:7: Class name cannot be 'undefined'.
 typescript/tests/cases/compiler/unexpectedStatementBlockTerminator.ts:4:1: Unexpected reserved word 'case'
 typescript/tests/cases/compiler/unicodeEscapesInNames02.ts::astralAsSurrogatePair.ts:1:25: Expected }, got INVALID

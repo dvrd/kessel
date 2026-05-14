@@ -970,6 +970,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^TSTypeAliasDeclaration:
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			// TS2457 — type alias name cannot be a predefined type name.
+			if is_ts_predefined_type_name(v.id.name) {
+				msg := fmt.tprintf("Type alias name cannot be '%s'.", v.id.name)
+				ck_report(c, u32(v.id.loc.span.start), msg)
+			}
 			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
 				ck_report(c, u32(v.loc.span.start),
 					"Type aliases are only valid at the top level of a module or namespace.")
