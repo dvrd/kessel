@@ -258,7 +258,10 @@ cmd_run :: proc(suite_arg: string, tool: Tool, update: bool) -> int {
 		run_or_drift(&drifted, .Misc,       tool, vendor, root, update)
 		run_or_drift(&drifted, .Estree,     tool, vendor, root, update)
 		run_or_drift(&drifted, .Babel,      tool, vendor, root, update)
-		run_or_drift(&drifted, .TypeScript, tool, vendor, root, update)
+		// Skip semantic_typescript — OXC has no equivalent measure.
+		if tool != .Semantic {
+			run_or_drift(&drifted, .TypeScript, tool, vendor, root, update)
+		}
 		run_or_drift(&drifted, .Test262,    tool, vendor, root, update)
 	case:
 		fmt.printfln("unknown suite: %s", suite_arg)
