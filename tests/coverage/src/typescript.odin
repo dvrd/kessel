@@ -410,10 +410,14 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 					if s == "false" { has_always_strict_false = true }
 					if s == "true"  { has_always_strict_true  = true }
 				}
-				if has_always_strict_true {
-					force_strict = true
-				} else if !has_always_strict_false && !has_strict_false {
-					force_strict = true
+					// @strict: false overrides everything — the fixture
+				// explicitly opts out of strict mode.
+				if !has_strict_false {
+					if has_always_strict_true {
+						force_strict = true
+					} else if !has_always_strict_false {
+						force_strict = true
+					}
 				}
 			}
 
