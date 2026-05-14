@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12649/12664 (99.88%)
 Positive Passed: 12649/12664 (99.88%)
-Negative Passed: 2103/3498 (60.12%)
+Negative Passed: 2105/3498 (60.18%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -642,8 +642,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/a
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/ambient/ambientExternalModuleInsideNonAmbientExternalModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFunctionCapturesArguments_es5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclarationCapturesArguments_es5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/declaredClassMergedwithSelf.ts::file3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classExpressions/classWithStaticFieldInParameterBindingPattern.2.ts
@@ -2206,6 +2204,7 @@ typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionD
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncOrYieldAsBindingIdentifier1.ts:14:9: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/classes/awaitAndYieldInProperty.ts:3:21: await outside of async function
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractAccessor.ts:3:22: Method 'aa' cannot have an implementation because it is marked abstract.
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts:2:5: 'abstract' modifier can only appear on a class, method, or property declaration.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractCrashedOnce.ts:8:5: Expected identifier after '.'
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractDeclarations.d.ts:2:28: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractInstantiations2.ts:46:5: Function implementation is missing or not immediately following the declaration.
@@ -2215,6 +2214,7 @@ typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeywor
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMethodWithImplementation.ts:2:20: Method 'foo' cannot have an implementation because it is marked abstract.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMixedWithModifiers.ts:16:20: Expected (, got identifier
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractOverloads.ts:7:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractProperties.ts:5:5: 'private' modifier cannot be used with 'abstract' modifier.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractUsingAbstractMethods2.ts:2:5: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractWithInterface.ts:1:10: Expected semicolon
 typescript/tests/cases/conformance/classes/classDeclarations/classAndVariableWithSameName.ts:2:1: Duplicate identifier 'C'

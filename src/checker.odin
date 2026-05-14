@@ -2269,6 +2269,17 @@ ck_check_ts_class_modifier_conflicts :: proc(c: ^Checker, cls: ^ClassExpression)
 			ck_report(c, u32(elem.loc.span.start),
 				"'static' modifier cannot be used with 'abstract' modifier.")
 		}
+		// TS1243: private + abstract is invalid. Abstract members must be
+		// accessible to subclasses, so they can't be private.
+		if elem.accessibility == .Private && elem.abstract {
+			ck_report(c, u32(elem.loc.span.start),
+				"'private' modifier cannot be used with 'abstract' modifier.")
+		}
+		// TS1242: abstract on a constructor is invalid.
+		if elem.abstract && elem.kind == .Constructor {
+			ck_report(c, u32(elem.loc.span.start),
+				"'abstract' modifier can only appear on a class, method, or property declaration.")
+		}
 		// declare + override is invalid
 		// elem doesn't have a declare field; look for it on the value's
 		// FunctionExpression or check the declare_ pattern.
