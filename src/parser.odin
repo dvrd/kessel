@@ -12786,6 +12786,21 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 		return nil
 	}
 
+	// §B.3.1 / §13.2.5.1 — duplicate `__proto__` in object literals.
+	// Skip if next token is `=` (destructuring assignment target —
+	// Annex B.3.1 makes duplicates legal in ObjectPattern).
+	if !is_token(p, .Assign) {
+		proto_seen := false
+		for &prop in obj.properties {
+			if !property_is_literal_proto_init(&prop) { continue }
+			if proto_seen {
+				report_error(p, "Redefinition of __proto__ property")
+				break
+			}
+			proto_seen = true
+		}
+	}
+
 	obj.loc.span.end = prev_end_offset(p)
 	return expression_from(p, obj)
 }
