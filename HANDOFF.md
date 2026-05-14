@@ -27,7 +27,7 @@ $ odin build tests/coverage/src -out:bin/kessel_coverage -o:speed -no-bounds-che
 ```
 ES2025 (test262):  Parser 47090/47090 (100.00%) | Semantic 47090/47090 (100.00%) + neg 4588/4588 (100%)
 Babel:             Parser 2227/2233  (99.73%)  | Semantic 2216/2233 (99.24%) pos, 1677/1711 (98.01%) neg
-TypeScript:        Parser 12661/12664 (99.98%) | Semantic 12650/12664 (99.89%) pos, 2084/3498 (59.58%) neg
+TypeScript:        Parser 12661/12664 (99.98%) | Semantic 12650/12664 (99.89%) pos, 2088/3498 (59.69%) neg
 ESTree:            Parser 39/39 (100%)         | Semantic 39/39 (100%)
 Misc:              Parser 72/72 (100%)         | Semantic 71/72 pos, 280/286 (97.90%) neg
 ```
@@ -124,9 +124,9 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 | Optional `?` on destructuring patterns not tracked in AST | low | Parser doesn't set `optional` for `[]?` / `{}?` patterns | Blocks TS1051 check |
 | Type-system errors (TS2339 ×265, etc.) unfixable without type inference | high | Represents bulk of remaining ~1467 TS gaps | Requires type resolution infrastructure |
 
-## Session 10 Changes (10 commits)
+## Session 10 Changes (11 commits)
 
-**Checker improvements (TS semantic negative: 2064→2084, +20):**
+**Checker improvements (TS semantic negative: 2064→2088, +24):**
 1. fix(checker): skip catch-var redecl in TS mode for simple identifiers. Fixes tryStatements.ts FP. TS positive: 12649→12650 (+1).
 2. feat(checker): TS2300 — enum member dups (`enum E { x, y, x }`) + constructor param property vs class field conflicts. +2 negative.
 3. feat(checker): TS2491 — destructuring pattern in for-in LHS. `for (var [a,b] in [])` now rejected in TS. +3 negative.
@@ -137,6 +137,7 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 8. fix(checker): TS2448 — class static block bodies participate in use-before-decl. +1 negative.
 9. fix(checker): allow new.target in class field initializers and static blocks. Added class_body_depth counter. Babel positive: +1.
 10. fix(checker+parser): TS1016 — required parameter after ?-optional. Fixed parser bug where optional flag wasn't set on Identifier for ?-params. TS negative: +1.
+11. feat(checker): TS2384 — overload signatures must all be ambient or non-ambient. +4 negative.
 
 **Attempted and reverted:**
 - TS2395 (merged decl export visibility): caused 16 FPs — interface+namespace merges don't require matching export status.
