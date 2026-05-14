@@ -47,6 +47,53 @@ TS_NOT_SUPPORTED_TEST_PATHS := [?]string{
 	"usingDeclarations.14.ts",
 }
 
+// Fixtures whose baseline .errors.txt files only exist under variant
+// dimensions OXC's harness doesn't generate (alwaysstrict, strict,
+// moduledetection). OXC classifies these as should_fail=false; we
+// force-match so our negative set is identical.
+@(rodata)
+TS_FORCE_POSITIVE_PATHS := [?]string{
+	"argumentsBindsToFunctionScopeArgumentList.ts",
+	"asiPublicPrivateProtected.ts",
+	"collisionArgumentsArrowFunctions.ts",
+	"collisionArgumentsFunction.ts",
+	"collisionArgumentsFunctionExpressions.ts",
+	"collisionArgumentsInterfaceMembers.ts",
+	"collisionArgumentsInType.ts",
+	"corrupted.ts",
+	"deleteOperatorWithAnyOtherType.ts",
+	"emitArrowFunctionWhenUsingArguments03_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments03.ts",
+	"emitArrowFunctionWhenUsingArguments04_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments04.ts",
+	"emitArrowFunctionWhenUsingArguments05_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments05.ts",
+	"emitArrowFunctionWhenUsingArguments06_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments06.ts",
+	"emitArrowFunctionWhenUsingArguments07_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments07.ts",
+	"emitArrowFunctionWhenUsingArguments08_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments08.ts",
+	"emitArrowFunctionWhenUsingArguments11_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments11.ts",
+	"emitArrowFunctionWhenUsingArguments13_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments13.ts",
+	"emitArrowFunctionWhenUsingArguments14_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments14.ts",
+	"emitArrowFunctionWhenUsingArguments15_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments15.ts",
+	"emitArrowFunctionWhenUsingArguments16_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments16.ts",
+	"emitArrowFunctionWhenUsingArguments17_ES6.ts",
+	"emitArrowFunctionWhenUsingArguments17.ts",
+	"for-of56.ts",
+	"FunctionDeclaration2_es6.ts",
+	"generatorTypeCheck38.ts",
+	"modulePreserveTopLevelAwait1.ts",
+	"topLevelAwait.3.ts",
+	"withStatementInternalComments.ts",
+}
+
 @(rodata)
 TS_NOT_SUPPORTED_ERROR_CODES := [?]string{
 	"1006",

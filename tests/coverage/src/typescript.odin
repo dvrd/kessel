@@ -264,7 +264,14 @@ typescript_should_fail :: proc(
 	settings:      CompilerSettings,
 	allocator:     runtime.Allocator,
 ) -> bool {
-	stem := strings.trim_suffix(filepath.base(fixture_path), filepath.ext(fixture_path))
+	base := filepath.base(fixture_path)
+	// Force-positive overrides: fixtures whose baselines only exist under
+	// variant dimensions OXC doesn't generate. Match OXC's classification.
+	for fp in TS_FORCE_POSITIVE_PATHS {
+		if base == fp { return false }
+	}
+
+	stem := strings.trim_suffix(base, filepath.ext(fixture_path))
 
 	// Build variant suffixes from the cartesian product of multi-valued
 	// compiler options. Only options with 2+ values produce variants.

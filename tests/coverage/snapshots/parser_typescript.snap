@@ -1,9 +1,9 @@
 commit: c7a0ae10
 
 parser_typescript Summary:
-AST Parsed     : 9773/9827 (99.45%)
-Positive Passed: 9773/9827 (99.45%)
-Negative Passed: 1379/2584 (53.37%)
+AST Parsed     : 9773/9828 (99.44%)
+Positive Passed: 9773/9828 (99.44%)
+Negative Passed: 1378/2583 (53.35%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration10.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration13.ts
@@ -1245,6 +1245,9 @@ typescript/tests/cases/compiler/constDeclarations-validContexts.ts:18:1: 'with' 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/convertKeywordsYes.ts
 typescript/tests/cases/compiler/convertKeywordsYes.ts:6:5: 'implements' is a reserved identifier in strict mode
 
+Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/corrupted.ts
+typescript/tests/cases/compiler/corrupted.ts:1:4: Expected semicolon
+
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/es5-asyncFunctionWithStatements.ts
 typescript/tests/cases/compiler/es5-asyncFunctionWithStatements.ts:4:5: 'with' statements are not allowed in strict mode
 
@@ -1468,7 +1471,6 @@ typescript/tests/cases/compiler/continueTarget1.ts:2:12: 'continue' must target 
 typescript/tests/cases/compiler/continueTarget5.ts:5:16: Undefined label 'target'
 typescript/tests/cases/compiler/continueTarget6.ts:2:12: Undefined label 'target'
 typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_1.ts:3:1: Missing initializer in 'const' declaration
-typescript/tests/cases/compiler/corrupted.ts:1:4: Expected semicolon
 typescript/tests/cases/compiler/createArray.ts:1:19: Expected expression after 'new'
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties.ts:2:43: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties2.ts:2:43: A parameter property may not be declared using a binding pattern
