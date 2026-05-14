@@ -4622,7 +4622,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// when the source file itself is a .d.ts (every declaration is
 	// implicitly ambient).
 	if (ctx.lang == .TS || ctx.lang == .TSX) && !cls.declare && !ctx.is_dts {
-		ck_check_ts_class_overloads(c, cls.body)
+		// TS2391/TS2389 overload chain — migrated to parser.
 		ck_check_ts_class_member_dups(c, cls)
 		ck_check_ts_constructor_param_property_dups(c, cls)
 	}

@@ -4806,6 +4806,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 	}
 
 	body.loc.span.end = prev_end_offset(p)
+	report_ts_overload_chain_errors(p, body.body[:])
 	report_private_class_member_errors(p, body.body[:], p.class_is_abstract)
 
 	// §15.7.3 — resolve pending private-name references against the
@@ -4903,6 +4904,116 @@ class_element_prop_name :: proc(key: ^Expression) -> string {
 		if v != nil { return v.raw }
 	}
 	return ""
+}
+
+// TS2391 / TS2389 — overload-chain checking at parser level.
+// Walks class members left-to-right looking for overload chains.
+// Signatures (body-less methods) must be followed by an implementation.
+// Suppressed in ambient context (declare class / .d.ts).
+report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
+	if !allow_ts_mode(p) || p.in_ambient || p.source_is_dts { return }
+	if len(body) == 0 { return }
+
+	// Pre-pass: skip pure-sig classes (no impl, single name, only methods).
+	has_any_impl := false
+	has_non_method := false
+	has_ctor_sig := false
+	name_count := 0
+	last_name := ""
+	for elem in body {
+		if (elem.kind != .Method && elem.kind != .Constructor) || elem.abstract {
+			if elem.kind != .Get && elem.kind != .Set { has_non_method = true }
+			continue
+		}
+		val, have := elem.value.?; if !have || val == nil { continue }
+		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
+		if fn.body.loc.span.end > fn.body.loc.span.start {
+			has_any_impl = true; break
+		}
+		if elem.kind == .Constructor { has_ctor_sig = true }
+		else if !elem.computed && elem.key != nil {
+			n := class_element_prop_name(elem.key)
+			if n != "" && n != last_name { name_count += 1; last_name = n }
+		}
+	}
+	if !has_any_impl && !has_non_method && !has_ctor_sig && name_count <= 1 { return }
+
+	// Main pass.
+	chain_active := false
+	chain_name := ""
+	chain_start := 0
+
+	for elem, idx in body {
+		// Is this an overloadable method?
+		if (elem.kind != .Method && elem.kind != .Constructor) || elem.abstract {
+			if chain_active {
+				report_overload_flush(p, body, chain_start, idx)
+				chain_active = false
+			}
+			continue
+		}
+		val, have := elem.value.?; if !have || val == nil { continue }
+		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
+
+		if elem.optional {
+			if chain_active {
+				report_overload_flush(p, body, chain_start, idx)
+				chain_active = false
+			}
+			continue
+		}
+
+		name := ""
+		has_name := false
+		if !elem.computed && elem.key != nil {
+			n := class_element_prop_name(elem.key)
+			if n != "" { name = n; has_name = true }
+		}
+		if !has_name {
+			if chain_active {
+				report_overload_flush(p, body, chain_start, idx)
+				chain_active = false
+			}
+			continue
+		}
+
+		has_body := fn.body.loc.span.end > fn.body.loc.span.start
+		if chain_active {
+			if has_body {
+				if name != chain_name {
+					report_error(p, fmt.tprintf("Function implementation name must be '%s'.", chain_name))
+				}
+				chain_active = false
+			} else {
+				if name != chain_name {
+					report_overload_flush(p, body, chain_start, idx)
+					chain_name = name
+					chain_start = idx
+				}
+			}
+		} else {
+			if !has_body {
+				chain_active = true
+				chain_name = name
+				chain_start = idx
+			}
+		}
+	}
+	if chain_active {
+		report_overload_flush(p, body, chain_start, len(body))
+	}
+}
+
+report_overload_flush :: proc(p: ^Parser, body: []ClassElement, start, end_excl: int) {
+	for i := start; i < end_excl; i += 1 {
+		elem := body[i]
+		if (elem.kind != .Method && elem.kind != .Constructor) || elem.abstract { continue }
+		val, have := elem.value.?; if !have || val == nil { continue }
+		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
+		if fn.body.loc.span.end > fn.body.loc.span.start { continue }
+		report_error_at(p, LexerLoc(elem.loc.span.start),
+			"Function implementation is missing or not immediately following the declaration.")
+	}
 }
 
 report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, class_is_abstract := false) {
