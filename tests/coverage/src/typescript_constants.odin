@@ -1,6 +1,6 @@
 // Lifted verbatim from oxc tasks/coverage/src/typescript/constants.rs.
-// Sync date: 2026-05-07. OXC SHA c7a0ae10 (matches our pinned vendor
-// TYPESCRIPT_SHA in tests/runners/oxc_corpus_fetch.sh).
+// Sync date: 2026-05-14. OXC SHA f350b523 (matches our pinned vendor
+// TYPESCRIPT_SHA and OXC's clone-parallel.mjs).
 //
 // These two lists exclude TSC-corpus fixtures whose expected behavior
 // depends on TSC-the-compiler's type-checker / compiler-options surface
@@ -198,13 +198,7 @@ TS_NOT_SUPPORTED_ERROR_CODES := [?]string{
 	"2445",
 	"2446",
 	"2447",
-	// 2448 ("Block-scoped variable used before its declaration") was removed
-	// from the verbatim OXC list when kessel grew an opt-in TS2448 checker
-	// (ck_check_ts_use_before_decl). Keeping it in NOT_SUPPORTED would make
-	// fixtures whose ONLY errors are TS2448 + other NOT_SUPPORTED codes
-	// classify as positive, which would force every TS2448 we emit into a
-	// false positive. Treating 2448 as a supported (= gating) error code
-	// matches reality: kessel now implements the check.
+	"2448",
 	"2449",
 	"2450",
 	"2454",

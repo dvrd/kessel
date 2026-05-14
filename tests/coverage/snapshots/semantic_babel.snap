@@ -1,9 +1,9 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2218/2233 (99.33%)
-Positive Passed: 2218/2233 (99.33%)
-Negative Passed: 1677/1711 (98.01%)
+AST Parsed     : 2222/2237 (99.33%)
+Positive Passed: 2222/2237 (99.33%)
+Negative Passed: 1678/1725 (97.28%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
@@ -30,11 +30,24 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/decorators/type-arguments-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-assertion/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-parameter/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/export/invalid-as-namespace-duplicate-identifier/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters-arrow/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-require-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/export-import-type/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-assignment/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-default/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-from/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-import/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-assignment/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-from/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-named/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-import/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-namespace-export/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable/input.ts
+Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-reserved-word/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-identifier-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-2/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
@@ -1666,6 +1679,7 @@ babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-within-si
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line-error/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/property-initializer/input.ts:1:25: Expected }, got =
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-default/input.ts:3:3: A default export must be at the top level of a file or module declaration.
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-declare-new-line/input.ts:6:9: Line terminator not permitted after 'module'
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-new-line-error/input.ts:2:5: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/namespace-declare-new-line/input.ts:6:9: Line terminator not permitted after 'namespace'
