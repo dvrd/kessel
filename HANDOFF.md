@@ -22,13 +22,13 @@ Clean success. No warnings.
 Same corpus SHAs. Same exclude list. Same fixture granularity.
 
 ```
-TypeScript (OXC target = 100%):
+TypeScript:
   Parser positive:  9810/9828 (99.82%)  — OXC: 9818/9832 (99.86%)
-  Parser negative:  1390/2583 (53.81%)  — OXC: 1532/2587 (59.22%)
-  Kessel catches 90.7% of OXC's negative catches (1390/1532)
-  FPs: 18 (9 shared with OXC, 9 kessel-only)
+  Parser negative:  1391/2583 (53.85%)  — OXC: 1532/2587 (59.22%)
+  Kessel catches 90.8% of OXC's negative catches (1391/1532)
+  FPs: 18 total (9 shared with OXC, 9 kessel-only)
 
-Babel:    parser pos 2230/2237 (99.69%) | neg 1597/1725 (92.58%)
+Babel:    parser pos 2230/2237 (99.69%) | neg 1602/1725 (92.87%)
 test262:  parser pos 47090/47090 (100%) | neg 4568/4588 (99.56%)
 ESTree:   39/39 (100%)
 ```
@@ -55,12 +55,12 @@ Plus 3 `__proto__` destructuring FPs (arrow params, nested array).
 
 ## PRIORITY 2 — Close remaining TS parser negative gap
 
-Kessel catches 91.8% of OXC's negatives (1407/1532). The remaining ~125
-need investigation. Verify parser-side coverage for:
-- **`import type` violations** (65 OXC hits) — 15 parser refs, OXC catches more
-- **Statements in ambient** (29 OXC hits) — 65 parser refs, verify coverage
+Kessel catches 90.8% of OXC's negatives (1391/1532). The remaining ~141
+need investigation. Cluster by error message family and fix the largest groups.
 
-### Checker → parser migrations: ALL 6 DONE ✅
+## Completed — All checker → parser migrations DONE ✅
+
+Every check that OXC catches at parser level now runs at parser level in kessel. Zero misplaced checker-only catches remain.
 
 | # | Check | Parser catches gained |
 |---|---|---|
@@ -68,32 +68,42 @@ need investigation. Verify parser-side coverage for:
 | 2 | TS2391 overload chain | +23 |
 | 3 | Abstract in non-abstract class | +6 |
 | 4 | abstract + private identifier | +3 |
-| 5 | Label already declared | +3 |
-| 6 | super.#name | +1 |
+| 5 | static + abstract | +3 |
+| 6 | Label already declared | +3 |
+| 7 | super.#name | +1 |
+| 8 | TS1392 import alias + import type | +1 |
+| 9 | Ambient function body (declare module/namespace/.d.ts) | +5 |
 
+Also completed:
+- eval/arguments as binding names allowed in TS mode (+29 FPs fixed)
+- @strict:false overrides @alwaysStrict:true in harness (+8 FPs fixed)
 
+## Session 11 Changes (22 commits)
 
-## Session 11 Changes (17 commits)
+**Parser fixes:**
+1. `static` ASI in class bodies — `static\nconstructor(){}` is a static method
+2. `in_static_block` reset in class field initializers — `await` as identifier in nested class
+3. Static block + arrow block bodies use function-scope semantics — `var+function` coexistence
+4. Skip dup-constructor check in TS mode — defer to checker for overloads
+5. eval/arguments allowed as binding names in TS mode (+29 FPs fixed)
 
-**Parser fixes (+4 babel parser positive):**
-1. fix(parser): `static` ASI in class bodies
-2. fix(parser): reset `in_static_block` in class field initializers
-3. fix(parser): static block + arrow block bodies use function-scope semantics
-4. fix(parser): skip dup-constructor check in TS mode
+**Checker → parser migrations (all 9 done, +65 parser catches):**
+6. super.#name → parse_member_expression
+7. Label duplicate → parse_labelled_statement
+8. static+abstract, abstract+#name, abstract-in-non-abstract → validate_class_body
+9. `__proto__` redefinition → parse_object_expr (skip if `=` follows)
+10. TS2391 overload chain → report_ts_overload_chain_errors
+11. TS1392 import alias + import type → parse_ts_import_equals
+12. Ambient function body → extended existing parser check for in_ambient/source_is_dts
 
-**Checker → parser migrations (+33 parser catches across all suites):**
-5. super.#name → parse_member_expression
-6. Label duplicate → parse_labelled_statement
-7. static+abstract, abstract+#name, abstract-in-non-abstract → validate_class_body_elements
-8. `__proto__` redefinition → parse_object_expr (inline, skip if `=` follows)
-
-**Coverage infrastructure:**
-9. Collapse TS multi-file fixtures to match OXC per-file granularity
-10. Sync corpus SHAs with OXC
-11. Match OXC's per-fixture variant baseline lookup
-12. Force-positive 39 fixtures matching OXC classification
-13. Drop semantic_typescript (OXC has no equivalent)
-14. Remove 3 dead TS-only checker additions
+**Coverage infrastructure (critical alignment with OXC):**
+13. Collapse TS multi-file fixtures to match OXC per-file granularity
+14. Sync corpus SHAs with OXC's clone-parallel.mjs
+15. Match OXC's per-fixture variant baseline lookup (6 dimensions only)
+16. Force-positive 39 fixtures matching OXC classification
+17. Drop semantic_typescript — OXC has no equivalent
+18. @strict:false overrides @alwaysStrict:true (+8 FPs fixed)
+19. Remove 3 dead TS-only checker additions (no OXC target)
 
 ## Commands Reference
 
