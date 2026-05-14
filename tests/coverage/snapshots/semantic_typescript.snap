@@ -1605,11 +1605,11 @@ typescript/tests/cases/compiler/constructorArgsErrors2.ts:2:25: 'static' is a re
 typescript/tests/cases/compiler/constructorArgsErrors3.ts:2:25: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors5.ts:2:18: 'export' is a reserved word and cannot be used as a binding name
-typescript/tests/cases/compiler/constructorOverloads1.ts:14:1: A class can only have one constructor
+typescript/tests/cases/compiler/constructorOverloads1.ts:7:5: Duplicate constructor implementation in class
 typescript/tests/cases/compiler/constructorOverloads3.ts:12:16: Constructors for derived classes must contain a 'super' call.
 typescript/tests/cases/compiler/constructorOverloads6.ts:4:25: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/constructorOverloads7.ts:22:1: Overload signatures must all be ambient or non-ambient.
-typescript/tests/cases/compiler/constructorOverloads8.ts:6:1: A class can only have one constructor
+typescript/tests/cases/compiler/constructorOverloads8.ts:3:5: Duplicate constructor implementation in class
 typescript/tests/cases/compiler/constructorStaticParamName.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorStaticParamNameErrors.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorWithIncompleteTypeAnnotation.ts:11:13: 'module(...)' in import-equals is not supported; use 'require(...)' instead
@@ -2237,7 +2237,7 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock6.ts
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock7.ts:3:9: 'await' is not allowed in a class static block
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock8.ts:12:21: 'break' must be inside a loop or switch
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlockUseBeforeDef3.ts:14:21: Block-scoped variable 'FOO' used before its declaration.
-typescript/tests/cases/conformance/classes/constructorDeclarations/classWithTwoConstructorDefinitions.ts:6:1: A class can only have one constructor
+typescript/tests/cases/conformance/classes/constructorDeclarations/classWithTwoConstructorDefinitions.ts:3:5: Duplicate constructor implementation in class
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts:3:17: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorParameterProperties2.ts:11:24: Duplicate identifier 'y'
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:3:27: Parameter property modifiers are only allowed in constructors

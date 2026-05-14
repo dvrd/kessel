@@ -1,8 +1,8 @@
 commit: c543b031
 
 parser_babel Summary:
-AST Parsed     : 2230/2233 (99.87%)
-Positive Passed: 2230/2233 (99.87%)
+AST Parsed     : 2231/2233 (99.91%)
+Positive Passed: 2231/2233 (99.91%)
 Negative Passed: 1577/1711 (92.17%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -140,9 +140,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js:1:7: 'using' declaration is not allowed at the top level of a script
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts:5:1: A class can only have one constructor
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts:10:30: A parameter cannot have a question mark and an initializer.
