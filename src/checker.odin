@@ -152,6 +152,11 @@ CheckerContext :: struct {
 	// program top level). Pushed by ck_walk_ts_module_decl on body
 	// entry, popped on exit.
 	ts_namespace_depth:    int,
+	// class_body_depth — number of enclosing class bodies. When > 0,
+	// `new.target` is valid (returns undefined in field initializers,
+	// constructor reference in constructors). Arrow functions and
+	// static blocks inherit this depth; regular functions reset it.
+	class_body_depth:      int,
 	// block_nest_depth — number of enclosing block / loop / conditional
 	// bodies. Used to reject type aliases / interfaces / enums appearing
 	// inside control-flow statements. NOT incremented for function
@@ -490,6 +495,7 @@ CheckerScopeSave :: struct {
 	in_class_static_block: bool,
 	in_async:              bool,
 	in_generator:          bool,
+	class_body_depth:      int,
 }
 
 @(private="file")
@@ -506,6 +512,7 @@ ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 		in_class_static_block  = ctx.in_class_static_block,
 		in_async               = ctx.in_async,
 		in_generator           = ctx.in_generator,
+		class_body_depth       = ctx.class_body_depth,
 	}
 	ctx.iter_depth   = 0
 	ctx.switch_depth = 0
@@ -525,6 +532,7 @@ ck_exit_function :: proc(ctx: ^CheckerContext, saved: CheckerScopeSave) {
 	ctx.in_class_static_block  = saved.in_class_static_block
 	ctx.in_async               = saved.in_async
 	ctx.in_generator           = saved.in_generator
+	ctx.class_body_depth       = saved.class_body_depth
 	// Truncate any labels pushed inside the function body that weren't
 	// popped (defensive — the LabeledStatement walker pops on exit, so
 	// this should already be a no-op).
@@ -4287,6 +4295,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	ctx.in_derived_constructor = false
 	ctx.in_field_init          = false
 	ctx.in_class_static_block  = false
+	ctx.class_body_depth       = 0  // regular functions don't inherit [[NewTarget]] from class
 	switch kind {
 	case .Plain:
 		// no flag lifts — a regular function body has no special context
@@ -4546,6 +4555,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	ctx.strict_mode            = true
 	ctx.in_method              = false
 	ctx.in_derived_constructor = false
+	ctx.class_body_depth      += 1
 	ctx.in_field_init          = false
 	ctx.in_class_static_block  = false
 	defer {
@@ -4554,6 +4564,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 		ctx.in_derived_constructor = prev_in_dctor
 		ctx.in_field_init          = prev_in_field
 		ctx.in_class_static_block  = prev_in_static_b
+		ctx.class_body_depth      -= 1
 	}
 
 	// Whole-class checks: §15.7.1 — at most one constructor (with TS
@@ -5557,6 +5568,10 @@ ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty
 	if mp == nil { return }
 	if mp.meta.name != "new" || mp.property.name != "target" { return }
 	if ctx.function_depth > 0 { return }
+	// Class bodies: `new.target` is valid in field initializers, static
+	// blocks, and arrows inside them (arrows inherit [[NewTarget]]).
+	// §15.7.10 / §15.7.5. OXC accepts this.
+	if ctx.class_body_depth > 0 { return }
 	// CommonJS files (.cjs / .cts) wrap the module body in a synthetic
 	// function (`(exports, require, module, __filename, __dirname) => { … }`),
 	// so top-level `new.target` is legal there. Mirror the parser-side

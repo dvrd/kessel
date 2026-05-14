@@ -1,8 +1,8 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2215/2233 (99.19%)
-Positive Passed: 2215/2233 (99.19%)
+AST Parsed     : 2216/2233 (99.24%)
+Positive Passed: 2216/2233 (99.24%)
 Negative Passed: 1677/1711 (98.01%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -52,9 +52,6 @@ babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-as
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-concise-body-of-async-arrow-inside-parameters-of-function/input.js
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-concise-body-of-async-arrow-inside-parameters-of-function/input.js:1:29: 'await' expression is not allowed in formal parameters of an async function
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target/input.js
-babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target/input.js:2:14: 'new.target' is only allowed inside functions
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-initializer-in-static-block/input.js
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-initializer-in-static-block/input.js:3:36: 'await' is not allowed in a class static block
