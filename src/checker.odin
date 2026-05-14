@@ -141,6 +141,7 @@ CheckerContext :: struct {
 	in_derived_constructor: bool,
 	in_field_init:         bool,
 	in_class_static_block: bool,
+	in_class_computed_key: bool,  // TS2465: this/super invalid in computed keys
 	in_params:             bool,
 	params_is_arrow:       bool,
 	source_type:           SourceType,
@@ -493,6 +494,7 @@ CheckerScopeSave :: struct {
 	in_derived_constructor: bool,
 	in_field_init:         bool,
 	in_class_static_block: bool,
+	in_class_computed_key: bool,
 	in_async:              bool,
 	in_generator:          bool,
 	class_body_depth:      int,
@@ -510,6 +512,7 @@ ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 		in_derived_constructor = ctx.in_derived_constructor,
 		in_field_init          = ctx.in_field_init,
 		in_class_static_block  = ctx.in_class_static_block,
+		in_class_computed_key  = ctx.in_class_computed_key,
 		in_async               = ctx.in_async,
 		in_generator           = ctx.in_generator,
 		class_body_depth       = ctx.class_body_depth,
@@ -530,6 +533,7 @@ ck_exit_function :: proc(ctx: ^CheckerContext, saved: CheckerScopeSave) {
 	ctx.in_derived_constructor = saved.in_derived_constructor
 	ctx.in_field_init          = saved.in_field_init
 	ctx.in_class_static_block  = saved.in_class_static_block
+	ctx.in_class_computed_key  = saved.in_class_computed_key
 	ctx.in_async               = saved.in_async
 	ctx.in_generator           = saved.in_generator
 	ctx.class_body_depth       = saved.class_body_depth
@@ -4182,6 +4186,12 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	// arrow) is an error. The function_depth counter tracks whether we've
 	// entered a function boundary since the namespace was opened.
 	case ^ThisExpression:
+		// TS2465 — 'this' cannot be referenced in a computed property name.
+		if e != nil && ctx.in_class_computed_key &&
+		   (ctx.lang == .TS || ctx.lang == .TSX) {
+			ck_report(c, u32(e.loc.span.start),
+				"'this' cannot be referenced in a computed property name.")
+		}
 		// TS2331 — 'this' at the direct body level of a namespace (not
 		// inside any function, arrow, method, or class body).
 		if e != nil && ctx.ts_namespace_depth > 0 &&
@@ -4347,6 +4357,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	ctx.in_derived_constructor = false
 	ctx.in_field_init          = false
 	ctx.in_class_static_block  = false
+	ctx.in_class_computed_key  = false  // function body resets computed-key context
 	ctx.class_body_depth       = 0  // regular functions don't inherit [[NewTarget]] from class
 	switch kind {
 	case .Plain:
@@ -4703,15 +4714,18 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 			saved_field_i  := ctx.in_field_init
 			saved_method   := ctx.in_method
 			saved_dctor    := ctx.in_derived_constructor
+			saved_comp_key := ctx.in_class_computed_key
 			ctx.in_class_static_block = prev_in_static_b
 			ctx.in_field_init         = prev_in_field
 			ctx.in_method             = prev_in_method
 			ctx.in_derived_constructor = prev_in_dctor
+			ctx.in_class_computed_key  = true
 			ck_walk_expr(c, ctx, elem.key)
 			ctx.in_class_static_block = saved_static_b
 			ctx.in_field_init         = saved_field_i
 			ctx.in_method             = saved_method
 			ctx.in_derived_constructor = saved_dctor
+			ctx.in_class_computed_key  = saved_comp_key
 		}
 
 		ck_walk_class_element_value(c, ctx, elem, has_extends, extends_null)
