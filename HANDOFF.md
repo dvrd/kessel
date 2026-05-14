@@ -4,7 +4,7 @@
 
 Kessel is a JavaScript / TypeScript / JSX / TSX parser written in Odin that emits ESTree-compatible JSON ASTs. Three-pass pipeline: SIMD lexer → permissive Pratt parser → opt-in semantic checker. Zero runtime dependencies, arena-only memory, ARM64 NEON SIMD lexing. Mirrors OXC's `oxc_parser` / `oxc_semantic` split — parser builds the tree permissively, checker enforces ECMA-262 early errors.
 
-## Current State (2026-05-13, session 9)
+## Current State (2026-05-13, session 10)
 
 ### Build
 ```
@@ -26,10 +26,10 @@ $ odin build tests/coverage/src -out:bin/kessel_coverage -o:speed -no-bounds-che
 ### Conformance
 ```
 ES2025 (test262):  Parser 47090/47090 (100.00%) | Semantic 47090/47090 (100.00%) + neg 4588/4588 (100%)
-Babel:             Parser 2227/2233  (99.73%)  | Semantic 1677/1711 (98.01%)
-TypeScript:        Parser 12661/12664 (99.98%) | Semantic 2064/3498 (59.01%)
+Babel:             Parser 2227/2233  (99.73%)  | Semantic 2215/2233 (99.19%) pos, 1677/1711 (98.01%) neg
+TypeScript:        Parser 12661/12664 (99.98%) | Semantic 12650/12664 (99.89%) pos, 2074/3498 (59.29%) neg
 ESTree:            Parser 39/39 (100%)         | Semantic 39/39 (100%)
-Misc:              Parser 72/72 (100%)         | Semantic 280/286 (97.90%)
+Misc:              Parser 72/72 (100%)         | Semantic 71/72 pos, 280/286 (97.90%) neg
 ```
 
 ### Performance
@@ -43,7 +43,7 @@ Benchmark baseline re-locked at session-9 start (geo-mean ~1.01x).
 |---|---:|---|
 | `parser.odin` | 20 185 | Hand-written Pratt parser. `Parser` struct, ~200 parsing procedures. Permissive — builds AST without early errors. |
 | `emitter.odin` | 6 381 | ESTree JSON emitter. `Emitter` owns writer buffer + UTF-16 offset tables + line maps. 39 node printers. |
-| `checker.odin` | 6 829 | Pass-3 semantic checker. Walks finished AST, enforces ECMA-262 + TS early errors. Opt-in via `--show-semantic-errors`. |
+| `checker.odin` | 6 986 | Pass-3 semantic checker. Walks finished AST, enforces ECMA-262 + TS early errors. Opt-in via `--show-semantic-errors`. |
 | `lexer.odin` | 3 118 | SIMD-accelerated tokenizer. Two-token lookahead (`cur` + `nxt`). 16-byte `FastToken` by value. |
 | `regex.odin` | 2 235 | ES2025 §22.2.1 regex pattern validator. Decoupled from `Lexer`. |
 | `ast.odin` | 1 618 | All AST struct/union definitions. `Expression`, `Statement`, `Pattern` unions. |
@@ -123,6 +123,20 @@ ParseJob (parse_job.odin) — owns mvirtual.Arena, Lexer, Parser, Checker
 | TS1046 (.d.ts top-level declare/export) implemented but disabled | low | OXC doesn't enforce it; causes FP against babel/TS corpora | Code exists, commented out |
 | Optional `?` on destructuring patterns not tracked in AST | low | Parser doesn't set `optional` for `[]?` / `{}?` patterns | Blocks TS1051 check |
 | Type-system errors (TS2339 ×265, etc.) unfixable without type inference | high | Represents bulk of remaining ~1467 TS gaps | Requires type resolution infrastructure |
+
+## Session 10 Changes (5 commits)
+
+**Checker improvements (TS semantic negative: 2064→2074, +10):**
+1. fix(checker): skip catch-var redecl in TS mode for simple identifiers. Fixes tryStatements.ts FP. TS positive: 12649→12650 (+1).
+2. feat(checker): TS2300 — enum member dups (`enum E { x, y, x }`) + constructor param property vs class field conflicts. +2 negative.
+3. feat(checker): TS2491 — destructuring pattern in for-in LHS. `for (var [a,b] in [])` now rejected in TS. +3 negative.
+4. feat(checker): TS1221 — generators not allowed in ambient context. `declare function*` rejected. +3 negative.
+5. feat(checker): TS1040 — async modifier not allowed in ambient context. `declare async function` rejected. +2 negative.
+
+**Attempted and reverted:**
+- TS2395 (merged decl export visibility): caused 16 FPs — interface+namespace merges don't require matching export status.
+- .cjs auto-detect: 7 FPs fixed but 5 regressions from CJS files auto-promoting to Module.
+- Overload chain suppression: suppressing TS2391 on no-impl classes fixed 3 babel FPs but caused 15 TS regressions.
 
 ## Session 9 Changes (23 feature/fix commits)
 
