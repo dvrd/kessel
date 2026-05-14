@@ -1493,11 +1493,174 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 	}
 }
 
+// ck_check_ts2434_namespace_ordering — TS2434 "A namespace declaration
+// cannot be located prior to a class or function with which it is merged."
+// An instantiated namespace (one containing value-producing declarations
+// like var, function, class, enum) must appear AFTER the class/function
+// it merges with, not before. Non-instantiated namespaces (empty or
+// type-only: interfaces, type aliases) may appear in any order.
+@(private="file")
+ck_check_ts2434_namespace_ordering :: proc(c: ^Checker, body: []^Statement, is_dts: bool = false) {
+	if c == nil || len(body) == 0 { return }
+	// In .d.ts files all declarations are implicitly ambient; the ordering
+	// rule does not apply (TSC only fires TS2434 on non-ambient classes).
+	if is_dts { return }
+
+	// Helper: extract the identifier name from a namespace.
+	ns_name :: proc(m: ^TSModuleDeclaration) -> (string, u32, bool) {
+		if m == nil || m.id == nil { return "", 0, false }
+		if ident, is := m.id^.(^Identifier); is && ident != nil {
+			return ident.name, u32(ident.loc.span.start), true
+		}
+		return "", 0, false
+	}
+
+	// For each statement: if it's an instantiated non-declare namespace,
+	// scan the remaining statements for a non-declare class/function with
+	// the same name that appears later.
+	for i in 0..<len(body) {
+		stmt := body[i]
+		if stmt == nil { continue }
+		// Extract namespace from bare or exported statement.
+		mod: ^TSModuleDeclaration = nil
+		#partial switch v in stmt^ {
+		case ^TSModuleDeclaration:   mod = v
+		case ^ExportNamedDeclaration:
+			if v != nil {
+				if d, have := v.declaration.(^Declaration); have && d != nil {
+					if m, ok := d^.(^TSModuleDeclaration); ok { mod = m }
+				}
+			}
+		}
+		if mod == nil || mod.declare { continue }
+		if !ts_namespace_is_instantiated(mod) { continue }
+		name, ns_loc, has_name := ns_name(mod)
+		if !has_name { continue }
+
+		// Check if a class/function with this name already appeared BEFORE
+		// the namespace. If so, the namespace augments the prior declaration
+		// and the ordering rule doesn't apply.
+		already_seen := false
+		for j in 0..<i {
+			s2 := body[j]
+			if s2 == nil { continue }
+			#partial switch v2 in s2^ {
+			case ^ClassDeclaration:
+				if v2 != nil { if id, ok := v2.id.(BindingIdentifier); ok && id.name == name { already_seen = true } }
+			case ^FunctionDeclaration:
+				if v2 != nil { if id, ok := v2.id.(BindingIdentifier); ok && id.name == name { already_seen = true } }
+			case ^ExportNamedDeclaration:
+				if v2 != nil {
+					if d, have := v2.declaration.(^Declaration); have && d != nil {
+						#partial switch inner in d^ {
+						case ^ClassDeclaration:    if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok && id.name == name { already_seen = true } }
+						case ^FunctionDeclaration: if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok && id.name == name { already_seen = true } }
+						}
+					}
+				}
+			}
+		}
+		if already_seen { continue }
+
+		// Scan forward for a class/function with the same name.
+		for j in i+1..<len(body) {
+			s2 := body[j]
+			if s2 == nil { continue }
+			// Unwrap export.
+			#partial switch v2 in s2^ {
+			case ^ClassDeclaration:
+				if v2 == nil || v2.declare { continue }
+				if id, ok := v2.id.(BindingIdentifier); ok && id.name == name {
+					ck_report(c, ns_loc,
+						"A namespace declaration cannot be located prior to a class or function with which it is merged.")
+					break
+				}
+			case ^FunctionDeclaration:
+				if v2 == nil || v2.declare { continue }
+				if id, ok := v2.id.(BindingIdentifier); ok && id.name == name {
+					ck_report(c, ns_loc,
+						"A namespace declaration cannot be located prior to a class or function with which it is merged.")
+					break
+				}
+			case ^ExportNamedDeclaration:
+				if v2 == nil { continue }
+				if d, have := v2.declaration.(^Declaration); have && d != nil {
+					#partial switch inner in d^ {
+					case ^ClassDeclaration:
+						if inner != nil && !inner.declare {
+							if id, ok := inner.id.(BindingIdentifier); ok && id.name == name {
+								ck_report(c, ns_loc,
+									"A namespace declaration cannot be located prior to a class or function with which it is merged.")
+							}
+						}
+					case ^FunctionDeclaration:
+						if inner != nil && !inner.declare {
+							if id, ok := inner.id.(BindingIdentifier); ok && id.name == name {
+								ck_report(c, ns_loc,
+									"A namespace declaration cannot be located prior to a class or function with which it is merged.")
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// ts_namespace_is_instantiated — returns true if the namespace has any
+// value-producing declarations (var, function, class, enum, nested
+// instantiated namespace). Type-only namespaces (interfaces, type
+// aliases, empty) return false.
+@(private="file")
+ts_namespace_is_instantiated :: proc(m: ^TSModuleDeclaration) -> bool {
+	if m == nil { return false }
+	body_opt, have := m.body.(^TSModuleBody)
+	if !have || body_opt == nil { return false }
+	#partial switch inner in body_opt^ {
+	case ^TSModuleBlock:
+		if inner == nil { return false }
+		for stmt in inner.body {
+			if stmt == nil { continue }
+			// Unwrap export.
+			actual := stmt
+			if exp, ok := stmt^.(^ExportNamedDeclaration); ok && exp != nil {
+				if d, have_d := exp.declaration.(^Declaration); have_d && d != nil {
+					#partial switch _ in d^ {
+					case ^VariableDeclaration, ^FunctionDeclaration,
+					     ^ClassDeclaration, ^TSEnumDeclaration:
+						return true
+					case ^TSModuleDeclaration:
+						// Nested namespace — check recursively.
+						if inner_mod, is_mod := d^.(^TSModuleDeclaration); is_mod {
+							if ts_namespace_is_instantiated(inner_mod) { return true }
+						}
+					}
+				}
+				continue
+			}
+			#partial switch _ in stmt^ {
+			case ^VariableDeclaration, ^FunctionDeclaration,
+			     ^ClassDeclaration, ^TSEnumDeclaration:
+				return true
+			case ^TSModuleDeclaration:
+				if inner_mod, is_mod := stmt^.(^TSModuleDeclaration); is_mod {
+					if ts_namespace_is_instantiated(inner_mod) { return true }
+				}
+			}
+		}
+	case ^TSModuleDeclaration:
+		// Nested module declaration (namespace A.B.C).
+		if inner == nil { return false }
+		return ts_namespace_is_instantiated(inner)
+	}
+	return false
+}
+
 // ck_check_ts_decl_merge_body — walks ONE body level (no recursion)
 // and reports TS "Duplicate identifier" for any pair that violates
 // the merge rules. Caller-supplied body slice represents one scope.
 @(private="file")
-ck_check_ts_decl_merge_body :: proc(c: ^Checker, body: []^Statement) {
+ck_check_ts_decl_merge_body :: proc(c: ^Checker, body: []^Statement, is_dts: bool = false) {
 	if c == nil || len(body) == 0 { return }
 	seen: map[string]DeclMergeEntry
 	seen.allocator = context.temp_allocator
@@ -1505,6 +1668,9 @@ ck_check_ts_decl_merge_body :: proc(c: ^Checker, body: []^Statement) {
 	for stmt in body {
 		ts_decl_merge_inspect(c, &seen, stmt)
 	}
+	// TS2434 — an instantiated namespace cannot appear before a class or
+	// function with the same name in the same scope.
+	ck_check_ts2434_namespace_ordering(c, body, is_dts)
 }
 
 // =============================================================================
@@ -3464,7 +3630,7 @@ ck_check_ts1046_dts_top_level :: proc(c: ^Checker, program: ^Program) {
 ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement) {
 	if ctx.lang != .TS && ctx.lang != .TSX { return }
 	if len(body) == 0 { return }
-	ck_check_ts_decl_merge_body(c, body)
+	ck_check_ts_decl_merge_body(c, body, ctx.is_dts)
 	// TS2428 — All declarations of interface 'X' must have identical
 	// type parameters.
 	ck_check_ts2428_interface_merge(c, body)
