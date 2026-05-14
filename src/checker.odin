@@ -1004,6 +1004,13 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		return
 
 	case ^TSImportEqualsDeclaration:
+		// TS2438 — import alias name cannot be a predefined type name.
+		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if is_ts_predefined_type_name(v.id.name) {
+				msg := fmt.tprintf("Import name cannot be '%s'.", v.id.name)
+				ck_report(c, u32(v.id.loc.span.start), msg)
+			}
+		}
 		// TS — `import type X = Y.Z` (namespace alias) cannot use `type`.
 		// Only namespace aliases are rejected; `import type X = require("...")`
 		// (TSExternalModuleReference) is valid TypeScript.
