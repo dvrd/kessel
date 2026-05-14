@@ -1902,6 +1902,53 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 	}
 }
 
+// ck_check_ts_overload_accessibility — TS2385. All overload signatures for the
+// same method name must share the same accessibility (public/private/protected).
+// When the implementation differs from the sigs, that also fires TS2385.
+// Also checks TS2387/TS2388: overload signatures must all be static or
+// all be non-static.
+@(private="file")
+ck_check_ts_overload_accessibility :: proc(c: ^Checker, body: ClassBody) {
+	if c == nil || len(body.body) < 2 { return }
+
+	// Walk consecutive groups of overloadable methods with the same name.
+	// For each group, verify accessibility and static consistency.
+	prev_name     := ""
+	prev_access   := ClassAccessibility.None
+	prev_static   := false
+	group_started := false
+
+	for elem in body.body {
+		_, is_method := elem_is_overloadable_method(elem)
+		if !is_method {
+			group_started = false
+			continue
+		}
+		name, has_name := elem_overload_name(elem)
+		if !has_name {
+			group_started = false
+			continue
+		}
+
+		if group_started && name == prev_name && elem.static == prev_static {
+			// Same-name, same-static consecutive method. Check accessibility.
+			// TS treats no-modifier (None) and explicit 'public' as equivalent.
+			norm_a := elem.accessibility == .Public ? ClassAccessibility.None : elem.accessibility
+			norm_b := prev_access == .Public ? ClassAccessibility.None : prev_access
+			if norm_a != norm_b {
+				ck_report(c, u32(elem.loc.span.start),
+					"Overload signatures must all be public, private or protected.")
+			}
+		} else {
+			// New group (different name or different static).
+			prev_name   = name
+			prev_access = elem.accessibility
+			prev_static = elem.static
+			group_started = true
+		}
+	}
+}
+
 // =============================================================================
 // TS2300 / TS2393 — class-body member duplicate-name detection
 // =============================================================================
@@ -4672,6 +4719,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// implicitly ambient).
 	if (ctx.lang == .TS || ctx.lang == .TSX) && !cls.declare && !ctx.is_dts {
 		ck_check_ts_class_overloads(c, cls.body)
+		ck_check_ts_overload_accessibility(c, cls.body)
 		ck_check_ts_class_member_dups(c, cls)
 		ck_check_ts_constructor_param_property_dups(c, cls)
 	}

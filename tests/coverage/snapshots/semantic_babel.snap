@@ -1,8 +1,8 @@
 commit: c543b031
 
 semantic_babel Summary:
-AST Parsed     : 2219/2233 (99.37%)
-Positive Passed: 2219/2233 (99.37%)
+AST Parsed     : 2218/2233 (99.33%)
+Positive Passed: 2218/2233 (99.33%)
 Negative Passed: 1677/1711 (98.01%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -76,6 +76,9 @@ babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/private-method-overload/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/private-method-overload/input.ts:4:3: Duplicate private name '#f' in class body
+
+Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/static/input.ts
+babel/packages/babel-parser/test/fixtures/typescript/class/static/input.ts:4:5: Overload signatures must all be public, private or protected.
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/getter-setter/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/function/getter-setter/input.ts:2:8: A 'get' accessor must return a value.
