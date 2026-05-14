@@ -15451,7 +15451,16 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 				eat(p)
 			}
 			options = parse_assignment_expression(p)
-			match_token(p, .Comma)
+			if match_token(p, .Comma) {
+				// Trailing comma after second argument — TS-only rejection.
+				if is_token(p, .RParen) && allow_ts_mode(p) {
+					report_error(p, "Trailing comma not allowed.")
+				}
+			}
+		} else if allow_ts_mode(p) {
+			// TS1009 — trailing comma in import() is rejected in TS.
+			// The ES spec (§13.3.10) allows it but TSC/OXC don't.
+			report_error(p, "Trailing comma not allowed.")
 		}
 	}
 
