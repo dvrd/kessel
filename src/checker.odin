@@ -6750,6 +6750,15 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 			msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_str)
 			ck_report(c, u32(loc_from_expr(e).span.start), msg)
 		}
+		// TS2491 — destructuring expression in for-in LHS.
+		// `for ([a, b] in []) {}` is a SyntaxError in TS.
+		if is_in && (ctx.lang == .TS || ctx.lang == .TSX) {
+			#partial switch _ in e^ {
+			case ^ArrayExpression, ^ObjectExpression:
+				ck_report(c, u32(loc_from_expr(e).span.start),
+					"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+			}
+		}
 		return
 	}
 	decl, have_decl := left_decl.(^VariableDeclaration)
