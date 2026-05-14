@@ -364,6 +364,12 @@ Parser :: struct {
 	// entry to non-arrow function bodies (they bind their own `arguments`).
 	in_field_init: bool,
 
+	// When true, the NEXT parse_block_statement scope check uses
+	// is_block_scope=false (function-scope semantics). Auto-cleared
+	// after the block. Set by arrow block-body and static-block
+	// parsers so var+function coexistence is accepted.
+	scope_fn_scope_next_block: bool,
+
 	// True when parsing inside a TS namespace/module body. `await` is
 	// not a keyword here even in module-mode files.
 	in_ts_namespace: bool,
@@ -2196,16 +2202,16 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	// §14.2.1 — inline lex/var clash check on this block's body.
 	// is_block_scope=true: BlockStatement is its own lexical scope and
 	// sloppy plain FunctionDeclarations follow Annex B.3.2. Two callers
-	// re-run scope_check_body with is_block_scope=false on the same
-	// body when the block is reinterpreted as a function-scope shell:
-	// parse_arrow_function (arrow block body is a function scope) and
-	// parse_class_element's StaticBlock arm (§15.7.5). Both call sites
-	// suppress this fire by setting p.scope_skip first; see those
-	// sites for the rationale.
+	// §14.2.1 — scope check. When scope_fn_scope_next_block is set, the
+	// block is being parsed as a function-scope body (arrow block body
+	// per §15.3.1 or static block body per §15.7.5). In function scope,
+	// var+function coexistence is legal, so use is_block_scope=false.
+	is_block := !p.scope_fn_scope_next_block
+	p.scope_fn_scope_next_block = false
 	if !p.ast_only && has_scope_relevant_stmt(block.body[:]) {
 		lex := scope_map_make(8)
 		vars := scope_map_make(8)
-		scope_check_body(p, block.body[:], true, &lex, &vars)
+		scope_check_body(p, block.body[:], is_block, &lex, &vars)
 	}
 	return block_stmt
 }
@@ -5935,6 +5941,9 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	// via type assertion. The previous transmute read the union header as
 	// if it were a BlockStatement struct - same UB class as Bug H, silently
 	// zeroing `body` so static blocks emitted empty.
+	// §15.7.5: ClassStaticBlockBody is a function-scope, not a block-scope.
+	// var+function coexistence is legal here (V8/Babel agree).
+	p.scope_fn_scope_next_block = true
 	block_stmt := parse_block_statement(p)
 	if block_stmt == nil {
 		return nil
@@ -14418,6 +14427,8 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
+		// §15.3.1: arrow block body is a function-scope.
+		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
@@ -15220,6 +15231,8 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
+		// §15.3.1: arrow block body is a function-scope.
+		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
@@ -15334,6 +15347,8 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
+		// §15.3.1: arrow block body is a function-scope.
+		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
