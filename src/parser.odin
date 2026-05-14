@@ -4393,6 +4393,13 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		}
 	}
 
+	// TS: set the optional flag on the pattern identifier.
+	if param_is_optional {
+		if id, ok := param.pattern.(^Identifier); ok && id != nil {
+			id.optional = true
+		}
+	}
+
 	// TS: a parameter cannot have both `?` and a default initializer.
 	if param_is_optional && param.default_val != nil {
 		report_error(p, "A parameter cannot have a question mark and an initializer.")

@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12650/12664 (99.89%)
 Positive Passed: 12650/12664 (99.89%)
-Negative Passed: 2083/3498 (59.55%)
+Negative Passed: 2084/3498 (59.58%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -1295,7 +1295,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration2.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509618.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement20.ts
@@ -3233,6 +3232,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParam
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList16.ts:2:8: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList17.ts:2:16: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList2.ts:2:10: A parameter cannot have a question mark and an initializer.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts:2:9: A required parameter cannot follow an optional parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList5.ts:1:23: Expected ), got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList6.ts:2:26: Expected ), got identifier

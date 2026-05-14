@@ -4230,6 +4230,10 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 			ck_check_ts_type_param_dups(c, tp)
 		}
 	}
+	// TS1016 — a required parameter cannot follow an optional parameter.
+	if ctx.lang == .TS || ctx.lang == .TSX {
+		ck_check_ts1016_required_after_optional(c, fn.params[:])
+	}
 	// §15.2.1.1 — formal-parameter vs body let/const redeclaration.
 	if !fn.no_body {
 		ck_check_params_vs_body_lex(c, fn.params[:], fn.body.body[:], ctx.strict_mode)
@@ -5625,7 +5629,32 @@ ck_check_identifier_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Id
 // function shape (regular function decl/expr, class method, getter/setter,
 // constructor, static block, object-literal method). Static blocks have
 // no params so they trivially short-circuit on params_are_simple.
+// ck_check_ts1016_required_after_optional — TS1016 "A required parameter
+// cannot follow an optional parameter." When a parameter has `?` (optional),
+// all subsequent non-rest parameters must also be optional or have defaults.
 @(private="file")
+ck_check_ts1016_required_after_optional :: proc(c: ^Checker, params: []FunctionParameter) {
+	seen_optional := false
+	for param in params {
+		// Rest parameters are always last and don't count.
+		if _, is_rest := param.pattern.(^RestElement); is_rest { break }
+		// Only `?` makes a parameter optional for TS1016 purposes.
+		// Default values (= expr) do NOT count — TSC allows
+		// `function f(a, b = 0, c)` without error.
+		is_optional := false
+		if id, ok := param.pattern.(^Identifier); ok && id != nil {
+			is_optional = id.optional
+		}
+		if is_optional {
+			seen_optional = true
+		} else if seen_optional && param.default_val == nil {
+			// Required (no `?`, no default) after optional → error.
+			ck_report(c, u32(param.loc.span.start),
+				"A required parameter cannot follow an optional parameter.")
+		}
+	}
+}
+
 ck_check_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^FunctionExpression) {
 	if fn == nil || fn.no_body { return }
 	if !fn_body_lifts_strict(fn.body) { return }
