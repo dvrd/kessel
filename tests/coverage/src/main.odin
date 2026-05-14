@@ -244,7 +244,14 @@ cmd_run :: proc(suite_arg: string, tool: Tool, update: bool) -> int {
 	switch suite_arg {
 	case "test262":    run_or_drift(&drifted, .Test262,    tool, vendor, root, update)
 	case "babel":      run_or_drift(&drifted, .Babel,      tool, vendor, root, update)
-	case "typescript": run_or_drift(&drifted, .TypeScript, tool, vendor, root, update)
+	case "typescript":
+		// OXC has no semantic-negative measure for TypeScript.
+		// Skip the semantic tool entirely for this suite.
+		if tool == .Semantic {
+			fmt.println("semantic_typescript: skipped (OXC has no equivalent measure)")
+		} else {
+			run_or_drift(&drifted, .TypeScript, tool, vendor, root, update)
+		}
 	case "estree":     run_or_drift(&drifted, .Estree,     tool, vendor, root, update)
 	case "misc":       run_or_drift(&drifted, .Misc,       tool, vendor, root, update)
 	case "all":

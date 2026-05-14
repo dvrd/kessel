@@ -79,10 +79,8 @@ test_semantic_babel :: proc(t: ^testing.T) {
 	run_snap_test(t, .Semantic, .Babel)
 }
 
-@(test)
-test_semantic_typescript :: proc(t: ^testing.T) {
-	run_snap_test(t, .Semantic, .TypeScript)
-}
+// semantic_typescript removed: OXC has no equivalent measure.
+// The checker code stays; we just don't gate on the TS semantic snap.
 
 @(test)
 test_semantic_test262 :: proc(t: ^testing.T) {
