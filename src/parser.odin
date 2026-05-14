@@ -5490,17 +5490,26 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			prev_in_async_params := p.in_async_params
 			prev_in_generator_params := p.in_generator_params
 			prev_in_field_init := p.in_field_init
+			// §15.7.10 ClassFieldDefinitionEvaluation creates a new
+			// function for the field initialiser. That function has
+			// its own [~Await] scope — it does NOT inherit the
+			// [~Await] from an enclosing static block. So `await`
+			// as an identifier inside a nested class's field init
+			// is valid: `class C { static { class D { x = await } } }`
+			prev_in_static_block_fi := p.in_static_block
 			p.in_async = false
 			p.in_generator = false
 			p.in_async_params = false
 			p.in_generator_params = false
 			p.in_field_init = true
+			p.in_static_block = false
 			init_expr := parse_assignment_expression(p)
 			p.in_async = prev_in_async
 			p.in_generator = prev_in_generator
 			p.in_async_params = prev_in_async_params
 			p.in_generator_params = prev_in_generator_params
 			p.in_field_init = prev_in_field_init
+			p.in_static_block = prev_in_static_block_fi
 			p.in_method = prev_in_method
 			p.in_derived_constructor = prev_in_derived_ctor
 			if init_expr != nil {
