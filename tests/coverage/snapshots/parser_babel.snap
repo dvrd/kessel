@@ -1,8 +1,8 @@
 commit: c543b031
 
 parser_babel Summary:
-AST Parsed     : 2227/2233 (99.73%)
-Positive Passed: 2227/2233 (99.73%)
+AST Parsed     : 2228/2233 (99.78%)
+Positive Passed: 2228/2233 (99.78%)
 Negative Passed: 1577/1711 (92.17%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
@@ -140,9 +140,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js:1:7: 'using' declaration is not allowed at the top level of a script
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/class-methods/linebreaks/input.js
-babel/packages/babel-parser/test/fixtures/es2015/class-methods/linebreaks/input.js:42:2: A class can only have one constructor
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-initializer-in-static-block/input.js
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/await-binding-in-initializer-in-static-block/input.js:3:36: 'await' is not allowed in a class static block
@@ -1614,7 +1611,7 @@ babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifi
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-protected/input.ts:2:13: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-public/input.ts:2:10: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/property-optional-definite-assignment-not-allowed/input.ts:2:4: Expected (, got ?
-babel/packages/babel-parser/test/fixtures/typescript/class/protected-static/input.ts:3:10: Expected `;` but found `a`
+babel/packages/babel-parser/test/fixtures/typescript/class/protected-static/input.ts:3:10: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/typescript/const/invalid-initializer-ambient-context/input.ts:2:35: 'enum' is a reserved word
 babel/packages/babel-parser/test/fixtures/typescript/const/no-initializer/input.ts:2:1: Missing initializer in 'const' declaration
 babel/packages/babel-parser/test/fixtures/typescript/const/reserved-word/input.ts:1:16: Missing initializer in 'const' declaration

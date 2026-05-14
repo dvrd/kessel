@@ -5049,7 +5049,14 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// PropertyDefinition `public;` - same ASI rule that lets
 		// `accessor\n a;` parse as two fields. Test:
 		// typescript/compiler/asiPublicPrivateProtected.ts.
-		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+		//
+		// Exception: `static` is NOT subject to ASI in class bodies.
+		// The ES grammar production `ClassElement : static MethodDefinition`
+		// has no [no LineTerminator here] restriction, so
+		// `static\nconstructor(){}` is always a static method. V8, Babel,
+		// and OXC all agree. Only TS contextual modifiers (public, private,
+		// protected, readonly, declare, abstract, override) use ASI here.
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 && cur != .Static {
 			break
 		}
 
