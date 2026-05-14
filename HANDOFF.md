@@ -24,10 +24,10 @@ Same corpus SHAs. Same exclude list. Same fixture granularity.
 ```
 TypeScript (OXC target = 100%):
   Parser positive:  9773/9828 (99.44%)  — OXC: 9818/9832 (99.86%)
-  Parser negative:  1384/2583 (53.58%)  — OXC: 1532/2587 (59.22%)
-  Kessel catches 90.3% of OXC's negative catches (1384/1532)
+  Parser negative:  1407/2583 (54.47%)  — OXC: 1532/2587 (59.22%)
+  Kessel catches 91.8% of OXC's negative catches (1407/1532)
 
-Babel:    parser pos 2232/2237 (99.78%) | neg 1597/1725 (92.58%)
+Babel:    parser pos 2230/2237 (99.69%) | neg 1597/1725 (92.58%)
 test262:  parser pos 47090/47090 (100%) | neg 4568/4588 (99.56%)
 ESTree:   39/39 (100%)
 ```
@@ -37,37 +37,31 @@ Corpus SHAs (pinned to OXC's `clone-parallel.mjs`):
 - Babel: `4079bcda`
 - ESTree: `9c67f5e3`
 
-## PRIORITY 1 — Migrate TS2391 overload chain to parser
+## PRIORITY 1 — Fix TS parser false positives
 
-**Status: 5 of 6 migrations DONE. TS2391 remains.**
+55 valid TS files kessel incorrectly rejects (OXC has 14). These are real
+bugs. 3 are from `__proto__` destructuring edge cases. Investigate each
+`Expect to Parse` entry in `parser_typescript.snap`.
 
-| # | Check | OXC hits | Status |
-|---|---|---|---|
-| 1 | `__proto__` redefinition | 44 | ✅ Done (+20 parser catches, 3 FPs from destructuring edge cases) |
-| 2 | **TS2391 overload chain** | **11** | **TODO — ~125 lines to port from checker.odin:1778-1903** |
-| 3 | Abstract in non-abstract class | 6 | ✅ Done |
-| 4 | abstract + private identifier | 3 | ✅ Done |
-| 5 | Label already declared | 3 | ✅ Done |
-| 6 | super.#name | 1 | ✅ Done |
+## PRIORITY 2 — Close remaining TS parser negative gap
 
-### TS2391 migration details
-- **Checker code**: `ck_check_ts_class_overloads` (checker.odin:1778-1903)
-- **Helpers needed**: `elem_is_overloadable_method`, `method_fn_has_body`, `elem_overload_name`, `flush_unimplemented`
-- **Parser target**: `report_private_class_member_errors` in parser.odin (already walks class elements post-parse)
-- **Rewrite**: Replace `ck_report(c, ...)` with `report_error(p, ...)`. Remove `^Checker` parameter. The chain-walking logic itself is pure data — no checker state needed.
+Kessel catches 91.8% of OXC's negatives (1407/1532). The remaining ~125
+need investigation. Verify parser-side coverage for:
+- **`import type` violations** (65 OXC hits) — 15 parser refs, OXC catches more
+- **Statements in ambient** (29 OXC hits) — 65 parser refs, verify coverage
 
-### Also verify partially-migrated checks:
-- **`static + abstract`** (15 OXC hits) — now in parser ✅
-- **`import type` violations** (65 OXC hits) — 15 parser refs, OXC catches more. Gap to investigate.
-- **Statements in ambient** (29 OXC hits) — 65 parser refs, likely good coverage. Verify.
+### Checker → parser migrations: ALL 6 DONE ✅
 
-## PRIORITY 2 — Fix TS parser false positives
+| # | Check | Parser catches gained |
+|---|---|---|
+| 1 | `__proto__` redefinition | +20 (3 FPs from destructuring) |
+| 2 | TS2391 overload chain | +23 |
+| 3 | Abstract in non-abstract class | +6 |
+| 4 | abstract + private identifier | +3 |
+| 5 | Label already declared | +3 |
+| 6 | super.#name | +1 |
 
-55 FPs (OXC has 14). 3 are from `__proto__` destructuring edge cases. The remaining 52 are pre-existing. Investigate each `Expect to Parse` entry in `parser_typescript.snap`.
 
-## PRIORITY 3 — Close remaining TS parser negative gap
-
-After all migrations, Kessel catches ~1384 of OXC's 1532 (90.3%). The remaining ~148 need investigation — cluster by error message family and fix the largest groups.
 
 ## Session 11 Changes (17 commits)
 
