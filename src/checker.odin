@@ -2707,6 +2707,53 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 // emits TS2391 / TS2389 on signatures + impl-name mismatches, and this
 // pass emits TS2393 wherever there is more than one impl — they target
 // disjoint conditions, so no double-firing on legal `sig; sig; impl;`.
+// ck_check_ts2384_ambient_mismatch — TS2384 "Overload signatures must all
+// be ambient or non-ambient." Scans a body for same-name function
+// declarations where some are `declare` and some are not.
+@(private="file")
+ck_check_ts2384_ambient_mismatch :: proc(c: ^Checker, body: []^Statement) {
+	if c == nil || len(body) == 0 { return }
+
+	// Track (name → has_ambient, has_nonamb, first_loc).
+	AmbientState :: struct { has_ambient: bool, has_nonamb: bool, first_loc: u32 }
+	seen: map[string]AmbientState
+	seen.allocator = context.temp_allocator
+	defer delete(seen)
+
+	for stmt in body {
+		fn, is_fn := fn_decl_extract(stmt)
+		if !is_fn || fn == nil { continue }
+		name, _, has_name := fn_decl_overload_name(fn)
+		if !has_name { continue }
+		entry, found := seen[name]
+		if !found {
+			entry = AmbientState{first_loc = u32(fn.loc.span.start)}
+		}
+		if fn.declare {
+			entry.has_ambient = true
+		} else {
+			entry.has_nonamb = true
+		}
+		seen[name] = entry
+	}
+
+	// Second pass: report on any name with mixed ambient/non-ambient.
+	for stmt in body {
+		fn, is_fn := fn_decl_extract(stmt)
+		if !is_fn || fn == nil { continue }
+		name, _, has_name := fn_decl_overload_name(fn)
+		if !has_name { continue }
+		entry, found := seen[name]
+		if !found { continue }
+		if entry.has_ambient && entry.has_nonamb {
+			ck_report(c, u32(fn.loc.span.start),
+				"Overload signatures must all be ambient or non-ambient.")
+			// Remove from map so we only report once per name.
+			delete_key(&seen, name)
+		}
+	}
+}
+
 @(private="file")
 ck_check_ts_dup_func_impls :: proc(c: ^Checker, body: []^Statement) {
 	if c == nil || len(body) == 0 { return }
@@ -3649,6 +3696,7 @@ ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^State
 		ck_check_ts_func_overloads(c, body)
 		ck_check_ts_dup_func_impls(c, body)
 		ck_check_ts_use_before_decl(c, body)
+		ck_check_ts2384_ambient_mismatch(c, body)
 	}
 }
 
