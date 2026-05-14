@@ -250,58 +250,92 @@ compiler_settings_from_map :: proc(m: map[string]string, allocator: runtime.Allo
 // TSC names baselines as `<stem>.errors.txt` for the bare case and
 // `<stem>(<flag>=<value>).errors.txt` for compiler-option matrix variants
 // (target=es5, alwaysstrict=true, isolatedmodules=true, ...). The directive
-// surface is too wide to enumerate at fixture time, so we scan the baseline
-// directory once, group files by stem, and record whether any grouped error
-// code is parser-relevant.
-
-TypeScriptBaselineIndex :: struct {
-	should_fail_by_stem: map[string]bool,
-}
-
-load_typescript_baseline_index :: proc(
+// typescript_should_fail — per-fixture should_fail determination.
+// Mirrors OXC's `get_error_files()`: build specific variant baseline
+// filenames from the fixture's compiler settings, check ONLY those
+// files. Variant dimensions: module, target, jsx, preserveconstenums,
+// usedefineforclassfields, experimentaldecorators. Other settings
+// (alwaysStrict, strict, moduleDetection, etc.) are NOT variant
+// dimensions — matching OXC exactly.
+@(private="file")
+typescript_should_fail :: proc(
 	baseline_root: string,
+	fixture_path:  string,
+	settings:      CompilerSettings,
 	allocator:     runtime.Allocator,
-) -> TypeScriptBaselineIndex {
-	out := TypeScriptBaselineIndex{
-		should_fail_by_stem = make(map[string]bool, 4096, allocator),
+) -> bool {
+	stem := strings.trim_suffix(filepath.base(fixture_path), filepath.ext(fixture_path))
+
+	// Build variant suffixes from the cartesian product of multi-valued
+	// compiler options. Only options with 2+ values produce variants.
+	// Matches OXC's create_suffixes + multi_cartesian_product.
+	VarDim :: struct { name: string, vals: []string }
+	dims := [?]VarDim{
+		{"module",                  settings.modules},
+		{"target",                  settings.targets},
+		{"jsx",                     settings.jsx},
+		{"preserveconstenums",      settings.preserve_const_enums},
+		{"usedefineforclassfields", settings.use_define_for_class_fields},
+		{"experimentaldecorators",  settings.experimental_decorators},
 	}
 
-	infos, infos_err := os.read_all_directory_by_path(baseline_root, allocator)
-	if infos_err != nil { return out }
-	defer os.file_info_slice_delete(infos, allocator)
+	// Collect active dimensions (those with 2+ values).
+	active_dims := make([dynamic]VarDim, 0, len(dims), context.temp_allocator)
+	for d in dims {
+		if len(d.vals) >= 2 { append(&active_dims, d) }
+	}
 
-	for info in infos {
-		stem, ok := ts_errors_baseline_stem(info.name)
-		if !ok { continue }
-		if out.should_fail_by_stem[stem] { continue }
+	// Generate all suffix combinations via cartesian product.
+	// Each suffix is like "(module=es2022,target=esnext)".
+	suffixes := make([dynamic]string, 0, 8, context.temp_allocator)
+	if len(active_dims) == 0 {
+		append(&suffixes, "")  // bare file only
+	} else {
+		// Simple cartesian product via recursive index iteration.
+		idxs := make([]int, len(active_dims), context.temp_allocator)
+		for {
+			// Build suffix string from current index combination.
+			buf := strings.builder_make(context.temp_allocator)
+			strings.write_byte(&buf, '(')
+			for i := 0; i < len(active_dims); i += 1 {
+				if i > 0 { strings.write_byte(&buf, ',') }
+				strings.write_string(&buf, active_dims[i].name)
+				strings.write_byte(&buf, '=')
+				strings.write_string(&buf, active_dims[i].vals[idxs[i]])
+			}
+			strings.write_byte(&buf, ')')
+			append(&suffixes, strings.to_string(buf))
 
-		bytes, read_err := os.read_entire_file_from_path(info.fullpath, allocator)
+			// Increment indices (rightmost first).
+			carry := true
+			for j := len(idxs) - 1; j >= 0 && carry; j -= 1 {
+				idxs[j] += 1
+				if idxs[j] < len(active_dims[j].vals) {
+					carry = false
+				} else {
+					idxs[j] = 0
+				}
+			}
+			if carry { break }  // all combinations exhausted
+		}
+		// Also try the bare file (no suffix).
+		append(&suffixes, "")
+	}
+
+	// Check each variant file.
+	for suffix in suffixes {
+		path := strings.concatenate(
+			{baseline_root, "/", stem, suffix, ".errors.txt"},
+			context.temp_allocator,
+		)
+		bytes, read_err := os.read_entire_file_from_path(path, context.temp_allocator)
 		if read_err != nil { continue }
 		text := string(bytes)
 		if ts_text_has_supported_error_code(text) {
-			out.should_fail_by_stem[strings.clone(stem, allocator)] = true
+			return true
 		}
-		delete(bytes, allocator)
 	}
-
-	return out
-}
-
-@(private="file")
-ts_errors_baseline_stem :: proc(name: string) -> (string, bool) {
-	if !strings.has_suffix(name, ".errors.txt") { return "", false }
-	stem := name[:len(name) - len(".errors.txt")]
-	if paren := strings.index(stem, "("); paren >= 0 {
-		stem = stem[:paren]
-	}
-	if stem == "" { return "", false }
-	return stem, true
-}
-
-@(private="file")
-typescript_should_fail :: proc(index: TypeScriptBaselineIndex, fixture_path: string) -> bool {
-	stem := strings.trim_suffix(filepath.base(fixture_path), filepath.ext(fixture_path))
-	return index.should_fail_by_stem[stem]
+	return false
 }
 
 @(private="file")
@@ -333,13 +367,12 @@ load_typescript :: proc(vendor_root: string, allocator: runtime.Allocator) -> []
 
 	baseline_root, _ := filepath.join({vendor_root, TYPESCRIPT_BASELINE_SUBPATH}, allocator)
 	defer delete(baseline_root)
-	baseline_index := load_typescript_baseline_index(baseline_root, allocator)
 
 	out := make([dynamic]Fixture, 0, len(files), allocator)
 
 	for f in files {
 		content := scan_test_case(f.abs, f.code, allocator)
-		should_fail := typescript_should_fail(baseline_index, f.abs)
+		should_fail := typescript_should_fail(baseline_root, f.abs, content.settings, allocator)
 
 		// Emit one Fixture per unit. Multi-file TSC fixtures expand into
 		// independent parser runs; the runner (phase 7) consumes them
