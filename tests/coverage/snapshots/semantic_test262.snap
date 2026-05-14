@@ -2120,7 +2120,7 @@ test262/test/language/expressions/logical-assignment/lgcl-or-non-simple.js:17:3:
 test262/test/language/expressions/new.target/escaped-new.js:24:5: Keyword 'new' must not contain escaped characters
 test262/test/language/expressions/new.target/escaped-target.js:24:8: Expected expression after 'new'
 test262/test/language/expressions/object/11.1.5-1gs.js:18:31: 'eval' cannot be used as a binding name in strict mode
-test262/test/language/expressions/object/__proto__-duplicate.js:23:2: Redefinition of __proto__ property
+test262/test/language/expressions/object/__proto__-duplicate.js:22:3: Redefinition of __proto__ property
 test262/test/language/expressions/object/cover-initialized-name.js:32:4: Invalid shorthand property initializer
 test262/test/language/expressions/object/dstr/async-gen-meth-ary-ptrn-rest-init-ary.js:38:27: Rest element must be last in array pattern
 test262/test/language/expressions/object/dstr/async-gen-meth-ary-ptrn-rest-init-id.js:38:23: Rest element must be last in array pattern

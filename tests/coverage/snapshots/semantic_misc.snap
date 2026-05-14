@@ -21,7 +21,7 @@ tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only va
 tests/coverage/misc/fail/commonjs-import-statement.cjs:2:1: 'import' is only valid in module code
 tests/coverage/misc/fail/commonjs-top-level-await.cjs:2:1: Top-level 'await' is only valid in module code
 tests/coverage/misc/fail/diff-markers.js:10:1: Unexpected token '<<'
-tests/coverage/misc/fail/early_errors/001_duplicate_proto_object_literal.js:4:43: Redefinition of __proto__ property
+tests/coverage/misc/fail/early_errors/001_duplicate_proto_object_literal.js:4:29: Redefinition of __proto__ property
 tests/coverage/misc/fail/early_errors/002_let_let_in_strict.js:4:5: 'let' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/003_const_without_initializer.js:4:1: Missing initializer in 'const' declaration
 tests/coverage/misc/fail/early_errors/004_duplicate_lexical_declaration.js:3:1: Identifier 'x' has already been declared

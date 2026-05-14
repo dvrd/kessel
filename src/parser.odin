@@ -538,6 +538,15 @@ Parser :: struct {
 	// form is only legal INSIDE a destructuring cover.
 	pending_cover_inits: [dynamic]u32,
 
+	// Pending duplicate-__proto__ offsets (§13.2.5.1 / §B.3.1). Every
+	// ObjectExpression with a second `__proto__: ...` init property
+	// appends the duplicate key's start offset here. expr_to_pattern
+	// (when the ObjectExpression gets promoted to an ObjectPattern)
+	// removes entries for that object, because Annex B.3.1 makes
+	// duplicate __proto__ legal in destructuring patterns. At the end
+	// of parse_program any remaining entries are reported.
+	pending_proto_dups: [dynamic]u32,
+
 	// CLI `--preserve-parens`. When true, every genuine `(expr)` paren-
 	// grouping wraps its inner expression in a ParenthesizedExpression
 	// node. Off by default for byte-identical legacy output. Does NOT
@@ -806,6 +815,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.source_len = len(lexer.source)
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
+	p.pending_proto_dups = make([dynamic]u32, 0, 4, alloc)
 	p.pending_priv_refs = make([dynamic]PendingPrivRef, 0, 0, alloc)
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
@@ -1758,11 +1768,15 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			message = "Invalid shorthand property initializer",
 		})
 	}
-	// §13.2.5.1 duplicate __proto__ in object literal: migrated to
-	// the semantic checker (slice 4) — ck_check_object_proto_dups walks
-	// every ObjectExpression. The previous pending-list machinery is
-	// no longer needed because the AST already distinguishes
-	// ObjectExpression from ObjectPattern post-parse.
+	// §13.2.5.1 duplicate __proto__ in object literal: any entries
+	// still pending here are genuine ObjectExpressions that didn't get
+	// promoted to ObjectPattern by expr_to_pattern. Report them.
+	for off in p.pending_proto_dups {
+		bump_append(&p.errors, ParseError{
+			loc     = LexerLoc(off),
+			message = "Redefinition of __proto__ property",
+		})
+	}
 
 	// §15.7.3 AllPrivateIdentifiersValid — every PrivateIdentifier
 	// reference must resolve to a PrivateName declared by some lexically
@@ -12915,14 +12929,19 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	}
 
 	// §B.3.1 / §13.2.5.1 — duplicate `__proto__` in object literals.
-	// Skip if next token is `=` (destructuring assignment target —
-	// Annex B.3.1 makes duplicates legal in ObjectPattern).
-	if !is_token(p, .Assign) {
+	// Stash the error offset into pending_proto_dups instead of
+	// reporting immediately.  If this ObjectExpression later gets
+	// promoted to an ObjectPattern (via expr_to_pattern), the
+	// entries are cleared — Annex B.3.1 makes duplicate __proto__
+	// legal in destructuring patterns.  Any entries still pending
+	// after parse_program finishes are reported as errors.
+	{
 		proto_seen := false
 		for &prop in obj.properties {
 			if !property_is_literal_proto_init(&prop) { continue }
 			if proto_seen {
-				report_error(p, "Redefinition of __proto__ property")
+				dup_off := loc_from_expr(prop.key).span.start
+				bump_append(&p.pending_proto_dups, dup_off)
 				break
 			}
 			proto_seen = true
@@ -14180,9 +14199,6 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// Clear any pending CoverInitializedName offsets that fall inside
 		// this object's span - once promoted to an ObjectPattern, the
 		// `{foo = init}` shorthand is legal (§13.2.5.1 / §13.15.5.2).
-		// (Duplicate-__proto__ is now enforced post-parse by the semantic
-		// checker on the resulting AST node type — ObjectExpression vs
-		// ObjectPattern — so no parse-time clearing is needed.)
 		if len(p.pending_cover_inits) > 0 {
 			write := 0
 			for off, read in p.pending_cover_inits {
@@ -14194,6 +14210,21 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 				_ = read
 			}
 			resize(&p.pending_cover_inits, write)
+		}
+		// Clear any pending duplicate-__proto__ offsets that fall inside
+		// this object's span — once promoted to an ObjectPattern,
+		// Annex B.3.1 makes duplicate __proto__ legal.
+		if len(p.pending_proto_dups) > 0 {
+			write := 0
+			for off, read in p.pending_proto_dups {
+				if off >= e.loc.span.start && off < e.loc.span.end {
+					continue // swallow - pattern context
+				}
+				p.pending_proto_dups[write] = off
+				write += 1
+				_ = read
+			}
+			resize(&p.pending_proto_dups, write)
 		}
 		op := new_node(p, ObjectPattern)
 		op.loc = e.loc
