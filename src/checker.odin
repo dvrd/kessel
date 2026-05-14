@@ -4169,16 +4169,19 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 
 	// Slice 6 — function-context-driven early errors:
 	case ^Super:
+		// TS2466 — 'super' cannot be referenced in a computed property name.
+		// Only fire when there's no enclosing method with [[HomeObject]]
+		// (a nested class inside a method has its computed keys evaluated
+		// in the method's scope, so super IS valid there).
+		if e != nil && ctx.in_class_computed_key && !ctx.in_method &&
+		   (ctx.lang == .TS || ctx.lang == .TSX) {
+			ck_report(c, u32(e.loc.span.start),
+				"'super' cannot be referenced in a computed property name.")
+		}
 		// §13.3.7 — SuperProperty / SuperCall is only legal in a
 		// [[HomeObject]]-bearing context (class method / constructor /
 		// field init / static block, or object-literal method).
-		// Computed-key positions and outside any class/object method are
-		// the rejected positions. The CallExpression case has already
-		// filtered the `super(...)` shape via ck_check_super_call; this
-		// case fires for the standalone `super` reference (i.e. when it
-		// appears outside a CallExpression's callee position OR inside a
-		// MemberExpression as object).
-		if e != nil && !ctx.in_method {
+		if e != nil && !ctx.in_method && !ctx.in_class_computed_key {
 			ck_report(c, u32(e.loc.span.start), "'super' is only allowed in class methods or object-literal methods")
 		}
 	// TS2331 — 'this' cannot be referenced in a module or namespace body.
@@ -4789,6 +4792,22 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 						ck_report(c, u32(id.loc.span.start),
 							"'get' and 'set' accessors cannot declare 'this' parameters.")
 					}
+				}
+			}
+			// TS1051 — set accessor cannot have optional parameter.
+			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
+				for param in fn.params {
+					if id, ok := param.pattern.(^Identifier); ok && id != nil && id.optional {
+						ck_report(c, u32(id.loc.span.start),
+							"A 'set' accessor cannot have an optional parameter.")
+					}
+				}
+			}
+			// TS1095 — set accessor cannot have a return type annotation.
+			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
+				if _, has_ret := fn.return_type.(^TSTypeAnnotation); has_ret {
+					ck_report(c, u32(fn.loc.span.start),
+						"A 'set' accessor cannot have a return type annotation.")
 				}
 			}
 		case .StaticBlock:

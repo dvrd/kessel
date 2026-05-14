@@ -3,7 +3,7 @@ commit: c7a0ae10
 semantic_typescript Summary:
 AST Parsed     : 12649/12664 (99.88%)
 Positive Passed: 12649/12664 (99.88%)
-Negative Passed: 2096/3498 (59.92%)
+Negative Passed: 2099/3498 (60.01%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts::b.d.ts
@@ -495,7 +495,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/omittedExpre
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/operationsAvailableOnPromisedType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/operatorAddNullUndefined.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamReferencingOtherParams2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalSetterParam.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/orderMattersForSignatureGroupIdentity.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadAssignmentCompat.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadOnConstNoAnyImplementation.ts
@@ -1265,7 +1264,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::34.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::35.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.unicodeEscape.ts::36.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeAnnotation1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeParameters1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression10.ts::fileTs.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression13.ts::fileTs.ts
@@ -1280,7 +1278,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserCommaInTypeMemberList2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration17.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration2.d.ts
@@ -1978,6 +1975,7 @@ typescript/tests/cases/compiler/optionalChainWithInstantiationExpression1.ts:12:
 typescript/tests/cases/compiler/optionalParamArgsTest.ts:31:5: Duplicate function implementation.
 typescript/tests/cases/compiler/optionalParamReferencingOtherParams3.ts:1:16: Parameter 'a' cannot reference identifier 'b' declared after it.
 typescript/tests/cases/compiler/optionalPropertiesSyntax.ts:11:7: Expected }, got ?
+typescript/tests/cases/compiler/optionalSetterParam.ts:3:20: A 'set' accessor cannot have an optional parameter.
 typescript/tests/cases/compiler/overloadConsecutiveness.ts:3:14: Expected {, got ,
 typescript/tests/cases/compiler/overloadModifiersMustAgree.ts:6:1: Overload signatures must all be ambient or non-ambient.
 typescript/tests/cases/compiler/overloadingStaticFunctionsInFunctions.ts:1:14: Expected (, got {
@@ -3012,6 +3010,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors7
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors8.ts:1:15: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors9.ts:1:15: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserGetAccessorWithTypeParameters1.ts:2:13: A 'get' accessor must return a value.
+typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeAnnotation1.ts:2:11: A 'set' accessor cannot have a return type annotation.
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression10.ts::fileJs.js:1:20: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression13.ts::fileJs.js:1:19: Empty parenthesized expression
@@ -3201,6 +3200,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration14.ts:2:8: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration15.ts:2:28: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration16.ts:2:12: A 'set' accessor cannot have an initializer.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration17.ts:2:12: A 'set' accessor cannot have an optional parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration18.ts:2:12: Setter parameter cannot be a rest element
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration2.ts:2:10: A 'get' accessor must return a value.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration3.ts:2:8: A 'get' accessor must return a value.
