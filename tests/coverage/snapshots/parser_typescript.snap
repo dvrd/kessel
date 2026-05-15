@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10734/10751 (99.84%)
 Positive Passed: 10734/10751 (99.84%)
-Negative Passed: 1547/1660 (93.19%)
+Negative Passed: 1549/1660 (93.31%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -99,8 +99,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbo
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames40_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames40_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of53.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of54.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports03.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/internalModules/moduleDeclarations/invalidInstantiatedModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxParsingError1.tsx
@@ -616,7 +614,7 @@ typescript/tests/cases/compiler/restParamModifier.ts:2:20: 'public' is a reserve
 typescript/tests/cases/compiler/restParamModifier2.ts:2:41: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/restParameterNotLast.ts:1:16: A rest parameter must be last in a parameter list
 typescript/tests/cases/compiler/restParameterWithBindingPattern3.ts:3:23: Rest element must be last in array pattern
-typescript/tests/cases/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes.ts:16:13: Identifier 'x' has already been declared
+typescript/tests/cases/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes.ts:7:25: Identifier 'v' has already been declared
 typescript/tests/cases/compiler/shadowingViaLocalValue.ts:4:9: Identifier 'x' has already been declared
 typescript/tests/cases/compiler/shebangError.ts:2:1: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 typescript/tests/cases/compiler/shorthandPropertyAssignmentsInDestructuring.ts:111:12: Invalid shorthand property initializer
@@ -937,6 +935,8 @@ typescript/tests/cases/conformance/es6/for-ofStatements/for-of2.ts:2:1: Missing 
 typescript/tests/cases/conformance/es6/for-ofStatements/for-of3.ts:2:13: Invalid left-hand side in for-of loop
 typescript/tests/cases/conformance/es6/for-ofStatements/for-of51.ts:1:10: 'let' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/es6/for-ofStatements/for-of52.ts:1:6: Identifier 'v' has already been declared
+typescript/tests/cases/conformance/es6/for-ofStatements/for-of53.ts:2:5: Identifier 'v' has already been declared
+typescript/tests/cases/conformance/es6/for-ofStatements/for-of54.ts:2:5: Identifier 'v' has already been declared
 typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration10_es6.ts:1:26: 'yield' expression is not allowed in formal parameters of a generator
 typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration11_es6.ts:1:12: 'yield' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/es6/functionDeclarations/FunctionDeclaration12_es6.ts:1:20: 'yield' cannot be used as the name of a generator function expression

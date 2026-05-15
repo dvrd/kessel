@@ -4030,10 +4030,10 @@ test262/test/language/statements/for-in/dstr/obj-prop-nested-obj-invalid.js:32:3
 test262/test/language/statements/for-in/dstr/obj-prop-nested-obj-yield-ident-invalid.js:32:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-in/dstr/obj-rest-not-last-element-invalid.js:33:22: Rest element must be last in object pattern
 test262/test/language/statements/for-in/head-const-bound-names-dup.js:17:6: Identifier 'x' has already been declared
-test262/test/language/statements/for-in/head-const-bound-names-in-stmt.js:18:3: 'x' is already declared in for-in head
+test262/test/language/statements/for-in/head-const-bound-names-in-stmt.js:18:3: Identifier 'x' has already been declared
 test262/test/language/statements/for-in/head-const-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-in/head-let-bound-names-dup.js:17:6: Identifier 'x' has already been declared
-test262/test/language/statements/for-in/head-let-bound-names-in-stmt.js:18:3: 'x' is already declared in for-in head
+test262/test/language/statements/for-in/head-let-bound-names-in-stmt.js:18:3: Identifier 'x' has already been declared
 test262/test/language/statements/for-in/head-let-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-in/head-lhs-cover-non-asnmt-trgt.js:24:16: Invalid left-hand side in for-in loop
 test262/test/language/statements/for-in/head-lhs-invalid-asnmt-ptrn-ary.js:20:18: Invalid destructuring assignment target
@@ -4115,17 +4115,17 @@ test262/test/language/statements/for-of/dstr/var-ary-ptrn-rest-not-final-id.js:4
 test262/test/language/statements/for-of/dstr/var-ary-ptrn-rest-not-final-obj.js:48:19: Rest element must be last in array pattern
 test262/test/language/statements/for-of/dstr/var-obj-ptrn-init-err.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/escaped-of.js:23:12: Expected '=', ',', or ';' after variable binding
-test262/test/language/statements/for-of/head-await-using-bound-names-in-stmt.js:19:3: 'x' is already declared in for-of head
+test262/test/language/statements/for-of/head-await-using-bound-names-in-stmt.js:19:3: Identifier 'x' has already been declared
 test262/test/language/statements/for-of/head-await-using-bound-names-let.js:17:8: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-of/head-await-using-init.js:21:8: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-const-bound-names-dup.js:17:6: Identifier 'x' has already been declared
-test262/test/language/statements/for-of/head-const-bound-names-in-stmt.js:18:3: 'x' is already declared in for-of head
+test262/test/language/statements/for-of/head-const-bound-names-in-stmt.js:18:3: Identifier 'x' has already been declared
 test262/test/language/statements/for-of/head-const-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-of/head-const-init.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-decl-no-expr.js:17:17: Expected ), got ,
 test262/test/language/statements/for-of/head-expr-no-expr.js:18:13: Expected ), got ,
 test262/test/language/statements/for-of/head-let-bound-names-dup.js:17:6: Identifier 'x' has already been declared
-test262/test/language/statements/for-of/head-let-bound-names-in-stmt.js:18:3: 'x' is already declared in for-of head
+test262/test/language/statements/for-of/head-let-bound-names-in-stmt.js:18:3: Identifier 'x' has already been declared
 test262/test/language/statements/for-of/head-let-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-of/head-let-init.js:17:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-lhs-async-invalid.js:17:15: The left-hand side of a for-of loop may not be 'async'
@@ -4134,7 +4134,7 @@ test262/test/language/statements/for-of/head-lhs-invalid-asnmt-ptrn-ary.js:20:18
 test262/test/language/statements/for-of/head-lhs-invalid-asnmt-ptrn-obj.js:20:20: Invalid destructuring assignment target
 test262/test/language/statements/for-of/head-lhs-let.js:25:14: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/for-of/head-lhs-non-asnmt-trgt.js:18:14: Invalid left-hand side in for-of loop
-test262/test/language/statements/for-of/head-using-bound-names-in-stmt.js:18:3: 'x' is already declared in for-of head
+test262/test/language/statements/for-of/head-using-bound-names-in-stmt.js:18:3: Identifier 'x' has already been declared
 test262/test/language/statements/for-of/head-using-bound-names-let.js:17:6: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/for-of/head-using-init.js:20:6: for-of loop variable declaration may not have an initializer
 test262/test/language/statements/for-of/head-var-init.js:17:6: for-of loop variable declaration may not have an initializer

@@ -928,7 +928,9 @@ has_scope_relevant_stmt :: proc(body: []^Statement) -> bool {
 		     ^ImportDeclaration,
 		     ^ExportNamedDeclaration,
 		     ^ExportDefaultDeclaration,
-		     ^BlockStatement:
+		     ^BlockStatement,
+		     ^ForInStatement,
+		     ^ForOfStatement:
 			return true
 		}
 	}
@@ -9288,6 +9290,44 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 		hoisted := scope_map_make(4)
 		for inner in v.body { scope_hoist_vars(p, inner, &hoisted) }
 		for it in hoisted.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+	case ^ForInStatement:
+		// §14.7.5 — `for (let/const x in expr) { var x; }` is a SyntaxError.
+		// The for-in head's let/const creates a containing block scope;
+		// var declarations in the body hoist past the body's block but
+		// collide with the head's lexical binding.
+		if v == nil { return }
+		if left_decl, ok := v.left_decl.(^VariableDeclaration); ok && left_decl != nil && left_decl.kind != .Var {
+			head_names := make([dynamic]string, 0, 2, context.temp_allocator)
+			for d in left_decl.declarations { scope_collect_pattern(d.id, &head_names) }
+			body_vars := scope_map_make(4)
+			scope_hoist_vars(p, v.body, &body_vars)
+			for hn in head_names {
+				if at, found := scope_map_get(&body_vars, hn); found {
+					scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
+				}
+			}
+		}
+		// Also hoist vars from the body into the enclosing scope.
+		hoisted_fi := scope_map_make(4)
+		scope_hoist_vars(p, v.body, &hoisted_fi)
+		for it in hoisted_fi.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+	case ^ForOfStatement:
+		// Same rule as ForInStatement above.
+		if v == nil { return }
+		if left_decl, ok := v.left_decl.(^VariableDeclaration); ok && left_decl != nil && left_decl.kind != .Var {
+			head_names := make([dynamic]string, 0, 2, context.temp_allocator)
+			for d in left_decl.declarations { scope_collect_pattern(d.id, &head_names) }
+			body_vars := scope_map_make(4)
+			scope_hoist_vars(p, v.body, &body_vars)
+			for hn in head_names {
+				if at, found := scope_map_get(&body_vars, hn); found {
+					scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
+				}
+			}
+		}
+		hoisted_fo := scope_map_make(4)
+		scope_hoist_vars(p, v.body, &hoisted_fo)
+		for it in hoisted_fo.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		// TS: function declarations can legitimately merge with same-
