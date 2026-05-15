@@ -10226,6 +10226,13 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 }
 
 parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
+	// TS1319 — `export default` inside a namespace is invalid.
+	// Exception: inside ambient module declarations and .d.ts files.
+	if p.in_ts_namespace && allow_ts_mode(p) && !p.source_is_dts && !p.in_ambient {
+		report_error_at(p, LexerLoc(start.span.start),
+			"A default export must be at the top level of a file or module declaration.")
+	}
+
 	// ExportDefaultDef is union { ^Declaration, ^Expression }. The old code
 	// did transmute(^ExportDefaultDef)decl on a ^Statement union, which
 	// reinterpreted 16 bytes of Statement-union layout as a 16-byte

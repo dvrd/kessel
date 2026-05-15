@@ -3,7 +3,7 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2233/2237 (99.82%)
 Positive Passed: 2233/2237 (99.82%)
-Negative Passed: 1603/1725 (92.93%)
+Negative Passed: 1604/1725 (92.99%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -94,7 +94,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-from/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-import/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-assignment/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-default/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-from/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-named/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-import/input.ts
@@ -1668,6 +1667,7 @@ babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-set-prope
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line-error/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/property-initializer/input.ts:1:25: Expected }, got =
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-default/input.ts:3:3: A default export must be at the top level of a file or module declaration.
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-declare-new-line/input.ts:6:9: Line terminator not permitted after 'module'
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-new-line-error/input.ts:2:5: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/namespace-declare-new-line/input.ts:6:9: Line terminator not permitted after 'namespace'
