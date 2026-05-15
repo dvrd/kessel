@@ -3063,6 +3063,14 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			// reporting "Invalid shorthand property initializer". Gate on
 			// is_destructure_target_candidate so Annex B.3.4 `for (f() in x)`
 			// in sloppy mode doesn't trip the pattern-walker's error arm.
+			// TS2491 — for-in LHS cannot be a destructuring pattern in TS.
+			// Check BEFORE expr_to_pattern so the LHS is still an
+			// ArrayExpression / ObjectExpression. The ES spec allows it,
+			// but TypeScript's compiler rejects it (TS2491).
+			if is_in && allow_ts_mode(p) && is_destructure_target_candidate(left_expr) {
+				report_error(p,
+					"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+			}
 			if is_destructure_target_candidate(left_expr) {
 				_, _ = expr_to_pattern(p, left_expr)
 			}
@@ -3089,6 +3097,21 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				if left_decl.kind == .AwaitUsing { kn = "await using" }
 				msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
 				report_error(p, msg)
+			}
+
+			// TS2491 — for-in LHS cannot be a destructuring pattern in TS.
+			// The ES spec allows ForBinding :: BindingPattern in for-in,
+			// but TypeScript rejects it. Only fire in TS mode to avoid
+			// breaking test262.
+			if is_in && allow_ts_mode(p) && len(left_decl.declarations) >= 1 {
+				d_id := left_decl.declarations[0].id
+				is_pattern := false
+				if _, ok := d_id.(^ArrayPattern); ok { is_pattern = true }
+				if _, ok := d_id.(^ObjectPattern); ok { is_pattern = true }
+				if is_pattern {
+					report_error_at(p, LexerLoc(left_decl.loc.span.start),
+						"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+				}
 			}
 
 			// §13.7.5.1 — "only a single declarator" + "no initializer"
