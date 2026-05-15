@@ -1806,6 +1806,11 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	if !p.ast_only {
 		verify_export_locals(p, program)
 
+		// TS2309 — `export =` cannot coexist with other exports.
+		if allow_ts_mode(p) {
+			report_ts2309_export_assignment(p, program.body[:])
+		}
+
 		// §14.2.1 / §14.3.1.1 — the lex/var duplicate-binding scan now
 		// fires from the semantic checker (checker_run_for_job sets
 		// p.pending_checker before invoking verify_scopes, then clears
@@ -5159,6 +5164,56 @@ report_overload_flush :: proc(p: ^Parser, body: []ClassElement, start, end_excl:
 		if fn.body.loc.span.end > fn.body.loc.span.start { continue }
 		report_error_at(p, LexerLoc(elem.loc.span.start),
 			"Function implementation is missing or not immediately following the declaration.")
+	}
+}
+
+// TS2309 — "An export assignment cannot be used in a module with other
+// exported elements." Fires when `export = X` coexists with
+// `export class/function/var/default/*/{ }` in the same module.
+// Also catches duplicate `export =` when no regular exports exist.
+@(private="file")
+report_ts2309_export_assignment :: proc(p: ^Parser, body: []^Statement) {
+	has_assign := false
+	has_regular := false
+	assign_count := 0
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^ExportNamedDeclaration:
+			// Skip empty `export {};` (no specifiers, no declaration, no source)
+			// — this is a module-type hint, not a real export.
+			if v != nil {
+				has_spec := len(v.specifiers) > 0
+				_, has_decl := v.declaration.?; _ = has_decl
+				_, has_src := v.source.?; _ = has_src
+				if has_spec || has_decl || has_src {
+					has_regular = true
+				}
+			}
+		case ^ExportDefaultDeclaration: has_regular = true
+		case ^ExportAllDeclaration:     has_regular = true
+		case ^TSExportAssignment:
+			has_assign = true
+			assign_count += 1
+		}
+	}
+	if !has_assign { return }
+	if !has_regular && assign_count <= 1 { return }
+	msg := "An export assignment cannot be used in a module with other exported elements."
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^ExportNamedDeclaration:
+			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+		case ^ExportDefaultDeclaration:
+			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+		case ^ExportAllDeclaration:
+			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+		case ^TSExportAssignment:
+			if has_regular || assign_count > 1 {
+				report_error_at(p, LexerLoc(v.loc.span.start), msg)
+			}
+		}
 	}
 }
 

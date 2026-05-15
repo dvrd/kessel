@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 71/72 (98.61%)
 Positive Passed: 71/72 (98.61%)
-Negative Passed: 260/286 (90.91%)
+Negative Passed: 261/286 (91.26%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
@@ -10,7 +10,6 @@ Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_im
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/escape-00.js
-Expect Syntax Error: tests/coverage/misc/fail/export-equal-with-normal-export.ts
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts-import-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts
@@ -71,6 +70,7 @@ tests/coverage/misc/fail/early_errors/strict_mode/016_function_name_eval.js:5:10
 tests/coverage/misc/fail/early_errors/strict_mode/017_labeled_function_declaration.js:8:1: Function declarations cannot be labeled items in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js:10:5: Keyword 'let' must not contain escaped characters
 tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js:7:6: for-in loop variable declaration may not have an initializer
+tests/coverage/misc/fail/export-equal-with-normal-export.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected >, got !
 tests/coverage/misc/fail/html-comment-with-esm.js:1:1: HTML comments are not allowed in modules
 tests/coverage/misc/fail/imbalanced-array-expr.js:2:1: Expected ], got const

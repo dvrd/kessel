@@ -3,11 +3,9 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 9811/9828 (99.83%)
 Positive Passed: 9811/9828 (99.83%)
-Negative Passed: 1477/2583 (57.18%)
+Negative Passed: 1491/2583 (57.72%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ExportAssignment7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ExportAssignment8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/InterfaceDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
@@ -128,7 +126,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationE
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitRelativeModuleError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitUnsafeImportSymbolName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitUsingTypeAlias1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationFileNoCrashOnExtraExportModifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declareModifierOnImport1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/decoratorsOnComputedProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/defaultBestCommonTypesHaveDecls.ts
@@ -183,14 +180,11 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumsWithMul
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumsWithMultipleDeclarations2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/erasableSyntaxOnlyDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorElaboration.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorForConflictingExportEqualsValue.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorForUsingPropertyOfTypeAsType03.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorMessageOnObjectLiteralType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorSupression1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es5ExportEquals.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es5ModuleInternalNamedImports.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6DeclOrdering.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ExportEquals.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ExportEqualsInterop.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingMergeErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNameSpaceImportMergeErrors.ts
@@ -206,7 +200,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/excessProper
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/expandoFunctionNestedAssigments.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportAsNamespace_augment.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportAssignmentImportMergeNoCrash.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportAssignmentWithExports.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportClassWithoutName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDeclarationsInAmbientNamespaces2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportDefaultAlias_excludesEverything.ts
@@ -273,7 +266,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVar
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAssertionsDeprecated.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclWithClassModifiers.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclWithExportModifierAndExportAssignment.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclWithExportModifierAndExportAssignmentInAmbientContext.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclarationInModuleDeclaration2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importTypeAssertionDeprecation.ts
@@ -387,7 +379,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleVariab
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleVisibilityTest2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/module_augmentExistingAmbientVariable.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/module_augmentExistingVariable.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/multipleExportAssignments.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/multipleExportAssignmentsInAmbientDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/multipleExports.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/multivar.ts
@@ -817,8 +808,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/expressio
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/expressions/unaryOperators/typeofOperator/typeofOperatorWithAnyOtherType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/expressions/unaryOperators/voidOperator/voidOperatorWithAnyOtherType.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/circularReference.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/exportAssignmentAndDeclaration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/importsImplicitlyReadonly.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/multipleExportDefault1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/multipleExportDefault2.ts
@@ -841,7 +830,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalM
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnly/namespaceMemberAccess.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/typeOnlyMerge3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/valuesMergingAcrossModules.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/verbatimModuleSyntaxRestrictionsCJS.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/fixSignatureCaching.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionImplementationErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionOverloadCompatibilityWithVoid01.ts
@@ -967,8 +955,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock4.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration8.ts
@@ -1173,6 +1159,8 @@ typescript/tests/cases/compiler/ClassDeclaration25.ts:6:5: Function implementati
 typescript/tests/cases/compiler/ClassDeclaration26.ts:2:18: Expected (, got var
 typescript/tests/cases/compiler/ClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/ClassDeclarationWithInvalidConstOnPropertyDeclaration.ts:2:16: Expected (, got identifier
+typescript/tests/cases/compiler/ExportAssignment7.ts:1:1: An export assignment cannot be used in a module with other exported elements.
+typescript/tests/cases/compiler/ExportAssignment8.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/FunctionDeclaration3.ts:1:1: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/FunctionDeclaration4.ts:2:1: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/FunctionDeclaration7.ts:2:4: Function implementation is missing or not immediately following the declaration.
@@ -1285,6 +1273,7 @@ typescript/tests/cases/compiler/declarationEmitInterfaceWithNonEntityNameExpress
 typescript/tests/cases/compiler/declarationEmitInvalidExport.ts:5:1: Unexpected '}' — unmatched closing brace
 typescript/tests/cases/compiler/declarationEmitNestedBindingPattern.ts:3:36: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/declarationEmitUnknownImport2.ts:1:12: Expected from, got identifier
+typescript/tests/cases/compiler/declarationFileNoCrashOnExtraExportModifier.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/declareAlreadySeen.ts:2:13: Expected semicolon
 typescript/tests/cases/compiler/decoratorInJsFile.ts:3:10: Expected ), got :
 typescript/tests/cases/compiler/decoratorInJsFile1.ts:3:10: Expected ), got :
@@ -1322,6 +1311,7 @@ typescript/tests/cases/compiler/enumMemberResolution.ts:5:5: Expected semicolon
 typescript/tests/cases/compiler/enumWithBigint.ts:2:3: An enum member cannot have a numeric name.
 typescript/tests/cases/compiler/enumWithParenthesizedInitializer1.ts:3:1: Expected ), got }
 typescript/tests/cases/compiler/erasableSyntaxOnly2.ts:1:10: Unexpected '<': not a valid TS type assertion or generic arrow
+typescript/tests/cases/compiler/errorForConflictingExportEqualsValue.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/errorForUsingPropertyOfTypeAsType01.ts:44:24: Expected identifier after '.' in import-equals module reference
 typescript/tests/cases/compiler/errorInUnnamedClassExpression.ts:8:2: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/compiler/errorOnInitializerInInterfaceProperty.ts:2:17: Expected }, got =
@@ -1330,8 +1320,10 @@ typescript/tests/cases/compiler/errorRecoveryInClassDeclaration.ts:4:13: 'public
 typescript/tests/cases/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword.ts:7:19: Expected semicolon
 typescript/tests/cases/compiler/errorSpanForUnclosedJsxTag.tsx:11:23: Expected <, got EOF
 typescript/tests/cases/compiler/es5-oldStyleOctalLiteralInEnums.ts:2:8: Legacy octal literals are not allowed in strict mode
+typescript/tests/cases/compiler/es5ExportEquals.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/es6ClassTest.ts:25:48: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/compiler/es6ClassTest9.ts:1:18: Expected {, got (
+typescript/tests/cases/compiler/es6ExportEquals.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamedImport1WithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamedImportWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamespaceBinding1WithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
@@ -1347,6 +1339,7 @@ typescript/tests/cases/compiler/exportAlreadySeen.ts:2:12: 'export' modifier alr
 typescript/tests/cases/compiler/exportAssignmentWithDeclareAndExportModifiers.ts:2:16: Expected semicolon
 typescript/tests/cases/compiler/exportAssignmentWithDeclareModifier.ts:2:9: Expected semicolon
 typescript/tests/cases/compiler/exportAssignmentWithExportModifier.ts:2:8: 'export' modifier already seen.
+typescript/tests/cases/compiler/exportAssignmentWithExports.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/exportDeclarationInInternalModule.ts:13:19: Expected string literal module specifier after 'from'
 typescript/tests/cases/compiler/exportDeclareClass1.ts:2:21: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::a.ts:1:17: 'await' is reserved as a binding name in module code
@@ -1391,6 +1384,7 @@ typescript/tests/cases/compiler/implementsClauseAlreadySeen.ts:4:22: Expected {,
 typescript/tests/cases/compiler/importAssertionNonstring.ts:1:50: Only string literals are allowed as import attribute values
 typescript/tests/cases/compiler/importDeclWithDeclareModifier.ts:5:9: Expected semicolon
 typescript/tests/cases/compiler/importDeclWithDeclareModifierInAmbientContext.ts:6:13: Expected semicolon
+typescript/tests/cases/compiler/importDeclWithExportModifierAndExportAssignment.ts:5:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/incompleteDottedExpressionAtEOF.ts:2:18: Expected identifier after '.'
 typescript/tests/cases/compiler/incompleteObjectLiteral1.ts:1:14: Unexpected ';' in object literal
 typescript/tests/cases/compiler/indexSignatureMustHaveTypeAnnotation.ts:4:16: An index signature must have a type annotation.
@@ -1495,6 +1489,7 @@ typescript/tests/cases/compiler/moduleProperty1.ts:9:5: 'private' is a reserved 
 typescript/tests/cases/compiler/multiLinePropertyAccessAndArrowFunctionIndent1.ts:1:8: 'return' outside of function
 typescript/tests/cases/compiler/multipleClassPropertyModifiers.ts:3:19: 'public' modifier must precede 'static' modifier.
 typescript/tests/cases/compiler/multipleClassPropertyModifiersErrors.ts:2:9: Accessibility modifier already seen.
+typescript/tests/cases/compiler/multipleExportAssignments.ts:13:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/multipleInheritance.ts:9:19: Expected {, got ,
 typescript/tests/cases/compiler/nestedGlobalNamespaceInClass.ts:3:12: Expected (, got identifier
 typescript/tests/cases/compiler/nestedUnaryExpressionHang.ts:1:34: Expected expression after unary operator
@@ -2030,7 +2025,9 @@ typescript/tests/cases/conformance/expressions/unaryOperators/negateOperator/neg
 typescript/tests/cases/conformance/expressions/unaryOperators/plusOperator/plusOperatorInvalidOperations.ts:5:17: Expected expression after operator
 typescript/tests/cases/conformance/expressions/unaryOperators/typeofOperator/typeofOperatorInvalidOperations.ts:4:15: Expected semicolon
 typescript/tests/cases/conformance/expressions/unaryOperators/voidOperator/voidOperatorInvalidOperations.ts:4:15: Expected semicolon
+typescript/tests/cases/conformance/externalModules/duplicateExportAssignments.ts::foo1.ts:3:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/externalModules/exportAssignNonIdentifier.ts::foo6.ts:1:14: Expected expression after unary operator
+typescript/tests/cases/conformance/externalModules/exportAssignmentAndDeclaration.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/externalModules/exportNonInitializedVariablesAMD.ts:1:4: Expected binding pattern
 typescript/tests/cases/conformance/externalModules/exportNonInitializedVariablesCommonJS.ts:1:4: Expected binding pattern
 typescript/tests/cases/conformance/externalModules/exportNonInitializedVariablesES6.ts:1:4: Expected binding pattern
@@ -2060,6 +2057,7 @@ typescript/tests/cases/conformance/externalModules/typeOnly/grammarErrors.ts::/a
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers1.ts::/d.ts:1:24: Expected }, got as
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers_js.ts::./a.js:1:15: Expected }, got identifier
 typescript/tests/cases/conformance/externalModules/umd-errors.ts::err3.d.ts:3:8: Expected semicolon
+typescript/tests/cases/conformance/externalModules/verbatimModuleSyntaxRestrictionsCJS.ts::/main2.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/functions/functionNameConflicts.ts:24:1: Function implementation name must be 'over'.
 typescript/tests/cases/conformance/functions/functionOverloadErrors.ts:2:14: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/functions/functionOverloadErrorsSyntax.ts:2:27: A required parameter cannot follow an optional parameter.
@@ -2263,6 +2261,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserUnterm
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserUnterminatedGeneric2.ts:2:34: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment3.ts:1:9: Expected expression after 'export ='
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment4.ts:1:10: Expected expression after 'export ='
+typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment7.ts:1:1: An export assignment cannot be used in a module with other exported elements.
+typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment8.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment9.ts:2:3: A default export must be at the top level of a file or module declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parseIncompleteBinaryExpression1.ts:1:9: Expected initializer expression after '='
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserAssignmentExpression1.ts:1:9: Cannot assign to this expression
