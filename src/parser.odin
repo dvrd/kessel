@@ -20739,11 +20739,10 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statement {
 	start := cur_loc(p)
 	// TS1235 — namespace/module declarations are only allowed at the
-	// top level of a file, namespace, or module body. Inside a block
-	// (if/for/while body, plain {}, etc.) they're a SyntaxError.
-	// block_depth > 0 means we're inside a block. in_ts_namespace
-	// means we're inside a namespace body (which is valid).
-	if allow_ts_mode(p) && p.block_depth > 0 && !p.in_ts_namespace {
+	// top level of a file, namespace, or module body. Inside a block,
+	// function body, class body, etc. they're a SyntaxError.
+	// Valid positions: program top-level, or inside a namespace body.
+	if allow_ts_mode(p) && (p.block_depth > 0 || p.in_function) && !p.in_ts_namespace {
 		report_error_at(p, LexerLoc(start.span.start),
 			"A namespace declaration is only allowed at the top level of a namespace or module.")
 	}
