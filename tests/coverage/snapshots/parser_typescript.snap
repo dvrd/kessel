@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 9811/9828 (99.83%)
 Positive Passed: 9811/9828 (99.83%)
-Negative Passed: 1470/2583 (56.91%)
+Negative Passed: 1471/2583 (56.95%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ExportAssignment7.ts
@@ -986,7 +986,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration2.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration4.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509618.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement2.ts
@@ -2345,6 +2344,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/MissingTokens/parserMissin
 typescript/tests/cases/conformance/parser/ecmascript5/MissingTokens/parserMissingToken2.ts:1:1: Unterminated regular expression
 typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration10.ts:1:1: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration3.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration4.d.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration5.ts:3:5: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/conformance/parser/ecmascript5/ObjectTypes/parserObjectType5.ts:3:7: Expected '(' after type parameters in call signature
 typescript/tests/cases/conformance/parser/ecmascript5/ObjectTypes/parserObjectType6.ts:3:4: An index signature must have a parameter

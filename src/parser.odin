@@ -20448,9 +20448,10 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	if is_token(p, .LBrace) {
 		body_start := cur_loc(p); eat(p) // consume `{`
 		// Ambient context: string-named module, OR already-ambient caller
-		// (nested namespace / module inside a `declare namespace X { ... }`).
+		// (nested namespace / module inside a `declare namespace X { ... }`),
+		// OR .d.ts file (all bodies are implicitly ambient).
 		prev_ambient := p.in_ambient
-		p.in_ambient = p.in_ambient || is_string_named
+		p.in_ambient = p.in_ambient || is_string_named || p.source_is_dts
 		defer p.in_ambient = prev_ambient
 		// TS namespace body is not an async/module-level context for `await`.
 		prev_in_ts_namespace := p.in_ts_namespace
