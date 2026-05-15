@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10734/10751 (99.84%)
 Positive Passed: 10734/10751 (99.84%)
-Negative Passed: 1542/1660 (92.89%)
+Negative Passed: 1543/1660 (92.95%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -52,7 +52,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/mismatchedCl
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/missingFunctionImplementation.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal6_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleDuplicateIdentifiers.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleElementsInWrongContext.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleElementsInWrongContext2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleResolutionWithExtensions_unexpected2.ts::/a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt3.ts
@@ -525,6 +524,7 @@ typescript/tests/cases/compiler/modifiersInObjectLiterals.ts:2:2: 'public' is a 
 typescript/tests/cases/compiler/modifiersOnInterfaceIndexSignature1.ts:2:3: 'public' modifier cannot appear on an index signature.
 typescript/tests/cases/compiler/moduleAugmentationGlobal7_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
 typescript/tests/cases/compiler/moduleAugmentationGlobal8_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
+typescript/tests/cases/compiler/moduleElementsInWrongContext.ts:2:5: A namespace declaration is only allowed at the top level of a namespace or module.
 typescript/tests/cases/compiler/moduleElementsInWrongContext3.ts:21:9: A default export must be at the top level of a file or module declaration.
 typescript/tests/cases/compiler/moduleKeywordRepeatError.ts:3:15: Expected semicolon
 typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:2:11: Expected from, got =
