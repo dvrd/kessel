@@ -5332,6 +5332,40 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 			"Function implementation is missing or not immediately following the declaration.")
 	}
 
+	// TS2384 — overload signatures must all be ambient or non-ambient.
+	// Mixed `declare function foo()` and `function foo()` in same scope.
+	{
+		AmbState :: struct { has_ambient: bool, has_nonamb: bool }
+		amb_seen: map[string]AmbState
+		amb_seen.allocator = context.temp_allocator
+		for stmt2 in body {
+			if stmt2 == nil { continue }
+			fn2, ok2 := stmt2^.(^FunctionDeclaration)
+			if !ok2 || fn2 == nil { continue }
+			name2 := ""
+			if id2, has2 := fn2.expr.id.?; has2 { name2 = id2.name }
+			if name2 == "" { continue }
+			entry := amb_seen[name2] or_else AmbState{}
+			if fn2.declare { entry.has_ambient = true }
+			else { entry.has_nonamb = true }
+			amb_seen[name2] = entry
+		}
+		for stmt2 in body {
+			if stmt2 == nil { continue }
+			fn2, ok2 := stmt2^.(^FunctionDeclaration)
+			if !ok2 || fn2 == nil { continue }
+			name2 := ""
+			if id2, has2 := fn2.expr.id.?; has2 { name2 = id2.name }
+			if name2 == "" { continue }
+			entry := amb_seen[name2] or_else AmbState{}
+			if entry.has_ambient && entry.has_nonamb {
+				report_error_at(p, LexerLoc(fn2.expr.loc.span.start),
+					"Overload signatures must all be ambient or non-ambient.")
+				delete_key(&amb_seen, name2)
+			}
+		}
+	}
+
 	// TS2393 — duplicate function implementation.
 	// Two or more FunctionDeclarations with the same name AND a body
 	// in the same scope is an error (each flagged).

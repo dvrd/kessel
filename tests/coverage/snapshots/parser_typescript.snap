@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 9811/9828 (99.83%)
 Positive Passed: 9811/9828 (99.83%)
-Negative Passed: 1491/2583 (57.72%)
+Negative Passed: 1495/2583 (57.88%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration6.ts
@@ -100,11 +100,9 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constWithNon
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constantEnumAssert.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorsWithSpecializedSignatures.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypeForInitalizedVariablesFiltersUndefined.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTyping.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypingOfLambdaReturnExpression.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypingOfObjectLiterals2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/contextualTypingWithFixedTypeParameters1.ts
@@ -412,7 +410,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalPara
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamReferencingOtherParams3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/orderMattersForSignatureGroupIdentity.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadAssignmentCompat.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadModifiersMustAgree.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadOnConstNoAnyImplementation.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadOnConstNoAnyImplementation2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadOnConstantsInvalidOverload1.ts
@@ -504,7 +501,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superPropert
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/superPropertyAccessInSuperCall01.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/systemModule9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/targetTypeCastTest.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/targetTypeTest1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/templateLiteralsInTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/temporal.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/thisBinding.ts
@@ -1255,9 +1251,11 @@ typescript/tests/cases/compiler/constructorArgsErrors3.ts:2:25: Accessibility mo
 typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors5.ts:2:18: 'export' is a reserved word and cannot be used as a binding name
 typescript/tests/cases/compiler/constructorOverloads6.ts:4:25: An implementation cannot be declared in ambient contexts
+typescript/tests/cases/compiler/constructorOverloads7.ts:22:1: Overload signatures must all be ambient or non-ambient.
 typescript/tests/cases/compiler/constructorStaticParamName.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorStaticParamNameErrors.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorWithIncompleteTypeAnnotation.ts:11:13: 'module(...)' in import-equals is not supported; use 'require(...)' instead
+typescript/tests/cases/compiler/contextualTyping.ts:189:1: Overload signatures must all be ambient or non-ambient.
 typescript/tests/cases/compiler/continueNotInIterationStatement1.ts:1:1: 'continue' must be inside a loop
 typescript/tests/cases/compiler/continueNotInIterationStatement3.ts:3:5: 'continue' must be inside a loop
 typescript/tests/cases/compiler/continueTarget1.ts:2:12: 'continue' must target an iteration label, 'target' does not
@@ -1520,6 +1518,7 @@ typescript/tests/cases/compiler/optionalChainWithInstantiationExpression1.ts:12:
 typescript/tests/cases/compiler/optionalPropertiesSyntax.ts:11:7: Expected }, got ?
 typescript/tests/cases/compiler/optionalSetterParam.ts:3:20: A 'set' accessor cannot have an optional parameter.
 typescript/tests/cases/compiler/overloadConsecutiveness.ts:3:14: Expected {, got ,
+typescript/tests/cases/compiler/overloadModifiersMustAgree.ts:6:1: Overload signatures must all be ambient or non-ambient.
 typescript/tests/cases/compiler/overloadingStaticFunctionsInFunctions.ts:1:14: Expected (, got {
 typescript/tests/cases/compiler/paramPropertiesInSignatures.ts:2:21: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/parameterPropertyInConstructor1.ts:3:24: Parameter properties are only allowed in the implementation constructor.
@@ -1617,6 +1616,7 @@ typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions
 typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions4.ts:5:28: Expected template literal continuation
 typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions5.ts:5:30: Expected template literal continuation
 typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions6.ts:5:23: Expected template literal continuation
+typescript/tests/cases/compiler/targetTypeTest1.ts:19:1: Overload signatures must all be ambient or non-ambient.
 typescript/tests/cases/compiler/templateLiteralEscapeSequence.ts:3:5: Invalid escape sequence in template literal
 typescript/tests/cases/compiler/thisAssignmentInNamespaceDeclaration1.ts::a.js:1:11: Expected semicolon
 typescript/tests/cases/compiler/throwWithoutNewLine1.ts:1:6: Expected expression after throw
