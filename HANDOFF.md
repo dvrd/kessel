@@ -4,13 +4,13 @@
 
 Build: clean. `task test`: all 291 unit + 24 coverage tests pass.
 
-**283 fixtures from 100% OXC parser parity** (was 326).
+**261 fixtures from 100% OXC parser parity** (was 326).
 
 | Suite | Positive (FPs) | Negative gap | Total gap |
 |---|---|---|---|
 | test262 | 0 | 20 | 20 |
-| Babel | 3 | 111 | 114 |
-| TypeScript | 17 | 122 | 139 |
+| Babel | 3 | 102 | 105 |
+| TypeScript | 17 | 118 | 135 |
 | ESTree | 0 | 0 | 0 |
 
 Live numbers: `task test:conformance:report`
@@ -24,7 +24,7 @@ Live numbers: `task test:conformance:report`
 
 ## Session Progress (latest)
 
-**+43 negatives caught, +1 misc positive, zero regressions** across 4 commits:
+**+65 negatives caught, +1 misc positive, zero regressions** across 8 commits:
 
 1. **Strict-mode reserved words in TS bindings/declarations** (+21 TS, +6 babel, +1 babel semantic)
    - Removed overly-broad `!allow_ts_mode(p)` gate on strict-reserved checks in `parse_binding_pattern`
@@ -40,6 +40,15 @@ Live numbers: `task test:conformance:report`
 4. **break/continue context across function/arrow boundaries** (+4 TS, +4 babel, +1 misc positive)
    - `in_loop`, `in_switch`, `label_floor` now reset in `parse_function_body` and arrow block bodies
    - Misc positive went from 71/72 to 72/72 (100%)
+
+5. **TS2457/TS2368 primitive type names in type aliases + type parameters** (+4 TS)
+   - `type undefined = ...`, `foo<string>(...)` now rejected
+
+6. **Retroactive strict-mode param check for arrow body-strict** (+3 babel)
+   - `eval => {"use strict"}` now caught
+
+7. **Strict-reserved function names + retroactive body-strict** (+9 babel)
+   - `"use strict"; function static(){}`, `function package(){"use strict";}` now caught
 
 ## The 20 FPs (kessel rejects valid code)
 
