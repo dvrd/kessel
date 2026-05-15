@@ -4,13 +4,13 @@
 
 Build: clean. `task test`: all 291 unit + 24 coverage tests pass.
 
-**261 fixtures from 100% OXC parser parity** (was 326).
+**248 fixtures from 100% OXC parser parity** (was 326).
 
 | Suite | Positive (FPs) | Negative gap | Total gap |
 |---|---|---|---|
 | test262 | 0 | 20 | 20 |
-| Babel | 3 | 102 | 105 |
-| TypeScript | 17 | 118 | 135 |
+| Babel | 3 | 94 | 97 |
+| TypeScript | 17 | 115 | 132 |
 | ESTree | 0 | 0 | 0 |
 
 Live numbers: `task test:conformance:report`
@@ -24,7 +24,7 @@ Live numbers: `task test:conformance:report`
 
 ## Session Progress (latest)
 
-**+65 negatives caught, +1 misc positive, zero regressions** across 8 commits:
+**+78 negatives caught, +1 misc positive, zero regressions** across 12 commits:
 
 1. **Strict-mode reserved words in TS bindings/declarations** (+21 TS, +6 babel, +1 babel semantic)
    - Removed overly-broad `!allow_ts_mode(p)` gate on strict-reserved checks in `parse_binding_pattern`
@@ -49,6 +49,15 @@ Live numbers: `task test:conformance:report`
 
 7. **Strict-reserved function names + retroactive body-strict** (+9 babel)
    - `"use strict"; function static(){}`, `function package(){"use strict";}` now caught
+
+8. **Multi-param arrow eval/arguments + expr_to_pattern strict check** (+5 babel)
+   - `"use strict"; (eval, a) => 42` now caught
+
+9. **TS1235 namespace in block/function scopes** (+3 TS)
+   - `{ namespace M {} }` and namespace inside function bodies now caught
+
+10. **`yield` as strict-mode function name** (+3 babel)
+    - `function yield() { "use strict"; }` now caught
 
 ## The 20 FPs (kessel rejects valid code)
 
