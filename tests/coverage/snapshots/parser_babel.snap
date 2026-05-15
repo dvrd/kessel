@@ -3,7 +3,7 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2234/2237 (99.87%)
 Positive Passed: 2234/2237 (99.87%)
-Negative Passed: 1614/1725 (93.57%)
+Negative Passed: 1617/1725 (93.74%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -33,7 +33,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/245/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/246/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/247/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/297/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-strict-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-get-static-set/input.js
@@ -46,13 +45,11 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-1/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-3/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-param-strict-mode/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-function-declaration/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-function-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0090/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0091/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0208/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js
@@ -593,6 +590,7 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/293/input.js:1:13
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/294/input.js:1:10: Unexpected spread/rest element outside of arrow parameters
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/295/input.js:2:1: Expected '}' at end of switch statement
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/296/input.js:1:27: Arrow parameter 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/297/input.js:1:2: Parameter name 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/298/input.js:1:27: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/324/input.js:1:8: Missing initializer in destructuring declaration
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/325/input.js:1:8: Missing initializer in destructuring declaration
@@ -1159,6 +1157,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/arrow-wi
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/complex-rest-in-arrow-not-allowed/input.js:1:1: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-duplicated-params/input.js:1:1: Duplicate parameter name 'x' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-line-terminator-arrow/input.js:2:1: Unexpected line terminator before '=>' (restricted production)
+babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-param-strict-mode/input.js:1:1: Parameter name 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-rest/input.js:1:16: Binding element cannot be parenthesized
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/object-binding-pattern-invalid-member-expr/input.js:2:1: Member expression cannot be used as a binding target
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/object-binding-pattern-invalid-method-in-pattern/input.js:1:19: Invalid destructuring assignment target
@@ -1377,6 +1376,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0097/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0098/input.js:2:1: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0099/input.js:2:1: Expected identifier in arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0100/input.js:2:1: Arrow parameter 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js:1:2: Parameter name 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0102/input.js:1:8: Expected }, got /
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0103/input.js:1:10: Numeric / string property name requires a value
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0112/input.js:1:3: Expected semicolon

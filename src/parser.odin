@@ -15555,8 +15555,17 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// value == "use strict" — mirrors the checker's old
 	// ck_check_arrow_strict_directive_with_nonsimple_params shape.
 	if is_block_body {
-		if arrow_body_lifts_strict(body) && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		if arrow_body_lifts_strict(body) {
+			if !params_are_simple(params[:]) {
+				report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			}
+			// §13.1.1 — retroactive strict-mode binding check on
+			// arrow params when the body promotes to strict and the
+			// outer scope was NOT strict (the params were parsed in
+			// sloppy mode). Catches `eval => {"use strict"}` etc.
+			if !p.strict_mode {
+				report_strict_param_pattern_retro(p, params[:])
+			}
 		}
 	}
 
@@ -16205,8 +16214,13 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// arrow_body_lifts_strict sniffs body[0] because parse_block_statement
 	// doesn't promote prologue directives.
 	if is_block_body {
-		if arrow_body_lifts_strict(body) && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		if arrow_body_lifts_strict(body) {
+			if !params_are_simple(params[:]) {
+				report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			}
+			if !p.strict_mode {
+				report_strict_param_pattern_retro(p, params[:])
+			}
 		}
 	}
 
@@ -19245,8 +19259,13 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	// TS generic arrow — same UniqueFormalParameters rule as plain arrow.
 	report_duplicate_param_names(p, params[:], start_loc, true, false)
 	if is_block_body {
-		if arrow_body_lifts_strict(body) && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(start_loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		if arrow_body_lifts_strict(body) {
+			if !params_are_simple(params[:]) {
+				report_error_at(p, LexerLoc(start_loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			}
+			if !p.strict_mode {
+				report_strict_param_pattern_retro(p, params[:])
+			}
 		}
 	}
 
