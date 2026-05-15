@@ -6975,6 +6975,24 @@ walk_strict_param_binding :: proc(p: ^Parser, pat: Pattern) {
 	}
 }
 
+// check_strict_ts_decl_name — emit a strict-mode-reserved diagnostic
+// when a TS declaration (interface, enum, type alias, namespace)
+// uses a strict-reserved word as its name while in strict mode.
+// Mirrors OXC's parser-level "The keyword 'X' is reserved" check.
+// Skips ambient / .d.ts context (reserved words are valid there).
+check_strict_ts_decl_name :: proc(p: ^Parser, name: string, loc: Loc) {
+	if !p.strict_mode { return }
+	if p.in_ambient || p.source_is_dts { return }
+	// Only strict-reserved FutureReservedWords (implements, interface,
+	// package, private, protected, public) are rejected here.
+	// `eval`/`arguments` and `let`/`static`/`yield` are valid as TS
+	// declaration names even in strict mode (OXC accepts them).
+	if is_strict_reserved_name(name) {
+		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", name)
+		report_error_at(p, LexerLoc(loc.span.start), msg)
+	}
+}
+
 // Scan a FormalParameters list for duplicate binding names and report
 // each duplicate. Callers decide when to run it:
 //   * function / function expression - always safe to call; no-op in
@@ -7827,9 +7845,10 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// next token, not the binding identifier.
 		// In TS ambient contexts (declare namespace/module, .d.ts),
 		// strict-mode reserved words ARE allowed as identifiers.
-		// TS allows `eval` and `arguments` as binding names even in strict
-		// mode (unlike JS). OXC accepts them; so do we.
-		if p.strict_mode && !id_has_escape && !allow_ts_mode(p) {
+		// Gate: same pattern as the token-type check above —
+		// skip only when in ambient or .d.ts context.
+		if p.strict_mode && !id_has_escape &&
+		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 			if is_eval_or_arguments(id_name) {
 				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
 				report_error_at(p, LexerLoc(id_loc.span.start), msg)
@@ -8017,6 +8036,13 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					)
 					report_error(p, msg)
 				}
+				// Strict-mode reserved words as object-pattern value binding.
+				if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+					if is_strict_reserved_binding_name(cur_value(p)) {
+						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
+						report_error(p, msg)
+					}
+				}
 				vl := cur_loc(p); vn := cur_value(p)
 				value_ident := new_node(p, Identifier)
 				value_ident.loc = vl
@@ -8145,6 +8171,13 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
 						report_error(p, msg)
 					}
+					// Strict-mode reserved words as shorthand-with-default binding.
+					if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+						if is_strict_reserved_binding_name(v.name) {
+							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
+							report_error_at(p, LexerLoc(v.loc.span.start), msg)
+						}
+					}
 					left_ident := new_node(p, Identifier)
 					left_ident.loc = v.loc
 					left_ident.name = v.name
@@ -8181,6 +8214,13 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					if is_always_reserved_word_name(v.name) {
 						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
 						report_error(p, msg)
+					}
+					// Strict-mode reserved words as shorthand binding.
+					if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+						if is_strict_reserved_binding_name(v.name) {
+							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
+							report_error_at(p, LexerLoc(v.loc.span.start), msg)
+						}
 					}
 					// `yield` is reserved in generator bodies; `await` in async.
 					if v.name == "yield" && yield_is_reserved_here(p) {
@@ -8333,6 +8373,13 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			if (p.cur_type == .Yield || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "yield")) &&
 			   yield_is_reserved_here(p) {
 				report_error(p, "'yield' is reserved as a binding name in this context")
+			}
+			// Strict-mode reserved words as array-pattern element binding.
+			if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+				if is_strict_reserved_binding_name(cur_value(p)) {
+					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
+					report_error(p, msg)
+				}
 			}
 			eil := cur_loc(p); ein := cur_value(p)
 			eat(p)
@@ -9658,6 +9705,12 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			return nil
 		}
 		local := parse_identifier(p)
+		// Strict-mode reserved word as namespace import binding.
+		if p.strict_mode && is_strict_reserved_name(local.name) &&
+		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
+			report_error_at(p, LexerLoc(local.loc.span.start), msg)
+		}
 		spec := new_node(p, ImportNamespaceSpecifier)
 		spec.loc = star_loc
 		spec.local = BindingIdentifier{
@@ -9679,6 +9732,12 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		// Default import: import name from "module" or import name, { x } from "module"
 		// `await`, `yield`, `let` etc. are valid binding names in import context.
 		local := parse_identifier(p)
+		// Strict-mode reserved word as default import binding.
+		if p.strict_mode && is_strict_reserved_name(local.name) &&
+		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
+			report_error_at(p, LexerLoc(local.loc.span.start), msg)
+		}
 		spec := new_node(p, ImportDefaultSpecifier)
 		spec.loc = local.loc
 		spec.local = BindingIdentifier{
@@ -9841,6 +9900,8 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	id_loc := cur_loc(p)
 	id_name := cur_value(p)
 	decl.id = Identifier{loc = id_loc, name = id_name}
+	// Strict-mode reserved words as import-equals binding name.
+	check_strict_ts_decl_name(p, id_name, id_loc)
 	// `await` as binding in import-equals is forbidden in module code.
 	if p.cur_type == .Await || id_name == "await" {
 		await_reserved := await_is_reserved_here(p)
@@ -10084,6 +10145,13 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// Module code is always strict, so eval/arguments are forbidden.
 	if is_eval_or_arguments(local.name) {
 		report_error(p, fmt.tprintf("'%s' cannot be used as an import binding name", local.name))
+	}
+	// Strict-mode reserved words as import binding name. Module code is
+	// always strict; explicit strict-mode script imports are also covered.
+	if p.strict_mode && is_strict_reserved_name(local.name) &&
+	   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
+		report_error_at(p, LexerLoc(local.loc.span.start), msg)
 	}
 	// Always-reserved word as import binding stays a parser-side
 	// structural error (`import { default }` etc).
@@ -20297,7 +20365,9 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p); eat(p)
 	cur := get_current(p)
-	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}; eat(p)
+	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
+	check_strict_ts_decl_name(p, id.name, id.loc)
+	eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
 	extends_list: [dynamic]TSInterfaceHeritage
@@ -20340,7 +20410,9 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p); eat(p)
 	cur := get_current(p)
-	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}; eat(p)
+	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
+	check_strict_ts_decl_name(p, id.name, id.loc)
+	eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
 	expect_token(p, .Assign)
@@ -20367,7 +20439,9 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		)
 		report_error(p, msg)
 	}
-	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}; eat(p)
+	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
+	check_strict_ts_decl_name(p, id.name, id.loc)
+	eat(p)
 	body_start := cur_loc(p); expect_token(p, .LBrace)
 	members := make([dynamic]TSEnumMember, 0, 8, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
@@ -20527,6 +20601,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	} else {
 		cur := get_current(p)
 		id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
+		check_strict_ts_decl_name(p, id_ident.name, id_ident.loc)
 		eat(p)
 		id_expr = expression_from(p, id_ident)
 	}
@@ -20611,6 +20686,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSModuleDeclaration {
 	cur := get_current(p)
 	id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
+	check_strict_ts_decl_name(p, id_ident.name, id_ident.loc)
 	eat(p)
 	id_expr := expression_from(p, id_ident)
 

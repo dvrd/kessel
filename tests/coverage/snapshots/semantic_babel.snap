@@ -3,7 +3,7 @@ commit: 4079bcda
 semantic_babel Summary:
 AST Parsed     : 2224/2237 (99.42%)
 Positive Passed: 2224/2237 (99.42%)
-Negative Passed: 1677/1725 (97.22%)
+Negative Passed: 1678/1725 (97.28%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
@@ -48,7 +48,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-namespace-export/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-reserved-word/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-identifier-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-2/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
@@ -389,8 +388,8 @@ babel/packages/babel-parser/test/fixtures/es2015/class/extends-strict/input.js:2
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-get/input.js:1:20: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-set/input.js:1:20: Expected (, got identifier
 babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-static/input.js:1:23: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-module/input.js:1:9: 'arguments' cannot be used as a binding name in strict mode
-babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-strict/input.js:2:9: 'arguments' cannot be used as a binding name in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-module/input.js:1:9: 'arguments' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-strict/input.js:2:9: 'arguments' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-eval/input.js:1:17: Binding identifier 'eval' not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-this/input.js:1:12: Reserved word 'this' is not a valid binding identifier
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/error-operator-for-default/input.js:1:14: Invalid destructuring assignment target
@@ -1606,7 +1605,7 @@ babel/packages/babel-parser/test/fixtures/typescript/class/implements-empty/inpu
 babel/packages/babel-parser/test/fixtures/typescript/class/index-signature-errors/input.ts:2:21: 'static' modifier must precede 'readonly' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/invalid-modifiers-order/input.ts:3:20: 'private' modifier must precede 'readonly' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/method-readonly/input.ts:2:15: 'readonly' modifier can only appear on a property declaration
-babel/packages/babel-parser/test/fixtures/typescript/class/modifier-name-parameters/input.ts:2:32: 'static' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/typescript/class/modifier-name-parameters/input.ts:2:15: 'private' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-incompatible/input.ts:8:1: 'static' modifier cannot be used with 'abstract' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-index-signatures/input.ts:4:11: 'private' modifier cannot appear on an index signature.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-invalid-order/input.ts:21:17: 'public' modifier must precede 'static' modifier.
@@ -1674,6 +1673,7 @@ babel/packages/babel-parser/test/fixtures/typescript/interface/new-line-error/in
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/property-initializer/input.ts:1:25: Expected }, got =
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-default/input.ts:3:3: A default export must be at the top level of a file or module declaration.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-reserved-word/input.ts:1:11: 'public' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-declare-new-line/input.ts:6:9: Line terminator not permitted after 'module'
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-new-line-error/input.ts:2:5: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/namespace-declare-new-line/input.ts:6:9: Line terminator not permitted after 'namespace'
