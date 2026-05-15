@@ -4,7 +4,7 @@
 
 Kessel is a JavaScript / TypeScript / JSX / TSX parser written in Odin that emits ESTree-compatible JSON ASTs. Three-pass pipeline: SIMD lexer → permissive Pratt parser → opt-in semantic checker. Zero runtime dependencies, arena-only memory, ARM64 NEON SIMD lexing. Mirrors OXC's `oxc_parser` / `oxc_semantic` split — parser builds the tree permissively, checker enforces ECMA-262 early errors.
 
-## Current State (2026-05-14, session 11)
+## Current State (2026-05-15, session 12)
 
 ### Build
 ```
@@ -17,20 +17,16 @@ Clean success. No warnings.
 - Coverage harness: 23 tests. All successful.
 - Unit fixtures: 291 passed, 0 failed, 100%.
 
-### Conformance — Kessel vs OXC (OXC = 100%)
-
-Same corpus SHAs. Same exclude list. Same fixture granularity.
+### Conformance — Kessel vs OXC
 
 ```
-TypeScript:
-  Parser positive:  9810/9828 (99.82%)  — OXC: 9818/9832 (99.86%)
-  Parser negative:  1391/2583 (53.85%)  — OXC: 1532/2587 (59.22%)
-  Kessel catches 90.8% of OXC's negative catches (1391/1532)
-  FPs: 18 total (9 shared with OXC, 9 kessel-only)
-
-Babel:    parser pos 2230/2237 (99.69%) | neg 1602/1725 (92.87%)
-test262:  parser pos 47090/47090 (100%) | neg 4568/4588 (99.56%)
-ESTree:   39/39 (100%)
+test262:      parser pos 47090/47090 (100.00%) | neg 4568/4588 (99.56%)
+              semantic pos 47090/47090 (100%) | neg 4588/4588 (100%)
+TypeScript:   parser pos 9811/9828 (99.83%)   | neg 1406/2583 (54.43%)
+Babel:        parser pos 2233/2237 (99.82%)   | neg 1602/1725 (92.87%)
+              semantic pos 2224/2237 (99.42%)  | neg 1677/1725 (97.22%)
+ESTree:       39/39 (100%)
+Misc:         parser pos 71/72 (98.61%)       | neg 258/286 (90.21%)
 ```
 
 Corpus SHAs (pinned to OXC's `clone-parallel.mjs`):
@@ -38,72 +34,76 @@ Corpus SHAs (pinned to OXC's `clone-parallel.mjs`):
 - Babel: `4079bcda`
 - ESTree: `9c67f5e3`
 
-## PRIORITY 1 — Fix 9 remaining kessel-only TS parser FPs
+## Session 12 Changes (4 commits)
 
-9 fixtures kessel rejects but OXC accepts. Each is a distinct issue:
-1. `convertKeywordsYes.ts` — class field named 'constructor'
-2. `corrupted.ts` — binary file, Expected semicolon
-3. `missingCloseParenStatements.ts` — Expected ), got {
-4. `modulePreserveTopLevelAwait1.ts` — for-await source-type detection
-5. `withStatementInternalComments.ts` — 'with' in non-strict TS
-6. `esDecorators-decoratorExpression.1.ts` — Expected class after decorator
-7. `esDecorators-decoratorExpression.3.ts` — Type args in decorator
-8. `topLevelAwait.3.ts` — 'await' as binding name
-9. `NonInitializedExportInInternalModule.ts` — Expected binding pattern
+### 1. `__proto__` duplicate check deferred via pending list (+3 babel FPs fixed)
+**Problem:** The parser reported `Redefinition of __proto__ property` immediately when closing `}`, using `!is_token(.Assign)` as a heuristic to skip destructuring targets. This missed:
+- Arrow params: `({ __proto__: x, __proto__: y }) => {}`
+- Nested array destructuring: `([{ __proto__: x, __proto__: y }] = [{}])`
 
-Plus 3 `__proto__` destructuring FPs (arrow params, nested array).
+**Fix:** Adopted the same `pending_cover_inits` pattern already proven in the codebase. Duplicate `__proto__` key offsets are stashed in `pending_proto_dups`. When `expr_to_pattern` converts ObjectExpression → ObjectPattern, entries within that object's span are cleared. Remaining entries are reported at end of `parse_program`.
 
-## PRIORITY 2 — Close remaining TS parser negative gap
+### 2. Break/continue/return checks skip ambient context (+1 TS FP fixed)
+**Problem:** `break;`, `continue;`, `return;` inside `declare namespace M { ... }` triggered parser errors even though the statements are never executed.
 
-Kessel catches 90.8% of OXC's negatives (1391/1532). The remaining ~141
-need investigation. Cluster by error message family and fix the largest groups.
+**Fix:** Added `&& !p.in_ambient` guard to the break, continue, and return context checks. OXC's parser is lenient about statements inside ambient namespaces.
 
-## Completed — All checker → parser migrations DONE ✅
+### 3. Constructor-name check skips StringLiteral keys with access modifiers
+**Problem:** `public "constructor" = 0;` (StringLiteral key + access modifier) was rejected by the class field constructor-name check. OXC accepts this and defers to the type checker.
 
-Every check that OXC catches at parser level now runs at parser level in kessel. Zero misplaced checker-only catches remain.
+**Fix:** Skip the check when the key is a StringLiteral AND the field has an access modifier (public/private/protected). Plain Identifier-keyed `public constructor;` is still caught. No net conformance change — `convertKeywordsYes.ts` still has other errors downstream.
 
-| # | Check | Parser catches gained |
+### 4. .d.ts files: reject pure statements (+15 TS negatives caught)
+**Problem:** Kessel accepted statements like `debugger;`, `{}`, `do/while`, etc. in `.d.ts` declaration files. OXC's parser rejects these.
+
+**Fix:** Added `report_dts_non_declaration` check in `parse_program_item`. Pure statement types (ExpressionStatement, BlockStatement, DebuggerStatement, loops, etc.) are flagged as errors. Declarations without `declare` are fine (`.d.ts` is implicitly ambient). EmptyStatement is also allowed (follows declarations with semicolons).
+
+## Session 12 Net Impact
+
+| Metric | Before | After | Delta |
+|---|---|---|---|
+| Babel parser positive | 2230/2237 | 2233/2237 | **+3** |
+| TS parser positive | 9810/9828 | 9811/9828 | **+1** |
+| TS parser negative | 1391/2583 | 1406/2583 | **+15** |
+| test262 | No change | No change | 0 |
+| ESTree | No change | No change | 0 |
+
+## Remaining FPs (17 TS + 4 Babel)
+
+### Babel FPs (4)
+| File | Error | Notes |
 |---|---|---|
-| 1 | `__proto__` redefinition | +20 (3 FPs from destructuring) |
-| 2 | TS2391 overload chain | +23 |
-| 3 | Abstract in non-abstract class | +6 |
-| 4 | abstract + private identifier | +3 |
-| 5 | static + abstract | +3 |
-| 6 | Label already declared | +3 |
-| 7 | super.#name | +1 |
-| 8 | TS1392 import alias + import type | +1 |
-| 9 | Ambient function body (declare module/namespace/.d.ts) | +5 |
+| `sourcetype-commonjs/top-level-using/input.js` | 'using' at script top level | CommonJS source-type detection |
+| `typescript/class/members-with-modifier-names/input.ts` | TS2391 overload chain | OXC skips when no implementations exist. Kessel's pre-pass condition too narrow. Fixing loses 9 TS negatives — bad trade. |
+| `typescript/class/method-with-newline-without-body/input.ts` | TS2391 overload chain | Same root cause as above |
+| `typescript/class/parameter-properties/input.ts` | `?` + initializer | OXC defers to type checker. Removing loses 7 negatives. |
 
-Also completed:
-- eval/arguments as binding names allowed in TS mode (+29 FPs fixed)
-- @strict:false overrides @alwaysStrict:true in harness (+8 FPs fixed)
+### TS FPs (17)
+**Lexical declaration cluster (3):** `constDeclarations-invalidContexts.ts`, `constDeclarations-scopes.ts`, `constDeclarations-validContexts.ts`. OXC doesn't enforce "Lexical declaration cannot appear in single-statement context" at parser level for these TS files. Can't remove without losing 137 test262 negatives.
 
-## Session 11 Changes (22 commits)
+**Multi-file async generator cluster (4):** `parser.asyncGenerators.*.es2018.ts` — sub-files named `*IsError.ts` produce errors. OXC's parser error-recovers more gracefully for `async * get x()` and `await` in formal params.
 
-**Parser fixes:**
-1. `static` ASI in class bodies — `static\nconstructor(){}` is a static method
-2. `in_static_block` reset in class field initializers — `await` as identifier in nested class
-3. Static block + arrow block bodies use function-scope semantics — `var+function` coexistence
-4. Skip dup-constructor check in TS mode — defer to checker for overloads
-5. eval/arguments allowed as binding names in TS mode (+29 FPs fixed)
+**Error recovery singles (5):** `corrupted.ts` (binary), `missingCloseParenStatements.ts` (broken parens), `NonInitializedExportInInternalModule.ts` (bare `var;`/`let;`/`const;`), `parserStatementIsNotAMemberVariableDeclaration1.ts` (top-level `return`), `convertKeywordsYes.ts` (cascading keyword errors).
 
-**Checker → parser migrations (all 9 done, +65 parser catches):**
-6. super.#name → parse_member_expression
-7. Label duplicate → parse_labelled_statement
-8. static+abstract, abstract+#name, abstract-in-non-abstract → validate_class_body
-9. `__proto__` redefinition → parse_object_expr (skip if `=` follows)
-10. TS2391 overload chain → report_ts_overload_chain_errors
-11. TS1392 import alias + import type → parse_ts_import_equals
-12. Ambient function body → extended existing parser check for in_ambient/source_is_dts
+**Source-type/ambient singles (3):** `modulePreserveTopLevelAwait1.ts` (`@module: preserve`), `topLevelAwait.3.ts` (`@filename: index.d.ts` sub-file), `withStatementInternalComments.ts` (`with` in strict TS).
 
-**Coverage infrastructure (critical alignment with OXC):**
-13. Collapse TS multi-file fixtures to match OXC per-file granularity
-14. Sync corpus SHAs with OXC's clone-parallel.mjs
-15. Match OXC's per-fixture variant baseline lookup (6 dimensions only)
-16. Force-positive 39 fixtures matching OXC classification
-17. Drop semantic_typescript — OXC has no equivalent
-18. @strict:false overrides @alwaysStrict:true (+8 FPs fixed)
-19. Remove 3 dead TS-only checker additions (no OXC target)
+**Decorator singles (2):** `esDecorators-decoratorExpression.1.ts` (Expected class after decorator), `esDecorators-decoratorExpression.3.ts` (Type args in decorator).
+
+## PRIORITY 1 — Close TS parser negative gap (54.43% → target 60%+)
+
+1177 "Expect Syntax Error" lines remain where OXC catches an error but kessel doesn't.
+
+**Biggest uncaught clusters by directory:**
+- `conformance/parser/ecmascript5` (80): Accessor, ClassDecl, ConstructorDecl, EnumDecl, FunctionDecl, MemberAccess, ModuleDecl, ParameterList, Statements, StrictMode, SuperExpr
+- `conformance/types` (66): objectTypeLiteral (9), specifyingTypes (8), thisType (7), members (5), typeAliases (5), union (4), typeParameters (4)
+- `conformance/salsa` (19): JS analysis edge cases
+- `conformance/statements` (13): for-in destructuring, using declarations, labeled statements
+
+**Approach:** Cluster by error-message family in the snap, find the largest group, fix the root cause. The `.d.ts` statement check in this session is a template for how to close clusters efficiently.
+
+## PRIORITY 2 — Fix remaining FPs where trade-off is favorable
+
+The TS2391 overload chain check is the most impactful remaining FP cluster (2 babel + potentially TS). The current pre-pass skip condition (`!has_any_impl && !has_non_method && !has_ctor_sig && name_count <= 1`) is too narrow. A more nuanced approach: only report TS2391 when a name appears 2+ times as body-less signatures AND at least one other method has a body. This needs careful implementation to avoid losing the 9 TS negatives.
 
 ## Commands Reference
 
