@@ -4274,6 +4274,26 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 		}
 	}
 
+	// TS1016 — "A required parameter cannot follow an optional parameter."
+	// Migrated from the semantic checker to parser level so that
+	// parser-only snaps reject the TS ParameterList cluster.
+	if allow_ts_mode(p) {
+		seen_optional := false
+		for param in params {
+			if _, is_rest := param.pattern.(^RestElement); is_rest { break }
+			is_opt := false
+			if id, ok := param.pattern.(^Identifier); ok && id != nil {
+				is_opt = id.optional
+			}
+			if is_opt {
+				seen_optional = true
+			} else if seen_optional && param.default_val == nil {
+				report_error_at(p, LexerLoc(param.loc.span.start),
+					"A required parameter cannot follow an optional parameter.")
+			}
+		}
+	}
+
 	return params
 }
 

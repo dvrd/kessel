@@ -43,13 +43,13 @@ import "core:strings"
 // ============================================================================
 
 // Synchronized with tests/runners/oxc_corpus_fetch.sh — bump together.
-TYPESCRIPT_SHA          :: "c7a0ae102dfb030c534a7bc31fbbd61a707dc9cf"
-BABEL_SHA               :: "c543b03170260d02138857dc09877d0af71a7931"
-ESTREE_CONFORMANCE_SHA  :: "e4104a13904df535b4571c6d1308bea0974ee860"
+TYPESCRIPT_SHA          :: "f350b52331494b68c90ab02e2b6d0828d2a22a74"
+BABEL_SHA               :: "4079bcda153cafc76f76d2b683aa0ede0a93864c"
+ESTREE_CONFORMANCE_SHA  :: "9c67f5e33f7a2d122e87d9b8f6eec5f53861cc53"
 
 suite_vendored_sha :: proc(s: Suite) -> string {
 	switch s {
-	case .Test262:    return ""  // test262 lives in vendor/test262 but we don't pin a SHA today
+	case .Test262:    return OXC_TEST262_SHA
 	case .Babel:      return BABEL_SHA
 	case .TypeScript: return TYPESCRIPT_SHA
 	case .Estree:     return ESTREE_CONFORMANCE_SHA

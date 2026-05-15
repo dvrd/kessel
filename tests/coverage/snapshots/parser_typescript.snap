@@ -3,7 +3,7 @@ commit: c7a0ae10
 parser_typescript Summary:
 AST Parsed     : 9811/9828 (99.83%)
 Positive Passed: 9811/9828 (99.83%)
-Negative Passed: 1406/2583 (54.43%)
+Negative Passed: 1407/2583 (54.47%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ExportAssignment7.ts
@@ -1041,7 +1041,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList15.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList16.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList17.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509618.ts
@@ -1413,7 +1412,7 @@ typescript/tests/cases/compiler/externSemantics.ts:1:15: Initializers are not al
 typescript/tests/cases/compiler/externSyntax.ts:8:20: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/fatarrowfunctionsErrors.ts:2:21: Invalid expression for arrow function parameters
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgs.ts:57:14: Expected expression after '?' in conditional expression
-typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors1.ts:2:9: Expected expression after '?' in conditional expression
+typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors1.ts:1:9: A required parameter cannot follow an optional parameter.
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors2.ts:1:31: Expected identifier in arrow function parameters
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors3.ts:1:5: Expected binding pattern
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors4.ts:1:18: Expected expression after '?' in conditional expression
@@ -2091,7 +2090,7 @@ typescript/tests/cases/conformance/externalModules/typeOnly/grammarErrors.ts::/a
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers1.ts::/d.ts:1:24: Expected }, got as
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers_js.ts::./a.js:1:15: Expected }, got identifier
 typescript/tests/cases/conformance/externalModules/umd-errors.ts::err3.d.ts:3:8: Expected semicolon
-typescript/tests/cases/conformance/functions/functionOverloadErrorsSyntax.ts:9:36: A rest parameter must be last in a parameter list
+typescript/tests/cases/conformance/functions/functionOverloadErrorsSyntax.ts:2:27: A required parameter cannot follow an optional parameter.
 typescript/tests/cases/conformance/functions/functionWithUseStrictAndSimpleParameterList_es2016.ts:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::3.ts:8:18: 'import()' requires a specifier
 typescript/tests/cases/conformance/importAssertion/importAssertion4.ts:1:34: Expected {, got EOF
@@ -2367,6 +2366,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParam
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList11.ts:1:9: Expected expression after '?' in conditional expression
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList13.ts:2:17: Expected ), got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList2.ts:2:10: A parameter cannot have a question mark and an initializer.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts:2:9: A required parameter cannot follow an optional parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList5.ts:1:23: Expected ), got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList6.ts:2:26: Expected ), got identifier
