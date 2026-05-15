@@ -5162,6 +5162,47 @@ report_overload_flush :: proc(p: ^Parser, body: []ClassElement, start, end_excl:
 	}
 }
 
+// TS1221 / TS1040 — generators and async are forbidden in ambient contexts.
+// OXC's parser catches these at parser level. The broader TS1036
+// "Statements are not allowed in ambient contexts" is deferred to the
+// checker because OXC doesn't enforce it at parser level for many
+// statement types (break, return, with, etc.).
+@(private="file")
+report_ts_ambient_function_errors :: proc(p: ^Parser, body: []^Statement) {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^FunctionDeclaration:
+			if v != nil {
+				if v.generator {
+					report_error_at(p, LexerLoc(v.loc.span.start),
+						"Generators are not allowed in an ambient context.")
+				}
+				if v.async {
+					report_error_at(p, LexerLoc(v.loc.span.start),
+						"'async' modifier cannot be used in an ambient context.")
+				}
+			}
+		case ^ExportNamedDeclaration:
+			// Check exported functions too: `export async function f();`
+			if v != nil {
+				if decl_stmt, has := v.declaration.?; has && decl_stmt != nil {
+					if fn, ok := decl_stmt^.(^FunctionDeclaration); ok && fn != nil {
+						if fn.generator {
+							report_error_at(p, LexerLoc(fn.loc.span.start),
+								"Generators are not allowed in an ambient context.")
+						}
+						if fn.async {
+							report_error_at(p, LexerLoc(fn.loc.span.start),
+								"'async' modifier cannot be used in an ambient context.")
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 // TS2391 / TS2389 — top-level function overload chain validation.
 // Walks a statement list looking for consecutive FunctionDeclaration
 // overload signatures. An overload chain is a sequence of body-less
@@ -20343,9 +20384,12 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 	blk := new_node(p, TSModuleBlock)
 	blk.loc = body_start; blk.body = stmts
 	blk.loc.span.end = prev_end_offset(p)
-	// TS2391 overload check for namespace body statements.
-	if allow_ts_mode(p) && !p.in_ambient && !p.source_is_dts {
-		report_ts_function_overload_errors(p, stmts[:])
+	if allow_ts_mode(p) {
+		if p.in_ambient || p.source_is_dts {
+			report_ts_ambient_function_errors(p, stmts[:])
+		} else {
+			report_ts_function_overload_errors(p, stmts[:])
+		}
 	}
 	body_union := new_node(p, TSModuleBody); body_union^ = blk
 	decl.body = body_union
@@ -20434,8 +20478,12 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		blk := new_node(p, TSModuleBlock)
 		blk.loc = body_start; blk.body = stmts
 		blk.loc.span.end = prev_end_offset(p)
-		if allow_ts_mode(p) && !p.in_ambient && !p.source_is_dts {
-			report_ts_function_overload_errors(p, stmts[:])
+		if allow_ts_mode(p) {
+			if p.in_ambient || p.source_is_dts {
+				report_ts_ambient_function_errors(p, stmts[:])
+			} else {
+				report_ts_function_overload_errors(p, stmts[:])
+			}
 		}
 		body_union := new_node(p, TSModuleBody)
 		body_union^ = blk
@@ -20497,8 +20545,12 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		blk := new_node(p, TSModuleBlock)
 		blk.loc = body_start; blk.body = stmts
 		blk.loc.span.end = prev_end_offset(p)
-		if allow_ts_mode(p) && !p.in_ambient && !p.source_is_dts {
-			report_ts_function_overload_errors(p, stmts[:])
+		if allow_ts_mode(p) {
+			if p.in_ambient || p.source_is_dts {
+				report_ts_ambient_function_errors(p, stmts[:])
+			} else {
+				report_ts_function_overload_errors(p, stmts[:])
+			}
 		}
 		body_union := new_node(p, TSModuleBody)
 		body_union^ = blk
