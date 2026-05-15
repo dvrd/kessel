@@ -221,10 +221,9 @@ cmd_run :: proc(suite_arg: string, tool: Tool, update: bool) -> int {
 
 		expected, exists := read_snap(snap_path, context.allocator)
 		if !exists {
-			// First run: land the baseline.
-			write_snap(snap_path, actual)
-			fmt.printfln("   wrote initial baseline %s", snap_path)
-			return true
+			fmt.eprintfln("   missing committed baseline %s", snap_path)
+			fmt.eprintln("   Run with --update only when intentionally creating or replacing a snapshot.")
+			return false
 		}
 		if actual == expected {
 			fmt.printfln("   snap clean (%s)", snap_path)

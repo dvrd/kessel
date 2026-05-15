@@ -41,13 +41,43 @@ test_oxc_corpus_parity :: proc(t: ^testing.T) {
 	assert_vendor_sha(t, vendor, "typescript",         TYPESCRIPT_SHA)
 	assert_vendor_sha(t, vendor, "estree-conformance", ESTREE_CONFORMANCE_SHA)
 
-	assert_manifest(t, "test262", load_test262(vendor, context.allocator), ManifestStats{})
-	assert_manifest(t, "babel", load_babel(vendor, context.allocator), ManifestStats{})
-	assert_manifest(t, "estree", load_estree(vendor, context.allocator), ManifestStats{})
+	assert_manifest(t, "test262", load_test262(vendor, context.allocator), ManifestStats{
+		fixtures = 51678,
+		positive = 47090,
+		negative = 4588,
+		hash_a   = 37367496,
+		hash_b   = 360945352,
+	})
+	assert_manifest(t, "babel", load_babel(vendor, context.allocator), ManifestStats{
+		fixtures = 3962,
+		positive = 2237,
+		negative = 1725,
+		hash_a   = 500463058,
+		hash_b   = 147854415,
+	})
+	assert_manifest(t, "estree", load_estree(vendor, context.allocator), ManifestStats{
+		fixtures = 39,
+		positive = 39,
+		negative = 0,
+		hash_a   = 362167104,
+		hash_b   = 556920010,
+	})
 
 	ts_fixtures := load_typescript(vendor, context.allocator)
-	assert_manifest(t, "typescript units", ts_fixtures, ManifestStats{})
-	assert_ts_parent_manifest(t, ts_fixtures, ManifestStats{})
+	assert_manifest(t, "typescript units", ts_fixtures, ManifestStats{
+		fixtures = 16162,
+		positive = 12870,
+		negative = 3292,
+		hash_a   = 95424107,
+		hash_b   = 449051944,
+	})
+	assert_ts_parent_manifest(t, ts_fixtures, ManifestStats{
+		fixtures = 12411,
+		positive = 9828,
+		negative = 2583,
+		hash_a   = 216370660,
+		hash_b   = 687104240,
+	})
 }
 
 @(private="file")

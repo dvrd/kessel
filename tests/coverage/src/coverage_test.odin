@@ -168,11 +168,11 @@ run_snap_test :: proc(t: ^testing.T, tool: Tool, suite: Suite) {
 
 	expected, exists := read_snap(snap_path, context.allocator)
 	if !exists {
-		// First run: land the baseline.
-		ok := write_snap(snap_path, actual)
-		testing.expectf(t, ok,
-			"%s_%s: failed to write initial baseline %s",
-			tool_name(tool), suite_name(suite), snap_path)
+		testing.expectf(t, false,
+			"%s_%s: missing committed baseline %s. Run `bin/kessel_coverage run %s%s --update` only when intentionally creating the snapshot.",
+			tool_name(tool), suite_name(suite), snap_path,
+			suite_name(suite),
+			tool == .Semantic ? " --semantic" : "")
 		return
 	}
 

@@ -235,10 +235,16 @@ tasks:
   # ============================================================
 
   test:oxc-corpus:fetch:
-    desc: "Fetch the OXC conformance corpus (TypeScript + Babel + ESTree). Required before running coverage."
+    desc: "Fetch the OXC conformance corpus (test262 + TypeScript + Babel + ESTree). Required before running coverage."
     silent: true
     cmds:
       - bash tests/runners/oxc_corpus_fetch.sh
+
+  test:oxc-corpus:fetch:test262:
+    desc: "Fetch only the test262 corpus."
+    silent: true
+    cmds:
+      - bash tests/runners/oxc_corpus_fetch.sh test262
 
   test:oxc-corpus:fetch:typescript:
     desc: "Fetch only the TypeScript corpus (~138 MB)."

@@ -1,9 +1,9 @@
-commit: c7a0ae10
+commit: f350b523
 
 parser_typescript Summary:
 AST Parsed     : 9811/9828 (99.83%)
 Positive Passed: 9811/9828 (99.83%)
-Negative Passed: 1407/2583 (54.47%)
+Negative Passed: 1423/2583 (55.09%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ExportAssignment7.ts
@@ -13,8 +13,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDecl
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/FunctionDeclaration7.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/InterfaceDeclaration8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ParameterList7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ParameterList8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/accessorInferredReturnTypeErrorInReturnStatement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/allowSyntheticDefaultImports10.ts
@@ -147,10 +145,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationE
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationFileNoCrashOnExtraExportModifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declareModifierOnImport1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/decoratorsOnComputedProperties.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/defaultArgsInOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/defaultBestCommonTypesHaveDecls.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/defaultValueInConstructorOverload1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/defaultValueInFunctionOverload1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/defaultValueInFunctionTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/definiteAssignmentWithErrorStillStripped.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/destructuredLateBoundNameHasCorrectTypes.ts
@@ -459,10 +454,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsInD
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsWithComputedNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsWithinClasses.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overshifts.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/paramPropertiesInSignatures.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterDecoratorsEmitCrash.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterPropertyInConstructor1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterPropertyInConstructor2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parameterPropertyInConstructor3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parseInvalidNonNullableTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parseInvalidNullableTypes.ts
@@ -626,7 +618,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/c
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/classConstructorOverloadsAccessibility.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/classWithTwoConstructorDefinitions.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorDefaultValuesReferencingThis.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorParameterProperties.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorParameterProperties2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassParameterProperties.ts
@@ -886,7 +877,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/fixSignat
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionImplementationErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionNameConflicts.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionOverloadCompatibilityWithVoid01.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/functionOverloadErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing.2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/functions/parameterInitializersForwardReferencing1.ts
@@ -1037,12 +1027,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration4.d.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList14.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList15.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList16.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList17.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509618.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement2.ts
@@ -1248,6 +1232,8 @@ typescript/tests/cases/compiler/ParameterList13.ts:2:17: Expected ), got identif
 typescript/tests/cases/compiler/ParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ParameterList5.ts:1:23: Expected ), got identifier
 typescript/tests/cases/compiler/ParameterList6.ts:2:26: Expected ), got identifier
+typescript/tests/cases/compiler/ParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/compiler/ParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/TransportStream.ts:1:2: Expected semicolon
 typescript/tests/cases/compiler/accessorBodyInTypeContext.ts:2:15: Unexpected token in TS object type
 typescript/tests/cases/compiler/accessorParameterAccessibilityModifier.ts:2:19: Parameter property modifiers are only allowed in constructors
@@ -1343,8 +1329,11 @@ typescript/tests/cases/compiler/declareAlreadySeen.ts:2:13: Expected semicolon
 typescript/tests/cases/compiler/decoratorInJsFile.ts:3:10: Expected ), got :
 typescript/tests/cases/compiler/decoratorInJsFile1.ts:3:10: Expected ), got :
 typescript/tests/cases/compiler/decrementAndIncrementOperators.ts:4:5: Invalid left-hand side expression in postfix operation
+typescript/tests/cases/compiler/defaultArgsInOverloads.ts:2:14: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/compiler/defaultKeywordWithoutExport1.ts:4:1: Expected class after decorator
 typescript/tests/cases/compiler/defaultKeywordWithoutExport2.ts:1:1: Unexpected reserved word 'default'
+typescript/tests/cases/compiler/defaultValueInConstructorOverload1.ts:2:17: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/compiler/defaultValueInFunctionOverload1.ts:1:14: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/compiler/deleteOperator1.ts:2:18: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/compiler/deleteOperatorInStrictMode.ts:3:1: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/compiler/destructionAssignmentError.ts:6:10: Unexpected token '='
@@ -1567,6 +1556,9 @@ typescript/tests/cases/compiler/optionalChainWithInstantiationExpression1.ts:12:
 typescript/tests/cases/compiler/optionalPropertiesSyntax.ts:11:7: Expected }, got ?
 typescript/tests/cases/compiler/overloadConsecutiveness.ts:3:14: Expected {, got ,
 typescript/tests/cases/compiler/overloadingStaticFunctionsInFunctions.ts:1:14: Expected (, got {
+typescript/tests/cases/compiler/paramPropertiesInSignatures.ts:2:21: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/compiler/parameterPropertyInConstructor1.ts:3:24: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/compiler/parameterPropertyInConstructor2.ts:3:24: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/parameterPropertyOutsideConstructor.ts:2:17: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash1.ts:3:28: Expected ), got :
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash2.ts:3:44: Reserved word 'return' is not a valid binding identifier
@@ -1764,7 +1756,8 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock26.t
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock6.ts:7:13: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock7.ts:3:9: 'await' is not allowed in a class static block
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock8.ts:12:21: 'break' must be inside a loop or switch
-typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:3:27: Parameter property modifiers are only allowed in constructors
+typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts:3:17: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:2:23: 'readonly' parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInConstructorParameters.ts:7:33: 'public' modifier must precede 'readonly' modifier.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyReadonly.ts:2:23: 'readonly' modifier can only appear on a property declaration
 typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassConstructorWithoutSuperCall.ts:24:36: 'super' call is only allowed in the constructor of a derived class
@@ -2090,6 +2083,7 @@ typescript/tests/cases/conformance/externalModules/typeOnly/grammarErrors.ts::/a
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers1.ts::/d.ts:1:24: Expected }, got as
 typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers_js.ts::./a.js:1:15: Expected }, got identifier
 typescript/tests/cases/conformance/externalModules/umd-errors.ts::err3.d.ts:3:8: Expected semicolon
+typescript/tests/cases/conformance/functions/functionOverloadErrors.ts:2:14: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/functions/functionOverloadErrorsSyntax.ts:2:27: A required parameter cannot follow an optional parameter.
 typescript/tests/cases/conformance/functions/functionWithUseStrictAndSimpleParameterList_es2016.ts:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::3.ts:8:18: 'import()' requires a specifier
@@ -2365,11 +2359,17 @@ typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParam
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList10.ts:2:15: Expected ), got =
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList11.ts:1:9: Expected expression after '?' in conditional expression
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList13.ts:2:17: Expected ), got identifier
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList14.ts:2:7: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList15.ts:1:14: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList16.ts:2:8: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList17.ts:2:16: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList2.ts:2:10: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts:2:9: A required parameter cannot follow an optional parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList5.ts:1:23: Expected ), got identifier
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList6.ts:2:26: Expected ), got identifier
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList9.ts:2:14: Expected ), got ?
 typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected1.ts:1:1: 'protected' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected2.ts:1:1: 'protected' is a reserved identifier in strict mode
@@ -2609,9 +2609,9 @@ typescript/tests/cases/conformance/types/namedTypes/interfaceWithPrivateMember.t
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignatureWithOptionalParameterAndInitializer.ts:3:28: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithAccessibilityModifiersOnParameters.ts:3:33: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithDuplicateParameters.ts:6:10: Duplicate parameter name 'x' in strict mode
-typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers2.ts:20:15: Expected {, got ,
+typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers2.ts:4:14: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/constructSignatureWithAccessibilityModifiersOnParameters.ts:16:17: Expected ), got identifier
-typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/constructSignatureWithAccessibilityModifiersOnParameters2.ts:19:17: Expected ), got identifier
+typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/constructSignatureWithAccessibilityModifiersOnParameters2.ts:4:24: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restParameterWithoutAnnotationIsAnyArray.ts:5:15: A rest parameter must be last in a parameter list
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restParametersOfNonArrayTypes.ts:5:21: A rest parameter must be last in a parameter list
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restParametersOfNonArrayTypes2.ts:9:24: A rest parameter must be last in a parameter list

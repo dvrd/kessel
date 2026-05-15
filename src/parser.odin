@@ -4160,6 +4160,30 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// Collect param names and check against body's lex declarations.
 	check_params_vs_body_lex(p, params[:], body.body[:])
 
+	// TS2371 — overload / ambient signatures may not have parameter defaults.
+	// TS: parameter properties (public/private/protected/readonly) are only
+	// allowed in the implementation constructor, not in overload signatures.
+	if is_ts_no_body && allow_ts_mode(p) {
+		for pr in params {
+			if _, has := pr.default_val.(^Expression); has {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"A parameter initializer is only allowed in a function or constructor implementation.")
+			}
+			if pr.accessibility != .None {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"Parameter properties are only allowed in the implementation constructor.")
+			}
+			if pr.readonly {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"'readonly' parameter properties are only allowed in the implementation constructor.")
+			}
+			if pr.override_ {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"'override' parameter properties are only allowed in the implementation constructor.")
+			}
+		}
+	}
+
 	if is_expr {
 		expr := new_node(p, FunctionExpression)
 		expr.loc = start
@@ -6120,6 +6144,24 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// Mark overload signatures / abstract methods as no_body so the
 	// checker can distinguish them from implementation methods.
 	fn_expr.no_body = (is_overload_sig || is_ambient_method || is_abstract)
+
+	// TS2371 / parameter property checks for overload / ambient methods.
+	if fn_expr.no_body && allow_ts_mode(p) {
+		for pr in params {
+			if _, has := pr.default_val.(^Expression); has {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"A parameter initializer is only allowed in a function or constructor implementation.")
+			}
+			if pr.accessibility != .None {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"Parameter properties are only allowed in the implementation constructor.")
+			}
+			if pr.readonly {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"'readonly' parameter properties are only allowed in the implementation constructor.")
+			}
+		}
+	}
 	fn_expr.loc.span.end = prev_end_offset(p)
 
 	elem := new_node(p, ClassElement)

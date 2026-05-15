@@ -1,20 +1,18 @@
 #!/bin/bash
 # OXC conformance-corpus fetcher (S26 W6).
 #
-# Mirrors the three TS/JSX-rich submodules OXC's tasks/coverage/ pulls:
-#   * microsoft/TypeScript        sparse: tests/cases/                 (~150-300 MB)
-#   * babel/babel                 sparse: packages/babel-parser/test/  (~50-100 MB)
-#   * oxc-project/estree-conformance   full   (~few MB)
+# Mirrors the four upstream corpora OXC's tasks/coverage/ pulls:
+#   * tc39/test262                sparse: test/                         (~100 MB)
+#   * microsoft/TypeScript        sparse: tests/cases/ + baselines/     (~150-300 MB)
+#   * babel/babel                 sparse: packages/babel-parser/test/   (~50-100 MB)
+#   * oxc-project/estree-conformance   full                            (~few MB)
 #
 # Pins to the exact SHAs OXC uses (lifted from
-# .github/scripts/clone-parallel.mjs at oxc-project/oxc@main as of 2026-04-30).
+# .github/scripts/clone-parallel.mjs at oxc-project/oxc@main as of 2026-05-15).
 # This guarantees byte-identical input to what OXC tests itself against —
 # our pass/fail numbers are directly comparable to OXC's published coverage.
 #
-# We do NOT vendor test262 here; that's already in tests/vendor/test262/ and gated
-# via verify_test262_full.js.
-#
-# Why sparse-checkout the big two: a full clone of microsoft/TypeScript is
+# Why sparse-checkout the big corpora: a full clone of microsoft/TypeScript is
 # ~2 GB even with --depth=1 (massive `src/` tree). We only need the test
 # fixtures. Babel is similar — `packages/babel-parser/test/fixtures/` is
 # the only thing we walk.
@@ -24,9 +22,10 @@
 # would be over-engineering.
 #
 # Usage:
-#   tests/runners/oxc_corpus_fetch.sh                # fetch all three
+#   tests/runners/oxc_corpus_fetch.sh                # fetch all four
 #   tests/runners/oxc_corpus_fetch.sh typescript     # fetch only typescript
 #   tests/runners/oxc_corpus_fetch.sh babel estree   # fetch only those two
+#   tests/runners/oxc_corpus_fetch.sh test262        # fetch only test262
 #
 # Idempotent: re-running on an existing clone fetches the SHA again
 # (no-op if already at SHA) and re-applies sparse-checkout + reset.
@@ -40,6 +39,7 @@ mkdir -p "$VENDOR_DIR"
 # SHAs lifted from oxc-project/oxc@main:.github/scripts/clone-parallel.mjs.
 # Bump these when we want to track upstream — the runner is otherwise
 # fully reproducible against the pinned tree.
+TEST262_SHA="d5e73fc8d2c663554fb72e2380a8c2bc1a318a33"
 TYPESCRIPT_SHA="f350b52331494b68c90ab02e2b6d0828d2a22a74"
 BABEL_SHA="4079bcda153cafc76f76d2b683aa0ede0a93864c"
 ESTREE_CONFORMANCE_SHA="9c67f5e33f7a2d122e87d9b8f6eec5f53861cc53"
@@ -97,17 +97,20 @@ clone_pinned() {
 }
 
 # Resolve which suites to fetch from CLI args (default: all three).
+fetch_test262=false
 fetch_typescript=false
 fetch_babel=false
 fetch_estree=false
 
 if [ $# -eq 0 ]; then
+  fetch_test262=true
   fetch_typescript=true
   fetch_babel=true
   fetch_estree=true
 else
   for arg in "$@"; do
     case "$arg" in
+      test262)       fetch_test262=true ;;
       typescript|ts) fetch_typescript=true ;;
       babel)         fetch_babel=true ;;
       estree|estree-conformance) fetch_estree=true ;;
@@ -118,6 +121,16 @@ fi
 
 echo "Fetching OXC conformance corpus → ${VENDOR_DIR}"
 echo
+
+if $fetch_test262; then
+  # test/ is the only path OXC's coverage loader walks. Keeping docs/tools
+  # out of the working tree makes missing-fixture drift easier to audit.
+  clone_pinned \
+    "${VENDOR_DIR}/test262" \
+    "https://github.com/tc39/test262.git" \
+    "$TEST262_SHA" \
+    "test/"
+fi
 
 if $fetch_typescript; then
   # tests/cases/ contains both compiler/ and conformance/ subtrees;
@@ -158,6 +171,10 @@ fi
 echo "Done."
 echo
 echo "File counts:"
+if $fetch_test262 && [ -d "${VENDOR_DIR}/test262/test" ]; then
+  test262_count=$(find "${VENDOR_DIR}/test262/test" -type f \( -name "*.js" -o -name "*.mjs" \) | wc -l | tr -d ' ')
+  echo "  test262:    ${test262_count} .js/.mjs"
+fi
 if $fetch_typescript && [ -d "${VENDOR_DIR}/typescript/tests/cases" ]; then
   ts_count=$(find "${VENDOR_DIR}/typescript/tests/cases" -type f -name "*.ts" | wc -l | tr -d ' ')
   tsx_count=$(find "${VENDOR_DIR}/typescript/tests/cases" -type f -name "*.tsx" | wc -l | tr -d ' ')

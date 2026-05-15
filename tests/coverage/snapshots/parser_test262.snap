@@ -1,3 +1,5 @@
+commit: d5e73fc8
+
 parser_test262 Summary:
 AST Parsed     : 47090/47090 (100.00%)
 Positive Passed: 47090/47090 (100.00%)

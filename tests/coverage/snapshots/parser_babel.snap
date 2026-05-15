@@ -1,9 +1,9 @@
-commit: c543b031
+commit: 4079bcda
 
 parser_babel Summary:
 AST Parsed     : 2233/2237 (99.82%)
 Positive Passed: 2233/2237 (99.82%)
-Negative Passed: 1602/1725 (92.87%)
+Negative Passed: 1603/1725 (92.93%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -76,7 +76,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/cast/unparenthesized-type-assertion-and-assign/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-2/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-3/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/constructor-overload-modifiers-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-ambiguity/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-like/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-param/input.ts
@@ -1582,6 +1581,7 @@ babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-with-
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-with-body/input.ts:2:21: Method 'method' cannot have an implementation because it is marked abstract.
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-property-initializer/input.ts:3:3: Abstract property cannot have an initializer.
 babel/packages/babel-parser/test/fixtures/typescript/class/accessor-invalid/input.ts:3:20: An accessibility modifier cannot be used with a private identifier.
+babel/packages/babel-parser/test/fixtures/typescript/class/constructor-overload-modifiers-invalid/input.ts:2:24: Parameter properties are only allowed in the implementation constructor.
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-1/input.ts:2:33: 'override' modifier must precede 'readonly' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-2/input.ts:2:31: 'public' modifier must precede 'readonly' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-3/input.ts:2:40: 'public' modifier must precede 'readonly' modifier.
