@@ -4,13 +4,13 @@
 
 Build: clean. `task test`: all 291 unit + 24 coverage tests pass.
 
-**241 fixtures from 100% OXC parser parity** (was 326).
+**230 fixtures from 100% OXC parser parity** (was 326).
 
 | Suite | Positive (FPs) | Negative gap | Total gap |
 |---|---|---|---|
-| test262 | 0 | 20 | 20 |
-| Babel | 3 | 92 | 95 |
-| TypeScript | 17 | 113 | 130 |
+| test262 | 0 | 12 | 12 |
+| Babel | 3 | 91 | 94 |
+| TypeScript | 17 | 111 | 128 |
 | ESTree | 0 | 0 | 0 |
 
 Live numbers: `task test:conformance:report`
@@ -24,7 +24,7 @@ Live numbers: `task test:conformance:report`
 
 ## Session Progress (latest)
 
-**+85 negatives caught, +1 misc positive, zero regressions** across 15 commits:
+**+96 negatives caught, +1 misc positive, zero regressions** across 18 commits:
 
 1. **Strict-mode reserved words in TS bindings/declarations** (+21 TS, +6 babel, +1 babel semantic)
    - Removed overly-broad `!allow_ts_mode(p)` gate on strict-reserved checks in `parse_binding_pattern`
@@ -64,6 +64,13 @@ Live numbers: `task test:conformance:report`
 
 12. **`await` as import binding in module code** (+2 TS)
     - `import * as await from "m"` now caught
+
+13. **For-in/of head let/const vs body var duplicate binding** (+2 TS, +6 test262)
+    - `for (let v of []) { var v; }` now caught via scope_process_statement
+    - Added ForInStatement/ForOfStatement to has_scope_relevant_stmt
+
+14. **Regular for-statement head let/const vs body var** (+1 babel, +2 test262)
+    - `for (let i = 0; ...) { var i; }` now caught
 
 ## The 20 FPs (kessel rejects valid code)
 
