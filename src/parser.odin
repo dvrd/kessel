@@ -3973,6 +3973,22 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 					// semantic checker.
 				}
 			}
+			// Strict-mode FutureReservedWords as function name.
+			// `implements`, `interface`, `package`, `private`,
+			// `protected`, `public` — reserved in strict mode (§12.1.3).
+			// Skip in ambient/d.ts — `declare function static()` is valid.
+			// In JS, `static` is also reserved; in TS mode OXC allows it.
+			if p.strict_mode && !p.in_ambient && !p.source_is_dts {
+				is_reserved_fn_name := is_strict_reserved_name(current.value)
+				// `static` is reserved in strict JS but not in TS.
+				if !is_reserved_fn_name && !allow_ts_mode(p) {
+					is_reserved_fn_name = current.value == "static" || current.value == "let"
+				}
+				if is_reserved_fn_name {
+					msg := fmt.tprintf("Function name '%s' is reserved in strict mode", current.value)
+					report_error(p, msg)
+				}
+			}
 			eat(p)
 		} else if !is_expr {
 			report_error(p, "Function declaration requires a name")
@@ -4200,6 +4216,19 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// exempt: they have no body and are erased at compile time.
 	if id_v, has_id := id.?; has_id && (strict_for_check || async) && !p.in_ambient && !p.source_is_dts {
 		if is_eval_or_arguments(id_v.name) {
+			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
+			report_error_at(p, LexerLoc(id_v.loc.span.start), msg)
+		}
+	}
+	// Retroactive strict-reserved function name check when body
+	// promotes to strict and the outer scope was sloppy.
+	// `function package() { 'use strict'; }` is a SyntaxError.
+	if id_v, has_id := id.?; has_id && body_strict && !p.strict_mode && !p.in_ambient && !p.source_is_dts {
+		is_reserved := is_strict_reserved_name(id_v.name)
+		if !is_reserved && !allow_ts_mode(p) {
+			is_reserved = id_v.name == "static" || id_v.name == "let"
+		}
+		if is_reserved {
 			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
 			report_error_at(p, LexerLoc(id_v.loc.span.start), msg)
 		}
