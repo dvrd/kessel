@@ -3164,6 +3164,23 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					}
 				}
 			}
+
+			// TS2404 — type annotation on for-in/of variable.
+			// "The left-hand side of a 'for...in' statement cannot
+			// use a type annotation."
+			if allow_ts_mode(p) && len(left_decl.declarations) > 0 {
+				d := left_decl.declarations[0]
+				has_type_ann := false
+				#partial switch b in d.id {
+				case ^Identifier:  if b != nil { has_type_ann = b.type_annotation != nil }
+				case ^ObjectPattern: if b != nil { has_type_ann = b.type_annotation != nil }
+				case ^ArrayPattern:  if b != nil { has_type_ann = b.type_annotation != nil }
+				}
+				if has_type_ann {
+					msg := fmt.tprintf("The left-hand side of a 'for...%s' statement cannot use a type annotation.", kind_str)
+					report_error_at(p, LexerLoc(left_decl.loc.span.start), msg)
+				}
+			}
 		}
 
 		// §14.7.5 - for-in head accepts the full Expression (comma list
