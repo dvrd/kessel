@@ -1837,6 +1837,12 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		})
 	}
 
+	// TS2391 / TS2389 — top-level function overload chain validation.
+	// Mirrors report_ts_overload_chain_errors for class methods.
+	if allow_ts_mode(p) && !p.in_ambient && !p.source_is_dts {
+		report_ts_function_overload_errors(p, program.body[:])
+	}
+
 	// §15.7.3 AllPrivateIdentifiersValid — every PrivateIdentifier
 	// reference must resolve to a PrivateName declared by some lexically
 	// enclosing ClassBody. Migrated to the semantic checker
@@ -5152,6 +5158,81 @@ report_overload_flush :: proc(p: ^Parser, body: []ClassElement, start, end_excl:
 		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
 		if fn.body.loc.span.end > fn.body.loc.span.start { continue }
 		report_error_at(p, LexerLoc(elem.loc.span.start),
+			"Function implementation is missing or not immediately following the declaration.")
+	}
+}
+
+// TS2391 / TS2389 — top-level function overload chain validation.
+// Walks a statement list looking for consecutive FunctionDeclaration
+// overload signatures. An overload chain is a sequence of body-less
+// FunctionDeclarations with the same name, optionally followed by an
+// implementation (with body). If the chain ends without an impl, or
+// the impl has a different name, report the error.
+report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
+	if len(body) == 0 { return }
+
+	chain_active := false
+	chain_name := ""
+	chain_start_loc: u32 = 0
+
+	for stmt in body {
+		if stmt == nil { continue }
+		fn, is_fn := stmt^.(^FunctionDeclaration)
+		if !is_fn || fn == nil {
+			// Non-function statement breaks the chain.
+			if chain_active {
+				report_error_at(p, LexerLoc(chain_start_loc),
+					"Function implementation is missing or not immediately following the declaration.")
+				chain_active = false
+			}
+			continue
+		}
+		// Skip ambient / declare functions — they're allowed without bodies.
+		if fn.declare { continue }
+		has_body := !fn.no_body
+		name := ""
+		if id, has_id := fn.expr.id.?; has_id { name = id.name }
+		if name == "" {
+			if chain_active {
+				report_error_at(p, LexerLoc(chain_start_loc),
+					"Function implementation is missing or not immediately following the declaration.")
+				chain_active = false
+			}
+			continue
+		}
+
+		if chain_active {
+			if has_body {
+				// Implementation found.
+				if name != chain_name {
+					// TS2389: impl name doesn't match overload chain.
+					msg := fmt.tprintf("Function implementation name must be '%s'.", chain_name)
+					report_error_at(p, LexerLoc(fn.expr.loc.span.start), msg)
+				}
+				chain_active = false
+			} else {
+				// Another signature.
+				if name != chain_name {
+					// Different name → flush old chain, start new.
+					report_error_at(p, LexerLoc(chain_start_loc),
+						"Function implementation is missing or not immediately following the declaration.")
+					chain_name = name
+					chain_start_loc = fn.expr.loc.span.start
+				}
+				// Same name: chain continues.
+			}
+		} else {
+			if !has_body {
+				// Start new chain.
+				chain_active = true
+				chain_name = name
+				chain_start_loc = fn.expr.loc.span.start
+			}
+		}
+	}
+	// End of body — flush any pending chain.
+	if chain_active {
+		report_error_at(p, LexerLoc(chain_start_loc),
 			"Function implementation is missing or not immediately following the declaration.")
 	}
 }
@@ -20235,6 +20316,10 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 	blk := new_node(p, TSModuleBlock)
 	blk.loc = body_start; blk.body = stmts
 	blk.loc.span.end = prev_end_offset(p)
+	// TS2391 overload check for namespace body statements.
+	if allow_ts_mode(p) && !p.in_ambient && !p.source_is_dts {
+		report_ts_function_overload_errors(p, stmts[:])
+	}
 	body_union := new_node(p, TSModuleBody); body_union^ = blk
 	decl.body = body_union
 	decl.loc.span.end = prev_end_offset(p)
@@ -20322,6 +20407,9 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		blk := new_node(p, TSModuleBlock)
 		blk.loc = body_start; blk.body = stmts
 		blk.loc.span.end = prev_end_offset(p)
+		if allow_ts_mode(p) && !p.in_ambient && !p.source_is_dts {
+			report_ts_function_overload_errors(p, stmts[:])
+		}
 		body_union := new_node(p, TSModuleBody)
 		body_union^ = blk
 		decl.body = body_union
@@ -20382,6 +20470,9 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		blk := new_node(p, TSModuleBlock)
 		blk.loc = body_start; blk.body = stmts
 		blk.loc.span.end = prev_end_offset(p)
+		if allow_ts_mode(p) && !p.in_ambient && !p.source_is_dts {
+			report_ts_function_overload_errors(p, stmts[:])
+		}
 		body_union := new_node(p, TSModuleBody)
 		body_union^ = blk
 		decl.body = body_union
