@@ -16,7 +16,7 @@ import "core:testing"
 
 import kessel "../../../src"
 
-OXC_TEST262_SHA :: "d5e73fc8d2c663554fb72e2380a8c2bc1a318a33"
+OXC_TEST262_SHA :: "ccaac100ff49d81e9ff47a75ff4c60e0bd3f262e"
 
 ManifestStats :: struct {
 	fixtures:  int,
@@ -42,11 +42,11 @@ test_oxc_corpus_parity :: proc(t: ^testing.T) {
 	assert_vendor_sha(t, vendor, "estree-conformance", ESTREE_CONFORMANCE_SHA)
 
 	assert_manifest(t, "test262", load_test262(vendor, context.allocator), ManifestStats{
-		fixtures = 51678,
-		positive = 47090,
+		fixtures = 51702,
+		positive = 47114,
 		negative = 4588,
-		hash_a   = 37367496,
-		hash_b   = 360945352,
+		hash_a   = 753947551,
+		hash_b   = 658973028,
 	})
 	assert_manifest(t, "babel", load_babel(vendor, context.allocator), ManifestStats{
 		fixtures = 3962,

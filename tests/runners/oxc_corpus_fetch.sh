@@ -39,7 +39,7 @@ mkdir -p "$VENDOR_DIR"
 # SHAs lifted from oxc-project/oxc@main:.github/scripts/clone-parallel.mjs.
 # Bump these when we want to track upstream — the runner is otherwise
 # fully reproducible against the pinned tree.
-TEST262_SHA="d5e73fc8d2c663554fb72e2380a8c2bc1a318a33"
+TEST262_SHA="ccaac100ff49d81e9ff47a75ff4c60e0bd3f262e"
 TYPESCRIPT_SHA="f350b52331494b68c90ab02e2b6d0828d2a22a74"
 BABEL_SHA="4079bcda153cafc76f76d2b683aa0ede0a93864c"
 ESTREE_CONFORMANCE_SHA="9c67f5e33f7a2d122e87d9b8f6eec5f53861cc53"

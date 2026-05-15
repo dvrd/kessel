@@ -19822,6 +19822,16 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 // a flag on the resulting declaration node. Call it when current token is
 // `.Declare`.
 parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
+	// TS1038 — "`declare` cannot be used in an already ambient context."
+	// Inside `declare namespace/module`, every declaration is implicitly
+	// ambient. An explicit `declare` on a child is redundant. Only
+	// fire for in_ambient (set by enclosing declare namespace/module),
+	// NOT for source_is_dts — .d.ts files commonly use top-level
+	// `declare` despite being implicitly ambient, and OXC accepts them.
+	if p.in_ambient {
+		report_error(p, "A 'declare' modifier cannot be used in an already ambient context.")
+	}
+
 	// Capture the `declare` keyword's start BEFORE eating so we can
 	// widen the resulting declaration's span to include it. OXC's TS-ESTree
 	// shape spans the whole `declare <decl>` phrase on the declaration

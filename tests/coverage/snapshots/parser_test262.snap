@@ -1,8 +1,8 @@
-commit: d5e73fc8
+commit: ccaac100
 
 parser_test262 Summary:
-AST Parsed     : 47090/47090 (100.00%)
-Positive Passed: 47090/47090 (100.00%)
+AST Parsed     : 47114/47114 (100.00%)
+Positive Passed: 47114/47114 (100.00%)
 Negative Passed: 4568/4588 (99.56%)
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-6.js

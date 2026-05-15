@@ -1,8 +1,8 @@
-commit: d5e73fc8
+commit: ccaac100
 
 semantic_test262 Summary:
-AST Parsed     : 47090/47090 (100.00%)
-Positive Passed: 47090/47090 (100.00%)
+AST Parsed     : 47114/47114 (100.00%)
+Positive Passed: 47114/47114 (100.00%)
 Negative Passed: 4588/4588 (100.00%)
 test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js:18:4: Octal or \8 / \9 escape sequences are not allowed in strict mode
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
