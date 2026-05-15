@@ -929,6 +929,7 @@ has_scope_relevant_stmt :: proc(body: []^Statement) -> bool {
 		     ^ExportNamedDeclaration,
 		     ^ExportDefaultDeclaration,
 		     ^BlockStatement,
+		     ^ForStatement,
 		     ^ForInStatement,
 		     ^ForOfStatement:
 			return true
@@ -9328,6 +9329,23 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 		hoisted_fo := scope_map_make(4)
 		scope_hoist_vars(p, v.body, &hoisted_fo)
 		for it in hoisted_fo.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+	case ^ForStatement:
+		// §14.7.4 — `for (let i = 0; ...) { var i; }` same pattern.
+		if v == nil { return }
+		if init_decl, ok := v.init_decl.(^VariableDeclaration); ok && init_decl != nil && init_decl.kind != .Var {
+			head_names := make([dynamic]string, 0, 2, context.temp_allocator)
+			for d in init_decl.declarations { scope_collect_pattern(d.id, &head_names) }
+			body_vars := scope_map_make(4)
+			scope_hoist_vars(p, v.body, &body_vars)
+			for hn in head_names {
+				if at, found := scope_map_get(&body_vars, hn); found {
+					scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
+				}
+			}
+		}
+		hoisted_fs := scope_map_make(4)
+		scope_hoist_vars(p, v.body, &hoisted_fs)
+		for it in hoisted_fs.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		// TS: function declarations can legitimately merge with same-

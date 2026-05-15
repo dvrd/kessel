@@ -614,7 +614,7 @@ typescript/tests/cases/compiler/restParamModifier.ts:2:20: 'public' is a reserve
 typescript/tests/cases/compiler/restParamModifier2.ts:2:41: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/restParameterNotLast.ts:1:16: A rest parameter must be last in a parameter list
 typescript/tests/cases/compiler/restParameterWithBindingPattern3.ts:3:23: Rest element must be last in array pattern
-typescript/tests/cases/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes.ts:7:25: Identifier 'v' has already been declared
+typescript/tests/cases/compiler/shadowedFunctionScopedVariablesByBlockScopedOnes.ts:4:23: Identifier 'v' has already been declared
 typescript/tests/cases/compiler/shadowingViaLocalValue.ts:4:9: Identifier 'x' has already been declared
 typescript/tests/cases/compiler/shebangError.ts:2:1: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 typescript/tests/cases/compiler/shorthandPropertyAssignmentsInDestructuring.ts:111:12: Invalid shorthand property initializer

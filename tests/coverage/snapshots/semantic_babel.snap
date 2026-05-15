@@ -155,7 +155,7 @@ babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-func-var-sloppy/i
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-gen-func/input.js:1:29: 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-let-let/input.js:1:1: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-nested-let-var/input.js:3:5: Identifier 'a' has already been declared
-babel/packages/babel-parser/test/fixtures/core/scope/for-var/input.js:2:5: 'i' is already declared in for-loop head
+babel/packages/babel-parser/test/fixtures/core/scope/for-var/input.js:2:5: Identifier 'i' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as-default/input.js:1:10: Export 'encrypt' is not defined in the module
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as/input.js:1:10: Export 'encrypt' is not defined in the module
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-block/input.js:4:10: Export 'encrypt' is not defined in the module

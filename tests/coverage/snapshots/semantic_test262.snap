@@ -4186,8 +4186,8 @@ test262/test/language/statements/for/dstr/var-ary-ptrn-rest-init-obj.js:45:20: R
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-ary.js:45:17: Rest element must be last in array pattern
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-id.js:45:15: Rest element must be last in array pattern
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-obj.js:45:19: Rest element must be last in array pattern
-test262/test/language/statements/for/head-const-bound-names-in-stmt.js:21:3: 'x' is already declared in for-loop head
-test262/test/language/statements/for/head-let-bound-names-in-stmt.js:21:3: 'x' is already declared in for-loop head
+test262/test/language/statements/for/head-const-bound-names-in-stmt.js:21:3: Identifier 'x' has already been declared
+test262/test/language/statements/for/head-let-bound-names-in-stmt.js:21:3: Identifier 'x' has already been declared
 test262/test/language/statements/for/labelled-fn-stmt-const.js:19:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for/labelled-fn-stmt-expr.js:19:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for/labelled-fn-stmt-let.js:19:1: Function declarations are not allowed in a single-statement context

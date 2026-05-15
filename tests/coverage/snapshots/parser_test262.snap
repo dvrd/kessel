@@ -3,7 +3,7 @@ commit: ccaac100
 parser_test262 Summary:
 AST Parsed     : 47114/47114 (100.00%)
 Positive Passed: 47114/47114 (100.00%)
-Negative Passed: 4574/4588 (99.69%)
+Negative Passed: 4576/4588 (99.74%)
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-2.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-6.js
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js
@@ -15,8 +15,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/priva
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-static-getter-non-static-setter-early-error.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/static-init-with-label.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-const-bound-names-in-stmt.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/for/head-let-bound-names-in-stmt.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
 test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js:18:4: Octal or \8 / \9 escape sequences are not allowed in strict mode
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
@@ -4189,6 +4187,8 @@ test262/test/language/statements/for/dstr/var-ary-ptrn-rest-init-obj.js:45:20: R
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-ary.js:45:17: Rest element must be last in array pattern
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-id.js:45:15: Rest element must be last in array pattern
 test262/test/language/statements/for/dstr/var-ary-ptrn-rest-not-final-obj.js:45:19: Rest element must be last in array pattern
+test262/test/language/statements/for/head-const-bound-names-in-stmt.js:21:3: Identifier 'x' has already been declared
+test262/test/language/statements/for/head-let-bound-names-in-stmt.js:21:3: Identifier 'x' has already been declared
 test262/test/language/statements/for/labelled-fn-stmt-const.js:19:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for/labelled-fn-stmt-expr.js:19:1: Function declarations are not allowed in a single-statement context
 test262/test/language/statements/for/labelled-fn-stmt-let.js:19:1: Function declarations are not allowed in a single-statement context
