@@ -5235,6 +5235,33 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 		report_error_at(p, LexerLoc(chain_start_loc),
 			"Function implementation is missing or not immediately following the declaration.")
 	}
+
+	// TS2393 — duplicate function implementation.
+	// Two or more FunctionDeclarations with the same name AND a body
+	// in the same scope is an error (each flagged).
+	impl_count: map[string]int
+	impl_count.allocator = context.temp_allocator
+	for stmt2 in body {
+		if stmt2 == nil { continue }
+		fn2, ok2 := stmt2^.(^FunctionDeclaration)
+		if !ok2 || fn2 == nil || fn2.declare || fn2.no_body { continue }
+		name2 := ""
+		if id2, has2 := fn2.expr.id.?; has2 { name2 = id2.name }
+		if name2 == "" { continue }
+		impl_count[name2] = (impl_count[name2] or_else 0) + 1
+	}
+	for stmt2 in body {
+		if stmt2 == nil { continue }
+		fn2, ok2 := stmt2^.(^FunctionDeclaration)
+		if !ok2 || fn2 == nil || fn2.declare || fn2.no_body { continue }
+		name2 := ""
+		if id2, has2 := fn2.expr.id.?; has2 { name2 = id2.name }
+		if name2 == "" { continue }
+		if impl_count[name2] >= 2 {
+			report_error_at(p, LexerLoc(fn2.expr.loc.span.start),
+				"Duplicate function implementation.")
+		}
+	}
 }
 
 report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, class_is_abstract := false) {

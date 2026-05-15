@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 9811/9828 (99.83%)
 Positive Passed: 9811/9828 (99.83%)
-Negative Passed: 1463/2583 (56.64%)
+Negative Passed: 1467/2583 (56.79%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ExportAssignment7.ts
@@ -36,7 +36,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTyp
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesEnum.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesEnum2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesEnum3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesFunction.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesInterface.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules2.ts
@@ -95,7 +94,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/computedProp
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/computedPropertiesInDestructuring1_ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingDeclarationsImportFromNamespace1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingDeclarationsImportFromNamespace2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/conflictingTypeAnnotatedVar.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-access.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-access2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumBadPropertyNames.ts
@@ -726,8 +724,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/compu
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/declarationsAndAssignments.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringArrayBindingPatternAndAssignment3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringControlFlow.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5iterable.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringSpread.ts
@@ -1225,6 +1221,7 @@ typescript/tests/cases/compiler/assignToInvalidLHS.ts:4:15: Cannot assign to thi
 typescript/tests/cases/compiler/assignmentCompatFunctionsWithOptionalArgs.ts:1:1: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/assignmentToInstantiationExpression.ts:2:16: Expected expression after operator
 typescript/tests/cases/compiler/assignmentToParenthesizedExpression1.ts:2:7: Invalid left-hand side in assignment
+typescript/tests/cases/compiler/augmentedTypesFunction.ts:6:1: Duplicate function implementation.
 typescript/tests/cases/compiler/autoLift2.ts:5:17: Expected semicolon
 typescript/tests/cases/compiler/awaitInClassInAsyncFunction.ts:9:15: await outside of async function
 typescript/tests/cases/compiler/awaitInNonAsyncFunction.ts:4:13: 'for await' outside of async function
@@ -1269,6 +1266,7 @@ typescript/tests/cases/compiler/conflictMarkerTrivia1.ts:2:1: Expected method or
 typescript/tests/cases/compiler/conflictMarkerTrivia2.ts:3:1: Unexpected token '<<'
 typescript/tests/cases/compiler/conflictMarkerTrivia3.tsx:2:1: Expected <, got <<
 typescript/tests/cases/compiler/conflictMarkerTrivia4.ts:1:11: Unexpected '<': not a valid TS type assertion or generic arrow
+typescript/tests/cases/compiler/conflictingTypeAnnotatedVar.ts:2:1: Duplicate function implementation.
 typescript/tests/cases/compiler/constDeclarationShadowedByVarDeclaration.ts:6:5: Identifier 'x' has already been declared
 typescript/tests/cases/compiler/constDeclarations-ambient-errors.ts:2:29: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/compiler/constDeclarations-errors.ts:3:1: Missing initializer in 'const' declaration
@@ -1863,6 +1861,8 @@ typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames5
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames50_ES6.ts:11:10: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/es6/destructuring/declarationWithNoInitializer.ts:2:1: Missing initializer in destructuring declaration
 typescript/tests/cases/conformance/es6/destructuring/destructuringObjectBindingPatternAndAssignment3.ts:2:7: Expected }, got ?
+typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5.ts:62:1: Duplicate function implementation.
+typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5iterable.ts:62:1: Duplicate function implementation.
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration2.ts:7:29: Expected ], got )
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration4.ts:14:17: Expected ), got ?
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration6.ts:7:18: Reserved word 'while' is not a valid binding identifier
