@@ -1,8 +1,8 @@
 commit: c7a0ae10
 
 parser_typescript Summary:
-AST Parsed     : 9810/9828 (99.82%)
-Positive Passed: 9810/9828 (99.82%)
+AST Parsed     : 9811/9828 (99.83%)
+Positive Passed: 9811/9828 (99.83%)
 Negative Passed: 1391/2583 (53.85%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
@@ -1196,9 +1196,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uni
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/uniqueSymbol/uniqueSymbolsPropertyNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/witness/witness.ts
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/ambientWithStatements.ts
-typescript/tests/cases/compiler/ambientWithStatements.ts:2:5: 'break' must be inside a loop or switch
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-invalidContexts.ts
 typescript/tests/cases/compiler/constDeclarations-invalidContexts.ts:4:1: Lexical declaration cannot appear in a single-statement context
 

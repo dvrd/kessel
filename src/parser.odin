@@ -3226,7 +3226,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	// CommonJS-wrapped (`function(...){ return ... }`) so `in_function` is
 	// true at every natural `return` site; bare top-level `return` only
 	// shows up in spec-negative fixtures and mutated fuzz cases.
-	if !p.in_function && !p.is_commonjs {
+	if !p.in_function && !p.is_commonjs && !p.in_ambient {
 		report_error(p, "'return' outside of function")
 	}
 	// §15.7.5 ClassStaticBlockBody is parsed under [~Return]; the
@@ -3349,7 +3349,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
 			report_error_at(p, label_loc, msg)
 		}
-	} else if !p.in_loop && !p.in_switch {
+	} else if !p.in_loop && !p.in_switch && !p.in_ambient {
 		report_error_at(p, LexerLoc(start.span.start), "'break' must be inside a loop or switch")
 	}
 
@@ -3407,7 +3407,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 			msg := fmt.tprintf("'continue' must target an iteration label, '%s' does not", lbl.name)
 			report_error_at(p, label_loc, msg)
 		}
-	} else if !p.in_loop {
+	} else if !p.in_loop && !p.in_ambient {
 		report_error_at(p, LexerLoc(start.span.start), "'continue' must be inside a loop")
 	}
 
