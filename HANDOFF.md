@@ -4,7 +4,7 @@
 
 Kessel is a JavaScript / TypeScript / JSX / TSX parser written in Odin that emits ESTree-compatible JSON ASTs. Three-pass pipeline: SIMD lexer → permissive Pratt parser → opt-in semantic checker. Zero runtime dependencies, arena-only memory, ARM64 NEON SIMD lexing. Mirrors OXC's `oxc_parser` / `oxc_semantic` split.
 
-## Current State (2026-05-15, sessions 12–14)
+## Current State (2026-05-15)
 
 ### Build & Tests
 ```
@@ -17,76 +17,62 @@ $ task test                                                  # All pass: 291/291
 ```
 test262:      parser pos 47114/47114 (100.00%) | neg 4568/4588 (99.56%)
               semantic pos 47114/47114 (100%) | neg 4588/4588 (100%)
-TypeScript:   parser pos 9811/9828 (99.83%)   | neg 1475/2583 (57.10%)
-Babel:        parser pos 2233/2237 (99.82%)   | neg 1604/1725 (92.99%)
+TypeScript:   parser pos 9811/9828 (99.83%)   | neg 1477/2583 (57.18%)
+Babel:        parser pos 2234/2237 (99.87%)   | neg 1604/1725 (92.99%)
               semantic pos 2224/2237 (99.42%)  | neg 1677/1725 (97.22%)
 ESTree:       39/39 (100%)
 Misc:         parser pos 71/72 (98.61%)       | neg 260/286 (90.91%)
 ```
 
-## Sessions 12–14 Changes (21 commits)
-
-### FP fixes (+3 babel, +1 TS positive)
-1. `__proto__` dup deferred via pending list (3 babel FPs)
-2. Break/continue/return skip ambient context (1 TS FP)
-3. Constructor-name skip for StringLiteral+access modifier
-
-### Negative gap closures (+84 TS negatives, +2 babel, +2 misc)
-4. `.d.ts` statement rejection (+15)
-5. TS1016 required-after-optional param (+1)
-6. TS2371 default-in-overload + param-property (+16 TS, +1 babel)
-7. Accessor type param / return type checks (+3)
-8. TS1051 set accessor optional param (+2)
-9. TS2491 for-in destructuring TS-only (+6)
-10. TS1038 declare-in-ambient (+9)
-11. TS2391/TS2389 top-level + namespace function overload chains (+15 TS, +1 misc)
-12. TS2393 duplicate function implementation (+4 TS, +1 misc)
-13. TS1221/TS1040 generator/async in ambient context (+3)
-14. .d.ts namespace bodies set in_ambient (+1)
-15. TS1319 export-default in namespace (+4 TS, +1 babel)
-
-### Net Impact (from session 11 end)
+## Net Impact (from session 11 end)
 
 | Metric | Before | After | Delta |
 |---|---|---|---|
-| TS parser negative | 1391/2583 (53.85%) | 1475/2583 (57.10%) | **+84** |
-| Babel parser positive | 2230/2237 | 2233/2237 | **+3** |
-| Babel parser negative | 1602/1725 | 1604/1725 | **+2** |
+| TS parser negative | 1391/2583 (53.85%) | 1477/2583 (57.18%) | **+86** |
+| Babel parser positive | 2230/2237 (99.69%) | 2234/2237 (99.87%) | **+4** |
+| Babel parser negative | 1602/1725 (92.87%) | 1604/1725 (92.99%) | **+2** |
 | TS parser positive | 9810/9828 | 9811/9828 | **+1** |
 | Misc negative | 258/286 | 260/286 | **+2** |
 
-## PRIORITY 1 — Continue closing TS negative gap
+## Remaining FPs
 
-Remaining: ~1108 uncaught. Breakdown:
-- `compiler` (564): diverse — most are type-system checks (TS2394, TS2339, etc.)
-- `conformance/es6` (87): ES6 feature checks (arrow, destructuring, computedProps)
-- `conformance/types` (70): deep TS type system
-- `conformance/parser` (61): parser-level checks (many now caught)
-- `conformance/expressions` (56): type guards, binary ops
-- `conformance/classes` (55): members, constructors
-- `conformance/jsdoc` (49): JSDoc — low priority
+### Babel FPs (3)
+- `members-with-modifier-names` / `method-with-newline-without-body` — TS2391 class overload pre-pass trade-off
+- `parameter-properties` — `?` + initializer (removing loses 7 negatives)
 
-Most remaining are type-system checks requiring type inference — NOT viable at parser level. The class overload pre-pass is a known limitation: it skips pure-signature classes to avoid FPs, but this means some legitimate catches are missed.
+### TS FPs (17)
+- Lexical declaration cluster (3), multi-file async generator (4), error recovery singles (5), source-type/ambient (3), decorators (2)
 
-## PRIORITY 2 — Fix remaining FPs
+## Checks Added (17 parser-level checks across sessions 12–15)
 
-17 TS + 4 Babel FPs remain. Attempted class overload pre-pass refinement (lone-untyped heuristic) but it traded negatives — reverted. The pre-pass is a careful balance.
+1. `__proto__` pending list for destructuring
+2. Break/continue/return ambient skip
+3. `.d.ts` statement rejection
+4. TS1016 required-after-optional
+5. TS2371 default-in-overload + param-property
+6. Accessor type param / return type
+7. TS1051 set accessor optional param
+8. TS2491 for-in destructuring (TS-only)
+9. TS1038 declare-in-ambient
+10. TS2391/TS2389 function overload chains (top-level + namespace)
+11. TS2393 duplicate function implementation
+12. TS1221/TS1040 generator/async in ambient
+13. `.d.ts` namespace `in_ambient` propagation
+14. TS1319 export-default in namespace
+15. TS2669 declare-global scope validation
+16. CommonJS using/await-using at top level
+17. Constructor-name StringLiteral+access skip
 
-## Key Patterns
+## What's Left
 
-- `fn.no_body` for overload signature detection (NOT body span)
-- `allow_ts_mode(p)` gates for TS-only checks
-- `fn.declare` skip for ambient declarations
-- `pending_*` lists for deferred checks
-- `.d.ts` namespace bodies must set `p.in_ambient`
-- Class overload pre-pass: `!has_any_impl && !has_non_method && !has_ctor_sig && name_count <= 1`
+Most remaining ~1106 uncaught TS negatives are type-system checks (TS2394, TS2339, TS2300) requiring type inference. The class overload pre-pass balances FP prevention vs. catches.
 
-## Commands Reference
+## Commands
 
-| Command | Purpose | Time |
-|---|---|---|
-| `task build` | Release binary | ~5s |
-| `task test` | Primary gate | ~10s |
-| `task test:coverage:update` | Regenerate snaps | ~5s |
-| `task test:conformance:report` | Print numbers | <1s |
-| `task test:oxc-corpus:fetch` | Fetch corpora | ~2 min |
+| Command | Purpose |
+|---|---|
+| `task build` | Release binary |
+| `task test` | Primary gate |
+| `task test:coverage:update` | Regenerate snaps |
+| `task test:conformance:report` | Print numbers |
+| `task test:oxc-corpus:fetch` | Fetch corpora |
