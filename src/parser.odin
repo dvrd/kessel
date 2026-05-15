@@ -5713,10 +5713,21 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// without an initializer) cannot be named "constructor". The
 		// non-computed restriction matches the spec: `class { ['constructor'
 		// ] = 1 }` is allowed because the key is computed.
+		// OXC's parser skips this check for StringLiteral-keyed fields
+		// with an access modifier — `public "constructor" = 0;` is
+		// accepted, deferred to the type checker.  Identifier-keyed
+		// `public constructor;` is still caught.
 		if !computed {
-			name := class_element_prop_name(key)
-			if name == "constructor" {
-				report_error(p, "Class field cannot be named 'constructor'")
+			is_string_key := false
+			if key != nil {
+				if _, ok := key^.(^StringLiteral); ok { is_string_key = true }
+			}
+			skip := is_string_key && accessibility != .None
+			if !skip {
+				name := class_element_prop_name(key)
+				if name == "constructor" {
+					report_error(p, "Class field cannot be named 'constructor'")
+				}
 			}
 		}
 

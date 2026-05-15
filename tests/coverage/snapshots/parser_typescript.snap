@@ -1206,7 +1206,7 @@ Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/constDeclaration
 typescript/tests/cases/compiler/constDeclarations-validContexts.ts:32:1: Lexical declaration cannot appear in a single-statement context
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/convertKeywordsYes.ts
-typescript/tests/cases/compiler/convertKeywordsYes.ts:175:29: Class field cannot be named 'constructor'
+typescript/tests/cases/compiler/convertKeywordsYes.ts:256:405: 'implements' is a reserved identifier and cannot be a class name
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/corrupted.ts
 typescript/tests/cases/compiler/corrupted.ts:1:4: Expected semicolon
