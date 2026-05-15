@@ -1,74 +1,112 @@
-# Handoff — Kessel
+# Handoff — Kessel OXC Parser Parity
 
-## What is Kessel
+## Current State
 
-Kessel is a JavaScript / TypeScript / JSX / TSX parser written in Odin that emits ESTree-compatible JSON ASTs. Three-pass pipeline: SIMD lexer → permissive Pratt parser → opt-in semantic checker. Zero runtime dependencies, arena-only memory, ARM64 NEON SIMD lexing. Mirrors OXC's `oxc_parser` / `oxc_semantic` split.
+Build: clean. `task test`: all 291 unit + 23 coverage tests pass.
 
-## Current State (2026-05-15)
+**326 fixtures from 100% OXC parser parity.**
 
-### Build & Tests
-```
-$ odin build src -out:bin/kessel -o:speed -no-bounds-check  # Clean, no warnings
-$ task test                                                  # All pass: 291/291 + 23 coverage
-```
-
-### Conformance
-
-```
-test262:      parser pos 47114/47114 (100.00%) | neg 4568/4588 (99.56%)
-              semantic pos 47114/47114 (100%) | neg 4588/4588 (100%)
-TypeScript:   parser pos 9811/9828 (99.83%)   | neg 1495/2583 (57.88%)
-Babel:        parser pos 2234/2237 (99.87%)   | neg 1604/1725 (92.99%)
-              semantic pos 2224/2237 (99.42%)  | neg 1677/1725 (97.22%)
-ESTree:       39/39 (100%)
-Misc:         parser pos 71/72 (98.61%)       | neg 261/286 (91.26%)
-```
-
-## Net Impact (from session 11 end)
-
-| Metric | Before | After | Delta |
+| Suite | Positive (FPs) | Negative gap | Total gap |
 |---|---|---|---|
-| TS parser negative | 1391/2583 (53.85%) | 1495/2583 (57.88%) | **+104** |
-| Babel parser positive | 2230/2237 (99.69%) | 2234/2237 (99.87%) | **+4** |
-| Babel parser negative | 1602/1725 (92.87%) | 1604/1725 (92.99%) | **+2** |
-| TS parser positive | 9810/9828 | 9811/9828 | **+1** |
-| Misc negative | 258/286 | 261/286 | **+3** |
+| test262 | 0 | 20 | 20 |
+| Babel | 3 | 121 | 124 |
+| TypeScript | 17 | 165 | 182 |
+| ESTree | 0 | 0 | 0 |
 
-## Checks Added (20 parser-level checks)
+Live numbers: `task test:conformance:report`
 
-1. `__proto__` pending list for destructuring (+3 babel FPs)
-2. Break/continue/return ambient skip (+1 TS FP)
-3. `.d.ts` statement rejection (+15 TS neg)
-4. TS1016 required-after-optional (+1 TS neg)
-5. TS2371 default-in-overload + param-property (+16 TS, +1 babel neg)
-6. Accessor type param / return type (+3 TS neg)
-7. TS1051 set accessor optional param (+2 TS neg)
-8. TS2491 for-in destructuring TS-only (+6 TS neg)
-9. TS1038 declare-in-ambient (+9 TS neg)
-10. TS2391/TS2389 function overload chains (+15 TS, +1 misc neg)
-11. TS2393 duplicate function impl (+4 TS, +1 misc neg)
-12. TS1221/TS1040 generator/async in ambient (+3 TS neg)
-13. .d.ts namespace in_ambient propagation (+1 TS neg)
-14. TS1319 export-default in namespace (+4 TS, +1 babel neg)
-15. TS2669 declare-global scope (+2 TS neg)
-16. CommonJS using/await-using skip (+1 babel FP)
-17. Constructor-name StringLiteral+access skip
-18. TS2309 export-assignment conflicts (+14 TS, +1 misc neg)
-19. TS2384 overload ambient mismatch (+4 TS neg)
-20. (attempted class-name-required, class overload pre-pass refinement — reverted)
+## What the numbers mean
 
-## Remaining
+- **Positive gap (FPs)** = `Expect to Parse:` lines — kessel rejects what OXC accepts. Parser bugs.
+- **Negative gap** = `Expect Syntax Error:` lines — OXC's parser catches an error that kessel doesn't.
+- The TS negative denominator (1660) is aligned with OXC's parser catches. Semantic/type-system errors are excluded via `TS_FORCE_POSITIVE_PATHS`.
+- OXC's `parser_typescript.snap` at commit `c7a0ae10` is at `/Users/kakurega/dev/projects/oxc/tasks/coverage/snapshots/`.
 
-- **3 Babel FPs**: members-with-modifier-names, method-with-newline-without-body, parameter-properties
-- **17 TS FPs**: lexical decl cluster (3), async generator multi-file (4), error recovery (5), source-type (3), decorators (2)
-- **~1088 uncaught TS negatives**: mostly type-system (TS2394/2339/2300) — not viable at parser level
+## The 20 FPs (kessel rejects valid code)
+
+### Babel FPs (3) — all TS2391 class overload pre-pass
+
+Kessel's class overload chain checker has a pre-pass that skips pure-signature classes. These 3 fixtures are pure-sig classes OXC accepts:
+
+| Fixture | Error kessel reports |
+|---|---|
+| `typescript/class/members-with-modifier-names/input.ts` | TS2391: Function implementation missing |
+| `typescript/class/method-with-newline-without-body/input.ts` | TS2391: Function implementation missing |
+| `typescript/class/parameter-properties/input.ts` | `?` + initializer |
+
+Root cause for first 2: `report_ts_overload_chain_errors` pre-pass condition `!has_any_impl && !has_non_method && !has_ctor_sig && name_count <= 1`. These classes have multiple names or non-method members, so the pre-pass doesn't skip, and the main pass reports TS2391 for each chain. Tried refining the pre-pass (lone-untyped heuristic) but it traded other negatives — reverted.
+
+Third one: `A parameter cannot have a question mark and an initializer.` Removing this check loses 7 negatives (5 TS + 2 babel).
+
+### TS FPs (17)
+
+| Category | Count | Fixtures | Error |
+|---|---|---|---|
+| Lexical in single-stmt | 3 | `constDeclarations-{invalidContexts,scopes,validContexts}.ts` | `Lexical declaration cannot appear in a single-statement context` |
+| Multi-file async generators | 4 | `parser.asyncGenerators.*.es2018.ts` | Sub-files named `*IsError.ts` have expected errors; OXC error-recovers |
+| Error recovery | 3 | `corrupted.ts`, `missingCloseParenStatements.ts`, `NonInitializedExportInInternalModule.ts` | Binary file / broken parens / bare `var;` |
+| Source-type detection | 3 | `modulePreserveTopLevelAwait1.ts`, `topLevelAwait.3.ts`, `withStatementInternalComments.ts` | `@module: preserve` / `.d.ts` sub-file / `with` strict |
+| Decorators | 2 | `esDecorators-decoratorExpression.{1,3}.ts` | `Expected class after decorator` / type args in decorator |
+| Keywords as identifiers | 1 | `convertKeywordsYes.ts` | Cascading keyword errors |
+| Top-level return | 1 | `parserStatementIsNotAMemberVariableDeclaration1.ts` | `return` outside function |
+
+## The 306 negatives (OXC catches, kessel doesn't)
+
+### test262 (20)
+
+```
+arrow-function duplicate-binding (2), async-arrow duplicate (1),
+module-code export resolution (2), new-await in module (1),
+private getter/setter static mismatch (4),
+continue in static-init with label (1),
+for-in/of/for bound-names-in-stmt (7), labeled await-module-escaped (1),
+```
+
+All are scope/binding checks (duplicate names, bound-name-in-stmt resolution).
+
+### Babel (121)
+
+```
+typescript/ (53), core/ (27), esprima/ (20), es2015/ (10),
+es2022/ (6), jsx/ (4), annex-b/ (1)
+```
+
+### TypeScript (165)
+
+```
+compiler/ (109), conformance/parser/ (15), conformance/classes/ (14),
+conformance/es6/ (10), conformance/types/ (9), conformance/statements/ (3),
+conformance/externalModules/ (2), scanner/ (1), jsx/ (1), internalModules/ (1)
+```
 
 ## Commands
 
-| Command | Purpose |
+```bash
+task build                    # Release binary
+task test                     # Primary gate — must be green before committing
+task test:coverage            # OXC conformance harness only
+task test:coverage:update     # Regenerate snap baselines after a fix
+task test:conformance:report  # Print live numbers
+task test:oxc-corpus:fetch    # Fetch TypeScript + Babel + ESTree corpora
+```
+
+## Workflow
+
+1. Pick a fixture from `Expect to Parse:` (FP) or `Expect Syntax Error:` (negative gap).
+2. Reproduce: `./bin/kessel parse tests/vendor/<path>` — see the error (or lack of).
+3. Fix in `src/parser.odin` (or `src/lexer.odin` / `src/checker.odin`).
+4. `task test` — must be green.
+5. `task test:coverage:update` — review snap diff. Ensure no regressions (positive count must not drop).
+6. Commit: fixture class + fix + snap diff.
+
+## Key files
+
+| File | What |
 |---|---|
-| `task build` | Release binary |
-| `task test` | Primary gate |
-| `task test:coverage:update` | Regenerate snaps |
-| `task test:conformance:report` | Print numbers |
-| `task test:oxc-corpus:fetch` | Fetch corpora |
+| `src/parser.odin` (~20K) | Parser. Most fixes go here. |
+| `src/checker.odin` (~7K) | Semantic checker. Some checks need migration to parser. |
+| `src/lexer.odin` (~3K) | Tokenizer. Rarely needs changes. |
+| `tests/coverage/src/` | OXC conformance harness (Odin). |
+| `tests/coverage/snapshots/parser_*.snap` | Ground truth. Diff these to verify fixes. |
+| `tests/coverage/src/typescript_constants.odin` | `TS_FORCE_POSITIVE_PATHS` + `TS_NOT_SUPPORTED_ERROR_CODES` |
+| `/Users/kakurega/dev/projects/oxc/tasks/coverage/snapshots/` | OXC's own snap files for reference. |
