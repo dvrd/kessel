@@ -20374,6 +20374,22 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 	decl.id = expression_from(p, id_ident)
 	decl.kind = .Global
 
+	// TS2669 — `declare global {}` is only valid at the top level of a
+	// module file or inside an ambient module declaration.
+	// Inside a namespace, inside a function, or in a script → error.
+	if allow_ts_mode(p) && !p.source_is_dts {
+		global_ok := false
+		if p.in_ambient {
+			global_ok = true
+		} else if !p.in_ts_namespace && !p.in_function {
+			global_ok = true
+		}
+		if !global_ok {
+			report_error_at(p, LexerLoc(start.span.start),
+				"Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.")
+		}
+	}
+
 	body_start := cur_loc(p); eat(p) // consume `{` (lookahead-confirmed)
 	stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
