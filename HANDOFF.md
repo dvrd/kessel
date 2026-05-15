@@ -2,15 +2,15 @@
 
 ## Current State
 
-Build: clean. `task test`: all 291 unit + 23 coverage tests pass.
+Build: clean. `task test`: all 291 unit + 24 coverage tests pass.
 
-**326 fixtures from 100% OXC parser parity.**
+**283 fixtures from 100% OXC parser parity** (was 326).
 
 | Suite | Positive (FPs) | Negative gap | Total gap |
 |---|---|---|---|
 | test262 | 0 | 20 | 20 |
-| Babel | 3 | 121 | 124 |
-| TypeScript | 17 | 165 | 182 |
+| Babel | 3 | 111 | 114 |
+| TypeScript | 17 | 122 | 139 |
 | ESTree | 0 | 0 | 0 |
 
 Live numbers: `task test:conformance:report`
@@ -21,6 +21,25 @@ Live numbers: `task test:conformance:report`
 - **Negative gap** = `Expect Syntax Error:` lines — OXC's parser catches an error that kessel doesn't.
 - The TS negative denominator (1660) is aligned with OXC's parser catches. Semantic/type-system errors are excluded via `TS_FORCE_POSITIVE_PATHS`.
 - OXC's `parser_typescript.snap` at commit `c7a0ae10` is at `/Users/kakurega/dev/projects/oxc/tasks/coverage/snapshots/`.
+
+## Session Progress (latest)
+
+**+43 negatives caught, +1 misc positive, zero regressions** across 4 commits:
+
+1. **Strict-mode reserved words in TS bindings/declarations** (+21 TS, +6 babel, +1 babel semantic)
+   - Removed overly-broad `!allow_ts_mode(p)` gate on strict-reserved checks in `parse_binding_pattern`
+   - Added `check_strict_ts_decl_name` for interface, enum, type alias, namespace declaration names
+   - Added strict-reserved checks in object/array destructuring patterns and import specifiers
+
+2. **TS2404 type annotation on for-in/of variable** (+6 TS)
+   - `for (var i: number in arr)` now rejected
+
+3. **TS2414/TS2427/TS2431 primitive type names as class/interface/enum names** (+12 TS)
+   - `class any {}`, `interface number {}`, `enum string {}` now rejected
+
+4. **break/continue context across function/arrow boundaries** (+4 TS, +4 babel, +1 misc positive)
+   - `in_loop`, `in_switch`, `label_floor` now reset in `parse_function_body` and arrow block bodies
+   - Misc positive went from 71/72 to 72/72 (100%)
 
 ## The 20 FPs (kessel rejects valid code)
 
@@ -34,10 +53,6 @@ Kessel's class overload chain checker has a pre-pass that skips pure-signature c
 | `typescript/class/method-with-newline-without-body/input.ts` | TS2391: Function implementation missing |
 | `typescript/class/parameter-properties/input.ts` | `?` + initializer |
 
-Root cause for first 2: `report_ts_overload_chain_errors` pre-pass condition `!has_any_impl && !has_non_method && !has_ctor_sig && name_count <= 1`. These classes have multiple names or non-method members, so the pre-pass doesn't skip, and the main pass reports TS2391 for each chain. Tried refining the pre-pass (lone-untyped heuristic) but it traded other negatives — reverted.
-
-Third one: `A parameter cannot have a question mark and an initializer.` Removing this check loses 7 negatives (5 TS + 2 babel).
-
 ### TS FPs (17)
 
 | Category | Count | Fixtures | Error |
@@ -50,34 +65,19 @@ Third one: `A parameter cannot have a question mark and an initializer.` Removin
 | Keywords as identifiers | 1 | `convertKeywordsYes.ts` | Cascading keyword errors |
 | Top-level return | 1 | `parserStatementIsNotAMemberVariableDeclaration1.ts` | `return` outside function |
 
-## The 306 negatives (OXC catches, kessel doesn't)
+## Remaining negatives by category (rough)
 
-### test262 (20)
-
-```
-arrow-function duplicate-binding (2), async-arrow duplicate (1),
-module-code export resolution (2), new-await in module (1),
-private getter/setter static mismatch (4),
-continue in static-init with label (1),
-for-in/of/for bound-names-in-stmt (7), labeled await-module-escaped (1),
-```
-
-All are scope/binding checks (duplicate names, bound-name-in-stmt resolution).
-
-### Babel (121)
-
-```
-typescript/ (53), core/ (27), esprima/ (20), es2015/ (10),
-es2022/ (6), jsx/ (4), annex-b/ (1)
-```
-
-### TypeScript (165)
-
-```
-compiler/ (109), conformance/parser/ (15), conformance/classes/ (14),
-conformance/es6/ (10), conformance/types/ (9), conformance/statements/ (3),
-conformance/externalModules/ (2), scanner/ (1), jsx/ (1), internalModules/ (1)
-```
+| Category | TS | Babel | Notes |
+|---|---|---|---|
+| Duplicate identifiers / scope | ~30 | ~28 | Redeclaration, merge, shadow checks |
+| Class member conflicts | ~20 | ~5 | Duplicate properties, accessors, overloads |
+| Module/import/export | ~15 | ~10 | Module-level scope checks |
+| Merge / augmentation | ~12 | — | TS-specific declaration merging |
+| Overload chain | ~5 | — | Missing implementation, mismatched sigs |
+| Enum | ~3 | — | Const enum errors, initializer follows |
+| Strict mode (remaining) | ~5 | ~10 | Arrow escapes, eval/arguments edge cases |
+| For-in/of/for | ~3 | — | Duplicate bindings in for-of body |
+| Other | ~30 | ~60 | Various parser-level checks |
 
 ## Commands
 
@@ -103,7 +103,7 @@ task test:oxc-corpus:fetch    # Fetch TypeScript + Babel + ESTree corpora
 
 | File | What |
 |---|---|
-| `src/parser.odin` (~20K) | Parser. Most fixes go here. |
+| `src/parser.odin` (~21K) | Parser. Most fixes go here. |
 | `src/checker.odin` (~7K) | Semantic checker. Some checks need migration to parser. |
 | `src/lexer.odin` (~3K) | Tokenizer. Rarely needs changes. |
 | `tests/coverage/src/` | OXC conformance harness (Odin). |
