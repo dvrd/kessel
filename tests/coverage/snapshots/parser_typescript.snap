@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10734/10751 (99.84%)
 Positive Passed: 10734/10751 (99.84%)
-Negative Passed: 1538/1660 (92.65%)
+Negative Passed: 1542/1660 (92.89%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -41,7 +41,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportSameNa
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/fieldAndGetterWithSameName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionAndPropertyNameConflict.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionWithSameNameAsField.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/genericSpecializations2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclWithExportModifierAndExportAssignmentInAmbientContext.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclarationInModuleDeclaration2.ts
@@ -84,9 +83,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shadowedRese
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shadowingViaLocalValueOrBindingElement.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/sourceMapValidationEnums.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/targetTypeCastTest.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeNamedUndefined1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/typeNamedUndefined2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/undefinedTypeAssignment1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/unreachableDeclarations.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varAndFunctionShareName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts
@@ -331,7 +327,7 @@ typescript/tests/cases/compiler/deleteOperatorInStrictMode.ts:3:1: Deleting an u
 typescript/tests/cases/compiler/destructionAssignmentError.ts:6:10: Unexpected token '='
 typescript/tests/cases/compiler/destructuringControlFlowNoCrash.ts:11:22: Expected ), got :
 typescript/tests/cases/compiler/disallowedBlockScopedInPresenceOfParseErrors1.ts:6:5: Lexical declaration cannot appear in a single-statement context
-typescript/tests/cases/compiler/dontShowCompilerGeneratedMembers.ts:4:1: Expected >, got }
+typescript/tests/cases/compiler/dontShowCompilerGeneratedMembers.ts:3:6: Type parameter name cannot be 'number'
 typescript/tests/cases/compiler/dottedModuleName.ts:3:29: Expected {, got =>
 typescript/tests/cases/compiler/downlevelLetConst1.ts:1:6: Expected binding pattern
 typescript/tests/cases/compiler/downlevelLetConst11.ts:2:1: 'let' declaration requires a binding name
@@ -420,6 +416,7 @@ typescript/tests/cases/compiler/functionTypesLackingReturnTypes.ts:2:17: Expecte
 typescript/tests/cases/compiler/functionsMissingReturnStatementsAndExpressions.ts:153:5: Expected identifier after '.'
 typescript/tests/cases/compiler/functionsWithModifiersInBlocks1.ts:2:25: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/genericCallWithoutArgs.ts:4:17: An instantiation expression cannot be followed by a property access.
+typescript/tests/cases/compiler/genericSpecializations2.ts:8:9: Type parameter name cannot be 'string'
 typescript/tests/cases/compiler/gettersAndSettersErrors.ts:6:16: Getter must not have any formal parameters
 typescript/tests/cases/compiler/giant.ts:62:17: An index signature must have a type annotation.
 typescript/tests/cases/compiler/identifierStartAfterNumericLiteral.ts:3:2: Expected semicolon
@@ -678,10 +675,13 @@ typescript/tests/cases/compiler/thisAssignmentInNamespaceDeclaration1.ts::a.js:1
 typescript/tests/cases/compiler/throwWithoutNewLine1.ts:1:6: Expected expression after throw
 typescript/tests/cases/compiler/throwWithoutNewLine2.ts:2:1: Illegal newline after 'throw'
 typescript/tests/cases/compiler/typeAliasDeclareKeywordNewlines.ts:5:9: Line terminator not permitted after 'type'
+typescript/tests/cases/compiler/typeNamedUndefined1.ts:3:17: Type alias name cannot be 'undefined'
+typescript/tests/cases/compiler/typeNamedUndefined2.ts:4:21: Type alias name cannot be 'undefined'
 typescript/tests/cases/compiler/unaryOperatorsInStrictMode.ts:3:3: Update of 'eval' is not allowed in strict mode
 typescript/tests/cases/compiler/uncaughtCompilerError2.ts:2:6: Empty parenthesized expression
 typescript/tests/cases/compiler/unclosedExportClause01.ts::t2.ts:1:18: Expected }, got string
 typescript/tests/cases/compiler/unclosedExportClause02.ts::t2.ts:2:5: Expected }, got string
+typescript/tests/cases/compiler/undefinedTypeAssignment1.ts:1:6: Type alias name cannot be 'undefined'
 typescript/tests/cases/compiler/undefinedTypeAssignment4.ts:1:7: Class name cannot be 'undefined'
 typescript/tests/cases/compiler/unexpectedStatementBlockTerminator.ts:4:1: Unexpected reserved word 'case'
 typescript/tests/cases/compiler/unicodeEscapesInNames02.ts::astralAsSurrogatePair.ts:1:25: Expected }, got INVALID
@@ -1710,7 +1710,7 @@ typescript/tests/cases/conformance/types/tuple/optionalTupleElements1.ts:11:36: 
 typescript/tests/cases/conformance/types/tuple/readonlyArraysAndTuples.ts:9:27: 'readonly' type modifier is only permitted on array and tuple literal types
 typescript/tests/cases/conformance/types/tuple/restTupleElements1.ts:3:28: A required tuple element cannot follow an optional element
 typescript/tests/cases/conformance/types/tuple/variadicTuples2.ts:9:37: A required tuple element cannot follow an optional element
-typescript/tests/cases/conformance/types/typeAliases/reservedNamesInAliases.ts:6:6: Expected semicolon
+typescript/tests/cases/conformance/types/typeAliases/reservedNamesInAliases.ts:2:6: Type alias name cannot be 'any'
 typescript/tests/cases/conformance/types/typeParameters/typeArgumentLists/instantiationExpressionErrors.ts:7:21: An instantiation expression cannot be followed by a property access.
 typescript/tests/cases/conformance/types/typeParameters/typeArgumentLists/instantiationExpressions.ts:6:17: Expected expression after operator
 typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/varianceAnnotations.ts:95:17: Expected >, got identifier

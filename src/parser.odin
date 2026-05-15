@@ -7022,7 +7022,13 @@ check_strict_ts_decl_name :: proc(p: ^Parser, name: string, loc: Loc) {
 
 // is_ts_primitive_type_name — returns true for built-in type names that
 // cannot be used as class, interface, or enum names (TS2414/TS2427/TS2431).
+// is_ts_primitive_type_name — built-in type names forbidden as
+// class (TS2414), interface (TS2427), enum (TS2431), and type alias
+// (TS2457) declaration names. OXC rejects: any, boolean, number,
+// string, symbol, undefined.
 is_ts_primitive_type_name :: #force_inline proc(name: string) -> bool {
+	n := len(name)
+	if n < 3 || n > 9 { return false }
 	switch name {
 	case "any", "boolean", "number", "string", "symbol", "undefined":
 		return true
@@ -19294,6 +19300,8 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		}
 		cur := get_current(p)
 		name := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
+		// TS2368 — type parameter name cannot be a primitive type name.
+		check_ts_primitive_decl_name(p, "Type parameter", name.name, name.loc)
 		eat(p) // consume identifier
 		constraint: Maybe(^TSType)
 		default_: Maybe(^TSType)
@@ -20494,6 +20502,7 @@ parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	cur := get_current(p)
 	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 	check_strict_ts_decl_name(p, id.name, id.loc)
+	check_ts_primitive_decl_name(p, "Type alias", id.name, id.loc)
 	eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }

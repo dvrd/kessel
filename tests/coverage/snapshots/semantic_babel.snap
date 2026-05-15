@@ -1561,7 +1561,7 @@ babel/packages/babel-parser/test/fixtures/jsx/errors/unclosed-jsx-element/input.
 babel/packages/babel-parser/test/fixtures/placeholders/_errors/no-plugin/input.js:1:1: Unexpected token '%'
 babel/packages/babel-parser/test/fixtures/tokens/template-string/invalid-octal/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/tokens/template-string/invalid-unicode-escape-codepoint/input.js:1:8: Invalid escape sequence in template literal
-babel/packages/babel-parser/test/fixtures/typescript/arrow-function/async-arrow-function-after-binary-operator/input.ts:2:1: Arrow function cannot be used as an unparenthesized operand
+babel/packages/babel-parser/test/fixtures/typescript/arrow-function/async-arrow-function-after-binary-operator/input.ts:2:1: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/typescript/arrow-function/async-rest-optional-parameter/input.ts:1:14: Expected ), got ?
 babel/packages/babel-parser/test/fixtures/typescript/arrow-function/generic-tsx/input.ts:4:1: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 babel/packages/babel-parser/test/fixtures/typescript/arrow-function/invalid-class-implements/input.ts:1:22: Expected {, got =>
