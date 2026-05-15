@@ -1515,6 +1515,12 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 	stmt := parse_statement_or_declaration(p)
 	if stmt != nil {
 		append(body, stmt)
+		// .d.ts files: only declarations are allowed at the top level.
+		// OXC reports "A 'declare' modifier is required for a top level
+		// declaration in a .d.ts file" for non-declaration statements.
+		if p.source_is_dts {
+			report_dts_non_declaration(p, stmt)
+		}
 		return
 	}
 
@@ -1569,6 +1575,59 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 	if !is_token(p, .EOF) {
 		eat(p)
 	}
+}
+
+// .d.ts file: reject non-declaration statements at top level.
+// OXC reports these as parser errors. The check is intentionally
+// conservative — only known statement types are flagged; unrecognised
+// AST variants fall through silently.
+@(private="file")
+report_dts_non_declaration :: proc(p: ^Parser, stmt: ^Statement) {
+	if stmt == nil { return }
+	stmt_loc := dts_stmt_loc(stmt)
+	#partial switch _ in stmt^ {
+	// Pure statements — always illegal in .d.ts.  Declarations
+	// (VariableDeclaration, FunctionDeclaration, ClassDeclaration, etc.)
+	// are implicitly ambient in .d.ts, so `declare` is optional.
+	case ^ExpressionStatement, ^BlockStatement,
+	     ^DebuggerStatement, ^WithStatement, ^ReturnStatement,
+	     ^LabeledStatement, ^BreakStatement, ^ContinueStatement,
+	     ^IfStatement, ^SwitchStatement, ^ThrowStatement,
+	     ^TryStatement, ^WhileStatement, ^DoWhileStatement,
+	     ^ForStatement, ^ForInStatement, ^ForOfStatement:
+		report_error_at(p, LexerLoc(stmt_loc),
+			"Statements are not allowed in declaration files.")
+	}
+}
+
+// Extract the start offset from any Statement variant's .loc field.
+@(private="file")
+dts_stmt_loc :: proc(stmt: ^Statement) -> u32 {
+	if stmt == nil { return 0 }
+	#partial switch v in stmt^ {
+	case ^ExpressionStatement:  if v != nil { return v.loc.span.start }
+	case ^BlockStatement:       if v != nil { return v.loc.span.start }
+	case ^EmptyStatement:       if v != nil { return v.loc.span.start }
+	case ^DebuggerStatement:    if v != nil { return v.loc.span.start }
+	case ^WithStatement:        if v != nil { return v.loc.span.start }
+	case ^ReturnStatement:      if v != nil { return v.loc.span.start }
+	case ^LabeledStatement:     if v != nil { return v.loc.span.start }
+	case ^BreakStatement:       if v != nil { return v.loc.span.start }
+	case ^ContinueStatement:    if v != nil { return v.loc.span.start }
+	case ^IfStatement:          if v != nil { return v.loc.span.start }
+	case ^SwitchStatement:      if v != nil { return v.loc.span.start }
+	case ^ThrowStatement:       if v != nil { return v.loc.span.start }
+	case ^TryStatement:         if v != nil { return v.loc.span.start }
+	case ^WhileStatement:       if v != nil { return v.loc.span.start }
+	case ^DoWhileStatement:     if v != nil { return v.loc.span.start }
+	case ^ForStatement:         if v != nil { return v.loc.span.start }
+	case ^ForInStatement:       if v != nil { return v.loc.span.start }
+	case ^ForOfStatement:       if v != nil { return v.loc.span.start }
+	case ^VariableDeclaration:  if v != nil { return v.loc.span.start }
+	case ^FunctionDeclaration:  if v != nil { return v.loc.span.start }
+	case ^ClassDeclaration:     if v != nil { return v.loc.span.start }
+	}
+	return 0
 }
 
 parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
