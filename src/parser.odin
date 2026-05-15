@@ -6001,6 +6001,21 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			report_error(p, "'declare' modifier cannot appear on a constructor declaration.")
 		}
 	}
+	// TS: getters cannot have type parameters. Setters cannot have type
+	// parameters or a return type annotation.
+	if allow_ts_mode(p) {
+		if kind == .Get && method_type_parameters != nil {
+			report_error(p, "A 'get' accessor cannot have type parameters.")
+		}
+		if kind == .Set {
+			if method_type_parameters != nil {
+				report_error(p, "A 'set' accessor cannot have type parameters.")
+			}
+			if _, has_return_type := method_return_type.?; has_return_type {
+				report_error(p, "A 'set' accessor cannot have a return type annotation.")
+			}
+		}
+	}
 	if is_declare && (kind == .Get || kind == .Set || kind == .Method) {
 		report_error(p, "'declare' modifier cannot be used here.")
 	}
