@@ -4793,6 +4793,8 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		if is_strict_reserved_binding_name(current.value) {
 			report_error(p, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
 		}
+		// TS2414 — primitive type names cannot be class names.
+		check_ts_primitive_decl_name(p, "Class", current.value, loc_from_token(&current))
 		// §12.6.1.1 contextual `await` reservation — `await` as a
 		// class name is reserved in async / static-block / module
 		// context. Uses await_is_reserved_here and an explicit
@@ -7006,6 +7008,27 @@ check_strict_ts_decl_name :: proc(p: ^Parser, name: string, loc: Loc) {
 	// declaration names even in strict mode (OXC accepts them).
 	if is_strict_reserved_name(name) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", name)
+		report_error_at(p, LexerLoc(loc.span.start), msg)
+	}
+}
+
+// is_ts_primitive_type_name — returns true for built-in type names that
+// cannot be used as class, interface, or enum names (TS2414/TS2427/TS2431).
+is_ts_primitive_type_name :: #force_inline proc(name: string) -> bool {
+	switch name {
+	case "any", "boolean", "number", "string", "symbol", "undefined":
+		return true
+	}
+	return false
+}
+
+// check_ts_primitive_decl_name — reject primitive type names as
+// class/interface/enum declaration names. Mirrors OXC's
+// TS2414/TS2427/TS2431 parser-level checks.
+check_ts_primitive_decl_name :: proc(p: ^Parser, kind: string, name: string, loc: Loc) {
+	if !allow_ts_mode(p) { return }
+	if is_ts_primitive_type_name(name) {
+		msg := fmt.tprintf("%s name cannot be '%s'", kind, name)
 		report_error_at(p, LexerLoc(loc.span.start), msg)
 	}
 }
@@ -20384,6 +20407,7 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	cur := get_current(p)
 	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 	check_strict_ts_decl_name(p, id.name, id.loc)
+	check_ts_primitive_decl_name(p, "Interface", id.name, id.loc)
 	eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
@@ -20458,6 +20482,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 	check_strict_ts_decl_name(p, id.name, id.loc)
+	check_ts_primitive_decl_name(p, "Enum", id.name, id.loc)
 	eat(p)
 	body_start := cur_loc(p); expect_token(p, .LBrace)
 	members := make([dynamic]TSEnumMember, 0, 8, p.allocator)
