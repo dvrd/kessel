@@ -3982,7 +3982,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 				is_reserved_fn_name := is_strict_reserved_name(current.value)
 				// `static` is reserved in strict JS but not in TS.
 				if !is_reserved_fn_name && !allow_ts_mode(p) {
-					is_reserved_fn_name = current.value == "static" || current.value == "let"
+					is_reserved_fn_name = current.value == "static" || current.value == "let" || current.value == "yield"
 				}
 				if is_reserved_fn_name {
 					msg := fmt.tprintf("Function name '%s' is reserved in strict mode", current.value)
@@ -4226,7 +4226,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if id_v, has_id := id.?; has_id && body_strict && !p.strict_mode && !p.in_ambient && !p.source_is_dts {
 		is_reserved := is_strict_reserved_name(id_v.name)
 		if !is_reserved && !allow_ts_mode(p) {
-			is_reserved = id_v.name == "static" || id_v.name == "let"
+			is_reserved = id_v.name == "static" || id_v.name == "let" || id_v.name == "yield"
 		}
 		if is_reserved {
 			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)

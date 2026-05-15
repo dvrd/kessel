@@ -3,7 +3,7 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2234/2237 (99.87%)
 Positive Passed: 2234/2237 (99.87%)
-Negative Passed: 1628/1725 (94.38%)
+Negative Passed: 1631/1725 (94.55%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -27,7 +27,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-strict-body/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-get-static-set/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-set-static-get/input.js
@@ -40,8 +39,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-function-declaration/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-function-expression/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0274/input.js
@@ -636,6 +633,7 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/84/input.js:1:9: 
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/96/input.js:1:8: Unexpected reserved word 'default'
 babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-function-declaration-inside-generator/input.js:2:12: 'yield' cannot be used as a function name in generator context
 babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-generator-expression/input.js:1:12: 'yield' cannot be used as the name of a generator function expression
+babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-strict-body/input.js:1:10: Function name 'yield' is reserved in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-strict/input.js:2:10: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/yield/in-class-heritage/input.js:1:17: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/yield/in-global-scope/input.js:1:1: 'yield' expression is only allowed in a generator body
@@ -1261,6 +1259,8 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-str
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-binding-element/input.js:1:24: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-catch-parameter/input.js:1:29: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-formal-parameter/input.js:1:26: 'yield' is a reserved identifier in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-function-declaration/input.js:1:10: Function name 'yield' is reserved in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-function-expression/input.js:1:11: Function name 'yield' is reserved in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-identifier/input.js:1:30: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-lexical-declaration/input.js:1:19: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-rest-parameter/input.js:1:29: 'yield' is a reserved identifier in strict mode
