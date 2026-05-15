@@ -1,6 +1,6 @@
 semantic_misc Summary:
-AST Parsed     : 70/72 (97.22%)
-Positive Passed: 70/72 (97.22%)
+AST Parsed     : 71/72 (98.61%)
+Positive Passed: 71/72 (98.61%)
 Negative Passed: 280/286 (97.90%)
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
@@ -8,9 +8,6 @@ Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_to
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
-Expect to Parse: tests/coverage/misc/pass/oxc-12679.js
-tests/coverage/misc/pass/oxc-12679.js:3:12: Label 'label' has already been declared
-
 Expect to Parse: tests/coverage/misc/pass/oxc-13284.ts
 tests/coverage/misc/pass/oxc-13284.ts:13:14: Constructors for derived classes must contain a 'super' call.
 

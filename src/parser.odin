@@ -4645,6 +4645,12 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// class-field `arguments` ban stops here.
 	prev_field_init_in_fb := p.in_field_init
 	p.in_field_init = false
+	// break/continue context does NOT cross function boundaries.
+	// `while(1) { function f() { break; } }` is a SyntaxError.
+	prev_in_loop_fb := p.in_loop
+	prev_in_switch_fb := p.in_switch
+	p.in_loop = false
+	p.in_switch = false
 
 	p.in_function = true
 	p.in_non_arrow_function = true
@@ -4717,6 +4723,8 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	p.no_in = prev_no_in
 	p.in_static_block = prev_static_block_in_fb
 	p.in_field_init = prev_field_init_in_fb
+	p.in_loop = prev_in_loop_fb
+	p.in_switch = prev_in_switch_fb
 	// Restore the enclosing label floor. Labels pushed inside this body
 	// should have been popped on their LabelledStatement exit; if not
 	// (parse bail-out, etc.) truncate down so leftovers don't pollute
@@ -15180,10 +15188,21 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
+		// break/continue/labels don't cross arrow function boundaries.
+		prev_in_loop_arrow := p.in_loop
+		prev_in_switch_arrow := p.in_switch
+		prev_label_floor_arrow := p.label_floor
+		p.in_loop = false
+		p.in_switch = false
+		p.label_floor = len(p.label_stack)
 		// §15.3.1: arrow block body is a function-scope.
 		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
+		p.in_loop = prev_in_loop_arrow
+		p.in_switch = prev_in_switch_arrow
+		resize(&p.label_stack, p.label_floor)
+		p.label_floor = prev_label_floor_arrow
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
 		if block_stmt != nil {
 			// parse_block_statement returns ^Statement wrapping ^BlockStatement.
@@ -15984,10 +16003,21 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
+		// break/continue/labels don't cross arrow function boundaries.
+		prev_in_loop_a2 := p.in_loop
+		prev_in_switch_a2 := p.in_switch
+		prev_label_floor_a2 := p.label_floor
+		p.in_loop = false
+		p.in_switch = false
+		p.label_floor = len(p.label_stack)
 		// §15.3.1: arrow block body is a function-scope.
 		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
+		p.in_loop = prev_in_loop_a2
+		p.in_switch = prev_in_switch_a2
+		resize(&p.label_stack, p.label_floor)
+		p.label_floor = prev_label_floor_a2
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
 		if block_stmt != nil {
 			// Same Bug-H class as the multi-param arrow arm above. Extract the
@@ -16100,10 +16130,21 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		// Block body - need to set in_function for return statement validation
 		prev_in_function := p.in_function
 		p.in_function = true
+		// break/continue/labels don't cross arrow function boundaries.
+		prev_in_loop_a3 := p.in_loop
+		prev_in_switch_a3 := p.in_switch
+		prev_label_floor_a3 := p.label_floor
+		p.in_loop = false
+		p.in_switch = false
+		p.label_floor = len(p.label_stack)
 		// §15.3.1: arrow block body is a function-scope.
 		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
 		p.in_function = prev_in_function
+		p.in_loop = prev_in_loop_a3
+		p.in_switch = prev_in_switch_a3
+		resize(&p.label_stack, p.label_floor)
+		p.label_floor = prev_label_floor_a3
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
 		if block_stmt != nil {
 			// Same Bug-H class as the other two arrow-function arms above.

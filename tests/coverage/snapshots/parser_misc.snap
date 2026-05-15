@@ -1,6 +1,6 @@
 parser_misc Summary:
-AST Parsed     : 71/72 (98.61%)
-Positive Passed: 71/72 (98.61%)
+AST Parsed     : 72/72 (100.00%)
+Positive Passed: 72/72 (100.00%)
 Negative Passed: 261/286 (91.26%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
@@ -27,9 +27,6 @@ Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
 Expect Syntax Error: tests/coverage/misc/fail/script-top-level-using.js
 Expect Syntax Error: tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs
-Expect to Parse: tests/coverage/misc/pass/oxc-12679.js
-tests/coverage/misc/pass/oxc-12679.js:3:12: Label 'label' has already been declared
-
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
 tests/coverage/misc/fail/commonjs-top-level-await.cjs:2:1: Top-level 'await' is only valid in module code

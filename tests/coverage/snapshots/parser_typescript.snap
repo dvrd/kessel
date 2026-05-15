@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10734/10751 (99.84%)
 Positive Passed: 10734/10751 (99.84%)
-Negative Passed: 1534/1660 (92.41%)
+Negative Passed: 1538/1660 (92.65%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -17,13 +17,11 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTyp
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesInterface.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesVar.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/breakNotInIterationOrSwitchStatement2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classCannotExtendVar.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classWithDuplicateIdentifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads8.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/continueNotInIterationStatement2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/crashOnMethodSignatures.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitDestructuring2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateClassElements.ts
@@ -118,8 +116,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxPa
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclarationAmbiguities1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.13.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/conditional/inferTypes1.ts
@@ -251,6 +247,7 @@ typescript/tests/cases/compiler/bases.ts:7:15: Expected semicolon
 typescript/tests/cases/compiler/bigintArbirtraryIdentifier.ts::badExport.ts:1:17: Unexpected token: numeric / bigint literal cannot be an export name
 typescript/tests/cases/compiler/bigintPropertyName.ts::g.ts:2:5: Expected }, got bigint
 typescript/tests/cases/compiler/breakNotInIterationOrSwitchStatement1.ts:1:1: 'break' must be inside a loop or switch
+typescript/tests/cases/compiler/breakNotInIterationOrSwitchStatement2.ts:3:5: 'break' must be inside a loop or switch
 typescript/tests/cases/compiler/breakTarget5.ts:5:13: Undefined label 'target'
 typescript/tests/cases/compiler/breakTarget6.ts:2:9: Undefined label 'target'
 typescript/tests/cases/compiler/callExpressionWithMissingTypeArgument1.ts:1:12: Empty parenthesized expression
@@ -304,6 +301,7 @@ typescript/tests/cases/compiler/constructorStaticParamNameErrors.ts:4:18: 'stati
 typescript/tests/cases/compiler/constructorWithIncompleteTypeAnnotation.ts:11:13: 'module(...)' in import-equals is not supported; use 'require(...)' instead
 typescript/tests/cases/compiler/contextualTyping.ts:189:1: Overload signatures must all be ambient or non-ambient.
 typescript/tests/cases/compiler/continueNotInIterationStatement1.ts:1:1: 'continue' must be inside a loop
+typescript/tests/cases/compiler/continueNotInIterationStatement2.ts:3:5: 'continue' must be inside a loop
 typescript/tests/cases/compiler/continueNotInIterationStatement3.ts:3:5: 'continue' must be inside a loop
 typescript/tests/cases/compiler/continueTarget1.ts:2:12: 'continue' must target an iteration label, 'target' does not
 typescript/tests/cases/compiler/continueTarget5.ts:5:16: Undefined label 'target'
@@ -1477,9 +1475,11 @@ typescript/tests/cases/conformance/parser/ecmascript5/SkippedTokens/parserSkippe
 typescript/tests/cases/conformance/parser/ecmascript5/SkippedTokens/parserSkippedTokens8.ts:2:9: Unexpected token '\'
 typescript/tests/cases/conformance/parser/ecmascript5/SkippedTokens/parserSkippedTokens9.ts:2:9: Unexpected token '\'
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement1.ts:1:1: 'break' must be inside a loop or switch
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement2.ts:3:5: 'break' must be inside a loop or switch
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakTarget5.ts:5:13: Undefined label 'target'
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/BreakStatements/parser_breakTarget6.ts:2:9: Undefined label 'target'
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement1.ts:1:1: 'continue' must be inside a loop
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement2.ts:3:5: 'continue' must be inside a loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement3.ts:3:5: 'continue' must be inside a loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueTarget1.ts:2:12: 'continue' must target an iteration label, 'target' does not
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ContinueStatements/parser_continueTarget5.ts:5:16: Undefined label 'target'

@@ -3,7 +3,7 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2234/2237 (99.87%)
 Positive Passed: 2234/2237 (99.87%)
-Negative Passed: 1610/1725 (93.33%)
+Negative Passed: 1614/1725 (93.57%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -25,8 +25,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin-as/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/463/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/464/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/491/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/512/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/uncategorised/513/input.js
@@ -55,8 +53,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0090/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0091/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0180/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0181/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0208/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js
@@ -309,6 +305,8 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/459/input.js:1:22: 
 babel/packages/babel-parser/test/fixtures/core/uncategorised/460/input.js:1:25: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/461/input.js:1:40: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/462/input.js:1:43: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/463/input.js:1:34: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/core/uncategorised/464/input.js:1:34: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/465/input.js:1:22: Label 'x' has already been declared
 babel/packages/babel-parser/test/fixtures/core/uncategorised/466/input.js:1:30: Deleting an unqualified identifier is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/uncategorised/467/input.js:1:30: 'with' statements are not allowed in strict mode
@@ -1451,6 +1449,8 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0176/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0177/input.js:1:25: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0178/input.js:1:40: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0179/input.js:1:43: Undefined label 'x'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0180/input.js:1:34: 'break' must be inside a loop or switch
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0181/input.js:1:34: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0182/input.js:1:22: Label 'x' has already been declared
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0183/input.js:1:30: Deleting an unqualified identifier is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0184/input.js:1:30: 'with' statements are not allowed in strict mode
