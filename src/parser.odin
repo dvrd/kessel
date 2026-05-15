@@ -14755,6 +14755,9 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 			if is_eval_or_arguments(e.name) {
 				msg := fmt.tprintf("Binding identifier '%s' not allowed in strict mode", e.name)
 				report_error_at(p, LexerLoc(e.loc.span.start), msg)
+			} else if is_strict_reserved_binding_name(e.name) {
+				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name)
+				report_error_at(p, LexerLoc(e.loc.span.start), msg)
 			}
 		}
 		return id_ptr, true
@@ -15436,6 +15439,16 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					if expr_ptr == nil { continue }
 					#partial switch arg in expr_ptr^ {
 					case ^Identifier:
+						// §15.3.1 strict-mode checks for multi-param arrow.
+						if p.strict_mode {
+							if is_eval_or_arguments(arg.name) {
+								report_error_at(p, LexerLoc(arg.loc.span.start),
+									fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", arg.name))
+							} else if is_strict_reserved_binding_name(arg.name) {
+								report_error_at(p, LexerLoc(arg.loc.span.start),
+									fmt.tprintf("'%s' is a reserved identifier in strict mode", arg.name))
+							}
+						}
 						param_ident := new_node(p, Identifier)
 						param_ident^ = arg^
 						param := FunctionParameter{
