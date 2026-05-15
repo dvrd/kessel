@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 9811/9828 (99.83%)
 Positive Passed: 9811/9828 (99.83%)
-Negative Passed: 1426/2583 (55.21%)
+Negative Passed: 1428/2583 (55.28%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration24.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ExportAssignment7.ts
@@ -442,7 +442,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/operatorAddN
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamArgsTest.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamReferencingOtherParams2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamReferencingOtherParams3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalSetterParam.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/orderMattersForSignatureGroupIdentity.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadAssignmentCompat.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadModifiersMustAgree.ts
@@ -1013,7 +1012,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ec
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessor1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration17.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclarationAmbiguities1.ts
@@ -1551,6 +1549,7 @@ typescript/tests/cases/compiler/octalLiteralAndEscapeSequence.ts:1:1: Legacy oct
 typescript/tests/cases/compiler/optionalArgsWithDefaultValues.ts:1:41: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/compiler/optionalChainWithInstantiationExpression1.ts:12:8: An instantiation expression cannot be followed by a property access.
 typescript/tests/cases/compiler/optionalPropertiesSyntax.ts:11:7: Expected }, got ?
+typescript/tests/cases/compiler/optionalSetterParam.ts:3:20: A 'set' accessor cannot have an optional parameter.
 typescript/tests/cases/compiler/overloadConsecutiveness.ts:3:14: Expected {, got ,
 typescript/tests/cases/compiler/overloadingStaticFunctionsInFunctions.ts:1:14: Expected (, got {
 typescript/tests/cases/compiler/paramPropertiesInSignatures.ts:2:21: Parameter properties are only allowed in the implementation constructor.
@@ -2338,6 +2337,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration14.ts:2:8: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration15.ts:2:28: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration16.ts:2:12: A 'set' accessor cannot have an initializer.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration17.ts:2:12: A 'set' accessor cannot have an optional parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration18.ts:2:12: Setter parameter cannot be a rest element
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration7.ts:2:12: Accessibility modifier already seen.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration8.ts:2:19: Expected (, got UNKNOWN

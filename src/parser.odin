@@ -6795,6 +6795,10 @@ enforce_accessor_param_shape :: proc(
 		if _, has_default := param.default_val.(^Expression); has_default {
 			report_error_at(p, param_loc, "A 'set' accessor cannot have an initializer.")
 		}
+		// TS1051 — set accessor parameter cannot be optional.
+		if id, ok := param.pattern.(^Identifier); ok && id != nil && id.optional {
+			report_error_at(p, param_loc, "A 'set' accessor cannot have an optional parameter.")
+		}
 	}
 }
 
