@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10734/10751 (99.84%)
 Positive Passed: 10734/10751 (99.84%)
-Negative Passed: 1545/1660 (93.07%)
+Negative Passed: 1547/1660 (93.19%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -102,8 +102,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destr
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of53.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/for-ofStatements/for-of54.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports03.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.7.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/internalModules/moduleDeclarations/invalidInstantiatedModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxParsingError1.tsx
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts
@@ -1110,6 +1108,8 @@ typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.3.ts:4:11
 typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.4.ts:4:6: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.5.ts:2:14: 'await' cannot be used as a class name in module context
 typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.6.ts:2:17: 'await' cannot be used as a function name in module / async context
+typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.7.ts::index.ts:2:13: 'await' is reserved as a binding name in module code
+typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.8.ts::index.ts:2:8: 'await' is reserved as a binding name in module code
 typescript/tests/cases/conformance/externalModules/topLevelAwaitErrors.9.ts::index.ts:2:10: 'await' is reserved as a binding name in module code
 typescript/tests/cases/conformance/externalModules/typeOnly/exportDeclaration_missingBraces.ts:11:16: Expected =, got ;
 typescript/tests/cases/conformance/externalModules/typeOnly/exportNamespace_js.ts::b.js:1:20: Expected semicolon

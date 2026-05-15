@@ -9800,6 +9800,11 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			return nil
 		}
 		local := parse_identifier(p)
+		// §16.2.2 — `await` is reserved as a binding name in module code.
+		// Import declarations are module syntax, so `await` always forbidden.
+		if local.name == "await" {
+			report_error_at(p, LexerLoc(local.loc.span.start), "'await' is reserved as a binding name in module code")
+		}
 		// Strict-mode reserved word as namespace import binding.
 		if p.strict_mode && is_strict_reserved_name(local.name) &&
 		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
@@ -9825,8 +9830,11 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		decl.source = parse_string_literal(p)
 	} else if is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type) {
 		// Default import: import name from "module" or import name, { x } from "module"
-		// `await`, `yield`, `let` etc. are valid binding names in import context.
 		local := parse_identifier(p)
+		// §16.2.2 — `await` is reserved as a binding name in module code.
+		if local.name == "await" {
+			report_error_at(p, LexerLoc(local.loc.span.start), "'await' is reserved as a binding name in module code")
+		}
 		// Strict-mode reserved word as default import binding.
 		if p.strict_mode && is_strict_reserved_name(local.name) &&
 		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
