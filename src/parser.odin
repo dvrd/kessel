@@ -5867,6 +5867,18 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		str_lit.raw = current.value
 		key = expression_from(p, str_lit)
 		eat(p)
+		// String-literal key "constructor" promotes to Constructor kind,
+		// same rules as the identifier path: no get/set, no async/generator,
+		// and must be non-static.
+		if str_lit.value == "constructor" &&
+		   kind == .Method && !is_async && !is_generator && !static_ {
+			kind = .Constructor
+		}
+		// §15.7.6 — string-literal "constructor" must not be get/set/async/generator.
+		if !static_ && str_lit.value == "constructor" {
+			if is_async { report_error(p, "Constructor can't be an async method") }
+			if is_generator { report_error(p, "Constructor can't be a generator") }
+		}
 	} else if is_token(p, .Number) {
 		// Numeric key: `1234()`. Similarly emit as NumericLiteral-backed Literal
 		// rather than an Identifier whose name is the numeric text.
