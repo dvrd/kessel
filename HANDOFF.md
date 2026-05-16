@@ -4,13 +4,13 @@
 
 Build: clean. `task test`: all 291 unit + 24 coverage tests pass.
 
-**230 fixtures from 100% OXC parser parity** (was 326).
+**215 fixtures from 100% OXC parser parity** (was 326).
 
 | Suite | Positive (FPs) | Negative gap | Total gap |
 |---|---|---|---|
-| test262 | 0 | 12 | 12 |
-| Babel | 3 | 91 | 94 |
-| TypeScript | 17 | 111 | 128 |
+| test262 | 0 | 4 | 4 |
+| Babel | 3 | 83 | 86 |
+| TypeScript | 17 | 109 | 126 |
 | ESTree | 0 | 0 | 0 |
 
 Live numbers: `task test:conformance:report`
@@ -24,7 +24,7 @@ Live numbers: `task test:conformance:report`
 
 ## Session Progress (latest)
 
-**+96 negatives caught, +1 misc positive, zero regressions** across 18 commits:
+**+111 negatives caught, +1 misc positive, zero regressions** across 22 commits:
 
 1. **Strict-mode reserved words in TS bindings/declarations** (+21 TS, +6 babel, +1 babel semantic)
    - Removed overly-broad `!allow_ts_mode(p)` gate on strict-reserved checks in `parse_binding_pattern`
@@ -71,6 +71,16 @@ Live numbers: `task test:conformance:report`
 
 14. **Regular for-statement head let/const vs body var** (+1 babel, +2 test262)
     - `for (let i = 0; ...) { var i; }` now caught
+
+15. **Static block label_floor + single-param destructuring dups** (+3 test262, +2 TS, +4 babel)
+    - `continue label;` across static block boundary now caught
+    - `([x, x]) => 1` single-param destructuring dups now caught
+
+16. **Private getter/setter static mismatch (TS2804)** (+4 test262, +4 babel)
+    - `get #f(){}` / `static set #f(){}` mismatch now caught
+
+17. **Async arrow params-vs-body-lex check** (+1 test262)
+    - `async(bar) => { let bar; }` now caught
 
 ## The 20 FPs (kessel rejects valid code)
 
