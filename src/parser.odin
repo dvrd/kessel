@@ -2588,6 +2588,14 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		if !allow_plain_function {
 			report_error(p, "Function declarations are not allowed in a single-statement context")
 		}
+	case ^TSInterfaceDeclaration:
+		if allow_ts_mode(p) {
+			report_error(p, "Interface declaration cannot appear in a single-statement context")
+		}
+	case ^TSTypeAliasDeclaration:
+		if allow_ts_mode(p) {
+			report_error(p, "Type alias declaration cannot appear in a single-statement context")
+		}
 	case ^LabeledStatement:
 		// Recurse through labels: `label1: label2: function f() {}` in
 		// a single-statement position (iteration body, with body, ...)
@@ -9384,6 +9392,9 @@ check_catch_param_dups :: proc(p: ^Parser, param: Maybe(Pattern)) {
 // check_catch_param_body_shadow — §14.15.1 — BoundNames of
 // CatchParameter may not occur in LexicallyDeclaredNames of Block.
 // `catch (e) { let e; }` is a SyntaxError.
+// Also: Annex B §B.3.4 — when the CatchParameter is a destructuring
+// pattern (BindingPattern, not simple Identifier), `var` redeclaration
+// of its BoundNames is also a SyntaxError.
 @(private="file")
 check_catch_param_body_shadow :: proc(p: ^Parser, param: Maybe(Pattern), body: []^Statement) {
 	pat, have := param.(Pattern)
@@ -9394,12 +9405,32 @@ check_catch_param_body_shadow :: proc(p: ^Parser, param: Maybe(Pattern), body: [
 	reserve(&param_names, 4)
 	scope_collect_pattern(pat, &param_names)
 	if len(param_names) == 0 { return }
+
+	// Check against lexical declarations (let/const/class).
 	body_lex := scope_map_make(4)
 	// Catch body is block-scope: function declarations are always lexical.
 	collect_body_lex_names(body, &body_lex, true)
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
 			report_error_at(p, LexerLoc(off), fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n))
+		}
+	}
+
+	// Annex B §B.3.4: when catch parameter is a BindingPattern (destructuring),
+	// `var` redeclaration of its BoundNames is also an error. Simple Identifier
+	// catch bindings allow `var` redeclaration per web-compat (§B.3.4 carve-out).
+	is_destructuring := false
+	#partial switch _ in pat {
+	case ^ObjectPattern: is_destructuring = true
+	case ^ArrayPattern:  is_destructuring = true
+	}
+	if is_destructuring {
+		body_vars := scope_map_make(4)
+		for stmt in body { scope_hoist_vars(p, stmt, &body_vars) }
+		for n in param_names {
+			if at, found := scope_map_get(&body_vars, n); found {
+				scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", n))
+			}
 		}
 	}
 }

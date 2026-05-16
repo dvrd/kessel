@@ -932,7 +932,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"twoInterfacesDifferentRootModule.ts",
 	"twoInterfacesDifferentRootModule2.ts",
 	"TwoInternalModulesThatMergeEachWithExportedClassesOfTheSameName.ts",
-	"typeAliasDeclarationEmit3.ts",
+
 	"typeCheckingInsideFunctionExpressionInArray.ts",
 	"typedefCrossModule2.ts",
 	"typedefCrossModule3.ts",
@@ -959,7 +959,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"typeGuardsWithInstanceOf.ts",
 	"typeGuardsWithInstanceOfByConstructorSignature.ts",
 	"typeGuardsWithInstanceOfBySymbolHasInstance.ts",
-	"typeInterfaceDeclarationsInBlockStatements1.ts",
+
 	"typeofAnExportedType.ts",
 	"typeofANonExportedType.ts",
 	"typeofClass.ts",

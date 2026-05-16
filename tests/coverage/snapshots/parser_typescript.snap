@@ -1,9 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10727/10744 (99.84%)
-Positive Passed: 10727/10744 (99.84%)
-Negative Passed: 1572/1667 (94.30%)
+AST Parsed     : 10725/10742 (99.84%)
+Positive Passed: 10725/10742 (99.84%)
+Negative Passed: 1574/1669 (94.31%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -670,7 +670,9 @@ typescript/tests/cases/compiler/templateLiteralEscapeSequence.ts:3:5: Invalid es
 typescript/tests/cases/compiler/thisAssignmentInNamespaceDeclaration1.ts::a.js:1:11: Expected semicolon
 typescript/tests/cases/compiler/throwWithoutNewLine1.ts:1:6: Expected expression after throw
 typescript/tests/cases/compiler/throwWithoutNewLine2.ts:2:1: Illegal newline after 'throw'
+typescript/tests/cases/compiler/typeAliasDeclarationEmit3.ts:4:9: Type alias declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/typeAliasDeclareKeywordNewlines.ts:5:9: Line terminator not permitted after 'type'
+typescript/tests/cases/compiler/typeInterfaceDeclarationsInBlockStatements1.ts:5:3: Type alias declaration cannot appear in a single-statement context
 typescript/tests/cases/compiler/typeNamedUndefined1.ts:3:17: Type alias name cannot be 'undefined'
 typescript/tests/cases/compiler/typeNamedUndefined2.ts:4:21: Type alias name cannot be 'undefined'
 typescript/tests/cases/compiler/unaryOperatorsInStrictMode.ts:3:3: Update of 'eval' is not allowed in strict mode

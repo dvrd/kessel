@@ -3,8 +3,7 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2234/2237 (99.87%)
 Positive Passed: 2234/2237 (99.87%)
-Negative Passed: 1678/1725 (97.28%)
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
+Negative Passed: 1683/1725 (97.57%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
@@ -16,8 +15,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine-before-use-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-property-name/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-arr-destr/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-obj-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-optional-private-property/input.js
@@ -45,11 +42,9 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-require-in-script/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-within-single-statement-context/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-2/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/type-alias/invalid-within-single-statement-context/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/members-with-modifier-names/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/members-with-modifier-names/input.ts:2:5: Function implementation is missing or not immediately following the declaration.
@@ -61,6 +56,7 @@ Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typesc
 babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts:10:30: A parameter cannot have a question mark and an initializer.
 
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js:2:1: Function declarations are not allowed in a single-statement context
+babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js:2:24: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/invalid-assignment-target-type/input.js:3:15: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/core/categorized/for-missing-semicolons/input.js:3:3: Expected ;, got identifier
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-1/input.js:1:9: Invalid left-hand side in assignment
@@ -109,6 +105,8 @@ babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-dbl-let/inp
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-func/input.js:3:12: Catch parameter 'foo' cannot be redeclared with let/const in catch block
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-let/input.js:3:3: Catch parameter 'foo' cannot be redeclared with let/const in catch block
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-obj-destr/input.js:1:1: Identifier 'foo' has already been declared in catch clause
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-arr-destr/input.js:3:3: Identifier 'foo' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-obj-destr/input.js:3:3: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-class/input.js:2:7: 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-const/input.js:2:1: 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-class-func/input.js:2:10: Identifier 'foo' has already been declared
@@ -1630,6 +1628,7 @@ babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-get-prope
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-method/input.ts:2:3: 'private' modifier cannot appear on a type member.
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-property/input.ts:2:3: 'private' modifier cannot appear on a type member.
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-set-properties/input.ts:2:10: Expected (, got :
+babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-within-single-statement-context/input.ts:3:1: Interface declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line-error/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/property-initializer/input.ts:1:25: Expected }, got =
@@ -1691,6 +1690,7 @@ babel/packages/babel-parser/test/fixtures/typescript/tsx/anonymous-function-gene
 babel/packages/babel-parser/test/fixtures/typescript/tsx/cast-invalid/input.tsx:3:22: Expected ], got :
 babel/packages/babel-parser/test/fixtures/typescript/tsx/invalid-gt-arrow-like/input.ts:1:10: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 babel/packages/babel-parser/test/fixtures/typescript/type-alias/declare-new-line/input.ts:1:9: Line terminator not permitted after 'type'
+babel/packages/babel-parser/test/fixtures/typescript/type-alias/invalid-within-single-statement-context/input.ts:3:1: Type alias declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/call-optional-chain-invalid/input.ts:1:12: Expected '(' after type arguments in optional call
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-function/input.ts:1:5: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/empty-interface-extends/input.ts:1:23: Type argument list cannot be empty
