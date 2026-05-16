@@ -4,14 +4,16 @@
 
 Build: clean. `task test`: all 291 unit + 24 coverage tests pass.
 
-**215 fixtures from 100% OXC parser parity** (was 326).
+**194 fixtures from 100% OXC parser parity** (was 326).
 
 | Suite | Positive (FPs) | Negative gap | Total gap |
 |---|---|---|---|
-| test262 | 0 | 4 | 4 |
-| Babel | 3 | 83 | 86 |
+| test262 | 0 | **0** | **0** 🎉 |
+| Babel | 3 | 77 | 80 |
 | TypeScript | 17 | 109 | 126 |
 | ESTree | 0 | 0 | 0 |
+
+**🎉 test262 parser: 100.00% positive AND 100.00% negative — PERFECT SCORE!**
 
 Live numbers: `task test:conformance:report`
 
@@ -24,7 +26,7 @@ Live numbers: `task test:conformance:report`
 
 ## Session Progress (latest)
 
-**+111 negatives caught, +1 misc positive, zero regressions** across 22 commits:
+**+120 negatives caught, +1 misc positive, zero regressions** across 24 commits:
 
 1. **Strict-mode reserved words in TS bindings/declarations** (+21 TS, +6 babel, +1 babel semantic)
    - Removed overly-broad `!allow_ts_mode(p)` gate on strict-reserved checks in `parse_binding_pattern`
@@ -81,6 +83,13 @@ Live numbers: `task test:conformance:report`
 
 17. **Async arrow params-vs-body-lex check** (+1 test262)
     - `async(bar) => { let bar; }` now caught
+
+18. **`new await` + escaped await-as-label in module code** (+2 test262)
+    - Both module-reserved-await edge cases now caught
+
+19. **§16.2.2 export of undeclared name in JS modules** (+2 test262, +6 babel, +1 misc)
+    - `export { Number }` / `export { unresolvable }` now caught
+    - **Achieves test262 parser 100.00% negative — perfect score!**
 
 ## The 20 FPs (kessel rejects valid code)
 
