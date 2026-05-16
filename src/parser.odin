@@ -14744,6 +14744,12 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	p.class_has_extends = (super_class != nil)
 	defer p.class_has_extends = prev_class_has_extends
 
+	// Class expressions are never abstract — reset the flag so nested
+	// class expressions inside abstract class methods don't inherit it.
+	prev_class_is_abstract := p.class_is_abstract
+	p.class_is_abstract = false
+	defer p.class_is_abstract = prev_class_is_abstract
+
 	body := parse_class_body(p)
 
 	expr := new_node(p, ClassExpression)
@@ -21098,6 +21104,16 @@ parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	eat(p)
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
 	if is_token(p, .LAngle) { type_parameters = parse_ts_type_parameters(p) }
+	// TS1277 — `const` modifier on type parameters is only allowed in
+	// function/method/constructor declarations, not type aliases.
+	if tp, have := type_parameters.?; have && tp != nil {
+		for &param in tp.params {
+			if param.const_ {
+				report_error_at(p, LexerLoc(param.loc.span.start),
+					"'const' modifier can only appear on a type parameter of a function, method or class.")
+			}
+		}
+	}
 	expect_token(p, .Assign)
 	type_ann := parse_ts_type(p)
 	if type_ann == nil {

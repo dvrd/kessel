@@ -1,9 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10725/10742 (99.84%)
-Positive Passed: 10725/10742 (99.84%)
-Negative Passed: 1574/1669 (94.31%)
+AST Parsed     : 10724/10741 (99.84%)
+Positive Passed: 10724/10741 (99.84%)
+Negative Passed: 1575/1670 (94.31%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -1722,5 +1722,6 @@ typescript/tests/cases/conformance/types/typeAliases/typeAliasesDoNotMerge.ts:2:
 typescript/tests/cases/conformance/types/typeAliases/typeAliasesForObjectTypes.ts:11:6: Identifier 'T2' has already been declared
 typescript/tests/cases/conformance/types/typeParameters/typeArgumentLists/instantiationExpressionErrors.ts:7:21: An instantiation expression cannot be followed by a property access.
 typescript/tests/cases/conformance/types/typeParameters/typeArgumentLists/instantiationExpressions.ts:6:17: Expected expression after operator
+typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/typeParameterConstModifiers.ts:55:9: 'const' modifier can only appear on a type parameter of a function, method or class.
 typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/varianceAnnotations.ts:95:17: Expected >, got identifier
 typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/varianceAnnotationsWithCircularlyReferencesError.ts:1:12: Identifier expected. 'in' is a reserved word that cannot be used here.

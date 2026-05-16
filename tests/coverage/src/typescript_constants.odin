@@ -973,7 +973,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"typeOfThisInStaticMembers13.ts",
 	"typeOfThisInStaticMembers8.ts",
 	"typeOnlyMerge3.ts",
-	"typeParameterConstModifiers.ts",
+
 	"typeParameterExplicitlyExtendsAny.ts",
 	"typeParameterWithInvalidConstraintType.ts",
 	"typePredicateOnVariableDeclaration01.ts",
