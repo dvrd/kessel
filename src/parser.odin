@@ -15296,6 +15296,29 @@ walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow
 		}
 	case ^SpreadElement:
 		walk_arrow_cover_for_yield_await(p, e.argument, disallow_yield, disallow_await)
+	case ^BinaryExpression:
+		walk_arrow_cover_for_yield_await(p, e.left, disallow_yield, disallow_await)
+		walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+	case ^LogicalExpression:
+		walk_arrow_cover_for_yield_await(p, e.left, disallow_yield, disallow_await)
+		walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+	case ^UnaryExpression:
+		walk_arrow_cover_for_yield_await(p, e.argument, disallow_yield, disallow_await)
+	case ^UpdateExpression:
+		walk_arrow_cover_for_yield_await(p, e.argument, disallow_yield, disallow_await)
+	case ^ConditionalExpression:
+		walk_arrow_cover_for_yield_await(p, e.test, disallow_yield, disallow_await)
+		walk_arrow_cover_for_yield_await(p, e.consequent, disallow_yield, disallow_await)
+		walk_arrow_cover_for_yield_await(p, e.alternate, disallow_yield, disallow_await)
+	case ^CallExpression:
+		walk_arrow_cover_for_yield_await(p, e.callee, disallow_yield, disallow_await)
+		for arg in e.arguments { walk_arrow_cover_for_yield_await(p, arg, disallow_yield, disallow_await) }
+	case ^MemberExpression:
+		walk_arrow_cover_for_yield_await(p, e.object, disallow_yield, disallow_await)
+	case ^TaggedTemplateExpression:
+		walk_arrow_cover_for_yield_await(p, e.tag, disallow_yield, disallow_await)
+	case ^TemplateLiteral:
+		for expr_part in e.expressions { walk_arrow_cover_for_yield_await(p, expr_part, disallow_yield, disallow_await) }
 	}
 }
 

@@ -611,7 +611,7 @@ babel/packages/babel-parser/test/fixtures/es2015/yield/in-global-scope/input.js:
 babel/packages/babel-parser/test/fixtures/es2015/yield/in-iterator-stmt/input.js:2:20: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/es2015/yield/in-plain-function/input.js:1:16: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-1/input.js:2:8: 'yield' is not allowed in arrow function parameters
-babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-2/input.js:2:16: Yield expression is not allowed in arrow function parameters
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-2/input.js:2:16: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-3/input.js:2:8: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-4/input.js:2:18: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-5/input.js:2:9: 'yield' is not allowed in arrow function parameters
