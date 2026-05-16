@@ -14599,6 +14599,10 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		return expression_from(p, ident)
 
 	case .String:
+		// §12.9.4.1 — check for octal/\8/\9 escapes in strict mode.
+		if p.strict_mode && len(current.value) > 2 {
+			check_strict_string_escapes(p, current.value, u32(current.loc))
+		}
 		eat(p)
 		str := new_node(p, StringLiteral)
 		str.loc = loc_from_token(&current)
@@ -16671,8 +16675,42 @@ parse_string_literal :: proc(p: ^Parser) -> StringLiteral {
 	loc := loc_from_token(&p.cur_tok)
 	raw := p.cur_tok.value
 	value := p.cur_tok.literal.(string) or_else ""
+
+	// §12.9.4.1 — in strict mode, numeric escape sequences other than
+	// `\0` (not followed by a digit) are forbidden in string literals.
+	// Check the raw token text for `\1`-`\9` or `\0[0-9]`.
+	if p.strict_mode && len(raw) > 2 {
+		check_strict_string_escapes(p, raw, loc.span.start)
+	}
+
 	eat(p)
 	return StringLiteral{loc = loc, raw = raw, value = value}
+}
+
+// check_strict_string_escapes scans a raw string token for octal or \8/\9
+// escape sequences that are illegal in strict mode.
+@(private="file")
+check_strict_string_escapes :: proc(p: ^Parser, raw: string, offset: u32) {
+	i := 1 // skip opening quote
+	for i < len(raw) - 1 {
+		if raw[i] == '\\' && i + 1 < len(raw) - 1 {
+			next := raw[i + 1]
+			if next >= '1' && next <= '9' {
+				report_error_at(p, LexerLoc(offset + u32(i)),
+					"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+				return
+			}
+			if next == '0' && i + 2 < len(raw) - 1 && raw[i + 2] >= '0' && raw[i + 2] <= '9' {
+				report_error_at(p, LexerLoc(offset + u32(i)),
+					"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+				return
+			}
+			// Skip escaped character
+			i += 2
+		} else {
+			i += 1
+		}
+	}
 }
 
 // ============================================================================

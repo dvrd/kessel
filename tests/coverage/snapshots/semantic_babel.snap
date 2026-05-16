@@ -3,13 +3,11 @@ commit: 4079bcda
 semantic_babel Summary:
 AST Parsed     : 2224/2237 (99.42%)
 Positive Passed: 2224/2237 (99.42%)
-Negative Passed: 1709/1725 (99.07%)
+Negative Passed: 1711/1725 (99.19%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine-before-use-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-property-name/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-ambiguity/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-like/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-param/input.ts
@@ -90,6 +88,7 @@ babel/packages/babel-parser/test/fixtures/core/escape-keyword/invalid/input.js:3
 babel/packages/babel-parser/test/fixtures/core/escape-string/invalid-decimal-escape-strict-directive-function/input.js:2:3: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/escape-string/invalid-decimal-escape-strict-directive/input.js:8:1: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-directive/input.js:1:53: Octal or \8 / \9 escape sequences are not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-property-name/input.js:1:38: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/escape-template/non-octal-eight/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/core/escape-template/non-octal-nine/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/core/legacy-octal/legacy-octal-after-use-strict-function/input.js:3:3: Legacy octal literals are not allowed in strict mode
@@ -1467,6 +1466,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0215/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js:1:1: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0217/input.js:1:34: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0218/input.js:1:34: Legacy octal literals are not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js:1:38: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0220/input.js:1:37: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0221/input.js:1:20: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0222/input.js:1:20: Octal or \8 / \9 escape sequences are not allowed in strict mode
