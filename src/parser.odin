@@ -374,6 +374,11 @@ Parser :: struct {
 	// not a keyword here even in module-mode files.
 	in_ts_namespace: bool,
 
+	// True when inside a string-named module body (`declare module "x" { ... }`).
+	// ES import/export syntax IS valid here (it defines the module's API),
+	// unlike identifier-named namespace bodies where it's forbidden.
+	in_ts_module_block: bool,
+
 	// True when parsing a Statement directly inside a CaseClause /
 	// DefaultClause StatementList. §Explicit Resource Management
 	// forbids `using` / `await using` declarations in this position.
@@ -1883,6 +1888,11 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		vars := scope_map_make(16)
 		scope_check_body(p, program.body[:], false, &lex, &vars)
 	}
+
+	// TS declaration conflict check — catches cross-kind redeclarations
+	// (class+class, class+enum, type+type, enum+var, etc.) that the
+	// standard scope check skips in TS mode.
+	check_ts_scope_conflicts(p, program.body[:])
 
 	return program
 }
@@ -9646,6 +9656,225 @@ scope_check_body :: #force_inline proc(p: ^Parser, body: []^Statement, is_block_
 	}
 }
 
+// ============================================================================
+// TS declaration conflict checking
+// ============================================================================
+//
+// In TypeScript mode, standard lex/var scope checks are skipped for
+// FunctionDeclaration, ClassDeclaration, and ImportDeclaration because
+// TS allows declaration merging (function+namespace, class+namespace, etc.).
+// However, certain cross-kind combinations are ALWAYS errors even in TS:
+//   - class + class (no merge)
+//   - class + enum, enum + class
+//   - type alias + type alias (no merge)
+//   - type alias + class, class + type alias
+//   - type alias + enum, enum + type alias
+//   - type alias + interface, interface + type alias? No: interface+type=error per OXC
+//   - enum + let/var/const
+//   - enum + function
+//   - let/var/const + enum
+//   - const enum + regular enum (and vice versa)
+//   - import type + import value (same name)
+//
+// This function implements OXC's parser-level TS scope checks.
+
+// TSBindingKind tracks what kind of TS declaration a name represents.
+TSBindingKind :: enum u8 {
+	Class,
+	Enum,
+	ConstEnum,
+	TypeAlias,
+	Interface,
+	Function,
+	VarLike,       // var, let, const
+	ImportValue,
+	ImportType,
+	Namespace,
+}
+
+TSBindingEntry :: struct {
+	name: string,
+	at:   u32,
+	kind: TSBindingKind,
+}
+
+// ts_conflicts returns true if two TS declarations of the same name are
+// KNOWN to conflict. Conservative: only flags combinations that OXC's
+// parser catches. Returns false (no conflict) for anything uncertain.
+@(private="file")
+ts_conflicts :: proc(a, b: TSBindingKind) -> bool {
+	// Class + Class: always error (no merge).
+	if a == .Class && b == .Class { return true }
+	// Class + Enum or Enum + Class: always error.
+	if (a == .Class && (b == .Enum || b == .ConstEnum)) ||
+	   ((a == .Enum || a == .ConstEnum) && b == .Class) { return true }
+	// Class + TypeAlias or TypeAlias + Class: error (occupies type space).
+	if (a == .Class && b == .TypeAlias) || (a == .TypeAlias && b == .Class) { return true }
+	// TypeAlias + TypeAlias: always error (no merge).
+	if a == .TypeAlias && b == .TypeAlias { return true }
+	// TypeAlias + Enum or Enum + TypeAlias: error.
+	if (a == .TypeAlias && (b == .Enum || b == .ConstEnum)) ||
+	   ((a == .Enum || a == .ConstEnum) && b == .TypeAlias) { return true }
+	// TypeAlias + Interface or Interface + TypeAlias: error (type space clash).
+	if (a == .TypeAlias && b == .Interface) || (a == .Interface && b == .TypeAlias) { return true }
+	// Enum + VarLike or VarLike + Enum: error (value space clash).
+	if ((a == .Enum || a == .ConstEnum) && b == .VarLike) ||
+	   (a == .VarLike && (b == .Enum || b == .ConstEnum)) { return true }
+	// Enum + Function or Function + Enum: error.
+	if ((a == .Enum || a == .ConstEnum) && b == .Function) ||
+	   (a == .Function && (b == .Enum || b == .ConstEnum)) { return true }
+	// Enum + Interface or Interface + Enum: error (type space clash).
+	if ((a == .Enum || a == .ConstEnum) && b == .Interface) ||
+	   (a == .Interface && (b == .Enum || b == .ConstEnum)) { return true }
+	// ConstEnum + Enum (mismatched constness): error.
+	if (a == .ConstEnum && b == .Enum) || (a == .Enum && b == .ConstEnum) { return true }
+	// ImportType + ImportValue (same name): error per OXC/Babel.
+	if (a == .ImportType && b == .ImportValue) || (a == .ImportValue && b == .ImportType) { return true }
+	// Everything else: no known conflict.
+	return false
+}
+
+// check_ts_scope_conflicts — walks a statement list and reports TS
+// declaration-kind conflicts. Called on program body and namespace bodies.
+check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
+	if !allow_ts_mode(p) || p.ast_only { return }
+
+	// Collect all top-level declaration names with their TS kind.
+	entries := make([dynamic]TSBindingEntry, 0, 16, context.temp_allocator)
+
+	for stmt in body {
+		if stmt == nil { continue }
+		// Unwrap ExportNamedDeclaration to get the inner declaration.
+		inner_stmt := stmt
+		#partial switch v in stmt^ {
+		case ^ExportNamedDeclaration:
+			if v != nil {
+				if d, have := v.declaration.(^Declaration); have && d != nil {
+					// Wrap inner declaration back as a Statement for uniform handling below.
+					// Allocate a temp Statement on the stack.
+					#partial switch inner in d^ {
+					case ^ClassDeclaration:
+						if inner != nil {
+							if id, ok := inner.id.(BindingIdentifier); ok {
+								append(&entries, TSBindingEntry{name = id.name, at = id.loc.span.start, kind = .Class})
+							}
+						}
+					case ^FunctionDeclaration:
+						if inner != nil {
+							if id, ok := inner.id.(BindingIdentifier); ok {
+								append(&entries, TSBindingEntry{name = id.name, at = id.loc.span.start, kind = .Function})
+							}
+						}
+					case ^VariableDeclaration:
+						if inner != nil {
+							names := make([dynamic]string, 0, 4, context.temp_allocator)
+							for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
+							for n in names {
+								append(&entries, TSBindingEntry{name = n, at = inner.loc.span.start, kind = .VarLike})
+							}
+						}
+					case ^TSEnumDeclaration:
+						if inner != nil {
+							kind: TSBindingKind = inner.const_ ? .ConstEnum : .Enum
+							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.span.start, kind = kind})
+						}
+					case ^TSInterfaceDeclaration:
+						if inner != nil {
+							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.span.start, kind = .Interface})
+						}
+					case ^TSTypeAliasDeclaration:
+						if inner != nil {
+							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.span.start, kind = .TypeAlias})
+						}
+					case ^TSModuleDeclaration:
+						if inner != nil {
+							// Get name from the id expression
+							if inner.id != nil {
+								if ident, ok := inner.id^.(^Identifier); ok && ident != nil {
+									append(&entries, TSBindingEntry{name = ident.name, at = ident.loc.span.start, kind = .Namespace})
+								}
+							}
+						}
+					}
+				}
+			}
+			continue
+		}
+
+		#partial switch v in inner_stmt^ {
+		case ^ClassDeclaration:
+			if v != nil {
+				if id, ok := v.id.(BindingIdentifier); ok {
+					append(&entries, TSBindingEntry{name = id.name, at = id.loc.span.start, kind = .Class})
+				}
+			}
+		case ^FunctionDeclaration:
+			if v != nil {
+				if id, ok := v.id.(BindingIdentifier); ok {
+					append(&entries, TSBindingEntry{name = id.name, at = id.loc.span.start, kind = .Function})
+				}
+			}
+		case ^VariableDeclaration:
+			if v != nil {
+				names := make([dynamic]string, 0, 4, context.temp_allocator)
+				for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
+				for n in names {
+					append(&entries, TSBindingEntry{name = n, at = v.loc.span.start, kind = .VarLike})
+				}
+			}
+		case ^TSEnumDeclaration:
+			if v != nil {
+				kind: TSBindingKind = v.const_ ? .ConstEnum : .Enum
+				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.span.start, kind = kind})
+			}
+		case ^TSInterfaceDeclaration:
+			if v != nil {
+				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.span.start, kind = .Interface})
+			}
+		case ^TSTypeAliasDeclaration:
+			if v != nil {
+				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.span.start, kind = .TypeAlias})
+			}
+		case ^TSModuleDeclaration:
+			if v != nil {
+				if v.id != nil {
+					if ident, ok := v.id^.(^Identifier); ok && ident != nil {
+						append(&entries, TSBindingEntry{name = ident.name, at = ident.loc.span.start, kind = .Namespace})
+					}
+				}
+			}
+		case ^ImportDeclaration:
+			if v != nil {
+				kind: TSBindingKind = v.import_kind == .Type ? .ImportType : .ImportValue
+				for spec in v.specifiers {
+					if spec == nil { continue }
+					switch ss in spec^ {
+					case ImportSpecifier:
+						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.span.start, kind = kind})
+					case ImportDefaultSpecifier:
+						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.span.start, kind = kind})
+					case ImportNamespaceSpecifier:
+						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.span.start, kind = kind})
+					}
+				}
+			}
+		}
+	}
+
+	// O(n^2) check for conflicts — fine because typical scope has <30 declarations.
+	for i := 0; i < len(entries); i += 1 {
+		for j := 0; j < i; j += 1 {
+			if entries[i].name == entries[j].name {
+				if ts_conflicts(entries[j].kind, entries[i].kind) {
+					scope_emit(p, entries[i].at,
+						fmt.tprintf("Identifier '%s' has already been declared", entries[i].name))
+					break  // Only report once per duplicate
+				}
+			}
+		}
+	}
+}
+
 // (Removed AST walker in favour of inline scope_check_body calls at
 // each scope-bearing parse-exit — see parse_block_statement,
 // parse_function_body, parse_switch_statement, and parse_program.
@@ -9910,6 +10139,14 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	// Past the TS-import-equals fork — this IS an ES ImportDeclaration.
+	// TS1147 — ES module imports are not allowed inside namespace bodies
+	// (only import-equals aliases are valid there). Exception: string-named
+	// module bodies (`declare module "m" { ... }`) where ES imports define
+	// the module's public API.
+	if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
+		report_error_at(p, LexerLoc(start.span.start),
+			"Import declarations in a namespace cannot reference a module.")
+	}
 	// Flag module syntax now so it survives any error recovery below.
 	// (The save/restore at the top of this function ensures the flag
 	// only takes effect outside a TS namespace body.)
@@ -10488,11 +10725,38 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	if match_token(p, .Mul) {
+		// TS1233 — `export * from "m"` inside a namespace body is invalid.
+		if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
+			report_error_at(p, LexerLoc(start.span.start),
+				"Export declarations are not permitted in a namespace.")
+		}
 		return parse_export_all(p, start, .Value)
 	}
 
 	if is_token(p, .LBrace) {
-		return parse_export_named(p, start, .Value)
+		// TS1233 — `export { ... }` and `export { ... } from "m"` inside a
+		// non-ambient namespace body are invalid. Only `export <declaration>` is
+		// allowed. In `declare namespace`, `export { x }` IS valid (re-export of
+		// internal names). Exception: `export { x } from "m"` is always invalid
+		// in any namespace (handled after parsing by checking .source).
+		ns_export_named_start := start
+		ns_check_export_named := p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block
+		result_named := parse_export_named(p, start, .Value)
+		if ns_check_export_named && result_named != nil {
+			// Check: if it has a `from` source OR we're in a non-ambient namespace.
+			has_from := false
+			if en, ok := result_named^.(^ExportNamedDeclaration); ok && en != nil {
+				has_from = en.source != nil
+			}
+			if has_from {
+				report_error_at(p, LexerLoc(ns_export_named_start.span.start),
+					"Export declarations are not permitted in a namespace.")
+			} else if !p.in_ambient {
+				report_error_at(p, LexerLoc(ns_export_named_start.span.start),
+					"Export declarations are not permitted in a namespace.")
+			}
+		}
+		return result_named
 	}
 
 	// `export = <expr>;` - TS legacy CommonJS-style export assignment.
@@ -10502,6 +10766,11 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .Assign) {
 		if !allow_ts_mode(p) {
 			report_error(p, "'export =' is only allowed in TypeScript files")
+		}
+		// TS1203 — export assignment inside a namespace body.
+		if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
+			report_error_at(p, LexerLoc(start.span.start),
+				"An export assignment cannot be used in a namespace.")
 		}
 		eat(p) // consume `=`
 		expr := parse_assignment_expression(p)
@@ -10532,6 +10801,11 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	if p.cur_type == .As && allow_ts_mode(p) {
 		nxt := peek_token(p)
 		if nxt.type == .Identifier && nxt.value == "namespace" {
+			// TS1235 — `export as namespace` is only valid at top level.
+			if p.in_ts_namespace && !p.in_ts_module_block {
+				report_error_at(p, LexerLoc(start.span.start),
+					"Global module exports may only appear at top level.")
+			}
 			eat(p) // consume `as`
 			eat(p) // consume `namespace`
 			cur := get_current(p)
@@ -10562,11 +10836,19 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		nxt := peek_token(p)
 		if nxt.type == .LBrace {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
+			if p.in_ts_namespace && !p.in_ts_module_block {
+				report_error_at(p, LexerLoc(start.span.start),
+					"Export declarations are not permitted in a namespace.")
+			}
 			eat(p) // consume `type`
 			return parse_export_named(p, start, .Type)
 		}
 		if nxt.type == .Mul {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
+			if p.in_ts_namespace && !p.in_ts_module_block {
+				report_error_at(p, LexerLoc(start.span.start),
+					"Export declarations are not permitted in a namespace.")
+			}
 			eat(p) // consume `type`
 			eat(p) // consume `*`
 			return parse_export_all(p, start, .Type)
@@ -10670,10 +10952,10 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 
 parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	// TS1319 — `export default` inside a namespace is invalid.
-	// Exception: inside ambient module declarations and .d.ts files.
-	if p.in_ts_namespace && allow_ts_mode(p) && !p.source_is_dts && !p.in_ambient {
+	// Exception: inside string-named module declarations (`declare module "m" { ... }`).
+	if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
 		report_error_at(p, LexerLoc(start.span.start),
-			"A default export must be at the top level of a file or module declaration.")
+			"Export declarations are not permitted in a namespace.")
 	}
 
 	// ExportDefaultDef is union { ^Declaration, ^Expression }. The old code
@@ -20942,6 +21224,8 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 		} else {
 			report_ts_function_overload_errors(p, stmts[:])
 		}
+		// TS2309 — `export =` inside module bodies.
+		report_ts2309_export_assignment(p, stmts[:])
 	}
 	body_union := new_node(p, TSModuleBody); body_union^ = blk
 	decl.body = body_union
@@ -20968,6 +21252,14 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// parse_function_declaration can relax their body / initializer
 	// requirements for the duration of the body scan.
 	is_string_named := is_token(p, .String)
+	// TS1199 — `module M {}` with an identifier name (not string literal)
+	// without `declare` is deprecated. Must use `namespace M {}` instead.
+	// `declare module M {}` is valid (standard ambient namespace syntax).
+	// Also exempt .d.ts files where everything is implicitly ambient.
+	if kind == .Module && !is_string_named && !p.in_ambient && !p.source_is_dts {
+		report_error_at(p, LexerLoc(start.span.start),
+			"`module` declarations must have a string name. Use `namespace` instead.")
+	}
 	id_expr: ^Expression
 	if is_string_named {
 		lit := parse_string_literal(p)
@@ -21019,6 +21311,11 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		prev_in_ts_namespace := p.in_ts_namespace
 		p.in_ts_namespace = true
 		defer p.in_ts_namespace = prev_in_ts_namespace
+		// Track whether we're in a string-named module body (ES imports/exports valid)
+		// vs an identifier-named namespace body (ES imports/exports forbidden).
+		prev_in_ts_module_block := p.in_ts_module_block
+		p.in_ts_module_block = is_string_named
+		defer p.in_ts_module_block = prev_in_ts_module_block
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			// Progress guard: when parse_statement_or_declaration hits an
@@ -21091,6 +21388,10 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		prev_in_ts_namespace := p.in_ts_namespace
 		p.in_ts_namespace = true
 		defer p.in_ts_namespace = prev_in_ts_namespace
+		// Nested namespace bodies (dotted names) are never string-named modules.
+		prev_in_ts_module_block := p.in_ts_module_block
+		p.in_ts_module_block = false
+		defer p.in_ts_module_block = prev_in_ts_module_block
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			// Same progress guard as parse_ts_module_declaration's body loop -

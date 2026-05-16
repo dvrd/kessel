@@ -365,14 +365,13 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"ES5For-of27.ts",
 	"ES5For-of29.ts",
 	"ES5For-of35.ts",
-	"es5ModuleInternalNamedImports.ts",
+
 	"es6DeclOrdering.ts",
 	"es6ExportEqualsInterop.ts",
 	"es6ImportWithoutFromClause.ts",
 	"es6ImportWithoutFromClauseInEs5.ts",
 	"es6ImportWithoutFromClauseNonInstantiatedModule.ts",
-	"es6ModuleInternalNamedImports.ts",
-	"es6ModuleInternalNamedImports2.ts",
+
 	"escapedIdentifiers.ts",
 	"esDecorators-classDeclaration-fields-nonStaticAbstract.ts",
 	"esDecorators-classDeclaration-fields-nonStaticAbstractAccessor.ts",
@@ -391,7 +390,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"exponentiationOperatorWithUndefinedValueAndValidOperands.ts",
 	"exportAsNamespace_augment.ts",
 	"exportAssignmentImportMergeNoCrash.ts",
-	"exportDeclarationsInAmbientNamespaces2.ts",
+
 	"exportDefault.ts",
 	"exportDefaultAlias_excludesEverything.ts",
 	"exportDefaultClassAndValue.ts",
@@ -637,7 +636,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"moduleExportWithExportPropertyAssignment2.ts",
 	"moduleExportWithExportPropertyAssignment3.ts",
 	"moduleExportWithExportPropertyAssignment4.ts",
-	"moduleKeywordDeprecated.ts",
+
 	"modulePreserveTopLevelAwait1.ts",
 	"moduleProperty2.ts",
 	"moduleVariableArrayIndexer.ts",
@@ -658,7 +657,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"multipleExportDefault4.ts",
 	"multipleExportDefault5.ts",
 	"multipleExportDefault6.ts",
-	"multipleExports.ts",
+
 	"multipleNumericIndexers.ts",
 	"multipleStringIndexers.ts",
 	"multivar.ts",
@@ -750,7 +749,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"parserES5ForOfStatement20.ts",
 	"parserES5SymbolProperty4.ts",
 	"parserES5SymbolProperty5.ts",
-	"parserExportAssignment5.ts",
+
 	"parserForOfStatement20.ts",
 	"parserFunctionDeclaration6.ts",
 	"parserIndexMemberDeclaration5.ts",

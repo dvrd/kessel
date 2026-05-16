@@ -3,7 +3,7 @@ commit: 4079bcda
 semantic_babel Summary:
 AST Parsed     : 2224/2237 (99.42%)
 Positive Passed: 2224/2237 (99.42%)
-Negative Passed: 1678/1725 (97.28%)
+Negative Passed: 1688/1725 (97.86%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
@@ -37,18 +37,8 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-require-in-script/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-assignment/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-default/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-from/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-import/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-assignment/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-from/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-named/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-import/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-namespace-export/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-identifier-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-2/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/types/const-type-parameters-invalid/input.ts
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js
@@ -1672,34 +1662,44 @@ babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-within-si
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line-error/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/property-initializer/input.ts:1:25: Expected }, got =
-babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-default/input.ts:3:3: A default export must be at the top level of a file or module declaration.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-assignment/input.ts:2:3: An export assignment cannot be used in a namespace.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-default/input.ts:3:3: Export declarations are not permitted in a namespace.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-from/input.ts:2:3: Export declarations are not permitted in a namespace.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-import/input.ts:2:3: Import declarations in a namespace cannot reference a module.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-assignment/input.ts:2:3: An export assignment cannot be used in a namespace.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-default/input.ts:3:3: Export declarations are not permitted in a namespace.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-from/input.ts:2:3: Export declarations are not permitted in a namespace.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-export-named/input.ts:4:3: Export declarations are not permitted in a namespace.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-import/input.ts:2:3: Import declarations in a namespace cannot reference a module.
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-namespace-export/input.ts:2:3: Global module exports may only appear at top level.
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-reserved-word/input.ts:1:11: 'public' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-declare-new-line/input.ts:6:9: Line terminator not permitted after 'module'
+babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-identifier-invalid/input.ts:1:1: `module` declarations must have a string name. Use `namespace` instead.
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-new-line-error/input.ts:2:5: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/namespace-declare-new-line/input.ts:6:9: Line terminator not permitted after 'namespace'
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/namespace-new-line-error/input.ts:2:5: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/top-level-await/input.ts:2:15: 'await' is only allowed within async functions and at the top levels of modules
 babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-disallowed/input.ts:2:12: Expected identifier in import-equals module reference
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-class-class/input.ts:2:7: Duplicate identifier 'A'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-class-enum/input.ts:2:6: Duplicate identifier 'A'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-class-type/input.ts:2:6: Duplicate identifier 'A'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-constenum-enum/input.ts:2:6: Duplicate identifier 'X'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-class/input.ts:2:7: Duplicate identifier 'X'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-constenum/input.ts:2:12: Duplicate identifier 'X'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-function/input.ts:2:10: Duplicate identifier 'Foo'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-interface/input.ts:2:11: Duplicate identifier 'X'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-let/input.ts:2:1: Duplicate identifier 'Foo'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-type/input.ts:2:6: Duplicate identifier 'X'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-var/input.ts:2:1: Duplicate identifier 'Foo'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-function-enum/input.ts:2:6: Duplicate identifier 'Foo'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-import-type-import/input.ts:2:10: Duplicate identifier 'Context'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-interface-enum/input.ts:2:6: Duplicate identifier 'X'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-let-enum/input.ts:2:6: Duplicate identifier 'Foo'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-class/input.ts:2:7: Duplicate identifier 'A'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-enum/input.ts:2:6: Duplicate identifier 'A'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-interface/input.ts:2:11: Duplicate identifier 'A'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-type/input.ts:2:6: Duplicate identifier 'A'
-babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-var-enum/input.ts:2:6: Duplicate identifier 'Foo'
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-class-class/input.ts:2:7: Identifier 'A' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-class-enum/input.ts:2:6: Identifier 'A' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-class-type/input.ts:2:6: Identifier 'A' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-constenum-enum/input.ts:2:6: Identifier 'X' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-class/input.ts:2:7: Identifier 'X' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-constenum/input.ts:2:12: Identifier 'X' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-function/input.ts:2:10: Identifier 'Foo' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-interface/input.ts:2:11: Identifier 'X' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-let/input.ts:2:1: Identifier 'Foo' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-type/input.ts:2:6: Identifier 'X' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-enum-var/input.ts:2:1: Identifier 'Foo' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-function-enum/input.ts:2:6: Identifier 'Foo' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-import-type-import/input.ts:2:10: Identifier 'Context' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-interface-enum/input.ts:2:6: Identifier 'X' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-let-enum/input.ts:2:6: Identifier 'Foo' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-class/input.ts:2:7: Identifier 'A' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-enum/input.ts:2:6: Identifier 'A' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-interface/input.ts:2:11: Identifier 'A' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-type/input.ts:2:6: Identifier 'A' has already been declared
+babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-var-enum/input.ts:2:6: Identifier 'Foo' has already been declared
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-private-01/input.ts:2:18: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-private-02/input.ts:2:18: 'private' modifier must precede 'static' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-protected-01/input.ts:2:20: Expected method or property name
