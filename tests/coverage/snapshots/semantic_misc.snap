@@ -125,7 +125,7 @@ tests/coverage/misc/fail/negative/027_rest_trailing_comma.js:4:16: Rest element 
 tests/coverage/misc/fail/negative/028_delete_private_field.js:8:3: Private fields cannot be deleted
 tests/coverage/misc/fail/negative/028_for_await_script_top_level.js:2:11: Top-level 'for await' is only valid in module code
 tests/coverage/misc/fail/negative/029_throw_line_terminator.js:6:2: Illegal newline after 'throw'
-tests/coverage/misc/fail/negative/030_duplicate_constructor.js:9:1: A class can only have one constructor
+tests/coverage/misc/fail/negative/030_duplicate_constructor.js:9:1: Multiple constructor implementations are not allowed.
 tests/coverage/misc/fail/negative/031_super_call_in_non_derived_constructor.js:7:8: 'super' call is only allowed in the constructor of a derived class
 tests/coverage/misc/fail/negative/032_super_call_in_non_constructor_method.js:10:8: 'super' call is only allowed in the constructor of a derived class
 tests/coverage/misc/fail/negative/033_escaped_keyword_as_keyword.js:11:1: Keyword 'if' must not contain escaped characters

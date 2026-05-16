@@ -37,7 +37,7 @@ Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typesc
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract/input.ts:6:1: Duplicate exported name 'default'
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts:3:3: Duplicate constructor implementation in class
+babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts:5:1: Multiple constructor implementations are not allowed.
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/members-with-modifier-names/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/members-with-modifier-names/input.ts:2:5: Function implementation is missing or not immediately following the declaration.
@@ -467,7 +467,7 @@ babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-let/in
 babel/packages/babel-parser/test/fixtures/es2015/template/error-after-newline/input.js:3:2: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/109/input.js:1:6: for-of loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/123/input.js:1:46: 'super' call is only allowed in the constructor of a derived class
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js:1:48: A class can only have one constructor
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js:1:48: Multiple constructor implementations are not allowed.
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/126/input.js:1:26: Class constructor cannot be a getter
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/127/input.js:1:23: Class constructor cannot be a generator method
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/151/input.js:1:6: Computed property name requires a value
@@ -1516,7 +1516,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0270/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0271/input.js:2:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0272/input.js:1:25: Class constructor cannot be a getter
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0273/input.js:1:25: Class constructor cannot be a setter
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0274/input.js:2:1: A class can only have one constructor
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0274/input.js:2:1: Multiple constructor implementations are not allowed.
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0275/input.js:1:12: Expected (, got UNKNOWN
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0276/input.js:1:24: Expected (, got UNKNOWN
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0277/input.js:1:12: 'enum' is a reserved word and cannot be used as a binding identifier

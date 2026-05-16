@@ -5595,15 +5595,16 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		// have `FunctionBody.loc.span.start == 0` (body ended with
 		// `;`, `parse_function_body` was not called). Real
 		// constructors have a non-zero body start (from `{`).
-		// Duplicate constructor check. In TS mode, the type checker handles
-		// this (multiple implementations are a type error, not parser error).
-		if !allow_ts_mode(p) && !elem.static && !elem.computed && elem.kind == .Constructor {
+		// Duplicate constructor implementation check. Multiple constructor
+		// SIGNATURES (overloads) are fine, but multiple bodies are always
+		// invalid — both in JS and TS (OXC also catches this at parser level).
+		if !elem.static && !elem.computed && elem.kind == .Constructor {
 			if val, has_val := elem.value.?; has_val && val != nil {
 				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
 					if fn.body.loc.span.end > fn.body.loc.span.start {
 						constructor_count += 1
 						if constructor_count > 1 {
-							report_error(p, "A class can only have one constructor")
+							report_error(p, "Multiple constructor implementations are not allowed.")
 						}
 					}
 				}

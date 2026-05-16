@@ -1470,7 +1470,7 @@ test262/test/language/expressions/class/elements/syntax/early-errors/delete/meth
 test262/test/language/expressions/class/elements/syntax/early-errors/delete/method-delete-twice-covered-err-delete-member-expression-private-method.js:42:5: Private fields cannot be deleted
 test262/test/language/expressions/class/elements/syntax/early-errors/delete/method-delete-twice-covered-err-delete-member-expression-private-no-reference.js:42:5: Private fields cannot be deleted
 test262/test/language/expressions/class/elements/syntax/early-errors/delete/method-delete-twice-covered-err-delete-member-expression-privatename.js:42:5: Private fields cannot be deleted
-test262/test/language/expressions/class/elements/syntax/early-errors/grammar-class-body-ctor-duplicate.js:25:2: A class can only have one constructor
+test262/test/language/expressions/class/elements/syntax/early-errors/grammar-class-body-ctor-duplicate.js:25:2: Multiple constructor implementations are not allowed.
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-ctor-super-no-heritage.js:27:10: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-field-identifier-invalid-ues-error.js:69:3: Expected method or property name
 test262/test/language/expressions/class/elements/syntax/early-errors/grammar-field-identifier-invalid-zwj-error.js:69:3: Expected method or property name
@@ -3647,7 +3647,7 @@ test262/test/language/statements/class/elements/syntax/early-errors/delete/metho
 test262/test/language/statements/class/elements/syntax/early-errors/delete/method-delete-twice-covered-err-delete-member-expression-private-method.js:42:5: Private fields cannot be deleted
 test262/test/language/statements/class/elements/syntax/early-errors/delete/method-delete-twice-covered-err-delete-member-expression-private-no-reference.js:42:5: Private fields cannot be deleted
 test262/test/language/statements/class/elements/syntax/early-errors/delete/method-delete-twice-covered-err-delete-member-expression-privatename.js:42:5: Private fields cannot be deleted
-test262/test/language/statements/class/elements/syntax/early-errors/grammar-class-body-ctor-duplicate.js:26:1: A class can only have one constructor
+test262/test/language/statements/class/elements/syntax/early-errors/grammar-class-body-ctor-duplicate.js:26:1: Multiple constructor implementations are not allowed.
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-ctor-super-no-heritage.js:27:10: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-field-identifier-invalid-ues-error.js:69:3: Expected method or property name
 test262/test/language/statements/class/elements/syntax/early-errors/grammar-field-identifier-invalid-zwj-error.js:69:3: Expected method or property name
