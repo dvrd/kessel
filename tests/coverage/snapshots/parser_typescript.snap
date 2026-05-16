@@ -1,9 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10724/10741 (99.84%)
-Positive Passed: 10724/10741 (99.84%)
-Negative Passed: 1575/1670 (94.31%)
+AST Parsed     : 10721/10738 (99.84%)
+Positive Passed: 10721/10738 (99.84%)
+Negative Passed: 1578/1673 (94.32%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -293,6 +293,7 @@ typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFileWithOut.
 typescript/tests/cases/compiler/declarationEmitDestructuring2.ts:3:1: Duplicate parameter name 'a' with non-simple parameter list
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties.ts:2:43: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties2.ts:2:43: A parameter property may not be declared using a binding pattern
+typescript/tests/cases/compiler/declarationEmitDestructuringWithOptionalBindingParameters.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature.
 typescript/tests/cases/compiler/declarationEmitInterfaceWithNonEntityNameExpressionHeritage.ts:2:25: Expected interface name after 'extends'
 typescript/tests/cases/compiler/declarationEmitInvalidExport.ts:5:1: Unexpected '}' — unmatched closing brace
 typescript/tests/cases/compiler/declarationEmitNestedBindingPattern.ts:3:36: A parameter property may not be declared using a binding pattern
@@ -933,6 +934,8 @@ typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeyword
 typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers02.ts:1:14: Identifier expected. 'while' is a reserved word that cannot be used here.
 typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers03.ts:1:15: Expected ':' after string property key in destructuring pattern
 typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers04.ts:1:16: Identifier expected. 'while' is a reserved word that cannot be used here.
+typescript/tests/cases/conformance/es6/destructuring/optionalBindingParameters1.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature.
+typescript/tests/cases/conformance/es6/destructuring/optionalBindingParameters2.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature.
 typescript/tests/cases/conformance/es6/destructuring/restElementWithInitializer1.ts:2:11: Rest element must be last in array pattern
 typescript/tests/cases/conformance/es6/destructuring/restElementWithInitializer2.ts:3:15: Rest element cannot have a default initializer
 typescript/tests/cases/conformance/es6/destructuring/restPropertyWithBindingPattern.ts:1:14: Rest property may not be a binding pattern

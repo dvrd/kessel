@@ -1094,8 +1094,9 @@ FunctionParameter :: struct {
 	// the outer TSParameterProperty node uses [modifier_start, param.loc.span.end].
 	accessibility:    ClassAccessibility,  // None = not a parameter property
 	readonly:         bool,
-	override_:        bool,  // named override_ to avoid clash with Odin builtin
-	modifier_start:   u32,   // source offset of the first modifier (0 = none)
+	override_:             bool,  // named override_ to avoid clash with Odin builtin
+	modifier_start:        u32,   // source offset of the first modifier (0 = none)
+	optional_destructuring: bool,  // TS: `[]?` or `{}?` — destructuring pattern with `?`
 }
 
 FunctionExpression :: struct {

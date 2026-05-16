@@ -240,7 +240,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"crashRegressionTest.ts",
 	"declarationEmitCommonJsModuleReferencedType.ts",
 	"declarationEmitComputedPropertyNameEnum3.ts",
-	"declarationEmitDestructuringWithOptionalBindingParameters.ts",
+
 	"declarationEmitIndexTypeNotFound.ts",
 	"declarationEmitMonorepoBaseUrl.ts",
 	"declarationEmitObjectAssignedDefaultExport.ts",
@@ -705,8 +705,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"omitTypeTestErrors01.ts",
 	"operationsAvailableOnPromisedType.ts",
 	"operatorAddNullUndefined.ts",
-	"optionalBindingParameters1.ts",
-	"optionalBindingParameters2.ts",
+
 	"optionalBindingParameters3.ts",
 	"optionalChainingInParameterBindingPattern.2.ts",
 	"optionalChainingInParameterInitializer.2.ts",

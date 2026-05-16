@@ -3,7 +3,7 @@ commit: 4079bcda
 semantic_babel Summary:
 AST Parsed     : 2224/2237 (99.42%)
 Positive Passed: 2224/2237 (99.42%)
-Negative Passed: 1697/1725 (98.38%)
+Negative Passed: 1699/1725 (98.49%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
@@ -25,8 +25,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-assertion/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-parameter/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/export/invalid-as-namespace-duplicate-identifier/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters-arrow/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/import/equals-require-in-script/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module/input.ts
@@ -1638,6 +1636,8 @@ babel/packages/babel-parser/test/fixtures/typescript/export/double-declare/input
 babel/packages/babel-parser/test/fixtures/typescript/export/equals-in-script/input.ts:1:1: 'export' is only valid in module code
 babel/packages/babel-parser/test/fixtures/typescript/function/empty-type-parameters/input.ts:1:14: Type parameter list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/function/parameter-properties/input.ts:9:1: A parameter cannot have a question mark and an initializer.
+babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters-arrow/input.ts:1:2: A binding pattern parameter cannot be optional in an implementation signature.
+babel/packages/babel-parser/test/fixtures/typescript/function/pattern-optional-parameters/input.ts:1:12: A binding pattern parameter cannot be optional in an implementation signature.
 babel/packages/babel-parser/test/fixtures/typescript/import/export-import-type/input.ts:1:8: An import alias can not use 'import type'.
 babel/packages/babel-parser/test/fixtures/typescript/import/type-equals/input.ts:1:1: An import alias can not use 'import type'.
 babel/packages/babel-parser/test/fixtures/typescript/interface/abstract/input.ts:1:10: Expected semicolon

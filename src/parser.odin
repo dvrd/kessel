@@ -4296,6 +4296,18 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		}
 	}
 
+	// TS1689 — binding pattern parameters with `?` (optional) are only valid
+	// in overload / ambient signatures (no body). In implementation signatures
+	// (with body), `[]?` and `{}?` are errors.
+	if !is_ts_no_body && allow_ts_mode(p) {
+		for pr in params {
+			if pr.optional_destructuring {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"A binding pattern parameter cannot be optional in an implementation signature.")
+			}
+		}
+	}
+
 	if is_expr {
 		expr := new_node(p, FunctionExpression)
 		expr.loc = start
@@ -4640,6 +4652,8 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	if param_is_optional {
 		if id, ok := param.pattern.(^Identifier); ok && id != nil {
 			id.optional = true
+		} else {
+			param.optional_destructuring = true
 		}
 	}
 
@@ -19855,6 +19869,15 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	if rt, ok := return_type.?; ok { arrow.return_type = rt }
 	arrow.loc.span.end = prev_end_offset(p)
 
+	// TS1689 — destructuring pattern `?` in arrow function (always has body).
+	if allow_ts_mode(p) {
+		for pr in params {
+			if pr.optional_destructuring {
+				report_error_at(p, LexerLoc(pr.loc.span.start),
+					"A binding pattern parameter cannot be optional in an implementation signature.")
+			}
+		}
+	}
 	// TS generic arrow — same UniqueFormalParameters rule as plain arrow.
 	report_duplicate_param_names(p, params[:], start_loc, true, false)
 	if is_block_body {
