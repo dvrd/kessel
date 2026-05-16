@@ -2401,6 +2401,17 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 					report_error_at(p, LexerLoc(e.loc.span.start), msg)
 				}
 			}
+			// §12.1.1 — `await` is reserved as a LabelIdentifier in module code.
+			if e.name == "await" {
+				await_reserved := p.in_async || p.in_static_block
+				if !await_reserved {
+					if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
+					else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
+				}
+				if await_reserved {
+					report_error_at(p, LexerLoc(e.loc.span.start), "'await' cannot be used as a label identifier in module / async context")
+				}
+			}
 
 			labeled := new_node(p, LabeledStatement)
 			labeled.loc = start
@@ -14404,11 +14415,20 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		report_error(p, "Expected expression after 'new'")
 		return nil
 	}
-	// Note: `new await` in module context is caught by the checker
-	// (ck_walk_expr, NewExpression case) because the parser treats `await`
-	// as an Identifier in MemberExpression position. `new (await X)` is
-	// valid — the parens force a full expression whose result is the
-	// constructor.
+	// §15.2.2 — `new await` in module context: `await` is reserved.
+	// Promote from the checker so parser-only snaps catch it.
+	if callee != nil {
+		if callee_id, is_id := callee^.(^Identifier); is_id && callee_id.name == "await" {
+			await_reserved := p.in_async || p.in_static_block
+			if !await_reserved {
+				if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
+				else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
+			}
+			if await_reserved {
+				report_error_at(p, LexerLoc(callee_id.loc.span.start), "Cannot use 'await' as an identifier in module / async context")
+			}
+		}
+	}
 	if _, is_super := callee^.(^Super); is_super {
 		report_error(p, "'new super()' is not allowed")
 	}

@@ -3,11 +3,9 @@ commit: ccaac100
 parser_test262 Summary:
 AST Parsed     : 47114/47114 (100.00%)
 Positive Passed: 47114/47114 (100.00%)
-Negative Passed: 4584/4588 (99.91%)
+Negative Passed: 4586/4588 (99.96%)
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-export-global.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-export-unresolvable.js
-Expect Syntax Error: tasks/coverage/test262/test/language/module-code/top-level-await/new-await.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
 test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js:18:4: Octal or \8 / \9 escape sequences are not allowed in strict mode
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
 test262/test/annexB/language/statements/for-in/const-initializer.js:14:6: for-in loop variable declaration may not have an initializer
@@ -3044,6 +3042,7 @@ test262/test/language/module-code/privatename-not-valid-earlyerr-module-6.js:21:
 test262/test/language/module-code/privatename-not-valid-earlyerr-module-7.js:21:7: Private name reference is not allowed outside of a class
 test262/test/language/module-code/privatename-not-valid-earlyerr-module-8.js:20:10: Private name reference is not allowed outside of a class
 test262/test/language/module-code/top-level-await/early-errors-await-not-simple-assignment-target.js:17:11: Cannot assign to this expression
+test262/test/language/module-code/top-level-await/new-await.js:17:5: Cannot use 'await' as an identifier in module / async context
 test262/test/language/module-code/top-level-await/no-operand.js:17:6: 'await' expression requires an operand
 test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-body.js:38:17: await outside of async function
 test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-params.js:38:17: await outside of async function
@@ -4336,6 +4335,7 @@ test262/test/language/statements/labeled/decl-gen.js:16:1: Async / generator fun
 test262/test/language/statements/labeled/decl-let.js:15:1: Lexical declaration cannot be a labeled item
 test262/test/language/statements/labeled/let-array-with-newline.js:24:1: Lexical declaration cannot be a labeled item
 test262/test/language/statements/labeled/static-init-invalid-await.js:23:5: 'await' is not allowed in a class static block
+test262/test/language/statements/labeled/value-await-module-escaped.js:21:1: 'await' cannot be used as a label identifier in module / async context
 test262/test/language/statements/labeled/value-await-module.js:20:6: 'await' expression requires an operand
 test262/test/language/statements/labeled/value-yield-strict-escaped.js:22:1: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/labeled/value-yield-strict.js:17:1: 'yield' is a reserved identifier in strict mode
