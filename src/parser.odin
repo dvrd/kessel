@@ -543,6 +543,13 @@ Parser :: struct {
 	// form is only legal INSIDE a destructuring cover.
 	pending_cover_inits: [dynamic]u32,
 
+	// Pending parenthesized-inside-pattern offsets. When an array/object
+	// literal element is parenthesized AND the inner expression is a
+	// non-simple form (AssignmentExpression, ArrayExpression, ObjectExpression),
+	// the inner expression's start offset is recorded here. On destructuring
+	// conversion these positions fire "Invalid parenthesized assignment pattern".
+	pending_paren_patterns: [dynamic]u32,
+
 	// Pending duplicate-__proto__ offsets (§13.2.5.1 / §B.3.1). Every
 	// ObjectExpression with a second `__proto__: ...` init property
 	// appends the duplicate key's start offset here. expr_to_pattern
@@ -821,6 +828,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
 	p.pending_proto_dups = make([dynamic]u32, 0, 4, alloc)
+	p.pending_paren_patterns = make([dynamic]u32, 0, 4, alloc)
 	p.pending_priv_refs = make([dynamic]PendingPrivRef, 0, 0, alloc)
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
@@ -13932,6 +13940,19 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 		} else {
 			elem := parse_assignment_expression(p)
 			if elem != nil {
+				// Track parenthesized non-simple elements for destructuring validation.
+				// If this element was parenthesized (last_paren_expr matches) and
+				// its inner is non-simple (Assignment, Array, Object), record it.
+				if elem == p.last_paren_expr && elem != nil {
+					is_non_simple := false
+					#partial switch _ in elem^ {
+					case ^AssignmentExpression, ^ArrayExpression, ^ObjectExpression:
+						is_non_simple = true
+					}
+					if is_non_simple {
+						bump_append(&p.pending_paren_patterns, loc_from_expr(elem).span.start)
+					}
+				}
 				bump_append(&arr.elements, Maybe(^Expression)(elem))
 			}
 		}
@@ -15736,6 +15757,7 @@ check_span_for_inner_parens :: proc(p: ^Parser, span_start, span_end: int, src: 
 }
 
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
+
 	// §15.3.1 — ArrowParameters Contains check. The cover expression
 	// was parsed under the surrounding generator/async context, so a
 	// `yield` / `await` produced a real YieldExpression / AwaitExpression
@@ -16440,6 +16462,19 @@ validate_destructure_target :: proc(p: ^Parser, expr: ^Expression) {
 
 validate_pattern_element :: proc(p: ^Parser, expr: ^Expression) {
 	if expr == nil { return }
+
+	// Without --preserve-parens, check pending_paren_patterns for this
+	// element's start offset. If found, it was parenthesized and non-simple.
+	if !p.preserve_parens && len(p.pending_paren_patterns) > 0 {
+		expr_start := loc_from_expr(expr).span.start
+		for off in p.pending_paren_patterns {
+			if off == expr_start {
+				report_error_at(p, LexerLoc(off), "Invalid parenthesized assignment pattern.")
+				return
+			}
+		}
+	}
+
 	#partial switch e in expr^ {
 	case ^ParenthesizedExpression:
 		if e == nil { return }
@@ -16451,7 +16486,7 @@ validate_pattern_element :: proc(p: ^Parser, expr: ^Expression) {
 			     ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
 				// These remain valid even when parenthesized at the pattern level.
 			case:
-				report_error_at(p, LexerLoc(e.loc.span.start), "Cannot assign to this expression")
+				report_error_at(p, LexerLoc(e.loc.span.start), "Invalid parenthesized assignment pattern.")
 			}
 		}
 	case ^AssignmentExpression:
