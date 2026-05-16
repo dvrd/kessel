@@ -87,6 +87,7 @@ BABEL_PLUGIN_SKIP := [?]string{
 // Mirrors OXC's `BabelOptions` (the subset we actually consult).
 BabelOptions :: struct {
 	plugins:                              []string, // merged plugin names (closest-wins)
+	plugins_explicit:                     bool,     // true if options.json had a "plugins" field
 	typescript_dts:                       bool,     // `["typescript", {"dts": true}]`
 	throws:                               Maybe(string),
 	source_type:                          Maybe(string), // "module" | "script" | "unambiguous" | "commonjs"
@@ -193,6 +194,7 @@ read_babel_options_chain :: proc(dir: string, allocator: runtime.Allocator) -> B
 	}
 
 	out.plugins = plugins_acc[:]
+	out.plugins_explicit = plugins_locked
 	return out
 }
 
@@ -423,8 +425,16 @@ resolve_babel_lang :: proc(path: string, opts: BabelOptions) -> kessel.Lang {
 	case ".js", ".mjs":
 		if has_ts && has_jsx { return .TSX }
 		if has_ts            { return .TS  }
-		// Default for .js/.mjs without TS plugin: JSX (kessel's legacy
-		// default — we accept JSX in plain .js, matching most parsers).
+		if has_jsx           { return .JSX }
+		// If plugins field was explicitly present but didn't include
+		// "jsx", parse as plain JS. The `_no_plugin` fixtures set
+		// `"plugins": []` to explicitly disable JSX.
+		if opts.plugins_explicit && !has_jsx {
+			return .JS
+		}
+		// Default for .js/.mjs without explicit plugin config: JSX
+		// (kessel's legacy default — we accept JSX in plain .js,
+		// matching most parsers).
 		return .JSX
 	}
 	return .JSX
