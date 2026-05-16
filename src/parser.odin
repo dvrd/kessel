@@ -16348,6 +16348,19 @@ is_valid_assignment_target :: proc(expr: ^Expression, is_destructure: bool) -> b
 	return false
 }
 
+// is_unparenthesized_ts_cast checks if an expression is a bare (unparenthesized)
+// TS type assertion (as, satisfies, angle-bracket). Used to reject
+// `foo as any = 10` while allowing `(foo as any) = 10`.
+@(private="file")
+is_unparenthesized_ts_cast :: proc(expr: ^Expression) -> bool {
+	if expr == nil { return false }
+	#partial switch _ in expr^ {
+	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
+		return true
+	}
+	return false
+}
+
 // validate_destructure_target walks an assignment LHS that's being
 // converted to a pattern. Inside array/object literals, parenthesized
 // AssignmentExpressions and parenthesized non-Member expressions are
@@ -16456,6 +16469,13 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 		if paren_invalid {
 			report_error(p, "Invalid left-hand side in assignment")
 		}
+	}
+	// TS cast expressions are not valid as direct (unparenthesized) assignment
+	// targets: `foo as any = 10` is invalid, but `(foo as any) = 10` is valid.
+	// Use `last_paren_expr` to distinguish: if `left == last_paren_expr`,
+	// the expression was wrapped in parens and is OK.
+	if left != nil && left != p.last_paren_expr && is_unparenthesized_ts_cast(left) {
+		report_error(p, "Invalid left-hand side in assignment expression.")
 	}
 	// General assignment-target validation. `(foo() as T) = 1` etc.
 	// is_destructure=true allows `[a, b] = c` / `({a} = c)`; the
