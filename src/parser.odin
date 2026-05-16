@@ -5197,7 +5197,31 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 			if n != "" && n != last_name { name_count += 1; last_name = n }
 		}
 	}
-	if !has_any_impl && !has_non_method && !has_ctor_sig && name_count <= 1 { return }
+	if !has_any_impl && !has_non_method && !has_ctor_sig && name_count <= 1 {
+		// Pure-sig class: no implementation, single name (or zero names).
+		// If there's exactly ONE signature with ONE name AND only one method
+		// total → error (ClassDeclaration9: `class C { foo(); }`).
+		// If there are multiple sigs for the same name → valid overload pattern.
+		if name_count == 0 { return }
+		// Count total method sigs and check for modifiers.
+		sig_count := 0
+		has_modifier := false
+		for elem in body {
+			if (elem.kind != .Method && elem.kind != .Constructor) || elem.abstract { continue }
+			val, have := elem.value.?; if !have || val == nil { continue }
+			fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
+			if fn.body.loc.span.end <= fn.body.loc.span.start {
+				sig_count += 1
+				// Accessibility modifiers or other decorations suggest this is
+				// a deliberate overload/ambient pattern.
+				if elem.accessibility != .None || elem.override_ || elem.static { has_modifier = true }
+			}
+		}
+		// Multiple sigs or modified sigs = overload signatures, valid.
+		if sig_count > 1 || has_modifier { return }
+		// Single sig, single name, no modifiers, no body = missing implementation.
+		// Fall through to main pass which will report it.
+	}
 
 	// Main pass.
 	chain_active := false
