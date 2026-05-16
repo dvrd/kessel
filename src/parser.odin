@@ -5579,9 +5579,13 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 			msg := fmt.tprintf("Duplicate private name '#%s'", name)
 			report_error_at(p, LexerLoc(elem.loc.span.start), msg)
 		}
-		// §15.7.1 private getter/setter static-mismatch is enforced by
-		// the semantic checker (ck_check_class_private_static_mismatch).
-		_ = static_mismatch
+		// §15.7.1 — static and instance elements cannot share the same
+		// private name. Promoted from the semantic checker so parser-only
+		// snaps catch the test262 private-static-mismatch cluster.
+		if static_mismatch {
+			msg := fmt.tprintf("Duplicate private name '#%s'. Static and instance elements cannot share the same private name.", name)
+			report_error_at(p, LexerLoc(elem.loc.span.start), msg)
+		}
 	}
 }
 

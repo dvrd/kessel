@@ -3,15 +3,11 @@ commit: ccaac100
 parser_test262 Summary:
 AST Parsed     : 47114/47114 (100.00%)
 Positive Passed: 47114/47114 (100.00%)
-Negative Passed: 4579/4588 (99.80%)
+Negative Passed: 4583/4588 (99.89%)
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-export-global.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-export-unresolvable.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/top-level-await/new-await.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-non-static-setter-static-getter-early-error.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-static-getter-non-static-setter-early-error.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
 test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js:18:4: Octal or \8 / \9 escape sequences are not allowed in strict mode
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
@@ -3823,6 +3819,10 @@ test262/test/language/statements/class/method/dflt-params-rest.js:83:15: Expecte
 test262/test/language/statements/class/method/object-destructuring-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-params-trailing-comma-early-error.js:75:14: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
+test262/test/language/statements/class/private-non-static-setter-static-getter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
+test262/test/language/statements/class/private-static-getter-non-static-setter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
+test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
 test262/test/language/statements/class/static-gen-method-param-dflt-yield.js:26:22: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/statements/class/static-init-await-binding-invalid.js:24:11: 'await' cannot be used as a class name in module / async / static-block context
 test262/test/language/statements/class/static-init-invalid-arguments.js:21:15: 'arguments' is not allowed in a class static block

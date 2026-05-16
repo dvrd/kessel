@@ -3818,10 +3818,10 @@ test262/test/language/statements/class/method/dflt-params-rest.js:83:15: Expecte
 test262/test/language/statements/class/method/object-destructuring-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-params-trailing-comma-early-error.js:75:14: A rest parameter or binding pattern may not have a trailing comma.
-test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js:17:3: Private getter and setter for '#f' must both be static or both be non-static
-test262/test/language/statements/class/private-non-static-setter-static-getter-early-error.js:17:3: Private getter and setter for '#f' must both be static or both be non-static
-test262/test/language/statements/class/private-static-getter-non-static-setter-early-error.js:17:3: Private getter and setter for '#f' must both be static or both be non-static
-test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js:17:3: Private getter and setter for '#f' must both be static or both be non-static
+test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
+test262/test/language/statements/class/private-non-static-setter-static-getter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
+test262/test/language/statements/class/private-static-getter-non-static-setter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
+test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
 test262/test/language/statements/class/static-gen-method-param-dflt-yield.js:26:22: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/statements/class/static-init-await-binding-invalid.js:24:11: 'await' cannot be used as a class name in module / async / static-block context
 test262/test/language/statements/class/static-init-invalid-arguments.js:21:15: 'arguments' is not allowed in a class static block

@@ -981,7 +981,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-get-static-field/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-get-static-get/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-get-static-method/input.js:3:3: Duplicate private name '#x'
-babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-get-static-set/input.js:3:3: Private getter and setter for '#x' must both be static or both be non-static
+babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-get-static-set/input.js:3:3: Duplicate private name '#x'. Static and instance elements cannot share the same private name.
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-method-instance-field/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-method-instance-get/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-method-instance-method/input.js:3:3: Duplicate private name '#x'
@@ -994,7 +994,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-set-instance-method/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-set-instance-set/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-set-static-field/input.js:3:3: Duplicate private name '#x'
-babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-set-static-get/input.js:3:3: Private getter and setter for '#x' must both be static or both be non-static
+babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-set-static-get/input.js:3:3: Duplicate private name '#x'. Static and instance elements cannot share the same private name.
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-set-static-method/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-set-static-set/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-field-instance-field/input.js:3:3: Duplicate private name '#x'
@@ -1008,7 +1008,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-instance-field/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-instance-get/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-instance-method/input.js:3:3: Duplicate private name '#x'
-babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-instance-set/input.js:3:3: Private getter and setter for '#x' must both be static or both be non-static
+babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-instance-set/input.js:3:3: Duplicate private name '#x'. Static and instance elements cannot share the same private name.
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-static-field/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-static-get/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-get-static-method/input.js:3:3: Duplicate private name '#x'
@@ -1021,7 +1021,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-method-static-method/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-method-static-set/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-instance-field/input.js:3:3: Duplicate private name '#x'
-babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-instance-get/input.js:3:3: Private getter and setter for '#x' must both be static or both be non-static
+babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-instance-get/input.js:3:3: Duplicate private name '#x'. Static and instance elements cannot share the same private name.
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-instance-method/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-instance-set/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-static-field/input.js:3:3: Duplicate private name '#x'
