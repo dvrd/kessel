@@ -3,8 +3,7 @@ commit: ccaac100
 parser_test262 Summary:
 AST Parsed     : 47114/47114 (100.00%)
 Positive Passed: 47114/47114 (100.00%)
-Negative Passed: 4583/4588 (99.89%)
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js
+Negative Passed: 4584/4588 (99.91%)
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-export-global.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-export-unresolvable.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/top-level-await/new-await.js
@@ -905,6 +904,7 @@ test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-c
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-body-contains-super-property.js:15:17: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-duplicate-parameters.js:35:1: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-eval-in-formal-parameters.js:16:7: 'eval' cannot be used as a binding name in strict mode
+test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js:15:17: Formal parameter 'bar' cannot be redeclared with let/const in function body
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-call.js:15:18: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-contains-super-property.js:15:14: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-lineterminator.js:34:1: Invalid expression for arrow function parameters

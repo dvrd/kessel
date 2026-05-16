@@ -16344,6 +16344,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 	// early-errors-arrow-formals-body-duplicate.js.
 	if is_block_body {
 		if bs, ok := body.(^BlockStatement); ok && bs != nil {
+			check_params_vs_body_lex(p, params[:], bs.body[:])
 		}
 	}
 
