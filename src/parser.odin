@@ -10458,6 +10458,13 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	decl.loc = start
 	decl.import_kind = import_kind
 
+	// TS import-equals is module-level syntax. In explicit script mode,
+	// report an error (matches Babel/OXC behavior).
+	if st, have := p.force_source_type.(SourceType); have && st == .Script {
+		report_error_at(p, LexerLoc(start.span.start),
+			"'import' and 'export' may appear only with 'sourceType: module'.")
+	}
+
 	// TS1392: `import type X = Y.Z` is invalid (namespace alias can't
 	// use `import type`). `import type X = require("...")` IS valid.
 	// We check the require case after parsing the module reference.
@@ -10811,6 +10818,11 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .Assign) {
 		if !allow_ts_mode(p) {
 			report_error(p, "'export =' is only allowed in TypeScript files")
+		}
+		// In explicit script mode, export-equals is module-level syntax.
+		if st, have := p.force_source_type.(SourceType); have && st == .Script {
+			report_error_at(p, LexerLoc(start.span.start),
+				"'import' and 'export' may appear only with 'sourceType: module'.")
 		}
 		// TS1203 — export assignment inside a namespace body.
 		if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
