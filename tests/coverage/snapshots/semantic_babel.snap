@@ -1064,7 +1064,7 @@ babel/packages/babel-parser/test/fixtures/es2022/private-in/private-expression/i
 babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-parenthesized/input.js:4:6: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js:3:5: Private field '#x' must be declared in an enclosing class
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-arrow/input.js:1:7: await outside of async function
-babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js:2:7: 'await' is not allowed in a class field initializer
+babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js:2:7: await outside of async function
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-function/input.js:2:3: await outside of async function
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-script/for-await/input.js:1:11: Top-level 'for await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-script/top-level/input.js:1:1: Top-level 'await' is only valid in module code

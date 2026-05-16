@@ -12184,10 +12184,11 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// (semicolon, operator, terminator), fall through. Otherwise
 		// keep the long-standing diagnostic for `await expr` typos.
 	if !p.in_async && !p.in_async_params {
-		at_module_top := !p.in_function
+		at_module_top := !p.in_function && !p.in_field_init
 		// In a Module file, `await` at top level (or any nested
 		// non-function scope) is the AwaitExpression keyword - TLA.
 		// Identifier fall-through only applies to Script source code.
+		// Class field initializers are NOT TLA context even in modules.
 		in_module_file := false
 		if st, have := p.force_source_type.(SourceType); have && st == .Module {
 			in_module_file = true

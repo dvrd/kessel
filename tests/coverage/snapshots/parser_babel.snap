@@ -3,7 +3,7 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2234/2237 (99.87%)
 Positive Passed: 2234/2237 (99.87%)
-Negative Passed: 1698/1725 (98.43%)
+Negative Passed: 1699/1725 (98.49%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-4/input.js
@@ -17,7 +17,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-property-name/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-2/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js
@@ -1036,6 +1035,7 @@ babel/packages/babel-parser/test/fixtures/es2022/private-in/private-expression/i
 babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-parenthesized/input.js:4:6: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js:3:5: Private field '#x' must be declared in an enclosing class
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-arrow/input.js:1:7: await outside of async function
+babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js:2:7: await outside of async function
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-function/input.js:2:3: await outside of async function
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-script/for-await/input.js:1:11: Top-level 'for await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-script/top-level/input.js:1:1: Top-level 'await' is only valid in module code
