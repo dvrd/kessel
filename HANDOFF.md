@@ -4,13 +4,13 @@
 
 Build: clean. `task test`: all 291 unit + 24 coverage tests pass.
 
-**194 fixtures from 100% OXC parser parity** (was 326).
+**102 fixtures from 100% OXC parser parity** (was 326 at prior handoff, was 194 at prior-prior).
 
 | Suite | Positive (FPs) | Negative gap | Total gap |
 |---|---|---|---|
 | test262 | 0 | **0** | **0** 🎉 |
-| Babel | 3 | 77 | 80 |
-| TypeScript | 17 | 109 | 126 |
+| Babel | 4 | 15 | 19 |
+| TypeScript | 17 | 84 | 101 |
 | ESTree | 0 | 0 | 0 |
 
 **🎉 test262 parser: 100.00% positive AND 100.00% negative — PERFECT SCORE!**
@@ -21,142 +21,161 @@ Live numbers: `task test:conformance:report`
 
 - **Positive gap (FPs)** = `Expect to Parse:` lines — kessel rejects what OXC accepts. Parser bugs.
 - **Negative gap** = `Expect Syntax Error:` lines — OXC's parser catches an error that kessel doesn't.
-- The TS negative denominator (1660) is aligned with OXC's parser catches. Semantic/type-system errors are excluded via `TS_FORCE_POSITIVE_PATHS`.
+- The TS negative denominator (1673) is aligned with OXC's parser catches. Semantic/type-system errors are excluded via `TS_FORCE_POSITIVE_PATHS`.
 - OXC's `parser_typescript.snap` at commit `c7a0ae10` is at `/Users/kakurega/dev/projects/oxc/tasks/coverage/snapshots/`.
 
-## Session Progress (latest)
+## Key Metrics
 
-**+120 negatives caught, +1 misc positive, zero regressions** across 24 commits:
+| Metric | Status | Notes |
+|---|---|---|
+| test262 parser positive | **100.00%** | Perfect. |
+| test262 parser negative | **100.00%** | Perfect. |
+| Babel parser positive | **99.82%** | 4 FPs — TS2391 overload pre-pass. |
+| Babel parser negative | **99.13%** | 15 remaining — all hard. |
+| TS parser positive | **99.84%** | 17 FPs (unchanged). |
+| TS parser negative | **94.98%** | 84 remaining. |
+| ESTree | **100%** | Perfect. |
 
-1. **Strict-mode reserved words in TS bindings/declarations** (+21 TS, +6 babel, +1 babel semantic)
-   - Removed overly-broad `!allow_ts_mode(p)` gate on strict-reserved checks in `parse_binding_pattern`
-   - Added `check_strict_ts_decl_name` for interface, enum, type alias, namespace declaration names
-   - Added strict-reserved checks in object/array destructuring patterns and import specifiers
+## The 4 Babel FPs (kessel rejects valid code)
 
-2. **TS2404 type annotation on for-in/of variable** (+6 TS)
-   - `for (var i: number in arr)` now rejected
-
-3. **TS2414/TS2427/TS2431 primitive type names as class/interface/enum names** (+12 TS)
-   - `class any {}`, `interface number {}`, `enum string {}` now rejected
-
-4. **break/continue context across function/arrow boundaries** (+4 TS, +4 babel, +1 misc positive)
-   - `in_loop`, `in_switch`, `label_floor` now reset in `parse_function_body` and arrow block bodies
-   - Misc positive went from 71/72 to 72/72 (100%)
-
-5. **TS2457/TS2368 primitive type names in type aliases + type parameters** (+4 TS)
-   - `type undefined = ...`, `foo<string>(...)` now rejected
-
-6. **Retroactive strict-mode param check for arrow body-strict** (+3 babel)
-   - `eval => {"use strict"}` now caught
-
-7. **Strict-reserved function names + retroactive body-strict** (+9 babel)
-   - `"use strict"; function static(){}`, `function package(){"use strict";}` now caught
-
-8. **Multi-param arrow eval/arguments + expr_to_pattern strict check** (+5 babel)
-   - `"use strict"; (eval, a) => 42` now caught
-
-9. **TS1235 namespace in block/function scopes** (+3 TS)
-   - `{ namespace M {} }` and namespace inside function bodies now caught
-
-10. **`yield` as strict-mode function name** (+3 babel)
-    - `function yield() { "use strict"; }` now caught
-
-11. **String-literal 'constructor' promoted to Constructor kind** (+2 babel)
-    - `class A { constructor(){} 'constructor'(){} }` now caught
-
-12. **`await` as import binding in module code** (+2 TS)
-    - `import * as await from "m"` now caught
-
-13. **For-in/of head let/const vs body var duplicate binding** (+2 TS, +6 test262)
-    - `for (let v of []) { var v; }` now caught via scope_process_statement
-    - Added ForInStatement/ForOfStatement to has_scope_relevant_stmt
-
-14. **Regular for-statement head let/const vs body var** (+1 babel, +2 test262)
-    - `for (let i = 0; ...) { var i; }` now caught
-
-15. **Static block label_floor + single-param destructuring dups** (+3 test262, +2 TS, +4 babel)
-    - `continue label;` across static block boundary now caught
-    - `([x, x]) => 1` single-param destructuring dups now caught
-
-16. **Private getter/setter static mismatch (TS2804)** (+4 test262, +4 babel)
-    - `get #f(){}` / `static set #f(){}` mismatch now caught
-
-17. **Async arrow params-vs-body-lex check** (+1 test262)
-    - `async(bar) => { let bar; }` now caught
-
-18. **`new await` + escaped await-as-label in module code** (+2 test262)
-    - Both module-reserved-await edge cases now caught
-
-19. **§16.2.2 export of undeclared name in JS modules** (+2 test262, +6 babel, +1 misc)
-    - `export { Number }` / `export { unresolvable }` now caught
-    - **Achieves test262 parser 100.00% negative — perfect score!**
-
-## The 20 FPs (kessel rejects valid code)
-
-### Babel FPs (3) — all TS2391 class overload pre-pass
-
-Kessel's class overload chain checker has a pre-pass that skips pure-signature classes. These 3 fixtures are pure-sig classes OXC accepts:
+All are in the TS2391 class overload pre-pass. OXC has the same FP for `constructor-with-modifier-names`.
 
 | Fixture | Error kessel reports |
 |---|---|
-| `typescript/class/members-with-modifier-names/input.ts` | TS2391: Function implementation missing |
-| `typescript/class/method-with-newline-without-body/input.ts` | TS2391: Function implementation missing |
+| `typescript/class/constructor-with-modifier-names/input.ts` | Multiple constructor implementations are not allowed. |
+| `typescript/class/members-with-modifier-names/input.ts` | Function implementation missing |
+| `typescript/class/method-with-newline-without-body/input.ts` | Function implementation missing |
 | `typescript/class/parameter-properties/input.ts` | `?` + initializer |
 
-### TS FPs (17)
+## The 17 TS FPs (kessel rejects valid code)
 
-| Category | Count | Fixtures | Error |
-|---|---|---|---|
-| Lexical in single-stmt | 3 | `constDeclarations-{invalidContexts,scopes,validContexts}.ts` | `Lexical declaration cannot appear in a single-statement context` |
-| Multi-file async generators | 4 | `parser.asyncGenerators.*.es2018.ts` | Sub-files named `*IsError.ts` have expected errors; OXC error-recovers |
-| Error recovery | 3 | `corrupted.ts`, `missingCloseParenStatements.ts`, `NonInitializedExportInInternalModule.ts` | Binary file / broken parens / bare `var;` |
-| Source-type detection | 3 | `modulePreserveTopLevelAwait1.ts`, `topLevelAwait.3.ts`, `withStatementInternalComments.ts` | `@module: preserve` / `.d.ts` sub-file / `with` strict |
-| Decorators | 2 | `esDecorators-decoratorExpression.{1,3}.ts` | `Expected class after decorator` / type args in decorator |
-| Keywords as identifiers | 1 | `convertKeywordsYes.ts` | Cascading keyword errors |
-| Top-level return | 1 | `parserStatementIsNotAMemberVariableDeclaration1.ts` | `return` outside function |
+| Category | Count | Root cause |
+|---|---|---|
+| Lexical in single-stmt | 3 | `const` in `if`/`label` body (existing FPs) |
+| Multi-file async generators | 4 | OXC error-recovers better |
+| Error recovery | 3 | Binary file / broken parens / bare `var;` |
+| Source-type detection | 3 | `@module: preserve` / `.d.ts` sub-file / `with` strict |
+| Decorators | 2 | `Expected class after decorator` / type args in decorator |
+| Keywords as identifiers | 1 | Cascading keyword errors |
+| Top-level return | 1 | `return` outside function |
 
-## Remaining negatives by category (rough)
+## Remaining Babel negatives (15 — all require deep changes)
 
-| Category | TS | Babel | Notes |
-|---|---|---|---|
-| Duplicate identifiers / scope | ~30 | ~28 | Redeclaration, merge, shadow checks |
-| Class member conflicts | ~20 | ~5 | Duplicate properties, accessors, overloads |
-| Module/import/export | ~15 | ~10 | Module-level scope checks |
-| Merge / augmentation | ~12 | — | TS-specific declaration merging |
-| Overload chain | ~5 | — | Missing implementation, mismatched sigs |
-| Enum | ~3 | — | Const enum errors, initializer follows |
-| Strict mode (remaining) | ~5 | ~10 | Arrow escapes, eval/arguments edge cases |
-| For-in/of/for | ~3 | — | Duplicate bindings in for-of body |
-| Other | ~30 | ~60 | Various parser-level checks |
+| Fixture | Error class | Difficulty |
+|---|---|---|
+| `escape-string/non-octal-eight-and-nine-before-use-strict` | Retroactive strict `\8`/`\9` | HIGH — lexer |
+| `escape-string/non-octal-eight-and-nine` | Retroactive strict `\8`/`\9` | HIGH — lexer |
+| `es2015/arrow-functions/inner-parens` | `((a)) => 0` double-paren | HIGH — cover grammar |
+| `esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow` | `((a)) => 0` | HIGH — cover grammar |
+| `esprima/invalid-syntax/migrated_0216` | `"\1"; 'use strict';` retroactive | HIGH — lexer |
+| `typescript/conditional/arrow-ambiguity` | `x ? y => z : w => v` TS ambiguity | HIGH — Pratt parser |
+| `typescript/conditional/arrow-like` | `a ? (b) : a => 1` | HIGH — Pratt parser |
+| `typescript/conditional/arrow-param` | `a ? (b = (c) => d) : e => f` | HIGH — Pratt parser |
+| `typescript/decorators/type-arguments-invalid` | `@dec<T> class {}` | MEDIUM — decorator parsing |
+| `typescript/disallow-jsx-ambiguity/type-assertion` | `<T>x;` in .mts | MEDIUM — new feature |
+| `typescript/disallow-jsx-ambiguity/type-parameter` | `<T>() => 1` in .mts | MEDIUM — new feature |
+| `typescript/export/invalid-as-namespace-duplicate-identifier` | `export as namespace` + global dup | MEDIUM — scope check |
+| `typescript/module-namespace/invalid-global-redeclare-block-level-variable` | global block redecl | MEDIUM — scope check |
+| `typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module` | global block redecl | MEDIUM — scope check |
+| `typescript/regression/keyword-qualified-type-2` | `interface A extends this.B` | LOW — heritage check |
+
+## Remaining TS negatives by category (84)
+
+| Category | Count | Notes |
+|---|---|---|
+| Duplicate class elements | ~15 | property+accessor, property+function, accessor+accessor |
+| Overload chain / merge | ~12 | nonMergedOverloads, incorrectClassOverloadChain |
+| Import/export scope | ~10 | import merge errors, module augmentation |
+| Enum errors | ~5 | constEnumErrors, enumNoInitializer, sourceMapValidationEnums |
+| Declaration merge / augment | ~10 | augmentedTypes*, nameCollisions |
+| Class misc | ~8 | staticBlock23, autoAccessor11, reassignStaticProp |
+| JSON require | 5 | requireOfJsonFile* (needs JSON import support) |
+| Multiple default exports | 1 | multipleDefaultExports03 |
+| Await using | 2 | awaitUsingDeclarations.13/.14 |
+| Other | ~16 | Various parser-level checks |
 
 ## Commands
 
 ```bash
-task build                    # Release binary
-task test                     # Primary gate — must be green before committing
-task test:coverage            # OXC conformance harness only
+task build                    # Release binary → bin/kessel
+task test                     # Primary gate — test:coverage + test:unit (~12s)
+task test:coverage            # OXC-style conformance harness, 24 @(test) procs
 task test:coverage:update     # Regenerate snap baselines after a fix
-task test:conformance:report  # Print live numbers
-task test:oxc-corpus:fetch    # Fetch TypeScript + Babel + ESTree corpora
+task test:unit                # 291 golden-output positive fixtures
+task test:conformance:report  # Print live conformance numbers
+task test:release             # Zero-tolerance pre-release chain
+task test:bench:regression    # Performance regression gate
 ```
 
-## Workflow
+## Source Layout
 
-1. Pick a fixture from `Expect to Parse:` (FP) or `Expect Syntax Error:` (negative gap).
-2. Reproduce: `./bin/kessel parse tests/vendor/<path>` — see the error (or lack of).
-3. Fix in `src/parser.odin` (or `src/lexer.odin` / `src/checker.odin`).
-4. `task test` — must be green.
-5. `task test:coverage:update` — review snap diff. Ensure no regressions (positive count must not drop).
-6. Commit: fixture class + fix + snap diff.
+| File | Lines | Purpose |
+|---|---:|---|
+| `src/parser.odin` | 21,919 | Pratt parser. `Parser` struct + ~200 parsing procedures. |
+| `src/checker.odin` | 7,230 | AST-walker semantic checker (pass 3). |
+| `src/emitter.odin` | 6,381 | ESTree JSON emitter. |
+| `src/lexer.odin` | 3,118 | SIMD lexer. Two-token lookahead. |
+| `src/regex.odin` | 2,235 | ES2025 §22.2.1 regex pattern validator. |
+| `src/ast.odin` | 1,619 | All AST struct/union definitions. |
+| `src/raw_transfer.odin` | 1,304 | Zero-copy binary AST buffer. |
+| `src/main.odin` | 1,295 | CLI dispatch + worker pool. |
+| `src/simd.odin` | 601 | ARM64 NEON intrinsics. |
+| `src/parse_job.odin` | 433 | `ParseJob` — single "source-to-parsed-Program" deep module. |
+| `src/token.odin` | 383 | `TokenType` enum, `FastToken`, `LiteralValue`. |
+| `src/unicode_tables.odin` | 329 | ID_Start / ID_Continue range tables. |
+| `src/cli_config.odin` | 188 | `CliConfig` struct + CLI flag parsing. |
+| `src/source_io.odin` | 103 | Cross-platform source reader (mmap on POSIX). |
+| `src/qos_darwin.odin` | 61 | Apple Silicon QoS P-core pinning. |
 
-## Key files
+Total: ~47,285 LoC of Odin in `src/`, plus ~5,190 LoC in `tests/coverage/src/`.
 
-| File | What |
-|---|---|
-| `src/parser.odin` (~21K) | Parser. Most fixes go here. |
-| `src/checker.odin` (~7K) | Semantic checker. Some checks need migration to parser. |
-| `src/lexer.odin` (~3K) | Tokenizer. Rarely needs changes. |
-| `tests/coverage/src/` | OXC conformance harness (Odin). |
-| `tests/coverage/snapshots/parser_*.snap` | Ground truth. Diff these to verify fixes. |
-| `tests/coverage/src/typescript_constants.odin` | `TS_FORCE_POSITIVE_PATHS` + `TS_NOT_SUPPORTED_ERROR_CODES` |
-| `/Users/kakurega/dev/projects/oxc/tasks/coverage/snapshots/` | OXC's own snap files for reference. |
+## Development Workflow
+
+Bug-fix slices follow the OXC PR style — fixture, fix, snap diff in one commit:
+
+1. **Reproduce.** Add a fixture under `tests/coverage/misc/pass/` (must-parse) or `tests/coverage/misc/fail/` (must-reject).
+2. **Confirm the gap.** `task test:coverage` — the snap drifts.
+3. **Fix.** Edit `src/parser.odin` / `src/checker.odin` / `src/lexer.odin`.
+4. **Verify.** `task test` (primary gate) — must be green.
+5. **Update snaps.** `task test:coverage:update` — review the diff carefully.
+6. **Check parity test.** If TS positive/negative counts changed, update `tests/coverage/src/parity.odin` manifests.
+7. **Remove force-positive entries.** If a fixture in `TS_FORCE_POSITIVE_PATHS` is now correctly caught, remove it from `tests/coverage/src/typescript_constants.odin`.
+8. **Commit.** Fixture + source change + snap diff in one commit.
+
+## What To Work On Next
+
+### High Priority — Babel negatives (only 15 remain to reach 100%)
+
+1. **`disallowAmbiguousJSXLike` feature** (2 fixtures). Add parser option to reject angle-bracket type assertions and generic arrows in `.mts`/`.cts` mode. Files: `src/parser.odin` (type assertion parsing), `tests/coverage/src/babel.odin` (remove skip). Difficulty: MEDIUM.
+
+2. **`global {}` block-level redeclaration** (2 fixtures). When parsing `global { let x; }`, check outer scope for same-name `let`/`const`. Files: `src/parser.odin` (`parse_ts_global_declaration`). Difficulty: MEDIUM.
+
+3. **TS conditional/arrow ambiguity** (3 fixtures). `x ? y => z : w => v` — OXC rejects because `:` is consumed as arrow return type. Requires changing Pratt precedence for ternary vs arrow in TS mode. Files: `src/parser.odin` (expression parsing ~line 16200). Difficulty: HIGH.
+
+4. **Retroactive `\8`/`\9` and `\1` escapes** (3 fixtures). Strings before `"use strict"` need validation. Requires lexer flag or post-directive re-scan. Files: `src/lexer.odin`, `src/parser.odin`. Difficulty: HIGH.
+
+5. **Double-parenthesized arrow params** (2 fixtures). `((a)) => 0` — needs paren-depth tracking through the cover grammar. Files: `src/parser.odin` (paren expression + arrow conversion). Difficulty: HIGH.
+
+### Medium Priority — TS negatives (84 remain)
+
+6. **Duplicate class member detection** (~15 fixtures). Property+accessor, property+function, accessor+accessor conflicts. Files: `src/parser.odin` (`report_private_class_member_errors`). Difficulty: MEDIUM.
+
+7. **Import merge errors** (~10 fixtures). `import X` + `class X` in same module. Extend `check_ts_scope_conflicts`. Files: `src/parser.odin`. Difficulty: MEDIUM.
+
+8. **Overload chain improvements** (~12 fixtures). `nonMergedOverloads`, mixing static/instance. Files: `src/parser.odin` (`report_ts_overload_chain_errors`). Difficulty: MEDIUM-HIGH.
+
+9. **Multiple default exports** (1 fixture). Track default export count per module. Files: `src/parser.odin` (`parse_export_default`). Difficulty: LOW.
+
+10. **JSON require errors** (5 fixtures). When `requireOfJsonFile*` sub-files import JSON, validate the JSON. Files: `tests/coverage/src/typescript.odin` (may need fixture handling). Difficulty: LOW-MEDIUM.
+
+## Key Files for Common Changes
+
+| Change type | Primary file | Key proc/section |
+|---|---|---|
+| New parser error | `src/parser.odin` | Add check near relevant parse proc |
+| Scope/redecl check | `src/parser.odin` | `check_ts_scope_conflicts` (~line 9700) |
+| Overload chain | `src/parser.odin` | `report_ts_overload_chain_errors` (~line 5174) |
+| Namespace body | `src/parser.odin` | `parse_ts_module_declaration` (~line 21012) |
+| Force-positive list | `tests/coverage/src/typescript_constants.odin` | `TS_FORCE_POSITIVE_PATHS` |
+| Parity manifests | `tests/coverage/src/parity.odin` | `assert_manifest` / `assert_ts_parent_manifest` |
+| Babel harness | `tests/coverage/src/babel.odin` | `resolve_babel_lang`, `determine_should_fail` |
