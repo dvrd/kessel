@@ -6583,6 +6583,13 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	prev_in_switch_sb := p.in_switch
 	p.in_switch = false
 	defer p.in_switch = prev_in_switch_sb
+	// Labels don't cross static block boundaries (§15.7.5).
+	prev_label_floor_sb := p.label_floor
+	p.label_floor = len(p.label_stack)
+	defer {
+		resize(&p.label_stack, p.label_floor)
+		p.label_floor = prev_label_floor_sb
+	}
 	// Class bodies (and therefore static blocks) are implicitly strict.
 	prev_strict_sb := p.strict_mode
 	p.strict_mode = true
@@ -7205,8 +7212,15 @@ report_duplicate_param_names :: proc(
 	is_strict:        bool,
 	force_non_simple: bool,
 ) {
-	if len(params) < 2 { return }
 	if !is_strict && !force_non_simple { return }
+	// A single param with destructuring can still have duplicates:
+	// `([x, x]) => 1`. Skip early return for non-simple params.
+	if len(params) < 2 {
+		if len(params) == 0 { return }
+		// Check if the single param is destructuring (non-simple).
+		_, is_ident := params[0].pattern.(^Identifier)
+		if is_ident { return }
+	}
 
 	// Fast path — all params are plain Identifier patterns with no
 	// default value, no rest, no destructuring. ~95 % of real-world

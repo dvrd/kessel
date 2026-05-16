@@ -3,9 +3,7 @@ commit: ccaac100
 parser_test262 Summary:
 AST Parsed     : 47114/47114 (100.00%)
 Positive Passed: 47114/47114 (100.00%)
-Negative Passed: 4576/4588 (99.74%)
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-2.js
-Expect Syntax Error: tasks/coverage/test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-6.js
+Negative Passed: 4579/4588 (99.80%)
 Expect Syntax Error: tasks/coverage/test262/test/language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-export-global.js
 Expect Syntax Error: tasks/coverage/test262/test/language/module-code/early-export-unresolvable.js
@@ -14,7 +12,6 @@ Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/priva
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-non-static-setter-static-getter-early-error.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-static-getter-non-static-setter-early-error.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/class/private-static-setter-non-static-getter-early-error.js
-Expect Syntax Error: tasks/coverage/test262/test/language/statements/continue/static-init-with-label.js
 Expect Syntax Error: tasks/coverage/test262/test/language/statements/labeled/value-await-module-escaped.js
 test262/test/annexB/language/expressions/template-literal/legacy-octal-escape-sequence-strict.js:18:4: Octal or \8 / \9 escape sequences are not allowed in strict mode
 test262/test/annexB/language/statements/for-in/bare-initializer.js:15:15: Invalid left-hand side in for-in loop
@@ -469,12 +466,14 @@ test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparame
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-bindingidentifier-rest.js:16:19: Rest parameter must be wrapped in parentheses
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-arguments.js:24:26: Arrow parameter 'arguments' is not allowed in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-1.js:25:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-2.js:25:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-array-3.js:27:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-1.js:25:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-2.js:27:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-3.js:27:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-4.js:29:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-5.js:29:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-binding-object-6.js:27:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates-rest.js:23:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-duplicates.js:23:10: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/arrow-function/syntax/early-errors/arrowparameters-cover-no-eval.js:24:21: Arrow parameter 'eval' is not allowed in strict mode
@@ -3877,6 +3876,7 @@ test262/test/language/statements/continue/S12.7_A5_T3.js:23:13: Undefined label 
 test262/test/language/statements/continue/S12.7_A6.js:21:26: Undefined label 'LABEL1'
 test262/test/language/statements/continue/S12.7_A8_T1.js:19:11: Undefined label 'LABEL2'
 test262/test/language/statements/continue/S12.7_A8_T2.js:17:2: 'continue' must be inside a loop
+test262/test/language/statements/continue/static-init-with-label.js:25:16: Undefined label 'label'
 test262/test/language/statements/continue/static-init-without-label.js:25:7: 'continue' must be inside a loop
 test262/test/language/statements/debugger/expression.js:14:2: Unexpected reserved word 'debugger'
 test262/test/language/statements/do-while/S12.6.1_A12.js:17:13: Expected while, got var

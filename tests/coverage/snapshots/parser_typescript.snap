@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10734/10751 (99.84%)
 Positive Passed: 10734/10751 (99.84%)
-Negative Passed: 1549/1660 (93.31%)
+Negative Passed: 1551/1660 (93.43%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -23,7 +23,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErr
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/crashOnMethodSignatures.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/declarationEmitDestructuring2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateClassElements.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierComputedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierDifferentSpelling.ts
@@ -98,7 +97,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/p
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolProperty43.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames40_ES5.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames40_ES6.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES6.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports03.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/internalModules/moduleDeclarations/invalidInstantiatedModule.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxParsingError1.tsx
@@ -299,6 +297,7 @@ typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlow
 typescript/tests/cases/compiler/createArray.ts:1:19: Expected expression after 'new'
 typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFile.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context.
 typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFileWithOut.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/compiler/declarationEmitDestructuring2.ts:3:1: Duplicate parameter name 'a' with non-simple parameter list
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties.ts:2:43: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties2.ts:2:43: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/declarationEmitInterfaceWithNonEntityNameExpressionHeritage.ts:2:25: Expected interface name after 'extends'
@@ -777,7 +776,7 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock22.t
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock26.ts:3:9: 'await' is not allowed in a class static block
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock6.ts:7:13: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock7.ts:3:9: 'await' is not allowed in a class static block
-typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock8.ts:12:21: 'break' must be inside a loop or switch
+typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock8.ts:6:27: Undefined label 'label'
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts:3:17: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:2:23: 'readonly' parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInConstructorParameters.ts:7:33: 'public' modifier must precede 'readonly' modifier.
@@ -911,6 +910,7 @@ typescript/tests/cases/conformance/es6/destructuring/declarationWithNoInitialize
 typescript/tests/cases/conformance/es6/destructuring/destructuringObjectBindingPatternAndAssignment3.ts:2:7: Expected }, got ?
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5.ts:62:1: Duplicate function implementation.
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES5iterable.ts:62:1: Duplicate function implementation.
+typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration1ES6.ts:96:1: Duplicate parameter name 'number' in strict mode
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration2.ts:7:29: Expected ], got )
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration4.ts:14:17: Expected ), got ?
 typescript/tests/cases/conformance/es6/destructuring/destructuringParameterDeclaration6.ts:7:18: Reserved word 'while' is not a valid binding identifier

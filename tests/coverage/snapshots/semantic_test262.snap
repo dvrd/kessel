@@ -3875,7 +3875,7 @@ test262/test/language/statements/continue/S12.7_A5_T3.js:23:13: Undefined label 
 test262/test/language/statements/continue/S12.7_A6.js:21:26: Undefined label 'LABEL1'
 test262/test/language/statements/continue/S12.7_A8_T1.js:19:11: Undefined label 'LABEL2'
 test262/test/language/statements/continue/S12.7_A8_T2.js:17:2: 'continue' must be inside a loop
-test262/test/language/statements/continue/static-init-with-label.js:25:7: Undefined label
+test262/test/language/statements/continue/static-init-with-label.js:25:16: Undefined label 'label'
 test262/test/language/statements/continue/static-init-without-label.js:25:7: 'continue' must be inside a loop
 test262/test/language/statements/debugger/expression.js:14:2: Unexpected reserved word 'debugger'
 test262/test/language/statements/do-while/S12.6.1_A12.js:17:13: Expected while, got var
