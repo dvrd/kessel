@@ -12084,7 +12084,12 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// class/elements/syntax/early-errors/delete cluster.
 		//
 		if unary.operator == .Delete {
-			if me, is_member := unary.argument.(^MemberExpression); is_member && me != nil && me.property != nil {
+			// Check both direct MemberExpression and ChainExpression-wrapped MemberExpression.
+			delete_arg := unary.argument
+			if chain, is_chain := delete_arg.(^ChainExpression); is_chain && chain != nil {
+				delete_arg = chain.expression
+			}
+			if me, is_member := delete_arg.(^MemberExpression); is_member && me != nil && me.property != nil {
 				if _, is_private := me.property^.(^PrivateIdentifier); is_private {
 					report_error_at(p, LexerLoc(unary.loc.span.start), "Private fields cannot be deleted")
 				}
