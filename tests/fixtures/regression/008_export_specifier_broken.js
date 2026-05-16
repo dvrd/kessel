@@ -2,5 +2,6 @@
 const a = 1;
 const b = 2;
 const c = 3;
+var as = 0;
 export { a, as , b, c };
 const anchor_after_error = 1;

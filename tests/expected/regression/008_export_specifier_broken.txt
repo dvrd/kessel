@@ -1,7 +1,7 @@
 {
   "type": "Program",
   "start": 0,
-  "end": 152,
+  "end": 164,
   "sourceType": "module",
   "hashbang": null,
   "body": [
@@ -72,76 +72,98 @@
             "raw": "3"          }        }
       ]    },
     {
-      "type": "ExportNamedDeclaration",
+      "type": "VariableDeclaration",
       "start": 97,
-      "end": 121,
+      "end": 108,
+      "kind": "var",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 101,
+          "end": 107,
+          "id": {
+            "type": "Identifier",
+            "start": 101,
+            "end": 103,
+            "name": "as"          },
+          "init": {
+            "type": "Literal",
+            "start": 106,
+            "end": 107,
+            "value": 0,
+            "raw": "0"          }        }
+      ]    },
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 109,
+      "end": 133,
       "declaration": null,
       "specifiers": [
         {
           "type": "ExportSpecifier",
-          "start": 106,
-          "end": 107,
+          "start": 118,
+          "end": 119,
           "local": {
             "type": "Identifier",
-            "start": 106,
-            "end": 107,
+            "start": 118,
+            "end": 119,
             "name": "a"
           },
           "exported": {
             "type": "Identifier",
-            "start": 106,
-            "end": 107,
+            "start": 118,
+            "end": 119,
             "name": "a"
           }
         },
         {
           "type": "ExportSpecifier",
-          "start": 109,
-          "end": 111,
+          "start": 121,
+          "end": 123,
           "local": {
             "type": "Identifier",
-            "start": 109,
-            "end": 111,
+            "start": 121,
+            "end": 123,
             "name": "as"
           },
           "exported": {
             "type": "Identifier",
-            "start": 109,
-            "end": 111,
+            "start": 121,
+            "end": 123,
             "name": "as"
           }
         },
         {
           "type": "ExportSpecifier",
-          "start": 114,
-          "end": 115,
+          "start": 126,
+          "end": 127,
           "local": {
             "type": "Identifier",
-            "start": 114,
-            "end": 115,
+            "start": 126,
+            "end": 127,
             "name": "b"
           },
           "exported": {
             "type": "Identifier",
-            "start": 114,
-            "end": 115,
+            "start": 126,
+            "end": 127,
             "name": "b"
           }
         },
         {
           "type": "ExportSpecifier",
-          "start": 117,
-          "end": 118,
+          "start": 129,
+          "end": 130,
           "local": {
             "type": "Identifier",
-            "start": 117,
-            "end": 118,
+            "start": 129,
+            "end": 130,
             "name": "c"
           },
           "exported": {
             "type": "Identifier",
-            "start": 117,
-            "end": 118,
+            "start": 129,
+            "end": 130,
             "name": "c"
           }
         }
@@ -150,23 +172,23 @@
       "attributes": []    },
     {
       "type": "VariableDeclaration",
-      "start": 122,
-      "end": 151,
+      "start": 134,
+      "end": 163,
       "kind": "const",
       "declarations": [
         {
           "type": "VariableDeclarator",
-          "start": 128,
-          "end": 150,
+          "start": 140,
+          "end": 162,
           "id": {
             "type": "Identifier",
-            "start": 128,
-            "end": 146,
+            "start": 140,
+            "end": 158,
             "name": "anchor_after_error"          },
           "init": {
             "type": "Literal",
-            "start": 149,
-            "end": 150,
+            "start": 161,
+            "end": 162,
             "value": 1,
             "raw": "1"          }        }
       ]    }
@@ -182,5 +204,5 @@
 }
 
 --- Statistics ---
-Arena: used=38920B reserved=16777216B ratio=0%
+Arena: used=36976B reserved=16777216B ratio=0%
 Parse errors: 0

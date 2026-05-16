@@ -8909,9 +8909,12 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 	// early-export-unresolvable).
 	//
 	// Collect all module-level declared names (Var + Lex + imports).
+	// Skip when the program has parse errors — error recovery may produce
+	// invalid specifiers that trigger false "not defined" reports.
+	errors_before_export_check := len(p.errors)
 	module_names: map[string]bool
 	module_names.allocator = context.temp_allocator
-	if !allow_ts_mode(p) {
+	if !allow_ts_mode(p) && errors_before_export_check == 0 {
 		// Only run for JS modules — TS has global augmentation, ambient
 		// modules, etc. that make this check produce false positives.
 		for stmt in program.body {
