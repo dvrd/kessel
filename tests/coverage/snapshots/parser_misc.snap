@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 72/72 (100.00%)
 Positive Passed: 72/72 (100.00%)
-Negative Passed: 262/286 (91.61%)
+Negative Passed: 263/286 (91.96%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
@@ -23,7 +23,6 @@ Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2448-use-before-decl.ts
 Expect Syntax Error: tests/coverage/misc/fail/negative/049_yield_in_async_arrow_params.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
-Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
 Expect Syntax Error: tests/coverage/misc/fail/script-top-level-using.js
 Expect Syntax Error: tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
@@ -262,6 +261,7 @@ tests/coverage/misc/fail/oxc-169.js:2:1: Expected expression after operator
 tests/coverage/misc/fail/oxc-18231.mjs:2:10: 'f' has already been declared
 tests/coverage/misc/fail/oxc-1942-1.ts:2:8: Expected `(` but found `:`
 tests/coverage/misc/fail/oxc-1942-2.ts:2:8: Expected `(` but found `:`
+tests/coverage/misc/fail/oxc-2144.js:2:8: A class declaration without the 'default' modifier must have a name.
 tests/coverage/misc/fail/oxc-22157.js:2:6: Unexpected token: array literal cannot be a computed class member name
 tests/coverage/misc/fail/oxc-2253.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-232.js:2:1: Empty parenthesized expression

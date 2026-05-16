@@ -262,7 +262,7 @@ tests/coverage/misc/fail/oxc-169.js:2:1: Expected expression after operator
 tests/coverage/misc/fail/oxc-18231.mjs:2:10: 'f' has already been declared
 tests/coverage/misc/fail/oxc-1942-1.ts:2:8: Expected `(` but found `:`
 tests/coverage/misc/fail/oxc-1942-2.ts:2:8: Expected `(` but found `:`
-tests/coverage/misc/fail/oxc-2144.js:1:1: A class name is required.
+tests/coverage/misc/fail/oxc-2144.js:2:8: A class declaration without the 'default' modifier must have a name.
 tests/coverage/misc/fail/oxc-22157.js:2:6: Unexpected token: array literal cannot be a computed class member name
 tests/coverage/misc/fail/oxc-2253.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-232.js:2:1: Empty parenthesized expression

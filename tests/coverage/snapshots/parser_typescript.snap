@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10721/10738 (99.84%)
 Positive Passed: 10721/10738 (99.84%)
-Negative Passed: 1578/1673 (94.32%)
+Negative Passed: 1579/1673 (94.38%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/ClassDeclaration9.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -24,7 +24,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorElabora
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingMergeErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNameSpaceImportMergeErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNamedImportMergeErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportClassWithoutName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportEqualsClassRedeclarationError.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportInterfaceClassAndValue.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportSameNameFuncVar.ts
@@ -371,6 +370,7 @@ typescript/tests/cases/compiler/exportAssignmentWithDeclareAndExportModifiers.ts
 typescript/tests/cases/compiler/exportAssignmentWithDeclareModifier.ts:2:9: Expected semicolon
 typescript/tests/cases/compiler/exportAssignmentWithExportModifier.ts:2:8: 'export' modifier already seen.
 typescript/tests/cases/compiler/exportAssignmentWithExports.ts:1:1: An export assignment cannot be used in a module with other exported elements.
+typescript/tests/cases/compiler/exportClassWithoutName.ts:1:8: A class declaration without the 'default' modifier must have a name.
 typescript/tests/cases/compiler/exportDeclarationInInternalModule.ts:13:5: Export declarations are not permitted in a namespace.
 typescript/tests/cases/compiler/exportDeclarationsInAmbientNamespaces2.ts:6:5: Export declarations are not permitted in a namespace.
 typescript/tests/cases/compiler/exportDeclareClass1.ts:2:21: An implementation cannot be declared in ambient contexts

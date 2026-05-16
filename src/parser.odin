@@ -10973,6 +10973,14 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	case ^ClassDeclaration:
 		decl_union^ = v
 		if v.declare { export_kind = .Type }
+		// §15.7.1 — named exports require a class name.
+		// `export class {}` is invalid; must use `export default class {}`.
+		if v != nil {
+			if _, has_id := v.id.?; !has_id {
+				report_error_at(p, LexerLoc(v.loc.span.start),
+					"A class declaration without the 'default' modifier must have a name.")
+			}
+		}
 	case ^ImportDeclaration:
 		// `export import X from "..."` is invalid — only the TS
 		// import-equals form `export import X = ...` is valid.
