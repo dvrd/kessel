@@ -3,7 +3,7 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2234/2237 (99.87%)
 Positive Passed: 2234/2237 (99.87%)
-Negative Passed: 1642/1725 (95.19%)
+Negative Passed: 1648/1725 (95.54%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js
@@ -18,12 +18,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/co
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-property-name/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-arr-destr/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-catch-var-obj-destr/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as-default/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-block/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin-as/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-default-inside-arrow-inside-generator-2/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-optional-private-property/input.js
@@ -159,7 +153,13 @@ babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-gen-func/input.js
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-let-let/input.js:1:1: Identifier 'foo' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/dupl-bind-nested-let-var/input.js:3:5: Identifier 'a' has already been declared
 babel/packages/babel-parser/test/fixtures/core/scope/for-var/input.js:2:5: Identifier 'i' has already been declared
+babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as-default/input.js:1:10: Export 'encrypt' is not defined in the module
+babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-as/input.js:1:10: Export 'encrypt' is not defined in the module
+babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-block/input.js:4:10: Export 'encrypt' is not defined in the module
+babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin-as/input.js:1:10: Export 'Object' is not defined in the module
+babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-builtin/input.js:1:10: Export 'Object' is not defined in the module
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-if/input.js:3:1: Function declarations are not allowed in a single-statement context
+babel/packages/babel-parser/test/fixtures/core/scope/undecl-export/input.js:1:10: Export 'encrypt' is not defined in the module
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-await/input.js:1:1: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/invalid-top-level-yield/input.js:1:1: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/core/uncategorised/108/input.js:1:17: Expected semicolon

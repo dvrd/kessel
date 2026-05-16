@@ -8902,10 +8902,90 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			}
 		}
 	}
-	// §16.2.2 "Export 'X' is not defined in the module" early error
-	// is now enforced by the semantic checker (ck_check_export_local_defined).
-	// The string-literal-without-from rule remains structural and is
-	// reported here.
+	// §16.2.2 "Export 'X' is not defined in the module" early error.
+	// The string-literal-without-from rule is structural; the undeclared
+	// name check was in the semantic checker but is now promoted to the
+	// parser so parser-only snaps match OXC (test262 early-export-global,
+	// early-export-unresolvable).
+	//
+	// Collect all module-level declared names (Var + Lex + imports).
+	module_names: map[string]bool
+	module_names.allocator = context.temp_allocator
+	if !allow_ts_mode(p) {
+		// Only run for JS modules — TS has global augmentation, ambient
+		// modules, etc. that make this check produce false positives.
+		for stmt in program.body {
+			if stmt == nil { continue }
+			#partial switch v in stmt^ {
+			case ^VariableDeclaration:
+				if v == nil { continue }
+				names := make([dynamic]string, 0, 4, context.temp_allocator)
+				for d in v.declarations { scope_collect_pattern(d.id, &names) }
+				for n in names { module_names[n] = true }
+			case ^FunctionDeclaration:
+				if v == nil { continue }
+				if id, ok := v.id.(BindingIdentifier); ok { module_names[id.name] = true }
+			case ^ClassDeclaration:
+				if v == nil { continue }
+				if id, ok := v.id.(BindingIdentifier); ok { module_names[id.name] = true }
+			case ^ImportDeclaration:
+				if v == nil { continue }
+				for spec in v.specifiers {
+					if spec == nil { continue }
+					switch ss in spec^ {
+					case ImportSpecifier: module_names[ss.local.name] = true
+					case ImportDefaultSpecifier: module_names[ss.local.name] = true
+					case ImportNamespaceSpecifier: module_names[ss.local.name] = true
+					}
+				}
+			case ^ExportNamedDeclaration:
+				if v == nil { continue }
+				if d, have := v.declaration.(^Declaration); have && d != nil {
+					#partial switch inner in d^ {
+					case ^VariableDeclaration:
+						if inner == nil { break }
+						names := make([dynamic]string, 0, 4, context.temp_allocator)
+						for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
+						for n in names { module_names[n] = true }
+					case ^FunctionDeclaration:
+						if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
+					case ^ClassDeclaration:
+						if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
+					}
+				}
+			case ^ExportDefaultDeclaration:
+				module_names["default"] = true
+				// `export default function foo(){}` also binds `foo`.
+				if v != nil && v.declaration != nil {
+					#partial switch dd in v.declaration^ {
+					case ^Declaration:
+						if dd != nil {
+							#partial switch inner in dd^ {
+							case ^FunctionDeclaration:
+								if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
+							case ^ClassDeclaration:
+								if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
+							}
+						}
+					case ^Expression:
+						if dd != nil {
+							#partial switch expr in dd^ {
+							case ^FunctionExpression:
+								if expr != nil { if id, ok := expr.id.(BindingIdentifier); ok { module_names[id.name] = true } }
+							case ^ClassExpression:
+								if expr != nil { if id, ok := expr.id.(BindingIdentifier); ok { module_names[id.name] = true } }
+							}
+						}
+					}
+				}
+			}
+			// Also hoist var names from nested blocks/loops/etc.
+			hoisted_vars := scope_map_make(4)
+			scope_hoist_vars(p, stmt, &hoisted_vars)
+			for it in hoisted_vars.items { module_names[it.name] = true }
+		}
+	}
+
 	for stmt in program.body {
 		if stmt == nil { continue }
 		export, is_export := stmt^.(^ExportNamedDeclaration)
@@ -8918,6 +8998,19 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					message = "A string literal cannot be used as an exported binding without `from`",
 				}
 				bump_append(&p.errors, err)
+			} else if !allow_ts_mode(p) {
+				// §16.2.2 — exported name must be in declared names.
+				local_name := ""
+				local_loc: u32 = 0
+				if id, is_id := spec.local.(IdentifierName); is_id {
+					local_name = id.name
+					local_loc = id.loc.span.start
+				}
+				if local_name != "" && !module_names[local_name] {
+					msg := fmt.tprintf("Export '%s' is not defined in the module", local_name)
+					err := ParseError{loc = LexerLoc(local_loc), message = msg}
+					bump_append(&p.errors, err)
+				}
 			}
 		}
 	}

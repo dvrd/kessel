@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 72/72 (100.00%)
 Positive Passed: 72/72 (100.00%)
-Negative Passed: 261/286 (91.26%)
+Negative Passed: 262/286 (91.61%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
@@ -21,7 +21,6 @@ Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2389-fn-decl-block-scope.
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2448-use-before-decl.ts
 Expect Syntax Error: tests/coverage/misc/fail/negative/049_yield_in_async_arrow_params.js
-Expect Syntax Error: tests/coverage/misc/fail/negative/054_export_undefined_local.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-2144.js
@@ -151,6 +150,7 @@ tests/coverage/misc/fail/negative/050_for_let_init_in.js:5:6: for-in loop variab
 tests/coverage/misc/fail/negative/051_for_var_init_of.js:5:6: for-of loop variable declaration may not have an initializer
 tests/coverage/misc/fail/negative/052_for_var_multiple_declarators_in.js:5:6: Only a single declaration is allowed in a for-in loop
 tests/coverage/misc/fail/negative/053_for_var_destructuring_init_in.js:5:6: for-in loop variable declaration may not have an initializer
+tests/coverage/misc/fail/negative/054_export_undefined_local.js:6:10: Export 'foo' is not defined in the module
 tests/coverage/misc/fail/negative/055_export_string_local_without_from.js:6:10: A string literal cannot be used as an exported binding without `from`
 tests/coverage/misc/fail/negative/056_regex_duplicate_flags.js:4:17: Duplicate regular expression flag
 tests/coverage/misc/fail/negative/057_regex_invalid_flag.js:3:16: Invalid regular expression flag
