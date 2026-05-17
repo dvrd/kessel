@@ -45,6 +45,38 @@ TS_NOT_SUPPORTED_TEST_PATHS := [?]string{
 	"bom-utf16be.ts",
 	"asyncWithVarShadowing_es6.ts",
 	"usingDeclarations.14.ts",
+
+	// ── Spec-correct parser checks that TypeScript's parser skips ───────
+	// OXC's parser also rejects these (shared FPs). Kessel and OXC both
+	// enforce ECMA-262 grammar restrictions at parser level; TypeScript
+	// defers them to the type-checker. Skipping matches OXC's coverage.
+
+	// §14.1.1 — lexical declarations forbidden in single-statement
+	// contexts (`if (x) const y = 1;`). Spec-mandated grammar restriction.
+	// TSC accepts and catches at semantic level.
+	"constDeclarations-invalidContexts.ts",
+	"constDeclarations-scopes.ts",
+	"constDeclarations-validContexts.ts",
+
+	// `with` in strict mode + @ts-ignore. TSC's @ts-ignore suppresses
+	// TS1101 so no .errors.txt baseline exists. Neither OXC nor kessel
+	// implements @ts-ignore — it's a TSC compiler feature, not a parser
+	// feature. Removing the `with` strict check loses 7+ TS negatives.
+	"withStatementInternalComments.ts",
+
+	// Multi-file TSC fixtures where some @filename sub-files contain
+	// intentional errors (e.g. `await` in async generator params). OXC's
+	// parser also rejects the sub-file, failing the whole parent fixture.
+	// Artifact of TSC's multi-file test harness, not a real parser gap.
+	"parser.asyncGenerators.classMethods.es2018.ts",
+	"parser.asyncGenerators.functionDeclarations.es2018.ts",
+	"parser.asyncGenerators.functionExpressions.es2018.ts",
+	"parser.asyncGenerators.objectLiteralMethods.es2018.ts",
+
+	// `return` outside function — ECMA-262 violation that OXC also catches.
+	// Classified as positive only because its baseline uses variant
+	// dimensions the harness doesn't check.
+	"parserStatementIsNotAMemberVariableDeclaration1.ts",
 }
 
 // Fixtures OXC's parser also misses (Expect Syntax Error in OXC's
@@ -235,7 +267,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"continueNotInIterationStatement4.ts",
 	"controlFlowAliasing.ts",
 	"controlFlowGenericTypes.ts",
-	"corrupted.ts",
+	// corrupted.ts — removed: parser now handles binary garbage gracefully.
 	"crashDeclareGlobalTypeofExport.ts",
 	"crashRegressionTest.ts",
 	"declarationEmitCommonJsModuleReferencedType.ts",
@@ -1011,7 +1043,7 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"voidAsNonAmbiguousReturnType.ts",
 	"voidOperatorWithAnyOtherType.ts",
 	"widenedTypes.ts",
-	"withStatementInternalComments.ts",
+	// withStatementInternalComments.ts — moved to TS_NOT_SUPPORTED_TEST_PATHS.
 	"witness.ts",
 }
 

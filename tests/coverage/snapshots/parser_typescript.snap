@@ -1,9 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10729/10738 (99.92%)
-Positive Passed: 10729/10738 (99.92%)
-Negative Passed: 1586/1673 (94.80%)
+AST Parsed     : 10728/10728 (100.00%)
+Positive Passed: 10728/10728 (100.00%)
+Negative Passed: 1586/1674 (94.74%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
@@ -14,6 +14,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classWithDup
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErrors.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads8.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/corrupted.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateClassElements.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierComputedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierDifferentSpelling.ts
@@ -91,33 +92,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/loc
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/duplicatePropertyNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/objectTypeWithDuplicateNumericProperty.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/propertySignatures/numericStringNamedPropertyEquivalence.ts
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-invalidContexts.ts
-typescript/tests/cases/compiler/constDeclarations-invalidContexts.ts:4:1: Lexical declaration cannot appear in a single-statement context
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-scopes.ts
-typescript/tests/cases/compiler/constDeclarations-scopes.ts:44:5: Lexical declaration cannot appear in a single-statement context
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/constDeclarations-validContexts.ts
-typescript/tests/cases/compiler/constDeclarations-validContexts.ts:32:1: Lexical declaration cannot appear in a single-statement context
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/withStatementInternalComments.ts
-typescript/tests/cases/compiler/withStatementInternalComments.ts:2:7: 'with' statements are not allowed in strict mode
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts
-typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.classMethods.es2018.ts::asyncGeneratorGetAccessorIsError.ts:2:17: Expected (, got identifier
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.functionDeclarations.es2018.ts
-typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.functionDeclarations.es2018.ts::awaitInParameterInitializerIsError.ts:1:25: 'await' expression is not allowed in formal parameters of an async function
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.functionExpressions.es2018.ts
-typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.functionExpressions.es2018.ts::awaitInParameterInitializerIsError.ts:1:34: 'await' expression is not allowed in formal parameters of an async function
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.objectLiteralMethods.es2018.ts
-typescript/tests/cases/conformance/parser/ecmascript2018/asyncGenerators/parser.asyncGenerators.objectLiteralMethods.es2018.ts::asyncGeneratorGetAccessorIsError.ts:2:17: Generator/async shorthand property not allowed
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserStatementIsNotAMemberVariableDeclaration1.ts
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserStatementIsNotAMemberVariableDeclaration1.ts:1:8: 'return' outside of function
-
 typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/ClassDeclaration11.ts:4:2: Function implementation name must be 'constructor'.
