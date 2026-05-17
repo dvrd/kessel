@@ -1,7 +1,7 @@
 parser_misc Summary:
 AST Parsed     : 72/72 (100.00%)
 Positive Passed: 72/72 (100.00%)
-Negative Passed: 263/286 (91.96%)
+Negative Passed: 264/286 (92.31%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
 Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
@@ -12,7 +12,6 @@ Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_im
 Expect Syntax Error: tests/coverage/misc/fail/escape-00.js
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts-import-dup.ts
-Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-decl-merge-namespace.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-interface-bare-name-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-interface-dup-prop.ts
@@ -90,6 +89,7 @@ tests/coverage/misc/fail/import-type-source-not-string.ts:3:25: String literal e
 tests/coverage/misc/fail/import-type-without-from.ts:1:13: Expected from, got string
 tests/coverage/misc/fail/import-without-from.js:1:16: Expected from, got string
 tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected >, got ;
+tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts:8:3: Duplicate identifier 'a'.
 tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts:7:1: Function implementation name must be 'foo'.
 tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts:5:1: Duplicate function implementation.
 tests/coverage/misc/fail/let-member-expression.js:4:1: 'let' is a reserved identifier in strict mode

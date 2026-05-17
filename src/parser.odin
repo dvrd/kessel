@@ -5726,13 +5726,15 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 
 		// TS overload signatures (body-less methods): skip from dup map.
 		// Override methods: skip (override can repeat with different modifiers).
+		// Properties without initializers (kind=.Method, val=nil) must NOT
+		// be treated as overloads — they're field declarations.
 		if elem.kind == .Method {
 			if elem.override_ { continue }
-			is_overload := true
+			is_overload := false
 			if val, have := elem.value.?; have && val != nil {
 				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					if fn.body.loc.span.end > fn.body.loc.span.start {
-						is_overload = false
+					if fn.body.loc.span.end <= fn.body.loc.span.start {
+						is_overload = true  // body-less method sig
 					}
 				}
 			}
@@ -5746,25 +5748,36 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 		prev := seen[name] or_else MemberSeen{}
 		dup := false
 
-		switch elem.kind {
-		case .Get:
+		// Distinguish real methods from properties: kind=.Method is the
+		// AST default for ALL class elements. A real method has a
+		// FunctionExpression value; everything else is a property/field.
+		is_real_method := false
+		if elem.kind == .Method {
+			if v, hv := elem.value.?; hv && v != nil {
+				if _, ok := v^.(^FunctionExpression); ok { is_real_method = true }
+			}
+		}
+
+		switch {
+		case elem.kind == .Get:
 			if prev.has_get || prev.has_prop { dup = true }
 			prev.has_get = true
-		case .Set:
+		case elem.kind == .Set:
 			if prev.has_set || prev.has_prop { dup = true }
 			prev.has_set = true
-		case .Method, .StaticBlock:
+		case is_real_method:
 			// Method vs property/accessor = duplicate.
-			// Method vs method is NOT flagged here — TS allows overloaded
-			// methods with different type params / signatures. The overload
-			// chain checker handles missing-implementation errors.
+			// Method vs method is NOT flagged — TS allows overloads.
 			if prev.has_get || prev.has_set || prev.has_prop { dup = true }
 			prev.has_method = true
-		case .Constructor:
+		case elem.kind == .Constructor:
 			// handled above
 		case:
-			// Property / field
-			if prev.has_get || prev.has_set || prev.has_prop || prev.has_method { dup = true }
+			// Property / field (including kind=.Method with non-FE value).
+			// Property vs accessor or method = dup. Property vs property
+			// is NOT flagged — TS allows redeclaring properties with
+			// different modifiers/types (x; x?: number; x!: string; etc.).
+			if prev.has_get || prev.has_set || prev.has_method { dup = true }
 			prev.has_prop = true
 		}
 		seen[name] = prev

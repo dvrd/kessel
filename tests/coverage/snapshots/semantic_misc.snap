@@ -81,7 +81,7 @@ tests/coverage/misc/fail/import-type-without-from.ts:1:13: Expected from, got st
 tests/coverage/misc/fail/import-without-from.js:1:16: Expected from, got string
 tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected >, got ;
 tests/coverage/misc/fail/kessel-ts-import-dup.ts:9:8: Duplicate identifier 'x'
-tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts:8:3: Duplicate identifier 'a'
+tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts:8:3: Duplicate identifier 'a'.
 tests/coverage/misc/fail/kessel-ts2300-decl-merge-namespace.ts:7:9: Duplicate identifier 'C'
 tests/coverage/misc/fail/kessel-ts2300-interface-bare-name-dup.ts:11:3: Duplicate identifier 'x'
 tests/coverage/misc/fail/kessel-ts2300-interface-dup-prop.ts:8:3: Duplicate identifier 'x'
