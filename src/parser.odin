@@ -5671,7 +5671,8 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 	MemberSeen :: struct {
 		has_get:    bool,
 		has_set:    bool,
-		has_other:  bool,  // property or method with body
+		has_prop:   bool,  // property / field
+		has_method: bool,  // method with body (not overload sig)
 	}
 
 	static_seen:   map[string]MemberSeen
@@ -5708,11 +5709,20 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 			continue  // constructors don't enter the name map
 		}
 
-		// Methods: skip entirely from public dup map. Method duplicates
-		// are handled by report_ts_overload_chain_errors (TS2391/2393).
-		// Checking methods here would false-flag override patterns and
-		// multiple-signature-with-body fixtures that OXC accepts.
-		if elem.kind == .Method { continue }
+		// TS overload signatures (body-less methods): skip from dup map.
+		// Override methods: skip (override can repeat with different modifiers).
+		if elem.kind == .Method {
+			if elem.override_ { continue }
+			is_overload := true
+			if val, have := elem.value.?; have && val != nil {
+				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
+					if fn.body.loc.span.end > fn.body.loc.span.start {
+						is_overload = false
+					}
+				}
+			}
+			if is_overload { continue }
+		}
 
 		// Abstract members: skip (they have no body, handled by overload logic).
 		if elem.abstract { continue }
@@ -5721,22 +5731,25 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 		prev := seen[name] or_else MemberSeen{}
 		dup := false
 
+		is_method := elem.kind == .Method
 		switch elem.kind {
 		case .Get:
-			if prev.has_get || prev.has_other { dup = true }
+			if prev.has_get || prev.has_prop { dup = true }
 			prev.has_get = true
 		case .Set:
-			if prev.has_set || prev.has_other { dup = true }
+			if prev.has_set || prev.has_prop { dup = true }
 			prev.has_set = true
 		case .Method, .StaticBlock:
-			if prev.has_get || prev.has_set || prev.has_other { dup = true }
-			prev.has_other = true
+			// Method vs property/accessor = duplicate. Method vs method
+			// is handled by report_ts_overload_chain_errors, not here.
+			if prev.has_get || prev.has_set || prev.has_prop { dup = true }
+			prev.has_method = true
 		case .Constructor:
 			// handled above
 		case:
 			// Property / field
-			if prev.has_get || prev.has_set || prev.has_other { dup = true }
-			prev.has_other = true
+			if prev.has_get || prev.has_set || prev.has_prop || prev.has_method { dup = true }
+			prev.has_prop = true
 		}
 		seen[name] = prev
 
