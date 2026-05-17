@@ -616,6 +616,12 @@ Parser :: struct {
 	// Requires either a trailing comma `<T,>` or constraint `<T extends>`.
 	is_node_ts_module: bool,
 
+	// Explicit Babel option `disallowAmbiguousJSXLike`. Rejects `<T>x`
+	// type assertions and ambiguous `<T>() => ...` generic arrows.
+	// Auto-enabled for .mts/.cts via is_node_ts_module; this field
+	// captures the explicit opt-in for other extensions.
+	disallow_ambiguous_jsx_like: bool,
+
 	// Track if module syntax was detected (import/export or import.meta)
 	has_module_syntax: bool,
 
@@ -13899,18 +13905,20 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			return parse_jsx_element_or_fragment(p)
 		}
 		if allow_ts_mode(p) {
-			// .cts/.mts files: `<T>() => ...` is reserved unless `<T,>`
-			// or `<T extends ...>` form. Same as TSX rule.
+			// .mts/.cts early check: for the simple `<Identifier>`
+			// case (no trailing comma, extends, or assign), report the
+			// error HERE before parsing so it's always the first error
+			// on the line (body errors come later). Only for .mts/.cts
+			// path detection; explicit disallowAmbiguousJSXLike uses the
+			// post-parse check inside parse_ts_lt_expression.
 			if p.is_node_ts_module && p.lexer != nil && p.lexer.nxt.kind == .Identifier {
 				snap := lexer_snapshot(p)
 				eat(p)  // consume `<`
 				eat(p)  // consume the identifier
 				after := p.cur_type
 				lexer_restore(p, snap)
-				// Without trailing comma or extends, reject.
-				if after != .Comma && after != .Extends && after != .Assign {
-					report_error(p, "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma or explicit constraint.")
-					// Still parse as TS to avoid cascading errors
+				if after == .RAngle {
+					report_error_at(p, LexerLoc(cur_offset(p)), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.")
 				}
 			}
 			return parse_ts_lt_expression(p)
@@ -19529,6 +19537,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 		snap := lexer_snapshot(p)
 		result := parse_ts_generic_arrow(p, start)
 		if result != nil && len(p.errors) == snap.errors_len {
+			check_ts_ambiguous_jsx_like_arrow(p, result)
 			return result
 		}
 		lexer_restore(p, snap)
@@ -19547,6 +19556,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 			snap2 := lexer_snapshot(p)
 			result := parse_ts_generic_arrow(p, start)
 			if result != nil && len(p.errors) == snap2.errors_len {
+				check_ts_ambiguous_jsx_like_arrow(p, result)
 				return result
 			}
 			// Generic-arrow parse failed - roll back and, for the
@@ -19632,7 +19642,28 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	node.type_annotation = type_ann
 	node.expression = expr
 	node.loc.span.end = prev_end_offset(p)
+
+	if p.disallow_ambiguous_jsx_like {
+		report_error_at(p, LexerLoc(start.span.start), "This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead.")
+	}
+
 	return expression_from(p, node)
+}
+
+// When `disallow_ambiguous_jsx_like` is true, generic arrows with a
+// single un-constrained type parameter and no trailing comma are
+// reserved syntax (TSX-like rule for .mts/.cts and Babel option).
+@(private="file")
+check_ts_ambiguous_jsx_like_arrow :: proc(p: ^Parser, expr: ^Expression) {
+	if !p.disallow_ambiguous_jsx_like { return }
+	arrow, ok := expr^.(^ArrowFunctionExpression)
+	if !ok { return }
+	tp_opt := arrow.type_parameters
+	tp, has_tp := tp_opt.?
+	if !has_tp { return }
+	if len(tp.params) == 1 && tp.params[0].constraint == nil && !tp.trailing_comma {
+		report_error_at(p, LexerLoc(tp.loc.span.start), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.")
+	}
 }
 
 // Lexer + parser state snapshot used by parse_ts_lt_expression for its
@@ -20047,6 +20078,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	saved_disallow_ct := p.ts_disallow_conditional_types
 	p.ts_disallow_conditional_types = 0
 	params := make([dynamic]TSTypeParameter, 0, 4, p.allocator)
+	had_trailing_comma := false
 	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
 		// Reject empty type parameter positions: `<,T>` or `<,>`.
 		if is_token(p, .Comma) {
@@ -20116,7 +20148,8 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		}
 		param.loc.span.end = prev_end_offset(p)
 		bump_append(&params, param)
-		if !match_token(p, .Comma) { break }
+		had_trailing_comma = match_token(p, .Comma)
+		if !had_trailing_comma { break }
 	}
 	if empty_at_start && len(params) == 0 {
 		report_error(p, "Type parameter list cannot be empty")
@@ -20127,6 +20160,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	p.ts_disallow_conditional_types = saved_disallow_ct
 	decl := new_node(p, TSTypeParameterDeclaration)
 	decl.loc = start; decl.params = params
+	decl.trailing_comma = had_trailing_comma
 	decl.loc.span.end = prev_end_offset(p)
 	return decl
 }

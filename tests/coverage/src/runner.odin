@@ -55,6 +55,7 @@ run_parser_one :: proc(
 		ast_only               = false,
 		source_is_dts_override = fix.source_is_dts,
 		is_commonjs_override   = fix.is_commonjs,
+		disallow_ambiguous_jsx_like = fix.disallow_ambiguous_jsx_like,
 	}
 
 	job: kessel.ParseJob

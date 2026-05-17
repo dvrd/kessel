@@ -1194,7 +1194,7 @@ typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsExportAssignme
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsImportAssignment.ts::file.js:4:11: Expected from, got =
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts::index.js:3:12: Expected from, got =
 typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.cts:5:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.cts:2:11: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma or explicit constraint.
+typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.cts:2:11: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.
 typescript/tests/cases/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts::/other.ts:3:22: Expected 'with' in import type options
 typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/other.ts:3:22: Expected 'with' in import type options
 typescript/tests/cases/conformance/override/override11.ts:6:34: 'public' modifier must precede 'override' modifier.

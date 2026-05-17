@@ -228,6 +228,7 @@ apply_one_options_file :: proc(
 					name := plugin_head_name(elem, allocator)
 					if name != "" { append(plugins_acc, name) }
 					if plugin_is_typescript_dts(elem) { out.typescript_dts = true }
+					if plugin_is_disallow_ambiguous_jsx_like(elem) { out.disallow_ambiguous_jsx_like = true }
 				}
 				plugins_locked^ = true
 			}
@@ -301,6 +302,22 @@ plugin_is_typescript_dts :: proc(v: json.Value) -> bool {
 	return false
 }
 
+// Inspect a plugins[] entry for disallowAmbiguousJSXLike. Returns true when
+// the entry is `["typescript", {"disallowAmbiguousJSXLike": true}]`.
+@(private="file")
+plugin_is_disallow_ambiguous_jsx_like :: proc(v: json.Value) -> bool {
+	arr, is_arr := v.(json.Array)
+	if !is_arr || len(arr) < 2 { return false }
+	name, is_str := arr[0].(json.String)
+	if !is_str || string(name) != "typescript" { return false }
+	obj, is_obj := arr[1].(json.Object)
+	if !is_obj { return false }
+	if v2, has := obj["disallowAmbiguousJSXLike"]; has {
+		if b, is_b := v2.(json.Boolean); is_b { return bool(b) }
+	}
+	return false
+}
+
 // ============================================================================
 // babel_skip_path — composes path-level skips per OXC's load_babel.skip_path
 // ============================================================================
@@ -362,7 +379,6 @@ load_babel :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fixtu
 		if opts.allow_undeclared_exports           { continue }
 		if opts.allow_new_target_outside_function  { continue }
 		if opts.allow_super_outside_method         { continue }
-		if opts.disallow_ambiguous_jsx_like        { continue }
 
 		lang := resolve_babel_lang(f.abs, opts)
 		st   := resolve_babel_source_type(opts)
@@ -388,6 +404,7 @@ load_babel :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fixtu
 			lang          = lang,
 			source_is_dts = dts_override,
 			is_commonjs   = cjs_override,
+			disallow_ambiguous_jsx_like = opts.disallow_ambiguous_jsx_like,
 			should_fail   = should_fail,
 			suite         = .Babel,
 		})

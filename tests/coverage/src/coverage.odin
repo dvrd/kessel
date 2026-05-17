@@ -121,6 +121,11 @@ Fixture :: struct {
 	force_strict:  bool,
 	source_is_dts: Maybe(bool),
 	is_commonjs:   Maybe(bool),  // override for inline sources whose path is synthetic
+
+	// Babel `disallowAmbiguousJSXLike` — reject `<T>x` assertions and
+	// `<T>() => ...` generic arrows without trailing comma / extends.
+	disallow_ambiguous_jsx_like: bool,
+
 	should_fail:   bool,
 	suite:         Suite,
 }

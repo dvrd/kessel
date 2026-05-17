@@ -244,8 +244,9 @@ TSTypeAnnotation :: struct {
 
 // Type parameter declaration: `<T extends U = V>`
 TSTypeParameterDeclaration :: struct {
-	loc:    Loc,
-	params: [dynamic]TSTypeParameter,
+	loc:            Loc,
+	params:         [dynamic]TSTypeParameter,
+	trailing_comma: bool, // needed for disallowAmbiguousJSXLike check
 }
 
 TSTypeParameter :: struct {

@@ -3,7 +3,7 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2233/2237 (99.82%)
 Positive Passed: 2233/2237 (99.82%)
-Negative Passed: 1710/1725 (99.13%)
+Negative Passed: 1712/1725 (99.25%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine-before-use-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
@@ -13,8 +13,6 @@ Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/ty
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-like/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-param/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/decorators/type-arguments-invalid/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-assertion/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-parameter/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/export/invalid-as-namespace-duplicate-identifier/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable/input.ts
@@ -1595,6 +1593,8 @@ babel/packages/babel-parser/test/fixtures/typescript/declare/module-class/input.
 babel/packages/babel-parser/test/fixtures/typescript/declare/module-function/input.ts:2:18: An implementation cannot be declared in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/declare/namespace-class/input.ts:3:20: Initializers are not allowed in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/declare/namespace-function/input.ts:2:18: An implementation cannot be declared in ambient contexts
+babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-assertion/input.ts:1:1: This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead.
+babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-parameter/input.ts:1:1: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.
 babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-implementation/input.ts:1:21: An implementation cannot be declared in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-initializer/input.ts:2:10: Initializers are not allowed in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/expect-plugin/export-interface/input.js:1:8: 'interface' is a reserved identifier in strict mode

@@ -116,6 +116,11 @@ ParseConfig :: struct {
 	// synthetic. nil = use path suffix (.cjs / .cts). CommonJS files are
 	// wrapped in a function at runtime, so top-level `return` is legal.
 	is_commonjs_override:   Maybe(bool),
+
+	// Reject ambiguous JSX-like syntax (`<T>x` type assertions and
+	// `<T>() => ...` generic arrows without trailing comma / extends).
+	// Babel option `disallowAmbiguousJSXLike`; also auto-enabled for .mts/.cts.
+	disallow_ambiguous_jsx_like: bool,
 }
 
 // Snapshot a CliConfig into a ParseConfig. Called once per parse job
@@ -401,6 +406,8 @@ parse_job_run :: proc(job: ^ParseJob) {
 	job.parser.is_commonjs      = job.is_commonjs
 	job.parser.is_node_ts_module = strings.has_suffix(job.source_path, ".cts") ||
 	                               strings.has_suffix(job.source_path, ".mts")
+	job.parser.disallow_ambiguous_jsx_like = job.parser.is_node_ts_module ||
+	                                         job.config.disallow_ambiguous_jsx_like
 
 	job.program = parse_program(&job.parser, job.initial_source_type)
 }
