@@ -5312,8 +5312,8 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 			if elem.kind != .Get && elem.kind != .Set { has_non_method = true }
 			continue
 		}
-		val, have := elem.value.?; if !have || val == nil { continue }
-		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
+		val, have := elem.value.?; if !have || val == nil { has_non_method = true; continue }
+		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { has_non_method = true; continue }
 		if fn.body.loc.span.end > fn.body.loc.span.start {
 			has_any_impl = true; break
 		}
@@ -5363,8 +5363,23 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 			}
 			continue
 		}
-		val, have := elem.value.?; if !have || val == nil { continue }
-		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
+		// Class fields (kind=.Method but val is not FunctionExpression)
+		// break the overload chain — they're non-method elements.
+		val, have := elem.value.?;
+		is_field := !have || val == nil
+		fn: ^FunctionExpression
+		is_fn: bool
+		if !is_field {
+			fn, is_fn = val^.(^FunctionExpression)
+			if !is_fn || fn == nil { is_field = true }
+		}
+		if is_field {
+			if chain_active {
+				report_overload_flush(p, body, chain_start, idx)
+				chain_active = false
+			}
+			continue
+		}
 
 		if elem.optional {
 			if chain_active {
@@ -5731,7 +5746,6 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 		prev := seen[name] or_else MemberSeen{}
 		dup := false
 
-		is_method := elem.kind == .Method
 		switch elem.kind {
 		case .Get:
 			if prev.has_get || prev.has_prop { dup = true }
@@ -5740,8 +5754,10 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 			if prev.has_set || prev.has_prop { dup = true }
 			prev.has_set = true
 		case .Method, .StaticBlock:
-			// Method vs property/accessor = duplicate. Method vs method
-			// is handled by report_ts_overload_chain_errors, not here.
+			// Method vs property/accessor = duplicate.
+			// Method vs method is NOT flagged here — TS allows overloaded
+			// methods with different type params / signatures. The overload
+			// chain checker handles missing-implementation errors.
 			if prev.has_get || prev.has_set || prev.has_prop { dup = true }
 			prev.has_method = true
 		case .Constructor:

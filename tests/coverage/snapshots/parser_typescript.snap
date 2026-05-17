@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10728/10728 (100.00%)
 Positive Passed: 10728/10728 (100.00%)
-Negative Passed: 1593/1674 (95.16%)
+Negative Passed: 1594/1674 (95.22%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
@@ -30,7 +30,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclWi
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclarationInModuleDeclaration2.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/incompatibleExports1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/incompatibleExports2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/incorrectClassOverloadChain.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/mismatchedClassConstructorVariable.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal6_1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleResolutionWithExtensions_unexpected2.ts::/a.ts
@@ -364,6 +363,7 @@ typescript/tests/cases/compiler/importDeclWithDeclareModifierInAmbientContext.ts
 typescript/tests/cases/compiler/importDeclWithExportModifierAndExportAssignment.ts:5:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/incompleteDottedExpressionAtEOF.ts:2:18: Expected identifier after '.'
 typescript/tests/cases/compiler/incompleteObjectLiteral1.ts:1:14: Unexpected ';' in object literal
+typescript/tests/cases/compiler/incorrectClassOverloadChain.ts:2:5: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/indexSignatureMustHaveTypeAnnotation.ts:4:16: An index signature must have a type annotation.
 typescript/tests/cases/compiler/indexSignatureTypeCheck.ts:14:9: An index signature parameter cannot have a question mark.
 typescript/tests/cases/compiler/indexSignatureTypeCheck2.ts:10:9: An index signature parameter cannot have a question mark.
