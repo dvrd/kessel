@@ -289,5 +289,5 @@ tests/coverage/misc/fail/oxc-9525-1.js:1:4: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-2.js:1:5: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-3.js:3:1: Unexpected token after ?.
 tests/coverage/misc/fail/script-top-level-using.js:2:1: 'using' declaration is not allowed at the top level of a script
-tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs:4:7: 'for await' is only valid in async functions or at the top level of a module
+tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs:4:17: 'for await' loops cannot be used inside a class static block.
 tests/coverage/misc/fail/switch-invalid-clause.js:2:3: Expected 'case' or 'default' in switch

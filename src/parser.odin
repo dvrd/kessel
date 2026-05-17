@@ -585,6 +585,8 @@ Parser :: struct {
 	// `export default function *yield() {}` is accepted by OXC).
 	in_export_default: bool,
 
+
+
 	// True while expr_to_pattern recurses into nested array/object elements.
 	// Parenthesized binding elements (`(a)`) are rejected inside destructuring
 	// patterns but allowed at the top level of arrow params (matching OXC
@@ -2902,7 +2904,11 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// but `for await` at script top-level is still invalid. Mirror the
 	// plain-await rules.
 	if await {
-		if !p.in_async && !p.in_static_block {
+		// TS18038 — `for await` inside a class static block is always
+		// invalid, even when the block is nested inside an async function.
+		if p.in_static_block {
+			report_error(p, "'for await' loops cannot be used inside a class static block.")
+		} else if !p.in_async {
 			if p.in_function {
 				report_error(p, "'for await' outside of async function")
 			} else if allow_ts_mode(p) {
