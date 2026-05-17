@@ -5194,6 +5194,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 	body.loc.span.end = prev_end_offset(p)
 	report_ts_overload_chain_errors(p, body.body[:])
 	report_private_class_member_errors(p, body.body[:], p.class_is_abstract)
+	report_duplicate_class_member_errors(p, body.body[:])
 
 	// §15.7.3 — resolve pending private-name references against the
 	// declared names in this class body. Unresolved refs bubble up to
@@ -5649,6 +5650,99 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 		if impl_count[name2] >= 2 {
 			report_error_at(p, LexerLoc(fn2.expr.loc.span.start),
 				"Duplicate function implementation.")
+		}
+	}
+}
+
+// report_duplicate_class_member_errors — detect duplicate PUBLIC class
+// member names. Matches OXC's parser-level TS2300 / TS1117 checks:
+//   * property + property → duplicate
+//   * property + method → duplicate
+//   * property + accessor → duplicate
+//   * get + get (same static) → duplicate
+//   * set + set (same static) → duplicate
+//   * get + set → OK (complementary pair)
+// Static and instance are separate namespaces. TS overload signatures
+// (body-less methods) are excluded. Computed properties are excluded.
+report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
+	if !allow_ts_mode(p) { return }  // JS uses the private-only check
+	if p.in_ambient || p.source_is_dts { return }
+
+	MemberSeen :: struct {
+		has_get:    bool,
+		has_set:    bool,
+		has_other:  bool,  // property or method with body
+	}
+
+	static_seen:   map[string]MemberSeen
+	instance_seen: map[string]MemberSeen
+	static_seen.allocator   = context.temp_allocator
+	instance_seen.allocator = context.temp_allocator
+
+	constructor_impl_count := 0
+
+	for elem in elems {
+		if elem.key == nil { continue }
+		if elem.computed { continue }  // [expr] keys can't be checked
+		// Skip private identifiers — handled by report_private_class_member_errors.
+		if _, is_priv := elem.key.(^PrivateIdentifier); is_priv { continue }
+
+		name := class_element_prop_name(elem.key)
+		if name == "" { continue }
+
+		// TS duplicate constructor: multiple constructor implementations.
+		// Overload signatures (no body) are fine.
+		if elem.kind == .Constructor {
+			if val, have := elem.value.?; have && val != nil {
+				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
+					has_body := fn.body.loc.span.end > fn.body.loc.span.start
+					if has_body {
+						constructor_impl_count += 1
+						if constructor_impl_count > 1 {
+							report_error_at(p, LexerLoc(elem.loc.span.start),
+								"Duplicate constructor implementations are not allowed.")
+						}
+					}
+				}
+			}
+			continue  // constructors don't enter the name map
+		}
+
+		// Methods: skip entirely from public dup map. Method duplicates
+		// are handled by report_ts_overload_chain_errors (TS2391/2393).
+		// Checking methods here would false-flag override patterns and
+		// multiple-signature-with-body fixtures that OXC accepts.
+		if elem.kind == .Method { continue }
+
+		// Abstract members: skip (they have no body, handled by overload logic).
+		if elem.abstract { continue }
+
+		seen := elem.static ? &static_seen : &instance_seen
+		prev := seen[name] or_else MemberSeen{}
+		dup := false
+
+		switch elem.kind {
+		case .Get:
+			if prev.has_get || prev.has_other { dup = true }
+			prev.has_get = true
+		case .Set:
+			if prev.has_set || prev.has_other { dup = true }
+			prev.has_set = true
+		case .Method, .StaticBlock:
+			if prev.has_get || prev.has_set || prev.has_other { dup = true }
+			prev.has_other = true
+		case .Constructor:
+			// handled above
+		case:
+			// Property / field
+			if prev.has_get || prev.has_set || prev.has_other { dup = true }
+			prev.has_other = true
+		}
+		seen[name] = prev
+
+		if dup {
+			msg := fmt.tprintf("Duplicate identifier '%s'.", name)
+			report_error_at(p, LexerLoc(elem.loc.span.start), msg)
 		}
 	}
 }
