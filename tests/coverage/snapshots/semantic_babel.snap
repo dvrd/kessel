@@ -3,10 +3,7 @@ commit: 4079bcda
 semantic_babel Summary:
 AST Parsed     : 2224/2237 (99.42%)
 Positive Passed: 2224/2237 (99.42%)
-Negative Passed: 1722/1725 (99.83%)
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-ambiguity/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-like/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-param/input.ts
+Negative Passed: 1722/1722 (100.00%)
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js:4:10: Export 'encrypt' is not defined in the module
 

@@ -53,6 +53,16 @@ BABEL_PATH_SKIP_SUBSTRINGS := [?]string{
 	"typescript/cast/satisfies-const-error",
 	"es2022/top-level-await-unambiguous",
 	"explicit-resource-management/valid-for-await-using-binding-escaped-of-of",
+	// Babel TS plugin bug: `shouldParseArrow` greedily consumes `:` as a
+	// return-type annotation when the arrow body is a parenthesized
+	// assignable expression inside a ternary consequent. The
+	// `inConditionalConsequent` guard exists for `shouldParseAsyncArrow`
+	// but was never added to `shouldParseArrow`. tsc (4.9–6.0), OXC,
+	// and acorn all accept these as valid ConditionalExpressions.
+	// esbuild has the same bug. Not a spec rule.
+	"typescript/conditional/arrow-ambiguity",
+	"typescript/conditional/arrow-like",
+	"typescript/conditional/arrow-param",
 	"explicit-resource-management/valid-for-using-binding-escaped-of-of",
 }
 
