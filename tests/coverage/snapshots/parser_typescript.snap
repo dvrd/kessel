@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10721/10738 (99.84%)
 Positive Passed: 10721/10738 (99.84%)
-Negative Passed: 1589/1673 (94.98%)
+Negative Passed: 1586/1673 (94.80%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
@@ -12,6 +12,8 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTyp
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classCannotExtendVar.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classWithDuplicateIdentifier.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErrors.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads1.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constructorOverloads8.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateClassElements.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierComputedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierDifferentSpelling.ts
@@ -65,6 +67,7 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/targetTypeCa
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varAndFunctionShareName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAndVariableWithSameName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock23.ts
+Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/constructorDeclarations/classWithTwoConstructorDefinitions.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/members/privateNames/privateNamesUnique-3.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/autoAccessor11.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/memberFunctionDeclarations/memberFunctionOverloadMixingStaticAndInstance.ts
@@ -264,10 +267,8 @@ typescript/tests/cases/compiler/constructorArgsErrors2.ts:2:25: 'static' is a re
 typescript/tests/cases/compiler/constructorArgsErrors3.ts:2:25: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility modifier already seen.
 typescript/tests/cases/compiler/constructorArgsErrors5.ts:2:18: 'export' is a reserved word and cannot be used as a binding name
-typescript/tests/cases/compiler/constructorOverloads1.ts:14:1: Multiple constructor implementations are not allowed.
 typescript/tests/cases/compiler/constructorOverloads6.ts:4:25: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/constructorOverloads7.ts:22:1: Overload signatures must all be ambient or non-ambient.
-typescript/tests/cases/compiler/constructorOverloads8.ts:6:1: Multiple constructor implementations are not allowed.
 typescript/tests/cases/compiler/constructorStaticParamName.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorStaticParamNameErrors.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorWithIncompleteTypeAnnotation.ts:11:13: 'module(...)' in import-equals is not supported; use 'require(...)' instead
@@ -782,7 +783,6 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock26.t
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock6.ts:7:13: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock7.ts:3:9: 'await' is not allowed in a class static block
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock8.ts:6:27: Undefined label 'label'
-typescript/tests/cases/conformance/classes/constructorDeclarations/classWithTwoConstructorDefinitions.ts:6:1: Multiple constructor implementations are not allowed.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts:3:17: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:2:23: 'readonly' parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInConstructorParameters.ts:7:33: 'public' modifier must precede 'readonly' modifier.

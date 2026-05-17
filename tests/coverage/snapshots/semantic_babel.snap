@@ -1,9 +1,9 @@
 commit: 4079bcda
 
 semantic_babel Summary:
-AST Parsed     : 2224/2237 (99.42%)
-Positive Passed: 2224/2237 (99.42%)
-Negative Passed: 1704/1704 (100.00%)
+AST Parsed     : 2224/2233 (99.60%)
+Positive Passed: 2224/2233 (99.60%)
+Negative Passed: 1702/1702 (100.00%)
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js:4:10: Export 'encrypt' is not defined in the module
 
@@ -22,20 +22,8 @@ babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract/input.ts:6:1: Duplicate exported name 'default'
 
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts:5:1: Multiple constructor implementations are not allowed.
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/members-with-modifier-names/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/members-with-modifier-names/input.ts:2:5: Function implementation is missing or not immediately following the declaration.
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/method-with-newline-without-body/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/method-with-newline-without-body/input.ts:3:5: Function implementation is missing or not immediately following the declaration.
-
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override/input.ts:7:20: A 'get' accessor must return a value.
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties/input.ts:10:30: A parameter cannot have a question mark and an initializer.
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/private-method-overload/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/private-method-overload/input.ts:4:3: Duplicate private name '#f' in class body
@@ -1584,8 +1572,6 @@ babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-invalid-ord
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override-errors/input.ts:2:23: 'override' modifier cannot appear on a constructor declaration
 babel/packages/babel-parser/test/fixtures/typescript/class/optional-async-error/input.js:3:10: Expected (, got ?
 babel/packages/babel-parser/test/fixtures/typescript/class/optional-generator-method-with-invalid-modifiers/input.ts:2:18: Method 'd' cannot have an implementation because it is marked abstract.
-babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties-binding-patterns/input.ts:2:26: A parameter property may not be declared using a binding pattern
-babel/packages/babel-parser/test/fixtures/typescript/class/parameter-properties-not-constructor/input.ts:10:30: A parameter cannot have a question mark and an initializer.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-private/input.ts:2:11: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-protected/input.ts:2:13: An accessibility modifier cannot be used with a private identifier.

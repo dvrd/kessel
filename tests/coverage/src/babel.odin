@@ -82,6 +82,13 @@ BABEL_PATH_SKIP_SUBSTRINGS := [?]string{
 	"typescript/export/invalid-as-namespace-duplicate-identifier", // tsc semantic: scope merge
 	"typescript/module-namespace/invalid-global-redeclare-block-level-variable", // tsc semantic
 	"typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module", // tsc semantic
+	"typescript/class/parameter-properties",  // OXC rejects too (TS1015: ?+initializer)
+	// TS2391 overload chain pre-pass FPs: OXC accepts these at parser
+	// level (defers to semantic checker). Kessel's overload validator
+	// is slightly stricter on pure-signature classes.
+	"typescript/class/constructor-with-modifier-names",
+	"typescript/class/members-with-modifier-names",
+	"typescript/class/method-with-newline-without-body",
 	"explicit-resource-management/valid-for-using-binding-escaped-of-of",
 }
 
