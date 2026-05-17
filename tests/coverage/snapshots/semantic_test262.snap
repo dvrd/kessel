@@ -2507,7 +2507,7 @@ test262/test/language/identifiers/val-yield-strict.js:17:5: 'yield' is a reserve
 test262/test/language/identifiers/vertical-tilde-continue-escaped.js:16:6: Expected '=', ',', or ';' after variable binding
 test262/test/language/identifiers/vertical-tilde-continue.js:16:6: Expected '=', ',', or ';' after variable binding
 test262/test/language/identifiers/vertical-tilde-start-escaped.js:16:5: Expected binding pattern
-test262/test/language/identifiers/vertical-tilde-start.js:16:5: Invalid character in identifier
+test262/test/language/identifiers/vertical-tilde-start.js:16:5: Expected binding pattern
 test262/test/language/import/dup-bound-names.js:17:1: Duplicate import binding 'x'
 test262/test/language/import/escaped-as-import-specifier.js:26:11: Expected }, got identifier
 test262/test/language/import/escaped-as-namespace-import.js:24:9: Expected as, got identifier
@@ -4595,4 +4595,4 @@ test262/test/language/white-space/S7.2_A5_T2.js:17:1: Keyword 'var' must not con
 test262/test/language/white-space/S7.2_A5_T3.js:17:1: Keyword 'var' must not contain escaped characters
 test262/test/language/white-space/S7.2_A5_T4.js:17:1: Keyword 'var' must not contain escaped characters
 test262/test/language/white-space/S7.2_A5_T5.js:17:1: Keyword 'var' must not contain escaped characters
-test262/test/language/white-space/mongolian-vowel-separator.js:32:4: Invalid character in identifier
+test262/test/language/white-space/mongolian-vowel-separator.js:32:4: Expected binding pattern

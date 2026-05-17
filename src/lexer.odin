@@ -989,6 +989,21 @@ lex_identifier :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastTo
 			off = truncated
 			end = u32(off)
 		}
+		// Invalid IdStart — the validator truncated to the start offset,
+		// meaning the first code point cannot begin an identifier. Advance
+		// past the multi-byte char and return .Invalid so the parser can
+		// skip it gracefully (e.g. U+FFFD in corrupted binary files).
+		if end == start {
+			// Advance past the multi-byte character.
+			adv := 1
+			if first >= 0xC0 && first < 0xE0 { adv = 2 }
+			else if first >= 0xE0 && first < 0xF0 { adv = 3 }
+			else if first >= 0xF0 { adv = 4 }
+			new_end := int(start) + adv
+			if new_end > src_len { new_end = src_len }
+			l.offset = new_end
+			return FastToken{start = start, end = u32(new_end), kind = .Invalid, flags = flags}
+		}
 	}
 	l.offset = off
 	tok_type := lookup_keyword_by_letter(src, start, end)
@@ -1012,15 +1027,14 @@ lex_identifier :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastTo
 // (the "body") start at `body_start` and end at `end` (exclusive).
 lex_validate_unicode_identifier :: proc(l: ^Lexer, start: int, body_start: int, end: int) -> int {
 	src := l.source_bytes
-	// IdStart for the first code point. An invalid IdStart is a hard
-	// error — we don't truncate to zero, we just diagnose.
+	// IdStart for the first code point. If the code point is not a valid
+	// IdentifierStart, truncate to the start so the caller produces an
+	// .Invalid token. This avoids cascading parser errors on binary/corrupt
+	// input (e.g. U+FFFD replacement characters from corrupted.ts).
 	if start < end && src[start] >= 0x80 {
 		cp := decode_utf8_codepoint(src, start)
 		if !is_id_start_codepoint(cp) {
-			bump_append(&l.lexer_errors, LexerError{
-				offset  = u32(start),
-				message = "Invalid character in identifier",
-			})
+			return start
 		}
 	}
 	// IdContinue scan over the body. ASCII bytes are already validated

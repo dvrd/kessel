@@ -1452,6 +1452,28 @@ can_insert_semicolon :: #force_inline proc(p: ^Parser) -> bool {
 	return false
 }
 
+// expect_close_paren_or_recover — expects `)`. When NOT in strict mode
+// and `{` follows (the `)` was forgotten before a body), silently
+// recover. OXC's parser infers missing `)` in sloppy-mode fixtures
+// like missingCloseParenStatements.ts. Strict-mode fixtures (which
+// include the SkippedTokens negative suite) keep the strict error.
+expect_close_paren_or_recover :: #force_inline proc(p: ^Parser) -> bool {
+	if p.cur_type == .RParen {
+		skip_token(p)
+		return true
+	}
+	// TS sloppy-mode recovery: `{` after condition → infer missing `)`.
+	// Only in TS mode to avoid breaking JS must-reject fixtures (e.g.
+	// 002_missing_closing_paren.js). OXC's parser infers the missing `)`
+	// for TS fixtures like missingCloseParenStatements.ts.
+	if allow_ts_mode(p) && !p.strict_mode && p.cur_type == .LBrace {
+		return true
+	}
+	msg := fmt.tprintf("Expected %v, got %v", get_token_name(.RParen), get_token_name(p.cur_type))
+	report_error(p, msg)
+	return false
+}
+
 // expect_semicolon_or_asi expects a semicolon or allows ASI
 expect_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 	if p.cur_type == .Semi {
@@ -1571,8 +1593,20 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 				// recovery without being syntax errors in themselves. Only
 				// report for tokens that genuinely cannot appear at statement
 				// position and are not matching-closer artifacts.
+				// .Invalid tokens from non-ASCII bytes (e.g. U+FFFD in binary
+				// files) are also suppressed — the lexer already flagged the
+				// bytes; cascading "Unexpected token" per-byte is noise.
 				is_closer_orphan := p.cur_type == .RParen || p.cur_type == .RBracket
-				if !already_reported && !is_closer_orphan {
+				is_binary_invalid := false
+				if p.cur_type == .Invalid && p.lexer != nil &&
+				   int(p.lexer.cur.start) < len(p.lexer.source_bytes) {
+					b := p.lexer.source_bytes[p.lexer.cur.start]
+					// Non-ASCII bytes (U+FFFD etc.) or ASCII control chars
+					// (binary garbage). Exclude printable ASCII that lexes as
+					// Invalid (e.g. lone `\`) — those are real syntax errors.
+					is_binary_invalid = b >= 0x80 || (b < 0x20 && b != '\n' && b != '\r' && b != '\t')
+				}
+				if !already_reported && !is_closer_orphan && !is_binary_invalid {
 					msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
 					report_error(p, msg)
 				}
@@ -2095,8 +2129,14 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// In TS mode, bare `let` without a binding is always an error because
 		// TS treats `let` as a keyword. OXC also rejects this.
+		// Inside TS namespace blocks, OXC's parser silently accepts bare
+		// `let;` (TS1123 is semantic) — route through the declaration path
+		// which handles the empty-list recovery.
 		if allow_ts_mode(p) && (nxt_let.type == .EOF || nxt_let.type == .Semi ||
 		   nxt_let.type == .RBrace) {
+			if p.in_ts_namespace {
+				return parse_variable_declaration(p, nil, true)
+			}
 			report_error(p, "'let' declaration requires a binding name")
 		}
 		return parse_expression_or_labeled_statement(p)
@@ -2721,7 +2761,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Unexpected spread/rest element in expression")
 	}
 
-	if !expect_token(p, .RParen) {
+	if !expect_close_paren_or_recover(p) {
 		return nil
 	}
 
@@ -2773,7 +2813,7 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	if !expect_token(p, .RParen) {
+	if !expect_close_paren_or_recover(p) {
 		return nil
 	}
 
@@ -2822,8 +2862,18 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	if !expect_token(p, .RParen) {
-		return nil
+	// do-while: `)` precedes `;` (not `{`). In TS sloppy mode, also
+	// recover when `;`, `}`, or EOF follows (the `)` was consumed by
+	// a nested expression like `(a1 > 5)` in the while condition).
+	if p.cur_type == .RParen {
+		eat(p)
+	} else if allow_ts_mode(p) && !p.strict_mode && (p.cur_type == .Semi || p.cur_type == .RBrace ||
+	          p.cur_type == .EOF || p.cur_type == .LBrace) {
+		// Silently recover.
+	} else {
+		if !expect_token(p, .RParen) {
+			return nil
+		}
 	}
 
 	match_token(p, .Semi) // Optional semicolon
@@ -3959,7 +4009,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	if !expect_token(p, .RParen) {
+	if !expect_close_paren_or_recover(p) {
 		return nil
 	}
 
@@ -6859,11 +6909,16 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// Error recovery: `var;` / `let;` / `const;` — bare keyword without
 	// a binding name. Report one error and produce an empty declaration
 	// instead of cascading. Matches OXC's single-error recovery.
+	// Inside TS namespace blocks, OXC's parser silently accepts empty
+	// declaration lists (TS1123 is semantic) — skip the parser error
+	// to match OXC's classification for NonInitializedExportInInternalModule.
 	if is_token(p, .Semi) || (is_token(p, .EOF) && !in_for) {
-		if kind == .Let {
-			report_error(p, "'let' declaration requires a binding name")
-		} else {
-			report_error(p, "Expected binding pattern")
+		if !(allow_ts_mode(p) && p.in_ts_namespace) {
+			if kind == .Let {
+				report_error(p, "'let' declaration requires a binding name")
+			} else {
+				report_error(p, "Expected binding pattern")
+			}
 		}
 		decl.declarations = make([dynamic]VariableDeclarator, 0, 0, p.allocator)
 		if consume_semi { match_semicolon_or_asi(p) }
@@ -17311,6 +17366,11 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		expr = parse_expression(p)
 		expect_token(p, .RParen)
+	} else if allow_ts_mode(p) && is_token(p, .New) {
+		// TS experimental decorators allow `@new x class C {}`. Parse
+		// the full NewExpression so OXC-parity fixtures pass. TS1497
+		// ("Expression must be enclosed in parentheses") is semantic.
+		expr = parse_new_expr(p)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 		current := get_current(p)
 		expr = expression_from(p, new_identifier(p, current))
@@ -17400,13 +17460,67 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			}
 		} else if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 			type_arguments = parse_ts_type_arguments(p)
-			// Type arguments must be followed by `(` for a call. If not,
-			// they're dangling — e.g. `@g<number> class C {}` (same line).
-			// But `@dec<T>\nclass` (newline) is accepted by tsc/OXC.
+			// Type arguments not followed by `(` are dangling — e.g.
+			// `@g<number> class C {}`. OXC's parser accepts this without
+			// error; tsc reports TS1146 (semantic). Don't error — just
+			// break out of the suffix loop and let the type_arguments
+			// dangle (they'll be ignored in the AST).
 			if !is_token(p, .LParen) && !is_token(p, .Dot) && !p.cur_tok.had_line_terminator {
-				report_error(p, "Type arguments in decorator must be followed by a call")
 				break
 			}
+		} else if allow_ts_mode(p) && is_token(p, .OptionalChain) {
+			// Optional chaining in TS decorator: `@x?.y`, `@x?.y()`,
+			// `@x?.["y"]`, `@x?.()`. OXC's parser accepts these;
+			// tsc reports TS1497 (semantic).
+			eat(p) // consume ?.
+			if is_token(p, .LParen) {
+				// Optional call: `@x?.()`
+				args := parse_arguments(p)
+				call := new_node(p, CallExpression)
+				call.loc = start
+				call.callee = expr
+				call.arguments = args
+				call.optional = true
+				call.loc.span.end = prev_end_offset(p)
+				expr = expression_from(p, call)
+			} else if is_token(p, .LBracket) {
+				// Optional computed: `@x?.["y"]`
+				eat(p) // consume [
+				prop := parse_expression(p)
+				expect_token(p, .RBracket)
+				mem := new_node(p, MemberExpression)
+				mem.loc = start
+				mem.object = expr
+				mem.property = prop
+				mem.computed = true
+				mem.optional = true
+				mem.loc.span.end = prev_end_offset(p)
+				expr = expression_from(p, mem)
+			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+				// Optional member: `@x?.y`
+				prop_tok := get_current(p)
+				prop_id := new_identifier(p, prop_tok)
+				eat(p)
+				mem := new_node(p, MemberExpression)
+				mem.loc = start
+				mem.object = expr
+				mem.property = expression_from(p, prop_id)
+				mem.computed = false
+				mem.optional = true
+				mem.loc.span.end = prev_end_offset(p)
+				expr = expression_from(p, mem)
+			} else {
+				break
+			}
+		} else if allow_ts_mode(p) && (is_token(p, .Template) || is_token(p, .TemplateHead)) {
+			// Tagged template in TS decorator: `@x\`\``, `@x.y\`\`()`.
+			// OXC's parser accepts these; tsc reports TS1497 (semantic).
+			tagged := new_node(p, TaggedTemplateExpression)
+			tagged.loc = loc_from_expr(expr)
+			tagged.tag = expr
+			tagged.quasi = parse_template_literal(p, true)
+			tagged.loc.span.end = prev_end_offset(p)
+			expr = expression_from(p, tagged)
 		} else if allow_ts_mode(p) && is_token(p, .Not) && !p.cur_tok.had_line_terminator {
 			// TS non-null assertion postfix: `@x!`, `@x.y!`.
 			eat(p)

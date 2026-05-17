@@ -169,7 +169,7 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/422/input.js:1:13: 
 babel/packages/babel-parser/test/fixtures/core/uncategorised/423/input.js:1:8: Expected statement after for head
 babel/packages/babel-parser/test/fixtures/core/uncategorised/424/input.js:1:8: Expected statement after 'with' object
 babel/packages/babel-parser/test/fixtures/core/uncategorised/425/input.js:1:8: Try statement must have catch or finally clause
-babel/packages/babel-parser/test/fixtures/core/uncategorised/426/input.js:1:1: Invalid character in identifier
+babel/packages/babel-parser/test/fixtures/core/uncategorised/426/input.js:1:5: Unexpected token '='
 babel/packages/babel-parser/test/fixtures/core/uncategorised/427/input.js:1:32: More than one default clause in switch
 babel/packages/babel-parser/test/fixtures/core/uncategorised/428/input.js:1:9: Expected identifier after '.'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/429/input.js:1:1: Unterminated block comment
@@ -193,8 +193,8 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/446/input.js:1:1: U
 babel/packages/babel-parser/test/fixtures/core/uncategorised/447/input.js:1:1: Unexpected token '\u005c'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/448/input.js:1:1: Unexpected token '\'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/449/input.js:1:1: Unexpected token '\u0000'
-babel/packages/babel-parser/test/fixtures/core/uncategorised/450/input.js:1:1: Invalid character in identifier
-babel/packages/babel-parser/test/fixtures/core/uncategorised/451/input.js:1:1: Invalid character in identifier
+babel/packages/babel-parser/test/fixtures/core/uncategorised/450/input.js:1:5: Unexpected token '='
+babel/packages/babel-parser/test/fixtures/core/uncategorised/451/input.js:1:5: Unexpected token '='
 babel/packages/babel-parser/test/fixtures/core/uncategorised/452/input.js:1:1: Unexpected token '"\'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/453/input.js:1:1: Unexpected token '"\u'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/454/input.js:1:7: 'return' outside of function
@@ -507,7 +507,7 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/298/input.js:1:27
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/324/input.js:1:8: Missing initializer in destructuring declaration
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/325/input.js:1:8: Missing initializer in destructuring declaration
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/326/input.js:1:6: Expected '=', ',', or ';' after variable binding
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/327/input.js:1:5: Invalid character in identifier
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/327/input.js:1:5: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/328/input.js:1:19: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/329/input.js:1:23: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/331/input.js:1:27: Class declaration cannot appear in a single-statement context
@@ -1120,7 +1120,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/malformed-gen
 babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/malformed-generator-method/input.js:1:6: Expected method name after '*'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_escaped_surrogate_pairs/input.js:1:5: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_expression_await/input.js:1:1: 'export' is only valid in module code
-babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_id_smp/input.js:1:5: Invalid character in identifier
+babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_id_smp/input.js:1:5: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_lone_surrogate/input.js:1:1: Unexpected token '\uD800'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_var_await/input.js:1:1: 'export' is only valid in module code
 babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default-after-named-after-default/input.js:1:18: Expected from, got ,
