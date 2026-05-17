@@ -1935,6 +1935,47 @@ check_retroactive_strict_escapes :: proc(p: ^Parser, body: []^Statement) {
 	}
 }
 
+// check_arrow_body_strict_prologue — scans an arrow function's block body
+// for a "use strict" directive prologue. If found, retroactively checks
+// all preceding prologue strings for forbidden escape sequences, and also
+// checks strings AFTER the directive in the prologue. Mirrors the function-
+// body prologue logic in parse_function_body.
+@(private="file")
+check_arrow_body_strict_prologue :: proc(p: ^Parser, body: []^Statement) {
+	// Find "use strict" in the directive prologue.
+	use_strict_idx := -1
+	for stmt, i in body {
+		if stmt == nil { break }
+		es, ok := stmt^.(^ExpressionStatement)
+		if !ok { break } // first non-ExpressionStatement ends prologue
+		expr := es.expression
+		if expr == nil { break }
+		sl, is_str := expr^.(^StringLiteral)
+		if !is_str { break } // first non-string-literal expr ends prologue
+		if sl.value == "use strict" && !strings.contains(sl.raw, "\\") {
+			use_strict_idx = i
+			break
+		}
+	}
+	if use_strict_idx < 0 { return }
+
+	// Check ALL prologue strings (before and after directive) for forbidden escapes.
+	for stmt, i in body {
+		if stmt == nil { break }
+		es, ok := stmt^.(^ExpressionStatement)
+		if !ok { break }
+		expr := es.expression
+		if expr == nil { break }
+		sl, is_str := expr^.(^StringLiteral)
+		if !is_str { break }
+		if i == use_strict_idx { continue } // skip the directive itself
+		if string_raw_has_forbidden_escape(sl.raw) {
+			report_error_at(p, LexerLoc(sl.loc.span.start),
+				"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+		}
+	}
+}
+
 // ============================================================================
 // Statements
 // ============================================================================
@@ -9797,10 +9838,12 @@ TSBindingKind :: enum u8 {
 	TypeAlias,
 	Interface,
 	Function,
-	VarLike,       // var, let, const
+	VarLike,          // var, let, const
+	GlobalVarLike,    // let/const from `global {}` block (merges into parent)
 	ImportValue,
 	ImportType,
 	Namespace,
+	NamespaceExport,  // `export as namespace`
 }
 
 TSBindingEntry :: struct {
@@ -9841,8 +9884,40 @@ ts_conflicts :: proc(a, b: TSBindingKind) -> bool {
 	if (a == .ConstEnum && b == .Enum) || (a == .Enum && b == .ConstEnum) { return true }
 	// ImportType + ImportValue (same name): error per OXC/Babel.
 	if (a == .ImportType && b == .ImportValue) || (a == .ImportValue && b == .ImportType) { return true }
+	// GlobalVarLike + VarLike: redeclaration across `global {}` boundary.
+	// (`let x; global { let x; }` or `global { let x }` + `export as namespace x` excluded)
+	if (a == .GlobalVarLike && b == .VarLike) || (a == .VarLike && b == .GlobalVarLike) { return true }
+	if (a == .GlobalVarLike && b == .GlobalVarLike) { return true }
 	// Everything else: no known conflict.
 	return false
+}
+
+// Collect variable bindings from a single statement inside a `global {}`
+// block, unwrapping export wrappers. Used by check_ts_scope_conflicts.
+@(private="file")
+collect_global_block_bindings :: proc(stmt: ^Statement, entries: ^[dynamic]TSBindingEntry) {
+	if stmt == nil { return }
+	// Try as ExportNamedDeclaration wrapping a VariableDeclaration.
+	if en, ok := stmt^.(^ExportNamedDeclaration); ok && en != nil {
+		if d, has := en.declaration.?; has && d != nil {
+			if vd, ok2 := d^.(^VariableDeclaration); ok2 && vd != nil {
+				names := make([dynamic]string, 0, 4, context.temp_allocator)
+				for decl in vd.declarations { scope_collect_pattern(decl.id, &names) }
+				for n in names {
+					append(entries, TSBindingEntry{name = n, at = vd.loc.span.start, kind = .GlobalVarLike})
+				}
+			}
+		}
+		return
+	}
+	// Try as bare VariableDeclaration.
+	if vd, ok := stmt^.(^VariableDeclaration); ok && vd != nil {
+		names := make([dynamic]string, 0, 4, context.temp_allocator)
+		for decl in vd.declarations { scope_collect_pattern(decl.id, &names) }
+		for n in names {
+			append(entries, TSBindingEntry{name = n, at = vd.loc.span.start, kind = .GlobalVarLike})
+		}
+	}
 }
 
 // check_ts_scope_conflicts — walks a statement list and reports TS
@@ -9969,6 +10044,37 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 					}
 				}
 			}
+		case ^TSNamespaceExportDeclaration:
+			// `export as namespace foo;` occupies value+namespace space.
+			if v != nil {
+				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.span.start, kind = .NamespaceExport})
+			}
+		}
+	}
+	// Also collect bindings from `declare global { ... }` blocks. In TS,
+	// `global {}` merges its declarations into the enclosing module scope.
+	{
+		for stmt in body {
+			if stmt == nil { continue }
+			mod: ^TSModuleDeclaration
+			#partial switch v in stmt^ {
+			case ^TSModuleDeclaration: mod = v
+			case ^ExportNamedDeclaration:
+				if v != nil {
+					if d, ok := v.declaration.(^Declaration); ok && d != nil {
+						if m, ok2 := d^.(^TSModuleDeclaration); ok2 { mod = m }
+					}
+				}
+			}
+			if mod == nil || !mod.global { continue }
+			body_ptr, has_body := mod.body.?
+			if !has_body || body_ptr == nil { continue }
+			block, is_block := body_ptr^.(^TSModuleBlock)
+			if !is_block || block == nil { continue }
+			for inner_stmt in block.body {
+				if inner_stmt == nil { continue }
+				collect_global_block_bindings(inner_stmt, &entries)
+			}
 		}
 	}
 
@@ -9976,7 +10082,14 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 	for i := 0; i < len(entries); i += 1 {
 		for j := 0; j < i; j += 1 {
 			if entries[i].name == entries[j].name {
-				if ts_conflicts(entries[j].kind, entries[i].kind) {
+				conflict := ts_conflicts(entries[j].kind, entries[i].kind)
+				// NamespaceExport + GlobalVarLike only conflicts outside .d.ts.
+				if !conflict && !p.source_is_dts {
+					ei, ej := entries[i].kind, entries[j].kind
+					if (ei == .NamespaceExport && ej == .GlobalVarLike) ||
+					   (ei == .GlobalVarLike && ej == .NamespaceExport) { conflict = true }
+				}
+				if conflict {
 					scope_emit(p, entries[i].at,
 						fmt.tprintf("Identifier '%s' has already been declared", entries[i].name))
 					break  // Only report once per duplicate
@@ -15918,6 +16031,13 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		// §15.3.1: arrow block body is a function-scope.
 		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
+		// Arrow block bodies support "use strict" directive prologues.
+		// Retroactively check for forbidden escapes in prologue strings.
+		if block_stmt != nil {
+			if bs, ok := block_stmt^.(^BlockStatement); ok && bs != nil {
+				check_arrow_body_strict_prologue(p, bs.body[:])
+			}
+		}
 		p.in_function = prev_in_function
 		p.in_loop = prev_in_loop_arrow
 		p.in_switch = prev_in_switch_arrow
@@ -15970,9 +16090,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				p.pending_paren_start = loc_from_expr(body_expr).span.start
 				inner_arrow := parse_arrow_function(p, body_expr)
 				// Only commit if the parse succeeded AND a `:` for the
-				// ternary alternate still follows.  Without this guard,
-				// `0 ? v => (sum = v) : v => 0;` mis-parses the ternary
-				// colon as a return-type annotation, consuming the alternate.
+				// Only commit if the inner arrow succeeded AND a ternary
+				// `:` still follows. OXC accepts `x ? y => e : z => e`
+				// as a valid ternary; Babel rejects it. We match OXC.
 				if inner_arrow != nil && len(p.errors) == snap_errs &&
 				   is_token(p, .Colon) {
 					if ia, ok := inner_arrow^.(^ArrowFunctionExpression); ok {
@@ -16071,6 +16191,8 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					param := FunctionParameter{ loc = e.loc, pattern = assign_pat }
 					bump_append(&params, param)
 				}
+			} else {
+				report_error(p, "Arrow parameter default must use '=' operator")
 			}
 		case ^ObjectExpression:
 			// Single destructure param: `({a, b}) => ...`. Route through
@@ -21558,6 +21680,8 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// TS2309 — `export =` inside module bodies.
 		report_ts2309_export_assignment(p, stmts[:])
+		// Cross-scope conflict check (global {} bindings, export as namespace).
+		check_ts_scope_conflicts(p, stmts[:])
 	}
 	body_union := new_node(p, TSModuleBody); body_union^ = blk
 	decl.body = body_union
@@ -21676,6 +21800,8 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 			} else {
 				report_ts_function_overload_errors(p, stmts[:])
 			}
+			// Cross-scope global-block redeclaration check.
+			check_ts_scope_conflicts(p, stmts[:])
 		}
 		body_union := new_node(p, TSModuleBody)
 		body_union^ = blk
