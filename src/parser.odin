@@ -1718,6 +1718,10 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			has_escape := strings.contains(current.value, "\\") 
 			if current.literal == "use strict" && !has_escape {
 				p.strict_mode = true
+				// Retroactive check: string literals in the directive
+				// prologue BEFORE "use strict" must not contain legacy
+				// octal escapes (\0-\7) or \8/\9 (ES2021 §12.9.4.1).
+				check_retroactive_strict_escapes(p, program.body[:])
 				directive := Directive{
 					loc   = loc_from_token(&current),
 					value = StringLiteral{
@@ -1909,6 +1913,26 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	check_ts_scope_conflicts(p, program.body[:])
 
 	return program
+}
+
+// Retroactive octal/\8/\9 check for directive-prologue strings that
+// precede "use strict" at program level. Called once when "use strict"
+// is encountered. Uses the same string_raw_has_forbidden_escape helper
+// that the function-body prologue check uses.
+@(private="file")
+check_retroactive_strict_escapes :: proc(p: ^Parser, body: []^Statement) {
+	for stmt in body {
+		es, ok := stmt^.(^ExpressionStatement)
+		if !ok { continue }
+		expr := es.expression
+		if expr == nil { continue }
+		sl, is_str := expr^.(^StringLiteral)
+		if !is_str { continue }
+		if string_raw_has_forbidden_escape(sl.raw) {
+			report_error_at(p, LexerLoc(sl.loc.span.start),
+				"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+		}
+	}
 }
 
 // ============================================================================
@@ -15834,6 +15858,8 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	} else {
 		start = cur_loc(p)
 	}
+	// Save for double-paren detection before clearing.
+	saved_paren_start := p.pending_paren_start
 	// For empty params, don't clear pending_paren_start yet - let CallExpression use it
 	is_empty_params := false
 	if left != nil {
@@ -15974,6 +16000,34 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	params := make([dynamic]FunctionParameter, 0, 4, p.allocator)
 
 	if left != nil {
+		// §15.3.1 CoverParenthesizedExpressionAndArrowParameterList:
+		// double-parenthesized params like `((a)) => 0` are invalid.
+		// Detect: if the arrow's group-paren start is known AND the
+		// first non-whitespace byte after it is another `(`, AND
+		// `left` is a simple expression (Identifier), then extra
+		// parens were used. This avoids false positives on arrow
+		// bodies like `v => (sum = v)` where `last_paren_expr`
+		// is set by a parenthesized body expression.
+		if saved_paren_start != max(u32) && p.lexer != nil {
+			src := p.lexer.source_bytes
+			ps := int(saved_paren_start)
+			if ps + 1 < len(src) {
+				i := ps + 1
+				for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r') { i += 1 }
+				if i < len(src) && src[i] == '(' {
+					// Verify the left is simple (Identifier / Assignment pattern only)
+					is_simple_param := false
+					#partial switch _ in left^ {
+					case ^Identifier: is_simple_param = true
+					case ^AssignmentExpression: is_simple_param = true
+					}
+					if is_simple_param {
+						report_error_at(p, LexerLoc(u32(i)), "Invalid parenthesized assignment pattern.")
+					}
+				}
+			}
+		}
+
 		#partial switch e in left {
 		case ^Identifier:
 			// §15.3.1 - ArrowParameters BindingIdentifier checks.
@@ -17277,10 +17331,10 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			}
 		} else if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 			type_arguments = parse_ts_type_arguments(p)
-			// Type arguments must be followed by `(` for a call. If not,
-			// they're dangling — e.g. `@g<number> class C {}` (same line).
-			// But `@dec<T>\nclass` (newline) is accepted by OXC.
-			if !is_token(p, .LParen) && !is_token(p, .Dot) && !p.cur_tok.had_line_terminator {
+			// Type arguments must be followed by `(` for a call or
+			// `.` for a member access. Dangling `@dec<T> class` is
+			// invalid regardless of newline (Babel/OXC agree).
+			if !is_token(p, .LParen) && !is_token(p, .Dot) {
 				report_error(p, "Type arguments in decorator must be followed by a call")
 				break
 			}
@@ -21245,6 +21299,10 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 		entry_start := cur_loc(p)
 		if !is_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.cur_type) {
 			break
+		}
+		// `this` is not a valid heritage clause base.
+		if p.cur_type == .This {
+			report_error(p, "'extends' list can only include identifiers or qualified-names with optional type arguments.")
 		}
 		tok := get_current(p)
 		id := new_node(p, Identifier); id.loc = loc_from_token(&tok); id.name = tok.value; eat(p)

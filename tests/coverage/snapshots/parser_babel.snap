@@ -3,20 +3,15 @@ commit: 4079bcda
 parser_babel Summary:
 AST Parsed     : 2233/2237 (99.82%)
 Positive Passed: 2233/2237 (99.82%)
-Negative Passed: 1712/1725 (99.25%)
+Negative Passed: 1717/1725 (99.54%)
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine-before-use-strict/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/escape-string/non-octal-eight-and-nine/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-ambiguity/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-like/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/conditional/arrow-param/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/decorators/type-arguments-invalid/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/export/invalid-as-namespace-duplicate-identifier/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module/input.ts
 Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-global-redeclare-block-level-variable/input.ts
-Expect Syntax Error: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-2/input.ts
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-modifier-names/input.ts:5:1: Multiple constructor implementations are not allowed.
 
@@ -58,7 +53,7 @@ babel/packages/babel-parser/test/fixtures/core/create-parenthesized-expressions/
 babel/packages/babel-parser/test/fixtures/core/create-parenthesized-expressions/valid-parenthesized-assignment-array-pattern-3/input.js:1:3: Invalid parenthesized assignment pattern.
 babel/packages/babel-parser/test/fixtures/core/escape-keyword/invalid/input.js:3:1: Keyword 'break' must not contain escaped characters
 babel/packages/babel-parser/test/fixtures/core/escape-string/invalid-decimal-escape-strict-directive-function/input.js:2:3: Octal or \8 / \9 escape sequences are not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/escape-string/invalid-decimal-escape-strict-directive/input.js:8:1: Octal or \8 / \9 escape sequences are not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/core/escape-string/invalid-decimal-escape-strict-directive/input.js:1:1: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-directive/input.js:1:53: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/escape-string/numeric-escape-in-property-name/input.js:1:38: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/escape-template/non-octal-eight/input.js:1:5: Invalid escape sequence in template literal
@@ -306,6 +301,7 @@ babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens-ar
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens-array-pattern/input.js:2:1: Binding element cannot be parenthesized
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens-object-pattern-member/input.js:2:1: Member expression cannot be used as a binding target
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens-object-pattern/input.js:2:1: Binding element cannot be parenthesized
+babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js:1:12: Invalid parenthesized assignment pattern.
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-arrow-before-in/input.js:1:10: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-parens-binary-argument/input.js:2:1: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-parens-class-heritage/input.js:1:20: Expected {, got =>
@@ -1104,6 +1100,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/complex-
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-duplicated-params/input.js:1:1: Duplicate parameter name 'x' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-line-terminator-arrow/input.js:2:1: Unexpected line terminator before '=>' (restricted production)
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/invalid-param-strict-mode/input.js:1:1: Parameter name 'eval' is not allowed in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-arrow/input.js:1:2: Invalid parenthesized assignment pattern.
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/non-arrow-param-followed-by-rest/input.js:1:16: Binding element cannot be parenthesized
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/object-binding-pattern-invalid-member-expr/input.js:2:1: Member expression cannot be used as a binding target
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/object-binding-pattern-invalid-method-in-pattern/input.js:1:19: Invalid destructuring assignment target
@@ -1435,6 +1432,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0212/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0213/input.js:1:16: Parameter name 'arguments' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0214/input.js:1:49: 'eval' cannot be used as a binding name in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0215/input.js:1:49: 'arguments' cannot be used as a binding name in strict mode
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0216/input.js:1:1: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0217/input.js:1:34: Octal or \8 / \9 escape sequences are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0218/input.js:1:34: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0219/input.js:1:38: Octal or \8 / \9 escape sequences are not allowed in strict mode
@@ -1593,6 +1591,7 @@ babel/packages/babel-parser/test/fixtures/typescript/declare/module-class/input.
 babel/packages/babel-parser/test/fixtures/typescript/declare/module-function/input.ts:2:18: An implementation cannot be declared in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/declare/namespace-class/input.ts:3:20: Initializers are not allowed in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/declare/namespace-function/input.ts:2:18: An implementation cannot be declared in ambient contexts
+babel/packages/babel-parser/test/fixtures/typescript/decorators/type-arguments-invalid/input.ts:2:1: Type arguments in decorator must be followed by a call
 babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-assertion/input.ts:1:1: This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead.
 babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-parameter/input.ts:1:1: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.
 babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-implementation/input.ts:1:21: An implementation cannot be declared in ambient contexts
@@ -1651,6 +1650,7 @@ babel/packages/babel-parser/test/fixtures/typescript/module-namespace/module-new
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/namespace-declare-new-line/input.ts:6:9: Line terminator not permitted after 'namespace'
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/namespace-new-line-error/input.ts:2:5: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/top-level-await/input.ts:2:15: 'await' is only allowed within async functions and at the top levels of modules
+babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-2/input.ts:3:21: 'extends' list can only include identifiers or qualified-names with optional type arguments.
 babel/packages/babel-parser/test/fixtures/typescript/regression/keyword-qualified-type-disallowed/input.ts:2:12: Expected identifier in import-equals module reference
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-class-class/input.ts:2:7: Identifier 'A' has already been declared
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-class-enum/input.ts:2:6: Identifier 'A' has already been declared
