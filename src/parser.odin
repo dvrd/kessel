@@ -4954,8 +4954,9 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// §15.7.1 strict-reserved / eval / arguments — class names
 		// are always parsed in strict mode, so the strict-binding
-		// reservation list applies.
-		if is_strict_reserved_binding_name(current.value) {
+		// reservation list applies. Skip in TS mode — tsc and OXC
+		// allow strict-reserved words as class names in TypeScript.
+		if !allow_ts_mode(p) && is_strict_reserved_binding_name(current.value) {
 			report_error(p, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
 		}
 		// TS2414 — primitive type names cannot be class names.
@@ -14828,8 +14829,8 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 		// §15.7.1 strict-reserved / eval / arguments — class names
-		// are always parsed in strict mode.
-		if is_strict_reserved_binding_name(current.value) {
+		// are always parsed in strict mode. Skip in TS mode (tsc/OXC allow).
+		if !allow_ts_mode(p) && is_strict_reserved_binding_name(current.value) {
 			report_error(p, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
 		}
 		// §12.6.1.1 contextual `await` reservation.
