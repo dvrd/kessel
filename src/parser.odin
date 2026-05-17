@@ -6855,10 +6855,23 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	decl := new_node(p, VariableDeclaration)
 	decl.loc = start
 	decl.kind = kind
-	// Cap bumped from 2 → 4 (S23). Most `var/let/const a = ...` are
-	// single-declarator (~80%), but multi-declarator forms (`var a, b, c`)
-	// triggered 1229 slow-path grows on monaco. cap=4 covers the long tail
-	// without significant memory overhead.
+
+	// Error recovery: `var;` / `let;` / `const;` — bare keyword without
+	// a binding name. Report one error and produce an empty declaration
+	// instead of cascading. Matches OXC's single-error recovery.
+	if is_token(p, .Semi) || (is_token(p, .EOF) && !in_for) {
+		if kind == .Let {
+			report_error(p, "'let' declaration requires a binding name")
+		} else {
+			report_error(p, "Expected binding pattern")
+		}
+		decl.declarations = make([dynamic]VariableDeclarator, 0, 0, p.allocator)
+		if consume_semi { match_semicolon_or_asi(p) }
+		decl.loc.span.end = prev_end_offset(p)
+		stmt := new_node(p, Statement); stmt^ = decl; return stmt
+	}
+
+	// Cap bumped from 2 → 4 (S23).
 	decl.declarations = make([dynamic]VariableDeclarator, 0, 4, p.allocator)
 
 	for {
