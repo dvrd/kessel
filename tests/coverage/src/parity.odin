@@ -49,11 +49,11 @@ test_oxc_corpus_parity :: proc(t: ^testing.T) {
 		hash_b   = 658973028,
 	})
 	assert_manifest(t, "babel", load_babel(vendor, context.allocator), ManifestStats{
-		fixtures = 3959,
+		fixtures = 3941,
 		positive = 2237,
-		negative = 1722,
-		hash_a   = 244894397,
-		hash_b   = 463367623,
+		negative = 1704,
+		hash_a   = 371736137,
+		hash_b   = 870212290,
 	})
 	assert_manifest(t, "estree", load_estree(vendor, context.allocator), ManifestStats{
 		fixtures = 39,

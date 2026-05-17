@@ -9838,12 +9838,10 @@ TSBindingKind :: enum u8 {
 	TypeAlias,
 	Interface,
 	Function,
-	VarLike,          // var, let, const
-	GlobalVarLike,    // let/const from `global {}` block (merges into parent)
+	VarLike,       // var, let, const
 	ImportValue,
 	ImportType,
 	Namespace,
-	NamespaceExport,  // `export as namespace`
 }
 
 TSBindingEntry :: struct {
@@ -9884,40 +9882,8 @@ ts_conflicts :: proc(a, b: TSBindingKind) -> bool {
 	if (a == .ConstEnum && b == .Enum) || (a == .Enum && b == .ConstEnum) { return true }
 	// ImportType + ImportValue (same name): error per OXC/Babel.
 	if (a == .ImportType && b == .ImportValue) || (a == .ImportValue && b == .ImportType) { return true }
-	// GlobalVarLike + VarLike: redeclaration across `global {}` boundary.
-	// (`let x; global { let x; }` or `global { let x }` + `export as namespace x` excluded)
-	if (a == .GlobalVarLike && b == .VarLike) || (a == .VarLike && b == .GlobalVarLike) { return true }
-	if (a == .GlobalVarLike && b == .GlobalVarLike) { return true }
 	// Everything else: no known conflict.
 	return false
-}
-
-// Collect variable bindings from a single statement inside a `global {}`
-// block, unwrapping export wrappers. Used by check_ts_scope_conflicts.
-@(private="file")
-collect_global_block_bindings :: proc(stmt: ^Statement, entries: ^[dynamic]TSBindingEntry) {
-	if stmt == nil { return }
-	// Try as ExportNamedDeclaration wrapping a VariableDeclaration.
-	if en, ok := stmt^.(^ExportNamedDeclaration); ok && en != nil {
-		if d, has := en.declaration.?; has && d != nil {
-			if vd, ok2 := d^.(^VariableDeclaration); ok2 && vd != nil {
-				names := make([dynamic]string, 0, 4, context.temp_allocator)
-				for decl in vd.declarations { scope_collect_pattern(decl.id, &names) }
-				for n in names {
-					append(entries, TSBindingEntry{name = n, at = vd.loc.span.start, kind = .GlobalVarLike})
-				}
-			}
-		}
-		return
-	}
-	// Try as bare VariableDeclaration.
-	if vd, ok := stmt^.(^VariableDeclaration); ok && vd != nil {
-		names := make([dynamic]string, 0, 4, context.temp_allocator)
-		for decl in vd.declarations { scope_collect_pattern(decl.id, &names) }
-		for n in names {
-			append(entries, TSBindingEntry{name = n, at = vd.loc.span.start, kind = .GlobalVarLike})
-		}
-	}
 }
 
 // check_ts_scope_conflicts — walks a statement list and reports TS
@@ -10044,37 +10010,6 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 					}
 				}
 			}
-		case ^TSNamespaceExportDeclaration:
-			// `export as namespace foo;` occupies value+namespace space.
-			if v != nil {
-				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.span.start, kind = .NamespaceExport})
-			}
-		}
-	}
-	// Also collect bindings from `declare global { ... }` blocks. In TS,
-	// `global {}` merges its declarations into the enclosing module scope.
-	{
-		for stmt in body {
-			if stmt == nil { continue }
-			mod: ^TSModuleDeclaration
-			#partial switch v in stmt^ {
-			case ^TSModuleDeclaration: mod = v
-			case ^ExportNamedDeclaration:
-				if v != nil {
-					if d, ok := v.declaration.(^Declaration); ok && d != nil {
-						if m, ok2 := d^.(^TSModuleDeclaration); ok2 { mod = m }
-					}
-				}
-			}
-			if mod == nil || !mod.global { continue }
-			body_ptr, has_body := mod.body.?
-			if !has_body || body_ptr == nil { continue }
-			block, is_block := body_ptr^.(^TSModuleBlock)
-			if !is_block || block == nil { continue }
-			for inner_stmt in block.body {
-				if inner_stmt == nil { continue }
-				collect_global_block_bindings(inner_stmt, &entries)
-			}
 		}
 	}
 
@@ -10082,14 +10017,7 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 	for i := 0; i < len(entries); i += 1 {
 		for j := 0; j < i; j += 1 {
 			if entries[i].name == entries[j].name {
-				conflict := ts_conflicts(entries[j].kind, entries[i].kind)
-				// NamespaceExport + GlobalVarLike only conflicts outside .d.ts.
-				if !conflict && !p.source_is_dts {
-					ei, ej := entries[i].kind, entries[j].kind
-					if (ei == .NamespaceExport && ej == .GlobalVarLike) ||
-					   (ei == .GlobalVarLike && ej == .NamespaceExport) { conflict = true }
-				}
-				if conflict {
+				if ts_conflicts(entries[j].kind, entries[i].kind) {
 					scope_emit(p, entries[i].at,
 						fmt.tprintf("Identifier '%s' has already been declared", entries[i].name))
 					break  // Only report once per duplicate
@@ -17453,10 +17381,10 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			}
 		} else if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
 			type_arguments = parse_ts_type_arguments(p)
-			// Type arguments must be followed by `(` for a call or
-			// `.` for a member access. Dangling `@dec<T> class` is
-			// invalid regardless of newline (Babel/OXC agree).
-			if !is_token(p, .LParen) && !is_token(p, .Dot) {
+			// Type arguments must be followed by `(` for a call. If not,
+			// they're dangling — e.g. `@g<number> class C {}` (same line).
+			// But `@dec<T>\nclass` (newline) is accepted by tsc/OXC.
+			if !is_token(p, .LParen) && !is_token(p, .Dot) && !p.cur_tok.had_line_terminator {
 				report_error(p, "Type arguments in decorator must be followed by a call")
 				break
 			}
@@ -21422,10 +21350,6 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 		if !is_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.cur_type) {
 			break
 		}
-		// `this` is not a valid heritage clause base.
-		if p.cur_type == .This {
-			report_error(p, "'extends' list can only include identifiers or qualified-names with optional type arguments.")
-		}
 		tok := get_current(p)
 		id := new_node(p, Identifier); id.loc = loc_from_token(&tok); id.name = tok.value; eat(p)
 		expr := expression_from(p, id)
@@ -21680,8 +21604,6 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// TS2309 — `export =` inside module bodies.
 		report_ts2309_export_assignment(p, stmts[:])
-		// Cross-scope conflict check (global {} bindings, export as namespace).
-		check_ts_scope_conflicts(p, stmts[:])
 	}
 	body_union := new_node(p, TSModuleBody); body_union^ = blk
 	decl.body = body_union
@@ -21800,8 +21722,6 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 			} else {
 				report_ts_function_overload_errors(p, stmts[:])
 			}
-			// Cross-scope global-block redeclaration check.
-			check_ts_scope_conflicts(p, stmts[:])
 		}
 		body_union := new_node(p, TSModuleBody)
 		body_union^ = blk

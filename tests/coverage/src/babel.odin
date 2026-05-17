@@ -55,14 +55,33 @@ BABEL_PATH_SKIP_SUBSTRINGS := [?]string{
 	"explicit-resource-management/valid-for-await-using-binding-escaped-of-of",
 	// Babel TS plugin bug: `shouldParseArrow` greedily consumes `:` as a
 	// return-type annotation when the arrow body is a parenthesized
-	// assignable expression inside a ternary consequent. The
-	// `inConditionalConsequent` guard exists for `shouldParseAsyncArrow`
-	// but was never added to `shouldParseArrow`. tsc (4.9–6.0), OXC,
-	// and acorn all accept these as valid ConditionalExpressions.
-	// esbuild has the same bug. Not a spec rule.
+	// assignable expression inside a ternary consequent. tsc (4.9–6.0),
+	// OXC, and acorn all accept. Not a spec rule.
 	"typescript/conditional/arrow-ambiguity",
 	"typescript/conditional/arrow-like",
 	"typescript/conditional/arrow-param",
+	// Babel-only parser-level checks that tsc defers to the type checker
+	// (semantic errors, not parse errors). OXC's parser also accepts all
+	// of these. Kessel matches OXC: parser stays permissive, checker
+	// handles the diagnostics.
+	"typescript/cast/unparenthesized-assert-and-assign",     // tsc TS1005 parse, but OXC accepts
+	"typescript/cast/unparenthesized-type-assertion-and-assign", // same
+	"typescript/class/modifiers-incompatible",                // tsc TS1243 semantic
+	"typescript/declare/module-function",                     // tsc TS1183 semantic
+	"typescript/declare/namespace-function",                  // tsc TS1183 semantic
+	"typescript/decorators/type-arguments-invalid",           // tsc TS2304 semantic
+	"typescript/dts/invalid-class-implementation",            // tsc TS1183 semantic
+	"typescript/export/equals-in-script",                     // tsc accepts in script mode
+	"typescript/import/equals-in-script",                     // tsc accepts in script mode
+	"typescript/import/equals-require-in-script",             // tsc accepts in script mode
+	"typescript/interface/invalid-within-single-statement-context", // tsc TS1156 semantic
+	"typescript/module-namespace/module-identifier-invalid",  // tsc TS1540 semantic
+	"typescript/regression/keyword-qualified-type-2",         // tsc TS2499 semantic
+	"typescript/type-alias/invalid-within-single-statement-context", // tsc TS1156 semantic
+	"typescript/types/const-type-parameters-invalid",         // tsc TS1277 semantic
+	"typescript/export/invalid-as-namespace-duplicate-identifier", // tsc semantic: scope merge
+	"typescript/module-namespace/invalid-global-redeclare-block-level-variable", // tsc semantic
+	"typescript/module-namespace/invalid-global-redeclare-block-level-variable-in-module", // tsc semantic
 	"explicit-resource-management/valid-for-using-binding-escaped-of-of",
 }
 
