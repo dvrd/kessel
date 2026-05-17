@@ -5397,9 +5397,16 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 
 		name := ""
 		has_name := false
-		if !elem.computed && elem.key != nil {
-			n := class_element_prop_name(elem.key)
-			if n != "" { name = n; has_name = true }
+		if elem.key != nil {
+			if elem.computed {
+				// Computed string literal keys: ["foo"]
+				if sl, is_sl := elem.key^.(^StringLiteral); is_sl {
+					name = sl.value; has_name = true
+				}
+			} else {
+				n := class_element_prop_name(elem.key)
+				if n != "" { name = n; has_name = true }
+			}
 		}
 		if !has_name {
 			if chain_active {
@@ -5705,11 +5712,20 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 
 	for elem in elems {
 		if elem.key == nil { continue }
-		if elem.computed { continue }  // [expr] keys can't be checked
 		// Skip private identifiers — handled by report_private_class_member_errors.
 		if _, is_priv := elem.key.(^PrivateIdentifier); is_priv { continue }
 
-		name := class_element_prop_name(elem.key)
+		name := ""
+		if elem.computed {
+			// Computed keys: only check string literals (["foo"]).
+			if sl, is_sl := elem.key^.(^StringLiteral); is_sl {
+				name = sl.value
+			} else {
+				continue  // dynamic [expr] — can't check
+			}
+		} else {
+			name = class_element_prop_name(elem.key)
+		}
 		if name == "" { continue }
 
 		// TS duplicate constructor: multiple constructor implementations.
@@ -5791,6 +5807,77 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 		if dup {
 			msg := fmt.tprintf("Duplicate identifier '%s'.", name)
 			report_error_at(p, LexerLoc(elem.loc.span.start), msg)
+		}
+	}
+}
+
+// report_duplicate_interface_member_errors — TS1117: duplicate property
+// names in interfaces / object type literals. Method signatures with
+// the same name are allowed (overloads). Only property+property and
+// property+accessor conflicts are flagged.
+report_duplicate_interface_member_errors :: proc(p: ^Parser, members: []^TSSignature) {
+	if !allow_ts_mode(p) { return }
+
+	MemberSeen :: struct { has_prop: bool, has_get: bool, has_set: bool }
+	seen: map[string]MemberSeen
+	seen.allocator = context.temp_allocator
+
+	for sig in members {
+		if sig == nil { continue }
+		key: ^Expression
+		computed := false
+		is_method := false
+		kind := TSMethodSignatureKind.Method
+		#partial switch s in sig^ {
+		case TSPropertySignature:
+			key = s.key; computed = s.computed
+		case TSMethodSignature:
+			key = s.key; computed = s.computed; is_method = true; kind = s.kind
+		case:
+			continue  // call/construct/index signatures don't have names
+		}
+		if key == nil { continue }
+		if is_method && kind == .Method { continue }  // method overloads OK
+
+		name := ""
+		if computed {
+			if sl, is_sl := key^.(^StringLiteral); is_sl { name = sl.value }
+			else { continue }
+		} else {
+			name = class_element_prop_name(key)
+		}
+		if name == "" { continue }
+
+		prev := seen[name] or_else MemberSeen{}
+		dup := false
+		switch kind {
+		case .Get:
+			if prev.has_get || prev.has_prop { dup = true }
+			prev.has_get = true
+		case .Set:
+			if prev.has_set || prev.has_prop { dup = true }
+			prev.has_set = true
+		case .Method:
+			// Already continued above for methods
+		}
+		if !is_method {
+			if prev.has_prop || prev.has_get || prev.has_set { dup = true }
+			prev.has_prop = true
+		}
+		seen[name] = prev
+
+		if dup {
+			// Get the start offset from the key expression.
+			loc := u32(0)
+			if key != nil {
+				#partial switch v in key^ {
+				case ^Identifier: loc = v.loc.span.start
+				case ^StringLiteral: loc = v.loc.span.start
+				case ^NumericLiteral: loc = v.loc.span.start
+				}
+			}
+			msg := fmt.tprintf("Duplicate identifier '%s'.", name)
+			report_error_at(p, LexerLoc(loc), msg)
 		}
 	}
 }

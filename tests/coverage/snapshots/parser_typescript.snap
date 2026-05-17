@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10728/10728 (100.00%)
 Positive Passed: 10728/10728 (100.00%)
-Negative Passed: 1601/1674 (95.64%)
+Negative Passed: 1602/1674 (95.70%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
@@ -39,7 +39,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/namespaceNot
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nonMergedOverloads.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/numericClassMembers1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/optionalParamArgsTest.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsWithComputedNames.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/overloadsWithinClasses.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parseInvalidNonNullableTypes.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parseInvalidNullableTypes.ts
@@ -503,6 +502,7 @@ typescript/tests/cases/compiler/optionalSetterParam.ts:3:20: A 'set' accessor ca
 typescript/tests/cases/compiler/overloadConsecutiveness.ts:3:14: Expected {, got ,
 typescript/tests/cases/compiler/overloadModifiersMustAgree.ts:6:1: Overload signatures must all be ambient or non-ambient.
 typescript/tests/cases/compiler/overloadingStaticFunctionsInFunctions.ts:1:14: Expected (, got {
+typescript/tests/cases/compiler/overloadsWithComputedNames.ts:8:1: Function implementation name must be 'B'.
 typescript/tests/cases/compiler/paramPropertiesInSignatures.ts:2:21: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/parameterPropertyInConstructor1.ts:3:24: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/parameterPropertyInConstructor2.ts:3:24: Parameter properties are only allowed in the implementation constructor.
