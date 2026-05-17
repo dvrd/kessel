@@ -1,8 +1,8 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10721/10738 (99.84%)
-Positive Passed: 10721/10738 (99.84%)
+AST Parsed     : 10723/10738 (99.86%)
+Positive Passed: 10723/10738 (99.86%)
 Negative Passed: 1586/1673 (94.80%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
@@ -109,9 +109,6 @@ typescript/tests/cases/compiler/corrupted.ts:1:4: Expected semicolon
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/missingCloseParenStatements.ts
 typescript/tests/cases/compiler/missingCloseParenStatements.ts:2:26: Expected ), got {
 
-Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts
-typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts:1:11: Top-level 'for await' is only valid in module code
-
 Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/withStatementInternalComments.ts
 typescript/tests/cases/compiler/withStatementInternalComments.ts:2:7: 'with' statements are not allowed in strict mode
 
@@ -120,9 +117,6 @@ typescript/tests/cases/conformance/esDecorators/esDecorators-decoratorExpression
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/esDecorators/esDecorators-decoratorExpression.3.ts
 typescript/tests/cases/conformance/esDecorators/esDecorators-decoratorExpression.3.ts:5:14: Type arguments in decorator must be followed by a call
-
-Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts
-typescript/tests/cases/conformance/externalModules/topLevelAwait.3.ts:3:15: 'await' is reserved as a binding name in this context
 
 Expect to Parse: tasks/coverage/typescript/tests/cases/conformance/internalModules/exportDeclarations/NonInitializedExportInInternalModule.ts
 typescript/tests/cases/conformance/internalModules/exportDeclarations/NonInitializedExportInInternalModule.ts:2:8: Expected binding pattern
@@ -1203,7 +1197,7 @@ typescript/tests/cases/conformance/override/override7.ts:19:23: Expected (, got 
 typescript/tests/cases/conformance/override/override9.ts:8:5: 'override' modifier cannot appear on a type member.
 typescript/tests/cases/conformance/override/overrideKeywordOrder.ts:12:18: Expected (, got identifier
 typescript/tests/cases/conformance/override/overrideParameterProperty.ts:20:31: 'public' modifier must precede 'override' modifier.
-typescript/tests/cases/conformance/parser/ecmascript2018/forAwait/parser.forAwait.es2018.ts::forAwaitInWithDeclIsError.ts:1:11: Top-level 'for await' is only valid in module code
+typescript/tests/cases/conformance/parser/ecmascript2018/forAwait/parser.forAwait.es2018.ts::forAwaitInWithDeclIsError.ts:1:20: 'await' can only be used in conjunction with 'for...of' statements
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.binaryNegative.ts::1.ts:1:5: Numeric separator not allowed here
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.decmialNegative.ts::10.ts:1:4: Numeric separator not allowed here
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.hexNegative.ts::1.ts:1:5: Numeric separator not allowed here
@@ -1641,7 +1635,7 @@ typescript/tests/cases/conformance/statements/VariableStatements/usingDeclaratio
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.6.ts:2:17: Expected semicolon
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.7.ts:5:1: 'await using' declaration requires a binding identifier
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.8.ts:3:1: Missing initializer in 'await using' declaration
-typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForAwaitOf.3.ts:5:11: Top-level 'for await' is only valid in module code
+typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForAwaitOf.3.ts:5:27: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForIn.ts:2:27: 'await using' declaration is not allowed in a for-in loop
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForOf.3.ts:2:22: Expected ;, got {
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForOf.5.ts:5:21: Expected '=', ',', or ';' after variable binding

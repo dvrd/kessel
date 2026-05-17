@@ -2855,6 +2855,9 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		if !p.in_async && !p.in_static_block {
 			if p.in_function {
 				report_error(p, "'for await' outside of async function")
+			} else if allow_ts_mode(p) {
+				// TS files: top-level `for await` is allowed — tsc and OXC
+				// defer module-detection concerns to the type checker.
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				// Explicitly forced Script mode - reject unconditionally.
 				report_error(p, "Top-level 'for await' is only valid in module code")
@@ -8053,6 +8056,8 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved_for_binding = true }
 		else if p.in_module_top_level || p.has_module_syntax { await_reserved_for_binding = true }
 	}
+	// .d.ts declaration files allow `await` as a binding name (tsc/OXC agree).
+	if p.source_is_dts { await_reserved_for_binding = false }
 	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) && await_reserved_for_binding {
 		report_error(p, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
