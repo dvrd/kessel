@@ -76,7 +76,7 @@ test_oxc_corpus_parity :: proc(t: ^testing.T) {
 		positive = 10780,
 		negative = 1622,
 		hash_a   = 331332769,
-		hash_b   = 383509076,
+		hash_b   = 383509076,  
 	})
 }
 

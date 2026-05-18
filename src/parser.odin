@@ -2385,6 +2385,7 @@ check_import_export_position :: proc(p: ^Parser, is_import: bool) {
 		if is_import { msg = "'import' declaration is only allowed at the top level of a module" }
 		report_error(p, msg)
 	}
+
 }
 
 parse_block_statement :: proc(p: ^Parser) -> ^Statement {
