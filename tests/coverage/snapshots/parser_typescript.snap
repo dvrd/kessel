@@ -3,14 +3,13 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10729/10729 (100.00%)
 Positive Passed: 10729/10729 (100.00%)
-Negative Passed: 1608/1673 (96.11%)
+Negative Passed: 1610/1673 (96.23%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesClass2a.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classCannotExtendVar.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierComputedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumNoInitializerFollowsNonLiteralInitializer.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorElaboration.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingMergeErrors.ts
@@ -49,7 +48,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requireOfJso
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requireOfJsonFileWithoutResolveJsonModule.ts::file1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shadowedReservedCompilerDeclarationsWithNoEmit.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shadowingViaLocalValueOrBindingElement.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/sourceMapValidationEnums.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/targetTypeCastTest.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varAndFunctionShareName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAndVariableWithSameName.ts
@@ -247,6 +245,7 @@ typescript/tests/cases/compiler/downlevelLetConst4.ts:1:16: Missing initializer 
 typescript/tests/cases/compiler/duplicateClassElements.ts:9:5: Duplicate identifier 'x'.
 typescript/tests/cases/compiler/duplicateIdentifierBindingElementInParameterDeclaration1.ts:1:1: Duplicate parameter name 'a' in strict mode
 typescript/tests/cases/compiler/duplicateIdentifierBindingElementInParameterDeclaration2.ts:2:1: Duplicate parameter name 'a' in strict mode
+typescript/tests/cases/compiler/duplicateIdentifierComputedName.ts:3:5: Duplicate identifier 'a'.
 typescript/tests/cases/compiler/duplicateIdentifierDifferentSpelling.ts:3:3: Duplicate identifier '3'.
 typescript/tests/cases/compiler/duplicateIdentifierEnum.ts::duplicateIdentifierEnum_A.ts:4:7: Identifier 'A' has already been declared
 typescript/tests/cases/compiler/duplicateIdentifierInCatchBlock.ts:14:14: Catch parameter 'e' cannot be redeclared with let/const in catch block
@@ -560,6 +559,7 @@ typescript/tests/cases/compiler/shebangError.ts:2:1: Private identifier can only
 typescript/tests/cases/compiler/shorthandPropertyAssignmentsInDestructuring.ts:111:12: Invalid shorthand property initializer
 typescript/tests/cases/compiler/shorthandPropertyAssignmentsInDestructuring_ES6.ts:111:12: Invalid shorthand property initializer
 typescript/tests/cases/compiler/slashBeforeVariableDeclaration1.ts:1:1: Unexpected token '\'
+typescript/tests/cases/compiler/sourceMapValidationEnums.ts:4:5: Duplicate identifier 'x'.
 typescript/tests/cases/compiler/sourceMapValidationStatements.ts:43:5: 'with' statements are not allowed in strict mode
 typescript/tests/cases/compiler/spaceBeforeQuestionMarkInPropertyAssignment.ts:1:12: Expected }, got ?
 typescript/tests/cases/compiler/standaloneBreak.ts:1:1: 'break' must be inside a loop or switch

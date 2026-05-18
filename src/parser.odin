@@ -5806,13 +5806,16 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 		case:
 			// Property / field (including kind=.Method with non-FE value).
 			// Property vs accessor or method = dup.
-			// Property vs property: only dup when BOTH have initializers
-			// (e.g. `0 = 1; 0.0 = 2;`). Declarations without initializers
-			// (x; x?: number; x!: string;) are valid TS redeclarations.
+			// Property vs property: dup when BOTH have initializers
+			// (e.g. `0 = 1; 0.0 = 2;`), OR when both are computed string
+			// keys (["a"]: string; ["a"]: string;). Non-computed
+			// declarations without initializers (x; x?: number;) are
+			// valid TS redeclarations.
 			has_init := false
 			if v, hv := elem.value.?; hv && v != nil { has_init = true }
 			if prev.has_get || prev.has_set || prev.has_method { dup = true }
 			if has_init && prev.has_prop_init { dup = true }
+			if elem.computed && prev.has_prop { dup = true }  // computed string dups
 			prev.has_prop = true
 			if has_init { prev.has_prop_init = true }
 		}
@@ -21931,6 +21934,26 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		if !match_token(p, .Comma) { break }
 	}
 	expect_token(p, .RBrace)
+
+	// TS2300 — duplicate enum member names.
+	{
+		seen_names: map[string]bool
+		seen_names.allocator = context.temp_allocator
+		for m in members {
+			if m.id == nil { continue }
+			name := class_element_prop_name(m.id)
+			if name == "" { continue }
+			if name in seen_names {
+				loc := u32(0)
+				if id, ok := m.id^.(^Identifier); ok && id != nil { loc = id.loc.span.start }
+				else if sl, ok2 := m.id^.(^StringLiteral); ok2 && sl != nil { loc = sl.loc.span.start }
+				msg := fmt.tprintf("Duplicate identifier '%s'.", name)
+				report_error_at(p, LexerLoc(loc), msg)
+			}
+			seen_names[name] = true
+		}
+	}
+
 	decl := new_node(p, TSEnumDeclaration); decl.loc = start; decl.id = id
 	decl.body = TSEnumBody{loc = body_start, members = members}; decl.body.loc.span.end = prev_end_offset(p)
 	decl.const_ = is_const; decl.loc.span.end = prev_end_offset(p)
