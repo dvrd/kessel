@@ -1,63 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10729/10729 (100.00%)
-Positive Passed: 10729/10729 (100.00%)
-Negative Passed: 1619/1673 (96.77%)
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesClass2a.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classCannotExtendVar.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumNoInitializerFollowsNonLiteralInitializer.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/errorElaboration.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportDefaultBindingMergeErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNameSpaceImportMergeErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/es6ImportNamedImportMergeErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportInterfaceClassAndValue.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/exportSameNameFuncVar.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/functionAndPropertyNameConflict.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importAndVariableDeclarationConflict3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclWithExportModifierAndExportAssignmentInAmbientContext.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/importDeclarationInModuleDeclaration2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/incompatibleExports1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/incompatibleExports2.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/mismatchedClassConstructorVariable.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleAugmentationGlobal6_1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleResolutionWithExtensions_unexpected2.ts::/a.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt3.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/moduleSharesNameWithImportDeclarationInsideIt5.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/module_augmentExistingAmbientVariable.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/module_augmentExistingVariable.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nameCollisions.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/namespaceNotMergedWithFunctionDefaultExport.ts::replace-in-file/types/index.d.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/nonMergedOverloads.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/parseInvalidNullableTypes.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/pathsValidation4.ts::src/main.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/pathsValidation5.ts::src/main.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/reassignStaticProp.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/regularExpressionCharacterClassRangeOrder.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requireOfJsonFileWithComputedPropertyName.ts::file1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requireOfJsonFileWithEmptyObjectWithErrors.ts::file1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requireOfJsonFileWithErrors.ts::file1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requireOfJsonFileWithNoContent.ts::file1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/requireOfJsonFileWithoutResolveJsonModule.ts::file1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shadowedReservedCompilerDeclarationsWithNoEmit.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/shadowingViaLocalValueOrBindingElement.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/targetTypeCastTest.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/varAndFunctionShareName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/classDeclarations/classAndVariableWithSameName.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/classes/propertyMemberDeclarations/autoAccessor11.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/Symbols/symbolProperty43.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/es6/modules/multipleDefaultExports03.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/internalModules/moduleDeclarations/invalidInstantiatedModule.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.13.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/conditional/inferTypes1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/literal/templateLiteralTypes1.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/localTypes/localTypes4.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/members/objectTypeWithDuplicateNumericProperty.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/objectTypeLiteral/propertySignatures/numericStringNamedPropertyEquivalence.ts
+AST Parsed     : 10783/10783 (100.00%)
+Positive Passed: 10783/10783 (100.00%)
+Negative Passed: 1619/1619 (100.00%)
 typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/ClassDeclaration11.ts:4:2: Function implementation name must be 'constructor'.
