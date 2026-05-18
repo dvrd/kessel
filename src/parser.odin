@@ -5894,6 +5894,13 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 			if prev.has_get || prev.has_set || prev.has_method { dup = true }
 			if has_init && prev.has_prop_init { dup = true }
 			if elem.computed && prev.has_prop { dup = true }  // computed string dups
+			// Numeric keys: `1; 1.0;` are dups even without initializers
+			// (numeric normalization makes them the same property).
+			is_numeric_key := false
+			if elem.key != nil {
+				if _, is_num := elem.key^.(^NumericLiteral); is_num { is_numeric_key = true }
+			}
+			if is_numeric_key && prev.has_prop { dup = true }
 			prev.has_prop = true
 			if has_init { prev.has_prop_init = true }
 		}
@@ -5956,7 +5963,15 @@ report_duplicate_interface_member_errors :: proc(p: ^Parser, members: []^TSSigna
 			// Already continued above for methods
 		}
 		if !is_method {
-			if prev.has_prop || prev.has_get || prev.has_set { dup = true }
+			// In interfaces/type literals, only NUMERIC key dups are errors
+			// (e.g. `1; 1.0;` normalize to the same number). String/identifier
+			// dups are valid TS declaration merging (`x: number; x: string;`).
+			is_numeric := false
+			if key != nil {
+				if _, is_num := key^.(^NumericLiteral); is_num { is_numeric = true }
+			}
+			if is_numeric && prev.has_prop { dup = true }
+			if prev.has_get || prev.has_set { dup = true }
 			prev.has_prop = true
 		}
 		seen[name] = prev
@@ -21060,6 +21075,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		}
 	}
 	expect_token(p, .RBrace)
+	report_duplicate_interface_member_errors(p, members[:])
 	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.span.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = lit; return r
 }
@@ -21903,6 +21919,7 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 		if cur_offset(p) == prev_member_off { break }
 	}
 	expect_token(p, .RBrace)
+	report_duplicate_interface_member_errors(p, members[:])
 	decl := new_node(p, TSInterfaceDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters
 	decl.extends = extends_list
 	decl.body = TSInterfaceBody{loc = body_start, body = members}; decl.body.loc.span.end = prev_end_offset(p)
