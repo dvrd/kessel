@@ -1,10 +1,8 @@
 parser_misc Summary:
 AST Parsed     : 72/72 (100.00%)
 Positive Passed: 72/72 (100.00%)
-Negative Passed: 266/286 (93.01%)
+Negative Passed: 270/286 (94.41%)
 Expect Syntax Error: tests/coverage/misc/fail/arguments-eval.ts
-Expect Syntax Error: tests/coverage/misc/fail/commonjs-export-statement.cjs
-Expect Syntax Error: tests/coverage/misc/fail/commonjs-import-statement.cjs
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
 Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
@@ -13,8 +11,6 @@ Expect Syntax Error: tests/coverage/misc/fail/escape-00.js
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts-import-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-decl-merge-namespace.ts
-Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-interface-bare-name-dup.ts
-Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-interface-dup-prop.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2300-type-param-dup.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2389-fn-decl-block-scope.ts
 Expect Syntax Error: tests/coverage/misc/fail/kessel-ts2448-use-before-decl.ts
@@ -23,7 +19,9 @@ Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
 Expect Syntax Error: tests/coverage/misc/fail/oxc-13284.ts
 Expect Syntax Error: tests/coverage/misc/fail/script-top-level-using.js
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
+tests/coverage/misc/fail/commonjs-export-statement.cjs:2:1: 'export' is only valid in module code
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
+tests/coverage/misc/fail/commonjs-import-statement.cjs:2:1: 'import' is only valid in module code
 tests/coverage/misc/fail/commonjs-top-level-await.cjs:2:1: Top-level 'await' is only valid in module code
 tests/coverage/misc/fail/diff-markers.js:10:1: Unexpected token '<<'
 tests/coverage/misc/fail/early_errors/001_duplicate_proto_object_literal.js:4:29: Redefinition of __proto__ property
@@ -88,6 +86,8 @@ tests/coverage/misc/fail/import-type-without-from.ts:1:13: Expected from, got st
 tests/coverage/misc/fail/import-without-from.js:1:16: Expected from, got string
 tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected >, got ;
 tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts:8:3: Duplicate identifier 'a'.
+tests/coverage/misc/fail/kessel-ts2300-interface-bare-name-dup.ts:11:3: Duplicate identifier 'x'.
+tests/coverage/misc/fail/kessel-ts2300-interface-dup-prop.ts:8:3: Duplicate identifier 'x'.
 tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts:7:1: Function implementation name must be 'foo'.
 tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts:7:3: Duplicate identifier 'b'.
 tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts:5:1: Duplicate function implementation.
