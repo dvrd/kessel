@@ -1121,6 +1121,7 @@ TS_NOT_SUPPORTED_ERROR_CODES := [?]string{
 	"1479",
 	"1484",
 	"1485",
+	"1490",  // File appears to be binary — lexer-level detection, not a parser check
 	"1501",
 	"1503",
 	"1528",

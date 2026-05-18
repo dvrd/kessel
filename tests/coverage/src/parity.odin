@@ -66,17 +66,17 @@ test_oxc_corpus_parity :: proc(t: ^testing.T) {
 	ts_fixtures := load_typescript(vendor, context.allocator)
 	assert_manifest(t, "typescript units", ts_fixtures, ManifestStats{
 		fixtures = 16066,
-		positive = 13970,
-		negative = 2096,
-		hash_a   = 452361415,
-		hash_b   = 828808778,
+		positive = 13971,
+		negative = 2095,
+		hash_a   = 276848803,
+		hash_b   = 749737484,
 	})
 	assert_ts_parent_manifest(t, ts_fixtures, ManifestStats{
 		fixtures = 12402,
-		positive = 10728,
-		negative = 1674,
-		hash_a   = 958746785,
-		hash_b   = 710367758,
+		positive = 10729,
+		negative = 1673,
+		hash_a   = 240904920,
+		hash_b   = 892391936,
 	})
 }
 

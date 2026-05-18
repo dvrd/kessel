@@ -1,9 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10728/10728 (100.00%)
-Positive Passed: 10728/10728 (100.00%)
-Negative Passed: 1603/1674 (95.76%)
+AST Parsed     : 10729/10729 (100.00%)
+Positive Passed: 10729/10729 (100.00%)
+Negative Passed: 1603/1673 (95.82%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
@@ -11,7 +11,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTyp
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesModules.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/classCannotExtendVar.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/constEnumErrors.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/corrupted.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierComputedName.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/duplicateIdentifierDifferentSpelling.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/enumNoInitializerFollowsNonLiteralInitializer.ts
