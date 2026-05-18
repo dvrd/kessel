@@ -461,8 +461,19 @@ unit_is_parseable :: proc(name: string) -> bool {
 	switch ext {
 	case ".ts", ".tsx", ".cts", ".mts", ".js", ".jsx", ".mjs", ".cjs":
 		return true
+	case ".json":
+		// JSON files are validated by Odin's JSON parser (not kessel's JS
+		// parser). Accepted as parseable so the runner can detect syntax
+		// errors like single-quoted keys (TS1327) or invalid content.
+		// Skip infrastructure files (package.json, tsconfig.json) which
+		// are always valid JSON and not interesting for error detection.
+		base := filepath.base(name)
+		if strings.contains(base, "package") || strings.contains(base, "tsconfig") {
+			return false
+		}
+		return true
 	}
-	// package.json units, baselines, and other non-source virtual files.
+	// baselines, .md, and other non-source virtual files.
 	return false
 }
 

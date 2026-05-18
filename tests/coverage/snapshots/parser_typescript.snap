@@ -1,9 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10776/10776 (100.00%)
-Positive Passed: 10776/10776 (100.00%)
-Negative Passed: 1626/1626 (100.00%)
+AST Parsed     : 10773/10773 (100.00%)
+Positive Passed: 10773/10773 (100.00%)
+Negative Passed: 1629/1629 (100.00%)
 typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/ClassDeclaration11.ts:4:2: Function implementation name must be 'constructor'.
@@ -489,6 +489,9 @@ typescript/tests/cases/compiler/regularExpressionGroupNameSuggestions.ts:1:27: I
 typescript/tests/cases/compiler/regularExpressionScanning.ts:3:11: Invalid regular expression flag
 typescript/tests/cases/compiler/regularExpressionUnicodePropertyValueExpressionSuggestions.ts:1:16: Invalid Unicode property escape: unknown lone property name
 typescript/tests/cases/compiler/regularExpressionWithNonBMPFlags.ts:7:63: Expected semicolon
+JSON parse error
+JSON parse error
+JSON parse error
 typescript/tests/cases/compiler/reservedWords2.ts:1:8: Expected import source or specifier
 typescript/tests/cases/compiler/reservedWords3.ts:1:13: 'enum' is a reserved word and cannot be used as a binding identifier
 typescript/tests/cases/compiler/restArgMissingName.ts:1:18: Expected binding pattern

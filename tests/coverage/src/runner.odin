@@ -23,6 +23,7 @@
 package coverage
 
 import "base:runtime"
+import "core:encoding/json"
 import "core:fmt"
 import "core:slice"
 import "core:strings"
@@ -46,6 +47,13 @@ run_parser_one :: proc(
 	tool:         Tool,
 	record_alloc: runtime.Allocator,
 ) -> TestResult {
+	// JSON files: validate with Odin's JSON parser instead of kessel's
+	// JS parser. JSON is not valid JS (e.g. `{"a": 1}` is a block with
+	// a label in JS). Report any JSON parse error as a diagnostic.
+	if strings.has_suffix(fix.rel, ".json") || strings.has_suffix(fix.path, ".json") {
+		return run_json_validate(fix, record_alloc)
+	}
+
 	cfg := kessel.ParseConfig{
 		lang_override          = fix.lang,
 		source_type_override   = fix.source_type,
@@ -277,4 +285,36 @@ run_one_suite :: proc(
 	return run_parser_suite(suite, tool, fixtures, record_alloc)
 }
 
+// run_json_validate — validate a .json fixture using Odin's JSON parser.
+// Reports TS1327-equivalent errors for invalid JSON (single-quoted keys,
+// computed properties, trailing commas, etc.).
+@(private="file")
+run_json_validate :: proc(fix: Fixture, record_alloc: runtime.Allocator) -> TestResult {
+	// Empty JSON is valid (produces null/undefined).
+	trimmed := strings.trim_space(fix.code)
+	if len(trimmed) == 0 {
+		if fix.should_fail { return TestResult{tag = .IncorrectlyPassed} }
+		return TestResult{tag = .Passed}
+	}
+	bytes := transmute([]u8)fix.code
+	_, err := json.parse(bytes, .JSON, false, context.temp_allocator)
+	if err != nil {
+		diag := fmt.tprintf("JSON parse error")
+		if fix.should_fail {
+			return TestResult{
+				tag        = .CorrectError,
+				diagnostic = strings.clone(diag, record_alloc),
+			}
+		}
+		return TestResult{
+			tag        = .ParseError,
+			diagnostic = strings.clone(diag, record_alloc),
+		}
+	}
+	// Valid JSON.
+	if fix.should_fail {
+		return TestResult{tag = .IncorrectlyPassed}
+	}
+	return TestResult{tag = .Passed}
+}
 

@@ -400,6 +400,7 @@ parse_job_run :: proc(job: ^ParseJob) {
 	} else if job.config.strict_source_type {
 		job.parser.force_source_type = .Script
 	}
+
 	job.parser.force_strict     = job.config.force_strict
 	job.parser.preserve_parens  = job.config.preserve_parens
 	job.parser.ast_only         = job.config.ast_only
