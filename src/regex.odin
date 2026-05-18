@@ -897,6 +897,94 @@ regex_is_braced_quantifier :: proc(src: []u8, off, pe: int) -> bool {
 	return j < pe && src[j] == '}'
 }
 
+// regex_class_atom_codepoint extracts the code point value from a class atom
+// span [atom_off..atom_end) in the source. Returns (cp, true) for single
+// characters, (0, false) for class escapes or unparseable atoms.
+regex_class_atom_codepoint :: proc(src: []u8, atom_off, atom_end: int) -> (u32, bool) {
+	if atom_off >= atom_end { return 0, false }
+	span := atom_end - atom_off
+	if src[atom_off] == '\\' && atom_off + 1 < atom_end {
+		e := src[atom_off + 1]
+		switch e {
+		case 'd', 'D', 's', 'S', 'w', 'W', 'p', 'P', 'b', 'B':
+			return 0, false  // class escape, not a single char
+		case 'u':
+			if atom_off + 2 < atom_end && src[atom_off + 2] == '{' {
+				// \u{H+}
+				cp := u32(0)
+				for k := atom_off + 3; k < atom_end && src[k] != '}'; k += 1 {
+					h := hex_digit_val(src[k])
+					if h < 0 { return 0, false }
+					cp = cp * 16 + u32(h)
+				}
+				return cp, true
+			} else if span >= 6 {
+				// \uHHHH — may be a surrogate pair if followed by \uHHHH
+				high := u32(0)
+				for k := 0; k < 4; k += 1 {
+					h := hex_digit_val(src[atom_off + 2 + k])
+					if h < 0 { return 0, false }
+					high = high * 16 + u32(h)
+				}
+				// Check for surrogate pair: \uD800-\uDBFF followed by \uDC00-\uDFFF
+				if high >= 0xD800 && high <= 0xDBFF && span >= 12 &&
+				   src[atom_off + 6] == '\\' && src[atom_off + 7] == 'u' {
+					low := u32(0)
+					for k := 0; k < 4; k += 1 {
+						h := hex_digit_val(src[atom_off + 8 + k])
+						if h < 0 { return high, true }  // just the high surrogate
+						low = low * 16 + u32(h)
+					}
+					if low >= 0xDC00 && low <= 0xDFFF {
+						cp := (high - 0xD800) * 0x400 + (low - 0xDC00) + 0x10000
+						return cp, true
+					}
+				}
+				return high, true
+			}
+			return 0, false
+		case 'x':
+			if span >= 4 {
+				h1 := hex_digit_val(src[atom_off + 2])
+				h2 := hex_digit_val(src[atom_off + 3])
+				if h1 >= 0 && h2 >= 0 { return u32(h1 * 16 + h2), true }
+			}
+			return 0, false
+		case 'n': return 0x0A, true
+		case 'r': return 0x0D, true
+		case 't': return 0x09, true
+		case 'f': return 0x0C, true
+		case 'v': return 0x0B, true
+		case '0':
+			if span == 2 { return 0, true }  // \0 NUL
+			return 0, false  // octal
+		case:
+			return u32(e), true  // identity escape
+		}
+	}
+	// Raw character — decode UTF-8.
+	b0 := src[atom_off]
+	if b0 < 0x80 { return u32(b0), true }
+	if b0 < 0xC0 { return 0, false }  // continuation byte
+	if b0 < 0xE0 && span >= 2 {
+		return u32(b0 & 0x1F) << 6 | u32(src[atom_off+1] & 0x3F), true
+	}
+	if b0 < 0xF0 && span >= 3 {
+		return u32(b0 & 0x0F) << 12 | u32(src[atom_off+1] & 0x3F) << 6 | u32(src[atom_off+2] & 0x3F), true
+	}
+	if span >= 4 {
+		return u32(b0 & 0x07) << 18 | u32(src[atom_off+1] & 0x3F) << 12 | u32(src[atom_off+2] & 0x3F) << 6 | u32(src[atom_off+3] & 0x3F), true
+	}
+	return 0, false
+}
+
+hex_digit_val :: proc(c: u8) -> int {
+	if c >= '0' && c <= '9' { return int(c - '0') }
+	if c >= 'a' && c <= 'f' { return int(c - 'a' + 10) }
+	if c >= 'A' && c <= 'F' { return int(c - 'A' + 10) }
+	return -1
+}
+
 regex_validate_class_ranges :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
 	src := v.source
 	pe := int(pat_end)
@@ -912,6 +1000,7 @@ regex_validate_class_ranges :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 		if j < pe && src[j] == '^' { j += 1 }
 		prev_is_class_escape := false
 		prev_atom_off := -1
+		prev_atom_end := -1
 		just_after_dash := false
 		for j < pe && src[j] != ']' {
 			atom_off := j
@@ -933,7 +1022,9 @@ regex_validate_class_ranges :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 					}
 				case 'u':
 					// `\u{H+}` or `\uHHHH` — a single character, valid
-					// on either side of a range.
+					// on either side of a range. For surrogate pairs
+					// (\uD800-\uDBFF followed by \uDC00-\uDFFF), span
+					// both halves as a single atom.
 					j += 2
 					if j < pe && src[j] == '{' {
 						j += 1
@@ -942,14 +1033,29 @@ regex_validate_class_ranges :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 					} else {
 						k := 0
 						for k < 4 && j < pe { j += 1; k += 1 }
-						// (Validity of the hex digits is the u-mode
-						// escape walker's job; this loop just spans it.)
+						// Check for surrogate pair: high surrogate followed by \uLLLL
+						if j + 5 < pe && j - 4 >= 0 {
+							high := u32(0)
+							for d := 0; d < 4; d += 1 {
+								hv := hex_digit_val(src[j - 4 + d])
+								if hv >= 0 { high = high * 16 + u32(hv) }
+							}
+							if high >= 0xD800 && high <= 0xDBFF && src[j] == '\\' && src[j+1] == 'u' {
+								// Consume second half of surrogate pair
+								j += 2
+								for kk := 0; kk < 4 && j < pe; kk += 1 { j += 1 }
+							}
+						}
 					}
 				case:
 					j += 2
 				}
 			} else {
-				j += 1
+				// Raw character — skip full UTF-8 sequence.
+				if src[j] >= 0xF0 && j + 3 < pe { j += 4 }
+				else if src[j] >= 0xE0 && j + 2 < pe { j += 3 }
+				else if src[j] >= 0xC0 && j + 1 < pe { j += 2 }
+				else { j += 1 }
 			}
 			// Look at what follows: if `-` and then another atom,
 			// we have a range with this atom on the LEFT.
@@ -961,10 +1067,21 @@ regex_validate_class_ranges :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 						offset = u32(prev_atom_off if prev_atom_off >= 0 else atom_off),
 						message = "Invalid character class range: range endpoints must be single characters",
 					})
+				} else {
+					// Range order check: left endpoint must be ≤ right endpoint.
+					left_cp, left_ok := regex_class_atom_codepoint(src, prev_atom_off, prev_atom_end)
+					right_cp, right_ok := regex_class_atom_codepoint(src, atom_off, j)
+					if left_ok && right_ok && left_cp > right_cp {
+						append(&v.errors, RegexDiagnostic{
+							offset = u32(prev_atom_off if prev_atom_off >= 0 else atom_off),
+							message = "Range out of order in character class",
+						})
+					}
 				}
 				just_after_dash = false
 				prev_is_class_escape = atom_is_class
 				prev_atom_off = atom_off
+				prev_atom_end = j
 				continue
 			}
 			// Is the next byte a `-` opening a range? `]-` or `--`
@@ -973,11 +1090,13 @@ regex_validate_class_ranges :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 			if j < pe && src[j] == '-' && j + 1 < pe && src[j + 1] != ']' {
 				prev_is_class_escape = atom_is_class
 				prev_atom_off = atom_off
+				prev_atom_end = j
 				just_after_dash = true
 				j += 1
 			} else {
 				prev_is_class_escape = atom_is_class
 				prev_atom_off = atom_off
+				prev_atom_end = j
 			}
 		}
 		if j < pe && src[j] == ']' { i = j + 1 } else { i = j }

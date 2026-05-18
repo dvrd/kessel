@@ -884,7 +884,6 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"recursiveBaseCheck6.ts",
 	"recursiveComplicatedClasses.ts",
 	"recursiveFunctionTypes.ts",
-	"regularExpressionCharacterClassRangeOrder.ts",
 	"requireOfESWithPropertyAccess.ts",
 	"requireOfJsonFileInJsFile.ts",
 	"requireOfJsonFileWithComputedPropertyName.ts",
