@@ -2067,8 +2067,10 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 				report_error(p, "'abstract' modifier is only allowed in TypeScript files")
 			}
 			eat(p) // consume `abstract`
+			prev_abs := p.class_is_abstract
 			p.class_is_abstract = true
 			stmt := parse_class_declaration(p)
+			p.class_is_abstract = prev_abs  // prevent leak to next class
 			if stmt != nil {
 				if cls, ok := stmt^.(^ClassDeclaration); ok { cls.expr.abstract = true }
 			}
@@ -17854,8 +17856,10 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Expected class after decorator")
 		return nil
 	}
+	prev_abs := p.class_is_abstract
 	if is_abstract_class { p.class_is_abstract = true }
 	stmt := parse_class_declaration(p)
+	p.class_is_abstract = prev_abs  // prevent leak to next class
 	if stmt != nil {
 		#partial switch s in stmt^ {
 		case ^ClassDeclaration:
@@ -21577,8 +21581,10 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 				report_error(p, "Line terminator not permitted between 'abstract' and 'class'")
 			}
 			eat(p) // consume `abstract`
+			prev_abs := p.class_is_abstract
 			p.class_is_abstract = true
 			stmt = parse_class_declaration(p)
+			p.class_is_abstract = prev_abs  // prevent leak
 			if stmt != nil {
 				if cls, ok := stmt^.(^ClassDeclaration); ok {
 					cls.expr.abstract = true

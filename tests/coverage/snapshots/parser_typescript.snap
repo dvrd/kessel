@@ -3,8 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10729/10729 (100.00%)
 Positive Passed: 10729/10729 (100.00%)
-Negative Passed: 1603/1673 (95.82%)
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
+Negative Passed: 1604/1673 (95.88%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/augmentedTypesClass2a.ts
@@ -102,6 +101,7 @@ typescript/tests/cases/compiler/ParameterList6.ts:2:26: Expected ), got identifi
 typescript/tests/cases/compiler/ParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/ParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor.
 typescript/tests/cases/compiler/TransportStream.ts:1:2: Expected semicolon
+typescript/tests/cases/compiler/abstractPropertyNegative.ts:18:1: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/compiler/accessorBodyInTypeContext.ts:2:15: Unexpected token in TS object type
 typescript/tests/cases/compiler/accessorParameterAccessibilityModifier.ts:2:19: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/accessorWithInitializer.ts:2:11: A 'set' accessor cannot have an initializer.
