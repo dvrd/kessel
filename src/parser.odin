@@ -495,6 +495,7 @@ Parser :: struct {
 	// conditional type. Used by the infer-with-constraints speculative
 	// parse (TS 4.7+) to match OXC / TypeScript behaviour.
 	ts_disallow_conditional_types: int,
+	ts_in_conditional_extends:     int,  // >0 when inside a conditional type's extends clause (for infer validation)
 
 	// Depth counter for TS object/interface type literal bodies. When > 0,
 	// type-argument `<T>` on a newline is NOT consumed as postfix (it starts
@@ -18766,7 +18767,9 @@ parse_ts_type :: proc(p: ^Parser) -> ^TSType {
 		// extends C` inside the extends position always treats `extends`
 		// as a constraint (no speculative lookahead needed).
 		p.ts_disallow_conditional_types += 1
+		p.ts_in_conditional_extends += 1
 		exts := parse_ts_type(p)
+		p.ts_in_conditional_extends -= 1
 		p.ts_disallow_conditional_types -= 1
 		expect_token(p, .Question)
 		true_type := parse_ts_type(p)
@@ -19383,6 +19386,10 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		}
 
 	case .Infer:
+		// TS1338: 'infer' is only valid in the extends clause of a conditional type.
+		if p.ts_in_conditional_extends == 0 && allow_ts_mode(p) {
+			report_error(p, "'infer' declarations are only permitted in the 'extends' clause of a conditional type.")
+		}
 		eat(p); pn := parse_identifier(p)
 		node := new_node(p, TSInferType); node.loc = start
 		node.type_parameter.name = BindingIdentifier{loc = pn.loc, name = pn.name}

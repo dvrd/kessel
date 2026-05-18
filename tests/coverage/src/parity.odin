@@ -49,11 +49,11 @@ test_oxc_corpus_parity :: proc(t: ^testing.T) {
 		hash_b   = 658973028,
 	})
 	assert_manifest(t, "babel", load_babel(vendor, context.allocator), ManifestStats{
-		fixtures = 3935,
-		positive = 2233,
+		fixtures = 3934,
+		positive = 2232,
 		negative = 1702,
-		hash_a   = 171885100,
-		hash_b   = 43594919,
+		hash_a   = 21887347,
+		hash_b   = 54259390,
 	})
 	assert_manifest(t, "estree", load_estree(vendor, context.allocator), ManifestStats{
 		fixtures = 39,
@@ -66,17 +66,17 @@ test_oxc_corpus_parity :: proc(t: ^testing.T) {
 	ts_fixtures := load_typescript(vendor, context.allocator)
 	assert_manifest(t, "typescript units", ts_fixtures, ManifestStats{
 		fixtures = 16066,
-		positive = 14030,
-		negative = 2036,
-		hash_a   = 20683966,
-		hash_b   = 994014065,
+		positive = 14028,
+		negative = 2038,
+		hash_a   = 628878306,
+		hash_b   = 294012664,
 	})
 	assert_ts_parent_manifest(t, ts_fixtures, ManifestStats{
 		fixtures = 12402,
-		positive = 10783,
-		negative = 1619,
-		hash_a   = 5547001,
-		hash_b   = 25913943,
+		positive = 10781,
+		negative = 1621,
+		hash_a   = 695637439,
+		hash_b   = 657864639,
 	})
 }
 

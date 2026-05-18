@@ -1,9 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10783/10783 (100.00%)
-Positive Passed: 10783/10783 (100.00%)
-Negative Passed: 1619/1619 (100.00%)
+AST Parsed     : 10781/10781 (100.00%)
+Positive Passed: 10781/10781 (100.00%)
+Negative Passed: 1621/1621 (100.00%)
 typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/ClassDeclaration11.ts:4:2: Function implementation name must be 'constructor'.
@@ -1578,11 +1578,13 @@ typescript/tests/cases/conformance/statements/throwStatements/invalidThrowStatem
 typescript/tests/cases/conformance/statements/tryStatements/catchClauseWithTypeAnnotation.ts:29:25: Catch parameter 'x' cannot be redeclared with let/const in catch block
 typescript/tests/cases/conformance/statements/tryStatements/invalidTryStatements.ts:2:5: Unexpected reserved word 'catch'
 typescript/tests/cases/conformance/statements/withStatements/withStatements.ts:2:1: 'with' statements are not allowed in strict mode
+typescript/tests/cases/conformance/types/conditional/inferTypes1.ts:82:12: 'infer' declarations are only permitted in the 'extends' clause of a conditional type.
 typescript/tests/cases/conformance/types/import/importTypeGeneric.ts::usage.ts:1:68: String literal expected in import type
 typescript/tests/cases/conformance/types/import/importTypeNested.ts::chainer.ts:1:44: String literal expected in import type
 typescript/tests/cases/conformance/types/import/importTypeNestedNoRef.ts::chainer.ts:1:44: String literal expected in import type
 typescript/tests/cases/conformance/types/import/importTypeNonString.ts:1:31: String literal expected in import type
 typescript/tests/cases/conformance/types/import/importWithTypeArguments.ts:1:7: Expected import source or specifier
+typescript/tests/cases/conformance/types/literal/templateLiteralTypes1.ts:165:15: 'infer' declarations are only permitted in the 'extends' clause of a conditional type.
 typescript/tests/cases/conformance/types/mapped/mappedTypeProperties.ts:9:5: Expected }, got identifier
 typescript/tests/cases/conformance/types/members/duplicatePropertyNames.ts:23:5: Duplicate identifier 'bar'.
 typescript/tests/cases/conformance/types/members/objectTypeWithStringNamedNumericProperty.ts:33:13: Legacy octal literals are not allowed in strict mode

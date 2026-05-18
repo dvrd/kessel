@@ -1,8 +1,8 @@
 commit: 4079bcda
 
 semantic_babel Summary:
-AST Parsed     : 2224/2233 (99.60%)
-Positive Passed: 2224/2233 (99.60%)
+AST Parsed     : 2223/2232 (99.60%)
+Positive Passed: 2223/2232 (99.60%)
 Negative Passed: 1702/1702 (100.00%)
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js:4:10: Export 'encrypt' is not defined in the module

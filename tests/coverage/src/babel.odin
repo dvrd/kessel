@@ -90,6 +90,9 @@ BABEL_PATH_SKIP_SUBSTRINGS := [?]string{
 	"typescript/class/members-with-modifier-names",
 	"typescript/class/method-with-newline-without-body",
 	"explicit-resource-management/valid-for-using-binding-escaped-of-of",
+	// Babel accepts `infer` in template literal types outside conditional
+	// extends, but TSC and kessel correctly flag TS1338.
+	"types/literal-string-4",
 }
 
 // Specific input-file suffixes that OXC drops as "not interesting"
