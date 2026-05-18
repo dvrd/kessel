@@ -1,9 +1,9 @@
 commit: f350b523
 
 parser_typescript Summary:
-AST Parsed     : 10778/10778 (100.00%)
-Positive Passed: 10778/10778 (100.00%)
-Negative Passed: 1624/1624 (100.00%)
+AST Parsed     : 10777/10777 (100.00%)
+Positive Passed: 10777/10777 (100.00%)
+Negative Passed: 1625/1625 (100.00%)
 typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
 typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/ClassDeclaration11.ts:4:2: Function implementation name must be 'constructor'.
@@ -457,6 +457,7 @@ typescript/tests/cases/compiler/parseErrorIncorrectReturnToken.ts:2:17: Unexpect
 typescript/tests/cases/compiler/parseImportAttributesError.ts::/index.ts:2:30: Unexpected token: numeric / bigint literal cannot be an import attribute key
 typescript/tests/cases/compiler/parseInvalidNames.ts:1:11: Expected semicolon
 typescript/tests/cases/compiler/parseInvalidNonNullableTypes.ts:1:36: '!' at the end of a type is not valid TypeScript syntax.
+typescript/tests/cases/compiler/parseInvalidNullableTypes.ts:1:30: '?' at the start of a type is not valid TypeScript syntax.
 typescript/tests/cases/compiler/parseJsxElementInUnaryExpressionNoCrash1.ts:1:4: Expected >, got <
 typescript/tests/cases/compiler/parseJsxElementInUnaryExpressionNoCrash2.ts:1:9: Expected expression after operator
 typescript/tests/cases/compiler/parseJsxElementInUnaryExpressionNoCrash3.ts:1:5: Expected ..., got :
@@ -751,7 +752,7 @@ typescript/tests/cases/conformance/decorators/class/method/decoratorOnClassMetho
 typescript/tests/cases/conformance/decorators/class/method/parameter/decoratorOnClassMethodParameter3.ts:5:23: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/decorators/class/method/parameter/decoratorOnClassMethodThisParameter.ts:4:17: Decorators cannot be applied to 'this' parameters.
 typescript/tests/cases/conformance/decorators/class/property/decoratorOnClassProperty3.ts:4:12: Expected method or property name
-typescript/tests/cases/conformance/decorators/decoratorMetadata-jsdoc.ts:7:15: '!' at the end of a type is not valid TypeScript syntax.
+typescript/tests/cases/conformance/decorators/decoratorMetadata-jsdoc.ts:5:15: '?' at the end of a type is not valid TypeScript syntax.
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnArrowFunction.ts:3:17: Decorators can only be applied to class expressions
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnAwait.ts:4:1: Expected class after decorator
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnEnum.ts:4:1: Expected class after decorator

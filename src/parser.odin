@@ -496,6 +496,7 @@ Parser :: struct {
 	// parse (TS 4.7+) to match OXC / TypeScript behaviour.
 	ts_disallow_conditional_types: int,
 	ts_in_conditional_extends:     int,  // >0 when inside a conditional type's extends clause (for infer validation)
+	ts_in_type_arguments:          int,  // >0 when inside <...> type arguments (suppress ? JSDoc errors)
 
 	// Depth counter for TS object/interface type literal bodies. When > 0,
 	// type-argument `<T>` on a newline is NOT consumed as postfix (it starts
@@ -19745,9 +19746,13 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// .Typeof, .Keyof, .Unique, .Infer, .Import, .New, .Never).
 		return parse_ts_type_reference(p)
 	case .Question:
-		// TS / Flow nullable prefix: `?string`. OXC accepts this
-		// permissively, parsing the inner type and ignoring the `?`.
+		// TS / Flow nullable prefix: `?string`. Accepted permissively in
+		// type arguments (JSDoc patterns like `foo<string?>`), but flagged
+		// outside type arguments (TS17020).
 		if allow_ts_mode(p) {
+			if p.ts_in_type_arguments == 0 {
+				report_error(p, "'?' at the start of a type is not valid TypeScript syntax.")
+			}
 			eat(p) // consume `?`
 			return parse_ts_primary_type(p)
 		}
@@ -19938,10 +19943,15 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	// EXCEPTION: inside a tuple type, the postfix `?` is reserved for
 	// TSOptionalType syntax (`[T?, U]`), not JSDoc nullable. The tuple
 	// parser handles it after parse_ts_type returns.
+	// TS17019: `?` at the end of a type. Flagged outside type arguments;
+	// suppressed inside `<...>` for JSDoc patterns like `foo<string?>`.
 	if is_token(p, .Question) && !p.cur_tok.had_line_terminator && !p.ts_in_tuple_type {
 		nxt := p.lexer.nxt.kind
 		if nxt == .RParen || nxt == .Comma || nxt == .Semi || nxt == .RBrace ||
 		   nxt == .RBracket || nxt == .RAngle || nxt == .Assign || nxt == .EOF {
+			if allow_ts_mode(p) && p.ts_in_type_arguments == 0 {
+				report_error(p, "'?' at the end of a type is not valid TypeScript syntax.")
+			}
 			eat(p) // consume `?`
 		}
 	}
@@ -20013,6 +20023,8 @@ parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 	// Re-allow conditional types inside angle brackets.
 	saved_disallow_ct := p.ts_disallow_conditional_types
 	p.ts_disallow_conditional_types = 0
+	// Track type-argument context for JSDoc ? suppression.
+	p.ts_in_type_arguments += 1
 	params := make([dynamic]^TSType, 0, 4, p.allocator)
 	for !is_close_angle_token(p) && !is_token(p, .EOF) {
 		// Reject empty type argument positions: `Foo<a,,b>` — the `,`
@@ -20028,6 +20040,7 @@ parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 		report_error(p, "Type argument list cannot be empty")
 	}
 	expect_close_angle(p)
+	p.ts_in_type_arguments -= 1
 	p.ts_disallow_conditional_types = saved_disallow_ct
 	inst := new_node(p, TSTypeParameterInstantiation); inst.loc = start; inst.params = params; inst.loc.span.end = prev_end_offset(p)
 	return inst

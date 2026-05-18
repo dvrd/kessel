@@ -788,7 +788,6 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"parameterInitializersForwardReferencing1.ts",
 	"parameterInitializersForwardReferencing1_es6.ts",
 	"parameterPropertyInConstructor3.ts",
-	"parseInvalidNullableTypes.ts",
 	"parser509618.ts",
 	"parser553699.ts",
 	"parserAccessors1.ts",
