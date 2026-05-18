@@ -5988,13 +5988,14 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		}
 		// TS overload signatures (body-less methods/constructors): skip
 		// from the dup map entirely so the implementation can be added
-		// without false-flagging.
+		// without false-flagging. Private fields (kind=.Method but val
+		// is not FE) must NOT be skipped.
 		if allow_ts_mode(p) && (elem.kind == .Method || elem.kind == .Constructor) {
-			is_overload := true
+			is_overload := false
 			if val, has_val := elem.value.?; has_val && val != nil {
 				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					if len(fn.body.body) > 0 || len(fn.body.directives) > 0 {
-						is_overload = false
+					if len(fn.body.body) == 0 && len(fn.body.directives) == 0 {
+						is_overload = true  // body-less method sig
 					}
 				}
 			}
