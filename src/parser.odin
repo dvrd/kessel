@@ -5287,7 +5287,9 @@ resolve_pending_private_refs :: proc(p: ^Parser, elements: []ClassElement, pendi
 // number keys. Returns "" for computed or unknown keys (for which the
 // `prototype` check can't statically fire). Mirrors the same resolution
 // that would happen on the emitter side: IdentifierName contributes its
-// `name`, StringLiteral its `value`, NumericLiteral the source `raw`.
+// `name`, StringLiteral its `value`, NumericLiteral its canonical
+// string form (via f64 value → string, so `0`, `0.0`, `0b0` all
+// normalize to "0" for duplicate detection).
 class_element_prop_name :: proc(key: ^Expression) -> string {
 	if key == nil { return "" }
 	#partial switch v in key^ {
@@ -5296,7 +5298,11 @@ class_element_prop_name :: proc(key: ^Expression) -> string {
 	case ^StringLiteral:
 		if v != nil { return v.value }
 	case ^NumericLiteral:
-		if v != nil { return v.raw }
+		if v != nil {
+			// Canonical form: use the f64 value so `0`, `0.0`, `0b0` all
+			// compare equal. fmt.tprintf produces the shortest exact form.
+			return fmt.tprintf("%v", v.value)
+		}
 	}
 	return ""
 }
@@ -5699,10 +5705,11 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 	if p.in_ambient || p.source_is_dts { return }
 
 	MemberSeen :: struct {
-		has_get:    bool,
-		has_set:    bool,
-		has_prop:   bool,  // property / field
-		has_method: bool,  // method with body (not overload sig)
+		has_get:        bool,
+		has_set:        bool,
+		has_prop:       bool,  // property / field
+		has_prop_init:  bool,  // property with initializer (= value)
+		has_method:     bool,  // method with body (not overload sig)
 	}
 
 	static_seen:   map[string]MemberSeen
@@ -5798,11 +5805,16 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 			// handled above
 		case:
 			// Property / field (including kind=.Method with non-FE value).
-			// Property vs accessor or method = dup. Property vs property
-			// is NOT flagged — TS allows redeclaring properties with
-			// different modifiers/types (x; x?: number; x!: string; etc.).
+			// Property vs accessor or method = dup.
+			// Property vs property: only dup when BOTH have initializers
+			// (e.g. `0 = 1; 0.0 = 2;`). Declarations without initializers
+			// (x; x?: number; x!: string;) are valid TS redeclarations.
+			has_init := false
+			if v, hv := elem.value.?; hv && v != nil { has_init = true }
 			if prev.has_get || prev.has_set || prev.has_method { dup = true }
+			if has_init && prev.has_prop_init { dup = true }
 			prev.has_prop = true
+			if has_init { prev.has_prop_init = true }
 		}
 		seen[name] = prev
 
