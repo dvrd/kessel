@@ -88,7 +88,7 @@ tests/coverage/misc/fail/kessel-ts2300-interface-dup-prop.ts:8:3: Duplicate iden
 tests/coverage/misc/fail/kessel-ts2300-type-param-dup.ts:4:15: Duplicate identifier 'X'
 tests/coverage/misc/fail/kessel-ts2389-fn-decl-block-scope.ts:7:12: Function implementation name must be 'foo'.
 tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts:7:1: Function implementation name must be 'foo'.
-tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts:6:3: Duplicate function implementation.
+tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts:7:3: Duplicate identifier 'b'.
 tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts:5:1: Duplicate function implementation.
 tests/coverage/misc/fail/kessel-ts2448-use-before-decl.ts:8:3: Block-scoped variable 'fn' used before its declaration.
 tests/coverage/misc/fail/let-member-expression.js:4:1: 'let' is a reserved identifier in strict mode

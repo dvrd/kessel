@@ -2062,7 +2062,11 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 	case .Abstract:
 		// `abstract class Foo { ... }` - consume `abstract` and set the flag
 		// on the parsed class declaration. TS-only syntax.
-		if is_next_token(p, .Class) {
+		// ASI guard: `abstract\nclass` (newline between) is NOT an abstract
+		// class — `abstract` is an expression statement and the class is
+		// non-abstract. Matches OXC/TSC behavior (TSC reports TS2304 for the
+		// standalone `abstract` identifier). Same semantics as `async\nfunction`.
+		if is_next_token(p, .Class) && !peek_token(p).had_line_terminator {
 			if !allow_ts_mode(p) {
 				report_error(p, "'abstract' modifier is only allowed in TypeScript files")
 			}
@@ -5346,6 +5350,9 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 		// Count total method sigs and check for modifiers.
 		sig_count := 0
 		has_modifier := false
+		has_static_mismatch := false
+		first_static_seen := false
+		first_is_static := false
 		for elem in body {
 			if (elem.kind != .Method && elem.kind != .Constructor) || elem.abstract { continue }
 			val, have := elem.value.?; if !have || val == nil { continue }
@@ -5354,11 +5361,20 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 				sig_count += 1
 				// Accessibility modifiers or other decorations suggest this is
 				// a deliberate overload/ambient pattern.
-				if elem.accessibility != .None || elem.override_ || elem.static { has_modifier = true }
+				if elem.accessibility != .None || elem.override_ { has_modifier = true }
+				// Track static/instance mismatch — if sigs for the same
+				// name have mixed static, that's not a valid overload.
+				if !first_static_seen {
+					first_is_static = elem.static
+					first_static_seen = true
+				} else if elem.static != first_is_static {
+					has_static_mismatch = true
+				}
 			}
 		}
 		// Multiple sigs or modified sigs = overload signatures, valid.
-		if sig_count > 1 || has_modifier { return }
+		// BUT: static/instance mismatch within sigs is always an error.
+		if (sig_count > 1 || has_modifier) && !has_static_mismatch { return }
 		// Single sig, single name, no modifiers, no body = missing implementation.
 		// Fall through to main pass which will report it.
 	}
@@ -5366,6 +5382,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 	// Main pass.
 	chain_active := false
 	chain_name := ""
+	chain_static := false
 	chain_start := 0
 
 	for elem, idx in body {
@@ -5435,6 +5452,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 				if name != chain_name {
 					report_overload_flush(p, body, chain_start, idx)
 					chain_name = name
+					chain_static = elem.static
 					chain_start = idx
 				}
 			}
@@ -5442,6 +5460,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 			if !has_body {
 				chain_active = true
 				chain_name = name
+				chain_static = elem.static
 				chain_start = idx
 			}
 		}
@@ -5705,11 +5724,12 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 	if p.in_ambient || p.source_is_dts { return }
 
 	MemberSeen :: struct {
-		has_get:        bool,
-		has_set:        bool,
-		has_prop:       bool,  // property / field
-		has_prop_init:  bool,  // property with initializer (= value)
-		has_method:     bool,  // method with body (not overload sig)
+		has_get:                       bool,
+		has_set:                       bool,
+		has_prop:                      bool,  // property / field
+		has_prop_init:                 bool,  // property with initializer (= value)
+		has_method:                    bool,  // method with body (not overload sig)
+		has_method_with_type_params:   bool,  // method body + type parameters
 	}
 
 	static_seen:   map[string]MemberSeen
@@ -5725,17 +5745,20 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 		if _, is_priv := elem.key.(^PrivateIdentifier); is_priv { continue }
 
 		name := ""
+		has_name := false
 		if elem.computed {
 			// Computed keys: only check string literals (["foo"]).
 			if sl, is_sl := elem.key^.(^StringLiteral); is_sl {
 				name = sl.value
+				has_name = true  // empty string is valid computed key
 			} else {
 				continue  // dynamic [expr] — can't check
 			}
 		} else {
 			name = class_element_prop_name(elem.key)
+			if name != "" { has_name = true }
 		}
-		if name == "" { continue }
+		if !has_name { continue }
 
 		// TS duplicate constructor: multiple constructor implementations.
 		// Overload signatures (no body) are fine.
@@ -5783,9 +5806,17 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 		// AST default for ALL class elements. A real method has a
 		// FunctionExpression value; everything else is a property/field.
 		is_real_method := false
+		has_type_params := false
 		if elem.kind == .Method {
 			if v, hv := elem.value.?; hv && v != nil {
-				if _, ok := v^.(^FunctionExpression); ok { is_real_method = true }
+				if fn, ok := v^.(^FunctionExpression); ok {
+					is_real_method = true
+					if fn != nil {
+						if tp, have_tp := fn.type_parameters.?; have_tp && tp != nil {
+							has_type_params = true
+						}
+					}
+				}
 			}
 		}
 
@@ -5798,9 +5829,15 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 			prev.has_set = true
 		case is_real_method:
 			// Method vs property/accessor = duplicate.
-			// Method vs method is NOT flagged — TS allows overloads.
 			if prev.has_get || prev.has_set || prev.has_prop { dup = true }
+			// TS2393: Two methods with bodies (implementations) = duplicate
+			// function implementation. Overload sigs are fine (they were
+			// skipped above), but two real bodies means a true dup.
+			// Skip when EITHER method has type parameters — different type
+			// params may constitute valid generic overloads that OXC accepts.
+			if prev.has_method && !has_type_params && !prev.has_method_with_type_params { dup = true }
 			prev.has_method = true
+			if has_type_params { prev.has_method_with_type_params = true }
 		case elem.kind == .Constructor:
 			// handled above
 		case:
@@ -9349,7 +9386,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			// In TS mode, `export default` is allowed multiple times because
 			// (1) `export default interface I {}` is type-space and doesn't
 			// shadow a value default, and (2) TS surfaces this as a semantic
-			// rather than a syntax error - OXC and Babel both accept the
+			// rather than a syntax error — OXC and Babel both accept the
 			// duplicate. Skip the syntactic flag in TS / TSX modes.
 			if allow_ts_mode(p) { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
@@ -11503,7 +11540,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		}
 	} else if is_token(p, .Class) ||
 	          is_token(p, .At) ||
-	          (is_token(p, .Abstract) && p.lexer.nxt.kind == .Class) {
+	          (is_token(p, .Abstract) && p.lexer.nxt.kind == .Class && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0) {
 		// `export default class {}` / `export default @dec class {}`
 		// / `export default @dec abstract class {}`.
 		cls_stmt := parse_statement_or_declaration(p)
@@ -17863,7 +17900,7 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 	// flag, mirroring the statement-level `.Abstract` → `.Class` path.
 	is_abstract_class := false
 	if is_token(p, .Abstract) {
-		if is_next_token(p, .Class) {
+		if is_next_token(p, .Class) && !peek_token(p).had_line_terminator {
 			is_abstract_class = true
 			eat(p) // consume `abstract`
 		}
@@ -18182,6 +18219,12 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 						report_error(p, "JSX attributes must only be assigned a non-empty expression")
 					}
 					eat(p); expr := parse_expression(p); expect_token(p, .RBrace)
+					// TS18007: JSX expressions may not use the comma operator.
+					if expr != nil {
+						if _, is_seq := expr^.(^SequenceExpression); is_seq {
+							report_error(p, "JSX expressions may not use the comma operator.")
+						}
+					}
 					container := new_node(p, JSXExpressionContainer)
 					container.loc = container_start; container.expression = expr
 					container.loc.span.end = prev_end_offset(p)
@@ -19650,7 +19693,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	case .Not:
 		// JSDoc non-nullable prefix: `!string`. OXC produces
 		// TSJSDocNonNullableType. Accept permissively.
+		// TS17020: `!` at the start of a type is not valid TypeScript syntax.
 		if allow_ts_mode(p) {
+			report_error(p, "'!' at the start of a type is not valid TypeScript syntax.")
 			eat(p) // consume `!`
 			return parse_ts_primary_type(p)
 		}
@@ -19817,7 +19862,11 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	// TS / JSDoc non-nullable postfix: `T!`. OXC produces
 	// TSJSDocNonNullableType. Accept permissively - just consume the `!`
 	// and return the inner type. Same-line only (ASI guard).
+	// TS17019: `!` at the end of a type is not valid TypeScript syntax.
 	if is_token(p, .Not) && !p.cur_tok.had_line_terminator {
+		if allow_ts_mode(p) {
+			report_error(p, "'!' at the end of a type is not valid TypeScript syntax.")
+		}
 		eat(p) // consume `!`
 	}
 	// TS / JSDoc nullable postfix: `T?`. OXC produces
