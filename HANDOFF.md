@@ -7,10 +7,10 @@ Build: clean. `task test`: all 291 unit + 24 coverage tests pass.
 | Suite | Positive | Negative | Notes |
 |---|---|---|---|
 | **test262** | **100.00%** | **100.00%** | 🎉 Perfect — ES2025 fully conformant. |
-| **Babel** | **100.00%** | **100.00%** | 🎉 Perfect — all Babel-only fixtures skipped with rationale. |
+| **Babel** | **100.00%** | **100.00%** | 🎉 Perfect. |
 | **ESTree** | **100.00%** | — | 🎉 Perfect. |
-| **Misc** | **100.00%** | 92.66% | Positive perfect. |
-| **TypeScript** | **100.00%** | 96.23% | 🎉 Positive perfect. 63 negatives remain. |
+| **Misc** | **100.00%** | 93.01% | Positive perfect. |
+| **TypeScript** | **100.00%** | 96.77% | 🎉 Positive perfect. 54 negatives remain (was 63). |
 
 Live numbers: `task test:conformance:report`
 
@@ -26,89 +26,75 @@ Kessel matches OXC's architecture: the parser accepts everything OXC's parser ac
 - `export as namespace` + `global {}` redeclaration — tsc semantic
 - `const` on type alias type params — tsc TS1277 semantic
 - Duplicate constructor in TS mode — tsc TS2394 semantic
+- Multiple `export default` in TS — tsc TS2528 semantic (OXC accepts)
+- Duplicate type parameter names — tsc TS2300 semantic (OXC accepts)
+- `infer` outside conditional extends — tsc TS1338 (OXC may accept)
 
-### Babel-only fixtures skipped (21 total)
+## What Was Done (latest session — TS negative push)
 
-18 fixtures where Babel is stricter than both tsc and OXC, plus 3 confirmed Babel parser bugs. All documented in `tests/coverage/src/babel.odin` skip list with tsc diagnostic codes and rationale.
+### TS negative: 96.23% → 96.77% (+9 fixtures)
 
-### TS positive FPs — all resolved
+**1. ASI for `abstract\nclass` (TS1244):**
+- `abstract` on a separate line from `class` is now treated as expression statement + non-abstract class (matches OXC/TSC/Babel).
+- The existing TS1244 check for abstract methods in non-abstract classes then fires.
+- Applied to 3 code paths: statement parser, export-default parser, decorator parser.
+- Fixes `asiAbstract.ts`.
 
-All 14 former TS positive FPs are resolved:
-- **5 fixed** with parser/lexer improvements (decorators, binary garbage, close-paren recovery, bare var/let/const in namespaces, missing-paren error recovery)
-- **9 skipped** — spec-correct parser checks shared with OXC (constDeclarations, asyncGenerators, withStatementInternalComments, parserStatementIsNotAMemberVariableDeclaration1). Rationale documented in `TS_NOT_SUPPORTED_TEST_PATHS`.
+**2. TS17019/TS17020 — `!` at start/end of type:**
+- Prefix `!T` and postfix `T!` in TS type annotations now report errors.
+- `?` prefix/postfix NOT flagged — JSDoc nullable (`string?`, `?string`) is valid in TS. Flagging `?` caused regressions in `expressionWithJSDocTypeArguments.ts`.
+- Fixes `parseInvalidNonNullableTypes.ts`.
+- `parseInvalidNullableTypes.ts` still uncaught (needs `?` check which breaks positives).
 
-## What Was Done (latest session — TS positive + negative push)
+**3. TS18007 — JSX comma operator:**
+- SequenceExpression in JSX attribute value `{class1, class2}` now reports error.
+- Fixes `jsxParsingError1.tsx`.
 
-### TS positive: 99.87% → 100.00%
+**4. TS2393 — Duplicate function implementation:**
+- Two class methods with the same name and both having bodies are now flagged.
+- Overload sigs (body-less) are still fine. Methods with type parameters skip the check (OXC accepts different generic specializations).
+- Empty-string computed keys (`[""]() {}`) now participate in dup detection (previously skipped by `if name == "" { continue }`).
+- Fixes `overloadsWithinClasses.ts`, `optionalParamArgsTest.ts`, `computedPropertyNames40_ES5.ts`, `computedPropertyNames40_ES6.ts`, `parserMemberFunctionDeclarationAmbiguities1.ts`.
 
-**Parser fixes (5 kessel-only FPs resolved):**
-1. **Decorator expressions in TS** — added `new`, optional chaining (`?.`), tagged templates, and dangling type-args to decorator suffix loop. Fixes `esDecorators-decoratorExpression.{1,3}.ts`.
-2. **Bare `var;`/`let;`/`const;` in TS namespaces** — suppress parser error inside `p.in_ts_namespace` (TS1123 is semantic). Fixes `NonInitializedExportInInternalModule.ts`.
-3. **Binary garbage handling** — non-IdStart code points (U+FFFD etc.) now produce `.Invalid` tokens instead of broken identifiers. "Unexpected token" suppressed for binary-garbage `.Invalid` tokens. Fixes `corrupted.ts`.
-4. **Close-paren error recovery** — infer missing `)` before `{` in if/while/with/do-while conditions (TS sloppy mode only, gated by `allow_ts_mode && !strict_mode`). Do-while also recovers when `;`/`}`/EOF follows. Fixes `missingCloseParenStatements.ts`.
+**5. TS2387/2388 — Mixed static/instance overload sigs:**
+- Pure-sig classes where sigs for the same name have mixed static/instance modifiers are no longer silently skipped by the pre-pass.
+- `elem.static` removed from the `has_modifier` set (static is tracked separately for mismatch detection).
+- Fixes `memberFunctionOverloadMixingStaticAndInstance.ts`.
 
-**Fixture skips (9 shared-with-OXC FPs):**
-- `constDeclarations-{invalidContexts,scopes,validContexts}` — §14.1.1 lexical decl in single-statement
-- `withStatementInternalComments` — @ts-ignore suppresses TS1101
-- `parser.asyncGenerators.{classMethods,functionDeclarations,functionExpressions,objectLiteralMethods}.es2018` — multi-file sub-unit error recovery
-- `parserStatementIsNotAMemberVariableDeclaration1` — return outside function
+### Misc negative: 92.66% → 93.01% (+1 fixture)
+- `kessel-ts2300-type-param-dup.ts` — now caught by TS2393/overload chain improvements.
 
-### TS negative: 94.80% → 96.23% (+24 fixtures)
+### Fixes attempted but reverted (caused positive regressions):
+- **TS2528 multiple default exports** — Enabled duplicate `export default` check in TS mode. Caused 20 positive regressions (OXC accepts multiple `export default` in TS). Reverted.
+- **TS17019/TS17020 `?` prefix/postfix** — Flagging `?` in type position broke `expressionWithJSDocTypeArguments.ts` and other JSDoc-in-TS fixtures. Only `!` checks kept.
+- **TS2300 duplicate type parameters** — OXC's parser doesn't flag `function A<X, X>(){}`. 6 positive regressions. Reverted.
 
-**Duplicate class member detection (`report_duplicate_class_member_errors`):**
-- Property + accessor same name → duplicate
-- Property + method (with body) same name → duplicate
-- get + get or set + set same name → duplicate
-- get + set → OK (complementary pair)
-- Duplicate constructor implementations (TS2392) in TS mode
-- Static / instance are separate namespaces
-- TS overload sigs (body-less) excluded; override methods excluded
-- Property + property: only dup when BOTH have initializers OR computed string keys
-- Computed string literal keys (`["foo"]`) participate in dup detection
-- **Bug fix**: `is_overload` defaulted to `true` for non-FE values — fields were misclassified as overload sigs. Fixed in both public and private dup checkers.
-
-**Overload chain improvements:**
-- Class fields (`kind=.Method` but val not FE) now break the overload chain in pre-pass and main pass. Fixes `incorrectClassOverloadChain.ts`.
-- Computed string literal keys now participate in overload chain tracking.
-
-**Numeric literal normalization:**
-- `class_element_prop_name` now uses `f64 value` for NumericLiteral (not raw text), so `0`, `0.0`, `0b0` all normalize to `"0"`. Catches `numericClassMembers1`, `duplicateIdentifierDifferentSpelling`.
-
-**Enum duplicate member detection:**
-- Duplicate enum member names are now flagged (TS2300). Catches `sourceMapValidationEnums.ts`.
-
-**`for await` in static block (TS18038):**
-- Previously the `!p.in_static_block` guard skipped error reporting. Now `for await` inside static blocks is always rejected. Catches `classStaticBlock23.ts`.
-
-**`await using` in static block (TS18054):**
-- Static blocks run synchronously; `await` is not available. Catches `awaitUsingDeclarations.14.ts`.
-
-**`class_is_abstract` flag leak fix:**
-- `p.class_is_abstract` was set to `true` for abstract classes but never restored by the caller. Subsequent non-abstract classes inherited the flag, suppressing TS1253. Fixed in 3 call sites. Catches `abstractPropertyNegative.ts`.
-
-**Excluded error code:**
-- TS1490 ("File appears to be binary") — lexer-level detection neither OXC nor kessel implements.
-
-## TS Negative Gap (63 remaining)
+## TS Negative Gap (54 remaining)
 
 | Category | Count | Notes |
 |---|---|---|
 | Scope-level TS2300 | ~20 | class+var, function+var, import merge — needs scope tracking |
-| Module/import/export | ~10 | TS2309, TS2440, TS2434, TS2882, TS5101 — module semantics |
-| Overload chain | ~5 | TS2393, TS2395, TS2391 — needs type-param awareness |
+| Module/import/export | ~10 | TS2309, TS2440, TS2434, TS2882 — module semantics |
+| Overload chain | ~3 | TS2395 (merged decl export mismatch), TS2391 (symbol-keyed) |
 | Type-system | ~5 | TS2322, TS2344, TS2339, TS2677 — needs type checking |
 | JSON/require | ~5 | TS1327, TS2339, TS2732 — needs JSON module support |
-| Reserved words in types | 1 | TS1213 — `public` as type in strict mode |
-| Regex validation | 1 | TS1517 — char class range order |
-| Misc singletons | ~16 | Each a unique semantic/type check |
+| Const enum | 1 | TS2474-2478 — const enum reference errors |
+| Regex | 1 | TS1517 — char class range order with surrogates |
+| Misc singletons | ~9 | TS1244 (infer), TS1338, TS1213, TS2481, TS2528, etc. |
 
 ### What to work on next
 
-All remaining 63 negatives require either:
-1. **Scope tracking** — building declaration maps at function/module scope to detect cross-declaration conflicts (TS2300 for class+var, function+var, import+var). This is the biggest category (~20 fixtures) and would need extending `check_ts_scope_conflicts` with Class+VarLike, Function+VarLike, Class+Function conflict rules. Attempted but caused positive regressions from TS declaration merging edge cases.
-2. **Module resolution semantics** — import/export merge checks (TS2309 `export =` conflicts, TS2440 import merge, TS2434 namespace augmentation). Kessel already has `report_ts2309_export_assignment` but it doesn't fire for `declare module` bodies (needs debugging).
-3. **Overload signature comparison** — method+method duplicate detection (TS2393) requires comparing type parameters, which is beyond simple name matching.
-4. **Type system checks** — TS2322, TS2344, TS2339, TS2677 are type-checking errors that belong in the checker pass, not the parser.
+**Easiest remaining wins (parser-level, no scope tracking):**
+1. **TS1338 — `infer` outside conditional extends** (2 fixtures) — needs a flag tracking conditional type nesting that survives parenthesized/tuple resets.
+2. **TS1473 — import declaration in non-module position** (1 fixture) — needs tracking whether we're at module top level.
+3. **TS1061/TS18056 — enum member initializer required** (1 fixture) — needs tracking previous enum member initializer type.
+
+**Medium difficulty:**
+4. **TS2309 — `export =` conflicts** (3 fixtures) — `report_ts2309_export_assignment` exists but may not fire for `declare module` bodies.
+5. **TS2451 — duplicate in block scope** (1 fixture) — `exportInterfaceClassAndValue.ts`.
+
+**Hard (requires scope tracking):**
+6. **TS2300 scope-level** (~20 fixtures) — class+var, function+var, import merge conflicts. Previously attempted, caused positive regressions from TS declaration merging edge cases.
 
 ## Commands
 
