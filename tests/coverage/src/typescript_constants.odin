@@ -404,7 +404,6 @@ TS_FORCE_POSITIVE_PATHS := [?]string{
 	"enumBasics3.ts",
 	"enumConstantMembers.ts",
 	"enumMergingErrors.ts",
-	"enumNoInitializerFollowsNonLiteralInitializer.ts",
 	"enumPropertyAccess.ts",
 	"enumTag.ts",
 	"enumWithComputedMember.ts",

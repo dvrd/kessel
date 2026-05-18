@@ -5489,6 +5489,44 @@ report_overload_flush :: proc(p: ^Parser, body: []ClassElement, start, end_excl:
 // `export class/function/var/default/*/{ }` in the same module.
 // Also catches duplicate `export =` when no regular exports exist.
 @(private="file")
+// ts_enum_init_is_constant — check if an enum member initializer is a
+// compile-time constant (numeric literal, string literal, unary +/-
+// on numeric, reference to same-enum member, or binary ops on constants).
+ts_enum_init_is_constant :: proc(init: ^Expression, member_names: ^map[string]bool) -> bool {
+	if init == nil { return false }
+	#partial switch v in init^ {
+	case ^NumericLiteral: return true
+	case ^StringLiteral: return true
+	case ^Identifier:
+		if v != nil && v.name in member_names^ { return true }
+		return false
+	case ^UnaryExpression:
+		if v != nil && (v.operator == .Minus || v.operator == .Plus || v.operator == .BitwiseNot) {
+			return ts_enum_init_is_constant(v.argument, member_names)
+		}
+	case ^BinaryExpression:
+		if v != nil {
+			#partial switch v.operator {
+			case .BitOr, .BitAnd, .BitXor, .ShiftLeft, .ShiftRight,
+			     .ShiftRightUnsigned, .Add, .Sub, .Mul, .Div, .Mod, .Pow:
+				return ts_enum_init_is_constant(v.left, member_names) &&
+				       ts_enum_init_is_constant(v.right, member_names)
+			}
+		}
+	case ^ParenthesizedExpression:
+		if v != nil { return ts_enum_init_is_constant(v.expression, member_names) }
+	case ^MemberExpression:
+		if v != nil && v.object != nil {
+			if id, is_id := v.object^.(^Identifier); is_id && id != nil {
+				return true
+			}
+		}
+	case ^TemplateLiteral:
+		if v != nil && len(v.expressions) == 0 { return true }
+	}
+	return false
+}
+
 report_ts2309_export_assignment :: proc(p: ^Parser, body: []^Statement) {
 	has_assign := false
 	has_regular := false
@@ -22008,6 +22046,38 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 				report_error_at(p, LexerLoc(loc), msg)
 			}
 			seen_names[name] = true
+		}
+	}
+
+	// TS1061 — enum member without initializer following a member with
+	// a non-literal (computed) initializer. In a non-ambient context,
+	// the auto-increment only works after literal values.
+	if !p.in_ambient && !p.source_is_dts && !is_const {
+		// Collect member names for self-reference detection.
+		member_names: map[string]bool
+		member_names.allocator = context.temp_allocator
+		for m in members {
+			if m.id == nil { continue }
+			n := class_element_prop_name(m.id)
+			if n != "" { member_names[n] = true }
+		}
+		prev_needs_init := false
+		for m in members {
+			if _, have := m.initializer.?; have {
+				init := m.initializer.(^Expression)
+				is_constant := ts_enum_init_is_constant(init, &member_names)
+				prev_needs_init = !is_constant
+			} else {
+				if prev_needs_init {
+					loc := u32(0)
+					if m.id != nil {
+						if id, ok := m.id^.(^Identifier); ok && id != nil { loc = id.loc.span.start }
+					}
+					report_error_at(p, LexerLoc(loc),
+						"Enum member must have initializer.")
+				}
+				prev_needs_init = false
+			}
 		}
 	}
 
