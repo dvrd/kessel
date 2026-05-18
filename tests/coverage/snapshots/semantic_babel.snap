@@ -8,7 +8,7 @@ Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/s
 babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js:4:10: Export 'encrypt' is not defined in the module
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js
-babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js:1:1: 'using' declaration is not allowed at the top level of a script
+babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js:1:7: 'using' declaration is not allowed at the top level of a script
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-async-function-body-inside-parameters-of-function/input.js
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-async-function-body-inside-parameters-of-function/input.js:1:37: 'await' expression is not allowed in formal parameters of an async function

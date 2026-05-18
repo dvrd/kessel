@@ -1,11 +1,7 @@
 semantic_misc Summary:
 AST Parsed     : 71/72 (98.61%)
 Positive Passed: 71/72 (98.61%)
-Negative Passed: 280/286 (97.90%)
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.js
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.js
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.js
-Expect Syntax Error: tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.js
+Negative Passed: 284/286 (99.30%)
 Expect Syntax Error: tests/coverage/misc/fail/jsx-in-js.js
 Expect Syntax Error: tests/coverage/misc/fail/oxc-10503.ts
 Expect to Parse: tests/coverage/misc/pass/oxc-13284.ts
@@ -34,6 +30,10 @@ tests/coverage/misc/fail/early_errors/013_hex_escape_too_short.js:3:14: Invalid 
 tests/coverage/misc/fail/early_errors/014_unicode_escape_too_short.js:3:14: Invalid \u escape: expected 4 hex digits
 tests/coverage/misc/fail/early_errors/015_unterminated_template.js:3:1: Expected template literal continuation
 tests/coverage/misc/fail/early_errors/016_digit_start_identifier.js:4:7: Expected binding pattern
+tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.cjs:2:1: 'export' is only valid in module code
+tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.cjs:2:1: 'import' is only valid in module code
+tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.cjs:2:1: Top-level 'await' is only valid in module code
+tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.cjs:2:29: 'import.meta' is only valid in module code
 tests/coverage/misc/fail/early_errors/module_context/005_await_in_module_non_async_function.js:3:12: await outside of async function
 tests/coverage/misc/fail/early_errors/strict_mode/001_reserved_implements.js:2:5: 'implements' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/002_reserved_interface.js:2:5: 'interface' is a reserved identifier in strict mode
@@ -288,6 +288,6 @@ tests/coverage/misc/fail/oxc-9497.js:2:10: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-1.js:1:4: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-2.js:1:5: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-3.js:3:1: Unexpected token after ?.
-tests/coverage/misc/fail/script-top-level-using.js:2:1: 'using' declaration is not allowed at the top level of a script
+tests/coverage/misc/fail/script-top-level-using.cjs:2:7: 'using' declaration is not allowed at the top level of a script
 tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs:4:17: 'for await' loops cannot be used inside a class static block.
 tests/coverage/misc/fail/switch-invalid-clause.js:2:3: Expected 'case' or 'default' in switch
