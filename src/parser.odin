@@ -7112,6 +7112,12 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 
 	eat(p)
 
+	// TS18054 — `await using` inside a class static block is invalid.
+	// Static blocks run synchronously and `await` is not available.
+	if kind == .AwaitUsing && p.in_static_block {
+		report_error(p, "'await using' statements cannot be used inside a class static block.")
+	}
+
 	// §14.3 — `using` / `await using` are not allowed at the top
 	// level of a Script (only inside blocks / functions / modules).
 	// Exceptions: `for (using x = ...)` is a for-loop init, not a
@@ -10185,7 +10191,10 @@ ts_conflicts :: proc(a, b: TSBindingKind) -> bool {
 	if (a == .ConstEnum && b == .Enum) || (a == .Enum && b == .ConstEnum) { return true }
 	// ImportType + ImportValue (same name): error per OXC/Babel.
 	if (a == .ImportType && b == .ImportValue) || (a == .ImportValue && b == .ImportType) { return true }
-	// Everything else: no known conflict.
+	// Everything else: no known conflict. Scope-level TS2300 for
+	// Class+Var, Function+Var, Class+Function varies by context and
+	// TS allows many combinations that JS forbids (declaration merging,
+	// namespace augmentation, etc.). Conservative: don't flag here.
 	return false
 }
 

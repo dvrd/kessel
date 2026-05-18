@@ -3,7 +3,7 @@ commit: f350b523
 parser_typescript Summary:
 AST Parsed     : 10728/10728 (100.00%)
 Positive Passed: 10728/10728 (100.00%)
-Negative Passed: 1602/1674 (95.70%)
+Negative Passed: 1603/1674 (95.76%)
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/abstractPropertyNegative.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/anyDeclare.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/compiler/asiAbstract.ts
@@ -69,7 +69,6 @@ Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/jsx/jsxPa
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclarationAmbiguities1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser553699.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.13.ts
-Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.14.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/conditional/inferTypes1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/literal/templateLiteralTypes1.ts
 Expect Syntax Error: tasks/coverage/typescript/tests/cases/conformance/types/localTypes/localTypes4.ts
@@ -1584,6 +1583,7 @@ typescript/tests/cases/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKey
 typescript/tests/cases/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKeyword2.ts::file1.ts:3:5: Keyword 'await' must not contain escaped characters
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.10.ts:6:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.11.ts:2:1: Using declarations cannot be exported directly
+typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.14.ts:3:21: 'await using' statements cannot be used inside a class static block.
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.16.ts:3:5: 'await using' declarations are not allowed in ambient contexts.
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.17.ts:4:9: 'await using' declaration is not allowed directly inside a switch case clause
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.4.ts:2:21: Cannot assign to this expression
