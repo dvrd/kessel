@@ -2366,11 +2366,12 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 // The error is reported but parsing continues (permissive recovery).
 check_import_export_position :: proc(p: ^Parser, is_import: bool) {
 	// Script-mode: import/export are Module-only syntax.
-	// Exception: TypeScript .cts files allow import/export syntax (TS
-	// transpiles them). CommonJS .cjs files do NOT — ESM syntax is
-	// invalid in CommonJS.
+	// Exception: TypeScript .cts/.cjs files allow import/export syntax
+	// when compiled under a TS context (TS transpiles them; Node.js
+	// handles the upgrade). `is_commonjs` is set by the harness for
+	// .cjs sub-files within TS compilation units.
 	if st, have := p.force_source_type.(SourceType); have && st == .Script {
-		if p.lang != .TS && p.lang != .TSX {
+		if p.lang != .TS && p.lang != .TSX && !p.is_node_ts_module && !p.is_commonjs {
 			msg := "'export' is only valid in module code"
 			if is_import { msg = "'import' is only valid in module code" }
 			report_error(p, msg)
@@ -7177,7 +7178,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// level of a Script (only inside blocks / functions / modules).
 	// Exceptions: `for (using x = ...)` is a for-loop init, not a
 	// top-level statement, so skip when in_for.
-	if !p.in_function && p.block_depth == 0 && !in_for && (kind == .Using || kind == .AwaitUsing) {
+	if !p.in_function && p.block_depth == 0 && !in_for && !p.is_commonjs && (kind == .Using || kind == .AwaitUsing) {
 		if st, have := p.force_source_type.(SourceType); have && st == .Script {
 			if kind == .AwaitUsing {
 				report_error(p, "'await using' declaration is not allowed at the top level of a script")
@@ -21013,7 +21014,6 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		}
 	}
 	expect_token(p, .RBrace)
-	report_duplicate_interface_member_errors(p, members[:])
 	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.span.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = lit; return r
 }
@@ -21857,7 +21857,6 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 		if cur_offset(p) == prev_member_off { break }
 	}
 	expect_token(p, .RBrace)
-	report_duplicate_interface_member_errors(p, members[:])
 	decl := new_node(p, TSInterfaceDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters
 	decl.extends = extends_list
 	decl.body = TSInterfaceBody{loc = body_start, body = members}; decl.body.loc.span.end = prev_end_offset(p)

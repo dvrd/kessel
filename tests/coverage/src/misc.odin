@@ -55,12 +55,22 @@ load_misc :: proc(project_root: string, allocator: runtime.Allocator) -> []Fixtu
 		lang := resolve_misc_lang(f.abs)
 		st   := resolve_misc_source_type(f.abs)
 
+		// For .cjs FAIL fixtures, explicitly set is_commonjs = false so
+		// the parser enforces script-mode restrictions (no ESM syntax).
+		// PASS fixtures keep is_commonjs = nil so CJS allowances (e.g.
+		// top-level return, new.target) are honoured via path detection.
+		cjs: Maybe(bool)
+		if strings.has_suffix(f.abs, ".cjs") && should_fail {
+			cjs = false
+		}
+
 		append(&out, Fixture{
 			path        = f.abs,
 			rel         = f.rel,
 			code        = f.code,
 			source_type = st,
 			lang        = lang,
+			is_commonjs = cjs,
 			should_fail = should_fail,
 			suite       = .Misc,
 		})
