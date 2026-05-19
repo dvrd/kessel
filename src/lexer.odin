@@ -3078,7 +3078,7 @@ init_keyword_hash :: proc "contextless" () {
 	h_t4 := (u32('t') - u32('a')) * 11 + 2;  KEYWORD_HASH_TABLE[h_t4] = .Invalid
 }
 
-lookup_keyword_by_letter :: #force_inline proc(src: []u8, start: u32, end: u32) -> TokenType {
+lookup_keyword_by_letter :: proc(src: []u8, start: u32, end: u32) -> TokenType {
 	length := end - start
 	if length < 2 || length > 10 { return .Identifier }
 

@@ -44,8 +44,28 @@ advance_token :: #force_inline proc(p: ^Parser) {
 					p.cur_type = tt
 					return
 				}
-				// Identifier
+				// Identifier — inline fast path for ≤12 byte ASCII names.
+				// Covers ~95% of identifiers without calling lex_identifier.
 				if is_id_start_fast(c) {
+					id_off := off + 1  // past first byte (already validated as IdStart)
+					id_end := min(id_off + 11, src_len)  // scan up to 12 total bytes
+					id_ok := true
+					for id_off < id_end {
+						id_class := ID_CONT_TABLE[src[id_off]]
+						if id_class == 0 { break }       // end of identifier
+						if id_class >= 2 { id_ok = false; break }  // backslash or non-ASCII → slow path
+						id_off += 1
+					}
+					// If identifier ended cleanly within 12 bytes and first byte is ASCII
+					if id_ok && c < 0x80 && (id_off >= src_len || ID_CONT_TABLE[src[id_off]] == 0) {
+						a.offset = id_off
+						kw := lookup_keyword_by_letter(src, start, u32(id_off))
+						a.cur = FastToken{start = start, end = u32(id_off), kind = kw, flags = flags}
+						a.lit_write_idx ~= 1
+						p.cur_type = kw
+						return
+					}
+					// Slow path: long identifier, unicode, or escape
 					a.offset = off
 					a.cur = lex_identifier(a, start, flags)
 					a.lit_write_idx ~= 1
