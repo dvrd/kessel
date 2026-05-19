@@ -4,18 +4,26 @@
 
 Build: clean. All tests pass (291 unit + 24 coverage). All parser conformance suites at 100% positive and 100% negative.
 
-### Performance (Apple Silicon, P50 over 30 iterations)
+### Performance (Apple Silicon, P50 over 20 iterations)
 
 | File | KB | Kessel (μs) | OXC (μs) | Ratio |
 |---|---|---|---|---|
-| typescript.js | 8808 | 51,887 | 42,738 | **1.21x** |
-| antd.js | 4059 | 27,329 | 23,306 | 1.17x |
-| d3.js | 573 | 6,013 | 5,428 | 1.11x |
-| jquery.js | 278 | 1,798 | 1,688 | 1.07x |
-| lodash.js | 531 | 1,678 | 1,418 | 1.18x |
-| react.dev.js | 107 | 487 | 390 | **1.25x** |
+| typescript.js | 8808 | 45,252 | 36,864 | **1.22x** |
+| antd.js | 4059 | 22,993 | 20,128 | 1.14x |
+| d3.js | 573 | 5,088 | 4,676 | 1.08x |
+| jquery.js | 278 | 1,531 | 1,453 | 1.05x |
+| lodash.js | 531 | 1,361 | 1,221 | 1.11x |
+| react.dev.js | 107 | 403 | 330 | 1.22x |
 
-**Geo-mean: 1.16x (kessel is 16% slower). Down from 1.20x before optimization work.**
+**Geo-mean: 1.14x (kessel is 14% slower). Down from 1.16x → 1.14x after round 4.**
+
+Extended benchmark (9 files, geo-mean: 1.18x):
+
+| File | Ratio |
+|---|---|
+| three.module.js | 1.12x |
+| vue.global.js | 1.36x |
+| prettier.js | 1.38x |
 
 ### Time Breakdown (typescript.js, 9 MB)
 
@@ -39,7 +47,7 @@ Build: clean. All tests pass (291 unit + 24 coverage). All parser conformance su
 
 ---
 
-## What Was Done (3 rounds of optimization)
+## What Was Done (4 rounds of optimization)
 
 ### Round 1: Token Elimination + Fused Allocations
 
@@ -75,7 +83,16 @@ New infrastructure:
 
 ---
 
-## Why Kessel Is Still 16% Slower
+### Round 4: Parser Dispatch Tables + Dead Code Removal
+
+- **LHS continuation table.** Added `is_lhs_continuation_table[TokenType]bool` — a 256-entry fast-exit table for `parse_lhs_tail`. ~60% of expressions are bare identifiers with no member/call continuation. The table replaces 7+ `#partial switch` comparisons with a single table load on the common path. Saves ~300-400μs on typescript.js.
+- **Stripped `p.lexer != nil` guard from `advance_token`.** The parser is always initialized with a lexer. Removing this dead branch eliminates one compare + predicted branch from every inlined `advance_token` site (~478 call sites × 1.15M tokens). Marginal per-token savings but cumulative.
+
+Combined improvement: ~2.5% geo-mean across 6-file canonical suite (1.163x → 1.135x).
+
+---
+
+## Why Kessel Is Still 14% Slower
 
 ### Gap Breakdown (typescript.js)
 
