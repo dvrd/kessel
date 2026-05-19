@@ -7,11 +7,10 @@ Span :: struct {
 	end:   u32,
 }
 
-// Source location with line/column (16 bytes, down from 32)
+// Source location — byte offsets only (8 bytes).
+// Line/column are computed lazily by report_error via offset_to_line_col.
 Loc :: struct {
-	span:   Span,
-	line:   u32,
-	column: u32,
+	span: Span,
 }
 
 // ============================================================================
