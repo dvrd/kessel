@@ -22385,10 +22385,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 
 // Fast accessors - read directly from FastToken/cur_tok, no Token struct copy
 cur_offset :: #force_inline proc(p: ^Parser) -> u32 {
-	if p.lexer != nil {
-		return p.lexer.cur.start
-	}
-	return u32(p.cur_tok.loc)
+	return p.lexer.cur.start
 }
 
 // prev_end_offset returns the end offset of the LAST consumed token. Use this
@@ -22405,62 +22402,44 @@ prev_end_offset :: #force_inline proc(p: ^Parser) -> u32 {
 }
 
 cur_value :: #force_inline proc(p: ^Parser) -> string {
-	if p.lexer != nil {
-		ft := p.lexer.cur
-		// Escaped identifier - prefer the cooked (decoded) name published
-		// by lex_identifier_escaped via cur_lit_value. ECMA-262 §12.7.2
-		// requires the identifier's logical name to be the decoded text,
-		// not the \uXXXX source. Guarded by flag so the non-escape hot
-		// path stays a single source slice.
-		if (ft.kind == .Identifier || ft.kind == .PrivateIdentifier) && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
-			if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type == .Identifier {
-				if s, ok := p.lexer.cur_lit_value.(string); ok { return s }
-			}
+	ft := p.lexer.cur
+	if (ft.kind == .Identifier || ft.kind == .PrivateIdentifier) && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
+		if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type == .Identifier {
+			if s, ok := p.lexer.cur_lit_value.(string); ok { return s }
 		}
-		if ft.start < ft.end { return p.lexer.source[ft.start:ft.end] }
-		return ""
 	}
-	return p.cur_tok.value
+	if ft.start < ft.end { return p.lexer.source[ft.start:ft.end] }
+	return ""
 }
 
 cur_loc :: #force_inline proc(p: ^Parser) -> Loc {
-	if p.lexer != nil {
-		ft := p.lexer.cur
-		return Loc{
-			span = Span{start = ft.start, end = ft.end},
-		}
+	ft := p.lexer.cur
+	return Loc{
+		span = Span{start = ft.start, end = ft.end},
 	}
-	return loc_from_token(&p.cur_tok)
 }
 
 cur_raw_end :: #force_inline proc(p: ^Parser) -> u32 {
-	if p.lexer != nil { return p.lexer.cur.end }
-	return p.cur_tok.raw_end
+	return p.lexer.cur.end
 }
 
 cur_has_newline :: #force_inline proc(p: ^Parser) -> bool {
-	if p.lexer != nil { return (p.lexer.cur.flags & FLAG_NEW_LINE) != 0 }
-	return p.cur_tok.had_line_terminator
+	return (p.lexer.cur.flags & FLAG_NEW_LINE) != 0
 }
 
 cur_has_escape :: #force_inline proc(p: ^Parser) -> bool {
-	if p.lexer != nil { return (p.lexer.cur.flags & FLAG_HAS_ESCAPE) != 0 }
-	return p.cur_tok.has_escape
+	return (p.lexer.cur.flags & FLAG_HAS_ESCAPE) != 0
 }
 
 cur_literal :: #force_inline proc(p: ^Parser) -> LiteralValue {
-	if p.lexer != nil {
-		ft := p.lexer.cur
-		if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type != .None {
-			return p.lexer.cur_lit_value
-		}
-		// String fallback: strip quotes from source when no cooked literal.
-		if ft.kind == .String && ft.end - ft.start >= 2 {
-			return LiteralValue(p.lexer.source[ft.start+1:ft.end-1])
-		}
-		return nil
+	ft := p.lexer.cur
+	if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type != .None {
+		return p.lexer.cur_lit_value
 	}
-	return p.cur_tok.literal
+	if ft.kind == .String && ft.end - ft.start >= 2 {
+		return LiteralValue(p.lexer.source[ft.start+1:ft.end-1])
+	}
+	return nil
 }
 
 // TokenSnap — lightweight snapshot of the current token for callers that
