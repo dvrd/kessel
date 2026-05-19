@@ -32,6 +32,32 @@ init_char_class_table :: proc "contextless" () {
     char_table_initialized = true
 }
 
+// Combined identifier-continuation table for the scalar prefix scan.
+// 0 = not an ID continuation (whitespace, operators, etc.)
+// 1 = ASCII ID continuation (a-z, A-Z, 0-9, _, $)
+// 2 = high byte (>= 0x80) — ID continuation but needs unicode validation
+// 3 = backslash — escape sequence, needs slow path
+// Replaces 3 separate checks (backslash, CHAR_CLASS_TABLE, high-byte)
+// with one table load + one branch per byte in simd_scan_id_cont.
+ID_CONT_TABLE: [256]u8
+
+@(init)
+init_id_cont_table :: proc "contextless" () {
+	for i in 0..<256 {
+		c := u8(i)
+		if c == '\\' {
+			ID_CONT_TABLE[i] = 3  // backslash
+		} else if c >= 0x80 {
+			ID_CONT_TABLE[i] = 2  // high byte — possible ID cont, needs validation
+		} else if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		          (c >= '0' && c <= '9') || c == '_' || c == '$' {
+			ID_CONT_TABLE[i] = 1  // ASCII ID continuation
+		} else {
+			ID_CONT_TABLE[i] = 0  // not ID
+		}
+	}
+}
+
 is_id_start_fast :: #force_inline proc(c: u8) -> bool {
     return CHAR_CLASS_TABLE[c] == u8(CharClass.IdStart)
 }

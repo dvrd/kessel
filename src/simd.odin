@@ -106,15 +106,14 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 	// caller of this function) at ~5.7 ms wall time, vs OXC's equivalent at
 	// ~2.6 ms. After this change: monaco -4.3 %, cesium -5.4 %.
 	when ODIN_ARCH == .arm64 {
-		prefix_end := min(off + 8, src_len)
+		prefix_end := min(off + 12, src_len)
 		for off < prefix_end {
-			c := src[off]
-			if c == '\\' { return off, true, has_non_ascii }
-			class := CHAR_CLASS_TABLE[c]
-			if class != u8(CharClass.IdStart) && class != u8(CharClass.Digit) {
-				return off, false, has_non_ascii
+			id_class := ID_CONT_TABLE[src[off]]
+			if id_class == 0 { return off, false, has_non_ascii }
+			if id_class >= 2 {
+				if id_class == 3 { return off, true, has_non_ascii }  // backslash
+				has_non_ascii = true  // high byte (>= 0x80)
 			}
-			if c >= 0x80 { has_non_ascii = true }
 			off += 1
 		}
 
@@ -170,11 +169,12 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 	// byte >= 0x80 is `IdStart`, so the scan terminates only on `\\`,
 	// ASCII whitespace/operators, or end-of-source.
 	for off < src_len {
-		c := src[off]
-		if c == '\\' { return off, true, has_non_ascii }
-		class := CHAR_CLASS_TABLE[c]
-		if class != u8(CharClass.IdStart) && class != u8(CharClass.Digit) { return off, false, has_non_ascii }
-		if c >= 0x80 { has_non_ascii = true }
+		id_class := ID_CONT_TABLE[src[off]]
+		if id_class == 0 { return off, false, has_non_ascii }
+		if id_class >= 2 {
+			if id_class == 3 { return off, true, has_non_ascii }  // backslash
+			has_non_ascii = true
+		}
 		off += 1
 	}
 	return src_len, false, has_non_ascii
