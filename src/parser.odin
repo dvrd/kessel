@@ -9,33 +9,58 @@ import "core:strings"
 // ============================================================================
 
 // Advance lexer: shift nxt → cur, lex new nxt. Writes minimal Token fields.
-// Slow path: lex the next token directly into cur. Called when no
-// lookahead was requested since the last advance (~90% of tokens).
-// NOT force_inline — keeps the call out of every eat() site.
-advance_token_lex :: proc(p: ^Parser) {
-	a := p.lexer
-	p.prev_token_end = a.cur.end
-	a.cur = lex_token(a)
-	a.lit_write_idx ~= 1  // toggle so cur_literal reads the slot just written
-	p.cur_type = a.cur.kind
-}
-
 // Advance: consume current token, produce the next one.
-// If nxt was pre-lexed by a peek, copy it (cheap). Otherwise lex
-// directly into cur (no 16-byte copy, but needs a function call).
+// Hot path inlined: whitespace skip + single-char + identifier dispatch.
+// Cold tokens (strings, numbers, operators) fall through to lex_token.
 advance_token :: #force_inline proc(p: ^Parser) {
 	a := p.lexer
+	p.prev_token_end = a.cur.end
 	if a.nxt_valid {
-		// Fast path: nxt was pre-lexed by a peek. Copy + invalidate.
-		p.prev_token_end = a.cur.end
 		a.cur = a.nxt
 		a.nxt_valid = false
-		a.lit_write_idx ~= 1  // cur's literal is now at [write_idx ^ 1]
-		p.cur_type = a.cur.kind
 	} else {
-		// Slow path: no lookahead was used — lex directly.
-		advance_token_lex(p)
+		// --- Inline hot path: ~70% of tokens (single-char + identifier) ---
+		src := a.source_bytes
+		src_len := len(src)
+		off := a.offset
+		// WS fast path: skip 0-1 spaces
+		if off + 1 < src_len {
+			off += int(src[off] == ' ')
+		}
+		if off < src_len && FAST_TOKEN_START_TABLE[src[off]] {
+			// Annex B guard (script mode only)
+			annex_b := !a.is_module_mode && (src[off] == '<' || src[off] == '-')
+			if !annex_b {
+				flags: u8 = FLAG_NEW_LINE if a.had_line_terminator else 0
+				a.had_line_terminator = false
+				c := src[off]
+				start := u32(off)
+				// Single-char token
+				tt := single_char_tokens[c]
+				if tt != .Invalid && a.template_depth == 0 {
+					a.offset = off + 1
+					a.cur = FastToken{start = start, end = u32(off + 1), kind = tt, flags = flags}
+					a.lit_write_idx ~= 1
+					p.cur_type = tt
+					return
+				}
+				// Identifier
+				if is_id_start_fast(c) {
+					a.offset = off
+					a.cur = lex_identifier(a, start, flags)
+					a.lit_write_idx ~= 1
+					p.cur_type = a.cur.kind
+					return
+				}
+				// Fall through to full lex_token for operators/strings/numbers
+				a.offset = off
+			}
+		}
+		// Cold path: full lexer dispatch
+		a.cur = lex_token(a)
 	}
+	a.lit_write_idx ~= 1
+	p.cur_type = a.cur.kind
 }
 
 // Ensure nxt is populated. Called by all lookahead / peek sites.

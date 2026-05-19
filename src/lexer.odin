@@ -943,7 +943,7 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 // Identifier — tight scalar loop + per-letter keyword dispatch
 // ============================================================================
 
-lex_identifier :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+lex_identifier :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
 	// Step past the first character. ASCII starts are 1-byte; multi-byte
