@@ -174,7 +174,7 @@ typescript/tests/cases/compiler/deleteOperatorInStrictMode.ts:3:1: Deleting an u
 typescript/tests/cases/compiler/destructionAssignmentError.ts:6:10: Unexpected token '='
 typescript/tests/cases/compiler/destructuringControlFlowNoCrash.ts:11:22: Expected ), got :
 typescript/tests/cases/compiler/disallowedBlockScopedInPresenceOfParseErrors1.ts:6:5: Lexical declaration cannot appear in a single-statement context
-typescript/tests/cases/compiler/dontShowCompilerGeneratedMembers.ts:3:6: Type parameter name cannot be 'number'
+typescript/tests/cases/compiler/dontShowCompilerGeneratedMembers.ts:4:1: Expected >, got }
 typescript/tests/cases/compiler/dottedModuleName.ts:3:29: Expected {, got =>
 typescript/tests/cases/compiler/downlevelLetConst1.ts:1:6: Expected binding pattern
 typescript/tests/cases/compiler/downlevelLetConst11.ts:2:1: 'let' declaration requires a binding name
@@ -225,7 +225,7 @@ typescript/tests/cases/compiler/es6ImportDefaultBindingFollowedWithNamespaceBind
 typescript/tests/cases/compiler/es6ImportDefaultBindingWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportNameSpaceImportWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportNamedImportIdentifiersParsing.ts:1:10: 'yield' is reserved as a binding name in strict mode
-typescript/tests/cases/compiler/es6ImportNamedImportParsingError.ts::es6ImportNamedImportParsingError_1.ts:1:12: 'import' is a reserved word and cannot be used as an import binding
+typescript/tests/cases/compiler/es6ImportNamedImportParsingError.ts::es6ImportNamedImportParsingError_1.ts:2:24: Expected import specifier after comma
 typescript/tests/cases/compiler/es6ImportNamedImportWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportParseErrors.ts:1:8: Expected import source or specifier
 typescript/tests/cases/compiler/es6ImportWithoutFromClauseWithExport.ts::client.ts:1:24: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.

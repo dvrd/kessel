@@ -532,8 +532,8 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/367/input.js:1:7:
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/368/input.js:1:1: 'enum' is a reserved word
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/369/input.js:1:1: 'enum' is a reserved word
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/37/input.js:1:14: Member expression cannot be used as a binding target
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/370/input.js:1:12: Identifier expected. 'enum' is a reserved word that cannot be used here.
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/371/input.js:1:12: Identifier expected. 'enum' is a reserved word that cannot be used here.
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/370/input.js:1:12: Identifier expected. '=' is a reserved word that cannot be used here.
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/371/input.js:1:12: Identifier expected. '=' is a reserved word that cannot be used here.
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/372/input.js:1:14: Reserved word 'enum' is not a valid binding identifier
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/373/input.js:1:14: Reserved word 'enum' is not a valid binding identifier
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/374/input.js:1:21: Reserved word 'enum' is not a valid binding identifier

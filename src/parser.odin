@@ -1300,7 +1300,7 @@ await_using_starts_decl :: proc(p: ^Parser) -> bool {
 	advance_token(p) // consume `await`  → cur=`using`
 	advance_token(p) // consume `using`  → cur=third token
 	third_type := p.cur_type
-	third_lt := p.cur_tok.had_line_terminator
+	third_lt := cur_has_newline(p)
 	lexer_restore(p, snap)
 	// A LineTerminator between `using` and the binding breaks the
 	// restricted production.
@@ -1446,7 +1446,7 @@ get_current :: #force_inline proc(p: ^Parser) -> Token {
 // handles them by breaking on `had_line_terminator` before consuming call /
 // member-access / tagged-template continuations.
 can_insert_semicolon :: #force_inline proc(p: ^Parser) -> bool {
-	if p.cur_tok.had_line_terminator {
+	if cur_has_newline(p) {
 		return true
 	}
 	if p.cur_type == .RBrace || p.cur_type == .EOF {
@@ -1496,7 +1496,7 @@ expect_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 // Treats any line terminator as ASI, regardless of the next token.
 match_semicolon_or_asi_export :: #force_inline proc(p: ^Parser) -> bool {
 	if p.cur_type == .Semi { advance_token(p); return true }
-	if p.cur_tok.had_line_terminator { return true }
+	if cur_has_newline(p) { return true }
 	if p.cur_type == .RBrace || p.cur_type == .EOF { return true }
 	return false
 }
@@ -1751,7 +1751,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			// with no escape sequences. `'use\x20strict'` decodes to
 			// "use strict" but is NOT a valid directive because the raw
 			// source contains an escape sequence.
-			current := get_current(p)
+			current := snap_current(p)
 			has_escape := strings.contains(current.value, "\\") 
 			if current.literal == "use strict" && !has_escape {
 				p.strict_mode = true
@@ -1772,13 +1772,13 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 				// Also emit as ExpressionStatement in body (ESTree compat). Mark
 				// the ExpressionStatement as a directive prologue via its `directive`
 				// field so the emitter writes ESTree's `directive: "use strict"`.
-				str_lit := new_node(p, StringLiteral)
+				str_lit, str_lit_e := new_expr(p, StringLiteral)
 				str_lit.loc = loc_from_token(&current)
 				str_lit.value = current.literal.(string) or_else ""
 				str_lit.raw = current.value
 				expr_stmt, expr_stmt_s := new_stmt(p, ExpressionStatement)
 				expr_stmt.loc = directive.loc
-				expr_stmt.expression = expression_from(p, str_lit)
+				expr_stmt.expression = str_lit_e
 				expr_stmt.directive = "use strict"
 				bump_append(&program.body, expr_stmt_s)
 				eat(p)
@@ -2049,7 +2049,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// FunctionDeclaration statement via ASI.
 		// Grammar notation: terminal symbol `async` must NOT have Unicode
 		// escapes. `\u0061sync function...` is a SyntaxError.
-		if p.cur_tok.has_escape {
+		if cur_has_escape(p) {
 			report_error(p, "'async' keyword must not contain Unicode escape sequences")
 			return parse_expression_or_labeled_statement(p)
 		}
@@ -2194,7 +2194,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// §Grammar Notation: terminal symbols must not have Unicode escapes.
 		// `\u0061sync function*` tries to write `async function*` with an
 		// escaped keyword - this is a SyntaxError.
-		if p.cur_tok.has_escape && p.cur_tok.value == "async" {
+		if cur_has_escape(p) && p.cur_tok.value == "async" {
 			// Peek ahead: if this looks like an async function / arrow, error.
 			nxt := peek_dispatch(p)
 			if (nxt.type == .Function && !nxt.had_line_terminator) ||
@@ -2206,7 +2206,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// TS contextual keywords: `type`, `interface`, `enum`, `declare` lex as Identifier
 		// so that `var type = 1` and similar JS code parses correctly.
 		// We check string value here at the statement level.
-		val := p.cur_tok.value
+		val := cur_value(p)
 		if val == "declare" && allow_ts_mode(p) {
 			// Only treat as a declare declaration if the next token can start
 			// a declaration AND is on the same line. A newline after `declare`
@@ -2452,10 +2452,10 @@ parse_empty_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p)
 
-	empty := new_node(p, EmptyStatement)
+	empty, empty_s := new_stmt(p, EmptyStatement)
 	empty.loc = start
 	empty.loc.span.end = prev_end_offset(p)
-	return statement_from(p, empty)
+	return empty_s
 }
 
 parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
@@ -2650,7 +2650,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	// even after a line terminator. Re-lexing `x\n/=-1` would turn the
 	// AssignDiv into an unterminated regex (test262
 	// language/expressions/compound-assignment/div-whitespace.js).
-	if p.cur_type == .Div && p.cur_tok.had_line_terminator {
+	if p.cur_type == .Div && cur_has_newline(p) {
 		if p.lexer != nil {
 			relex_as_regex(p.lexer)
 			ft := p.lexer.cur
@@ -2784,7 +2784,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	report_statement_only_position(p, consequent, !p.strict_mode)
 
-	if_ := new_node(p, IfStatement)
+	if_, if__s := new_stmt(p, IfStatement)
 	if_.loc = start
 	if_.test = test
 	if_.consequent = consequent
@@ -2808,7 +2808,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	// unknown-token recovery instead.
 
 	if_.loc.span.end = prev_end_offset(p)
-	return statement_from(p, if_)
+	return if__s
 }
 
 parse_while_statement :: proc(p: ^Parser) -> ^Statement {
@@ -2839,13 +2839,13 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	report_statement_only_position(p, body, false)
 
-	while_ := new_node(p, WhileStatement)
+	while_, while__s := new_stmt(p, WhileStatement)
 	while_.loc = start
 	while_.test = test
 	while_.body = body
 	while_.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, while_)
+	return while__s
 }
 
 parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
@@ -2889,13 +2889,13 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 
 	match_token(p, .Semi) // Optional semicolon
 
-	do_ := new_node(p, DoWhileStatement)
+	do_, do__s := new_stmt(p, DoWhileStatement)
 	do_.loc = start
 	do_.body = body
 	do_.test = test
 	do_.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, do_)
+	return do__s
 }
 
 parse_for_statement :: proc(p: ^Parser) -> ^Statement {
@@ -3091,11 +3091,11 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			lexer_restore(p, snap)
 		}
 		if is_token(p, .Await) && !p.in_async && nxt_is_of {
-			cur := get_current(p)
-			id := new_node(p, Identifier)
+			cur := snap_current(p)
+			id, id_e := new_expr(p, Identifier)
 			id.loc = loc_from_token(&cur); id.name = cur.value
 			eat(p)
-			left_expr = expression_from(p, id)
+			left_expr = id_e
 		} else {
 			// Parse as full expression (including comma) but stop at 'in'/'of'.
 			// The no_in flag prevents 'in' from being consumed as binary operator.
@@ -3108,7 +3108,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// Escaped `of` keyword: `o\u0066` → .Identifier with cooked value
 	// "of" and has_escape=true. OXC rejects as "Keywords cannot contain
 	// escape characters".
-	if p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "of" {
+	if p.cur_type == .Identifier && cur_has_escape(p) && p.cur_tok.value == "of" {
 		report_error(p, "Keywords cannot contain escape characters")
 	}
 	// Now check if this is for-in, for-of, or regular for
@@ -3398,7 +3398,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 
 		if is_in {
 			// for-in - use separate fields for declaration vs expression
-			for_in := new_node(p, ForInStatement)
+			for_in, for_in_s := new_stmt(p, ForInStatement)
 			for_in.loc = start
 			if left_decl != nil {
 				for_in.left_decl = left_decl
@@ -3408,10 +3408,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for_in.right = right
 			for_in.body = body
 			for_in.loc.span.end = prev_end_offset(p)
-			return statement_from(p, for_in)
+			return for_in_s
 		} else {
 			// for-of or for-await-of - use separate fields
-			for_of := new_node(p, ForOfStatement)
+			for_of, for_of_s := new_stmt(p, ForOfStatement)
 			for_of.loc = start
 			if left_decl != nil {
 				for_of.left_decl = left_decl
@@ -3422,7 +3422,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for_of.body = body
 			for_of.await = await
 			for_of.loc.span.end = prev_end_offset(p)
-			return statement_from(p, for_of)
+			return for_of_s
 		}
 	}
 
@@ -3490,7 +3490,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "'await' can only be used in conjunction with 'for...of' statements")
 	}
 
-	for_ := new_node(p, ForStatement)
+	for_, for__s := new_stmt(p, ForStatement)
 	for_.loc = start
 	for_.init_decl = init_decl
 	for_.init_expr = init_expr
@@ -3499,7 +3499,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	for_.body = body
 	for_.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, for_)
+	return for__s
 }
 
 parse_return_statement :: proc(p: ^Parser) -> ^Statement {
@@ -3530,18 +3530,18 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	// LineTerminator triggers ASI - the argument belongs to the NEXT
 	// statement, not to this return. Check had_line_terminator on the
 	// current token BEFORE deciding whether to parse an argument.
-	if !is_token(p, .Semi) && !is_token(p, .RBrace) && !is_token(p, .EOF) && !p.cur_tok.had_line_terminator {
+	if !is_token(p, .Semi) && !is_token(p, .RBrace) && !is_token(p, .EOF) && !cur_has_newline(p) {
 		argument = parse_expression(p)
 	}
 
 	match_semicolon_or_asi(p)
 
-	ret := new_node(p, ReturnStatement)
+	ret, ret_s := new_stmt(p, ReturnStatement)
 	ret.loc = start
 	ret.argument = argument
 	ret.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, ret)
+	return ret_s
 }
 
 // Linear scan of the in-function slice of p.label_stack. The stack is
@@ -3608,7 +3608,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	label: Maybe(LabelIdentifier)
 	label_loc: LexerLoc
 	// Label only if on same line (no LineTerminator between break and identifier)
-	if is_token(p, .Identifier) && !p.cur_tok.had_line_terminator {
+	if is_token(p, .Identifier) && !cur_has_newline(p) {
 		// LabelIdentifier is an Identifier position - escaped ReservedWord
 		// (e.g. `break \u0069f;`) is a Syntax Error (§12.7.2).
 		report_escaped_reserved_word(p)
@@ -3645,12 +3645,12 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	// §14.9 - BreakStatement requires a `;` (or ASI).
 	expect_semicolon_or_asi(p)
 
-	break_ := new_node(p, BreakStatement)
+	break_, break__s := new_stmt(p, BreakStatement)
 	break_.loc = start
 	break_.label = label
 	break_.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, break_)
+	return break__s
 }
 
 parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
@@ -3666,7 +3666,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	label: Maybe(LabelIdentifier)
 	label_loc: LexerLoc
 	// Label only if on same line (no LineTerminator between continue and identifier)
-	if is_token(p, .Identifier) && !p.cur_tok.had_line_terminator {
+	if is_token(p, .Identifier) && !cur_has_newline(p) {
 		// LabelIdentifier is an Identifier position - escaped ReservedWord
 		// (e.g. `continue \u0069f;`) is a Syntax Error (§12.7.2).
 		report_escaped_reserved_word(p)
@@ -3703,12 +3703,12 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	// §14.8 - ContinueStatement requires a `;` (or ASI).
 	expect_semicolon_or_asi(p)
 
-	cont := new_node(p, ContinueStatement)
+	cont, cont_s := new_stmt(p, ContinueStatement)
 	cont.loc = start
 	cont.label = label
 	cont.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, cont)
+	return cont_s
 }
 
 parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
@@ -3867,7 +3867,7 @@ parse_try_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	try_ := new_node(p, TryStatement)
+	try_, try__s := new_stmt(p, TryStatement)
 	try_.loc = start
 	try_.block = block_ptr^
 
@@ -3895,7 +3895,7 @@ parse_try_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	try_.loc.span.end = prev_end_offset(p)
-	return statement_from(p, try_)
+	return try__s
 }
 
 parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
@@ -3964,7 +3964,7 @@ parse_throw_statement :: proc(p: ^Parser) -> ^Statement {
 	// ECMA-262 §14.14 Restricted Production - no LineTerminator between
 	// `throw` and the argument expression. ASI does NOT apply to throw;
 	// a bare `throw` with a newline before the argument is a SyntaxError.
-	if p.cur_tok.had_line_terminator {
+	if cur_has_newline(p) {
 		report_error(p, "Illegal newline after 'throw'")
 	}
 
@@ -3976,12 +3976,12 @@ parse_throw_statement :: proc(p: ^Parser) -> ^Statement {
 
 	match_semicolon_or_asi(p)
 
-	throw_ := new_node(p, ThrowStatement)
+	throw_, throw__s := new_stmt(p, ThrowStatement)
 	throw_.loc = start
 	throw_.argument = argument
 	throw_.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, throw_)
+	return throw__s
 }
 
 parse_debugger_statement :: proc(p: ^Parser) -> ^Statement {
@@ -3990,11 +3990,11 @@ parse_debugger_statement :: proc(p: ^Parser) -> ^Statement {
 
 	match_semicolon_or_asi(p)
 
-	debugger := new_node(p, DebuggerStatement)
+	debugger, debugger_s := new_stmt(p, DebuggerStatement)
 	debugger.loc = start
 	debugger.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, debugger)
+	return debugger_s
 }
 
 parse_with_statement :: proc(p: ^Parser) -> ^Statement {
@@ -4040,13 +4040,13 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	// body cannot be a Declaration form per the grammar.
 	report_statement_only_position(p, body, false)
 
-	with_ := new_node(p, WithStatement)
+	with_, with__s := new_stmt(p, WithStatement)
 	with_.loc = start
 	with_.object = object
 	with_.body = body
 	with_.loc.span.end = prev_end_offset(p)
 
-	return statement_from(p, with_)
+	return with__s
 }
 
 // ============================================================================
@@ -4079,7 +4079,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	has_name := is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type)
 	if !is_expr || has_name {
 		if has_name {
-			current := get_current(p)
+			current := snap_current(p)
 			id = BindingIdentifier{
 				loc  = loc_from_token(&current),
 				name = current.value,
@@ -4307,7 +4307,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			eat(p)
 		} else if !is_token(p, .LBrace) &&
 		          (is_token(p, .RBrace) || is_token(p, .EOF) ||
-		           p.cur_tok.had_line_terminator) {
+		           cur_has_newline(p)) {
 			is_no_body = true
 			// Don't consume - the outer parse_statement_or_declaration
 			// loop expects to see the next-statement token unchanged.
@@ -4456,7 +4456,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	}
 
 	if is_expr {
-		expr := new_node(p, FunctionExpression)
+		expr, expr_e := new_expr(p, FunctionExpression)
 		expr.loc = start
 		expr.id = id
 		expr.params = params
@@ -4475,7 +4475,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		// with tag=0 and corrupt contents on read.
 		expr_stmt := new_node(p, ExpressionStatement)
 		expr_stmt.loc = start
-		expr_stmt.expression = expression_from(p, expr)
+		expr_stmt.expression = expr_e
 		expr_stmt.loc.span.end = prev_end_offset(p)
 
 		stmt := new_node(p, Statement)
@@ -4647,7 +4647,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			case .Override:
 				param.override_ = true; param_override_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 			case .Identifier:
-				val := p.cur_tok.value
+				val := cur_value(p)
 				switch val {
 				case "public":
 					if param.accessibility != .None { report_error(p, "Accessibility modifier already seen.") }
@@ -4987,7 +4987,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 
 	id: Maybe(BindingIdentifier)
 	if can_be_binding_identifier(p.cur_type) {
-		current := get_current(p)
+		current := snap_current(p)
 		id = BindingIdentifier{
 			loc  = loc_from_token(&current),
 			name = current.value,
@@ -5008,7 +5008,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// strict-only branch too. Check escapes FIRST so the escaped-
 		// keyword diagnostic fires rather than the plainer
 		// "reserved identifier" message.
-		if p.cur_tok.has_escape {
+		if cur_has_escape(p) {
 			if is_always_reserved_word_name(current.value) ||
 			   is_strict_reserved_name(current.value) ||
 			   current.value == "let" || current.value == "static" ||
@@ -6219,7 +6219,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		case .Override:
 			if !is_override   { is_override   = true; eat(p); consumed = true }
 		case .Identifier:
-			val := p.cur_tok.value
+			val := cur_value(p)
 			switch val {
 			case "public":
 				if accessibility == .None {
@@ -6272,7 +6272,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		snap_ss := lexer_snapshot(p)
 		advance_token(p) // consume first `static`
 		advance_token(p) // consume second `static` → cur = third token
-		third_on_same_line := !p.cur_tok.had_line_terminator
+		third_on_same_line := !cur_has_newline(p)
 		third_type := p.cur_type
 		lexer_restore(p, snap_ss)
 		// Only reject when the third token is on the same line as the
@@ -6387,7 +6387,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	key: ^Expression
 	if is_token(p, .PrivateIdentifier) {
 		// Private field or method: #field, #method
-		current := get_current(p)
+		current := snap_current(p)
 		is_private = true
 		// Accessibility modifiers are not allowed on private (#) fields.
 		if accessibility != .None {
@@ -6400,10 +6400,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			name = name[1:]
 		}
 
-		private_ident := new_node(p, PrivateIdentifier)
+		private_ident, private_ident_e := new_expr(p, PrivateIdentifier)
 		private_ident.loc = loc_from_token(&current)
 		private_ident.name = name
-		key = expression_from(p, private_ident)
+		key = private_ident_e
 		p.private_id_count += 1
 		eat(p)
 	} else if is_token(p, .String) {
@@ -6411,12 +6411,12 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// this as a Literal key, not an Identifier. Previously stuffed into
 		// new_identifier which copied the quoted raw source into `name`,
 		// hiding the real string from downstream walkers (ember.js etc.).
-		current := get_current(p)
-		str_lit := new_node(p, StringLiteral)
+		current := snap_current(p)
+		str_lit, str_lit_e := new_expr(p, StringLiteral)
 		str_lit.loc = loc_from_token(&current)
 		str_lit.value = current.literal.(string) or_else ""
 		str_lit.raw = current.value
-		key = expression_from(p, str_lit)
+		key = str_lit_e
 		eat(p)
 		// String-literal key "constructor" promotes to Constructor kind,
 		// same rules as the identifier path: no get/set, no async/generator,
@@ -6433,19 +6433,19 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	} else if is_token(p, .Number) {
 		// Numeric key: `1234()`. Similarly emit as NumericLiteral-backed Literal
 		// rather than an Identifier whose name is the numeric text.
-		current := get_current(p)
-		num_lit := new_node(p, NumericLiteral)
+		current := snap_current(p)
+		num_lit, num_lit_e := new_expr(p, NumericLiteral)
 		num_lit.loc = loc_from_token(&current)
 		num_lit.raw = current.value
 		if v, ok := current.literal.(f64); ok {
 			num_lit.value = v
 		}
-		key = expression_from(p, num_lit)
+		key = num_lit_e
 		eat(p)
 	} else if is_token(p, .BigInt) {
 		// BigInt key: `1n()`. Emit as BigIntLiteral per §13.2.3.
-		current := get_current(p)
-		big := new_node(p, BigIntLiteral)
+		current := snap_current(p)
+		big, big_e := new_expr(p, BigIntLiteral)
 		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
@@ -6454,11 +6454,11 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			big.value = current.value
 		}
 		big.loc.span.end = prev_end_offset(p)
-		key = expression_from(p, big)
+		key = big_e
 		eat(p)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 		key_type_snap := p.cur_type
-		key_value_snap := p.cur_tok.value
+		key_value_snap := cur_value(p)
 		key = expression_from(p, new_identifier_from_cur(p))
 		eat(p)
 
@@ -6618,7 +6618,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// ASI: a bare field with no explicit `;` / `=` ends at a line
 	// terminator before the next class element. `class C { #x\n#y }`
 	// must parse as two fields, not `#x` method missing `(`.
-	is_field_by_asi := p.cur_tok.had_line_terminator &&
+	is_field_by_asi := cur_has_newline(p) &&
 	                    p.cur_type != .LParen &&
 	                    p.cur_type != .Colon &&
 	                    p.cur_type != .Question &&
@@ -6722,7 +6722,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// a newline before any token (including `[`) terminates the field.
 		if is_token(p, .Semi) {
 			eat(p)
-		} else if !is_token(p, .RBrace) && !is_token(p, .EOF) && !p.cur_tok.had_line_terminator {
+		} else if !is_token(p, .RBrace) && !is_token(p, .EOF) && !cur_has_newline(p) {
 			report_error(p, "Expected semicolon or line terminator after class field")
 		}
 
@@ -6922,7 +6922,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	//                       }
 	is_overload_sig := allow_ts_mode(p) && is_token(p, .Semi)
 	is_ambient_method := allow_ts_mode(p) && !is_token(p, .LBrace) &&
-	                     (p.cur_tok.had_line_terminator || is_token(p, .RBrace))
+	                     (cur_has_newline(p) || is_token(p, .RBrace))
 	if (is_abstract || is_overload_sig) && is_token(p, .Semi) {
 		// Decorators cannot appear on overload signatures or abstract methods.
 		// §15.2.1 early error: it is a Syntax Error if ClassElementKind of
@@ -7028,7 +7028,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
 
 	// Create the method as a FunctionExpression
-	fn_expr := new_node(p, FunctionExpression)
+	fn_expr, fn_expr_e := new_expr(p, FunctionExpression)
 	fn_expr.loc = paren_loc
 	fn_expr.id = nil // Methods don't have names in their function expression
 	fn_expr.params = params
@@ -7063,7 +7063,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	elem := new_node(p, ClassElement)
 	elem.loc = start
 	elem.key = key
-	elem.value = expression_from(p, fn_expr)
+	elem.value = fn_expr_e
 	elem.kind = kind
 	elem.computed = computed
 	elem.static = static_
@@ -7163,7 +7163,7 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	// §15.7.5: ClassStaticBlockBody is its own function-scope, not a block-scope.
 
 	// Create a StaticBlock value (stored as a FunctionExpression with no params)
-	static_block := new_node(p, FunctionExpression)
+	static_block, static_block_e := new_expr(p, FunctionExpression)
 	static_block.loc = start
 	static_block.id = nil
 	static_block.params = make([dynamic]FunctionParameter, 0, 0, p.allocator)
@@ -7178,7 +7178,7 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	elem := new_node(p, ClassElement)
 	elem.loc = start
 	elem.key = nil  // Static blocks don't have a key
-	elem.value = expression_from(p, static_block)
+	elem.value = static_block_e
 	elem.kind = .StaticBlock
 	elem.computed = false
 	elem.static = false  // Not marked as static - the kind implies it
@@ -7300,7 +7300,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		// ("offending token is not allowed by any production"), insert a
 		// semicolon. Relex the `/` as a regex so the next statement parses.
 		// Test: babel/core/regression/2591/input.js (`let x\n/wow/;`).
-		if p.cur_type == .Div && p.cur_tok.had_line_terminator {
+		if p.cur_type == .Div && cur_has_newline(p) {
 			relex_as_regex(p.lexer)
 			ft := p.lexer.cur
 			p.cur_type = ft.kind
@@ -7917,7 +7917,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	// `var x += 1;`, `var x | y;`, `var x*1;`, `var x : T = ...` (TS, handled
 	// above) - is a SyntaxError. Reporting here avoids the recovery path
 	// silently swallowing the bad operator and salvaging a partial AST.
-	if !p.cur_tok.had_line_terminator {
+	if !cur_has_newline(p) {
 		#partial switch p.cur_type {
 		case .Assign, .Comma, .Semi, .In, .Of,
 		     .RParen, .RBracket, .RBrace, .EOF: // legal
@@ -8183,14 +8183,14 @@ is_always_reserved_word_name :: #force_inline proc(name: string) -> bool {
 // compiler keep the parser in registers across the call site without
 // spilling for a function it almost never enters.
 report_escaped_reserved_word :: #force_inline proc(p: ^Parser) {
-	if !p.cur_tok.has_escape { return }
+	if !cur_has_escape(p) { return }
 	if p.cur_type != .Identifier { return }
 	report_escaped_reserved_word_slow(p)
 }
 
 @(private="file")
 report_escaped_reserved_word_slow :: proc(p: ^Parser) {
-	name := p.cur_tok.value
+	name := cur_value(p)
 	reserved := is_always_reserved_word_name(name)
 	if !reserved && p.strict_mode {
 		switch name {
@@ -8474,7 +8474,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	}
 	// .d.ts declaration files allow `await` as a binding name (tsc/OXC agree).
 	if p.source_is_dts { await_reserved_for_binding = false }
-	if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) && await_reserved_for_binding {
+	if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && p.cur_tok.value == "await")) && await_reserved_for_binding {
 		report_error(p, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
@@ -8512,7 +8512,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// has_escape == true takes the slow path via
 		// `report_escaped_reserved_word(p)` already; we don't repeat the
 		// full check here.
-		id_has_escape := p.cur_tok.has_escape
+		id_has_escape := cur_has_escape(p)
 		if !id_has_escape && id_name == "enum" {
 			msg := fmt.tprintf("'%s' is a reserved word and cannot be used as a binding identifier", id_name)
 			report_error(p, msg)
@@ -8631,7 +8631,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// source (`'aria-label'` literally), producing an Identifier with
 			// quoted name in the JSON and hiding the real string value from
 			// every downstream string-walker.
-			current := get_current(p)
+			current := snap_current(p)
 			str_lit := new_node(p, StringLiteral)
 			str_lit.loc = loc_from_token(&current)
 			str_lit.value = current.literal.(string) or_else ""
@@ -8648,7 +8648,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// Numeric key: `{ 0: v, 1: w }` (§14.3.3 PropertyName :
 			// NumericLiteral path). Must be followed by `:` - numeric
 			// keys don't support shorthand.
-			current := get_current(p)
+			current := snap_current(p)
 			num_lit := new_node(p, NumericLiteral)
 			num_lit.loc = loc_from_token(&current)
 			num_lit.raw = current.value
@@ -8664,8 +8664,8 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// the union) since ObjectPatternPropertyKey doesn't include
 			// BigIntLiteral directly. ESTree emit treats BigIntLiteral
 			// like other Literal kinds.
-			current := get_current(p)
-			big := new_node(p, BigIntLiteral)
+			current := snap_current(p)
+			big, big_e := new_expr(p, BigIntLiteral)
 			big.loc = loc_from_token(&current)
 			big.raw = current.value
 			if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
@@ -8674,7 +8674,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				big.value = current.value
 			}
 			big.loc.span.end = cur_offset(p) + u32(len(current.value))
-			key = (^Expression)(expression_from(p, big))
+			key = (^Expression)(big_e)
 			eat(p)
 		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 			// Identifier or keyword used as key. When the property becomes
@@ -8684,7 +8684,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// only if the property ends up shorthand (explicit `key: val`
 			// / `key = init` forms make the key an IdentifierName position,
 			// where escapes stay legal).
-			key_had_escape := p.cur_tok.has_escape
+			key_had_escape := cur_has_escape(p)
 			id_name := IdentifierName{
 				loc  = cur_loc(p),
 				name = cur_value(p),
@@ -8968,7 +8968,7 @@ new_identifier :: proc(p: ^Parser, tok: Token) -> ^Identifier {
 new_identifier_from_cur :: #force_inline proc(p: ^Parser) -> ^Identifier {
 	ident := new_node(p, Identifier)
 	ident.loc = loc_from_token(&p.cur_tok)
-	ident.name = p.cur_tok.value
+	ident.name = cur_value(p)
 	return ident
 }
 
@@ -9063,11 +9063,11 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				if st, have := p.force_source_type.(SourceType); have && st == .Module { dstr_await_reserved = true }
 				else if p.in_module_top_level || p.has_module_syntax { dstr_await_reserved = true }
 			}
-			if (p.cur_type == .Await || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "await")) &&
+			if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && p.cur_tok.value == "await")) &&
 			   dstr_await_reserved {
 				report_error(p, "'await' is reserved as a binding name in this context")
 			}
-			if (p.cur_type == .Yield || (p.cur_type == .Identifier && p.cur_tok.has_escape && p.cur_tok.value == "yield")) &&
+			if (p.cur_type == .Yield || (p.cur_type == .Identifier && cur_has_escape(p) && p.cur_tok.value == "yield")) &&
 			   yield_is_reserved_here(p) {
 				report_error(p, "'yield' is reserved as a binding name in this context")
 			}
@@ -10673,7 +10673,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// identifier followed by `,`/`from` (but NOT `from` directly).
 	if p.cur_type == .Identifier && p.cur_tok.value == "type" && allow_ts_mode(p) {
 		// §12.7.2 - contextual keyword `type` must not use Unicode escapes.
-		has_esc := p.cur_tok.has_escape
+		has_esc := cur_has_escape(p)
 		nxt := p.lexer.nxt.kind
 		if nxt == .LBrace || nxt == .Mul {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
@@ -11083,11 +11083,11 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 			return nil
 		}
 		head_loc := cur_loc(p)
-		head := new_node(p, Identifier)
+		head, head_e := new_expr(p, Identifier)
 		head.loc = head_loc
 		head.name = cur_value(p)
 		eat(p)
-		current_expr := expression_from(p, head)
+		current_expr := head_e
 		for is_token(p, .Dot) {
 			eat(p)  // consume `.`
 			if p.cur_type != .Identifier && !is_keyword_usable_as_property_name(p.cur_type) &&
@@ -11096,14 +11096,14 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 				break
 			}
 			rhs_loc := cur_loc(p)
-			rhs := new_node(p, Identifier)
+			rhs, rhs_e := new_expr(p, Identifier)
 			rhs.loc = rhs_loc
 			rhs.name = cur_value(p)
 			eat(p)
 			mem := new_node(p, MemberExpression)
 			mem.loc = head_loc
 			mem.object = current_expr
-			rhs_expr := expression_from(p, rhs)
+			rhs_expr := rhs_e
 			mem.property = rhs_expr
 			mem.computed = false
 			mem.optional = false
@@ -11142,7 +11142,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// (typescript fixtures: arbitraryModuleNamespaceIdentifiers,
 	// exportSpecifiers_js, etc.).
 	if allow_ts_mode(p) && p.cur_type == .Identifier && p.cur_tok.value == "type" {
-		if p.cur_tok.has_escape && p.lexer.nxt.kind == .As {
+		if cur_has_escape(p) && p.lexer.nxt.kind == .As {
 			report_error(p, "Keyword 'type' must not contain escaped characters")
 		}
 		nxt := p.lexer.nxt.kind
@@ -11180,7 +11180,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	is_string_import := false
 	if is_token(p, .String) {
 		// `import { "str" as local } from "m"` - ModuleExportName string form.
-		current := get_current(p)
+		current := snap_current(p)
 		val := current.literal.(string) or_else ""
 		if string_has_unpaired_surrogate(val) {
 			report_error(p, "Import name string must not contain unpaired surrogates")
@@ -11192,7 +11192,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		// Numeric / BigInt literals can't be ImportedBinding names.
 		// `import { 0n as foo }` is a SyntaxError.
 		report_error(p, "Unexpected token: numeric / bigint literal cannot be an import name")
-		current := get_current(p)
+		current := snap_current(p)
 		imported = Identifier{loc = loc_from_token(&current), name = current.value}
 		eat(p)
 	} else {
@@ -11218,7 +11218,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		// Numeric / BigInt literals can't be ImportedBinding names.
 		if is_token(p, .Number) || is_token(p, .BigInt) {
 			report_error(p, "Unexpected token: numeric / bigint literal cannot be an import binding name")
-			current := get_current(p)
+			current := snap_current(p)
 			local = Identifier{loc = loc_from_token(&current), name = current.value}
 			eat(p)
 			spec := new_node(p, ImportSpecifier)
@@ -11406,7 +11406,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 			eat(p) // consume `as`
 			eat(p) // consume `namespace`
-			cur := get_current(p)
+			cur := snap_current(p)
 			id := Identifier{loc = loc_from_token(&cur), name = cur.value}
 			eat(p) // consume identifier
 			if !match_semicolon_or_asi(p) {
@@ -11430,7 +11430,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// `export type Identifier =` falls through to the declaration path,
 	// which already handles type aliases via parse_statement_or_declaration.
 	if p.cur_type == .Identifier && p.cur_tok.value == "type" && allow_ts_mode(p) {
-		has_esc := p.cur_tok.has_escape
+		has_esc := cur_has_escape(p)
 		nxt := peek_token(p)
 		if nxt.type == .LBrace {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
@@ -11597,7 +11597,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		// SAME line. A `(`, `[`, etc. on the NEXT line is a new
 		// statement (ASI applies at the declaration boundary), not a
 		// postfix extension of the function expression.
-		if !p.cur_tok.had_line_terminator {
+		if !cur_has_newline(p) {
 			#partial switch p.cur_type {
 			case .LParen, .LBracket, .Dot, .OptionalChain,
 			     .Template, .TemplateHead, .Arrow,
@@ -11651,7 +11651,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		// LexicalDeclaration (`const`, `let`) and VariableStatement (`var`)
 		// are NOT allowed after `export default`.
 		if p.cur_type == .Const || p.cur_type == .Var ||
-		   (p.cur_type == .Let && !p.cur_tok.had_line_terminator) {
+		   (p.cur_type == .Let && !cur_has_newline(p)) {
 			report_error(p, "'export default' cannot be followed by a variable declaration")
 		}
 		// `using` / `await using` may also appear as a plain expression
@@ -11673,7 +11673,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		if expr != nil {
 			def^ = expr
 		}
-		if !match_semicolon_or_asi(p) && !p.cur_tok.had_line_terminator {
+		if !match_semicolon_or_asi(p) && !cur_has_newline(p) {
 			// `export default null null;` - second literal follows without separator.
 			#partial switch p.cur_type {
 			case .Null, .True, .False, .Number, .String, .BigInt:
@@ -11721,7 +11721,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 	if match_token(p, .As) {
 		if is_token(p, .String) {
 			// `export * as "str" from "m"` - ModuleExportName string form.
-			current := get_current(p)
+			current := snap_current(p)
 			val := current.literal.(string) or_else ""
 			if string_has_unpaired_surrogate(val) {
 				report_error(p, "Export name string must not contain unpaired surrogates")
@@ -11821,7 +11821,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		// `type` when the following token can start a name AND isn't `as` /
 		// `}` / `,` (which would mean "type" is the local name itself).
 		if allow_ts_mode(p) && p.cur_type == .Identifier && p.cur_tok.value == "type" {
-			if p.cur_tok.has_escape && p.lexer.nxt.kind == .As {
+			if cur_has_escape(p) && p.lexer.nxt.kind == .As {
 				report_error(p, "Keyword 'type' must not contain escaped characters")
 			}
 			nxt := p.lexer.nxt.kind
@@ -11883,7 +11883,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		// side of `as`. Parse each slot independently.
 		parse_spec_name :: proc(p: ^Parser) -> ExportSpecifierName {
 			if is_token(p, .String) {
-				current := get_current(p)
+				current := snap_current(p)
 				str_lit := new_node(p, StringLiteral)
 				str_lit.loc = loc_from_token(&current)
 				str_lit.value = current.literal.(string) or_else ""
@@ -11898,7 +11898,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 			// Numeric / BigInt literals are not valid export names.
 			if is_token(p, .Number) || is_token(p, .BigInt) {
 				report_error(p, "Unexpected token: numeric / bigint literal cannot be an export name")
-				current := get_current(p)
+				current := snap_current(p)
 				eat(p)
 				return IdentifierName{loc = loc_from_token(&current), name = current.value}
 			}
@@ -11933,7 +11933,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 	// §Grammar Notation: the `from` contextual keyword must appear literally.
 	// Escaped form `\u0066rom` is lexed as .Identifier with has_escape=true.
 	if is_token(p, .Identifier) && p.cur_tok.value == "from" {
-		if p.cur_tok.has_escape {
+		if cur_has_escape(p) {
 			report_error(p, "'from' keyword must not contain Unicode escape sequences")
 		}
 		// Treat the identifier 'from' as the From keyword for recovery.
@@ -12180,7 +12180,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			// must parse as `yield;` followed by a regex statement, not as
 			// `yield / 1 / g` (a binary chain). OXC + V8 + SpiderMonkey all
 			// apply ASI here.
-			if p.cur_tok.had_line_terminator {
+			if cur_has_newline(p) {
 				return left
 			}
 			// .Conditional (5) and above covers ?, ||, &&, ??, |, ^, &,
@@ -12219,21 +12219,21 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		if is_token(p, .As) {
 			eat(p)
 			ts_type := parse_ts_type(p)
-			as_expr := new_node(p, TSAsExpression)
+			as_expr, as_expr_e := new_expr(p, TSAsExpression)
 			as_expr.loc = loc_from_expr(left)
 			as_expr.expression = left
 			as_expr.type_annotation = ts_type
 			as_expr.loc.span.end = prev_end_offset(p)
-			left = expression_from(p, as_expr)
+			left = as_expr_e
 		} else {
 			eat(p)
 			ts_type := parse_ts_type(p)
-			sat_expr := new_node(p, TSSatisfiesExpression)
+			sat_expr, sat_expr_e := new_expr(p, TSSatisfiesExpression)
 			sat_expr.loc = loc_from_expr(left)
 			sat_expr.expression = left
 			sat_expr.type_annotation = ts_type
 			sat_expr.loc.span.end = prev_end_offset(p)
-			left = expression_from(p, sat_expr)
+			left = sat_expr_e
 		}
 	}
 
@@ -12264,7 +12264,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				// production. Report it but still parse the arrow so the rest of
 				// the expression parses cleanly (the arrow body carries the
 				// `=>` span regardless).
-				if p.cur_tok.had_line_terminator {
+				if cur_has_newline(p) {
 					report_error(p, "Unexpected line terminator before '=>' (restricted production)")
 				}
 				// `({}=>0)` — bare ObjectExpression followed by `=>` inside a
@@ -12306,7 +12306,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				// AssignmentOperator and we must NOT break — ASI would split
 				// the statement into `x;` and a stranded `/= -1` (test262
 				// language/expressions/compound-assignment/div-whitespace.js).
-				if cur_type == .AssignDiv && p.cur_tok.had_line_terminator {
+				if cur_type == .AssignDiv && cur_has_newline(p) {
 					if !is_valid_assignment_target(left, false) {
 						break
 					}
@@ -12646,7 +12646,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error(p, "Arrow function cannot be used as an unparenthesized operand")
 			}
 		}
-		unary := new_node(p, UnaryExpression)
+		unary, unary_e := new_expr(p, UnaryExpression)
 		unary.loc = loc_from_token(&current)
 		unary.operator = token_to_unary_op(current.type)
 		unary.argument = argument
@@ -12680,7 +12680,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				}
 			}
 		}
-		return expression_from(p, unary)
+		return unary_e
 
 	case .PlusPlus, .MinusMinus:
 		current := p.cur_tok
@@ -12700,7 +12700,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, msg)
 			return nil
 		}
-		update := new_node(p, UpdateExpression)
+		update, update_e := new_expr(p, UpdateExpression)
 		update.loc = loc_from_token(&current)
 		update.operator = .Increment if current.type == .PlusPlus else .Decrement
 		update.argument = argument
@@ -12719,7 +12719,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error_at(p, LexerLoc(id.loc.span.start), msg)
 			}
 		}
-		return expression_from(p, update)
+		return update_e
 
 	case .Await:
 		// ECMA-262 §15.8 - `await` is only valid as an AwaitExpression
@@ -12820,15 +12820,15 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			if p.in_async || p.in_async_params || !p.in_function {
 				report_error(p, "'await' expression requires an operand")
 			}
-			id := new_node(p, Identifier)
+			id, id_e := new_expr(p, Identifier)
 			id.loc = loc_from_token(&current)
 			// S26 W5b: source-slice (current.value), not literal.
 			// String literals are RODATA-pointing and break raw_transfer.
 			id.name = current.value
 			id.loc.span.end = current.raw_end
-			return expression_from(p, id)
+			return id_e
 		}
-		await := new_node(p, AwaitExpression)
+		await, await_e := new_expr(p, AwaitExpression)
 		await.loc = loc_from_token(&current)
 		await.argument = argument
 		await.loc.span.end = prev_end_offset(p)
@@ -12836,18 +12836,18 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if !p.in_function {
 			p.has_module_syntax = true
 		}
-		return expression_from(p, await)
+		return await_e
 
 	case .Dot3:
 		current := p.cur_tok
 		eat(p)
 		argument := parse_unary_expr(p)
 		if argument == nil { return nil }
-		spread := new_node(p, SpreadElement)
+		spread, spread_e := new_expr(p, SpreadElement)
 		spread.loc = loc_from_token(&current)
 		spread.argument = argument
 		spread.loc.span.end = prev_end_offset(p)
-		return expression_from(p, spread)
+		return spread_e
 
 	case .Yield:
 		// ECMA-262 §15.5 - YieldExpression is only grammatically
@@ -12892,13 +12892,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		report_escaped_reserved_word(p)
 		// §12.6.1.1 strict-mode IdentifierReference reservation.
 		if p.strict_mode {
-			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(p.cur_tok.value) {
-				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", p.cur_tok.value)
+			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(cur_value(p)) {
+				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
 				report_error(p, msg)
 			}
 		}
 		// Escaped `async` before `function` is SyntaxError (fast path).
-		if p.cur_tok.has_escape && p.cur_tok.value == "async" {
+		if cur_has_escape(p) && p.cur_tok.value == "async" {
 			nxt := peek_token(p)
 			if nxt.type == .Function && !nxt.had_line_terminator {
 				report_error(p, "'async' keyword must not contain Unicode escape sequences")
@@ -12924,11 +12924,11 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// can match the parser's narrow gating (only escaped forms reach
 		// this code path with cooked name "await"; non-escaped `await`
 		// lexes as `.Await` and parses as AwaitExpression).
-		id_has_escape := p.cur_tok.has_escape
+		id_has_escape := cur_has_escape(p)
 		// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
 		// reserved. The lexer emits it as .Identifier (contextual for
 		// TS enum decls). Mirrors the check in parse_primary_expr.
-		if !p.cur_tok.has_escape && p.cur_tok.value == "enum" {
+		if !cur_has_escape(p) && p.cur_tok.value == "enum" {
 			report_error(p, "'enum' is a reserved word")
 		}
 		// Inline identifier parse + LHS tail. Pull only the fields we need
@@ -12944,7 +12944,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `id.loc.{line,column}` - four wasted memory ops per identifier on
 		// the hot path. Skip the loads, leave the Loc fields zero-initialised.
 		id_offset := u32(p.cur_tok.loc)
-		id_value  := p.cur_tok.value
+		id_value  := cur_value(p)
 		eat(p)
 		id, id_e := new_expr(p, Identifier)
 		id.loc.span.start = id_offset
@@ -12962,10 +12962,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	// ECMA-262 §12.4 Restricted Production: no LineTerminator between the
 	// LHS and postfix `++`/`--`. If there's a newline, ASI inserts a
 	// semicolon so the operator starts the next statement as a prefix op.
-	if (p.cur_type == .PlusPlus || p.cur_type == .MinusMinus) && !p.cur_tok.had_line_terminator {
+	if (p.cur_type == .PlusPlus || p.cur_type == .MinusMinus) && !cur_has_newline(p) {
 		current := p.cur_tok
 		eat(p)
-		update := new_node(p, UpdateExpression)
+		update, update_e := new_expr(p, UpdateExpression)
 		update.loc = loc_from_expr(expr)
 		update.operator = .Increment if current.type == .PlusPlus else .Decrement
 		update.argument = expr
@@ -12981,7 +12981,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error_at(p, LexerLoc(id.loc.span.start), msg)
 			}
 		}
-		return expression_from(p, update)
+		return update_e
 	}
 
 	return expr
@@ -13102,19 +13102,19 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				}
 				is_private_chain := is_token(p, .PrivateIdentifier)
 				prop := parse_identifier_name(p)
-				member := new_node(p, MemberExpression)
+				member, member_e := new_expr(p, MemberExpression)
 				member.loc = loc_from_expr(expr)
 				member.object = expr
 				// `obj?.#priv` - PrivateIdentifier on the RHS of an optional
 				// chain is legal per the OptionalChain grammar (§13.3.10).
 				if is_private_chain || (len(prop.name) > 0 && prop.name[0] == '#') {
-					pid := new_node(p, PrivateIdentifier)
+					pid, pid_e := new_expr(p, PrivateIdentifier)
 					pid.loc = prop.loc
 					name := prop.name
 					if len(name) > 0 && name[0] == '#' { name = name[1:] }
 					pid.name = name
 					p.private_id_count += 1
-					member.property = expression_from(p, pid)
+					member.property = pid_e
 					// §15.7.3 — `obj?.#x` outside any class cannot resolve;
 					// inside a class, queue for end-of-body validation.
 					if p.class_depth == 0 {
@@ -13124,15 +13124,15 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					}
 				} else {
 					// Create regular Identifier
-					ident := new_node(p, Identifier)
+					ident, ident_e := new_expr(p, Identifier)
 					ident.loc = prop.loc
 					ident.name = prop.name
-					member.property = expression_from(p, ident)
+					member.property = ident_e
 				}
 				member.computed = false
 				member.optional = false // optional flag handled by ChainExpression wrapper
 				member.loc.span.end = prev_end_offset(p)
-				expr = expression_from(p, member)
+				expr = member_e
 			} else if is_token(p, .LBracket) {
 				if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
 					report_error(p, "An instantiation expression cannot be followed by a property access.")
@@ -13147,14 +13147,14 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				p.no_in = prev_no_in_opt
 				if prop == nil { return nil }
 				if !expect_token(p, .RBracket) { return nil }
-				member := new_node(p, MemberExpression)
+				member, member_e := new_expr(p, MemberExpression)
 				member.loc = loc_from_expr(expr)
 				member.object = expr
 				member.property = prop
 				member.computed = true
 				member.optional = false // optional flag handled by ChainExpression wrapper
 				member.loc.span.end = prev_end_offset(p)
-				expr = expression_from(p, member)
+				expr = member_e
 			} else if is_token(p, .LParen) {
 				args := parse_arguments(p)
 				call := new_node(p, CallExpression)
@@ -13238,7 +13238,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// inside parse_primary_expr; without this guard the `(` would
 			// chain as `(() => { ... })(nextArrow)` instead of ASI-separating
 			// into two statements. Matches OXC/V8 behavior.
-			if p.cur_tok.had_line_terminator {
+			if cur_has_newline(p) {
 				if _, is_arrow := expr^.(^ArrowFunctionExpression); is_arrow {
 					return expr
 				}
@@ -13262,7 +13262,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			saved_paren_start := p.pending_paren_start
 			p.pending_paren_start = max(u32)
 			args := parse_arguments(p)
-			call, call_e := new_expr(p, CallExpression)
+			call := new_node(p, CallExpression)
 			call.loc = loc_from_expr(expr)
 			if saved_paren_start != max(u32) && saved_paren_start <= call.loc.span.start {
 				call.loc.span.start = saved_paren_start
@@ -13271,7 +13271,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			call.arguments = args
 			call.optional = false
 			call.loc.span.end = prev_end_offset(p)
-			expr = call_e
+			expr = expression_from(p, call)
 		case .TemplateHead, .Template:
 			// ECMA-262 §13.3.5 - `TaggedTemplateExpression` is a SyntaxError
 			// when the tag is an OptionalExpression: the grammar rule
@@ -13283,7 +13283,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if is_chain {
 				report_error(p, "Tagged template literals cannot appear in an optional chain")
 			}
-			tagged := new_node(p, TaggedTemplateExpression)
+			tagged, tagged_e := new_expr(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
 			// Tagged template literals don't enforce the strict-mode
@@ -13292,7 +13292,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// `tagged=true` so parse_template_literal skips the check.
 			tagged.quasi = parse_template_literal(p, true)
 			tagged.loc.span.end = prev_end_offset(p)
-			expr = expression_from(p, tagged)
+			expr = tagged_e
 		case .Not:
 			// TS non-null assertion `x!`. Only consume `!` as a postfix when
 			// the next token can't start a new expression - otherwise `a!b` is
@@ -13361,11 +13361,11 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				report_error(p, "Non-null assertions can only be used in TypeScript files.")
 			}
 
-			nn := new_node(p, TSNonNullExpression)
+			nn, nn_e := new_expr(p, TSNonNullExpression)
 			nn.loc = loc_from_expr(expr)
 			nn.expression = expr
 			nn.loc.span.end = prev_end_offset(p)
-			expr = expression_from(p, nn)
+			expr = nn_e
 			continue
 		case .LAngle, .LShift:
 			if _, is_super := expr^.(^Super); is_super {
@@ -13442,7 +13442,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				// = 0` rolled back to a comparison parse. Test:
 				// babel/typescript/type-arguments/instantiation-expression-asi/
 				// input.ts.
-				if !inst_follow && !call_follow && p.cur_tok.had_line_terminator {
+				if !inst_follow && !call_follow && cur_has_newline(p) {
 					inst_follow = true
 				}
 			}
@@ -13489,7 +13489,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				saved_paren2 := p.pending_paren_start
 				p.pending_paren_start = max(u32)
 				args := parse_arguments(p)
-				call, call_e := new_expr(p, CallExpression)
+				call := new_node(p, CallExpression)
 				call.loc = loc_from_expr(expr)
 				call.callee = expr
 				call.arguments = args
@@ -13499,7 +13499,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					call.loc.span.start = saved_paren2
 				}
 				call.loc.span.end = prev_end_offset(p)
-				expr = call_e
+				expr = expression_from(p, call)
 				continue
 			}
 			// Stand-alone TSInstantiationExpression: `f<T>` with no
@@ -13570,7 +13570,7 @@ parse_left_hand_side_expr :: proc(p: ^Parser) -> ^Expression {
 }
 
 parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
-	current := get_current(p)
+	current := snap_current(p)
 
 	// Statement-only keywords that should never start a primary
 	// expression (`(debugger)`, `(else)`, `(extends)`, ...). Without
@@ -13635,7 +13635,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				msg := fmt.tprintf("The only valid meta property for import is import.meta (got 'import.%s')", meta_name.name)
 				report_error(p, msg)
 			}
-			meta_prop := new_node(p, MetaProperty)
+			meta_prop, meta_prop_e := new_expr(p, MetaProperty)
 			meta_prop.loc = loc_from_token(&current)
 			meta_prop.meta = Identifier{
 				loc  = loc_from_token(&current),
@@ -13658,7 +13658,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				end = meta_prop.loc.span.end,
 			}
 			bump_append(&p.importMetas, esm_import_meta)
-			return expression_from(p, meta_prop)
+			return meta_prop_e
 		}
 		// Static import - not valid in expression context
 		report_error(p, "Unexpected import in expression context")
@@ -13666,10 +13666,10 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 
 	case .This:
 		eat(p)
-		this := new_node(p, ThisExpression)
+		this, this_e := new_expr(p, ThisExpression)
 		this.loc = loc_from_token(&current)
 		this.loc.span.end = prev_end_offset(p)
-		return expression_from(p, this)
+		return this_e
 
 	case .PrivateIdentifier:
 		// ECMA-262 §13.2 - `#foo` may appear as a PrimaryExpression ONLY
@@ -13704,13 +13704,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		} else if name != "" {
 			append(&p.pending_priv_refs, PendingPrivRef{name = name, loc = private_ref_loc, depth = p.class_depth})
 		}
-		pid := new_node(p, PrivateIdentifier)
+		pid, pid_e := new_expr(p, PrivateIdentifier)
 		pid.loc = loc_from_token(&current)
 		pid.name = name
 		p.private_id_count += 1
 		eat(p)
 		pid.loc.span.end = prev_end_offset(p)
-		return expression_from(p, pid)
+		return pid_e
 
 	case .Super:
 		// §13.3.7 SuperProperty / §15.7.6 SuperCall shape check.
@@ -13724,10 +13724,10 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, "'super' property access is only valid inside a method")
 		}
 		eat(p)
-		super := new_node(p, Super)
+		super, super_e := new_expr(p, Super)
 		super.loc = loc_from_token(&current)
 		super.loc.span.end = prev_end_offset(p)
-		return expression_from(p, super)
+		return super_e
 
 	case .Null:
 		eat(p)
@@ -13738,11 +13738,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 
 	case .True, .False:
 		eat(p)
-		bl, bl_e := new_expr(p, BooleanLiteral)
+		bl := new_node(p, BooleanLiteral)
 		bl.loc = loc_from_token(&current)
 		bl.value = current.type == .True
 		bl.loc.span.end = prev_end_offset(p)
-		return bl_e
+		return expression_from(p, bl)
 
 	case .Number:
 		eat(p)
@@ -13784,7 +13784,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 
 	case .BigInt:
 		eat(p)
-		big := new_node(p, BigIntLiteral)
+		big, big_e := new_expr(p, BigIntLiteral)
 		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		big.value = current.value  // Store as string
@@ -13792,7 +13792,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// ("BigInt literal cannot use legacy octal / non-octal-decimal
 		// form") so the checker / parser don't need a second site.
 		big.loc.span.end = prev_end_offset(p)
-		return expression_from(p, big)
+		return big_e
 
 	case .Async:
 		// async function expression or arrow function
@@ -13813,7 +13813,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// fall through to treat it as an identifier.
 			report_error(p, "'async' keyword must not contain Unicode escape sequences")
 			eat(p)
-			ident := new_node(p, Identifier)
+			ident, ident_e := new_expr(p, Identifier)
 			ident.loc = loc_from_token(&current)
 			// S26 W5b - use the SOURCE-SLICE name, not a string literal.
 			// `"async"` is a compile-time literal whose `raw_data` lives in the
@@ -13828,7 +13828,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// well-formed offset.
 			ident.name = current.value
 			ident.loc.span.end = prev_end_offset(p)
-			return expression_from(p, ident)
+			return ident_e
 		}
 		async_lt_break := next.had_line_terminator
 		async_arrow_ctx_kw := false  // async <contextual-kw> => x
@@ -13883,11 +13883,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 					resize(&p.errors, snap_errs)
 				}
 				eat(p) // re-consume only `async`
-				ident := new_node(p, Identifier)
+				ident, ident_e := new_expr(p, Identifier)
 				ident.loc = loc_from_token(&current)
 				ident.name = current.value
 				ident.loc.span.end = prev_end_offset(p)
-				return expression_from(p, ident)
+				return ident_e
 			} else if next.type == .LParen {
 				// `async (...)` is ambiguous: an async arrow head, OR a
 				// regular call to `async`. Source-byte lookahead at the
@@ -13977,7 +13977,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 						skip_return_type := false
 						if p.conditional_depth > 0 {
 							// Check if `async` is shielded by outer parens.
-							async_pos := int(current.loc)
+							async_pos := int(current.start)
 							shielded := false
 							for k := async_pos - 1; k >= 0; k -= 1 {
 								ch := src[k]
@@ -14066,11 +14066,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// async as identifier
 		// S26 W5b: source-slice name (see escaped-async branch for why a literal breaks raw_transfer).
 		eat(p)
-		ident := new_node(p, Identifier)
+		ident, ident_e := new_expr(p, Identifier)
 		ident.loc = loc_from_token(&current)
 		ident.name = current.value
 		ident.loc.span.end = prev_end_offset(p)
-		return expression_from(p, ident)
+		return ident_e
 
 	case .Identifier, .Get, .Set, .From, .Of, .As, .Let, .Static, .Constructor,
 	     .Assert, .Asserts, .Abstract, .Declare, .Readonly, .Override,
@@ -14162,10 +14162,10 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			eat(p) // consume )
 			if is_token(p, .Arrow) {
 				// This is () => ... - return a marker for empty params
-				seq := new_node(p, SequenceExpression)
+				seq, seq_e := new_expr(p, SequenceExpression)
 				seq.loc = loc_from_token(&current)
 				seq.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
-				return expression_from(p, seq)
+				return seq_e
 			}
 			// Not an arrow, return nil (empty parens not valid expression)
 			report_error(p, "Empty parenthesized expression")
@@ -14256,11 +14256,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// downstream arrow builder expects the raw inner expression to
 		// lower to FunctionParameter via expr_to_pattern.
 		if p.preserve_parens && !is_token(p, .Arrow) {
-			paren_node := new_node(p, ParenthesizedExpression)
+			paren_node, paren_node_e := new_expr(p, ParenthesizedExpression)
 			paren_node.loc.span.start = paren_start
 			paren_node.loc.span.end = prev_end_offset(p)
 			paren_node.expression = expr
-			wrapped := expression_from(p, paren_node)
+			wrapped := paren_node_e
 			p.last_paren_expr = wrapped
 			return wrapped
 		}
@@ -14321,7 +14321,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 
 	case .RegularExpression:
 		eat(p)
-		regex := new_node(p, RegExpLiteral)
+		regex, regex_e := new_expr(p, RegExpLiteral)
 		regex.loc = loc_from_token(&current)
 		// Parse pattern and flags from token value (format: /pattern/flags)
 		raw := current.value
@@ -14342,7 +14342,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 		regex.loc.span.end = prev_end_offset(p)
-		return expression_from(p, regex)
+		return regex_e
 
 	case .LAngle:
 		// Dispatch depends on language mode:
@@ -14474,11 +14474,11 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 			eat(p)
 			arg := parse_assignment_expression(p)
 			if arg != nil {
-				spread := new_node(p, SpreadElement)
+				spread, spread_e := new_expr(p, SpreadElement)
 				spread.loc = spread_start // Use location of ... token
 				spread.argument = arg
 				spread.loc.span.end = prev_end_offset(p)
-				bump_append(&arr.elements, Maybe(^Expression)(expression_from(p, spread)))
+				bump_append(&arr.elements, Maybe(^Expression)(spread_e))
 			}
 		} else {
 			elem := parse_assignment_expression(p)
@@ -14650,7 +14650,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 
 		// Wrap the argument in a SpreadElement
-		spread := new_node(p, SpreadElement)
+		spread, spread_e := new_expr(p, SpreadElement)
 		spread.loc = spread_start // Use the location of the ... token, not the argument
 		spread.argument = arg
 		spread.loc.span.end = prev_end_offset(p)
@@ -14658,7 +14658,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		prop := new_node(p, Property)
 		prop.loc = start
 		prop.key = nil
-		prop.value = expression_from(p, spread)
+		prop.value = spread_e
 		prop.kind = .Init
 		prop.computed = false
 		prop.shorthand = false
@@ -14734,8 +14734,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	} else if is_token(p, .BigInt) {
 		// BigInt literal key: `{ 1n: value }`. The numeric value is
 		// the string representation of the BigInt, per §13.2.3.1.
-		current := get_current(p)
-		big := new_node(p, BigIntLiteral)
+		current := snap_current(p)
+		big, big_e := new_expr(p, BigIntLiteral)
 		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
@@ -14744,7 +14744,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			big.value = current.value
 		}
 		big.loc.span.end = prev_end_offset(p)
-		key = expression_from(p, big)
+		key = big_e
 		eat(p)
 	} else if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
 	          is_keyword_usable_as_property_name(p.cur_type) {
@@ -14753,8 +14753,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// (§12.7.2: escaped ReservedWord in IdentifierReference position,
 		// §12.6.1.1 in strict mode).
 		key_tok_type := p.cur_type
-		key_had_escape := p.cur_tok.has_escape && p.cur_type == .Identifier
-		key_name := p.cur_tok.value
+		key_had_escape := cur_has_escape(p) && p.cur_type == .Identifier
+		key_name := cur_value(p)
 		key = parse_property_name(p)
 		// Shorthand-only post-check. `{ foo }` = `{ foo: foo }` where the
 		// value is an IdentifierReference to `foo`; `{ key: value }` and
@@ -14887,7 +14887,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 		enforce_accessor_param_shape(p, is_setter, params[:], acc_key_loc)
 
-		fn := new_node(p, FunctionExpression)
+		fn, fn_e := new_expr(p, FunctionExpression)
 		fn.loc = fn_start
 		fn.params = params
 		fn.body = body
@@ -14895,7 +14895,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.async = is_async
 		fn.return_type = accessor_return_type
 		fn.loc.span.end = prev_end_offset(p)
-		value = expression_from(p, fn)
+		value = fn_e
 	} else if is_token(p, .LParen) || (allow_ts_mode(p) && is_open_angle_or_lshift(p)) {
 		// Method shorthand: foo() {}
 		// TS extension - generic method shorthand: foo<T>(a: T) { ... }
@@ -14989,7 +14989,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
 		check_params_vs_body_lex(p, params[:], body.body[:])
 
-		fn := new_node(p, FunctionExpression)
+		fn, fn_e := new_expr(p, FunctionExpression)
 		fn.loc = fn_start
 		fn.params = params
 		fn.body = body
@@ -14998,7 +14998,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.type_parameters = method_type_parameters
 		fn.return_type = method_return_type
 		fn.loc.span.end = prev_end_offset(p)
-		value = expression_from(p, fn)
+		value = fn_e
 	} else if match_token(p, .Colon) {
 		// Regular property with value. `async a: v` / `*a: v` are not valid
 		// data properties; `async` and `*` only modify method definitions.
@@ -15035,10 +15035,10 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			#partial switch k in key^ {
 			case ^Identifier:
 				if k != nil {
-					cloned := new_node(p, Identifier)
+					cloned, cloned_e := new_expr(p, Identifier)
 					cloned.loc = k.loc
 					cloned.name = k.name
-					assign.left = expression_from(p, cloned)
+					assign.left = cloned_e
 				} else {
 					assign.left = key
 				}
@@ -15130,35 +15130,35 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 }
 
 parse_property_name :: proc(p: ^Parser) -> ^Expression {
-	current := get_current(p)
+	current := snap_current(p)
 
 	#partial switch current.type {
 	case .Identifier:
 		eat(p)
-		ident := new_node(p, Identifier)
+		ident, ident_e := new_expr(p, Identifier)
 		ident.loc = loc_from_token(&current)
 		ident.name = current.value
 		ident.loc.span.end = prev_end_offset(p)
-		return expression_from(p, ident)
+		return ident_e
 
 	case .String:
 		// §12.9.4.1 — check for octal/\8/\9 escapes in strict mode.
 		if p.strict_mode && len(current.value) > 2 {
-			check_strict_string_escapes(p, current.value, u32(current.loc))
+			check_strict_string_escapes(p, current.value, current.start)
 		}
 		eat(p)
-		str := new_node(p, StringLiteral)
+		str, str_e := new_expr(p, StringLiteral)
 		str.loc = loc_from_token(&current)
 		str.raw = current.value
 		if val, ok := current.literal.(string); ok {
 			str.value = val
 		}
 		str.loc.span.end = prev_end_offset(p)
-		return expression_from(p, str)
+		return str_e
 
 	case .BigInt:
 		eat(p)
-		big := new_node(p, BigIntLiteral)
+		big, big_e := new_expr(p, BigIntLiteral)
 		big.loc = loc_from_token(&current)
 		big.raw = current.value
 		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
@@ -15167,11 +15167,11 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 			big.value = current.value
 		}
 		big.loc.span.end = prev_end_offset(p)
-		return expression_from(p, big)
+		return big_e
 
 	case .Number:
 		eat(p)
-		num := new_node(p, NumericLiteral)
+		num, num_e := new_expr(p, NumericLiteral)
 		num.loc = loc_from_token(&current)
 		num.raw = current.value
 		if val, ok := current.literal.(f64); ok {
@@ -15189,17 +15189,17 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		if p.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
 			report_error_at(p, LexerLoc(num.loc.span.start), "Legacy octal literals are not allowed in strict mode")
 		}
-		return expression_from(p, num)
+		return num_e
 
 	case:
 		// All keywords can be used as property names in ES
 		if is_keyword_usable_as_property_name(current.type) {
 			eat(p)
-			ident := new_node(p, Identifier)
+			ident, ident_e := new_expr(p, Identifier)
 			ident.loc = loc_from_token(&current)
 			ident.name = current.value
 			ident.loc.span.end = prev_end_offset(p)
-			return expression_from(p, ident)
+			return ident_e
 		}
 		return nil
 	}
@@ -15236,7 +15236,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	                         is_token(p, .Identifier) && p.cur_tok.value == "implements" &&
 	                         (p.lexer.nxt.kind == .Identifier || is_keyword_usable_as_property_name(p.lexer.nxt.kind) || p.lexer.nxt.kind == .LBrace)
 	if can_be_binding_identifier(p.cur_type) && !is_implements_keyword {
-		current := get_current(p)
+		current := snap_current(p)
 		name_tok_type := p.cur_type
 		id = BindingIdentifier{
 			loc  = loc_from_token(&current),
@@ -15247,7 +15247,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		// reservation list applies to escapes too. Check escapes FIRST
 		// so the escaped-keyword diagnostic fires rather than the
 		// plainer "reserved identifier" message.
-		if p.cur_tok.has_escape {
+		if cur_has_escape(p) {
 			if is_always_reserved_word_name(current.value) ||
 			   is_strict_reserved_name(current.value) ||
 			   current.value == "let" || current.value == "static" ||
@@ -15347,7 +15347,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 
 	body := parse_class_body(p)
 
-	expr := new_node(p, ClassExpression)
+	expr, expr_e := new_expr(p, ClassExpression)
 	expr.loc = start
 	expr.id = id
 	expr.type_parameters = type_parameters
@@ -15357,7 +15357,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	expr.body = body
 	expr.loc.span.end = prev_end_offset(p)
 
-	return expression_from(p, expr)
+	return expr_e
 }
 
 parse_new_expr :: proc(p: ^Parser) -> ^Expression {
@@ -15369,7 +15369,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		next := peek_token(p)
 		if next.value == "target" {
 			eat(p) // consume .
-			target_tok := get_current(p)
+			target_tok := snap_current(p)
 			eat(p) // consume target
 			// ECMA-262 §13.3.12 / §15.2 - `new.target` is only valid inside
 			// a non-arrow function body. Arrow functions inherit
@@ -15383,12 +15383,12 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			if !p.in_non_arrow_function && !p.in_field_init && !p.in_static_block && !p.is_commonjs {
 				report_error(p, "'new.target' is only allowed inside functions")
 			}
-			meta := new_node(p, MetaProperty)
+			meta, meta_e := new_expr(p, MetaProperty)
 			meta.loc = start
 			meta.meta = Identifier{loc = start, name = "new"}
 			meta.property = Identifier{loc = loc_from_token(&target_tok), name = "target"}
 			meta.loc.span.end = prev_end_offset(p)
-			return expression_from(p, meta)
+			return meta_e
 		}
 	}
 
@@ -15504,14 +15504,14 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		args = parse_arguments(p)
 	}
 
-	new_ := new_node(p, NewExpression)
+	new_, new__e := new_expr(p, NewExpression)
 	new_.loc = start
 	new_.callee = callee
 	new_.arguments = args
 	new_.type_parameters = targs
 	new_.loc.span.end = prev_end_offset(p)
 
-	return expression_from(p, new_)
+	return new__e
 }
 
 parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
@@ -15557,11 +15557,11 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 					if _, nested_spread := arg.(^SpreadElement); nested_spread {
 						report_error(p, "Spread argument cannot contain another spread element")
 					}
-					spread := new_node(p, SpreadElement)
+					spread, spread_e := new_expr(p, SpreadElement)
 					spread.loc = spread_start // Use location of ... token, not the argument
 					spread.argument = arg
 					spread.loc.span.end = prev_end_offset(p)
-					bump_append(&args, expression_from(p, spread))
+					bump_append(&args, spread_e)
 				} else {
 					// `...` in argument position must be followed by an
 					// AssignmentExpression (the spread target). `fn(..., x)`
@@ -15653,7 +15653,7 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	// `yield` and AssignmentExpression / `*`. If the next token has a
 	// preceding newline, emit a bare `yield` expression; the rest starts
 	// a new statement.
-	has_newline := p.cur_tok.had_line_terminator
+	has_newline := cur_has_newline(p)
 	delegate := false
 	if !has_newline {
 		delegate = match_token(p, .Mul)
@@ -15686,20 +15686,20 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 		report_error(p, "'yield*' requires an operand")
 	}
 
-	yield := new_node(p, YieldExpression)
+	yield, yield_e := new_expr(p, YieldExpression)
 	yield.loc = start
 	yield.argument = argument
 	yield.delegate = delegate
 	yield.loc.span.end = prev_end_offset(p)
 
-	return expression_from(p, yield)
+	return yield_e
 }
 
 parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 	start := cur_loc(p)
-	current := get_current(p)
+	current := snap_current(p)
 
-	tmpl := new_node(p, TemplateLiteral)
+	tmpl, tmpl_e := new_expr(p, TemplateLiteral)
 	tmpl.loc = start
 	// Adjust start to include the opening backtick (lexer sets token after backtick)
 	if tmpl.loc.span.start > 0 {
@@ -15729,7 +15729,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		if !tagged && untagged_template_raw_has_invalid_escape(elem.raw) {
 			report_error(p, "Invalid escape sequence in template literal")
 		}
-		return expression_from(p, tmpl)
+		return tmpl_e
 	}
 
 	// Handle template with expressions: `hello ${name} world`
@@ -15761,7 +15761,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 			}
 
 			// Expect TemplateMiddle or TemplateTail
-			tok := get_current(p)
+			tok := snap_current(p)
 			if tok.type == .TemplateMiddle {
 				mid := TemplateElement{
 					loc  = loc_from_token(&tok),
@@ -16917,14 +16917,14 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 		return nil
 	}
 
-	cond := new_node(p, ConditionalExpression)
+	cond, cond_e := new_expr(p, ConditionalExpression)
 	cond.loc = start
 	cond.test = test
 	cond.consequent = consequent
 	cond.alternate = alternate
 	cond.loc.span.end = prev_end_offset(p)
 
-	return expression_from(p, cond)
+	return cond_e
 }
 
 // is_valid_assignment_target returns true if `left` is a legal LHS for an
@@ -17117,7 +17117,7 @@ is_simple_assignment_target :: proc(expr: ^Expression, sloppy_legacy_call: bool)
 parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	start := loc_from_expr(left)
 
-	current := get_current(p)
+	current := snap_current(p)
 	op := token_to_assignment_op(current.type)
 
 	// §12.10 / §13.15 ParenthesizedExpression AssignmentTargetType:
@@ -17224,25 +17224,25 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 		report_strict_eval_arguments_in_target(p, left)
 	}
 
-	assign := new_node(p, AssignmentExpression)
+	assign, assign_e := new_expr(p, AssignmentExpression)
 	assign.loc = start
 	assign.operator = op
 	assign.left = left
 	assign.right = right
 	assign.loc.span.end = prev_end_offset(p)
 
-	return expression_from(p, assign)
+	return assign_e
 }
 
 parse_identifier :: proc(p: ^Parser) -> Identifier {
 	// Read loc / name from p.cur_tok BEFORE eat advances. Saves the
-	// 64 B Token snapshot copy that `current := get_current(p)` was
+	// 64 B Token snapshot copy that `current := snap_current(p)` was
 	// doing once per identifier-name (called from member access, import
 	// /export specifiers, JSX attribute names, dynamic imports, optional
-	// chains, ~13 sites total). The string slice in p.cur_tok.value
+	// chains, ~13 sites total). The string slice in cur_value(p)
 	// points into the source bytes, which outlive eat(p).
 	loc := loc_from_token(&p.cur_tok)
-	name := p.cur_tok.value
+	name := cur_value(p)
 	eat(p)
 	return Identifier{loc = loc, name = name}
 }
@@ -17255,7 +17255,7 @@ parse_string_literal :: proc(p: ^Parser) -> StringLiteral {
 	// Same shape as parse_identifier above: snapshot only the fields
 	// we need before eat(p), avoiding the 64 B Token copy.
 	loc := loc_from_token(&p.cur_tok)
-	raw := p.cur_tok.value
+	raw := cur_value(p)
 	value := p.cur_tok.literal.(string) or_else ""
 
 	// §12.9.4.1 — in strict mode, numeric escape sequences other than
@@ -17305,7 +17305,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	if param.name == "await" {
 		report_error(p, "'await' cannot be used as an async arrow parameter")
 	}
-	if p.cur_tok.had_line_terminator {
+	if cur_has_newline(p) {
 		report_error(p, "Line terminator not permitted before '=>'")
 	}
 	eat(p) // consume =>
@@ -17364,7 +17364,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	}
 	bump_append(&params, fn_param)
 
-	arrow := new_node(p, ArrowFunctionExpression)
+	arrow, arrow_e := new_expr(p, ArrowFunctionExpression)
 	arrow.loc = start
 	arrow.params = params
 	arrow.body = body
@@ -17384,10 +17384,10 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 		}
 	}
 
-	return expression_from(p, arrow)
+	return arrow_e
 }
 
-parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expression {
+parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expression {
 	async_tok := async_tok  // re-bind to a mutable local; Odin parameters aren't addressable
 	start := loc_from_token(&async_tok)
 
@@ -17433,7 +17433,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		expect_token(p, .Arrow)
 		return nil
 	}
-	if p.cur_tok.had_line_terminator {
+	if cur_has_newline(p) {
 		report_error(p, "Line terminator not permitted before '=>'")
 	}
 	eat(p)
@@ -17490,7 +17490,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 
 	p.in_async = prev_async
 
-	arrow := new_node(p, ArrowFunctionExpression)
+	arrow, arrow_e := new_expr(p, ArrowFunctionExpression)
 	arrow.loc = start
 	arrow.params = params
 	arrow.body = body
@@ -17528,7 +17528,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: Token) -> ^Expressi
 		}
 	}
 
-	return expression_from(p, arrow)
+	return arrow_e
 }
 
 // ============================================================================
@@ -17559,11 +17559,11 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	if is_token(p, .RParen) {
 		report_error(p, "'import()' requires a specifier")
 		eat(p)
-		import_expr := new_node(p, ImportExpression)
+		import_expr, import_expr_e := new_expr(p, ImportExpression)
 		import_expr.loc = start
 		import_expr.phase = phase
 		import_expr.loc.span.end = prev_end_offset(p)
-		return expression_from(p, import_expr)
+		return import_expr_e
 	}
 
 	// §13.3.10: spread (`...x`) is not allowed. ImportCall uses
@@ -17622,7 +17622,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	}
 	eat(p)
 
-	import_expr := new_node(p, ImportExpression)
+	import_expr, import_expr_e := new_expr(p, ImportExpression)
 	import_expr.loc = start
 	import_expr.source = specifier
 	import_expr.options = options
@@ -17649,7 +17649,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	}
 	bump_append(&p.dynamicImports, esm_dynamic)
 
-	return expression_from(p, import_expr)
+	return import_expr_e
 }
 
 // ============================================================================
@@ -17662,14 +17662,14 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 	// §16.2.2 - `assert` has a [no LineTerminator here] restriction.
 	// A newline before `assert` triggers ASI and the token belongs to the
 	// next statement. `with` does NOT have this restriction.
-	if is_token(p, .Assert) && p.cur_tok.had_line_terminator { return attributes }
+	if is_token(p, .Assert) && cur_has_newline(p) { return attributes }
 	eat(p)
 	if !expect_token(p, .LBrace) { return attributes }
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		attr_start := cur_loc(p)
 		key: IdentifierName
 		if is_token(p, .String) {
-			current := get_current(p)
+			current := snap_current(p)
 			key = IdentifierName{loc = loc_from_token(&current), name = current.literal.(string) or_else current.value}
 			eat(p)
 		} else {
@@ -17821,7 +17821,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			// error; tsc reports TS1146 (semantic). Don't error — just
 			// break out of the suffix loop and let the type_arguments
 			// dangle (they'll be ignored in the AST).
-			if !is_token(p, .LParen) && !is_token(p, .Dot) && !p.cur_tok.had_line_terminator {
+			if !is_token(p, .LParen) && !is_token(p, .Dot) && !cur_has_newline(p) {
 				break
 			}
 		} else if allow_ts_mode(p) && is_token(p, .OptionalChain) {
@@ -17870,20 +17870,20 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		} else if allow_ts_mode(p) && (is_token(p, .Template) || is_token(p, .TemplateHead)) {
 			// Tagged template in TS decorator: `@x\`\``, `@x.y\`\`()`.
 			// OXC's parser accepts these; tsc reports TS1497 (semantic).
-			tagged := new_node(p, TaggedTemplateExpression)
+			tagged, tagged_e := new_expr(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
 			tagged.quasi = parse_template_literal(p, true)
 			tagged.loc.span.end = prev_end_offset(p)
-			expr = expression_from(p, tagged)
-		} else if allow_ts_mode(p) && is_token(p, .Not) && !p.cur_tok.had_line_terminator {
+			expr = tagged_e
+		} else if allow_ts_mode(p) && is_token(p, .Not) && !cur_has_newline(p) {
 			// TS non-null assertion postfix: `@x!`, `@x.y!`.
 			eat(p)
-			nna := new_node(p, TSNonNullExpression)
+			nna, nna_e := new_expr(p, TSNonNullExpression)
 			nna.loc = start
 			nna.expression = expr
 			nna.loc.span.end = prev_end_offset(p)
-			expr = expression_from(p, nna)
+			expr = nna_e
 		} else {
 			break
 		}
@@ -18015,13 +18015,13 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 		expect_token(p, .RAngle)
 		closing_loc := closing_start
 		closing_loc.span.end = u32(prev_end_offset(p))
-		frag := new_node(p, JSXFragment)
+		frag, frag_e := new_expr(p, JSXFragment)
 		frag.loc = start
 		frag.opening_fragment = JSXOpeningFragment{loc = opening_loc}
 		frag.children = children
 		frag.closing_fragment = JSXClosingFragment{loc = closing_loc}
 		frag.loc.span.end = prev_end_offset(p)
-		return expression_from(p, frag)
+		return frag_e
 	}
 	name := parse_jsx_element_name(p)
 	opening := parse_jsx_opening_element(p, start, name)
@@ -18119,15 +18119,15 @@ parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 		return JSXIdentifier{}
 	}
 	start_loc := cur_loc(p)
-	current := get_current(p)
+	current := snap_current(p)
 	name := current.value
 	// JSX spec: Unicode escapes are not allowed in JSX tag names or
 	// attribute names. `<\u0061>` is invalid — must write `<a>`.
 	// OXC keeps the raw source for tag comparison, so `<\u0061></a>`
 	// gets a "closing tag mismatch" error. Match by using the raw
 	// source span as the identifier name when escapes are present.
-	if current.has_escape && p.lexer != nil {
-		raw := p.lexer.source[int(current.loc):current.raw_end]
+	if cur_has_escape(p) && p.lexer != nil {
+		raw := p.lexer.source[current.start:current.end]
 		name = raw
 	}
 	eat(p)
@@ -18160,7 +18160,7 @@ parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 			// the `/` is a JSX self-close, never a regex — force-relex.
 			jsx_relex_div_after_hyphen(p)
 			if is_jsx_identifier_token(p) {
-				c := get_current(p)
+				c := snap_current(p)
 				bump_append(&parts, c.value)
 				eat(p)
 			}
@@ -18269,8 +18269,8 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 				}
 				if is_token(p, .String) {
 					str := parse_string_literal(p)
-					str_expr := new_node(p, StringLiteral); str_expr^ = str
-					attr_value = expression_from(p, str_expr)
+					str_expr, str_expr_e := new_expr(p, StringLiteral); str_expr^ = str
+					attr_value = str_expr_e
 				} else if is_token(p, .LBrace) {
 					container_start := cur_loc(p)
 					// JSX attribute expression: `{expr}`. Use parse_expression
@@ -18287,10 +18287,10 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 							report_error(p, "JSX expressions may not use the comma operator.")
 						}
 					}
-					container := new_node(p, JSXExpressionContainer)
+					container, container_e := new_expr(p, JSXExpressionContainer)
 					container.loc = container_start; container.expression = expr
 					container.loc.span.end = prev_end_offset(p)
-					attr_value = expression_from(p, container)
+					attr_value = container_e
 				} else if is_token(p, .LAngle) {
 					attr_value = parse_jsx_element_or_fragment(p)
 				} else {
@@ -18389,9 +18389,9 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			container.loc = start
 			if expr != nil { container.expression = expr
 			} else {
-				empty := new_node(p, JSXEmptyExpression)
+				empty, empty_e := new_expr(p, JSXEmptyExpression)
 				empty.loc = Loc{span = Span{start = empty_start, end = rbrace_start}}
-				container.expression = expression_from(p, empty)
+				container.expression = empty_e
 			}
 			container.loc.span.end = prev_end_offset(p)
 			bump_append(&children, container)
@@ -18517,12 +18517,12 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	if is_predicate {
 		// Parse parameter name: Identifier or `this`. Each leaf carries
 		// its own location; the previously-bound `name_loc` was unused.
-		name_cur := get_current(p)
-		name_ident := new_node(p, Identifier)
+		name_cur := snap_current(p)
+		name_ident, name_ident_e := new_expr(p, Identifier)
 		name_ident.loc = loc_from_token(&name_cur)
 		name_ident.name = name_cur.value
 		eat(p) // consume identifier or `this`
-		name_expr := expression_from(p, name_ident)
+		name_expr := name_ident_e
 
 		// Optional `is <type>` (may be absent for pure `asserts x`).
 		type_ann_opt: Maybe(^TSTypeAnnotation)
@@ -18581,12 +18581,12 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	}
 	if is_predicate {
 		pred_start := cur_loc(p)
-		name_cur := get_current(p)
-		name_ident := new_node(p, Identifier)
+		name_cur := snap_current(p)
+		name_ident, name_ident_e := new_expr(p, Identifier)
 		name_ident.loc = loc_from_token(&name_cur)
 		name_ident.name = name_cur.value
 		eat(p)
-		name_expr := expression_from(p, name_ident)
+		name_expr := name_ident_e
 		inner_ann_opt: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Is) {
 			eat(p)
@@ -18652,12 +18652,12 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		is_predicate = true
 	}
 	if is_predicate {
-		name_cur := get_current(p)
-		name_ident := new_node(p, Identifier)
+		name_cur := snap_current(p)
+		name_ident, name_ident_e := new_expr(p, Identifier)
 		name_ident.loc = loc_from_token(&name_cur)
 		name_ident.name = name_cur.value
 		eat(p)
-		name_expr := expression_from(p, name_ident)
+		name_expr := name_ident_e
 		inner_ann_opt: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Is) {
 			eat(p)
@@ -18819,7 +18819,7 @@ parse_ts_type :: proc(p: ^Parser) -> ^TSType {
 	// ASI guard: `extends` on a new line is NOT a conditional type
 	// continuation - it's the start of the next member in an interface
 	// or type literal. e.g. `a?: number\nextends?: string`.
-	if is_token(p, .Extends) && p.ts_disallow_conditional_types == 0 && !p.cur_tok.had_line_terminator {
+	if is_token(p, .Extends) && p.ts_disallow_conditional_types == 0 && !cur_has_newline(p) {
 		eat(p)
 		// The extends type of a conditional is parsed with conditional
 		// types suppressed (matching TypeScript's
@@ -19007,7 +19007,7 @@ parse_ts_constructor_type :: proc(p: ^Parser, start: Loc, abstract: bool) -> ^TS
 // cluster (e.g. `noSubstitutionTemplateStringLiteralTypes.ts` neighbours)
 // and is required for any `\`prefix-${T}-suffix\`` literal type.
 parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
-	head := get_current(p)
+	head := snap_current(p)
 	node := new_node(p, TSTemplateLiteralType); node.loc = start
 	node.quasis = make([dynamic]TemplateElement, 0, 4, p.allocator)
 	node.types  = make([dynamic]^TSType, 0, 4, p.allocator)
@@ -19040,7 +19040,7 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 				p.cur_tok.value = l.source[l.cur.start:l.cur.end]
 			}
 		}
-		tok := get_current(p)
+		tok := snap_current(p)
 		if tok.type == .TemplateMiddle {
 			mid_elem := TemplateElement{loc = loc_from_token(&tok), tail = false, raw = tok.value}
 			if cooked, ok := tok.literal.(string); ok { mid_elem.cooked = cooked }
@@ -19237,7 +19237,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				// TSNamedTupleMember to match OXC's ESTree shape (see
 				// namedTupleMembers.ts WithOptAndRest / RecusiveRest).
 				if p.cur_type == .Identifier && p.lexer.nxt.kind == .Colon {
-					rest_label_tok := get_current(p)
+					rest_label_tok := snap_current(p)
 					eat(p) // consume label
 					eat(p) // consume `:`
 					rest_inner := parse_ts_type(p)
@@ -19283,7 +19283,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					}
 				}
 				if named {
-					label_tok := get_current(p)
+					label_tok := snap_current(p)
 					eat(p) // consume label identifier
 					optional := false
 					if is_token(p, .Question) { optional = true; eat(p) }
@@ -19342,16 +19342,16 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// reserved keyword (lexed as .Const), not a real type, but TS-ESTree
 		// models the assertion's type as TSTypeReference whose typeName is
 		// Identifier("const"). Pre-fix the parser fell through to
-		// parse_ts_type_reference's `cur := get_current(p); id.name = cur.value`
+		// parse_ts_type_reference's `cur := snap_current(p); id.name = cur.value`
 		// which expects an Identifier kind - .Const failed and the as-arm
 		// reported "Expected semicolon" / "Expected binding pattern". Closes
 		// 50+ OXC corpus rejects in the "Expected semicolon" cluster (S26 W6
 		// phase 3 bug class #13).
-		cur_const := get_current(p)
-		id := new_node(p, Identifier); id.loc = loc_from_token(&cur_const); id.name = "const"
+		cur_const := snap_current(p)
+		id, id_e := new_expr(p, Identifier); id.loc = loc_from_token(&cur_const); id.name = "const"
 		eat(p)
 		ref := new_node(p, TSTypeReference); ref.loc = start
-		ref.type_name = expression_from(p, id)
+		ref.type_name = id_e
 		ref.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = ref
 		return parse_ts_postfix(p, r, start)
@@ -19385,10 +19385,10 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// Allow keyword identifiers (Identifier / kw-as-name / Await / Yield).
 		if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) ||
 		   is_token(p, .Await) || is_token(p, .Yield) {
-			tq_cur := get_current(p)
-			tq_id := new_node(p, Identifier); tq_id.loc = loc_from_token(&tq_cur); tq_id.name = tq_cur.value
+			tq_cur := snap_current(p)
+			tq_id, tq_id_e := new_expr(p, Identifier); tq_id.loc = loc_from_token(&tq_cur); tq_id.name = tq_cur.value
 			eat(p)
-			tq_expr = expression_from(p, tq_id)
+			tq_expr = tq_id_e
 			for is_token(p, .Dot) {
 				eat(p)
 				// `typeof A.` (trailing dot without property) is a
@@ -19398,11 +19398,11 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					break
 				}
 				tq_prop := parse_identifier_name(p)
-				tq_mem := new_node(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
-				tq_pid := new_node(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
-				tq_mem.property = expression_from(p, tq_pid); tq_mem.computed = false; tq_mem.optional = false
+				tq_mem, tq_mem_e := new_expr(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
+				tq_pid, tq_pid_e := new_expr(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
+				tq_mem.property = tq_pid_e; tq_mem.computed = false; tq_mem.optional = false
 				tq_mem.loc.span.end = prev_end_offset(p)
-				tq_expr = expression_from(p, tq_mem)
+				tq_expr = tq_mem_e
 			}
 		} else {
 			// Fallback - keep the legacy expression-style parse so any
@@ -19504,7 +19504,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// a UnaryExpression(operator="-", argument=Literal). Only `-` and
 		// `+` qualify, and only on a numeric or bigint literal. Anything
 		// else (e.g. `-x`, `-(1)`) is a parse error in TS type position.
-		op_tok := get_current(p)
+		op_tok := snap_current(p)
 		op_kind: UnaryOperator = op_tok.type == .Minus ? .Minus : .Plus
 		eat(p) // consume `-` / `+`
 		if p.cur_type != .Number && p.cur_type != .BigInt {
@@ -19514,17 +19514,17 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		lit_start := cur_loc(p)
 		lit_expr: ^Expression
 		if p.cur_type == .Number {
-			cur := get_current(p); nl := new_node(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
+			cur := snap_current(p); nl, nl_e := new_expr(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
 			if v, ok := cur.literal.(f64); ok { nl.value = v }
 			eat(p)
-			lit_expr = expression_from(p, nl)
+			lit_expr = nl_e
 		} else {
-			cur := get_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
+			cur := snap_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
 			if v, ok := cur.literal.(string); ok { bl.value = v }
 			eat(p)
 			lit_expr = expression_from(p, bl)
 		}
-		unary := new_node(p, UnaryExpression)
+		unary, unary_e := new_expr(p, UnaryExpression)
 		unary.loc = start
 		unary.operator = op_kind
 		unary.argument = lit_expr
@@ -19532,7 +19532,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		unary.loc.span.end = prev_end_offset(p)
 		_ = lit_start
 		node := new_node(p, TSLiteralType); node.loc = start
-		node.literal = expression_from(p, unary)
+		node.literal = unary_e
 		node.loc.span.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node
 		return parse_ts_postfix(p, r, start)
@@ -19568,16 +19568,16 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		lit_expr: ^Expression
 		#partial switch p.cur_type {
 		case .String:
-			lit := parse_string_literal(p); le := new_node(p, StringLiteral); le^ = lit
-			lit_expr = expression_from(p, le)
+			lit := parse_string_literal(p); le, le_e := new_expr(p, StringLiteral); le^ = lit
+			lit_expr = le_e
 		case .Number:
-			cur := get_current(p); nl := new_node(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
+			cur := snap_current(p); nl, nl_e := new_expr(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
 			if v, ok := cur.literal.(f64); ok { nl.value = v }
 			eat(p)
-			lit_expr = expression_from(p, nl)
+			lit_expr = nl_e
 		case .BigInt:
 			// BigInt literal type: `const y: 12n = 12n`. (S26 W6 phase 3 #11.)
-			cur := get_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
+			cur := snap_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
 			if v, ok := cur.literal.(string); ok { bl.value = v }
 			eat(p)
 			lit_expr = expression_from(p, bl)
@@ -19632,7 +19632,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					// Good: bare `with` keyword.
 				} else if is_token(p, .Identifier) && p.cur_tok.value == "with" {
 					// `w\u0069th` — escaped form of `with`.
-					if p.cur_tok.has_escape {
+					if cur_has_escape(p) {
 						report_error(p, "Expected 'with' in import type options")
 					}
 				} else if is_token(p, .String) {
@@ -19705,18 +19705,18 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		if is_token(p, .Dot) {
 			eat(p)
 			qual_id := parse_identifier(p)
-			id_node := new_node(p, Identifier)
+			id_node, id_node_e := new_expr(p, Identifier)
 			id_node^ = qual_id
-			cur_qual := expression_from(p, id_node)
+			cur_qual := id_node_e
 			for is_token(p, .Dot) {
 				eat(p)
 				prop_id := parse_identifier(p)
-				prop_node := new_node(p, Identifier)
+				prop_node, prop_node_e := new_expr(p, Identifier)
 				prop_node^ = prop_id
 				mem := new_node(p, MemberExpression)
 				mem.loc = it.loc
 				mem.object = cur_qual
-				mem.property = expression_from(p, prop_node)
+				mem.property = prop_node_e
 				mem.computed = false
 				mem.optional = false
 				mem.loc.span.end = prev_end_offset(p)
@@ -19789,7 +19789,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 
 parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
-	value := get_current(p).value
+	value := snap_current(p).value
 	// Built-in keyword names like `string` / `number` / `any` are
 	// pre-empted by a TSTypeReference whenever they form a qualified-name
 	// chain. TS allows shadowing primitives with namespace declarations:
@@ -19891,7 +19891,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 		// downstream cascades. Closes most of the
 		// taggedTemplateStringsWithTypedTags / indexer2A /
 		// noPropertyAccessFromIndexSignature1 cluster.
-		if p.cur_tok.had_line_terminator {
+		if cur_has_newline(p) {
 			nxt_kind := p.lexer.nxt.kind
 			// `T\n[]` — empty brackets on new line = new member, not array postfix.
 			if nxt_kind == .RBracket {
@@ -19935,7 +19935,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	// TSJSDocNonNullableType. Accept permissively - just consume the `!`
 	// and return the inner type. Same-line only (ASI guard).
 	// TS17019: `!` at the end of a type is not valid TypeScript syntax.
-	if is_token(p, .Not) && !p.cur_tok.had_line_terminator {
+	if is_token(p, .Not) && !cur_has_newline(p) {
 		if allow_ts_mode(p) {
 			report_error(p, "'!' at the end of a type is not valid TypeScript syntax.")
 		}
@@ -19950,7 +19950,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	// parser handles it after parse_ts_type returns.
 	// TS17019: `?` at the end of a type. Flagged outside type arguments;
 	// suppressed inside `<...>` for JSDoc patterns like `foo<string?>`.
-	if is_token(p, .Question) && !p.cur_tok.had_line_terminator && !p.ts_in_tuple_type {
+	if is_token(p, .Question) && !cur_has_newline(p) && !p.ts_in_tuple_type {
 		nxt := p.lexer.nxt.kind
 		if nxt == .RParen || nxt == .Comma || nxt == .Semi || nxt == .RBrace ||
 		   nxt == .RBracket || nxt == .RAngle || nxt == .Assign || nxt == .EOF {
@@ -19965,14 +19965,14 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 
 parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
-	cur := get_current(p)
-	id := new_node(p, Identifier); id.loc = loc_from_token(&cur); id.name = cur.value; eat(p)
-	id_expr := expression_from(p, id)
+	cur := snap_current(p)
+	id, id_e := new_expr(p, Identifier); id.loc = loc_from_token(&cur); id.name = cur.value; eat(p)
+	id_expr := id_e
 	for is_token(p, .Dot) {
 		eat(p); prop := parse_identifier_name(p)
 		mem := new_node(p, MemberExpression); mem.loc = start; mem.object = id_expr
-		pid := new_node(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
-		mem.property = expression_from(p, pid); mem.loc.span.end = prev_end_offset(p)
+		pid, pid_e := new_expr(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
+		mem.property = pid_e; mem.loc.span.end = prev_end_offset(p)
 		id_expr = expression_from(p, mem)
 	}
 	targs: Maybe(^TSTypeParameterInstantiation)
@@ -19984,9 +19984,9 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 		// unconditionally - `Map<string, number>` must never roll back.
 		// Inside a type literal body (`{ A: B\n<T>; }`), a newline-
 		// separated `<` is ALWAYS a new member start (OXC/V8 agree).
-		if p.cur_tok.had_line_terminator && p.ts_in_type_literal > 0 {
+		if cur_has_newline(p) && p.ts_in_type_literal > 0 {
 			// Don't try type args at all — it's a new member.
-		} else if p.cur_tok.had_line_terminator {
+		} else if cur_has_newline(p) {
 			snap := lexer_snapshot(p)
 			snap_errs := len(p.errors)
 			targs = parse_ts_type_arguments(p)
@@ -20261,7 +20261,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 	}
-	node := new_node(p, TSTypeAssertion)
+	node, node_e := new_expr(p, TSTypeAssertion)
 	node.loc = start
 	node.type_annotation = type_ann
 	node.expression = expr
@@ -20271,7 +20271,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 		report_error_at(p, LexerLoc(start.span.start), "This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead.")
 	}
 
-	return expression_from(p, node)
+	return node_e
 }
 
 // When `disallow_ambiguous_jsx_like` is true, generic arrows with a
@@ -20570,7 +20570,7 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 // the happy path we build the arrow directly - no conversion from
 // Expression→Pattern needed because parse_function_params already produced
 // proper FunctionParameter nodes with type annotations attached.
-try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression {
+try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Expression {
 	lparen_tok := lparen_tok  // re-bind to a mutable local; Odin parameters aren't addressable
 	start_loc := loc_from_token(&lparen_tok)
 	snap := lexer_snapshot(p)
@@ -20624,7 +20624,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 		return nil
 	}
 	// §15.3 - ArrowParameters [no LineTerminator here] =>
-	if p.cur_tok.had_line_terminator {
+	if cur_has_newline(p) {
 		report_error(p, "Line terminator not permitted before '=>'")
 	}
 	eat(p) // consume `=>`
@@ -20660,7 +20660,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 	p.in_generator = prev_in_generator
 	p.in_static_block = prev_static_block_ts
 
-	arrow := new_node(p, ArrowFunctionExpression)
+	arrow, arrow_e := new_expr(p, ArrowFunctionExpression)
 	arrow.loc = start_loc
 	arrow.params = params
 	arrow.body = body
@@ -20691,7 +20691,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: Token) -> ^Expression 
 		}
 	}
 
-	return expression_from(p, arrow)
+	return arrow_e
 }
 
 parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
@@ -20740,7 +20740,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 			msg := fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here.", cur_value(p))
 			report_error(p, msg)
 		}
-		cur := get_current(p)
+		cur := snap_current(p)
 		name := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 		// TS2368 — type parameter name cannot be a primitive type name.
 		check_ts_primitive_decl_name(p, "Type parameter", name.name, name.loc)
@@ -20865,7 +20865,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		lb_start := cur_loc(p)
 		eat(p) // `[`
 		param_start := cur_loc(p)
-		param_name_tok := get_current(p)
+		param_name_tok := snap_current(p)
 		eat(p) // identifier
 		colon_start := cur_loc(p)
 		eat(p) // `:`
@@ -20937,13 +20937,13 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		// ~21 OXC corpus rejects in the "Expected :, got ]" cluster.
 		if is_token(p, .RBracket) {
 			eat(p) // consume `]`
-			key_ident := new_node(p, Identifier)
+			key_ident, key_ident_e := new_expr(p, Identifier)
 			key_ident.loc = param_name.loc
 			key_ident.name = param_name.name
 			optional := match_token(p, .Question)
 			prop := TSPropertySignature{
 				loc = Loc{span = Span{start = lb_start.span.start}},
-				key = expression_from(p, key_ident),
+				key = key_ident_e,
 				computed = true, optional = optional,
 				readonly = readonly_mod == .True,
 			}
@@ -21117,7 +21117,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 		// type checker's job.
 		pattern: Pattern
 		if is_token(p, .This) {
-			this_tok := get_current(p)
+			this_tok := snap_current(p)
 			eat(p)
 			this_id := new_node(p, Identifier)
 			this_id.loc = loc_from_token(&this_tok)
@@ -21269,9 +21269,9 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		} else if is_token(p, .Accessor) {
 			modifier_name = "accessor"
 		} else if is_token(p, .Identifier) {
-			switch p.cur_tok.value {
+			switch cur_value(p) {
 			case "public", "private", "protected", "declare", "abstract", "accessor", "async":
-				modifier_name = p.cur_tok.value
+				modifier_name = cur_value(p)
 			}
 		}
 		if modifier_name == "" { break }
@@ -21408,7 +21408,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		if is_index_sig {
 			// Confirmed: index signature.
 			param_start := cur_loc(p)
-			param_name_tok := get_current(p)
+			param_name_tok := snap_current(p)
 			param_name_ident := new_node(p, Identifier)
 			param_name_ident.loc = loc_from_token(&param_name_tok)
 			param_name_ident.name = param_name_tok.value
@@ -21519,24 +21519,24 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			accessor_key = parse_assignment_expression(p)
 			expect_token(p, .RBracket)
 		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-			cur := get_current(p)
-			id := new_node(p, Identifier)
+			cur := snap_current(p)
+			id, id_e := new_expr(p, Identifier)
 			id.loc = loc_from_token(&cur)
 			id.name = cur.value
-			accessor_key = expression_from(p, id)
+			accessor_key = id_e
 			eat(p)
 		} else if is_token(p, .String) {
 			str := parse_string_literal(p)
-			sn := new_node(p, StringLiteral)
+			sn, sn_e := new_expr(p, StringLiteral)
 			sn^ = str
-			accessor_key = expression_from(p, sn)
+			accessor_key = sn_e
 		} else if is_token(p, .Number) {
-			cur := get_current(p)
-			nm := new_node(p, NumericLiteral)
+			cur := snap_current(p)
+			nm, nm_e := new_expr(p, NumericLiteral)
 			nm.loc = loc_from_token(&cur)
 			nm.raw = cur.value
 			if v, ok := cur.literal.(f64); ok { nm.value = v }
-			accessor_key = expression_from(p, nm)
+			accessor_key = nm_e
 			eat(p)
 		} else {
 			return nil
@@ -21589,13 +21589,13 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	if is_token(p, .LBracket) {
 		computed = true; eat(p); key = parse_assignment_expression(p); expect_token(p, .RBracket)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-		cur := get_current(p); id := new_node(p, Identifier); id.loc = loc_from_token(&cur); id.name = cur.value
-		key = expression_from(p, id); eat(p)
+		cur := snap_current(p); id, id_e := new_expr(p, Identifier); id.loc = loc_from_token(&cur); id.name = cur.value
+		key = id_e; eat(p)
 	} else if is_token(p, .String) {
 		str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; key = expression_from(p, sn)
 	} else if is_token(p, .Number) {
-		cur := get_current(p); nm := new_node(p, NumericLiteral); nm.loc = loc_from_token(&cur); nm.raw = cur.value
-		if v, ok := cur.literal.(f64); ok { nm.value = v }; key = expression_from(p, nm); eat(p)
+		cur := snap_current(p); nm, nm_e := new_expr(p, NumericLiteral); nm.loc = loc_from_token(&cur); nm.raw = cur.value
+		if v, ok := cur.literal.(f64); ok { nm.value = v }; key = nm_e; eat(p)
 	} else { return nil }
 	optional := match_token(p, .Question)
 
@@ -21710,7 +21710,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		// inner parse_function_declaration already consumes a leading
 		// `.Async` token before `function`, so we just need to allow the
 		// no-body ambient form. allow_no_body=true.
-		if p.lexer.nxt.kind == .Function && !p.cur_tok.had_line_terminator {
+		if p.lexer.nxt.kind == .Function && !cur_has_newline(p) {
 			stmt = parse_function_declaration(p, false, true)
 			if stmt != nil {
 				if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
@@ -21764,7 +21764,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			if vd, ok := stmt^.(^VariableDeclaration); ok { vd.declare = true }
 		}
 	case .Identifier:
-		val := p.cur_tok.value
+		val := cur_value(p)
 		switch val {
 		case "interface":
 			// Newline between `interface` and its name triggers ASI.
@@ -21873,15 +21873,15 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 		if !is_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.cur_type) {
 			break
 		}
-		tok := get_current(p)
-		id := new_node(p, Identifier); id.loc = loc_from_token(&tok); id.name = tok.value; eat(p)
-		expr := expression_from(p, id)
+		tok := snap_current(p)
+		id, id_e := new_expr(p, Identifier); id.loc = loc_from_token(&tok); id.name = tok.value; eat(p)
+		expr := id_e
 		for is_token(p, .Dot) {
 			eat(p)
 			prop := parse_identifier_name(p)
 			mem := new_node(p, MemberExpression); mem.loc = entry_start; mem.object = expr
-			pid := new_node(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
-			mem.property = expression_from(p, pid); mem.loc.span.end = prev_end_offset(p)
+			pid, pid_e := new_expr(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
+			mem.property = pid_e; mem.loc.span.end = prev_end_offset(p)
 			expr = expression_from(p, mem)
 		}
 		type_args: Maybe(^TSTypeParameterInstantiation)
@@ -21900,7 +21900,7 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 
 parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p); eat(p)
-	cur := get_current(p)
+	cur := snap_current(p)
 	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 	check_strict_ts_decl_name(p, id.name, id.loc)
 	check_ts_primitive_decl_name(p, "Interface", id.name, id.loc)
@@ -21947,7 +21947,7 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 
 parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p); eat(p)
-	cur := get_current(p)
+	cur := snap_current(p)
 	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 	check_strict_ts_decl_name(p, id.name, id.loc)
 	check_ts_primitive_decl_name(p, "Type alias", id.name, id.loc)
@@ -21980,7 +21980,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	is_const := false
 	if is_token(p, .Const) { is_const = true; eat(p) }
 	eat(p)
-	cur := get_current(p)
+	cur := snap_current(p)
 	if !can_be_binding_identifier(p.cur_type) {
 		msg := fmt.tprintf(
 			"Identifier expected. '%s' is a reserved word that cannot be used here.",
@@ -22005,7 +22005,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		if is_token(p, .PrivateIdentifier) {
 			report_error(p, "An enum member cannot have a private name")
 		}
-		ms := cur_loc(p); member_id: ^Expression; mc := get_current(p)
+		ms := cur_loc(p); member_id: ^Expression; mc := snap_current(p)
 		if is_token(p, .String) {
 			str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
 		} else if is_token(p, .Number) || is_token(p, .BigInt) {
@@ -22130,13 +22130,13 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 // (ambient context, progress-guarded statement loop, span widening).
 parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
-	cur := get_current(p)
-	id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
+	cur := snap_current(p)
+	id_ident, id_ident_e := new_expr(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
 	eat(p) // consume `global`
 
 	decl := new_node(p, TSModuleDeclaration)
 	decl.loc = start
-	decl.id = expression_from(p, id_ident)
+	decl.id = id_ident_e
 	decl.kind = .Global
 
 	// TS2669 — `declare global {}` is only valid at the top level of a
@@ -22217,14 +22217,14 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	id_expr: ^Expression
 	if is_string_named {
 		lit := parse_string_literal(p)
-		sn := new_node(p, StringLiteral); sn^ = lit
-		id_expr = expression_from(p, sn)
+		sn, sn_e := new_expr(p, StringLiteral); sn^ = lit
+		id_expr = sn_e
 	} else {
-		cur := get_current(p)
-		id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
+		cur := snap_current(p)
+		id_ident, id_ident_e := new_expr(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
 		check_strict_ts_decl_name(p, id_ident.name, id_ident.loc)
 		eat(p)
-		id_expr = expression_from(p, id_ident)
+		id_expr = id_ident_e
 	}
 
 	// Handle `namespace A.B.C { ... }` - produce nested TSModuleDeclarations.
@@ -22310,11 +22310,11 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 // Parse the name + body portion of a nested namespace declaration.
 // Called AFTER the outer `.` is consumed, so current token is the next name.
 parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSModuleDeclaration {
-	cur := get_current(p)
-	id_ident := new_node(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
+	cur := snap_current(p)
+	id_ident, id_ident_e := new_expr(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
 	check_strict_ts_decl_name(p, id_ident.name, id_ident.loc)
 	eat(p)
-	id_expr := expression_from(p, id_ident)
+	id_expr := id_ident_e
 
 	decl := new_node(p, TSModuleDeclaration)
 	decl.loc = start; decl.id = id_expr; decl.kind = kind
@@ -22412,7 +22412,7 @@ cur_value :: #force_inline proc(p: ^Parser) -> string {
 		// requires the identifier's logical name to be the decoded text,
 		// not the \uXXXX source. Guarded by flag so the non-escape hot
 		// path stays a single source slice.
-		if ft.kind == .Identifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
+		if (ft.kind == .Identifier || ft.kind == .PrivateIdentifier) && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
 			if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type == .Identifier {
 				if s, ok := p.lexer.cur_lit_value.(string); ok { return s }
 			}
@@ -22433,7 +22433,67 @@ cur_loc :: #force_inline proc(p: ^Parser) -> Loc {
 	return loc_from_token(&p.cur_tok)
 }
 
-loc_from_token :: #force_inline proc(t: ^Token) -> Loc {
+cur_raw_end :: #force_inline proc(p: ^Parser) -> u32 {
+	if p.lexer != nil { return p.lexer.cur.end }
+	return p.cur_tok.raw_end
+}
+
+cur_has_newline :: #force_inline proc(p: ^Parser) -> bool {
+	if p.lexer != nil { return (p.lexer.cur.flags & FLAG_NEW_LINE) != 0 }
+	return p.cur_tok.had_line_terminator
+}
+
+cur_has_escape :: #force_inline proc(p: ^Parser) -> bool {
+	if p.lexer != nil { return (p.lexer.cur.flags & FLAG_HAS_ESCAPE) != 0 }
+	return p.cur_tok.has_escape
+}
+
+cur_literal :: #force_inline proc(p: ^Parser) -> LiteralValue {
+	if p.lexer != nil {
+		ft := p.lexer.cur
+		if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type != .None {
+			return p.lexer.cur_lit_value
+		}
+		// String fallback: strip quotes from source when no cooked literal.
+		if ft.kind == .String && ft.end - ft.start >= 2 {
+			return LiteralValue(p.lexer.source[ft.start+1:ft.end-1])
+		}
+		return nil
+	}
+	return p.cur_tok.literal
+}
+
+// TokenSnap — lightweight snapshot of the current token for callers that
+// need to capture token state before eat(). 48 bytes vs Token's 72 bytes,
+// and reads directly from the lexer (FastToken + literal store) rather
+// than the inflated p.cur_tok copy.
+TokenSnap :: struct {
+	value:      string,       // 16B — raw source or cooked name
+	start:      u32,          // 4B  — byte offset of token start
+	end:        u32,          // 4B  — byte offset past last char (raw_end)
+	type:       TokenType,    // 1B
+	has_escape: bool,         // 1B — FLAG_HAS_ESCAPE from FastToken
+	literal:    LiteralValue, // 24B — parsed literal (nil for non-literals)
+}
+
+snap_current :: #force_inline proc(p: ^Parser) -> TokenSnap {
+	return TokenSnap{
+		value      = cur_value(p),
+		start      = cur_offset(p),
+		end        = cur_raw_end(p),
+		type       = p.cur_type,
+		has_escape = cur_has_escape(p),
+		literal    = cur_literal(p),
+	}
+}
+
+loc_from_snap :: #force_inline proc(s: ^TokenSnap) -> Loc {
+	return Loc{span = Span{start = s.start, end = s.end}}
+}
+
+loc_from_token :: proc{loc_from_token_impl, loc_from_snap}
+
+loc_from_token_impl :: #force_inline proc(t: ^Token) -> Loc {
 	// Prefer t.raw_end: it's the true source-byte end from the FastToken,
 	// which is correct even when .value has been replaced by the cooked
 	// identifier name (escaped identifiers: source `C\u00e9` occupies 7 bytes
