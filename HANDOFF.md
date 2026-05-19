@@ -1,214 +1,196 @@
-# Handoff — Beating OXC: Performance Roadmap
+# Handoff — Kessel Performance: Progress & Remaining Gap
 
 ## Current State
 
 Build: clean. All tests pass (291 unit + 24 coverage). All parser conformance suites at 100% positive and 100% negative.
 
-### Performance (measured this session, Apple Silicon, P50 over 30 iterations)
+### Performance (Apple Silicon, P50 over 30 iterations)
 
 | File | KB | Kessel (μs) | OXC (μs) | Ratio |
 |---|---|---|---|---|
-| typescript.js | 8808 | 55,604 | 42,868 | **1.30x** |
-| antd.js | 4059 | 28,594 | 23,631 | 1.21x |
-| monaco.js | 3388 | 38,709 | 33,872 | 1.14x |
-| d3.js | 573 | 6,404 | 5,392 | 1.19x |
-| jquery.js | 278 | 1,869 | 1,722 | 1.09x |
-| lodash.js | 531 | 1,748 | 1,530 | 1.14x |
-| react.dev.js | 107 | 529 | 387 | **1.37x** |
+| typescript.js | 8808 | 51,887 | 42,738 | **1.21x** |
+| antd.js | 4059 | 27,329 | 23,306 | 1.17x |
+| d3.js | 573 | 6,013 | 5,428 | 1.11x |
+| jquery.js | 278 | 1,798 | 1,688 | 1.07x |
+| lodash.js | 531 | 1,678 | 1,418 | 1.18x |
+| react.dev.js | 107 | 487 | 390 | **1.25x** |
 
-**Geo-mean: 1.20x (kessel is 20% slower). Throughput: 130 MB/s vs OXC 158 MB/s.**
+**Geo-mean: 1.16x (kessel is 16% slower). Down from 1.20x before optimization work.**
 
 ### Time Breakdown (typescript.js, 9 MB)
 
 | Phase | Time | % |
 |---|---|---|
-| Lexer | 23.4 ms | 32% |
-| Parser | 48.6 ms | 68% |
-| **Total** | **72.0 ms** | |
+| Lexer | 22.2 ms | 42% |
+| Parser | 30.1 ms | 58% |
+| **Total** | **52.3 ms** | |
 
 ### Allocation Profile (typescript.js)
 
-| Metric | Value |
-|---|---|
-| AST node allocs | 451,413 |
-| Expression wrappers | 87,487 (19.4% of allocs) |
-| Statement wrappers | 75,916 (16.8% of allocs) |
-| Identifiers | 69,005 |
-| Bump pool used | 58 MB / 289 MB (20.2%) |
-| Wrapper byte share | 13.7% of all allocated bytes |
+| Metric | Before | After |
+|---|---|---|
+| AST node allocs | 451,413 | 376,974 |
+| AST node bytes | 19.4 MB | **17.2 MB** |
+| Expression wrappers | 87,487 | 92,670 |
+| Statement wrappers | 75,916 | 33,810 |
+| Identifiers | 69,005 | 52,356 |
+| Identifier size | 48 B | **40 B** |
+| Bump pool used | 58 MB / 289 MB (20.2%) | **50.9 MB / 289 MB (17.6%)** |
 
 ---
 
-## The Gap: Why Kessel is 20% Slower
+## What Was Done (3 rounds of optimization)
 
-The gap is not in any single hot loop. It's distributed across three architectural differences between kessel and OXC:
+### Round 1: Token Elimination + Fused Allocations
 
-### 1. Token Struct Inflation (est. 8–12% of gap)
+**Phases 2–5 of Token elimination.** Migrated all `p.cur_tok.*` field reads to FastToken accessor functions that read directly from the lexer's `FastToken` struct:
 
-**The problem.** OXC's lexer produces a `Token` with 3 fields: `kind` (1B), `start` (4B), `end` (4B) = **9 bytes**. The parser reads `source[start..end]` lazily when it needs the text. Kessel's lexer produces a 16-byte `FastToken`, then `advance_token` inflates it into a **72-byte `Token`** struct on every token:
+- `p.cur_tok.had_line_terminator` → `cur_has_newline(p)` — 43 sites
+- `p.cur_tok.has_escape` → `cur_has_escape(p)` — 23 sites
+- `p.cur_tok.value` → `cur_value(p)` — 64+ sites
+- `p.cur_tok.literal` → `cur_literal(p)` — 11 sites
+- `get_current(p)` (72-byte Token copy) → `snap_current(p)` (48-byte `TokenSnap`) — 63 sites
 
-```
-FastToken (16B)  →  advance_token  →  Token (72B)
-  kind               copies kind        kind
-  flags              copies flags        loc (LexerLoc)
-  start              slices source       value (string = ptr+len)
-  end                                    raw_end
-                     snapshots literal   literal (LiteralValue union, 32B)
-                     checks escapes      had_line_terminator
-                                         has_escape
-```
+New infrastructure:
+- `TokenSnap` struct (48B): `value`, `start`, `end`, `type`, `has_escape`, `literal`
+- `loc_from_token` is now a proc group dispatching to both `^Token` and `^TokenSnap`
+- `cur_value(p)` extended to handle `PrivateIdentifier` escapes
+- `parse_async_arrow_with_parens` and `try_parse_ts_arrow_params` signatures changed from `Token` to `TokenSnap`
 
-This inflation runs **~600K times** per typescript.js parse. The `literal` field (a tagged union holding `bool | f64 | string | {pattern,flags}`) is 32 bytes and only meaningful for ~20% of tokens (strings, numbers, regex, templates). The remaining 80% (identifiers, keywords, operators, punctuation) pay the full 72-byte write for nothing.
+**Fused expr/stmt allocation (Option B).** Converted 106 `new_node + expression_from/statement_from` pairs to single `new_expr`/`new_stmt` fused bump allocations. Remaining 44 `expression_from` + 3 `statement_from` are in different scopes and can't be fused.
 
-**Call sites.** `p.cur_tok` is referenced 182 times. `get_current(p)` (returns Token by value = 72B copy) is called 63 times. `p.cur_tok.value` is read 64 times. `p.cur_tok.had_line_terminator` is read 43 times.
+### Round 2: Lexer + Parser Micro-optimizations
 
-**The fix.** Eliminate `Token` entirely. Make the parser read `FastToken` fields directly from the lexer:
+- **Nil-check removal.** Stripped dead `if p.lexer != nil` from all accessor functions. No perf impact (compiler already predicted).
+- **TrialSnapshot shrink.** Removed 72-byte `cur_tok: Token` from snapshot struct. 41 snapshot sites now copy ~120 bytes instead of ~192. No wall-time impact.
+- **SIMD string newline detection.** Extended `simd_find_string_end` to detect LF/CR during the SIMD scan (third return value). `lex_string` skips the scalar newline loop when none found (~95% of strings). ~3% lex improvement.
+- **Keyword hash table.** Replaced the 132-line `lookup_keyword_by_letter` switch-on-first-char with a 268-entry hash table: `KEYWORD_HASH_TABLE[(first_char - 'a') * 11 + (length - 2)]`. 6 collisions resolved by 2nd byte switch. Non-keywords exit in 1 table load; matches verify with 3-byte u32 compare + optional tail check. ~3% lex improvement.
 
-- `p.cur_type` → already exists (1B, fast)
-- `p.cur_tok.value` → replace with `source[lexer.cur.start:lexer.cur.end]` or a lazy `cur_value()` inline
-- `p.cur_tok.had_line_terminator` → replace with `(lexer.cur.flags & FLAG_NEW_LINE) != 0`
-- `p.cur_tok.has_escape` → replace with `(lexer.cur.flags & FLAG_HAS_ESCAPE) != 0`
-- `p.cur_tok.literal` → replace with lazy access to `lexer.cur_lit_value` only when needed (11 call sites)
-- `p.cur_tok.loc` → replace with `LexerLoc(lexer.cur.start)` (computed, not stored)
+### Round 3: Phase 7 + Struct Shrink
 
-**Scope.** ~250 call sites across `src/parser.odin`. The 63 `get_current(p)` sites are the priority — each copies 72 bytes. Many only read `.value` and can be replaced with `cur_value(p)` (already exists, reads from lexer directly).
-
-**Estimated impact.** Eliminating the 72B inflation saves ~600K × 72B = 43MB of writes per parse. Even with store-buffer absorption, this is significant cache pressure. Conservative estimate: 8–12% of the 20% gap.
-
-### 2. Expression/Statement Wrapper Allocations (est. 4–6% of gap)
-
-**The problem.** Every AST expression node requires TWO allocations: the concrete node (e.g. `Identifier`, 48B) and a wrapper `^Expression` union (16B) that points to it. Same for statements. This produces **163,403 wrapper allocations** (87K expr + 76K stmt) that are pure overhead — they exist only because Odin's union dispatch requires a pointer indirection.
-
-OXC uses a flat `Expression` enum with inline data for small variants and arena-indexed pointers for large ones. No wrapper allocation.
-
-```
-Kessel:  new_node(p, Identifier) → 48B + new_node(p, Expression) → 16B = 64B, 2 allocs
-OXC:     arena.alloc<Identifier>() → 48B, 1 alloc, Expression enum tag is inline
-```
-
-**The fix.** Two options:
-
-**(A) Inline small variants.** The `Expression` union is currently `union { ^Identifier, ^StringLiteral, ^NumericLiteral, ... }` — all pointers. For the top-5 variants by frequency (Identifier 69K, MemberExpression, CallExpression, StringLiteral, NumericLiteral), inline the struct directly:
-
-```odin
-Expression :: union {
-    Identifier,              // 48B inline (was ^Identifier = 8B pointer)
-    ^FunctionExpression,     // large, keep pointer
-    ^ClassExpression,        // large, keep pointer
-    ...
-}
-```
-
-This eliminates the separate allocation for the most common nodes. Trades union size (grows from 16B to ~80B) for allocation count (-69K allocs). The emitter (`src/emitter.odin`, 39 node printers) needs matching changes.
-
-**(B) Fused allocation.** Allocate concrete node + wrapper in one bump:
-
-```odin
-new_expr_node :: proc(p: ^Parser, $T: typeid) -> (^T, ^Expression) {
-    // Single bump alloc for T + Expression, contiguous in memory
-    total := size_of(T) + size_of(Expression)
-    ptr := bump_alloc(&p.node_pool, total, align_of(T))
-    node := transmute(^T)ptr
-    expr := transmute(^Expression)(uintptr(ptr) + uintptr(size_of(T)))
-    expr^ = node
-    return node, expr
-}
-```
-
-This halves allocation count without changing AST layout. The emitter doesn't change. But it requires updating every `new_node(p, Foo); expression_from(p, foo)` pattern (~87K times) to the fused version.
-
-**Scope.** Option A: `src/ast.odin` (union definitions), `src/parser.odin` (~200 sites that create expression nodes), `src/emitter.odin` (39 printers), `src/checker.odin` (expression walkers). Option B: `src/parser.odin` only (~200 sites).
-
-**Estimated impact.** 163K fewer allocations × ~20ns per bump = ~3.3ms saved. On a 55ms parse, that's ~6%. Plus better cache locality from fused nodes.
-
-### 3. Lexer: Identifier Keyword Dispatch (est. 2–4% of gap)
-
-**The problem.** When the lexer encounters an identifier, it must check if it's a keyword. Kessel uses a switch on the first character + length, then compares strings. OXC uses a perfect hash table generated at compile time. The difference is ~2-3 fewer comparisons per keyword check on average.
-
-**Where.** `src/lexer.odin`, `lex_identifier` function (~line 1060). Called for every identifier and keyword token.
-
-**The fix.** Generate a minimal perfect hash for the ~70 JS/TS keywords. The hash maps `(first_char, length)` → keyword token directly without string comparison for the common case. Odin's `#partial switch` on a hash value is branch-free on ARM64.
-
-**Estimated impact.** ~2–4% on large files with many keywords (typescript.js has ~200K identifiers/keywords).
-
-### 4. Parser: Speculative Parse Overhead (est. 1–2% of gap)
-
-**The problem.** Several parser paths use `lexer_snapshot` / `lexer_restore` for speculative parsing (arrow functions, TS type arguments, generic disambiguation). Each snapshot copies lexer state. OXC uses a "rewind" mechanism that's cheaper because it only resets the offset.
-
-**Where.** `src/parser.odin`, `lexer_snapshot` (5 call sites), `looks_like_ts_function_type` (speculative lookahead).
-
-**The fix.** Replace `lexer_snapshot`/`lexer_restore` with offset-based rewind where possible. The lexer's `cur`/`nxt` two-token lookahead can be restored from just `(offset, cur, nxt)` — 24 bytes instead of the full lexer state.
-
-**Estimated impact.** Small — speculative parses are rare per file. But on files with many arrow functions (react.dev.js, 1.37x gap), this matters more.
-
-### 5. Emitter: JSON Serialization (not in parse time, but in wall time)
-
-The ESTree JSON emitter (`src/emitter.odin`, 6.4K lines) runs after parsing. It's not measured in the parse benchmark but dominates CLI wall time. OXC uses `serde` with zero-copy string references; kessel's emitter does `fmt.tprintf` calls. This is a separate optimization track.
+- **Phase 7: advance_token stripped.** Removed ALL `p.cur_tok` field writes from `advance_token` AND all 5 rescan/relex paths. `advance_token` is now 7 lines: prev_end save → cur←nxt swap → literal ring toggle → lex nxt → set cur_type. Writes 1 byte per token instead of 56–72. Also migrated remaining 40 `p.cur_tok.value` reads scattered across import/export/TS parsing.
+- **Literal ring buffer.** Replaced the 6-field literal store (`last_lit_offset/value/type` + `cur_lit_offset/value/type`) with a 2-slot ring buffer (`lit_offset[2]`, `lit_value[2]`, `lit_type[2]`, `lit_write_idx`). `advance_token` does a single XOR toggle (1 byte) instead of copying 3 fields (~32 bytes) per literal-bearing token. ~2% improvement.
+- **Loc shrink.** Removed dead `line` and `column` fields from `Loc` struct (16→8 bytes). These were never written or read — line/column computed lazily by `report_error`. Every AST node shrinks by 8 bytes. Identifier: 48→40 bytes. Total node bytes: 19.4→17.2 MB (−11.3%).
+- **Dynamic array pre-sizing.** Gave sensible initial capacities to zero-cap arrays (function bodies 4, class bodies 8, etc.). Minimal wall-time impact.
 
 ---
 
-## Priority Order
+## Why Kessel Is Still 16% Slower
 
-| # | Fix | Est. Impact | Effort | Files |
+### Gap Breakdown (typescript.js)
+
+| Component | Kessel | OXC (est) | Gap | % of total gap |
 |---|---|---|---|---|
-| 1 | Eliminate Token struct inflation | 8–12% | HIGH | `parser.odin` (~250 sites) |
-| 2 | Fused expr/stmt allocation | 4–6% | MEDIUM | `parser.odin` (~200 sites) |
-| 3 | Perfect-hash keyword lookup | 2–4% | LOW | `lexer.odin` (1 function) |
-| 4 | Cheaper speculative parse | 1–2% | LOW | `parser.odin` (5 sites) |
-| **Total** | | **15–24%** | | |
+| Lexer | 22.2 ms | ~15.8 ms | **6.4 ms** | **66%** |
+| Parser | 30.1 ms | ~26.9 ms | **3.2 ms** | **34%** |
 
-Fixing #1 alone would likely bring kessel within 10% of OXC. Fixing #1 + #2 should achieve parity or better.
+### Lexer Gap (66% of the problem — 6.4ms)
+
+**1. Two-token lookahead (nxt prefetch).** `advance_token` eagerly lexes `a.nxt` on every `eat()`. OXC lexes on-demand (single lookahead). This has two costs:
+
+- Direct: 16B FastToken copy (`a.cur = a.nxt`) + EOF branch per token = ~2 cycles/token = ~0.7ms
+- Indirect: `lex_token` is called from within the `#force_inline advance_token`, which means the full lexer dispatch code gets inlined into every parse function. This causes **massive code bloat**: `parse_for_statement` compiles to 388KB (larger than L1 icache). The icache pressure costs ~3-10 cycles/token on real workloads.
+
+110 sites reference `p.lexer.nxt` for lookahead. Eliminating the two-token design would require rearchitecting all 110.
+
+**2. Literal snapshot mechanism (now ring buffer).** The ring buffer toggle is cheap (1 XOR), but the mechanism still exists. OXC stores literal data inline in its Token struct — no separate tracking.
+
+**3. Lexer dispatch overhead.** `lex_token` is a ~250-line proc with whitespace skip (branchless fast path + SIMD slow path) + single-char table lookup + identifier/operator dispatch. OXC's equivalent is simpler because it doesn't prefetch nxt.
+
+### Parser Gap (34% of the problem — 3.2ms)
+
+**1. Expression/Statement wrapper allocations.** 126K wrapper allocations per parse (92K expr + 34K stmt). Each is a 16-byte bump alloc for a pointer-union indirection. OXC uses flat tagged enums — zero wrapper allocations. This is ~2.5ms of alloc overhead + cache pressure.
+
+The only fix is restructuring `Expression :: union { ^Identifier, ^StringLiteral, ... }` to a flat enum or inline layout, which changes every file: ast.odin, parser.odin (~200 sites), emitter.odin (39 printers), checker.odin.
+
+**2. Dynamic array malloc.** 85 `make([dynamic])` per parse use the system allocator (malloc/free). OXC uses arena-backed Vecs (bump pointer). We attempted an arena-backed allocator but Odin's `[dynamic]` resize contract caused alignment panics. Needs more careful engineering of the allocator protocol.
+
+**3. Pointer indirection.** `cur_value(p)` traverses `p→lexer→cur→start` (3 dependent loads). OXC reads offsets from a flat struct.
 
 ---
 
-## How To Implement Fix #1 (Token Elimination)
+## What Would Close the Gap
 
-This is the highest-impact change. Here's the step-by-step plan:
+### Tier 1: Architecture changes (5–10% combined, weeks of work)
 
-### Phase 1: Add FastToken accessor inlines (no behavior change)
+| Fix | Est. | Effort | Notes |
+|---|---|---|---|
+| Eliminate two-token lookahead | 2–4% | **VERY HIGH** | 110 `nxt` references; rearchitect lexer/parser interface |
+| Eliminate Expression/Statement wrappers | 2–3% | **VERY HIGH** | Flat enum AST; changes ast + parser + emitter + checker |
+| Arena-backed `[dynamic]` arrays | 1–2% | HIGH | Custom allocator matching Odin's resize contract |
 
-Add inline helpers that read from `p.lexer.cur` directly:
+### Tier 2: Already attempted, need different approach
+
+| Fix | Issue | Alternative |
+|---|---|---|
+| De-inline lex_token | Call overhead > icache benefit at 1.15M calls | Need compiler-level PGO or split lex_token into hot/cold paths |
+| Arena [dynamic] arrays | Odin allocator alignment panic on resize | Implement full Odin allocator protocol including Query_Features |
+
+### Tier 3: Diminishing returns (< 1% each)
+
+- Shrink Identifier further (already 40B, well-packed)
+- Pre-size more dynamic arrays
+- Further SIMD in lexer (already covers identifiers + strings + whitespace)
+
+---
+
+## Architecture After Optimization
+
+### advance_token (7 lines, was 92)
 
 ```odin
-cur_start :: #force_inline proc(p: ^Parser) -> u32 { return p.lexer.cur.start }
-cur_end   :: #force_inline proc(p: ^Parser) -> u32 { return p.lexer.cur.end }
-cur_flags :: #force_inline proc(p: ^Parser) -> u8  { return p.lexer.cur.flags }
-cur_has_newline :: #force_inline proc(p: ^Parser) -> bool {
-    return (p.lexer.cur.flags & FLAG_NEW_LINE) != 0
+advance_token :: #force_inline proc(p: ^Parser) {
+    if p.lexer != nil {
+        a := p.lexer
+        p.prev_token_end = a.cur.end
+        a.cur = a.nxt
+        a.lit_write_idx ~= 1  // ring buffer toggle
+        if a.cur.kind != .EOF { a.nxt = lex_token(a) }
+        else { a.nxt = token_eof(u32(a.offset)) }
+        p.cur_type = a.cur.kind
+    }
 }
-cur_has_escape :: #force_inline proc(p: ^Parser) -> bool {
-    return (p.lexer.cur.flags & FLAG_HAS_ESCAPE) != 0
-}
-// cur_value already exists and reads from lexer
 ```
 
-### Phase 2: Migrate `p.cur_tok.had_line_terminator` (43 sites)
+### Token access (all reads go through FastToken accessors)
 
-Replace `p.cur_tok.had_line_terminator` with `cur_has_newline(p)`. Pure mechanical substitution — `had_line_terminator` is only read, never written except in `advance_token`.
+```odin
+cur_value(p)       // → p.lexer.source[cur.start:cur.end] (or cooked name for escapes)
+cur_loc(p)         // → Loc{span = {cur.start, cur.end}}
+cur_has_newline(p) // → (cur.flags & FLAG_NEW_LINE) != 0
+cur_has_escape(p)  // → (cur.flags & FLAG_HAS_ESCAPE) != 0
+cur_literal(p)     // → lit_value[lit_write_idx ^ 1] (ring buffer read slot)
+cur_offset(p)      // → cur.start
+cur_raw_end(p)     // → cur.end
+```
 
-### Phase 3: Migrate `p.cur_tok.has_escape` (23 sites)
+`p.cur_tok` is effectively dead — no reads remain. The struct still exists on `Parser` but is only written by legacy rescan paths (JSX relex, regex relex) that don't go through `advance_token`. These paths set `p.cur_type` directly from the lexer.
 
-Same pattern. Replace with `cur_has_escape(p)`.
+### Keyword lookup (hash table)
 
-### Phase 4: Migrate `p.cur_tok.value` (64 sites)
+```
+KEYWORD_HASH_TABLE: [268]TokenType  — indexed by (first_char - 'a') * 11 + (length - 2)
+KEYWORD_VERIFY: [268]u32           — bytes 1..3 packed for verification
+6 collision slots resolved by 2nd-byte switch: (a,5) (a,8) (c,5) (i,2) (s,6) (t,4)
+```
 
-Replace with `cur_value(p)` (already exists). Some sites save `p.cur_tok.value` before `eat(p)` — these need `saved_value := cur_value(p)` before the eat.
+### Literal storage (ring buffer)
 
-### Phase 5: Eliminate `get_current(p)` (63 sites)
+```
+Lexer.lit_offset: [2]u32
+Lexer.lit_value:  [2]LiteralValue
+Lexer.lit_type:   [2]LiteralType
+Lexer.lit_write_idx: u8  — toggles 0↔1 each advance
+```
 
-Each site does `current := get_current(p)` then reads `current.value`, `current.type`, `loc_from_token(&current)`. Replace with direct reads: `cur_value(p)`, `p.cur_type`, `Loc{span = {start = cur_start(p), end = 0}}`.
+Writer (lex_token): writes to `[lit_write_idx]`. Reader (cur_literal): reads from `[lit_write_idx ^ 1]`.
 
-### Phase 6: Migrate `p.cur_tok.literal` (11 sites)
+### Loc (8 bytes, was 16)
 
-These read the cooked literal value for strings/numbers. Replace with `cur_literal(p)` that reads from `lexer.cur_lit_value`. Only 11 sites — mostly in `parse_string_literal`, `parse_numeric_literal`, `parse_template_literal`.
-
-### Phase 7: Remove Token struct and advance_token inflation
-
-Once all reads go through FastToken accessors, `cur_tok` and the inflation logic in `advance_token` can be deleted. `advance_token` shrinks from 92 lines to ~10 (just swap cur/nxt and lex next token).
-
-### Validation
-
-After each phase, run `task test` (all 291 unit + 24 coverage tests) and benchmark. The test suite is comprehensive enough to catch any behavioral regression.
+```odin
+Loc :: struct { span: Span }  // Span = {start: u32, end: u32}
+// line/column removed — computed lazily by report_error via offset_to_line_col
+```
 
 ---
 
@@ -223,14 +205,15 @@ task test:bench:regression:update   # Lock new baseline after perf work
 
 # Benchmarking
 ./bin/kessel microbench parse FILE --iterations 30
+./bin/kessel microbench lex FILE --iterations 10
 ./bin/kessel profile parse FILE --iterations 5
 bench/oxc_compare/target/release/oxc_microbench FILE 30
 
 # Key files
-src/parser.odin    # 22.6K lines — parser + Token struct + advance_token
-src/lexer.odin     # 3.1K lines — SIMD lexer, FastToken, lex_token
-src/ast.odin       # 1.6K lines — all AST struct/union definitions
-src/token.odin     # 383 lines — TokenType enum, Token struct, FastToken
-src/emitter.odin   # 6.4K lines — ESTree JSON emitter
-src/parse_job.odin # 440 lines — ParseJob entry point
+src/parser.odin    # ~22.5K lines — parser + advance_token + FastToken accessors
+src/lexer.odin     # ~3.1K lines — SIMD lexer, FastToken, lex_token, keyword hash
+src/ast.odin       # ~1.6K lines — all AST struct/union definitions
+src/emitter.odin   # ~6.4K lines — ESTree JSON emitter
+src/simd.odin      # ~600 lines — ARM64 NEON intrinsics
+src/token.odin     # ~380 lines — TokenType enum, FastToken struct
 ```
