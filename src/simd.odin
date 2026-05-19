@@ -15,39 +15,48 @@ Vec16 :: simd.u8x16   // 16 bytes vector
 
 // Find first quote or backslash — returns (position, is_quote)
 // If returns len(data), neither was found in the scanned range.
-simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: bool) {
+simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: bool, has_newline: bool) {
 	when ODIN_ARCH == .arm64 {
 		q_vec: Vec16 = quote
 		b_vec: Vec16 = '\\'
+		nl_vec: Vec16 = '\n'
+		cr_vec: Vec16 = '\r'
+		saw_nl := false
 		ptr := 0
 		for ptr + 16 <= len(data) {
 			chunk := (cast(^Vec16)&data[ptr])^
 			is_q := simd.lanes_eq(chunk, q_vec)
 			is_b := simd.lanes_eq(chunk, b_vec)
+			is_nl := simd.lanes_eq(chunk, nl_vec) | simd.lanes_eq(chunk, cr_vec)
+			if intrinsics.simd_reduce_or(is_nl) != 0 { saw_nl = true }
 			combined := is_q | is_b
 			mask := simd.extract_msbs(combined)
 			if card(mask) > 0 {
-				// Find first set lane
 				for lane in mask {
 					p := ptr + int(lane)
-					return p, data[p] == quote
+					return p, data[p] == quote, saw_nl
 				}
 			}
 			ptr += 16
 		}
 		// Scalar tail
 		for ptr < len(data) {
-			if data[ptr] == quote { return ptr, true }
-			if data[ptr] == '\\' { return ptr, false }
+			c := data[ptr]
+			if c == quote { return ptr, true, saw_nl }
+			if c == '\\' { return ptr, false, saw_nl }
+			if c == '\n' || c == '\r' { saw_nl = true }
 			ptr += 1
 		}
-		return len(data), false
+		return len(data), false, saw_nl
 	} else {
+		saw_nl := false
 		for i := 0; i < len(data); i += 1 {
-			if data[i] == quote { return i, true }
-			if data[i] == '\\' { return i, false }
+			c := data[i]
+			if c == quote { return i, true, saw_nl }
+			if c == '\\' { return i, false, saw_nl }
+			if c == '\n' || c == '\r' { saw_nl = true }
 		}
-		return len(data), false
+		return len(data), false, saw_nl
 	}
 }
 

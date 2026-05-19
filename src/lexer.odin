@@ -1716,35 +1716,30 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 	l.offset += 1 // skip opening quote
 
-	// SIMD: find first quote or backslash
+	// SIMD: find first quote or backslash (also detects newlines)
 	remaining := l.source_bytes[l.offset:]
-	pos, found_quote := simd_find_string_end(remaining, quote)
+	pos, found_quote, simd_saw_nl := simd_find_string_end(remaining, quote)
 
 	if found_quote {
-		// No escape — direct string. Check for unescaped line
-		// terminators (§12.9.4.1): bare LF / CR inside a string
-		// literal is a SyntaxError. In JSX attribute string mode
-		// (jsx_string_mode), raw newlines are allowed per JSX §2.2.
-		span := remaining[:pos]
-		if !l.jsx_string_mode {
-			for bi := 0; bi < len(span); bi += 1 {
-				b := span[bi]
-				if b == '\n' || b == '\r' {
-					bump_append(&l.lexer_errors, LexerError{
-						offset = u32(int(start) + 1 + bi),
-						message = "Unterminated string literal",
-					})
-					l.had_line_terminator = true
-					break
+		// No escape — direct string. The SIMD scan already detected
+		// whether any LF/CR bytes exist in the span. If none were found,
+		// skip the scalar newline walk entirely (the ~95% fast path).
+		if simd_saw_nl {
+			if !l.jsx_string_mode {
+				span := remaining[:pos]
+				for bi := 0; bi < len(span); bi += 1 {
+					b := span[bi]
+					if b == '\n' || b == '\r' {
+						bump_append(&l.lexer_errors, LexerError{
+							offset = u32(int(start) + 1 + bi),
+							message = "Unterminated string literal",
+						})
+						l.had_line_terminator = true
+						break
+					}
 				}
-			}
-		} else {
-			// JSX strings: still track had_line_terminator for ASI.
-			for b in span {
-				if b == '\n' || b == '\r' {
-					l.had_line_terminator = true
-					break
-				}
+			} else {
+				l.had_line_terminator = true
 			}
 		}
 		l.offset += pos + 1 // skip content + closing quote
@@ -1836,7 +1831,7 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 		// strings rarely contain literal newlines.
 		remaining := src[l.offset:]
 		// `found_quote` is unused here — we re-check src[l.offset] below.
-		pos, _ := simd_find_string_end(remaining, quote)
+		pos, _, _ := simd_find_string_end(remaining, quote)
 		if pos > 0 {
 			span := src[l.offset : l.offset + pos]
 			for bi := 0; bi < len(span); bi += 1 {

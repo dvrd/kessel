@@ -1211,7 +1211,7 @@ pre_scan_for_module_syntax :: proc(p: ^Parser) {
 			quote := c
 			i += 1
 			for i < n {
-				pos, found_quote := simd_find_string_end(src[i:], quote)
+				pos, found_quote, _ := simd_find_string_end(src[i:], quote)
 				i += pos
 				if i >= n { break }
 				if found_quote { i += 1; break }
@@ -1229,7 +1229,7 @@ pre_scan_for_module_syntax :: proc(p: ^Parser) {
 		if c == '`' {
 			i += 1
 			for i < n {
-				pos, found_bt := simd_find_string_end(src[i:], '`')
+				pos, found_bt, _ := simd_find_string_end(src[i:], '`')
 				i += pos
 				if i >= n { break }
 				if found_bt { i += 1; break }
