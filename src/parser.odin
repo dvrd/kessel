@@ -10,44 +10,20 @@ import "core:strings"
 
 // Advance lexer: shift nxt → cur, lex new nxt. Writes minimal Token fields.
 advance_token :: #force_inline proc(p: ^Parser) {
-	if p.lexer != nil {
-		a := p.lexer
-		// Remember the end of the token we're about to consume. `a.cur` is the
-		// current token BEFORE this advance - after the swap it will be gone.
-		// `prev_token_end` lets `prev_end_offset` return the end of the last
-		// consumed meaningful token (excluding trailing whitespace/comments),
-		// which matches OXC/Acorn/Babel span semantics.
-		p.prev_token_end = a.cur.end
-		a.cur = a.nxt
-		// Snapshot the literal slot that was written when a.nxt (now a.cur)
-		// was lexed on the previous advance. The upcoming lex_token for the
-		// NEW a.nxt will overwrite last_lit_* - we must capture it first or
-		// we'll lose the cooked value and fall back to raw source for cur
-		// (broke any string-with-escape followed by another cooking literal,
-		// e.g. a string inside template `${...}`).
-		//
-		// `last_lit_*` is only ever written by the lexer for tokens that
-		// carry a cooked value: numbers, strings, big ints, regex, the
-		// template family, and escape-bearing identifiers (plain plus
-		// PrivateIdentifier). For everything else - operators, punct,
-		// keywords, plain identifiers - last_lit_* still holds whatever the
-		// last literal-bearing lex run left there. Reading is safe because
-		// every consumer below validates with `cur_lit_offset == ft.start`,
-		// but the WRITES are pure waste for the ~80 %% of real-world tokens
-		// that aren't literal-bearing. Gating saves three writes
-		// (offset 4 B + value union ~24 B + type 1 B → padded to ~32 B) on
-		// every non-literal advance - hundreds of thousands of skipped
-		// stores per parse on monaco-class files.
-		// Toggle ring buffer: cur's literal is now at [write_idx],
-		// the upcoming lex_token for nxt writes to [write_idx ^ 1].
-		a.lit_write_idx ~= 1
-		if a.cur.kind != .EOF {
-			a.nxt = lex_token(a)
-		} else {
-			a.nxt = token_eof(u32(a.offset))
-		}
-		p.cur_type = a.cur.kind
+	a := p.lexer
+	// Save end of the token we're about to consume. Used by
+	// `prev_end_offset` for span semantics.
+	p.prev_token_end = a.cur.end
+	a.cur = a.nxt
+	// Toggle ring buffer: cur's literal is now at [write_idx],
+	// the upcoming lex_token for nxt writes to [write_idx ^ 1].
+	a.lit_write_idx ~= 1
+	if a.cur.kind != .EOF {
+		a.nxt = lex_token(a)
+	} else {
+		a.nxt = token_eof(u32(a.offset))
 	}
+	p.cur_type = a.cur.kind
 }
 
 // Peek at the NEXT token (1-ahead). Not cached.
@@ -12908,11 +12884,34 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 }
 
 // LHS tail: member access, computed access, calls, tagged templates, optional chaining
+// Fast-exit table for parse_lhs_tail: true for tokens that continue a
+// LHS expression (member access, call, tagged template, optional chain,
+// TS instantiation). The common case (bare identifier, literal, etc.)
+// exits via a single table load instead of falling through 7+ switch
+// comparisons.
+is_lhs_continuation_table: [len(TokenType)]bool
+
+@(init)
+init_is_lhs_continuation_table :: proc "contextless" () {
+	is_lhs_continuation_table[TokenType.Dot]           = true
+	is_lhs_continuation_table[TokenType.OptionalChain]  = true
+	is_lhs_continuation_table[TokenType.LBracket]       = true
+	is_lhs_continuation_table[TokenType.LParen]         = true
+	is_lhs_continuation_table[TokenType.TemplateHead]    = true
+	is_lhs_continuation_table[TokenType.Template]        = true
+	is_lhs_continuation_table[TokenType.Not]             = true  // TS non-null assertion
+	is_lhs_continuation_table[TokenType.LAngle]          = true  // TS type args
+	is_lhs_continuation_table[TokenType.LShift]          = true  // TS nested type args
+}
+
 parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_call: bool) -> ^Expression {
 	expr := start_expr
 	chain_start: Loc
 	is_chain := false
 	for {
+		// Fast exit: ~60% of expressions are bare identifiers with no
+		// member/call tail. One table load replaces 7+ switch comparisons.
+		if !is_lhs_continuation_table[p.cur_type] { break }
 		#partial switch p.cur_type {
 		case .Dot:
 			if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
