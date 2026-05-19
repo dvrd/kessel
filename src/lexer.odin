@@ -2993,135 +2993,166 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 // where keywords are <5 % of identifiers) stay in L1 for the actual hot
 // loop, paying a single call+return only when an identifier ACTUALLY needs
 // keyword classification.
+// Keyword hash table: maps (first_char - 'a') * 11 + (length - 2) → TokenType.
+// 268-entry table (26 letters × ~10 lengths). Non-keyword slots are .Identifier.
+// 6 colliding slots resolved by 2nd byte: (a,5) (a,8) (c,5) (i,2) (s,6) (t,4).
+KEYWORD_HASH_TABLE: [268]TokenType
+
+// Verification bytes: the 2nd..4th bytes of each keyword packed into a u32.
+// Used for a single word-compare after the hash hit to reject false positives
+// (identifiers that happen to share first-char + length with a keyword).
+KEYWORD_VERIFY: [268]u32
+
+@(init)
+init_keyword_hash :: proc "contextless" () {
+	for i in 0..<268 { KEYWORD_HASH_TABLE[i] = .Identifier }
+
+	// Helper: pack bytes 1..min(4,len) of a keyword into a u32 for verification.
+	// Only bytes 1..3 (indices 1,2,3) are used — 3 bytes after the first char.
+	pack :: proc "contextless" (kw: string) -> u32 {
+		b := transmute([]u8)kw
+		v: u32 = 0
+		if len(b) > 1 { v |= u32(b[1]) }
+		if len(b) > 2 { v |= u32(b[2]) << 8 }
+		if len(b) > 3 { v |= u32(b[3]) << 16 }
+		return v
+	}
+
+	reg :: proc "contextless" (kw: string, tt: TokenType) {
+		h := (u32(kw[0]) - u32('a')) * 11 + (u32(len(kw)) - 2)
+		KEYWORD_HASH_TABLE[h] = tt
+		b := transmute([]u8)kw
+		v: u32 = 0
+		if len(b) > 1 { v |= u32(b[1]) }
+		if len(b) > 2 { v |= u32(b[2]) << 8 }
+		if len(b) > 3 { v |= u32(b[3]) << 16 }
+		KEYWORD_VERIFY[h] = v
+	}
+
+	// Non-colliding keywords (51 entries)
+	reg("as", .As);           reg("assert", .Assert);     reg("asserts", .Asserts)
+	reg("break", .Break)
+	reg("case", .Case);       reg("continue", .Continue)
+	reg("do", .Do);           reg("delete", .Delete);     reg("default", .Default)
+	reg("debugger", .Debugger)
+	reg("else", .Else);       reg("export", .Export);     reg("extends", .Extends)
+	reg("for", .For);         reg("from", .From);         reg("false", .False)
+	reg("finally", .Finally); reg("function", .Function)
+	reg("get", .Get)
+	reg("infer", .Infer);     reg("import", .Import);     reg("instanceof", .Instanceof)
+	reg("let", .Let)
+	reg("keyof", .Keyof)
+	reg("new", .New);         reg("null", .Null);         reg("never", .Never)
+	reg("of", .Of);           reg("override", .Override)
+	reg("return", .Return)
+	reg("set", .Set);         reg("super", .Super);       reg("satisfies", .Satisfies)
+	reg("try", .Try);         reg("throw", .Throw);       reg("typeof", .Typeof)
+	reg("using", .Using);     reg("unique", .Unique)
+	reg("var", .Var);         reg("void", .Void)
+	reg("with", .With);       reg("while", .While)
+	reg("yield", .Yield)
+
+	// Colliding slots — set to sentinel .Invalid; resolved by 2nd-byte switch
+	// (a,5): async/await  (a,8): abstract/accessor  (c,5): catch/class/const
+	// (i,2): if/in/is     (s,6): switch/static      (t,4): this/true
+	h_a5 := (u32('a') - u32('a')) * 11 + 3;  KEYWORD_HASH_TABLE[h_a5] = .Invalid
+	h_a8 := (u32('a') - u32('a')) * 11 + 6;  KEYWORD_HASH_TABLE[h_a8] = .Invalid
+	h_c5 := (u32('c') - u32('a')) * 11 + 3;  KEYWORD_HASH_TABLE[h_c5] = .Invalid
+	h_i2 := (u32('i') - u32('a')) * 11 + 0;  KEYWORD_HASH_TABLE[h_i2] = .Invalid
+	h_s6 := (u32('s') - u32('a')) * 11 + 4;  KEYWORD_HASH_TABLE[h_s6] = .Invalid
+	h_t4 := (u32('t') - u32('a')) * 11 + 2;  KEYWORD_HASH_TABLE[h_t4] = .Invalid
+}
+
 lookup_keyword_by_letter :: #force_inline proc(src: []u8, start: u32, end: u32) -> TokenType {
 	length := end - start
 	if length < 2 || length > 10 { return .Identifier }
 
 	c0 := src[start]
-	switch c0 {
-	case 'a':
-		if length == 2 && src[start+1] == 's' { return .As }
-		if length == 6 && src[start+1] == 's' && src[start+2] == 's' && src[start+3] == 'e' && src[start+4] == 'r' && src[start+5] == 't' { return .Assert }
-		if length == 7 && src[start+1] == 's' && src[start+2] == 's' && src[start+3] == 'e' &&
-		   src[start+4] == 'r' && src[start+5] == 't' && src[start+6] == 's' { return .Asserts }
-		if length == 5 {
-			// async, await
-			if src[start+1] == 's' && src[start+2] == 'y' && src[start+3] == 'n' && src[start+4] == 'c' { return .Async }
-			if src[start+1] == 'w' && src[start+2] == 'a' && src[start+3] == 'i' && src[start+4] == 't' { return .Await }
-		}
-		if length == 8 && src[start+1] == 'b' && src[start+2] == 's' && src[start+3] == 't' &&
-		   src[start+4] == 'r' && src[start+5] == 'a' && src[start+6] == 'c' && src[start+7] == 't' { return .Abstract }
-		if length == 8 && src[start+1] == 'c' && src[start+2] == 'c' && src[start+3] == 'e' &&
-		   src[start+4] == 's' && src[start+5] == 's' && src[start+6] == 'o' && src[start+7] == 'r' { return .Accessor }
-	case 'b':
-		if length == 5 && src[start+1] == 'r' && src[start+2] == 'e' && src[start+3] == 'a' && src[start+4] == 'k' { return .Break }
-	case 'c':
-		if length == 4 && src[start+1] == 'a' && src[start+2] == 's' && src[start+3] == 'e' { return .Case }
-		if length == 5 {
-			if src[start+1] == 'a' && src[start+2] == 't' && src[start+3] == 'c' && src[start+4] == 'h' { return .Catch }
-			if src[start+1] == 'l' && src[start+2] == 'a' && src[start+3] == 's' && src[start+4] == 's' { return .Class }
-			if src[start+1] == 'o' && src[start+2] == 'n' && src[start+3] == 's' && src[start+4] == 't' { return .Const }
-		}
-		if length == 8 && src[start+1] == 'o' && src[start+2] == 'n' && src[start+3] == 't' &&
-		   src[start+4] == 'i' && src[start+5] == 'n' && src[start+6] == 'u' && src[start+7] == 'e' { return .Continue }
-	case 'd':
-		if length == 2 && src[start+1] == 'o' { return .Do }
-		if length == 6 && src[start+1] == 'e' && src[start+2] == 'l' && src[start+3] == 'e' &&
-		   src[start+4] == 't' && src[start+5] == 'e' { return .Delete }
-		if length == 7 {
-			if src[start+1] == 'e' {
-				if src[start+2] == 'f' && src[start+3] == 'a' && src[start+4] == 'u' &&
-				   src[start+5] == 'l' && src[start+6] == 't' { return .Default }
-				if src[start+2] == 'b' && src[start+3] == 'u' && src[start+4] == 'g' &&
-				   src[start+5] == 'g' && src[start+6] == 'e' { /* debugger is 8 */ }
+	if c0 < 'a' || c0 > 'z' { return .Identifier }
+
+	h := (u32(c0) - u32('a')) * 11 + (length - 2)
+	if h >= 268 { return .Identifier }
+
+	candidate := KEYWORD_HASH_TABLE[h]
+	if candidate == .Identifier { return .Identifier }
+
+	// Collision slot — resolve by 2nd byte
+	if candidate == .Invalid {
+		c1 := src[start + 1]
+		switch c0 {
+		case 'a':
+			if length == 5 {
+				if c1 == 's' && src[start+2] == 'y' && src[start+3] == 'n' && src[start+4] == 'c' { return .Async }
+				if c1 == 'w' && src[start+2] == 'a' && src[start+3] == 'i' && src[start+4] == 't' { return .Await }
+			} else { // length == 8
+				if c1 == 'b' && src[start+2] == 's' && src[start+3] == 't' &&
+				   src[start+4] == 'r' && src[start+5] == 'a' && src[start+6] == 'c' && src[start+7] == 't' { return .Abstract }
+				if c1 == 'c' && src[start+2] == 'c' && src[start+3] == 'e' &&
+				   src[start+4] == 's' && src[start+5] == 's' && src[start+6] == 'o' && src[start+7] == 'r' { return .Accessor }
 			}
-		}
-		if length == 8 && src[start+1] == 'e' && src[start+2] == 'b' && src[start+3] == 'u' &&
-		   src[start+4] == 'g' && src[start+5] == 'g' && src[start+6] == 'e' && src[start+7] == 'r' { return .Debugger }
-	case 'e':
-		if length == 4 {
-			if src[start+1] == 'l' && src[start+2] == 's' && src[start+3] == 'e' { return .Else }
-			// Note: 'enum' is a TS contextual keyword — lexed as Identifier,
-			// checked by string value in the parser to allow `var enum = 1`.
-		}
-		if length == 6 && src[start+1] == 'x' {
-			if src[start+2] == 'p' && src[start+3] == 'o' && src[start+4] == 'r' && src[start+5] == 't' { return .Export }
-		}
-		if length == 7 && src[start+1] == 'x' && src[start+2] == 't' && src[start+3] == 'e' &&
-		   src[start+4] == 'n' && src[start+5] == 'd' && src[start+6] == 's' { return .Extends }
-	case 'f':
-		if length == 3 && src[start+1] == 'o' && src[start+2] == 'r' { return .For }
-		if length == 4 && src[start+1] == 'r' && src[start+2] == 'o' && src[start+3] == 'm' { return .From }
-		if length == 5 && src[start+1] == 'a' && src[start+2] == 'l' && src[start+3] == 's' && src[start+4] == 'e' { return .False }
-		if length == 7 && src[start+1] == 'i' && src[start+2] == 'n' && src[start+3] == 'a' &&
-		   src[start+4] == 'l' && src[start+5] == 'l' && src[start+6] == 'y' { return .Finally }
-		if length == 8 && src[start+1] == 'u' && src[start+2] == 'n' && src[start+3] == 'c' &&
-		   src[start+4] == 't' && src[start+5] == 'i' && src[start+6] == 'o' && src[start+7] == 'n' { return .Function }
-	case 'g':
-		if length == 3 && src[start+1] == 'e' && src[start+2] == 't' { return .Get }
-	case 'i':
-		if length == 2 {
-			if src[start+1] == 'f' { return .If }
-			if src[start+1] == 'n' { return .In }
-			if src[start+1] == 's' { return .Is }
-		}
-		if length == 5 && src[start+1] == 'n' && src[start+2] == 'f' && src[start+3] == 'e' && src[start+4] == 'r' { return .Infer }
-		if length == 6 && src[start+1] == 'm' && src[start+2] == 'p' && src[start+3] == 'o' &&
-		   src[start+4] == 'r' && src[start+5] == 't' { return .Import }
-// Note: 'interface' is a TS contextual keyword — lexed as Identifier,
-		// checked by string value in the parser to allow `var interface = 1`.
-		if length == 10 && src[start+1] == 'n' && src[start+2] == 's' && src[start+3] == 't' &&
-		   src[start+4] == 'a' && src[start+5] == 'n' && src[start+6] == 'c' && src[start+7] == 'e' &&
-		   src[start+8] == 'o' && src[start+9] == 'f' { return .Instanceof }
-	case 'l':
-		if length == 3 && src[start+1] == 'e' && src[start+2] == 't' { return .Let }
-	case 'k':
-		if length == 5 && src[start+1] == 'e' && src[start+2] == 'y' && src[start+3] == 'o' && src[start+4] == 'f' { return .Keyof }
-	case 'n':
-		if length == 3 && src[start+1] == 'e' && src[start+2] == 'w' { return .New }
-		if length == 4 && src[start+1] == 'u' && src[start+2] == 'l' && src[start+3] == 'l' { return .Null }
-		if length == 5 && src[start+1] == 'e' && src[start+2] == 'v' && src[start+3] == 'e' && src[start+4] == 'r' { return .Never }
-	case 'o':
-		if length == 2 && src[start+1] == 'f' { return .Of }
-		if length == 8 && src[start+1] == 'v' && src[start+2] == 'e' && src[start+3] == 'r' &&
-		   src[start+4] == 'r' && src[start+5] == 'i' && src[start+6] == 'd' && src[start+7] == 'e' { return .Override }
-	case 'r':
-		if length == 6 && src[start+1] == 'e' && src[start+2] == 't' && src[start+3] == 'u' &&
-		   src[start+4] == 'r' && src[start+5] == 'n' { return .Return }
-	case 's':
-		if length == 3 && src[start+1] == 'e' && src[start+2] == 't' { return .Set }
-		if length == 5 && src[start+1] == 'u' && src[start+2] == 'p' && src[start+3] == 'e' && src[start+4] == 'r' { return .Super }
-		if length == 6 {
-			if src[start+1] == 'w' && src[start+2] == 'i' && src[start+3] == 't' &&
+		case 'c': // catch/class/const
+			if c1 == 'a' && src[start+2] == 't' && src[start+3] == 'c' && src[start+4] == 'h' { return .Catch }
+			if c1 == 'l' && src[start+2] == 'a' && src[start+3] == 's' && src[start+4] == 's' { return .Class }
+			if c1 == 'o' && src[start+2] == 'n' && src[start+3] == 's' && src[start+4] == 't' { return .Const }
+		case 'i': // if/in/is
+			if c1 == 'f' { return .If }
+			if c1 == 'n' { return .In }
+			if c1 == 's' { return .Is }
+		case 's': // switch/static
+			if c1 == 'w' && src[start+2] == 'i' && src[start+3] == 't' &&
 			   src[start+4] == 'c' && src[start+5] == 'h' { return .Switch }
-			if src[start+1] == 't' && src[start+2] == 'a' && src[start+3] == 't' &&
+			if c1 == 't' && src[start+2] == 'a' && src[start+3] == 't' &&
 			   src[start+4] == 'i' && src[start+5] == 'c' { return .Static }
+		case 't': // this/true
+			if c1 == 'h' && src[start+2] == 'i' && src[start+3] == 's' { return .This }
+			if c1 == 'r' && src[start+2] == 'u' && src[start+3] == 'e' { return .True }
 		}
-		if length == 9 && src[start+1] == 'a' && src[start+2] == 't' && src[start+3] == 'i' &&
-		   src[start+4] == 's' && src[start+5] == 'f' && src[start+6] == 'i' && src[start+7] == 'e' && src[start+8] == 's' { return .Satisfies }
-	case 't':
-		if length == 3 && src[start+1] == 'r' && src[start+2] == 'y' { return .Try }
-		if length == 4 {
-			if src[start+1] == 'h' && src[start+2] == 'i' && src[start+3] == 's' { return .This }
-			if src[start+1] == 'r' && src[start+2] == 'u' && src[start+3] == 'e' { return .True }
-			// Note: 'type' is a TS contextual keyword — lexed as Identifier,
-			// checked by string value in the parser to allow `var type = 1`.
-		}
-		if length == 5 && src[start+1] == 'h' && src[start+2] == 'r' && src[start+3] == 'o' && src[start+4] == 'w' { return .Throw }
-		if length == 6 && src[start+1] == 'y' && src[start+2] == 'p' && src[start+3] == 'e' &&
-		   src[start+4] == 'o' && src[start+5] == 'f' { return .Typeof }
-	case 'u':
-		if length == 5 && src[start+1] == 's' && src[start+2] == 'i' && src[start+3] == 'n' && src[start+4] == 'g' { return .Using }
-		if length == 6 && src[start+1] == 'n' && src[start+2] == 'i' && src[start+3] == 'q' &&
-		   src[start+4] == 'u' && src[start+5] == 'e' { return .Unique }
-	case 'v':
-		if length == 3 && src[start+1] == 'a' && src[start+2] == 'r' { return .Var }
-		if length == 4 && src[start+1] == 'o' && src[start+2] == 'i' && src[start+3] == 'd' { return .Void }
-	case 'w':
-		if length == 4 && src[start+1] == 'i' && src[start+2] == 't' && src[start+3] == 'h' { return .With }
-		if length == 5 && src[start+1] == 'h' && src[start+2] == 'i' && src[start+3] == 'l' && src[start+4] == 'e' { return .While }
-	case 'y':
-		if length == 5 && src[start+1] == 'i' && src[start+2] == 'e' && src[start+3] == 'l' && src[start+4] == 'd' { return .Yield }
+		return .Identifier
 	}
-	return .Identifier
+
+	// Non-collision: verify bytes 1..3 match
+	v: u32 = 0
+	if length > 1 { v |= u32(src[start+1]) }
+	if length > 2 { v |= u32(src[start+2]) << 8 }
+	if length > 3 { v |= u32(src[start+3]) << 16 }
+	if v != KEYWORD_VERIFY[h] { return .Identifier }
+
+	// For length ≤ 4, bytes 1..3 verify fully matched — we're done.
+	// For length > 4, verify remaining bytes 4+.
+	if length > 4 {
+		// Only ~20 keywords have length > 4. Verify bytes 4+ with
+		// a targeted per-candidate check (the hash + 3-byte verify
+		// already narrowed to a single candidate).
+		#partial switch candidate {
+		case .Assert:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
+		case .Asserts:    if src[start+4] != 'r' || src[start+5] != 't' || src[start+6] != 's' { return .Identifier }
+		case .Break:      if src[start+4] != 'k' { return .Identifier }
+		case .Continue:   if src[start+4] != 'i' || src[start+5] != 'n' || src[start+6] != 'u' || src[start+7] != 'e' { return .Identifier }
+		case .Delete:     if src[start+4] != 't' || src[start+5] != 'e' { return .Identifier }
+		case .Default:    if src[start+4] != 'u' || src[start+5] != 'l' || src[start+6] != 't' { return .Identifier }
+		case .Debugger:   if src[start+4] != 'g' || src[start+5] != 'g' || src[start+6] != 'e' || src[start+7] != 'r' { return .Identifier }
+		case .Export:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
+		case .Extends:    if src[start+4] != 'n' || src[start+5] != 'd' || src[start+6] != 's' { return .Identifier }
+		case .False:      if src[start+4] != 'e' { return .Identifier }
+		case .Finally:    if src[start+4] != 'l' || src[start+5] != 'l' || src[start+6] != 'y' { return .Identifier }
+		case .Function:   if src[start+4] != 't' || src[start+5] != 'i' || src[start+6] != 'o' || src[start+7] != 'n' { return .Identifier }
+		case .Infer:      if src[start+4] != 'r' { return .Identifier }
+		case .Import:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
+		case .Instanceof: if src[start+4] != 'a' || src[start+5] != 'n' || src[start+6] != 'c' || src[start+7] != 'e' || src[start+8] != 'o' || src[start+9] != 'f' { return .Identifier }
+		case .Keyof:      if src[start+4] != 'f' { return .Identifier }
+		case .Never:      if src[start+4] != 'r' { return .Identifier }
+		case .Override:   if src[start+4] != 'r' || src[start+5] != 'i' || src[start+6] != 'd' || src[start+7] != 'e' { return .Identifier }
+		case .Return:     if src[start+4] != 'r' || src[start+5] != 'n' { return .Identifier }
+		case .Super:      if src[start+4] != 'r' { return .Identifier }
+		case .Satisfies:  if src[start+4] != 's' || src[start+5] != 'f' || src[start+6] != 'i' || src[start+7] != 'e' || src[start+8] != 's' { return .Identifier }
+		case .Throw:      if src[start+4] != 'w' { return .Identifier }
+		case .Typeof:     if src[start+4] != 'o' || src[start+5] != 'f' { return .Identifier }
+		case .Using:      if src[start+4] != 'g' { return .Identifier }
+		case .Unique:     if src[start+4] != 'u' || src[start+5] != 'e' { return .Identifier }
+		case .While:      if src[start+4] != 'e' { return .Identifier }
+		case .Yield:      if src[start+4] != 'd' { return .Identifier }
+		}
+	}
+
+	return candidate
 }
