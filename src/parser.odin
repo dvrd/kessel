@@ -55,12 +55,9 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		}
 		ft := a.cur
 		p.cur_type = ft.kind
-		p.cur_tok.type = ft.kind
-		p.cur_tok.loc = LexerLoc(ft.start)
-		p.cur_tok.raw_end = ft.end
-		// Branchless: always write (avoids conditional branch per token)
-		p.cur_tok.had_line_terminator = (ft.flags & FLAG_NEW_LINE) != 0
-		p.cur_tok.has_escape = (ft.flags & FLAG_HAS_ESCAPE) != 0
+		// Phase 7 partial: skip type/loc/raw_end/flags writes (20B saved).
+		// Gated value/literal inflation still runs for identifier/literal
+		// tokens since a few sites still read p.cur_tok.value.
 		if ft.kind < .LBrace {
 			p.cur_tok.value = a.source[ft.start:ft.end]
 			if ft.kind == .String {
@@ -75,23 +72,7 @@ advance_token :: #force_inline proc(p: ^Parser) {
 				if a.cur_lit_offset == ft.start && a.cur_lit_type != .None {
 					p.cur_tok.literal = a.cur_lit_value
 				}
-			} else if ft.kind == .Identifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
-				// Escaped identifier - override the raw span with the cooked
-				// (decoded) name published by lex_identifier_escaped. The raw
-				// span is still the source text including \uXXXX; only the .value
-				// used for AST emission changes. raw_end (set above) preserves
-				// the true source end so loc_from_token still produces the
-				// correct span. Mirrored in prime_token_cache and cur_value.
-				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
-					if s, ok := a.cur_lit_value.(string); ok {
-						p.cur_tok.value = s
-					}
-				}
-			} else if ft.kind == .PrivateIdentifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
-				// Escaped private identifier - same cooked-name swap as above.
-				// lex_private_identifier_escaped publishes the cooked body WITH
-				// the leading '#' so downstream parser code (which strips '#')
-				// keeps working unchanged.
+			} else if (ft.kind == .Identifier || ft.kind == .PrivateIdentifier) && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
 				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
 					if s, ok := a.cur_lit_value.(string); ok {
 						p.cur_tok.value = s
@@ -4728,7 +4709,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		// TS `this` parameter: `function(this: T) {}` - specifies the
 		// type of `this` inside the function. Not a real runtime param.
 		ident := new_node(p, Identifier)
-		ident.loc = loc_from_token(&p.cur_tok)
+		ident.loc = cur_loc(p)
 		ident.name = "this"
 		eat(p)
 		pattern = ident
@@ -8967,7 +8948,7 @@ new_identifier :: proc(p: ^Parser, tok: Token) -> ^Identifier {
 // are needed.
 new_identifier_from_cur :: #force_inline proc(p: ^Parser) -> ^Identifier {
 	ident := new_node(p, Identifier)
-	ident.loc = loc_from_token(&p.cur_tok)
+	ident.loc = cur_loc(p)
 	ident.name = cur_value(p)
 	return ident
 }
@@ -12595,7 +12576,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	#partial switch p.cur_type {
 	case .Plus, .Minus, .BitNot, .Not, .Typeof, .Void, .Delete:
-		current := p.cur_tok
+		current := snap_current(p)
 		eat(p)
 		argument := parse_unary_expr(p)
 		if argument == nil {
@@ -12683,7 +12664,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		return unary_e
 
 	case .PlusPlus, .MinusMinus:
-		current := p.cur_tok
+		current := snap_current(p)
 		eat(p)
 		argument := parse_unary_expr(p)
 		if argument == nil {
@@ -12804,7 +12785,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.in_async_params {
 			report_error(p, "'await' expression is not allowed in formal parameters of an async function")
 		}
-		current := p.cur_tok
+		current := snap_current(p)
 		eat(p)
 		prev_private_in_allowed := p.private_in_allowed
 		p.private_in_allowed = false
@@ -12825,7 +12806,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// S26 W5b: source-slice (current.value), not literal.
 			// String literals are RODATA-pointing and break raw_transfer.
 			id.name = current.value
-			id.loc.span.end = current.raw_end
+			id.loc.span.end = current.end
 			return id_e
 		}
 		await, await_e := new_expr(p, AwaitExpression)
@@ -12839,7 +12820,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		return await_e
 
 	case .Dot3:
-		current := p.cur_tok
+		current := snap_current(p)
 		eat(p)
 		argument := parse_unary_expr(p)
 		if argument == nil { return nil }
@@ -12943,7 +12924,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// them here returned permanent 0, then we'd write 0 back into
 		// `id.loc.{line,column}` - four wasted memory ops per identifier on
 		// the hot path. Skip the loads, leave the Loc fields zero-initialised.
-		id_offset := u32(p.cur_tok.loc)
+		id_offset := cur_offset(p)
 		id_value  := cur_value(p)
 		eat(p)
 		id, id_e := new_expr(p, Identifier)
@@ -12963,7 +12944,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	// LHS and postfix `++`/`--`. If there's a newline, ASI inserts a
 	// semicolon so the operator starts the next statement as a prefix op.
 	if (p.cur_type == .PlusPlus || p.cur_type == .MinusMinus) && !cur_has_newline(p) {
-		current := p.cur_tok
+		current := snap_current(p)
 		eat(p)
 		update, update_e := new_expr(p, UpdateExpression)
 		update.loc = loc_from_expr(expr)
@@ -17241,7 +17222,7 @@ parse_identifier :: proc(p: ^Parser) -> Identifier {
 	// /export specifiers, JSX attribute names, dynamic imports, optional
 	// chains, ~13 sites total). The string slice in cur_value(p)
 	// points into the source bytes, which outlive eat(p).
-	loc := loc_from_token(&p.cur_tok)
+	loc := cur_loc(p)
 	name := cur_value(p)
 	eat(p)
 	return Identifier{loc = loc, name = name}
@@ -17254,9 +17235,9 @@ parse_identifier_name :: proc(p: ^Parser) -> Identifier {
 parse_string_literal :: proc(p: ^Parser) -> StringLiteral {
 	// Same shape as parse_identifier above: snapshot only the fields
 	// we need before eat(p), avoiding the 64 B Token copy.
-	loc := loc_from_token(&p.cur_tok)
+	loc := cur_loc(p)
 	raw := cur_value(p)
-	value := p.cur_tok.literal.(string) or_else ""
+	value := cur_literal(p).(string) or_else ""
 
 	// §12.9.4.1 — in strict mode, numeric escape sequences other than
 	// `\0` (not followed by a digit) are forbidden in string literals.
