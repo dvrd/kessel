@@ -4269,7 +4269,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if is_no_body {
 		body = FunctionBody{
 			loc = cur_loc(p),
-			body = make([dynamic]^Statement, 0, 0, p.allocator),
+			body = make([dynamic]^Statement, 0, 4, p.allocator),
 			directives = make([dynamic]Directive, 0, 0, p.allocator),
 		}
 	} else {
@@ -4782,7 +4782,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// stays zero-cap unconditionally.
 	body := FunctionBody{
 		loc        = start,
-		body       = make([dynamic]^Statement, 0, 0, p.allocator),
+		body       = make([dynamic]^Statement, 0, 4, p.allocator),
 		directives = make([dynamic]Directive, 0, 0, p.allocator),
 	}
 	// If the body is non-empty, pre-grow the statement vector to its
@@ -5131,7 +5131,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 		// declaration-style stubs / abstract definitions / TS-only shells.
 		// Use a zero-cap make() so the allocator is set; reserve 8 only
 		// when we know there's at least one element (or stray semicolon).
-		body = make([dynamic]ClassElement, 0, 0, p.allocator),
+		body = make([dynamic]ClassElement, 0, 8, p.allocator),
 	}
 	// Cap bumped from 8 → 16 (S23): 323 classes on monaco had >8 elements,
 	// triggering runtime grow. Class bodies tend to have many small members
@@ -7220,7 +7220,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 				report_error(p, "Expected binding pattern")
 			}
 		}
-		decl.declarations = make([dynamic]VariableDeclarator, 0, 0, p.allocator)
+		decl.declarations = make([dynamic]VariableDeclarator, 0, 2, p.allocator)
 		if consume_semi { match_semicolon_or_asi(p) }
 		decl.loc.span.end = prev_end_offset(p)
 		stmt := new_node(p, Statement); stmt^ = decl; return stmt
@@ -17973,7 +17973,7 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 		elem := new_node(p, JSXElement)
 		elem.loc = start
 		elem.opening_element = opening
-		elem.children = make([dynamic]JSXChild, 0, 0, p.allocator)
+		elem.children = make([dynamic]JSXChild, 0, 4, p.allocator)
 		elem.loc.span.end = prev_end_offset(p)
 		return expression_from(p, elem)
 	}
