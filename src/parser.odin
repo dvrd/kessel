@@ -53,27 +53,7 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		} else {
 			a.nxt = token_eof(u32(a.offset))
 		}
-		ft := a.cur
-		p.cur_type = ft.kind
-		// Phase 7 partial: skip type/loc/raw_end/flags writes (20B saved).
-		// Gated value/literal inflation still runs for identifier/literal
-		// tokens since a few sites still read cur_value(p).
-		if ft.kind < .LBrace {
-			if ft.kind == .String {
-				if a.cur_lit_offset == ft.start && a.cur_lit_type == .String {
-				} else if ft.end - ft.start >= 2 {
-				} else {
-				}
-			} else if ft.kind <= .TemplateTail {
-				if a.cur_lit_offset == ft.start && a.cur_lit_type != .None {
-				}
-			} else if (ft.kind == .Identifier || ft.kind == .PrivateIdentifier) && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
-				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
-					if s, ok := a.cur_lit_value.(string); ok {
-					}
-				}
-			}
-		}
+		p.cur_type = a.cur.kind
 	}
 }
 
