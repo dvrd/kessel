@@ -204,7 +204,7 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 // terminator (NBSP / U+1680 / U+2000-200A / U+2028-2029 / U+202F / U+205F
 // / U+3000 / U+FEFF). Annex B `<!--` / `-->` and `//` / `/*` comments are
 // also handled by the caller — this function never crosses them.
-simd_skip_ascii_ws_run :: #force_inline proc(src: []u8, start: int) -> int {
+simd_skip_ascii_ws_run :: proc(src: []u8, start: int) -> int {
 	off := start
 	src_len := len(src)
 	when ODIN_ARCH == .arm64 {
@@ -256,7 +256,7 @@ simd_skip_ascii_ws_run :: #force_inline proc(src: []u8, start: int) -> int {
 // or CR (or U+2028 / U+2029 via the 0xE2 lead byte), since spec line
 // terminators are LF / CR / LS / PS. TAB and other inert controls
 // fall through and the SIMD continues.
-simd_skip_line_comment :: #force_inline proc(src: []u8, start: int) -> (end: int, had_nl: bool) {
+simd_skip_line_comment :: proc(src: []u8, start: int) -> (end: int, had_nl: bool) {
 	off := start
 	src_len := len(src)
 	ctrl_thresh: Vec16 = 0x20
@@ -326,7 +326,7 @@ simd_skip_line_comment :: #force_inline proc(src: []u8, start: int) -> (end: int
 // first `*/`. Otherwise `/*c*/++;\n}` (where `*/` is lane 7 and `\n`
 // is lane 12) would wrongly flip had_line_terminator on, triggering
 // ASI for the postfix `++` after the comment.
-simd_skip_block_comment :: #force_inline proc(src: []u8, start: int) -> (end: int, had_nl: bool) {
+simd_skip_block_comment :: proc(src: []u8, start: int) -> (end: int, had_nl: bool) {
 	off := start
 	src_len := len(src)
 	had_newline := false
