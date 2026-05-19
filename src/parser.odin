@@ -279,19 +279,18 @@ PendingPrivRef :: struct {
 
 // Parser represents the recursive descent parser
 Parser :: struct {
+	// ---- Cache-line 0: hottest fields (accessed every token) ----
 	// Lexer reference (per-parser, thread-safe for parallel parsing)
 	lexer: ^Lexer,
+	// Token type — checked on EVERY is_token() call. Placed before
+	// cur_tok so it shares cache line 0 with the lexer pointer.
+	cur_type: TokenType,
+	// End offset of the LAST consumed token.
+	prev_token_end: u32,
 
+	// ---- Cache-line 1+: token detail (accessed selectively) ----
 	// Cached current token - updated ONLY by advance_token()
 	cur_tok:  Token,
-	cur_type: TokenType,
-
-	// End offset of the LAST consumed token. Used by `prev_end_offset` to
-	// produce ESTree-correct span.end values that don't include trailing
-	// whitespace or comments (which `cur_offset` would include because it
-	// returns the start of the NEXT token). Updated at the top of
-	// `advance_token` before the cur/nxt swap.
-	prev_token_end: u32,
 
 	// Remembered `(` position for arrow-function parameter parens - used
 	// when a parenthesized expression turns out to be arrow-function
@@ -6458,8 +6457,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		key = expression_from(p, big)
 		eat(p)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-		current := get_current(p)
-		key = expression_from(p, new_identifier(p, current))
+		key_type_snap := p.cur_type
+		key_value_snap := p.cur_tok.value
+		key = expression_from(p, new_identifier_from_cur(p))
 		eat(p)
 
 		// Check if it's actually a constructor. Only promote to .Constructor
@@ -6467,7 +6467,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// non-instance accessor named "constructor" and stays in its own
 		// .Get / .Set kind so the post-parse §15.7.6 check below can flag
 		// it as a SyntaxError.
-		if (current.type == .Constructor || (current.type == .Identifier && current.value == "constructor")) &&
+		if (key_type_snap == .Constructor || (key_type_snap == .Identifier && key_value_snap == "constructor")) &&
 		   kind == .Method && !is_async && !is_generator && !static_ {
 			kind = .Constructor
 		}
@@ -6476,7 +6476,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// the disallowed shapes here, where we still see the original
 		// modifiers + the literal name.
 		if !static_ && !is_private && !computed &&
-		   (current.type == .Constructor || (current.type == .Identifier && current.value == "constructor")) {
+		   (key_type_snap == .Constructor || (key_type_snap == .Identifier && key_value_snap == "constructor")) {
 			if is_async {
 				report_error(p, "Constructor can't be an async method")
 			}
@@ -8955,10 +8955,20 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 
 // Helper to create identifier from token info
 new_identifier :: proc(p: ^Parser, tok: Token) -> ^Identifier {
-	tok := tok  // re-bind to a mutable local; Odin parameters aren't addressable
+	tok := tok
 	ident := new_node(p, Identifier)
 	ident.loc = loc_from_token(&tok)
 	ident.name = tok.value
+	return ident
+}
+
+// new_identifier_from_cur creates an Identifier from p.cur_tok without
+// copying the 72-byte Token struct. Use before eat() when only loc + name
+// are needed.
+new_identifier_from_cur :: #force_inline proc(p: ^Parser) -> ^Identifier {
+	ident := new_node(p, Identifier)
+	ident.loc = loc_from_token(&p.cur_tok)
+	ident.name = p.cur_tok.value
 	return ident
 }
 
@@ -17722,8 +17732,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		// ("Expression must be enclosed in parentheses") is semantic.
 		expr = parse_new_expr(p)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-		current := get_current(p)
-		expr = expression_from(p, new_identifier(p, current))
+		expr = expression_from(p, new_identifier_from_cur(p))
 		eat(p)
 		// Dotted chain - allows identifiers, keywords-as-property, AND
 		// private identifiers (`@C.#dec`, `@C.#self.#dec`). Reject
@@ -17732,8 +17741,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			eat(p)
 			if is_token(p, .PrivateIdentifier) {
 				// Private field access: `@obj.#priv`
-				prop_tok := get_current(p)
-				prop_id := new_identifier(p, prop_tok)
+				prop_id := new_identifier_from_cur(p)
 				eat(p)
 				mem := new_node(p, MemberExpression)
 				mem.loc = start
@@ -17744,8 +17752,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				mem.loc.span.end = prev_end_offset(p)
 				expr = expression_from(p, mem)
 			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-				prop_tok := get_current(p)
-				prop_id := new_identifier(p, prop_tok)
+				prop_id := new_identifier_from_cur(p)
 				eat(p)
 				mem := new_node(p, MemberExpression)
 				mem.loc = start
@@ -17793,8 +17800,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		} else if is_token(p, .Dot) {
 			eat(p)
 			if is_token(p, .PrivateIdentifier) || is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-				prop_tok := get_current(p)
-				prop_id := new_identifier(p, prop_tok)
+				prop_id := new_identifier_from_cur(p)
 				eat(p)
 				mem := new_node(p, MemberExpression)
 				mem.loc = start
@@ -17848,8 +17854,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				expr = expression_from(p, mem)
 			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 				// Optional member: `@x?.y`
-				prop_tok := get_current(p)
-				prop_id := new_identifier(p, prop_tok)
+				prop_id := new_identifier_from_cur(p)
 				eat(p)
 				mem := new_node(p, MemberExpression)
 				mem.loc = start
