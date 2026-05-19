@@ -99,18 +99,14 @@ Lexer :: struct {
 
 	// === WARM FIELDS (accessed frequently but not every token) ===
 	source:     string,               // 16B
-	last_lit_offset: u32,             // 4B  — write on literal tokens (reflects the LAST lex_token call — i.e. `nxt`)
-	last_lit_value:  LiteralValue,    // 16B
-	last_lit_type:   LiteralType,     // 1B
-	// Parallel slot shadowing the literal data for the CURRENT token (`cur`).
-	// advance_token copies last_lit_* → cur_lit_* BEFORE the next lex_token call
-	// overwrites last_lit_*. Without this, a literal followed by another
-	// cooking literal (e.g. string inside template `${...}`, number after
-	// escape-cooked string) would drop the first literal's cooked value
-	// on the floor and fall back to the raw source slice.
-	cur_lit_offset:  u32,
-	cur_lit_value:   LiteralValue,
-	cur_lit_type:    LiteralType,
+	// Literal ring buffer — two slots indexed by lit_write_idx.
+	// lex_token writes to slot [lit_write_idx]. advance_token
+	// flips the index (1 XOR vs 3-field copy). cur_literal(p)
+	// reads from slot [lit_write_idx ^ 1] (the previous write).
+	lit_offset: [2]u32,
+	lit_value:  [2]LiteralValue,
+	lit_type:   [2]LiteralType,
+	lit_write_idx: u8,                // 0 or 1, toggled each advance
 
 	// === COLD FIELDS (rarely accessed) ===
 	line_offsets: []u32,
@@ -346,9 +342,9 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 	// same way on every subsequent swap; priming has to do it manually
 	// because there's no prior `cur = nxt` step. See comment on cur_lit_*
 	// in the Lexer struct.
-	l.cur_lit_offset = l.last_lit_offset
-	l.cur_lit_value  = l.last_lit_value
-	l.cur_lit_type   = l.last_lit_type
+	// After lexing cur, its literal is in slot [lit_write_idx] (initially 0).
+	// Toggle so nxt writes to the other slot, keeping cur's literal safe.
+	l.lit_write_idx ~= 1
 	if l.cur.kind != .EOF {
 		l.nxt = lex_token(l)
 	}
@@ -1262,9 +1258,9 @@ lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	end := u32(off)
 	l.offset = off
-	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(string(cooked[:]))
-	l.last_lit_type = .Identifier
+	l.lit_offset[l.lit_write_idx] = start
+	l.lit_value[l.lit_write_idx] = LiteralValue(string(cooked[:]))
+	l.lit_type[l.lit_write_idx] = .Identifier
 	// Always .Identifier — never a keyword (ECMA-262 §12.7.2). The
 	// "escaped keyword used as Identifier" Syntax Error is enforced on
 	// the parser side, because IdentifierName positions (property name,
@@ -1459,7 +1455,7 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		text_no_underscores := string(buf[:])
 		value, _ = strconv.parse_f64(text_no_underscores)
 	}
-	l.last_lit_offset = start; l.last_lit_value = LiteralValue(value); l.last_lit_type = .Number
+	l.lit_offset[l.lit_write_idx] = start; l.lit_value[l.lit_write_idx] = LiteralValue(value); l.lit_type[l.lit_write_idx] = .Number
 
 	// §12.9.3 — "The SourceCharacter immediately following a
 	// NumericLiteral must not be an IdentifierStart or DecimalDigit."
@@ -1561,9 +1557,9 @@ lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		}
 		value = f64(acc)
 	}
-	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(value)
-	l.last_lit_type = .Number
+	l.lit_offset[l.lit_write_idx] = start
+	l.lit_value[l.lit_write_idx] = LiteralValue(value)
+	l.lit_type[l.lit_write_idx] = .Number
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
@@ -1633,9 +1629,9 @@ lex_binary :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		}
 		value = f64(acc)
 	}
-	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(value)
-	l.last_lit_type = .Number
+	l.lit_offset[l.lit_write_idx] = start
+	l.lit_value[l.lit_write_idx] = LiteralValue(value)
+	l.lit_type[l.lit_write_idx] = .Number
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
@@ -1702,9 +1698,9 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		}
 		value = f64(acc)
 	}
-	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(value)
-	l.last_lit_type = .Number
+	l.lit_offset[l.lit_write_idx] = start
+	l.lit_value[l.lit_write_idx] = LiteralValue(value)
+	l.lit_type[l.lit_write_idx] = .Number
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
@@ -1807,7 +1803,7 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 
 	// Cook buffer is allocated on the lexer's arena. No `defer delete` — the
 	// slice exposed via `string(cook_buf[:])` on the return path is published
-	// to `l.last_lit_value` and read by the parser AFTER this proc returns.
+	// to `l.lit_value[l.lit_write_idx]` and read by the parser AFTER this proc returns.
 	// Bulk arena reset at the end of the parse owns the lifetime of the
 	// backing memory; an individual delete here would dangle the published
 	// string if the allocator ever stops no-op'ing frees.
@@ -1864,9 +1860,9 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 			end := u32(l.offset)
 
 			// Publish the cooked value
-			l.last_lit_offset = start
-			l.last_lit_value = LiteralValue(string(cook_buf[:]))
-			l.last_lit_type = .String
+			l.lit_offset[l.lit_write_idx] = start
+			l.lit_value[l.lit_write_idx] = LiteralValue(string(cook_buf[:]))
+			l.lit_type[l.lit_write_idx] = .String
 
 			return FastToken{start = start, end = end, kind = .String, flags = flags}
 		}
@@ -2338,9 +2334,9 @@ lex_dot_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			value, _ = strconv.parse_f64(text)
 		}
 	}
-	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(value)
-	l.last_lit_type = .Number
+	l.lit_offset[l.lit_write_idx] = start
+	l.lit_value[l.lit_write_idx] = LiteralValue(value)
+	l.lit_type[l.lit_write_idx] = .Number
 
 	// §12.9.3 — reject identifier-continue immediately after the
 	// numeric literal (`.5a`, `.5e1x`, `.5\u0062`). Without this the
@@ -2531,9 +2527,9 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		bump_append(&l.lexer_errors, LexerError{offset = start, message = "Unterminated regular expression"})
 		end := u32(l.offset)
 		full_regex := l.source[start:end]
-		l.last_lit_offset = start
-		l.last_lit_value = LiteralValue(full_regex)
-		l.last_lit_type = .Regex
+		l.lit_offset[l.lit_write_idx] = start
+		l.lit_value[l.lit_write_idx] = LiteralValue(full_regex)
+		l.lit_type[l.lit_write_idx] = .Regex
 		return FastToken{start = start, end = end, kind = .RegularExpression, flags = flags}
 	}
 
@@ -2626,7 +2622,7 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	end := u32(l.offset)
 	full_regex := l.source[start:end]
-	l.last_lit_offset = start; l.last_lit_value = LiteralValue(full_regex); l.last_lit_type = .Regex
+	l.lit_offset[l.lit_write_idx] = start; l.lit_value[l.lit_write_idx] = LiteralValue(full_regex); l.lit_type[l.lit_write_idx] = .Regex
 	return FastToken{start = start, end = end, kind = .RegularExpression, flags = flags}
 }
 
@@ -2717,9 +2713,9 @@ lex_private_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> Fast
 
 	end := u32(off)
 	l.offset = off
-	l.last_lit_offset = start
-	l.last_lit_value = LiteralValue(string(cooked[:]))
-	l.last_lit_type = .Identifier
+	l.lit_offset[l.lit_write_idx] = start
+	l.lit_value[l.lit_write_idx] = LiteralValue(string(cooked[:]))
+	l.lit_type[l.lit_write_idx] = .Identifier
 	return FastToken{start = start, end = end, kind = .PrivateIdentifier, flags = flags | FLAG_HAS_ESCAPE}
 }
 
@@ -2868,7 +2864,7 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 				l.template_depth += 1
 			}
 			// Store literal offset matching the token start position (after the backtick)
-			l.last_lit_offset = u32(content_start); l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
+			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
 			// Token should span the template element content, not including the opening backtick or ${}
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateHead, flags = flags}
 		}
@@ -2883,7 +2879,7 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 				ordered_remove(&l.template_stack, template_start_idx)
 			}
 			// Store literal offset matching the token start position (after the backtick)
-			l.last_lit_offset = u32(content_start); l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
+			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
 			// Token should span the template element content, not including the delimiters
 			return FastToken{start = u32(content_start), end = content_end, kind = .Template, flags = flags}
 		}
@@ -2948,7 +2944,7 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 				l.template_depth += 1
 			}
 			// Store literal offset matching the token start position (after the closing brace)
-			l.last_lit_offset = u32(content_start); l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
+			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
 			// Token should span the template element content, not including the closing brace or ${
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateMiddle, flags = flags}
 		}
@@ -2961,7 +2957,7 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			l.offset += 1
 			// Template is done — depth already popped at start of resume
 			// Store literal offset matching the token start position (after the closing brace)
-			l.last_lit_offset = u32(content_start); l.last_lit_value = LiteralValue(cooked); l.last_lit_type = .String
+			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
 			// Token should span the template element content, not including the closing brace or backtick
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateTail, flags = flags}
 		}

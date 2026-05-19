@@ -38,17 +38,10 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		// (offset 4 B + value union ~24 B + type 1 B → padded to ~32 B) on
 		// every non-literal advance - hundreds of thousands of skipped
 		// stores per parse on monaco-class files.
-		cur_kind := a.cur.kind
-		cur_flags := a.cur.flags
-		needs_lit_snapshot := cur_kind <= .TemplateTail ||
-			((cur_flags & FLAG_HAS_ESCAPE) != 0 &&
-			 (cur_kind == .Identifier || cur_kind == .PrivateIdentifier))
-		if needs_lit_snapshot {
-			a.cur_lit_offset = a.last_lit_offset
-			a.cur_lit_value  = a.last_lit_value
-			a.cur_lit_type   = a.last_lit_type
-		}
-		if cur_kind != .EOF {
+		// Toggle ring buffer: cur's literal is now at [write_idx],
+		// the upcoming lex_token for nxt writes to [write_idx ^ 1].
+		a.lit_write_idx ~= 1
+		if a.cur.kind != .EOF {
 			a.nxt = lex_token(a)
 		} else {
 			a.nxt = token_eof(u32(a.offset))
@@ -85,22 +78,22 @@ prime_token_cache :: proc(p: ^Parser) {
 		if ft.kind < .LBrace && ft.kind != .EOF && ft.start < ft.end {
 			a := p.lexer
 			if ft.kind == .String {
-				if a.cur_lit_offset == ft.start && a.cur_lit_type == .String {
+				if a.lit_offset[a.lit_write_idx ~ 1] == ft.start && a.lit_type[a.lit_write_idx ~ 1] == .String {
 				} else if ft.end - ft.start >= 2 {
 				}
 			} else if ft.kind <= .TemplateTail {
-				if a.cur_lit_offset == ft.start && a.cur_lit_type != .None {
+				if a.lit_offset[a.lit_write_idx ~ 1] == ft.start && a.lit_type[a.lit_write_idx ~ 1] != .None {
 				}
 			} else if ft.kind == .Identifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
-				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
-					if s, ok := a.cur_lit_value.(string); ok {
+				if a.lit_offset[a.lit_write_idx ~ 1] == ft.start && a.lit_type[a.lit_write_idx ~ 1] == .Identifier {
+					if s, ok := a.lit_value[a.lit_write_idx ~ 1].(string); ok {
 					}
 				}
 			} else if ft.kind == .PrivateIdentifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
 				// Escaped private identifier - see advance_token for the
 				// matching case and rationale (cooked name includes '#').
-				if a.cur_lit_offset == ft.start && a.cur_lit_type == .Identifier {
-					if s, ok := a.cur_lit_value.(string); ok {
+				if a.lit_offset[a.lit_write_idx ~ 1] == ft.start && a.lit_type[a.lit_write_idx ~ 1] == .Identifier {
+					if s, ok := a.lit_value[a.lit_write_idx ~ 1].(string); ok {
 					}
 				}
 			}
@@ -20213,12 +20206,10 @@ TrialSnapshot :: struct {
 	lex_had_line_terminator: bool,
 	lex_cur:                FastToken,
 	lex_nxt:                FastToken,
-	lex_last_lit_offset:    u32,
-	lex_last_lit_value:     LiteralValue,
-	lex_last_lit_type:      LiteralType,
-	lex_cur_lit_offset:     u32,
-	lex_cur_lit_value:      LiteralValue,
-	lex_cur_lit_type:       LiteralType,
+	lex_lit_offset:     [2]u32,
+	lex_lit_value:      [2]LiteralValue,
+	lex_lit_type:       [2]LiteralType,
+	lex_lit_write_idx:  u8,
 	lex_template_depth:     u8,
 	lex_template_brace_stack: [8]u8,
 	// Parser scalars — cur_tok removed; re-derived from lexer on restore
@@ -20234,12 +20225,10 @@ lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
 		lex_had_line_terminator = l.had_line_terminator,
 		lex_cur                 = l.cur,
 		lex_nxt                 = l.nxt,
-		lex_last_lit_offset     = l.last_lit_offset,
-		lex_last_lit_value      = l.last_lit_value,
-		lex_last_lit_type       = l.last_lit_type,
-		lex_cur_lit_offset      = l.cur_lit_offset,
-		lex_cur_lit_value       = l.cur_lit_value,
-		lex_cur_lit_type        = l.cur_lit_type,
+		lex_lit_offset          = l.lit_offset,
+		lex_lit_value           = l.lit_value,
+		lex_lit_type            = l.lit_type,
+		lex_lit_write_idx       = l.lit_write_idx,
 		lex_template_depth      = l.template_depth,
 		lex_template_brace_stack = l.template_brace_stack,
 		cur_type                = p.cur_type,
@@ -20254,12 +20243,10 @@ lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
 	l.had_line_terminator    = s.lex_had_line_terminator
 	l.cur                    = s.lex_cur
 	l.nxt                    = s.lex_nxt
-	l.last_lit_offset        = s.lex_last_lit_offset
-	l.last_lit_value         = s.lex_last_lit_value
-	l.last_lit_type          = s.lex_last_lit_type
-	l.cur_lit_offset         = s.lex_cur_lit_offset
-	l.cur_lit_value          = s.lex_cur_lit_value
-	l.cur_lit_type           = s.lex_cur_lit_type
+	l.lit_offset             = s.lex_lit_offset
+	l.lit_value              = s.lex_lit_value
+	l.lit_type               = s.lex_lit_type
+	l.lit_write_idx          = s.lex_lit_write_idx
 	l.template_depth         = s.lex_template_depth
 	l.template_brace_stack   = s.lex_template_brace_stack
 	p.cur_type               = s.cur_type
@@ -22314,8 +22301,8 @@ prev_end_offset :: #force_inline proc(p: ^Parser) -> u32 {
 cur_value :: #force_inline proc(p: ^Parser) -> string {
 	ft := p.lexer.cur
 	if (ft.kind == .Identifier || ft.kind == .PrivateIdentifier) && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
-		if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type == .Identifier {
-			if s, ok := p.lexer.cur_lit_value.(string); ok { return s }
+		if p.lexer.lit_offset[p.lexer.lit_write_idx ~ 1] == ft.start && p.lexer.lit_type[p.lexer.lit_write_idx ~ 1] == .Identifier {
+			if s, ok := p.lexer.lit_value[p.lexer.lit_write_idx ~ 1].(string); ok { return s }
 		}
 	}
 	if ft.start < ft.end { return p.lexer.source[ft.start:ft.end] }
@@ -22343,8 +22330,8 @@ cur_has_escape :: #force_inline proc(p: ^Parser) -> bool {
 
 cur_literal :: #force_inline proc(p: ^Parser) -> LiteralValue {
 	ft := p.lexer.cur
-	if p.lexer.cur_lit_offset == ft.start && p.lexer.cur_lit_type != .None {
-		return p.lexer.cur_lit_value
+	if p.lexer.lit_offset[p.lexer.lit_write_idx ~ 1] == ft.start && p.lexer.lit_type[p.lexer.lit_write_idx ~ 1] != .None {
+		return p.lexer.lit_value[p.lexer.lit_write_idx ~ 1]
 	}
 	if ft.kind == .String && ft.end - ft.start >= 2 {
 		return LiteralValue(p.lexer.source[ft.start+1:ft.end-1])
