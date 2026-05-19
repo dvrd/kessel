@@ -80,11 +80,11 @@ Lexer :: struct {
 	had_line_terminator: bool,        // 1B  — write every token
 	last_token_type: TokenType,       // 1B  — write every token
 	template_depth: u8,               // 1B  — number of active template interpolations
-	// (Reserved.) Was previously populated by an unused full-source SIMD
-	// scan in init_lexer; the identifier-scan tracks `has_non_ascii` per-
-	// token directly inside SIMD so the field is never read on the hot
-	// path. Removed to eliminate a 9 MB per-parse scan that didn't help.
-	_unused_lexer_pad: bool,          // 1B  — layout placeholder
+	// Lazy nxt: true when `nxt` holds a pre-lexed token (from a peek).
+	// advance_token checks this to decide whether to copy nxt→cur (cheap)
+	// or lex directly into cur (no 16-byte copy). ~90% of advances skip
+	// the copy because no lookahead was requested since the last advance.
+	nxt_valid: bool,                  // 1B  — lazy nxt validity flag
 	// `is_module_mode` gates Annex B HTML-like comments (`<!--` and `-->`).
 	// These are valid only in script source per ECMA-262 §B.1.3; in module
 	// code the same byte sequences are SyntaxErrors. Set by the parser
@@ -333,21 +333,15 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 	}
 	l.at_start_of_file = false
 
-	// Prime: fill cur + nxt
+	// Prime: lex only cur. nxt is lazily lexed on first peek/lookahead.
+	// This avoids the ~20ns lex_token call for nxt that was wasted on
+	// ~90% of tokens (never peeked before the next advance).
 	l.cur.kind = .EOF
 	l.cur = lex_token(l)
-	// Capture cur's literal slot BEFORE lex_token is called for nxt — that
-	// call may overwrite last_lit_* with nxt's cooked value (e.g. when nxt
-	// is a number or another cooking literal). advance_token captures the
-	// same way on every subsequent swap; priming has to do it manually
-	// because there's no prior `cur = nxt` step. See comment on cur_lit_*
-	// in the Lexer struct.
-	// After lexing cur, its literal is in slot [lit_write_idx] (initially 0).
-	// Toggle so nxt writes to the other slot, keeping cur's literal safe.
+	// cur's literal is in slot [lit_write_idx] (initially 0).
+	// Toggle so cur_literal reads from the correct slot.
 	l.lit_write_idx ~= 1
-	if l.cur.kind != .EOF {
-		l.nxt = lex_token(l)
-	}
+	l.nxt_valid = false
 }
 
 // ============================================================================
@@ -399,11 +393,10 @@ relex_as_regex :: proc(l: ^Lexer) {
 	start := l.cur.start
 	flags := l.cur.flags
 	l.cur = lex_regex(l, start, flags)
-	if l.cur.kind != .EOF {
-		l.nxt = lex_token(l)
-	} else {
-		l.nxt = token_eof(u32(l.offset))
-	}
+	// After relexing cur, toggle ring buffer so cur_literal reads correctly.
+	l.lit_write_idx ~= 1
+	// Invalidate nxt — the old pre-lexed nxt is stale after relex.
+	l.nxt_valid = false
 }
 
 // Split the leading `>` off a multi-`>` operator token so a TS type-
@@ -441,7 +434,7 @@ try_split_close_angle :: proc(l: ^Lexer) -> bool {
 			end   = start + 1,
 			flags = 0,
 		}
-		l.nxt = lex_token(l)
+		l.nxt_valid = false
 		return true
 	case:
 		return false
@@ -465,7 +458,7 @@ try_split_open_angle :: proc(l: ^Lexer) -> bool {
 			end   = start + 1,
 			flags = l.cur.flags,  // preserve line-terminator flag
 		}
-		l.nxt = lex_token(l)
+		l.nxt_valid = false
 		return true
 	case:
 		return false

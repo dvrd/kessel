@@ -9,27 +9,49 @@ import "core:strings"
 // ============================================================================
 
 // Advance lexer: shift nxt → cur, lex new nxt. Writes minimal Token fields.
-advance_token :: #force_inline proc(p: ^Parser) {
+// Slow path: lex the next token directly into cur. Called when no
+// lookahead was requested since the last advance (~90% of tokens).
+// NOT force_inline — keeps the call out of every eat() site.
+advance_token_lex :: proc(p: ^Parser) {
 	a := p.lexer
-	// Save end of the token we're about to consume. Used by
-	// `prev_end_offset` for span semantics.
 	p.prev_token_end = a.cur.end
-	a.cur = a.nxt
-	// Toggle ring buffer: cur's literal is now at [write_idx],
-	// the upcoming lex_token for nxt writes to [write_idx ^ 1].
-	a.lit_write_idx ~= 1
-	if a.cur.kind != .EOF {
-		a.nxt = lex_token(a)
-	} else {
-		a.nxt = token_eof(u32(a.offset))
-	}
+	a.cur = lex_token(a)
+	a.lit_write_idx ~= 1  // toggle so cur_literal reads the slot just written
 	p.cur_type = a.cur.kind
 }
 
-// Peek at the NEXT token (1-ahead). Not cached.
+// Advance: consume current token, produce the next one.
+// If nxt was pre-lexed by a peek, copy it (cheap). Otherwise lex
+// directly into cur (no 16-byte copy, but needs a function call).
+advance_token :: #force_inline proc(p: ^Parser) {
+	a := p.lexer
+	if a.nxt_valid {
+		// Fast path: nxt was pre-lexed by a peek. Copy + invalidate.
+		p.prev_token_end = a.cur.end
+		a.cur = a.nxt
+		a.nxt_valid = false
+		a.lit_write_idx ~= 1  // cur's literal is now at [write_idx ^ 1]
+		p.cur_type = a.cur.kind
+	} else {
+		// Slow path: no lookahead was used — lex directly.
+		advance_token_lex(p)
+	}
+}
+
+// Ensure nxt is populated. Called by all lookahead / peek sites.
+// If nxt is already valid (from a prior peek), this is a no-op.
+ensure_nxt :: #force_inline proc(p: ^Parser) {
+	a := p.lexer
+	if !a.nxt_valid {
+		a.nxt = lex_token(a)
+		a.nxt_valid = true
+	}
+}
+
+// Peek at the NEXT token (1-ahead). Lazily lexes nxt if needed.
 peek_token :: #force_inline proc(p: ^Parser) -> Token {
 	if p.lexer != nil {
-		// Read directly from nxt
+		ensure_nxt(p)
 		ft := p.lexer.nxt
 		tok: Token
 		tok.type = ft.kind
@@ -1314,15 +1336,17 @@ is_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 // Check if next token matches type - reads from nxt (no indirection)
 is_next_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 	if p.lexer != nil {
+		ensure_nxt(p)
 		return p.lexer.nxt.kind == t
 	}
-	return peek_token(p).type == t
+	return false
 }
 
 // Check if next token is an Identifier with a specific string value.
 // Used for TS contextual keywords (type, interface, enum) that lex as Identifier.
 is_next_identifier_value :: #force_inline proc(p: ^Parser, value: string) -> bool {
 	if p.lexer == nil { return false }
+	ensure_nxt(p)
 	nxt := p.lexer.nxt
 	if nxt.kind != .Identifier { return false }
 	if nxt.end - nxt.start != u32(len(value)) { return false }
@@ -1424,6 +1448,7 @@ match_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 }
 
 string_literal_can_be_directive :: #force_inline proc(p: ^Parser) -> bool {
+	ensure_nxt(p)
 	nxt := p.lexer.nxt
 	if nxt.kind == .Semi || nxt.kind == .RBrace || nxt.kind == .EOF {
 		return true
@@ -2905,6 +2930,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			// Check by decoding the raw source span: if the nxt token has
 			// an escape and its span is 2 chars wide when decoded to "of",
 			// the identifier is an escaped keyword.
+			ensure_nxt(p)
 			if using_starts_decl && nxt_u.type == .Identifier &&
 			   (p.lexer.nxt.flags & FLAG_HAS_ESCAPE) != 0 {
 				// Read cooked value: advance into the token, check, restore.
@@ -2970,7 +2996,8 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					if ident, id_ok := d0.id.(^Identifier); id_ok && ident.name == "of" {
 						if _, has_init := d0.init.(^Expression); !has_init {
 							// Peek past the for-of `of` to see if `)` follows.
-							if p.lexer != nil && p.lexer.nxt.kind == .RParen {
+							if p.lexer != nil { ensure_nxt(p) }
+						if p.lexer != nil && p.lexer.nxt.kind == .RParen {
 								report_error(p, "'for (var of of)' is ambiguous")
 							}
 						}
@@ -2985,8 +3012,12 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// Also match escaped `o\u0066` (lexed as .Identifier with cooked
 		// value "of") — ECMA-262 §13.7.5.1 uses the StringValue of
 		// the token, which resolves the escape. OXC and V8 agree.
+  ensure_nxt(p)
 		nxt_is_of := p.lexer != nil && p.lexer.nxt.kind == .Of
 		// Also match escaped `o\u0066`: lexed as .Identifier, cooked to "of".
+		if !nxt_is_of && p.lexer != nil {
+			ensure_nxt(p)
+		}
 		if !nxt_is_of && p.lexer != nil &&
 		   p.lexer.nxt.kind == .Identifier &&
 		   (p.lexer.nxt.flags & FLAG_HAS_ESCAPE) != 0 {
@@ -3494,7 +3525,9 @@ label_chain_leads_to_iteration :: proc(p: ^Parser) -> bool {
 			// A potential chained label: only treat as such when the very
 			// next token is `:`. Otherwise we've reached an ordinary
 			// expression / identifier-statement body - not iteration.
-			if p.lexer == nil || p.lexer.nxt.kind != .Colon { return false }
+			if p.lexer == nil { return false }
+			ensure_nxt(p)
+			if p.lexer.nxt.kind != .Colon { return false }
 			eat(p) // consume identifier
 			eat(p) // consume colon
 		case:
@@ -4456,6 +4489,7 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 					// A rest parameter must be last. If followed by `,` and
 					// then another param, it's a hard error. If followed by
 					// `,` then `)`, it's a trailing-comma error.
+     ensure_nxt(p)
 					nxt := p.lexer.nxt.kind
 					if nxt != .RParen && nxt != .EOF {
 						report_error(p, "A rest parameter must be last in a parameter list")
@@ -4534,6 +4568,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		param_mod_idx := 0
 		for i := 0; i < 6; i += 1 {
 			cur := p.cur_type
+   ensure_nxt(p)
 			nxt := p.lexer.nxt.kind
 			// Only treat as modifier when followed by a plausible param-start
 			// (identifier, contextual keyword as name, `...`, destructuring
@@ -6082,6 +6117,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// name (e.g. `readonly()` is a method named readonly).
 	for i := 0; i < 12; i += 1 {
 		cur := p.cur_type
+  ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		// When the NEXT token indicates the keyword is being used as
 		// the member NAME rather than as a modifier prefix, break:
@@ -6108,6 +6144,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// `static\nconstructor(){}` is always a static method. V8, Babel,
 		// and OXC all agree. Only TS contextual modifiers (public, private,
 		// protected, readonly, declare, abstract, override) use ASI here.
+		ensure_nxt(p)
 		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 && cur != .Static {
 			break
 		}
@@ -6169,6 +6206,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// SEPARATE line (`static\nstatic\na()`), OXC does ASI and accepts.
 	// Match by peeking 2 tokens ahead: reject only when the token after
 	// the second `static` is on the same line (no FLAG_NEW_LINE).
+	if is_token(p, .Static) && p.lexer != nil {
+		ensure_nxt(p)
+	}
 	if is_token(p, .Static) && p.lexer != nil && p.lexer.nxt.kind == .Static &&
 	   (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 		snap_ss := lexer_snapshot(p)
@@ -6403,12 +6443,14 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// now - the parser accepts the syntax, the corpus smoke gate passes,
 		// and a proper TSIndexSignature class-element node can come in W7+
 		// when the deep walker starts comparing class bodies.
+		ensure_nxt(p)
 		if allow_ts_mode(p) && p.lexer.nxt.kind == .Identifier {
 			// Two-token lookahead: nxt is the identifier, nxt.nxt would be `:`.
 			// We don't have a 2-tok-ahead helper, so snapshot+probe.
 			snap := lexer_snapshot(p)
 			eat(p)  // consume `[`
 			eat(p)  // consume identifier
+			ensure_nxt(p)
 			is_index_sig := is_token(p, .Colon) ||
 			                (is_token(p, .Question) && p.lexer.nxt.kind == .Colon)
 			lexer_restore(p, snap)
@@ -6482,6 +6524,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// cursor and tripped "Expected (, got ?" - closes the
 		// 14-file cluster of that exact error. Mirrors the `?:` field
 		// shape next to it.
+  ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		if nxt == .Colon || nxt == .Assign || nxt == .Semi ||
 		   nxt == .Comma || nxt == .RBrace ||
@@ -6494,6 +6537,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// The `:` form pairs with a type annotation; the bare forms (`p!;`,
 		// `p! = 1`, `p!,`) are TS shorthand for definite-without-annotation.
 		// `.Not` = logical-not token.
+  ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		if nxt == .Colon || nxt == .Semi || nxt == .Assign ||
 		   nxt == .Comma || nxt == .RBrace {
@@ -7769,6 +7813,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	// phase 3 bug class #15).
 	definite := false
 	if is_token(p, .Not) {
+  ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		if nxt == .Colon {
 			if _, is_ident := pattern.(^Identifier); is_ident {
@@ -10545,17 +10590,21 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// by `*` (NameSpaceImport-only per the import-defer proposal);
 	// `source` must be followed by an Identifier (default binding).
 	if p.cur_type == .Identifier && cur_value(p) == "defer" {
+		if p.lexer != nil { ensure_nxt(p) }
 		if p.lexer != nil && p.lexer.nxt.kind == .Mul {
 			decl.phase = "defer"
 			eat(p) // consume `defer`
 		}
 	} else if p.cur_type == .Identifier && cur_value(p) == "source" {
+		if p.lexer != nil { ensure_nxt(p) }
 		if p.lexer != nil && p.lexer.nxt.kind == .Identifier {
 			decl.phase = "source"
 			eat(p) // consume `source`
+  ensure_nxt(p)
 		} else if p.lexer != nil && p.lexer.nxt.kind == .From {
 			snap := lexer_snapshot(p)
 			eat(p) // consume `source`
+			ensure_nxt(p)
 			if p.lexer.nxt.kind == .From {
 				decl.phase = "source"
 			} else {
@@ -10571,6 +10620,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	if p.cur_type == .Identifier && cur_value(p) == "type" && allow_ts_mode(p) {
 		// §12.7.2 - contextual keyword `type` must not use Unicode escapes.
 		has_esc := cur_has_escape(p)
+  ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		if nxt == .LBrace || nxt == .Mul {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
@@ -10584,6 +10634,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			// the binding name and `type` is the type-only keyword. Detect
 			// via 3-token lookahead: if nxt="from" and nxt+1="from", it's
 			// the type-only form. Matches OXC.
+   ensure_nxt(p)
 			nxt_val := p.lexer.source[p.lexer.nxt.start:p.lexer.nxt.end]
 			if nxt_val != "from" {
 				if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
@@ -10617,8 +10668,11 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// `import await = ...` (await as binding name in non-module).
 	if allow_ts_mode(p) && (p.cur_type == .Identifier || p.cur_type == .Await ||
 	   p.cur_type == .Yield || p.cur_type == .From) &&
-	   p.lexer != nil && p.lexer.nxt.kind == .Assign {
-		return parse_ts_import_equals(p, start, decl.import_kind)
+	   p.lexer != nil {
+		ensure_nxt(p)
+		if p.lexer.nxt.kind == .Assign {
+			return parse_ts_import_equals(p, start, decl.import_kind)
+		}
 	}
 
 	// Past the TS-import-equals fork — this IS an ES ImportDeclaration.
@@ -10652,6 +10706,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 				// the name being imported (valid). When followed by another
 				// identifier (not `as`), `type` is a modifier (invalid in
 				// type-only imports). Matches OXC.
+    ensure_nxt(p)
 				nxt_kind := p.lexer.nxt.kind
 				type_is_modifier := nxt_kind != .As && nxt_kind != .Comma &&
 				                    nxt_kind != .RBrace
@@ -10767,6 +10822,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 					if decl.import_kind == .Type && allow_ts_mode(p) &&
 					   p.cur_type == .Identifier && cur_value(p) == "type" {
 						// Same disambiguation as the primary named-import loop above.
+      ensure_nxt(p)
 						nxt_k := p.lexer.nxt.kind
 						is_mod := nxt_k != .As && nxt_k != .Comma && nxt_k != .RBrace
 						if nxt_k == .As {
@@ -10941,6 +10997,9 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	// Identifier, distinguish by the token value + a `(` follow-up.
 	// Legacy TS `import X = module("mod")` form (TS 0.x). Not supported
 	// by modern TypeScript or OXC. Reject with a clear error.
+	if p.cur_type == .Identifier && cur_value(p) == "module" && p.lexer != nil {
+		ensure_nxt(p)
+	}
 	if p.cur_type == .Identifier && cur_value(p) == "module" &&
 	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
 		report_error(p, "'module(...)' in import-equals is not supported; use 'require(...)' instead")
@@ -10952,6 +11011,9 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		match_semicolon_or_asi(p)
 		decl.loc.span.end = prev_end_offset(p)
 		return statement_from(p, decl)
+	}
+	if p.cur_type == .Identifier && cur_value(p) == "require" && p.lexer != nil {
+		ensure_nxt(p)
 	}
 	if p.cur_type == .Identifier && cur_value(p) == "require" &&
 	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
@@ -11039,9 +11101,11 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// (typescript fixtures: arbitraryModuleNamespaceIdentifiers,
 	// exportSpecifiers_js, etc.).
 	if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value(p) == "type" {
+		ensure_nxt(p)
 		if cur_has_escape(p) && p.lexer.nxt.kind == .As {
 			report_error(p, "Keyword 'type' must not contain escaped characters")
 		}
+  ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		nxt_is_name := nxt == .Identifier || nxt == .String ||
 		               is_keyword_usable_as_property_name(nxt)
@@ -11504,7 +11568,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		}
 	} else if is_token(p, .Class) ||
 	          is_token(p, .At) ||
-	          (is_token(p, .Abstract) && p.lexer.nxt.kind == .Class && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0) {
+	          (is_token(p, .Abstract) && is_next_token(p, .Class) && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0) {
 		// `export default class {}` / `export default @dec class {}`
 		// / `export default @dec abstract class {}`.
 		cls_stmt := parse_statement_or_declaration(p)
@@ -11515,7 +11579,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 				def^ = decl_union
 			}
 		}
-	} else if is_token(p, .Abstract) && p.lexer.nxt.kind == .At {
+	} else if is_token(p, .Abstract) && is_next_token(p, .At) {
 		// `export default abstract @dec class C {}` is INVALID. Decorators
 		// must come before `abstract`, not after.
 		report_error(p, "Decorators must precede the 'abstract' modifier on a class declaration")
@@ -11531,6 +11595,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	          allow_ts_mode(p) {
 		// `export default interface X { ... }` - TS-only form.
 		// `export default interface {}` - anonymous interface is rejected.
+  ensure_nxt(p)
 		if !is_next_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
 			report_error(p, "Interface declaration must have a name")
 		}
@@ -11561,6 +11626,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		if is_token(p, .Using) && using_starts_decl(p) {
 			report_error(p, "'export default' cannot be followed by a using declaration")
 		}
+		ensure_nxt(p)
 		if is_token(p, .Await) && p.lexer.nxt.kind == .Using &&
 		   (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 &&
 		   await_using_starts_decl(p) {
@@ -11718,9 +11784,11 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		// `type` when the following token can start a name AND isn't `as` /
 		// `}` / `,` (which would mean "type" is the local name itself).
 		if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value(p) == "type" {
+			ensure_nxt(p)
 			if cur_has_escape(p) && p.lexer.nxt.kind == .As {
 				report_error(p, "Keyword 'type' must not contain escaped characters")
 			}
+   ensure_nxt(p)
 			nxt := p.lexer.nxt.kind
 			nxt_is_name := nxt == .Identifier || nxt == .String ||
 			               is_keyword_usable_as_property_name(nxt)
@@ -12678,6 +12746,9 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// §14.13.1 LabelIdentifier - in async context, "await" is a
 		// reserved word, so `await:` as a LabelledStatement head is a
 		// SyntaxError.
+		if p.in_async && p.lexer != nil {
+			ensure_nxt(p)
+		}
 		if p.in_async && p.lexer != nil && p.lexer.nxt.kind == .Colon {
 			report_error(p, "'await' cannot be used as a label identifier in an async function")
 		}
@@ -12932,18 +13003,22 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// In property-access position (\`a.in / b\`) it's division. Relex
 			// before consuming the property name. Test:
 			// babel/core/uncategorised/326/input.ts (`a.in / b`).
+			ensure_nxt(p)
 			if (p.cur_type == .In || p.cur_type == .Instanceof) &&
 			   p.lexer.nxt.kind == .RegularExpression {
 				// Drop any "unterminated regex" lex error that came from
 				// the speculative regex-lex.
 				for len(p.lexer.lexer_errors) > 0 {
 					last := p.lexer.lexer_errors[len(p.lexer.lexer_errors) - 1]
+     ensure_nxt(p)
 					if last.offset >= p.lexer.nxt.start {
 						pop(&p.lexer.lexer_errors)
 					} else { break }
 				}
+				ensure_nxt(p)
 				p.lexer.offset = int(p.lexer.nxt.start)
 				p.lexer.nxt = lex_slash_as_div(p.lexer)
+				p.lexer.nxt_valid = true
 			}
 			prop := parse_identifier_name(p)
 			member, member_e := new_expr(p, MemberExpression)
@@ -13220,18 +13295,23 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// The lexer's can_start_regex saw `!` (prefix-NOT) and lexed
 			// the next `/` as regex. In TS mode, postfix `!` (non-null
 			// assertion) means `/` is division. Re-lex the lookahead.
+   ensure_nxt(p)
 			if p.lexer.nxt.kind == .RegularExpression && allow_ts_mode(p) {
 				// Remove any "Unterminated regular expression" error that
 				// the lexer emitted when it mis-lexed the `/` as regex.
 				for len(p.lexer.lexer_errors) > 0 {
 					last := p.lexer.lexer_errors[len(p.lexer.lexer_errors) - 1]
+     ensure_nxt(p)
 					if last.offset >= p.lexer.nxt.start {
 						pop(&p.lexer.lexer_errors)
 					} else { break }
 				}
+				ensure_nxt(p)
 				p.lexer.offset = int(p.lexer.nxt.start)
 				p.lexer.nxt = lex_slash_as_div(p.lexer)
+				p.lexer.nxt_valid = true
 			}
+			ensure_nxt(p)
 			nxt := p.lexer.nxt.kind
 			allow := false
 			#partial switch nxt {
@@ -13253,6 +13333,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// caller's statement-end check. Without this, `null!\nlet x =
 			// 2` reported "Expected semicolon" because the `!` lookahead
 			// saw `let` (an Identifier-like) and refused to consume.
+   ensure_nxt(p)
 			if !allow && (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 				allow = true
 			}
@@ -13603,6 +13684,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// must reject the second `#y`: even though nxt.kind == .In here
 		// (the OUTER `in` of `#x in #y in z`), this slot is the RHS of
 		// the inner `in`, not its LHS. `in_in_rhs` distinguishes them.
+		if p.lexer != nil { ensure_nxt(p) }
 		invalid_position := p.in_in_rhs || p.no_in || !p.private_in_allowed ||
 		                    (p.lexer != nil && p.lexer.nxt.kind != .In)
 		if invalid_position {
@@ -13633,12 +13715,14 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 
 	case .Super:
 		// §13.3.7 SuperProperty / §15.7.6 SuperCall shape check.
+  ensure_nxt(p)
 		if p.lexer.nxt.kind != .Dot && p.lexer.nxt.kind != .LBracket &&
 		   p.lexer.nxt.kind != .LParen {
 			report_error(p, "'super' can only be used with function calls or in property accesses")
 		}
 		// §13.3.7 SuperProperty requires [[HomeObject]] (→ in_method).
 		// `super.x` / `super[x]` outside a method body is a SyntaxError.
+  ensure_nxt(p)
 		if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.in_method {
 			report_error(p, "'super' property access is only valid inside a method")
 		}
@@ -14281,6 +14365,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// A 2-token speculative peek (no consume): peek past `<`
 			// to the first token; if it's an Identifier, peek again
 			// to see what follows.
+   ensure_nxt(p)
 			nxt_kind := p.lexer.nxt.kind
 			// Type-parameter modifiers (`const`, `in`) lex as keyword tokens,
 			// not Identifier. `<const T ...>` and `<in T ...>` are
@@ -14329,6 +14414,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// on the line (body errors come later). Only for .mts/.cts
 			// path detection; explicit disallowAmbiguousJSXLike uses the
 			// post-parse check inside parse_ts_lt_expression.
+   ensure_nxt(p)
 			if p.is_node_ts_module && p.lexer != nil && p.lexer.nxt.kind == .Identifier {
 				snap := lexer_snapshot(p)
 				eat(p)  // consume `<`
@@ -15151,6 +15237,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	// the identifier when the next token is a plausible interface name or
 	// `{`. Same for `class extends Expr {}` which is already handled by
 	// the `extends` path below.
+	ensure_nxt(p)
 	is_implements_keyword := (p.lang == .TS || p.lang == .TSX) &&
 	                         is_token(p, .Identifier) && cur_value(p) == "implements" &&
 	                         (p.lexer.nxt.kind == .Identifier || is_keyword_usable_as_property_name(p.lexer.nxt.kind) || p.lexer.nxt.kind == .LBrace)
@@ -15321,12 +15408,14 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	// as a constructor (throws at runtime). Test262: language/expressions/
 	// import.meta/import-meta-is-an-ordinary-object.js.
 	if is_token(p, .Import) && p.lexer != nil {
+  ensure_nxt(p)
 		if p.lexer.nxt.kind == .LParen {
 			report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
 		} else if p.lexer.nxt.kind == .Dot {
 			// Source-byte lookahead past the `.` to see whether the
 			// property name is the legal `meta` MetaProperty or one of
 			// the phase-import call forms (`defer` / `source`).
+   ensure_nxt(p)
 			dot_off := int(p.lexer.nxt.end)
 			src := p.lexer.source_bytes
 			// Skip whitespace after the `.`.
@@ -17836,6 +17925,7 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 		// `export default` too, it's a SyntaxError - decorators may
 		// appear either before `export` or after, not both.
 		// Check by peeking for `@` after `export [default]`.
+  ensure_nxt(p)
 		nxt := p.lexer.nxt
 		has_post_export_dec := nxt.kind == .At
 		if !has_post_export_dec && nxt.kind == .Default {
@@ -18116,8 +18206,8 @@ jsx_relex_div_after_hyphen :: proc(p: ^Parser) {
 
 	p.lexer.offset = int(start)
 	p.lexer.cur = lex_slash_as_div(p.lexer)
-	// Re-prefetch nxt from the new offset.
-	p.lexer.nxt = lex_token(p.lexer)
+	// nxt is invalidated — will be lazily re-lexed on next peek.
+	p.lexer.nxt_valid = false
 	// Refresh the parser's cached cur view.
 	p.cur_tok = Token{
 		type             = p.lexer.cur.kind,
@@ -18172,6 +18262,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 				// escapes MUST be honoured. Re-lex nxt so `\"` is processed
 				// as a JS escape, not as a literal backslash + closing quote.
 				p.lexer.jsx_string_mode = false
+				ensure_nxt(p)
 				if (is_token(p, .LBrace) || is_token(p, .LAngle)) &&
 				   p.lexer.nxt.kind == .String {
 					// nxt is a String token lexed from inside a `{expr}`
@@ -18180,8 +18271,9 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					// escape sequences like `\"` are honoured.  Other token
 					// types (Template, Number, etc.) are unaffected by the
 					// flag and must NOT be re-lexed.
+					ensure_nxt(p)
 					p.lexer.offset = int(p.lexer.nxt.start)
-					p.lexer.nxt = lex_token(p.lexer)
+					p.lexer.nxt_valid = false
 				}
 				if is_token(p, .String) {
 					str := parse_string_literal(p)
@@ -18362,7 +18454,8 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	}
 	p.lexer.offset = off
 	p.lexer.cur = lex_token(p.lexer)
-	p.lexer.nxt = lex_token(p.lexer)
+	p.lexer.lit_write_idx ~= 1  // toggle so cur_literal reads the slot just written
+	p.lexer.nxt_valid = false
 	p.cur_type = p.lexer.cur.kind
 	if p.lexer.cur.start < p.lexer.cur.end {
 	}
@@ -18417,11 +18510,13 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	asserts := false
 	pred_start := cur_loc(p)
 
+	ensure_nxt(p)
 	is_predicate := false
 	if is_token(p, .Asserts) && (p.lexer.nxt.kind == .Identifier || p.lexer.nxt.kind == .This) {
 		asserts = true
 		eat(p) // consume `asserts`
 		is_predicate = true
+ ensure_nxt(p)
 	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
 		// Line break before `is` triggers ASI - `I\nis()` is two members, not a type predicate.
 		is_predicate = true
@@ -18484,10 +18579,12 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	// at parse time — only parse_ts_return_type_annotation handles that.
 	asserts := false
 	is_predicate := false
+ ensure_nxt(p)
 	if is_token(p, .Asserts) && (p.lexer.nxt.kind == .Identifier || p.lexer.nxt.kind == .This) {
 		asserts = true
 		eat(p)
 		is_predicate = true
+ ensure_nxt(p)
 	} else if is_token(p, .This) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
 		// `this is T` is unambiguous — allow in non-return positions.
 		is_predicate = true
@@ -18556,10 +18653,12 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	// without the leading `:` consumption.
 	asserts := false
 	is_predicate := false
+ ensure_nxt(p)
 	if is_token(p, .Asserts) && (p.lexer.nxt.kind == .Identifier || p.lexer.nxt.kind == .This) {
 		asserts = true
 		eat(p)
 		is_predicate = true
+ ensure_nxt(p)
 	} else if (is_token(p, .Identifier) || is_token(p, .This)) && p.lexer.nxt.kind == .Is && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
 		// Line break before `is` triggers ASI - not a type predicate.
 		is_predicate = true
@@ -18611,6 +18710,7 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 // See comments at the call site for the signal table.
 looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 	assert(p.cur_type == .LParen)
+ ensure_nxt(p)
 	nxt := p.lexer.nxt.kind
 	if nxt == .RParen { return true }
 	if nxt == .Dot3  { return true }
@@ -18945,7 +19045,8 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 			l.offset = int(l.cur.start)
 			l.template_depth += 1  // compensate for the premature decrement
 			l.cur = lex_template_resume(l, l.cur.start, l.cur.flags)
-			l.nxt = lex_token(l)
+			l.lit_write_idx ~= 1
+			l.nxt_valid = false
 			p.cur_type = l.cur.kind
 			if l.cur.start < l.cur.end {
 			}
@@ -19146,6 +19247,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				// token is `:`. Wrap the resulting TSRestType inside a
 				// TSNamedTupleMember to match OXC's ESTree shape (see
 				// namedTupleMembers.ts WithOptAndRest / RecusiveRest).
+    ensure_nxt(p)
 				if p.cur_type == .Identifier && p.lexer.nxt.kind == .Colon {
 					rest_label_tok := snap_current(p)
 					eat(p) // consume label
@@ -19182,6 +19284,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				// `:` or `?:`.
 				named := false
 				if p.cur_type == .Identifier || is_keyword_usable_as_property_name(p.cur_type) {
+     ensure_nxt(p)
 					nxt := p.lexer.nxt.kind
 					if nxt == .Colon { named = true }
 					if nxt == .Question {
@@ -19337,6 +19440,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// a type operator whenever the next token can start a type (symbol,
 		// number, object, etc.). Falls through to TypeReference for the
 		// rare case of `unique` used as a plain identifier.
+  ensure_nxt(p)
 		nxt_kind := p.lexer.nxt.kind
 		if nxt_kind == .Identifier || nxt_kind == .LParen || nxt_kind == .LBrace ||
 		   nxt_kind == .LBracket || nxt_kind == .Typeof || nxt_kind == .Keyof ||
@@ -19712,6 +19816,7 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 	// "Expected '=', ',', or ';' after variable binding". Closes a
 	// handful of files in that cluster (parserModuleDeclaration11.ts,
 	// uniqueSymbolsErrors.ts).
+ ensure_nxt(p)
 	if p.lexer.nxt.kind == .Dot {
 		return parse_ts_type_reference(p)
 	}
@@ -19754,6 +19859,7 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 		// .False, .String, .Number). Bare `readonly` standing alone (very
 		// rare - `Foo.readonly` IdentifierName) falls through to
 		// TypeReference.
+  ensure_nxt(p)
 		#partial switch p.lexer.nxt.kind {
 		case .LBracket, .LParen, .Identifier, .This, .Void, .Null,
 		     .Never, .Typeof, .Keyof, .Unique, .Infer, .Import,
@@ -19802,6 +19908,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 		// taggedTemplateStringsWithTypedTags / indexer2A /
 		// noPropertyAccessFromIndexSignature1 cluster.
 		if cur_has_newline(p) {
+   ensure_nxt(p)
 			nxt_kind := p.lexer.nxt.kind
 			// `T\n[]` — empty brackets on new line = new member, not array postfix.
 			if nxt_kind == .RBracket {
@@ -19861,6 +19968,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	// TS17019: `?` at the end of a type. Flagged outside type arguments;
 	// suppressed inside `<...>` for JSDoc patterns like `foo<string?>`.
 	if is_token(p, .Question) && !cur_has_newline(p) && !p.ts_in_tuple_type {
+		ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		if nxt == .RParen || nxt == .Comma || nxt == .Semi || nxt == .RBrace ||
 		   nxt == .RBracket || nxt == .RAngle || nxt == .Assign || nxt == .EOF {
@@ -20055,6 +20163,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	// syntax error (e.g. "<T,>(x:T)=>x" where the arrow-param type
 	// annotation hits a pre-existing parser gap) reports a SINGLE clean
 	// error instead of cascading SIGSEGVs.
+ ensure_nxt(p)
 	nxt_kind := p.lexer.nxt.kind
 
 	// TS type-parameter modifiers: `<const T>`, `<in T>`, `<out T>`.
@@ -20205,6 +20314,7 @@ TrialSnapshot :: struct {
 	lex_had_line_terminator: bool,
 	lex_cur:                FastToken,
 	lex_nxt:                FastToken,
+	lex_nxt_valid:          bool,
 	lex_lit_offset:     [2]u32,
 	lex_lit_value:      [2]LiteralValue,
 	lex_lit_type:       [2]LiteralType,
@@ -20224,6 +20334,7 @@ lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
 		lex_had_line_terminator = l.had_line_terminator,
 		lex_cur                 = l.cur,
 		lex_nxt                 = l.nxt,
+		lex_nxt_valid           = l.nxt_valid,
 		lex_lit_offset          = l.lit_offset,
 		lex_lit_value           = l.lit_value,
 		lex_lit_type            = l.lit_type,
@@ -20242,6 +20353,7 @@ lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
 	l.had_line_terminator    = s.lex_had_line_terminator
 	l.cur                    = s.lex_cur
 	l.nxt                    = s.lex_nxt
+	l.nxt_valid              = s.lex_nxt_valid
 	l.lit_offset             = s.lex_lit_offset
 	l.lit_value              = s.lex_lit_value
 	l.lit_type               = s.lex_lit_type
@@ -20324,6 +20436,7 @@ parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
 // needs the same trial-parse plumbing.
 looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 	assert(p.cur_type == .LParen)
+ ensure_nxt(p)
 	nxt := p.lexer.nxt.kind
 	if nxt == .Dot3 { return true }
 
@@ -20714,6 +20827,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	// `.Readonly` is not in the lexer - check by string value.
 	if (p.cur_type == .Plus || p.cur_type == .Minus) {
 		sign := p.cur_type == .Plus ? TSMappedTypeModifier.Plus : TSMappedTypeModifier.Minus
+  ensure_nxt(p)
 		nxt := p.lexer.nxt
 		if nxt.kind == .Identifier {
 			nxt_val := p.lexer.source[nxt.start:nxt.end]
@@ -20734,6 +20848,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	//   - computed property key `[Symbol.iterator]?(): R`
 	is_index_sig_after_readonly := false
 	if is_token(p, .LBracket) {
+  ensure_nxt(p)
 		nxt := p.lexer.nxt
 		if nxt.kind == .Identifier || nxt.kind == .Let || nxt.kind == .As {
 			snap := lexer_snapshot(p)
@@ -20939,6 +21054,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		expect_token(p, .RBracket)
 		// Optional modifier: `?`, `+?`, `-?`.
 		optional_mod := TSMappedTypeModifier.None
+		ensure_nxt(p)
 		if (is_token(p, .Plus) || is_token(p, .Minus)) && p.lexer.nxt.kind == .Question {
 			optional_mod = p.cur_type == .Plus ? .Plus : .Minus
 			eat(p); eat(p) // consume sign and `?`
@@ -21103,6 +21219,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 		fp.loc.span.end = prev_end_offset(p)
 		bump_append(&params, fp)
 		if param_is_rest && is_token(p, .Comma) {
+   ensure_nxt(p)
 			if p.lexer.nxt.kind == .RParen {
 				if !p.in_ambient && !p.source_is_dts {
 					report_error(p, "A rest parameter or binding pattern may not have a trailing comma.")
@@ -21171,7 +21288,9 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			}
 		}
 		if modifier_name == "" { break }
+  ensure_nxt(p)
 		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 { break }
+  ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		if nxt == .Colon || nxt == .Question || nxt == .LParen || nxt == .Semi ||
 		   nxt == .Comma || nxt == .RBrace {
@@ -21213,6 +21332,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	}
 
 	// --- NEW: detect construct signature `new (...): T` or `new <T>(...): T` -----
+ ensure_nxt(p)
 	if is_token(p, .New) && (p.lexer.nxt.kind == .LParen || p.lexer.nxt.kind == .LAngle) {
 		eat(p) // consume `new`
 		ctor_type_params: Maybe(^TSTypeParameterDeclaration)
@@ -21243,6 +21363,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	// modifier and re-parse the property as a separate bare signature.
 	if p.cur_type == .Identifier && cur_value(p) == "readonly" {
 		readonly_is_modifier := false
+  ensure_nxt(p)
 		if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
 			#partial switch p.lexer.nxt.kind {
 			case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
@@ -21252,6 +21373,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			}
 		}
 		if readonly_is_modifier {
+   ensure_nxt(p)
 			if p.lexer.nxt.kind == .LBracket {
 				idx_readonly = true   // signal to the index-sig branch below
 			} else {
@@ -21263,6 +21385,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 
 	// §A.5 - Invalid index signature forms: `[]`, `[...x]`, etc.
 	// in type members. Detect and report before falling through.
+ ensure_nxt(p)
 	if is_token(p, .LBracket) && p.lexer.nxt.kind == .RBracket {
 		// `[]: T` - empty index signature.
 		report_error(p, "An index signature must have a parameter")
@@ -21274,6 +21397,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		sig := new_node(p, TSSignature); sig^ = call_decl
 		return sig
 	}
+ ensure_nxt(p)
 	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Dot3 {
 		// `[...x]: T` - spread in index signature.
 		report_error(p, "An index signature parameter cannot use a rest pattern")
@@ -21286,11 +21410,13 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		sig := new_node(p, TSSignature); sig^ = call_decl2
 		return sig
 	}
+ ensure_nxt(p)
 	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Identifier {
 		// Check if this is an index signature by peeking for `:` after the identifier.
 		eat(p) // consume `[`.
 		is_index_sig := false
 		if is_token(p, .Identifier) {
+			ensure_nxt(p)
 			if p.lexer.nxt.kind == .Colon {
 				is_index_sig = true
 			} else if p.lexer.nxt.kind == .Question {
@@ -21390,6 +21516,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	// valid property names, so only treat them as accessors when another
 	// property key follows on the same member.
 	nxt_allows_accessor := false
+ ensure_nxt(p)
 	if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
 		#partial switch p.lexer.nxt.kind {
 		case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
@@ -21606,6 +21733,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		// inner parse_function_declaration already consumes a leading
 		// `.Async` token before `function`, so we just need to allow the
 		// no-body ambient form. allow_no_body=true.
+  ensure_nxt(p)
 		if p.lexer.nxt.kind == .Function && !cur_has_newline(p) {
 			stmt = parse_function_declaration(p, false, true)
 			if stmt != nil {
@@ -21618,6 +21746,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			if cls, ok := stmt^.(^ClassDeclaration); ok { cls.declare = true }
 		}
 	case .Abstract:
+  ensure_nxt(p)
 		if p.lexer.nxt.kind == .Class {
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 				report_error(p, "Line terminator not permitted between 'abstract' and 'class'")
@@ -21639,6 +21768,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		// has no declare flag in ESTree; just parse it normally.
 		import_start := cur_loc(p)
 		eat(p) // consume `import`
+  ensure_nxt(p)
 		if p.cur_type == .Identifier && p.lexer != nil && p.lexer.nxt.kind == .Assign {
 			stmt = parse_ts_import_equals(p, import_start, .Value)
 		}
@@ -21665,6 +21795,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		case "interface":
 			// Newline between `interface` and its name triggers ASI.
 			// `declare interface\nFoo {}` → error. OXC / TSC agree.
+   ensure_nxt(p)
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 				report_error(p, "Line terminator not permitted after 'interface'")
 			}
@@ -21674,6 +21805,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 		case "type":
 			// Newline between `type` and its name triggers ASI.
+   ensure_nxt(p)
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 				report_error(p, "Line terminator not permitted after 'type'")
 			}
@@ -21692,6 +21824,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 		// alongside the other cases (see end of proc).
 		case "namespace":
 			// Newline between `namespace` and its name triggers ASI.
+   ensure_nxt(p)
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 				report_error(p, "Line terminator not permitted after 'namespace'")
 			}
@@ -21705,9 +21838,11 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			// `declare module "name" {}` (string literal) or
 			// `declare module Identifier {}` (ambient namespace).
 			// Newline between `module` and its name triggers ASI.
+   ensure_nxt(p)
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
 				report_error(p, "Line terminator not permitted after 'module'")
 			}
+   ensure_nxt(p)
 			if is_next_token(p, .String) || is_next_token(p, .Identifier) || is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
 				stmt = parse_ts_module_declaration(p, .Module)
 				if stmt != nil {
