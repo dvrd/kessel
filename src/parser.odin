@@ -20308,9 +20308,8 @@ TrialSnapshot :: struct {
 	lex_cur_lit_type:       LiteralType,
 	lex_template_depth:     u8,
 	lex_template_brace_stack: [8]u8,
-	// Parser scalars
+	// Parser scalars — cur_tok removed; re-derived from lexer on restore
 	cur_type:       TokenType,
-	cur_tok:        Token,
 	prev_token_end: u32,
 	errors_len:     int,
 }
@@ -20331,7 +20330,6 @@ lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
 		lex_template_depth      = l.template_depth,
 		lex_template_brace_stack = l.template_brace_stack,
 		cur_type                = p.cur_type,
-		cur_tok                 = p.cur_tok,
 		prev_token_end          = p.prev_token_end,
 		errors_len              = len(p.errors),
 	}
@@ -20352,7 +20350,6 @@ lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
 	l.template_depth         = s.lex_template_depth
 	l.template_brace_stack   = s.lex_template_brace_stack
 	p.cur_type               = s.cur_type
-	p.cur_tok                = s.cur_tok
 	p.prev_token_end         = s.prev_token_end
 	// Drop any parse errors accumulated during the speculative parse.
 	if len(p.errors) > s.errors_len { resize(&p.errors, s.errors_len) }
