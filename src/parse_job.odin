@@ -404,6 +404,7 @@ parse_job_run :: proc(job: ^ParseJob) {
 	job.parser.force_strict     = job.config.force_strict
 	job.parser.preserve_parens  = job.config.preserve_parens
 	job.parser.ast_only         = job.config.ast_only
+	job.lexer.skip_regex_validation = job.config.ast_only
 	job.parser.is_commonjs      = job.is_commonjs
 	job.parser.is_node_ts_module = strings.has_suffix(job.source_path, ".cts") ||
 	                               strings.has_suffix(job.source_path, ".mts")

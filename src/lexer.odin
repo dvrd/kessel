@@ -150,6 +150,11 @@ Lexer :: struct {
 	// in JSX attribute position, cleared after.
 	jsx_string_mode: bool,
 
+	// When true, skip regex pattern validation (ES2025 §22.2.1).
+	// OXC defers regex validation to a separate pass (oxc_regular_expression);
+	// kessel matches this in --ast-only mode for fair benchmarking.
+	skip_regex_validation: bool,
+
 	// `html_comment_skipped` records whether the lexer skipped at least one
 	// Annex B HTML-like comment (`<!--` / `-->`) while is_module_mode was
 	// false. The parser doesn't know up-front whether a `.js` file is
@@ -2639,9 +2644,11 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	// takes (source, span, flags, alloc) and returns a
 	// [dynamic]RegexDiagnostic. We map those back into LexerError so the
 	// lexer's error channel stays the single source of truth.
-	diags := regex_validate(l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator)
-	for d in diags {
-		append(&l.lexer_errors, LexerError{offset = d.offset, message = d.message})
+	if !l.skip_regex_validation {
+		diags := regex_validate(l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator)
+		for d in diags {
+			append(&l.lexer_errors, LexerError{offset = d.offset, message = d.message})
+		}
 	}
 
 	end := u32(l.offset)

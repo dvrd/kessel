@@ -1479,8 +1479,11 @@ BINARY_UNICODE_PROPERTIES := [?]string{
 }
 
 is_binary_unicode_property_name :: proc(name: string) -> bool {
+	// Length gate: properties are 2-28 chars. First-byte gate narrows further.
+	l := len(name)
+	if l < 2 || l > 28 { return false }
 	for n in BINARY_UNICODE_PROPERTIES {
-		if n == name { return true }
+		if len(n) == l && n == name { return true }
 	}
 	return false
 }
@@ -1538,8 +1541,10 @@ GENERAL_CATEGORY_VALUES := [?]string{
 }
 
 is_general_category_value :: proc(name: string) -> bool {
+	l := len(name)
+	if l < 1 || l > 21 { return false }
 	for n in GENERAL_CATEGORY_VALUES {
-		if n == name { return true }
+		if len(n) == l && n == name { return true }
 	}
 	return false
 }
@@ -1559,8 +1564,10 @@ PROPERTIES_OF_STRINGS := [?]string{
 }
 
 is_property_of_strings :: proc(name: string) -> bool {
+	l := len(name)
+	if l < 9 || l > 27 { return false }
 	for n in PROPERTIES_OF_STRINGS {
-		if n == name { return true }
+		if len(n) == l && n == name { return true }
 	}
 	return false
 }
@@ -1854,15 +1861,14 @@ regex_validate_v_mode_class :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 // ============================================================================
 
 is_valid_gc_property_value :: proc(value: string) -> bool {
-	for v in GENERAL_CATEGORY_VALUES {
-		if v == value { return true }
-	}
-	return false
+	return is_general_category_value(value)
 }
 
 is_valid_script_property_value :: proc(value: string) -> bool {
+	l := len(value)
+	if l < 2 || l > 22 { return false }
 	for v in SCRIPT_VALUES {
-		if v == value { return true }
+		if len(v) == l && v == value { return true }
 	}
 	return false
 }
