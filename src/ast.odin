@@ -1,41 +1,26 @@
 package kessel
 
-
-// Source location — byte offsets only (8 bytes).
-// Line/column are computed lazily by report_error via offset_to_line_col.
 Loc :: struct {
 	start: u32,
 	end:   u32,
 }
 
-// ============================================================================
-// Comment Node
-// ============================================================================
-
 CommentType :: enum {
-	Line,  // //
-	Block, // /* */
+	Line,
+	Block,
 }
 
 Comment :: struct {
 	type:  CommentType,
 	start: u32,
 	end:   u32,
-	value: string, // the text between // and newline, or /* and */
+	value: string,
 }
-
-// ============================================================================
-// Decorator Node (Stage 3)
-// ============================================================================
 
 Decorator :: struct {
 	loc:        Loc,
 	expression: ^Expression,
 }
-
-// ============================================================================
-// ESM Module Record Nodes
-// ============================================================================
 
 // Name kind for imports/exports
 ESMNameKind :: enum {
@@ -54,15 +39,15 @@ ESMNameEntry :: struct {
 
 // Static import entry (import X from "m")
 ESMStaticImportEntry :: struct {
-	importName: ESMNameEntry,  // the imported name
-	localName:  ESMNameEntry,  // the local binding name
+	importName: ESMNameEntry,
+	localName:  ESMNameEntry,
 }
 
 ESMStaticImport :: struct {
 	start:         u32,
 	end:           u32,
 	moduleRequest: struct {
-		value: string,  // the module specifier
+		value: string,
 		start: u32,
 		end:   u32,
 	},
@@ -71,7 +56,7 @@ ESMStaticImport :: struct {
 
 // Static export entry (export { x, y as z } or export * from "m")
 ESMExportNameEntry :: struct {
-	kind:  ESMNameKind,  // kind of the export (Default, Name, Namespace)
+	kind:  ESMNameKind,
 	name:  string,
 	start: u32,
 	end:   u32,
@@ -86,14 +71,13 @@ ESMStaticExport :: struct {
 	start:         u32,
 	end:           u32,
 	moduleRequest: struct {
-		value: string,  // the module specifier (for export * from "m"), empty for local exports
+		value: string,
 		start: u32,
 		end:   u32,
 	},
 	entries: [dynamic]ESMStaticExportEntry,
 }
 
-// Dynamic import entry (import("m"))
 ESMDynamicImport :: struct {
 	start:         u32,
 	end:           u32,
@@ -103,7 +87,6 @@ ESMDynamicImport :: struct {
 	},
 }
 
-// import.meta access
 ESMImportMeta :: struct {
 	start: u32,
 	end:   u32,
@@ -1003,10 +986,6 @@ MetaProperty :: struct {
 	property: Identifier,
 }
 
-// ============================================================================
-// Function/Class Definitions
-// ============================================================================
-
 FunctionBody :: struct {
 	loc:        Loc,
 	body:       [dynamic]^Statement,
@@ -1358,10 +1337,6 @@ TryStatement :: struct {
 	finalizer: Maybe(BlockStatement),
 }
 
-// ============================================================================
-// Declaration Nodes
-// ============================================================================
-
 FunctionDeclaration :: struct {
 	using expr: FunctionExpression,
 }
@@ -1369,10 +1344,6 @@ FunctionDeclaration :: struct {
 ClassDeclaration :: struct {
 	using expr: ClassExpression,
 }
-
-// ============================================================================
-// Module Nodes
-// ============================================================================
 
 ImportSpecifier :: struct {
 	loc:       Loc,
@@ -1477,10 +1448,6 @@ TSNamespaceExportDeclaration :: struct {
 	id:  Identifier,
 }
 
-// ============================================================================
-// Program Node
-// ============================================================================
-
 SourceType :: enum {
 	Script,
 	Module,
@@ -1492,10 +1459,6 @@ Program :: struct {
 	body:       [dynamic]^Statement,
 	directives: [dynamic]Directive,
 }
-
-// ============================================================================
-// Union Types for AST Traversal
-// ============================================================================
 
 Expression :: union {
 	^NullLiteral,

@@ -8199,19 +8199,51 @@ init_reserved_word_first_byte :: proc "contextless" () {
 }
 
 is_always_reserved_word_name :: #force_inline proc(name: string) -> bool {
-	// Length gate: reserved words are 2–10 chars.
 	n := len(name)
 	if n < 2 || n > 10 { return false }
-	// First-byte gate: exits for ~60% of identifier first chars.
-	if !reserved_word_first_byte[name[0]] { return false }
-	switch name {
-	case "break", "case", "catch", "class", "const", "continue",
-	     "debugger", "default", "delete", "do", "else", "enum",
-	     "export", "extends", "false", "finally", "for", "function",
-	     "if", "import", "in", "instanceof", "new", "null", "return",
-	     "super", "switch", "this", "throw", "true", "try", "typeof",
-	     "var", "void", "while", "with":
-		return true
+	// Dispatch on first byte + length. Each (byte, length) pair maps to
+	// at most 1-2 keywords. This avoids the 37-way string switch that
+	// Odin compiles as sequential string_eq calls.
+	switch name[0] {
+	case 'b': return n == 5 && name == "break"
+	case 'c':
+		if n == 4 { return name == "case" }
+		if n == 5 { return name == "catch" || name == "class" || name == "const" }
+		if n == 8 { return name == "continue" }
+		return false
+	case 'd':
+		if n == 2 { return name == "do" }
+		if n == 6 { return name == "delete" }
+		if n == 7 { return name == "default" }
+		if n == 8 { return name == "debugger" }
+		return false
+	case 'e':
+		if n == 4 { return name == "else" || name == "enum" }
+		if n == 6 { return name == "export" }
+		if n == 7 { return name == "extends" }
+		return false
+	case 'f':
+		if n == 3 { return name == "for" }
+		if n == 5 { return name == "false" }
+		if n == 7 { return name == "finally" }
+		if n == 8 { return name == "function" }
+		return false
+	case 'i':
+		if n == 2 { return name == "if" || name == "in" }
+		if n == 6 { return name == "import" }
+		if n == 10 { return name == "instanceof" }
+		return false
+	case 'n': return (n == 3 && name == "new") || (n == 4 && name == "null")
+	case 'r': return n == 6 && name == "return"
+	case 's': return (n == 5 && name == "super") || (n == 6 && name == "switch")
+	case 't':
+		if n == 3 { return name == "try" }
+		if n == 4 { return name == "this" || name == "true" }
+		if n == 5 { return name == "throw" }
+		if n == 6 { return name == "typeof" }
+		return false
+	case 'v': return (n == 3 && name == "var") || (n == 4 && name == "void")
+	case 'w': return (n == 4 && name == "with") || (n == 5 && name == "while")
 	}
 	return false
 }
