@@ -262,10 +262,6 @@ Parser :: struct {
 	// End offset of the LAST consumed token.
 	prev_token_end: u32,
 
-	// ---- Cache-line 1+: token detail (accessed selectively) ----
-	// Cached current token - updated ONLY by advance_token()
-	cur_tok:  Token,
-
 	// Remembered `(` position for arrow-function parameter parens - used
 	// when a parenthesized expression turns out to be arrow-function
 	// parameters. ESTree spans the full `(x, y) => ...` starting AT the
@@ -1406,10 +1402,7 @@ eat :: #force_inline proc(p: ^Parser) {
 	advance_token(p)
 }
 
-// Get current token - just return cached
-get_current :: #force_inline proc(p: ^Parser) -> Token {
-	return p.cur_tok
-}
+
 
 // ============================================================================
 // Automatic Semicolon Insertion (ASI)
@@ -2006,8 +1999,6 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			// Update parser's cached token from the re-lexed result
 			ft := p.lexer.cur
 			p.cur_type = ft.kind
-			if ft.kind < .LBrace && ft.start < ft.end {
-			}
 		}
 	}
 
@@ -2629,8 +2620,6 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			relex_as_regex(p.lexer)
 			ft := p.lexer.cur
 			p.cur_type = ft.kind
-			if ft.kind == .RegularExpression {
-			}
 		}
 	}
 	expect_semicolon_or_asi(p)
@@ -3105,8 +3094,6 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				relex_as_regex(p.lexer)
 				ft := p.lexer.cur
 				p.cur_type = ft.kind
-				if ft.kind < .LBrace && ft.start < ft.end {
-				}
 			}
 		}
 
@@ -7295,8 +7282,6 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			relex_as_regex(p.lexer)
 			ft := p.lexer.cur
 			p.cur_type = ft.kind
-			if ft.kind == .RegularExpression {
-			}
 		}
 		expect_semicolon_or_asi(p)
 	}
@@ -15765,8 +15750,6 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 			relex_as_regex(p.lexer)
 			ft := p.lexer.cur
 			p.cur_type = ft.kind
-			if ft.kind < .LBrace && ft.start < ft.end {
-			}
 		}
 	}
 
@@ -16937,8 +16920,6 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		// `(bar) => { let bar; }` and `async(bar) => { let bar; }`
 		// are SyntaxErrors. Test262 language/expressions/{,async-}
 		// arrow-function/early-errors-arrow-formals-body-duplicate.js.
-		if bs, ok := body.(^BlockStatement); ok && bs != nil {
-		}
 	}
 
 	return expression_from(p, arrow)
@@ -17481,8 +17462,6 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async bar => { let bar; }` is a SyntaxError.
 	if is_block_body {
-		if bs, ok := body.(^BlockStatement); ok && bs != nil {
-		}
 	}
 
 	return arrow_e
@@ -18308,15 +18287,7 @@ jsx_relex_div_after_hyphen :: proc(p: ^Parser) {
 	p.lexer.cur = lex_slash_as_div(p.lexer)
 	// nxt is invalidated — will be lazily re-lexed on next peek.
 	p.lexer.nxt_valid = false
-	// Refresh the parser's cached cur view.
-	p.cur_tok = Token{
-		type             = p.lexer.cur.kind,
-		loc              = LexerLoc(p.lexer.cur.start),
-		raw_end          = p.lexer.cur.end,
-		value            = p.lexer.source[int(p.lexer.cur.start):int(p.lexer.cur.end)],
-		had_line_terminator = (p.lexer.cur.flags & 1) != 0,
-	}
-	p.cur_type = p.cur_tok.type
+	p.cur_type = p.lexer.cur.kind
 }
 
 parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) -> ^JSXOpeningElement {
@@ -18557,8 +18528,6 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	p.lexer.lit_write_idx ~= 1  // toggle so cur_literal reads the slot just written
 	p.lexer.nxt_valid = false
 	p.cur_type = p.lexer.cur.kind
-	if p.lexer.cur.start < p.lexer.cur.end {
-	}
 	text := new_node(p, JSXText)
 	text.loc = start; text.value = value; text.raw = value
 	text.loc.end = u32(off)
@@ -19148,8 +19117,6 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 			l.lit_write_idx ~= 1
 			l.nxt_valid = false
 			p.cur_type = l.cur.kind
-			if l.cur.start < l.cur.end {
-			}
 		}
 		tok := snap_current(p)
 		if tok.type == .TemplateMiddle {
@@ -20341,8 +20308,6 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 		relex_as_regex(p.lexer)
 		p.cur_type = p.lexer.cur.kind
 		ft := p.lexer.cur
-		if ft.kind == .RegularExpression {
-		}
 	}
 	expr := parse_unary_expr(p)
 	if expr == nil {
