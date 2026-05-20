@@ -7536,11 +7536,19 @@ report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
 // is_strict_reserved_word(token), is_strict_reserved_name(name),
 // is_eval_or_arguments(name) because it has access to lex-time info.
 is_strict_reserved_binding_name :: #force_inline proc(name: string) -> bool {
-	if is_eval_or_arguments(name) { return true }
-	if is_strict_reserved_name(name) { return true }
-	switch name {
-	case "let", "static", "yield":
-		return true
+	n := len(name)
+	// Fast length gate: eval=4, arguments=9, let=3, static=6, yield=5,
+	// implements=10, interface=9, protected=9, package=7, private=7, public=6.
+	if n < 3 || n > 10 { return false }
+	switch name[0] {
+	case 'e': return (n == 4 && name == "eval")
+	case 'a': return (n == 9 && name == "arguments")
+	case 'l': return (n == 3 && name == "let")
+	case 's': return (n == 6 && name == "static")
+	case 'y': return (n == 5 && name == "yield")
+	case 'i': return name == "implements" || name == "interface"
+	case 'p': return name == "package" || name == "private" ||
+	                 name == "protected" || name == "public"
 	}
 	return false
 }
@@ -8039,22 +8047,16 @@ is_strict_reserved_word :: #force_inline proc(t: TokenType) -> bool {
 // used by parse_binding_pattern to gate `var implements = 1;` etc.
 // when `p.strict_mode` is active.
 is_strict_reserved_name :: #force_inline proc(name: string) -> bool {
-	// Length range: implements=10, interface=9, protected=9, package=7,
-	// private=7, public=6. Anything outside [6, 10] cannot match.
-	//
-	// First-letter gate: only `i` and `p` start any of these six words.
-	// Real-world identifier names rarely start with `i` or `p`, so the
-	// gate prunes the vast majority of calls to a single byte load + two
-	// length compares. Only when the prefix matches do we run the actual
-	// per-name compare.
 	n := len(name)
 	if n < 6 || n > 10 { return false }
 	switch name[0] {
 	case 'i':
-		return name == "implements" || name == "interface"
+		if n == 9 { return name == "interface" }
+		if n == 10 { return name == "implements" }
 	case 'p':
-		return name == "package" || name == "private" ||
-		       name == "protected" || name == "public"
+		if n == 6 { return name == "public" }
+		if n == 7 { return name == "package" || name == "private" }
+		if n == 9 { return name == "protected" }
 	}
 	return false
 }
