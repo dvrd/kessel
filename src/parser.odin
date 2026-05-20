@@ -95,6 +95,18 @@ advance_token :: #force_inline proc(p: ^Parser) {
 	p.cur_type = a.cur.kind
 }
 
+// Fast contextual keyword check: compares cur token's source span
+// against a keyword string. Avoids creating a string slice when the
+// token length doesn't match (early exit on u32 arithmetic).
+cur_value_eq :: #force_inline proc(p: ^Parser, keyword: string) -> bool {
+	ft := p.lexer.cur
+	// Escaped identifiers have cooked names shorter than raw span.
+	// Fall back to cur_value which handles the cooked name correctly.
+	if (ft.flags & FLAG_HAS_ESCAPE) != 0 { return cur_value(p) == keyword }
+	if ft.end - ft.start != u32(len(keyword)) { return false }
+	return p.lexer.source[ft.start:ft.end] == keyword
+}
+
 // Ensure nxt is populated. Called by all lookahead / peek sites.
 // If nxt is already valid (from a prior peek), this is a no-op.
 ensure_nxt :: #force_inline proc(p: ^Parser) {
@@ -2186,7 +2198,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// §Grammar Notation: terminal symbols must not have Unicode escapes.
 		// `\u0061sync function*` tries to write `async function*` with an
 		// escaped keyword - this is a SyntaxError.
-		if cur_has_escape(p) && cur_value(p) == "async" {
+		if cur_has_escape(p) && cur_value_eq(p, "async") {
 			// Peek ahead: if this looks like an async function / arrow, error.
 			nxt := peek_dispatch(p)
 			if (nxt.type == .Function && !nxt.had_line_terminator) ||
@@ -2993,7 +3005,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				// Read cooked value: advance into the token, check, restore.
 				snap_u := lexer_snapshot(p)
 				advance_token(p) // consume `using` → cur = escaped ident
-				cooked_is_of := cur_value(p) == "of"
+				cooked_is_of := cur_value_eq(p, "of")
 				lexer_restore(p, snap_u)
 				if cooked_is_of {
 					report_error(p, "Keywords cannot contain escape characters")
@@ -3080,7 +3092,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		   (p.lexer.nxt.flags & FLAG_HAS_ESCAPE) != 0 {
 			snap := lexer_snapshot(p)
 			advance_token(p) // consume `await` → cur = escaped-of
-			nxt_is_of = cur_value(p) == "of"
+			nxt_is_of = cur_value_eq(p, "of")
 			lexer_restore(p, snap)
 		}
 		if is_token(p, .Await) && !p.in_async && nxt_is_of {
@@ -3101,7 +3113,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// Escaped `of` keyword: `o\u0066` → .Identifier with cooked value
 	// "of" and has_escape=true. OXC rejects as "Keywords cannot contain
 	// escape characters".
-	if p.cur_type == .Identifier && cur_has_escape(p) && cur_value(p) == "of" {
+	if p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "of") {
 		report_error(p, "Keywords cannot contain escape characters")
 	}
 	// Now check if this is for-in, for-of, or regular for
@@ -5124,7 +5136,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	// mentions for `interface`.
 	implements_list: [dynamic]TSInterfaceHeritage
 	if (p.lang == .TS || p.lang == .TSX) &&
-	   is_token(p, .Identifier) && cur_value(p) == "implements" {
+	   is_token(p, .Identifier) && cur_value_eq(p, "implements") {
 		eat(p)
 		implements_list = parse_ts_heritage_list(p)
 		if len(implements_list) == 0 {
@@ -8479,7 +8491,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	}
 	// .d.ts declaration files allow `await` as a binding name (tsc/OXC agree).
 	if p.source_is_dts { await_reserved_for_binding = false }
-	if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value(p) == "await")) && await_reserved_for_binding {
+	if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "await"))) && await_reserved_for_binding {
 		report_error(p, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
@@ -9068,11 +9080,11 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				if st, have := p.force_source_type.(SourceType); have && st == .Module { dstr_await_reserved = true }
 				else if p.in_module_top_level || p.has_module_syntax { dstr_await_reserved = true }
 			}
-			if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value(p) == "await")) &&
+			if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "await"))) &&
 			   dstr_await_reserved {
 				report_error(p, "'await' is reserved as a binding name in this context")
 			}
-			if (p.cur_type == .Yield || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value(p) == "yield")) &&
+			if (p.cur_type == .Yield || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "yield"))) &&
 			   yield_is_reserved_here(p) {
 				report_error(p, "'yield' is reserved as a binding name in this context")
 			}
@@ -10652,13 +10664,13 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// here. Detect by peeking the next token: `defer` must be followed
 	// by `*` (NameSpaceImport-only per the import-defer proposal);
 	// `source` must be followed by an Identifier (default binding).
-	if p.cur_type == .Identifier && cur_value(p) == "defer" {
+	if p.cur_type == .Identifier && cur_value_eq(p, "defer") {
 		if p.lexer != nil { ensure_nxt(p) }
 		if p.lexer != nil && p.lexer.nxt.kind == .Mul {
 			decl.phase = "defer"
 			eat(p) // consume `defer`
 		}
-	} else if p.cur_type == .Identifier && cur_value(p) == "source" {
+	} else if p.cur_type == .Identifier && cur_value_eq(p, "source") {
 		if p.lexer != nil { ensure_nxt(p) }
 		if p.lexer != nil && p.lexer.nxt.kind == .Identifier {
 			decl.phase = "source"
@@ -10680,7 +10692,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Disambiguate from `import type from "m"` (value import of default binding
 	// named "type"): after `type`, the next token must be `{`, `*`, or an
 	// identifier followed by `,`/`from` (but NOT `from` directly).
-	if p.cur_type == .Identifier && cur_value(p) == "type" && allow_ts_mode(p) {
+	if p.cur_type == .Identifier && cur_value_eq(p, "type") && allow_ts_mode(p) {
 		// §12.7.2 - contextual keyword `type` must not use Unicode escapes.
 		has_esc := cur_has_escape(p)
   ensure_nxt(p)
@@ -10710,7 +10722,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 				advance_token(p) // consume "from" → cur=third token
 				// `import type from from "m"` or `import type from = require(...)`
 				third_is_from := p.cur_type == .From ||
-				                 (p.cur_type == .Identifier && cur_value(p) == "from") ||
+				                 (p.cur_type == .Identifier && cur_value_eq(p, "from")) ||
 				                 p.cur_type == .Assign
 				lexer_restore(p, snap_tf)
 				if third_is_from {
@@ -10762,7 +10774,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			if decl.import_kind == .Type && allow_ts_mode(p) &&
-			   p.cur_type == .Identifier && cur_value(p) == "type" {
+			   p.cur_type == .Identifier && cur_value_eq(p, "type") {
 				// `import type { type ... }` — distinguish `type` as the
 				// imported NAME from `type` as an inline-type MODIFIER.
 				// When followed by `as <ident>` or `,` or `}`, `type` is
@@ -10883,7 +10895,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 
 				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 					if decl.import_kind == .Type && allow_ts_mode(p) &&
-					   p.cur_type == .Identifier && cur_value(p) == "type" {
+					   p.cur_type == .Identifier && cur_value_eq(p, "type") {
 						// Same disambiguation as the primary named-import loop above.
       ensure_nxt(p)
 						nxt_k := p.lexer.nxt.kind
@@ -11060,10 +11072,10 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	// Identifier, distinguish by the token value + a `(` follow-up.
 	// Legacy TS `import X = module("mod")` form (TS 0.x). Not supported
 	// by modern TypeScript or OXC. Reject with a clear error.
-	if p.cur_type == .Identifier && cur_value(p) == "module" && p.lexer != nil {
+	if p.cur_type == .Identifier && cur_value_eq(p, "module") && p.lexer != nil {
 		ensure_nxt(p)
 	}
-	if p.cur_type == .Identifier && cur_value(p) == "module" &&
+	if p.cur_type == .Identifier && cur_value_eq(p, "module") &&
 	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
 		report_error(p, "'module(...)' in import-equals is not supported; use 'require(...)' instead")
 		// Consume `module("...")` for recovery.
@@ -11075,10 +11087,10 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		decl.loc.span.end = prev_end_offset(p)
 		return statement_from(p, decl)
 	}
-	if p.cur_type == .Identifier && cur_value(p) == "require" && p.lexer != nil {
+	if p.cur_type == .Identifier && cur_value_eq(p, "require") && p.lexer != nil {
 		ensure_nxt(p)
 	}
-	if p.cur_type == .Identifier && cur_value(p) == "require" &&
+	if p.cur_type == .Identifier && cur_value_eq(p, "require") &&
 	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
 		req_start := cur_loc(p)
 		eat(p)  // consume `require`
@@ -11163,7 +11175,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// Closes the bulk of the 12-file "Expected }, got identifier" cluster
 	// (typescript fixtures: arbitraryModuleNamespaceIdentifiers,
 	// exportSpecifiers_js, etc.).
-	if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value(p) == "type" {
+	if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value_eq(p, "type") {
 		ensure_nxt(p)
 		if cur_has_escape(p) && p.lexer.nxt.kind == .As {
 			report_error(p, "Keyword 'type' must not contain escaped characters")
@@ -11255,9 +11267,9 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		// `await` / `yield` as the local binding name in module code
 		// (which is always strict) is reserved.
 		local_is_await := p.cur_type == .Await ||
-		                  (p.cur_type == .Identifier && cur_value(p) == "await")
+		                  (p.cur_type == .Identifier && cur_value_eq(p, "await"))
 		local_is_yield := p.cur_type == .Yield ||
-		                  (p.cur_type == .Identifier && cur_value(p) == "yield")
+		                  (p.cur_type == .Identifier && cur_value_eq(p, "yield"))
 		local = parse_identifier(p)
 		if local_is_await {
 			report_error_at(p, LexerLoc(local.loc.span.start), "'await' is reserved as a binding name in module code")
@@ -11453,7 +11465,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Detect the `{` / `*` lookahead and dispatch with export_kind=.Type.
 	// `export type Identifier =` falls through to the declaration path,
 	// which already handles type aliases via parse_statement_or_declaration.
-	if p.cur_type == .Identifier && cur_value(p) == "type" && allow_ts_mode(p) {
+	if p.cur_type == .Identifier && cur_value_eq(p, "type") && allow_ts_mode(p) {
 		has_esc := cur_has_escape(p)
 		nxt := peek_token(p)
 		if nxt.type == .LBrace {
@@ -11484,8 +11496,8 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	if allow_ts_mode(p) {
 		for (p.cur_type == .Identifier || p.cur_type == .Public || p.cur_type == .Private ||
 		     p.cur_type == .Protected || p.cur_type == .Static) &&
-		    (cur_value(p) == "public" || cur_value(p) == "private" ||
-		     cur_value(p) == "protected" || cur_value(p) == "static") &&
+		    (cur_value_eq(p, "public") || cur_value_eq(p, "private") ||
+		     cur_value_eq(p, "protected") || cur_value_eq(p, "static")) &&
 		    is_next_token(p, .Import) {
 			eat(p)
 		}
@@ -11654,7 +11666,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 				def^ = decl_union
 			}
 		}
-	} else if p.cur_type == .Identifier && cur_value(p) == "interface" &&
+	} else if p.cur_type == .Identifier && cur_value_eq(p, "interface") &&
 	          allow_ts_mode(p) {
 		// `export default interface X { ... }` - TS-only form.
 		// `export default interface {}` - anonymous interface is rejected.
@@ -11846,7 +11858,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		// Same disambiguation as parse_import_specifier above - only consume
 		// `type` when the following token can start a name AND isn't `as` /
 		// `}` / `,` (which would mean "type" is the local name itself).
-		if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value(p) == "type" {
+		if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value_eq(p, "type") {
 			ensure_nxt(p)
 			if cur_has_escape(p) && p.lexer.nxt.kind == .As {
 				report_error(p, "Keyword 'type' must not contain escaped characters")
@@ -11960,7 +11972,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 
 	// §Grammar Notation: the `from` contextual keyword must appear literally.
 	// Escaped form `\u0066rom` is lexed as .Identifier with has_escape=true.
-	if is_token(p, .Identifier) && cur_value(p) == "from" {
+	if is_token(p, .Identifier) && cur_value_eq(p, "from") {
 		if cur_has_escape(p) {
 			report_error(p, "'from' keyword must not contain Unicode escape sequences")
 		}
@@ -12928,7 +12940,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 		// Escaped `async` before `function` is SyntaxError (fast path).
-		if cur_has_escape(p) && cur_value(p) == "async" {
+		if cur_has_escape(p) && cur_value_eq(p, "async") {
 			nxt := peek_token(p)
 			if nxt.type == .Function && !nxt.had_line_terminator {
 				report_error(p, "'async' keyword must not contain Unicode escape sequences")
@@ -12940,7 +12952,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// running when we're in one of those rare scopes. Real-world JS
 		// is overwhelmingly outside any class-field / class-static-block
 		// context, so the early-out hits ~100% of the hot path.
-		if (p.in_static_block || p.in_field_init) && cur_value(p) == "arguments" {
+		if (p.in_static_block || p.in_field_init) && cur_value_eq(p, "arguments") {
 			if p.in_static_block {
 				report_error(p, "'arguments' is not allowed in a class static block")
 			} else {
@@ -12958,7 +12970,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
 		// reserved. The lexer emits it as .Identifier (contextual for
 		// TS enum decls). Mirrors the check in parse_primary_expr.
-		if !cur_has_escape(p) && cur_value(p) == "enum" {
+		if !cur_has_escape(p) && cur_value_eq(p, "enum") {
 			report_error(p, "'enum' is a reserved word")
 		}
 		// Inline identifier parse + LHS tail. Pull only the fields we need
@@ -15308,7 +15320,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	// the `extends` path below.
 	ensure_nxt(p)
 	is_implements_keyword := (p.lang == .TS || p.lang == .TSX) &&
-	                         is_token(p, .Identifier) && cur_value(p) == "implements" &&
+	                         is_token(p, .Identifier) && cur_value_eq(p, "implements") &&
 	                         (p.lexer.nxt.kind == .Identifier || is_keyword_usable_as_property_name(p.lexer.nxt.kind) || p.lexer.nxt.kind == .LBrace)
 	if can_be_binding_identifier(p.cur_type) && !is_implements_keyword {
 		current := snap_current(p)
@@ -15401,7 +15413,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	// parse_class_declaration. `implements` is a contextual keyword.
 	implements_list: [dynamic]TSInterfaceHeritage
 	if (p.lang == .TS || p.lang == .TSX) &&
-	   is_token(p, .Identifier) && cur_value(p) == "implements" {
+	   is_token(p, .Identifier) && cur_value_eq(p, "implements") {
 		eat(p)
 		implements_list = parse_ts_heritage_list(p)
 		if len(implements_list) == 0 {
@@ -19723,7 +19735,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				// Validate the `with` key.
 				if is_token(p, .With) {
 					// Good: bare `with` keyword.
-				} else if is_token(p, .Identifier) && cur_value(p) == "with" {
+				} else if is_token(p, .Identifier) && cur_value_eq(p, "with") {
 					// `w\u0069th` — escaped form of `with`.
 					if cur_has_escape(p) {
 						report_error(p, "Expected 'with' in import type options")
@@ -20818,7 +20830,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 			if p.cur_type == .In && nxt_starts_param {
 				in_mod = true; eat(p); continue
 			}
-			if p.cur_type == .Identifier && cur_value(p) == "out" && nxt_starts_param {
+			if p.cur_type == .Identifier && cur_value_eq(p, "out") && nxt_starts_param {
 				out_mod = true; eat(p); continue
 			}
 			break
@@ -20918,7 +20930,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			}
 		}
 	}
-	if p.cur_type == .Identifier && cur_value(p) == "readonly" && is_next_token(p, .LBracket) {
+	if p.cur_type == .Identifier && cur_value_eq(p, "readonly") && is_next_token(p, .LBracket) {
 		readonly_mod = .True; eat(p) // consume `readonly`, now at `[`
 	}
 
@@ -21442,7 +21454,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	// method members (`readonly _A: T`, `readonly m(): U`). The previous
 	// implementation only matched `readonly [` which let the parser drop the
 	// modifier and re-parse the property as a separate bare signature.
-	if p.cur_type == .Identifier && cur_value(p) == "readonly" {
+	if p.cur_type == .Identifier && cur_value_eq(p, "readonly") {
 		readonly_is_modifier := false
   ensure_nxt(p)
 		if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
@@ -21607,10 +21619,10 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		}
 	}
 	if ((is_token(p, .Get) || is_token(p, .Set)) ||
-	    (is_token(p, .Identifier) && (cur_value(p) == "get" || cur_value(p) == "set"))) &&
+	    (is_token(p, .Identifier) && (cur_value_eq(p, "get") || cur_value_eq(p, "set")))) &&
 	   nxt_allows_accessor {
 		accessor_kind := TSMethodSignatureKind.Get
-		if is_token(p, .Set) || (is_token(p, .Identifier) && cur_value(p) == "set") {
+		if is_token(p, .Set) || (is_token(p, .Identifier) && cur_value_eq(p, "set")) {
 			accessor_kind = .Set
 		}
 		eat(p) // consume get/set modifier.
