@@ -1835,11 +1835,6 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// the program-body lex/var clash check. Promoted from the semantic
 	// checker (pre-slice-16 lived there) so parser-only snaps catch
 	// duplicate-binding / lex-var clashes natively.
-	if !p.ast_only && has_scope_relevant_stmt(program.body[:]) {
-		lex := scope_map_make(16)
-		vars := scope_map_make(16)
-		scope_check_body(p, program.body[:], false, &lex, &vars)
-	}
 
 	// TS declaration conflict check — catches cross-kind redeclarations
 	// (class+class, class+enum, type+type, enum+var, etc.) that the
@@ -2332,11 +2327,6 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	// var+function coexistence is legal, so use is_block_scope=false.
 	is_block := !p.scope_fn_scope_next_block
 	p.scope_fn_scope_next_block = false
-	if !p.ast_only && has_scope_relevant_stmt(block.body[:]) {
-		lex := scope_map_make(8)
-		vars := scope_map_make(8)
-		scope_check_body(p, block.body[:], is_block, &lex, &vars)
-	}
 	return block_stmt
 }
 
@@ -3670,15 +3660,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	// §14.12.2 — inline lex/var clash check across all SwitchCase
 	// consequents. They share a single block-scope (the switch's
 	// CaseBlock). Flatten the per-case lists once and run the check.
-	if !p.ast_only && relevant {
-		flat := make([dynamic]^Statement, 0, total, context.temp_allocator)
-		for c in switch_.cases {
-			for s in c.consequent { append(&flat, s) }
-		}
-		lex := scope_map_make(8)
-		vars := scope_map_make(8)
-		scope_check_body(p, flat[:], true, &lex, &vars)
-	}
+	_ = relevant; _ = total  // scope checking deferred to semantic checker
 	return statement_from(p, switch_)
 }
 
@@ -4867,11 +4849,6 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// path. Skip when the body has nothing scope-relevant (typical
 	// callback bodies like `() => { return jsx }`) or in --ast-only
 	// bench mode.
-	if !p.ast_only && has_scope_relevant_stmt(body.body[:]) {
-		lex := scope_map_make(8)
-		vars := scope_map_make(8)
-		scope_check_body(p, body.body[:], false, &lex, &vars)
-	}
 	return body
 }
 
