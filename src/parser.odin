@@ -8111,6 +8111,8 @@ is_strict_reserved_name :: #force_inline proc(name: string) -> bool {
 // identifiers in strict mode (ECMA-262 §13.1.1). The lexer emits them
 // as plain .Identifier tokens, so the check happens on the string value.
 is_eval_or_arguments :: #force_inline proc(name: string) -> bool {
+	n := len(name)
+	if n != 4 && n != 9 { return false }  // eval=4, arguments=9
 	return name == "eval" || name == "arguments"
 }
 
@@ -8176,7 +8178,32 @@ yield_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
 // `yield` / `await` additionally flip to reserved inside a generator /
 // async body even in sloppy mode. Non-reserved contextual keywords
 // (async / of / from / as / let-in-sloppy / ...) pass through.
+// Table: which first bytes can start a reserved word.
+// Only b/c/d/e/f/i/n/r/s/t/v/w. All other first bytes exit immediately.
+reserved_word_first_byte: [256]bool
+
+@(init)
+init_reserved_word_first_byte :: proc "contextless" () {
+	reserved_word_first_byte['b'] = true
+	reserved_word_first_byte['c'] = true
+	reserved_word_first_byte['d'] = true
+	reserved_word_first_byte['e'] = true
+	reserved_word_first_byte['f'] = true
+	reserved_word_first_byte['i'] = true
+	reserved_word_first_byte['n'] = true
+	reserved_word_first_byte['r'] = true
+	reserved_word_first_byte['s'] = true
+	reserved_word_first_byte['t'] = true
+	reserved_word_first_byte['v'] = true
+	reserved_word_first_byte['w'] = true
+}
+
 is_always_reserved_word_name :: #force_inline proc(name: string) -> bool {
+	// Length gate: reserved words are 2–10 chars.
+	n := len(name)
+	if n < 2 || n > 10 { return false }
+	// First-byte gate: exits for ~60% of identifier first chars.
+	if !reserved_word_first_byte[name[0]] { return false }
 	switch name {
 	case "break", "case", "catch", "class", "const", "continue",
 	     "debugger", "default", "delete", "do", "else", "enum",
