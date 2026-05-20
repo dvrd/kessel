@@ -4359,7 +4359,9 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// would duplicate ck_check_strict_binding_pattern wholesale.
 	dup_strict := strict_for_check || async || generator
 	force_non_simple := !params_are_simple(params[:])
+ if !p.ast_only {
 	report_duplicate_param_names(p, params[:], start, dup_strict, force_non_simple)
+ }
 	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — it is a SyntaxError if
 	// the function body has a `"use strict"` directive AND the parameter
 	// list is not simple. The directive cannot promote params that have
@@ -4409,7 +4411,9 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// BoundNames of FormalParameters also occurs in the LexicallyDeclaredNames
 	// of FunctionBody. e.g. `function f(a) { const a = 1; }` is SyntaxError.
 	// Collect param names and check against body's lex declarations.
+ if !p.ast_only {
 	check_params_vs_body_lex(p, params[:], body.body[:])
+ }
 
 	// TS2371 — overload / ambient signatures may not have parameter defaults.
 	// TS: parameter properties (public/private/protected/readonly) are only
@@ -6997,7 +7001,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// is_strict=true subsumes the non-simple force — the helper
 		// returns the same diagnostic phrasing for either trigger when
 		// strict, so skip the params_are_simple scan in this hot path.
+  if !p.ast_only {
 		report_duplicate_param_names(p, params[:], paren_loc, true, false)
+  }
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList. A class method that has both a
@@ -14916,7 +14922,9 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// arity ≠ 1 for setters, but a one-shot fixture like
 		// `({set x([a, a]) {}})` still parses one-param fine and needs
 		// this duplicate check.
+  if !p.ast_only {
 		report_duplicate_param_names(p, params[:], fn_start, true, false)
+  }
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList for object-literal accessors. Setters
@@ -15033,7 +15041,9 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// SyntaxError. is_strict=true forces the strict-mode arm even when
 		// the surrounding context is sloppy (e.g. `({m(a, a){}})` at the
 		// top level of a script).
+  if !p.ast_only {
 		report_duplicate_param_names(p, params[:], fn_start, true, false)
+  }
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList for object-literal methods.
@@ -15049,7 +15059,9 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 
 		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
+  if !p.ast_only {
 		check_params_vs_body_lex(p, params[:], body.body[:])
+  }
 
 		fn, fn_e := new_expr(p, FunctionExpression)
 		fn.loc = fn_start
@@ -16823,7 +16835,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 
 	// §15.2.1.1 — params vs body lex check for arrow functions.
 	if bs, is_block := body.(^BlockStatement); is_block && bs != nil {
+  if !p.ast_only {
 		check_params_vs_body_lex(p, params[:], bs.body[:])
+  }
 	}
 
 	arrow := new_node(p, ArrowFunctionExpression)
@@ -16842,7 +16856,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 
 	// §15.3.1 — ArrowFormalParameters always have UniqueFormalParameters,
 	// regardless of outer strict mode (the production names the constraint).
+ if !p.ast_only {
 	report_duplicate_param_names(p, params[:], start, true, false)
+ }
 
 	// §15.3.1 — ContainsUseStrict + !IsSimpleParameterList for arrow
 	// functions. Arrow concise (expression) bodies cannot contain a
@@ -17437,7 +17453,9 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	// Single-param async arrow: only one FormalParameter, so nothing
 	// to dedupe. The duplicate check still runs (no-op for n < 2) for
 	// shape consistency with the other arrow paths.
+ if !p.ast_only {
 	report_duplicate_param_names(p, params[:], start, true, false)
+ }
 
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async bar => { let bar; }` is a SyntaxError.
@@ -17563,7 +17581,9 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 
 	// §15.9.1 — async arrow with paren'd params: UniqueFormalParameters
 	// always (regardless of outer strict mode).
+ if !p.ast_only {
 	report_duplicate_param_names(p, params[:], start, true, false)
+ }
 
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async(bar) => { let bar; }` is the canonical
@@ -17571,7 +17591,9 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 	// early-errors-arrow-formals-body-duplicate.js.
 	if is_block_body {
 		if bs, ok := body.(^BlockStatement); ok && bs != nil {
+   if !p.ast_only {
 			check_params_vs_body_lex(p, params[:], bs.body[:])
+   }
 		}
 	}
 
@@ -20745,7 +20767,9 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 		}
 	}
 	// TS generic arrow — same UniqueFormalParameters rule as plain arrow.
+ if !p.ast_only {
 	report_duplicate_param_names(p, params[:], start_loc, true, false)
+ }
 	if is_block_body {
 		if arrow_body_lifts_strict(body) {
 			if !params_are_simple(params[:]) {
