@@ -257,7 +257,7 @@ Parser :: struct {
 	// Lexer reference (per-parser, thread-safe for parallel parsing)
 	lexer: ^Lexer,
 	// Token type — checked on EVERY is_token() call. Placed before
-	// cur_tok so it shares cache line 0 with the lexer pointer.
+	// Placed at struct top for cache line 0 locality with the lexer pointer.
 	cur_type: TokenType,
 	// End offset of the LAST consumed token.
 	prev_token_end: u32,
@@ -8471,7 +8471,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		return ident
 	}
 	// Plain `await` lexes as TokenType.Await; only escaped forms
-	// (`\u0061wait`) reach Identifier with cur_tok.value == "await". Gate
+	// (`\u0061wait`) reach Identifier with cur_value == "await". Gate
 	// the string compare on has_escape so it stays off the hot path for
 	// every ordinary identifier in a binding position.
 	// §13.1 — `await` is reserved as a BindingIdentifier when the
@@ -8539,7 +8539,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// escape sequence — escaped reserved words already produced a
 		// diagnostic via report_escaped_reserved_word above; firing again
 		// would double-report the same source location. id_has_escape was
-		// captured before eat(p) below because cur_tok then points at the
+		// captured before eat(p) below because the parser then points at the
 		// next token, not the binding identifier.
 		// In TS ambient contexts (declare namespace/module, .d.ts),
 		// strict-mode reserved words ARE allowed as identifiers.
@@ -8973,7 +8973,7 @@ new_identifier :: proc(p: ^Parser, tok: Token) -> ^Identifier {
 	return ident
 }
 
-// new_identifier_from_cur creates an Identifier from p.cur_tok without
+// new_identifier_from_cur creates an Identifier from the current token without
 // copying the 72-byte Token struct. Use before eat() when only loc + name
 // are needed.
 new_identifier_from_cur :: #force_inline proc(p: ^Parser) -> ^Identifier {
@@ -12434,7 +12434,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 					//   (-5 ** 6)   → ')' at 8, after  '**' at 4 → NOT
 					if paren_wrapped {
 						// Walk forward from lhs_end over whitespace looking
-						// for ')'. Must appear before cur_tok (the '**').
+						// for ')'. Must appear before the current token (the '**').
 						closing := false
 						j := int(lhs_end)
 						pow_off := int(cur_offset(p))
@@ -12968,12 +12968,12 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, "'enum' is a reserved word")
 		}
 		// Inline identifier parse + LHS tail. Pull only the fields we need
-		// out of p.cur_tok before eat() advances - a full Token copy is ~64
+		// out of the current token before eat() advances - the FastToken
 		// bytes and was showing up in the parse_unary_expr profile when this
 		// fast path runs once per identifier in the program.
 		//
-		// `loc.line` / `loc.column` are NEVER written on `p.cur_tok` (verify
-		// with `rg 'cur_tok\.loc\.line' src/`). The lexer only stores byte
+		// The lexer only stores byte
+		
 		// offsets; line / column are computed lazily by `report_error` via
 		// `offset_to_line_col` when an error is actually emitted. Reading
 		// them here returned permanent 0, then we'd write 0 back into
@@ -15674,7 +15674,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 }
 
 // True when the token immediately following the current `yield`
-// (at p.cur_tok) cleanly starts an AssignmentExpression argument -
+// cleanly starts an AssignmentExpression argument -
 // i.e. the user wrote `yield <expr>` rather than `yield;`,
 // `yield + 1`, `yield.x`, `yield(x)`, `` yield`t` ``, etc. A
 // line-terminator between `yield` and the next token triggers ASI
@@ -17315,7 +17315,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 }
 
 parse_identifier :: proc(p: ^Parser) -> Identifier {
-	// Read loc / name from p.cur_tok BEFORE eat advances. Saves the
+	// Read loc / name from the lexer BEFORE eat advances. Saves the
 	// 64 B Token snapshot copy that `current := snap_current(p)` was
 	// doing once per identifier-name (called from member access, import
 	// /export specifiers, JSX attribute names, dynamic imports, optional
@@ -17766,7 +17766,7 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 			report_error(p, "Only string literals are allowed as import attribute values")
 		}
 		value := parse_string_literal(p)
-		// Span end must cover the value literal - `attr_start` captured only
+		// End must cover the value literal - `attr_start` captured only
 		// the key's token span at entry (cur_loc), and was never extended
 		// past the value. The previous shape `{ loc = attr_start, ... }` left
 		// `loc.end` equal to the key's end, so `type: "json"` reported
@@ -20386,7 +20386,7 @@ TrialSnapshot :: struct {
 	lex_lit_write_idx:  u8,
 	lex_template_depth:     u8,
 	lex_template_brace_stack: [8]u8,
-	// Parser scalars — cur_tok removed; re-derived from lexer on restore
+	// Parser scalars — re-derived from lexer on restore
 	cur_type:       TokenType,
 	prev_token_end: u32,
 	errors_len:     int,
@@ -22481,7 +22481,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 // Utility Functions
 // ============================================================================
 
-// Fast accessors - read directly from FastToken/cur_tok, no Token struct copy
+// Fast accessors - read directly from FastToken, no Token struct copy
 cur_offset :: #force_inline proc(p: ^Parser) -> u32 {
 	return p.lexer.cur.start
 }
@@ -22541,7 +22541,7 @@ cur_literal :: #force_inline proc(p: ^Parser) -> LiteralValue {
 // TokenSnap — lightweight snapshot of the current token for callers that
 // need to capture token state before eat(). 48 bytes vs Token's 72 bytes,
 // and reads directly from the lexer (FastToken + literal store) rather
-// than the inflated p.cur_tok copy.
+// than an inflated Token copy.
 TokenSnap :: struct {
 	value:      string,       // 16B — raw source or cooked name
 	start:      u32,          // 4B  — byte offset of token start
@@ -22637,58 +22637,6 @@ loc_from_expr :: #force_inline proc(e: ^Expression) -> Loc {
 }
 
 // Set the start offset of an expression's span. Matches loc_from_expr variants.
-set_expr_start :: proc(e: ^Expression, start: u32) {
-	if e == nil { return }
-	loc := get_expr_loc_ptr(e)
-	if loc != nil { loc.start = start }
-}
-
-set_expr_end :: proc(e: ^Expression, end: u32) {
-	if e == nil { return }
-	loc := get_expr_loc_ptr(e)
-	if loc != nil { loc.end = end }
-}
-
-get_expr_loc_ptr :: proc(e: ^Expression) -> ^Loc {
-	if e == nil { return nil }
-	#partial switch v in e {
-	case ^Identifier:              return &v.loc
-	case ^NumericLiteral:           return &v.loc
-	case ^StringLiteral:            return &v.loc
-	case ^BooleanLiteral:           return &v.loc
-	case ^NullLiteral:              return &v.loc
-	case ^ThisExpression:            return &v.loc
-	case ^Super:                     return &v.loc
-	case ^ArrayExpression:           return &v.loc
-	case ^ObjectExpression:          return &v.loc
-	case ^FunctionExpression:        return &v.loc
-	case ^ArrowFunctionExpression:   return &v.loc
-	case ^MemberExpression:          return &v.loc
-	case ^CallExpression:            return &v.loc
-	case ^NewExpression:             return &v.loc
-	case ^ConditionalExpression:     return &v.loc
-	case ^UnaryExpression:           return &v.loc
-	case ^BinaryExpression:          return &v.loc
-	case ^LogicalExpression:         return &v.loc
-	case ^AssignmentExpression:      return &v.loc
-	case ^UpdateExpression:          return &v.loc
-	case ^SpreadElement:             return &v.loc
-	case ^YieldExpression:           return &v.loc
-	case ^AwaitExpression:           return &v.loc
-	case ^ImportExpression:          return &v.loc
-	case ^MetaProperty:              return &v.loc
-	case ^BigIntLiteral:             return &v.loc
-	case ^RegExpLiteral:             return &v.loc
-	case ^TemplateLiteral:           return &v.loc
-	case ^TaggedTemplateExpression:  return &v.loc
-	case ^SequenceExpression:        return &v.loc
-	case ^ClassExpression:           return &v.loc
-	case ^PrivateIdentifier:         return &v.loc
-	case ^ChainExpression:           return &v.loc
-	case ^ParenthesizedExpression:   return &v.loc
-	}
-	return nil
-}
 
 token_to_unary_op :: proc(t: TokenType) -> UnaryOperator {
 	#partial switch t {
