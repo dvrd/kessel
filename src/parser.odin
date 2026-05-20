@@ -557,7 +557,6 @@ Parser :: struct {
 	in_export_default: bool,
 
 
-
 	// True while expr_to_pattern recurses into nested array/object elements.
 	// Parenthesized binding elements (`(a)`) are rejected inside destructuring
 	// patterns but allowed at the top level of arrow params (matching OXC
@@ -778,7 +777,6 @@ intern :: proc(i: ^StringInterner, s: string) -> string {
 	i.entries[interned] = interned
 	return interned
 }
-
 
 
 // Initialize parser with lexer
@@ -1401,7 +1399,6 @@ match_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 eat :: #force_inline proc(p: ^Parser) {
 	advance_token(p)
 }
-
 
 
 // ============================================================================

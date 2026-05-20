@@ -1864,14 +1864,6 @@ is_valid_gc_property_value :: proc(value: string) -> bool {
 	return is_general_category_value(value)
 }
 
-is_valid_script_property_value :: proc(value: string) -> bool {
-	l := len(value)
-	if l < 2 || l > 22 { return false }
-	for v in SCRIPT_VALUES {
-		if len(v) == l && v == value { return true }
-	}
-	return false
-}
 
 // §22.2.1.2 "UnicodePropertyValueAliases for Script / Script_Extensions".
 // Exhaustive list of Script values recognised by ECMA-262 (Unicode 16.0).
