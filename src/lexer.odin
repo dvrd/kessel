@@ -615,6 +615,61 @@ import "core:simd"
 // Main entry point — replaces the old lex_token that wrapped lex_next_compact
 // ============================================================================
 
+// Inline hot path: handles ~70% of tokens (single-char + short ASCII
+// identifiers) without a function call. Called from advance_token.
+// Falls through to lex_token for WS slow path, templates, escapes.
+lex_token_inline :: #force_inline proc(l: ^Lexer) {
+	src := l.source_bytes
+	src_len := len(src)
+	off := l.offset
+	if off + 1 < src_len {
+		off += int(src[off] == ' ')
+	}
+	if off < src_len && FAST_TOKEN_START_TABLE[src[off]] && l.template_depth == 0 {
+		annex_b := !l.is_module_mode && (src[off] == '<' || src[off] == '-')
+		if !annex_b {
+			flags: u8 = FLAG_NEW_LINE if l.had_line_terminator else 0
+			l.had_line_terminator = false
+			c := src[off]
+			start := u32(off)
+			tt := single_char_tokens[c]
+			if tt != .Invalid {
+				l.offset = off + 1
+				l.cur = FastToken{start = start, end = u32(off + 1), kind = tt, flags = flags}
+				return
+			}
+			if is_id_start_fast(c) {
+				id_off := off + 1
+				id_end := min(id_off + 11, src_len)
+				id_ok := true
+				for id_off < id_end {
+					id_class := ID_CONT_TABLE[src[id_off]]
+					if id_class == 0 { break }
+					if id_class >= 2 { id_ok = false; break }
+					id_off += 1
+				}
+				if id_ok && c < 0x80 && (id_off >= src_len || ID_CONT_TABLE[src[id_off]] == 0) {
+					l.offset = id_off
+					kw := lookup_keyword_by_letter(src, start, u32(id_off))
+					l.cur = FastToken{start = start, end = u32(id_off), kind = kw, flags = flags}
+					return
+				}
+				l.offset = off
+				l.cur = lex_identifier(l, start, flags)
+				return
+			}
+			if c != '\\' {
+				l.offset = off
+				l.cur = lex_token_dispatch(l, c, start, flags)
+				return
+			}
+			l.had_line_terminator = (flags & FLAG_NEW_LINE) != 0
+			l.offset = off
+		}
+	}
+	l.cur = lex_token(l)
+}
+
 lex_token :: proc(l: ^Lexer) -> FastToken {
 	// ---- Inline whitespace skip (register-local offset) ----
 	// NOTE: had_line_terminator is NOT reset here (OXC pattern).

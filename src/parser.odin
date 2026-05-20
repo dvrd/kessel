@@ -19,77 +19,7 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		a.cur = a.nxt
 		a.nxt_valid = false
 	} else {
-		// --- Inline hot path: ~70% of tokens (single-char + identifier) ---
-		src := a.source_bytes
-		src_len := len(src)
-		off := a.offset
-		// WS fast path: skip 0-1 spaces
-		if off + 1 < src_len {
-			off += int(src[off] == ' ')
-		}
-		if off < src_len && FAST_TOKEN_START_TABLE[src[off]] && a.template_depth == 0 {
-			// Annex B guard (script mode only)
-			annex_b := !a.is_module_mode && (src[off] == '<' || src[off] == '-')
-			if !annex_b {
-				flags: u8 = FLAG_NEW_LINE if a.had_line_terminator else 0
-				a.had_line_terminator = false
-				c := src[off]
-				start := u32(off)
-				// Single-char token
-				tt := single_char_tokens[c]
-				if tt != .Invalid {
-					a.offset = off + 1
-					a.cur = FastToken{start = start, end = u32(off + 1), kind = tt, flags = flags}
-					a.lit_write_idx ~= 1
-					p.cur_type = tt
-					return
-				}
-				// Identifier — inline fast path for ≤12 byte ASCII names.
-				// Covers ~95% of identifiers without calling lex_identifier.
-				if is_id_start_fast(c) {
-					id_off := off + 1  // past first byte (already validated as IdStart)
-					id_end := min(id_off + 11, src_len)  // scan up to 12 total bytes
-					id_ok := true
-					for id_off < id_end {
-						id_class := ID_CONT_TABLE[src[id_off]]
-						if id_class == 0 { break }       // end of identifier
-						if id_class >= 2 { id_ok = false; break }  // backslash or non-ASCII → slow path
-						id_off += 1
-					}
-					// If identifier ended cleanly within 12 bytes and first byte is ASCII
-					if id_ok && c < 0x80 && (id_off >= src_len || ID_CONT_TABLE[src[id_off]] == 0) {
-						a.offset = id_off
-						kw := lookup_keyword_by_letter(src, start, u32(id_off))
-						a.cur = FastToken{start = start, end = u32(id_off), kind = kw, flags = flags}
-						a.lit_write_idx ~= 1
-						p.cur_type = kw
-						return
-					}
-					// Slow path: long identifier, unicode, or escape
-					a.offset = off
-					a.cur = lex_identifier(a, start, flags)
-					a.lit_write_idx ~= 1
-					p.cur_type = a.cur.kind
-					return
-				}
-				// Cold path: WS already skipped, flags captured.
-				// Backslash (escaped identifier) falls through to full
-				// lex_token which handles \uXXXX. Everything else goes
-				// to lex_token_dispatch (skips redundant WS/ID checks).
-				if c != '\\' {
-					a.offset = off
-					a.cur = lex_token_dispatch(a, c, start, flags)
-					a.lit_write_idx ~= 1
-					p.cur_type = a.cur.kind
-					return
-				}
-				// Backslash: restore had_line_terminator (lex_token re-captures)
-				a.had_line_terminator = (flags & FLAG_NEW_LINE) != 0
-				a.offset = off
-			}
-		}
-		// Slow path: WS not done (newline/comment/multi-space) or EOF edge
-		a.cur = lex_token(a)
+		lex_token_inline(a)
 	}
 	a.lit_write_idx ~= 1
 	p.cur_type = a.cur.kind
