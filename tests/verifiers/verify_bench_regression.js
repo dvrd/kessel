@@ -103,7 +103,7 @@ for (const rel of FILES) {
 // among several summary lines. We only read Min for noise-resistance.
 // -----------------------------------------------------------------------------
 function measureMinUs(absPath) {
-  const r = spawnSync(KESSEL, ['microbench', 'parse', absPath, '--iterations', String(ITERATIONS)], {
+  const r = spawnSync(KESSEL, ['microbench', 'parse', absPath, '--iterations', String(ITERATIONS), '--ast-only'], {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
     timeout: 120_000,
