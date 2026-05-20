@@ -181,7 +181,36 @@ PendingPrivRef :: struct {
 	depth: int,  // class_depth at which the reference was made
 }
 
-// Parser represents the recursive descent parser
+// Stack-scoped context flags. Set on entry to a new grammar scope
+// (function, class, loop, etc.) and restored on exit. All booleans
+// except label_floor (int).
+ParseContext :: struct {
+	in_function:              bool,
+	in_non_arrow_function:    bool,
+	in_generator:             bool,
+	in_async:                 bool,
+	in_loop:                  bool,
+	in_switch:                bool,
+	strict_mode:              bool,
+	in_static_block:          bool,
+	in_field_init:            bool,
+	in_ts_namespace:          bool,
+	in_ts_module_block:       bool,
+	in_case_clause:           bool,
+	in_method:                bool,
+	in_generator_params:      bool,
+	in_async_params:          bool,
+	in_derived_constructor:   bool,
+	class_has_extends:        bool,
+	class_is_abstract:        bool,
+	no_in:                    bool,
+	in_in_rhs:                bool,
+	private_in_allowed:       bool,
+	in_nested_pattern_convert: bool,
+	in_ambient:               bool,
+	label_floor:              int,
+}
+
 Parser :: struct {
 	// ---- Cache-line 0: hottest fields (accessed every token) ----
 	// Lexer reference (per-parser, thread-safe for parallel parsing)
@@ -229,59 +258,23 @@ Parser :: struct {
 	// Fast bump pool for AST nodes (bypasses allocator dispatch)
 	node_pool: BumpPool,
 
+	// Stack-scoped parse context — these fields are saved on entry to
+	// a new scope (function, class, loop, etc.) and restored on exit.
+	// Grouped into a struct for documentation; future work may pass
+	// this by value to eliminate save/restore boilerplate.
+	ctx: ParseContext,
+
 	// Error handling
 	errors: [dynamic]ParseError,
 
 	// String interner for identifiers
 	interner: ^StringInterner,
 
-	// Context flags
-	in_function:     bool,
-	// True when the lexical enclosing scope contains a non-arrow function
-	// (FunctionDeclaration / FunctionExpression / Method / Generator /
-	// AsyncFunction / class constructor). Arrow functions inherit
-	// `[[NewTarget]]` from their enclosing scope rather than introducing
-	// their own, so `new.target` inside `() => { new.target }` at script
-	// top-level must still be a SyntaxError. Regular function entry
-	// points save+set this flag; arrow entry points leave it untouched.
-	in_non_arrow_function: bool,
-	in_generator:    bool,
-	in_async:        bool,
-	in_loop:         bool,
-	in_switch:       bool,
-	strict_mode:     bool,
-
-	// True when parsing a ClassStaticBlockBody (§15.7.5). Disables
-	// `return`, `await`, `yield`, and `arguments` (the spec parameters
-	// `[~Yield, +Await, ~Return]` plus an explicit `Contains await /
-	// arguments / SuperCall` early error).
-	in_static_block: bool,
-
-	// True when parsing a class field initialiser (§15.7.10). The
-	// synthetic ClassFieldInitializer function does NOT bind `arguments`,
-	// so `arguments` as IdentifierReference is a SyntaxError. Reset on
-	// entry to non-arrow function bodies (they bind their own `arguments`).
-	in_field_init: bool,
-
 	// When true, the NEXT parse_block_statement scope check uses
 	// is_block_scope=false (function-scope semantics). Auto-cleared
 	// after the block. Set by arrow block-body and static-block
 	// parsers so var+function coexistence is accepted.
 	scope_fn_scope_next_block: bool,
-
-	// True when parsing inside a TS namespace/module body. `await` is
-	// not a keyword here even in module-mode files.
-	in_ts_namespace: bool,
-
-	// True when inside a string-named module body (`declare module "x" { ... }`).
-	// ES import/export syntax IS valid here (it defines the module's API),
-	// unlike identifier-named namespace bodies where it's forbidden.
-	in_ts_module_block: bool,
-
-	// True when parsing a Statement directly inside a CaseClause /
-	// DefaultClause StatementList. §Explicit Resource Management
-	// forbids `using` / `await using` declarations in this position.
-	in_case_clause: bool,
 
 	// Most-recent call to `parse_function_body` set this to true iff the
 	// body's directive prologue contained a literal `"use strict"`. Used
@@ -310,55 +303,6 @@ Parser :: struct {
 	//     time via a lexer-snapshot scan over `Identifier :` chains.
 	label_stack: [dynamic]string,
 	label_is_iteration: [dynamic]bool,
-	label_floor: int,
-
-	// Inside a [[HomeObject]]-bearing context - class method (instance,
-	// static, getter, setter, constructor), class field initializer, class
-	// static block, or object-literal method / accessor. `super.foo` and
-	// `super[x]` are SyntaxErrors outside one of these. `super(...)` has a
-	// further restriction (constructor of a derived class) - tracked by
-	// `in_derived_constructor` so the bare `super` check here stays cheap.
-	//
-	// Nested arrow functions inherit `in_method` (lexical super); nested
-	// regular FunctionExpression / FunctionDeclaration bodies reset it
-	// (they introduce their own - absent - HomeObject).
-	in_method:       bool,
-
-	// Inside the FormalParameters of a GeneratorFunction /
-	// GeneratorMethod / async generator. ECMA-262 §15.5.1 / §15.6.1 - "It
-	// is a Syntax Error if FormalParameters Contains YieldExpression is
-	// true." Set before parse_function_params and cleared after; the
-	// yield-expression constructor consults it so we don't need a
-	// post-parse AST walker.
-	in_generator_params: bool,
-
-	// Inside the FormalParameters of any async function-like form -
-	// AsyncArrowFunction (§15.9.1: "It is a Syntax Error if
-	// CoverCallExpressionAndAsyncArrowHead Contains AwaitExpression is
-	// true."), AsyncFunctionDeclaration / AsyncFunctionExpression
-	// (§15.8.1), AsyncMethod, AsyncGeneratorDeclaration /
-	// AsyncGeneratorMethod (§15.6.1). The await-expression constructor
-	// consults this flag so we don't need a post-parse AST walker.
-	in_async_params: bool,
-
-	// Inside the constructor of a class with an `extends` clause.
-	// `super(...)` (SuperCall) is a SyntaxError outside such a
-	// constructor (ECMA-262 §15.7.3 / §13.3.7). Arrow functions inherit
-	// this (lexical super-call); every non-arrow function body resets it,
-	// as do object-literal methods / getters / setters / static blocks /
-	// field initializers and non-constructor class methods.
-	in_derived_constructor: bool,
-
-	// Set by parse_class_declaration / parse_class_expression before
-	// recursing into parse_class_body, so parse_class_element can decide
-	// whether the (instance, non-static) constructor body should enable
-	// `in_derived_constructor`. Saved / restored across nested class
-	// declarations so inner classes don't leak their extends state.
-	class_has_extends: bool,
-
-	// True when the current class being parsed was declared `abstract`.
-	// Saved / restored across nested class declarations.
-	class_is_abstract: bool,
 
 	// Depth counter for nested classes. Incremented on entry to
 	// parse_class_body, decremented on exit. Used to enforce §15.7.3
@@ -406,21 +350,6 @@ Parser :: struct {
 	// Suppresses the JSDoc-nullable `?` consumption in parse_ts_postfix
 	// so that postfix `?` is reserved for TSOptionalType instead.
 	ts_in_tuple_type: bool,
-
-	// Disallow 'in' as binary operator (for for-loop init parsing)
-	no_in:           bool,
-	// True while parsing the RHS of an `in` operator. Used to reject
-	// `#x in #y` (Test262: language/expressions/in/private-field-in-
-	// nested.js): a PrivateIdentifier appearing in the RHS of `in`
-	// is not a valid ShiftExpression. Reset on parens so `a in (#x in y)`
-	// stays legal.
-	in_in_rhs:       bool,
-
-	// True when the current expression precedence can still consume `in`.
-	// `#x` is only a valid primary expression as the left operand of that
-	// `in`; in `1 + #x in obj`, the additive RHS is parsed above relational
-	// precedence, so the following `in` belongs outside and `#x` is invalid.
-	private_in_allowed: bool,
 
 	// CLI `--source-type` override. When set, disables the auto-upgrade
 	// from Script to Module that parse_program normally performs when it
@@ -485,22 +414,6 @@ Parser :: struct {
 	// that OXC doesn't enforce in the default-export position (e.g.
 	// `export default function *yield() {}` is accepted by OXC).
 	in_export_default: bool,
-
-
-	// True while expr_to_pattern recurses into nested array/object elements.
-	// Parenthesized binding elements (`(a)`) are rejected inside destructuring
-	// patterns but allowed at the top level of arrow params (matching OXC
-	// preserveParens=false semantics). Set before recursing into
-	// ArrayExpression / ObjectExpression element conversions.
-	in_nested_pattern_convert: bool,
-
-
-	// Inside an ambient TS module / namespace body: every declaration is
-	// implicitly `declare`-modified. Matches `declare module "x" { ... }`
-	// semantics and also the string-named `module "x" { ... }` shortcut
-	// (always ambient, no explicit declare needed). Propagates through
-	// nested modules. Saved/restored around the body scan.
-	in_ambient:      bool,
 
 	// True for `.d.ts` declaration files. They parse as TS, but ambient
 	// declaration-file relaxations (for example `const x;`) must not leak
@@ -777,22 +690,22 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	}
 	bump_init(&p.node_pool, alloc, pool_size)
 
-	p.in_function = false
-	p.in_generator = false
-	p.in_async = false
-	p.in_loop = false
-	p.in_switch = false
+	p.ctx.in_function = false
+	p.ctx.in_generator = false
+	p.ctx.in_async = false
+	p.ctx.in_loop = false
+	p.ctx.in_switch = false
 	// strict_mode starts sloppy; parse_program promotes it via the
 	// directive-prologue pass or when p.force_strict is set.
-	p.strict_mode = false
-	p.in_method = false
-	p.in_generator_params = false
-	p.in_async_params = false
-	p.in_derived_constructor = false
-	p.class_has_extends = false
+	p.ctx.strict_mode = false
+	p.ctx.in_method = false
+	p.ctx.in_generator_params = false
+	p.ctx.in_async_params = false
+	p.ctx.in_derived_constructor = false
+	p.ctx.class_has_extends = false
 	p.label_stack = make([dynamic]string, 0, 4, alloc)
 	p.label_is_iteration = make([dynamic]bool, 0, 4, alloc)
-	p.label_floor = 0
+	p.ctx.label_floor = 0
 	p.lang = lang
 	p.source_is_dts = source_is_dts
 	p.has_module_syntax = false
@@ -1365,7 +1278,7 @@ expect_close_paren_or_recover :: #force_inline proc(p: ^Parser) -> bool {
 	// Only in TS mode to avoid breaking JS must-reject fixtures (e.g.
 	// 002_missing_closing_paren.js). OXC's parser infers the missing `)`
 	// for TS fixtures like missingCloseParenStatements.ts.
-	if allow_ts_mode(p) && !p.strict_mode && p.cur_type == .LBrace {
+	if allow_ts_mode(p) && !p.ctx.strict_mode && p.cur_type == .LBrace {
 		return true
 	}
 	msg := fmt.tprintf("Expected %v, got %v", get_token_name(.RParen), get_token_name(p.cur_type))
@@ -1598,15 +1511,15 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// --force-strict (CLI) opts into strict mode regardless of the body's
 	// directive prologue. Set here (not in init_parser) because main.odin
 	// flips p.force_strict AFTER init_parser has already zeroed
-	// p.strict_mode. Used by the Test262 runner for `flags: [onlyStrict]`
+	// p.ctx.strict_mode. Used by the Test262 runner for `flags: [onlyStrict]`
 	// fixtures.
 	if p.force_strict {
-		p.strict_mode = true
+		p.ctx.strict_mode = true
 	}
 
 	// §16.2.1 - Module code is always strict mode (§16.2.2).
 	if fs, have := p.force_source_type.(SourceType); have && fs == .Module {
-		p.strict_mode = true
+		p.ctx.strict_mode = true
 	}
 
 	// §16.2.1 - ImportDeclaration and ExportDeclaration are ModuleItems,
@@ -1651,7 +1564,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			current := snap_current(p)
 			has_escape := strings.contains(current.value, "\\") 
 			if current.literal == "use strict" && !has_escape {
-				p.strict_mode = true
+				p.ctx.strict_mode = true
 				// Retroactive check: string literals in the directive
 				// prologue BEFORE "use strict" must not contain legacy
 				// octal escapes (\0-\7) or \8/\9 (ES2021 §12.9.4.1).
@@ -1804,7 +1717,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 
 	// TS2391 / TS2389 — top-level function overload chain validation.
 	// Mirrors report_ts_overload_chain_errors for class methods.
-	if allow_ts_mode(p) && !p.in_ambient && !p.source_is_dts {
+	if allow_ts_mode(p) && !p.ctx.in_ambient && !p.source_is_dts {
 		report_ts_function_overload_errors(p, program.body[:])
 	}
 
@@ -1959,10 +1872,10 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 				report_error(p, "'abstract' modifier is only allowed in TypeScript files")
 			}
 			eat(p) // consume `abstract`
-			prev_abs := p.class_is_abstract
-			p.class_is_abstract = true
+			prev_abs := p.ctx.class_is_abstract
+			p.ctx.class_is_abstract = true
 			stmt := parse_class_declaration(p)
-			p.class_is_abstract = prev_abs  // prevent leak to next class
+			p.ctx.class_is_abstract = prev_abs  // prevent leak to next class
 			if stmt != nil {
 				if cls, ok := stmt^.(^ClassDeclaration); ok { cls.expr.abstract = true }
 			}
@@ -1999,7 +1912,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			// forbidden there, so `let` is an identifier. block_depth > 0
 			// signals we're inside such a context (set by parse_if_statement
 			// et al. before calling parse_statement_or_declaration).
-			is_let_asi := nxt_let.had_line_terminator && !p.strict_mode && !allow_ts_mode(p) &&
+			is_let_asi := nxt_let.had_line_terminator && !p.ctx.strict_mode && !allow_ts_mode(p) &&
 			              (nxt_let.type == .Identifier ||
 			               (nxt_let.type == .LBrace && p.block_depth > 0))
 			if !is_let_asi {
@@ -2013,7 +1926,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// a binding (Identifier, `[`, `{`), it's a declaration. Otherwise
 			// (`let + 1`, `let.x`), parse as expression - the semantic checker
 		// (or report_semantic_error) handles the strict-mode violation.
-		if p.strict_mode && !let_is_decl {
+		if p.ctx.strict_mode && !let_is_decl {
 			// Only force declaration if the next token looks like a binding.
 			if nxt_let.type == .LBracket || nxt_let.type == .LBrace ||
 			   is_identifier_like_token(nxt_let.type) {
@@ -2030,7 +1943,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// which handles the empty-list recovery.
 		if allow_ts_mode(p) && (nxt_let.type == .EOF || nxt_let.type == .Semi ||
 		   nxt_let.type == .RBrace) {
-			if p.in_ts_namespace {
+			if p.ctx.in_ts_namespace {
 				return parse_variable_declaration(p, nil, true)
 			}
 			report_error(p, "'let' declaration requires a binding name")
@@ -2267,7 +2180,7 @@ check_import_export_position :: proc(p: ^Parser, is_import: bool) {
 		}
 	}
 	// Module-mode with explicit pin: reject when not at top-level.
-	if p.in_module_top_level && (p.in_function || p.block_depth > 0) {
+	if p.in_module_top_level && (p.ctx.in_function || p.block_depth > 0) {
 		msg := "'export' declaration is only allowed at the top level of a module"
 		if is_import { msg = "'import' declaration is only allowed at the top level of a module" }
 		report_error(p, msg)
@@ -2296,9 +2209,9 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	// A nested block introduces its own StatementList, so the
 	// case-clause direct-child constraint no longer applies inside.
 	// Also clear module-top-level: import/export are not allowed in blocks.
-	prev_in_case_block := p.in_case_clause
-	p.in_case_clause = false
-	defer p.in_case_clause = prev_in_case_block
+	prev_in_case_block := p.ctx.in_case_clause
+	p.ctx.in_case_clause = false
+	defer p.ctx.in_case_clause = prev_in_case_block
 	// Track nesting depth for import/export position check.
 	p.block_depth += 1
 	defer p.block_depth -= 1
@@ -2403,7 +2316,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// is grammatically impossible there. Outside a generator,
 			// `yield:` is parsed but the colon arrival is unexpected
 			// (the YieldExpression had no operand), still a parse error.
-			if p.in_generator {
+			if p.ctx.in_generator {
 				report_error(p, "'yield' cannot be used as a label identifier inside a generator function")
 			} else {
 				report_error(p, "Unexpected token ':'")
@@ -2417,7 +2330,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// because the LabelIdentifier production is `Identifier` and
 			// the Identifier in question is one of the strict-reserved
 			// names. Promoted from the semantic checker.
-			if p.strict_mode {
+			if p.ctx.strict_mode {
 				if is_eval_or_arguments(e.name) || is_strict_reserved_binding_name(e.name) {
 					msg := fmt.tprintf("'%s' cannot be used as a label identifier in strict mode", e.name)
 					report_error_at(p, LexerLoc(e.loc.start), msg)
@@ -2425,7 +2338,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 			// §12.1.1 — `await` is reserved as a LabelIdentifier in module code.
 			if e.name == "await" {
-				await_reserved := p.in_async || p.in_static_block
+				await_reserved := p.ctx.in_async || p.ctx.in_static_block
 				if !await_reserved {
 					if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
 					else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
@@ -2443,7 +2356,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 			// §14.13.1 — duplicate labels within the same function are
 			// a SyntaxError. Scan from label_floor (function boundary).
-			for i := p.label_floor; i < len(p.label_stack); i += 1 {
+			for i := p.ctx.label_floor; i < len(p.label_stack); i += 1 {
 				if p.label_stack[i] == e.name {
 					report_error(p, fmt.tprintf("Label '%s' has already been declared", e.name))
 					break
@@ -2499,7 +2412,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 						// removed and \`label: function f() {}\` is a
 						// SyntaxError. Promoted from the semantic checker
 						// (ck_walk_stmt's ^LabeledStatement case).
-						if p.strict_mode {
+						if p.ctx.strict_mode {
 							report_error(p, "Function declarations cannot be labeled items in strict mode")
 						}
 					}
@@ -2583,7 +2496,7 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		// alternate (or a LabelledStatement at StatementListItem level)
 		// allows a plain FunctionDeclaration; iteration / with bodies do
 		// not. The caller threads the right gate via allow_plain_function:
-		//   * if statement consequent / alternate — !p.strict_mode
+		//   * if statement consequent / alternate — !p.ctx.strict_mode
 		//   * iteration / with body — always false
 		//   * label inside iteration / if-body — false (recursive call)
 		//
@@ -2657,7 +2570,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	if consequent == nil {
 		report_error(p, "Expected statement after 'if' condition")
 	}
-	report_statement_only_position(p, consequent, !p.strict_mode)
+	report_statement_only_position(p, consequent, !p.ctx.strict_mode)
 
 	if_, if__s := new_stmt(p, IfStatement)
 	if_.loc = start
@@ -2671,7 +2584,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		if alt == nil {
 			report_error(p, "Expected statement after 'else'")
 		}
-		report_statement_only_position(p, alt, !p.strict_mode)
+		report_statement_only_position(p, alt, !p.ctx.strict_mode)
 		if_.alternate = alt
 	}
 
@@ -2703,12 +2616,12 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	prev_in_loop := p.in_loop
-	p.in_loop = true
+	prev_in_loop := p.ctx.in_loop
+	p.ctx.in_loop = true
 	p.block_depth += 1
 	body := parse_statement_or_declaration(p)
 	p.block_depth -= 1
-	p.in_loop = prev_in_loop
+	p.ctx.in_loop = prev_in_loop
 	if body == nil {
 		report_error(p, "Expected statement after 'while' condition")
 	}
@@ -2727,12 +2640,12 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume do
 
-	prev_in_loop := p.in_loop
-	p.in_loop = true
+	prev_in_loop := p.ctx.in_loop
+	p.ctx.in_loop = true
 	p.block_depth += 1
 	body := parse_statement_or_declaration(p)
 	p.block_depth -= 1
-	p.in_loop = prev_in_loop
+	p.ctx.in_loop = prev_in_loop
 	report_statement_only_position(p, body, false)
 
 	if !expect_token(p, .While) {
@@ -2753,7 +2666,7 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 	// a nested expression like `(a1 > 5)` in the while condition).
 	if p.cur_type == .RParen {
 		eat(p)
-	} else if allow_ts_mode(p) && !p.strict_mode && (p.cur_type == .Semi || p.cur_type == .RBrace ||
+	} else if allow_ts_mode(p) && !p.ctx.strict_mode && (p.cur_type == .Semi || p.cur_type == .RBrace ||
 	          p.cur_type == .EOF || p.cur_type == .LBrace) {
 		// Silently recover.
 	} else {
@@ -2790,10 +2703,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	if await {
 		// TS18038 — `for await` inside a class static block is always
 		// invalid, even when the block is nested inside an async function.
-		if p.in_static_block {
+		if p.ctx.in_static_block {
 			report_error(p, "'for await' loops cannot be used inside a class static block.")
-		} else if !p.in_async {
-			if p.in_function {
+		} else if !p.ctx.in_async {
+			if p.ctx.in_function {
 				report_error(p, "'for await' outside of async function")
 			} else if allow_ts_mode(p) {
 				// TS files: top-level `for await` is allowed — tsc and OXC
@@ -2899,9 +2812,9 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	// A using/await-using declaration in a for-init is NOT directly
 	// inside the case clause, so clear the flag before parsing.
-	prev_case_clause := p.in_case_clause
-	p.in_case_clause = false
-	defer p.in_case_clause = prev_case_clause
+	prev_case_clause := p.ctx.in_case_clause
+	p.ctx.in_case_clause = false
+	defer p.ctx.in_case_clause = prev_case_clause
 
 	if is_token(p, .Var) || (is_token(p, .Let) && let_starts_decl) || is_token(p, .Const) ||
 	   (is_token(p, .Using) && using_starts_decl) || await_using_for_decl {
@@ -2925,10 +2838,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// in Expr)`) becomes reachable. Parenthesised sub-expressions
 		// reset no_in inside the parens, so `for (var x = (a in b); ...)`
 		// keeps working.
-		prev_no_in := p.no_in
-		p.no_in = true
+		prev_no_in := p.ctx.no_in
+		p.ctx.no_in = true
 		decl_stmt := parse_variable_declaration(p, nil, false, true)
-		p.no_in = prev_no_in
+		p.ctx.no_in = prev_no_in
 		if decl_stmt != nil {
 			if vd, ok := decl_stmt^.(^VariableDeclaration); ok {
 				left_decl = vd
@@ -2971,7 +2884,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			nxt_is_of = cur_value_eq(p, "of")
 			lexer_restore(p, snap)
 		}
-		if is_token(p, .Await) && !p.in_async && nxt_is_of {
+		if is_token(p, .Await) && !p.ctx.in_async && nxt_is_of {
 			cur := snap_current(p)
 			id, id_e := new_expr(p, Identifier)
 			id.loc = loc_from_token(&cur); id.name = cur.value
@@ -2980,9 +2893,9 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		} else {
 			// Parse as full expression (including comma) but stop at 'in'/'of'.
 			// The no_in flag prevents 'in' from being consumed as binary operator.
-			p.no_in = true
+			p.ctx.no_in = true
 			left_expr = parse_expr_with_prec(p, .Comma)
-			p.no_in = false
+			p.ctx.no_in = false
 		}
 	}
 
@@ -3201,7 +3114,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
 				report_error_at(p, LexerLoc(left_decl.loc.start), msg)
 			} else {
-				annex_b_ok := is_in && !p.strict_mode &&
+				annex_b_ok := is_in && !p.ctx.strict_mode &&
 				              left_decl.kind == .Var &&
 				              len(left_decl.declarations) == 1
 				if annex_b_ok {
@@ -3259,14 +3172,14 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			match_token(p, .RParen)
 		}
 
-		prev_in_loop := p.in_loop
-		p.in_loop = true
+		prev_in_loop := p.ctx.in_loop
+		p.ctx.in_loop = true
 		// Increment block_depth so import/export inside a for-in/of single-
 		// statement body are rejected as nested positions (§16.2.1).
 		p.block_depth += 1
 		body := parse_statement_or_declaration(p)
 		p.block_depth -= 1
-		p.in_loop = prev_in_loop
+		p.ctx.in_loop = prev_in_loop
 		if body == nil {
 			report_error(p, "Expected statement after for-in/of head")
 		}
@@ -3349,12 +3262,12 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		return nil
 	}
 
-	prev_in_loop := p.in_loop
-	p.in_loop = true
+	prev_in_loop := p.ctx.in_loop
+	p.ctx.in_loop = true
 	p.block_depth += 1
 	body := parse_statement_or_declaration(p)
 	p.block_depth -= 1
-	p.in_loop = prev_in_loop
+	p.ctx.in_loop = prev_in_loop
 	if body == nil {
 		report_error(p, "Expected statement after for head")
 	}
@@ -3391,13 +3304,13 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	// CommonJS-wrapped (`function(...){ return ... }`) so `in_function` is
 	// true at every natural `return` site; bare top-level `return` only
 	// shows up in spec-negative fixtures and mutated fuzz cases.
-	if !p.in_function && !p.is_commonjs && !p.in_ambient {
+	if !p.ctx.in_function && !p.is_commonjs && !p.ctx.in_ambient {
 		report_error(p, "'return' outside of function")
 	}
 	// §15.7.5 ClassStaticBlockBody is parsed under [~Return]; the
 	// outer in_function is set to true so new.target works, but a
 	// literal `return` is forbidden by the grammar parameter.
-	if p.in_static_block {
+	if p.ctx.in_static_block {
 		report_error(p, "'return' is not allowed in a class static block")
 	}
 
@@ -3426,7 +3339,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 // above `label_floor` are visible - labels below belong to enclosing
 // functions and don't cross function boundaries.
 label_in_scope :: proc(p: ^Parser, name: string) -> bool {
-	for i := p.label_floor; i < len(p.label_stack); i += 1 {
+	for i := p.ctx.label_floor; i < len(p.label_stack); i += 1 {
 		if p.label_stack[i] == name { return true }
 	}
 	return false
@@ -3437,7 +3350,7 @@ label_in_scope :: proc(p: ^Parser, name: string) -> bool {
 // that per-label via `label_is_iteration`, parallel to `label_stack`, so
 // this helper is just `label_in_scope` gated on the iteration bit.
 label_iter_in_scope :: proc(p: ^Parser, name: string) -> bool {
-	for i := p.label_floor; i < len(p.label_stack); i += 1 {
+	for i := p.ctx.label_floor; i < len(p.label_stack); i += 1 {
 		if p.label_stack[i] == name { return p.label_is_iteration[i] }
 	}
 	return false
@@ -3505,7 +3418,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	// clusters in test262.
 	//
 	//   * Unlabeled `break;` requires the parser to be inside an
-	//     IterationStatement OR SwitchStatement. p.in_loop / p.in_switch
+	//     IterationStatement OR SwitchStatement. p.ctx.in_loop / p.ctx.in_switch
 	//     track exactly that.
 	//   * Labeled `break label;` requires `label` to name an enclosing
 	//     LabelledStatement (any kind — the spec doesn't restrict to
@@ -3516,7 +3429,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
 			report_error_at(p, label_loc, msg)
 		}
-	} else if !p.in_loop && !p.in_switch && !p.in_ambient {
+	} else if !p.ctx.in_loop && !p.ctx.in_switch && !p.ctx.in_ambient {
 		report_error_at(p, LexerLoc(start.start), "'break' must be inside a loop or switch")
 	}
 
@@ -3574,7 +3487,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 			msg := fmt.tprintf("'continue' must target an iteration label, '%s' does not", lbl.name)
 			report_error_at(p, label_loc, msg)
 		}
-	} else if !p.in_loop && !p.in_ambient {
+	} else if !p.ctx.in_loop && !p.ctx.in_ambient {
 		report_error_at(p, LexerLoc(start.start), "'continue' must be inside a loop")
 	}
 
@@ -3615,8 +3528,8 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	switch_.discriminant = discriminant
 	switch_.cases = make([dynamic]SwitchCase, 0, 16, p.allocator)
 
-	prev_in_switch := p.in_switch
-	p.in_switch = true
+	prev_in_switch := p.ctx.in_switch
+	p.ctx.in_switch = true
 
 	// §14.12.1 — at most one default clause.
 	has_default := false
@@ -3637,7 +3550,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
-	p.in_switch = prev_in_switch
+	p.ctx.in_switch = prev_in_switch
 
 	if !match_token(p, .RBrace) {
 		report_error(p, "Expected '}' at end of switch statement")
@@ -3699,9 +3612,9 @@ parse_switch_case :: proc(p: ^Parser) -> ^SwitchCase {
 
 	// Mark statements directly inside this CaseClause / DefaultClause
 	// for the using / await-using placement check. Cleared on exit.
-	prev_in_case_clause := p.in_case_clause
-	p.in_case_clause = true
-	defer p.in_case_clause = prev_in_case_clause
+	prev_in_case_clause := p.ctx.in_case_clause
+	p.ctx.in_case_clause = true
+	defer p.ctx.in_case_clause = prev_in_case_clause
 	// Track nesting for import/export position check.
 	p.block_depth += 1
 	defer p.block_depth -= 1
@@ -3875,7 +3788,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	// Promoted from the semantic checker (ck_walk_stmt's ^WithStatement
 	// case) so parser-only snaps reject the language/statements/with
 	// strict-mode cluster.
-	if p.strict_mode {
+	if p.ctx.strict_mode {
 		report_error_at(p, LexerLoc(start.start), "'with' statements are not allowed in strict mode")
 	}
 
@@ -3976,7 +3889,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// §15.7.1 — in strict mode, `yield` is a reserved word and
 			// cannot be used as a function name (either declaration or
 			// expression). Class bodies are implicitly strict.
-			if current.value == "yield" && p.strict_mode {
+			if current.value == "yield" && p.ctx.strict_mode {
 				report_error(p, "'yield' is a reserved identifier in strict mode")
 			}
 
@@ -4015,7 +3928,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 				// In generator context `yield` as a declaration name is a
 				// parser-level error (OXC catches it).
 				if current.value == "yield" {
-					if p.in_generator || p.in_generator_params {
+					if p.ctx.in_generator || p.ctx.in_generator_params {
 						report_error(p, "'yield' cannot be used as a function name in generator context")
 					}
 					// Strict-mode yield-as-decl-name is enforced by the
@@ -4027,7 +3940,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// `protected`, `public` — reserved in strict mode (§12.1.3).
 			// Skip in ambient/d.ts — `declare function static()` is valid.
 			// In JS, `static` is also reserved; in TS mode OXC allows it.
-			if p.strict_mode && !p.in_ambient && !p.source_is_dts {
+			if p.ctx.strict_mode && !p.ctx.in_ambient && !p.source_is_dts {
 				is_reserved_fn_name := is_strict_reserved_name(current.value)
 				// `static` is reserved in strict JS but not in TS.
 				if !is_reserved_fn_name && !allow_ts_mode(p) {
@@ -4057,40 +3970,40 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// §15.8.1 - same for async function: `await` in a parameter default
 	// is a SyntaxError. Save/restore to nest correctly when a generator /
 	// async function declares parameters of another function type.
-	prev_in_gen_params := p.in_generator_params
-	prev_in_async_params := p.in_async_params
+	prev_in_gen_params := p.ctx.in_generator_params
+	prev_in_async_params := p.ctx.in_async_params
 	// Static-block context does NOT extend into nested function parameters;
 	// `method(x = await){}` inside a static block should not flag `await`.
-	prev_static_block_params := p.in_static_block
-	p.in_static_block = false
-	p.in_generator_params = generator
-	p.in_async_params = async
+	prev_static_block_params := p.ctx.in_static_block
+	p.ctx.in_static_block = false
+	p.ctx.in_generator_params = generator
+	p.ctx.in_async_params = async
 	// The outer generator/async context should NOT leak into a nested
 	// non-generator non-async function's params. `function f(x = yield){}`
 	// inside a generator has `yield` as IdentifierRef, not YieldExpression.
-	prev_in_generator_param_outer := p.in_generator
-	prev_in_async_param_outer := p.in_async
-	if !generator { p.in_generator = false }
-	if !async    { p.in_async = false }
+	prev_in_generator_param_outer := p.ctx.in_generator
+	prev_in_async_param_outer := p.ctx.in_async
+	if !generator { p.ctx.in_generator = false }
+	if !async    { p.ctx.in_async = false }
 	// §15.2.1 / §15.7 - set `in_function` before params so the
 	// AwaitExpression / YieldExpression checks in parse_unary_expr see
 	// that we are inside a function scope, preventing `await 1` in
 	// non-async function params from being misinterpreted as TLA.
-	prev_in_function_params := p.in_function
-	p.in_function = true
+	prev_in_function_params := p.ctx.in_function
+	p.ctx.in_function = true
 	// `new.target` is legal in a parameter default of a regular
 	// function (e.g. `function f(x = new.target) {}`); arrow params
 	// are handled separately and inherit the outer flag.
-	prev_in_non_arrow_params := p.in_non_arrow_function
-	p.in_non_arrow_function = true
+	prev_in_non_arrow_params := p.ctx.in_non_arrow_function
+	p.ctx.in_non_arrow_function = true
 	params := parse_function_params(p)
-	p.in_function = prev_in_function_params
-	p.in_non_arrow_function = prev_in_non_arrow_params
-	p.in_generator_params = prev_in_gen_params
-	p.in_async_params = prev_in_async_params
-	p.in_static_block = prev_static_block_params
-	p.in_generator = prev_in_generator_param_outer
-	p.in_async = prev_in_async_param_outer
+	p.ctx.in_function = prev_in_function_params
+	p.ctx.in_non_arrow_function = prev_in_non_arrow_params
+	p.ctx.in_generator_params = prev_in_gen_params
+	p.ctx.in_async_params = prev_in_async_params
+	p.ctx.in_static_block = prev_static_block_params
+	p.ctx.in_generator = prev_in_generator_param_outer
+	p.ctx.in_async = prev_in_async_param_outer
 
 	report_parameter_modifiers_disallowed(p, params[:])
 
@@ -4112,33 +4025,33 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		return_type = parse_ts_return_type_annotation(p)
 	}
 
-	prev_async := p.in_async
-	p.in_async = async
-	prev_gen := p.in_generator
-	p.in_generator = generator
+	prev_async := p.ctx.in_async
+	p.ctx.in_async = async
+	prev_gen := p.ctx.in_generator
+	p.ctx.in_generator = generator
 	// A nested function body starts a new scope that does NOT inherit
 	// the enclosing async-param/generator-param flags. `function f()
 	// { await }` inside an async arrow's parameter default is legal
 	// because the nested function is NOT async.
-	prev_in_async_params_body := p.in_async_params
-	p.in_async_params = false
-	prev_in_gen_params_body := p.in_generator_params
-	p.in_generator_params = false
+	prev_in_async_params_body := p.ctx.in_async_params
+	p.ctx.in_async_params = false
+	prev_in_gen_params_body := p.ctx.in_generator_params
+	p.ctx.in_generator_params = false
 	// Regular (non-arrow) function declarations / expressions reset
 	// `in_method` - they introduce their own (absent) [[HomeObject]], so
 	// a nested `function foo() { super.x; }` inside a class method body
 	// is a SyntaxError. Arrow functions keep inherited `in_method`.
-	prev_in_method := p.in_method
-	p.in_method = false
+	prev_in_method := p.ctx.in_method
+	p.ctx.in_method = false
 	// Same rule for `in_derived_constructor` - a regular function inside
 	// a derived-class constructor gets its own (non-constructor)
 	// function environment, so `super(...)` inside it is a SyntaxError.
-	prev_in_derived_ctor := p.in_derived_constructor
-	p.in_derived_constructor = false
+	prev_in_derived_ctor := p.ctx.in_derived_constructor
+	p.ctx.in_derived_constructor = false
 	// Regular functions bind their own `arguments`, so class-field
 	// initialiser `arguments` rejection stops propagating.
-	prev_in_field_init_fn := p.in_field_init
-	p.in_field_init = false
+	prev_in_field_init_fn := p.ctx.in_field_init
+	p.ctx.in_field_init = false
 
 	// In declare / ambient-module context, allow no body (just a semicolon).
 	// An ambient module body (`module "x" { function f(): void; }`) or a
@@ -4162,7 +4075,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// Exception: `export default function foo(): T;` is parsed with is_expr=true
 	// (expression form) but is semantically a declaration with overload signatures.
 	// Allow no-body when in_export_default so TS overload sigs work.
-	allow_no_body_here := (!is_expr || p.in_export_default) && (allow_no_body || p.in_ambient || allow_ts_mode(p))
+	allow_no_body_here := (!is_expr || p.in_export_default) && (allow_no_body || p.ctx.in_ambient || allow_ts_mode(p))
 	// Ambient function: `declare function f(): T;` (with or without
 	// semicolon - ASI applies in .d.ts files where `export declare
 	// function parse(...): Promise<R>` is followed by a newline and the
@@ -4193,7 +4106,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		// §14.1 — function body in ambient context is a SyntaxError.
 		// Covers both `declare function f() {}` (explicit) and
 		// `declare module { function f() {} }` (inherited ambient).
-		if allow_no_body || p.in_ambient || p.source_is_dts {
+		if allow_no_body || p.ctx.in_ambient || p.source_is_dts {
 			report_error(p, "An implementation cannot be declared in ambient contexts")
 		}
 		body = parse_function_body(p)
@@ -4206,13 +4119,13 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// FunctionExpression / FunctionDeclaration is constructed.
 	is_ts_no_body := is_no_body
 
-	p.in_async = prev_async
-	p.in_generator = prev_gen
-	p.in_async_params = prev_in_async_params_body
-	p.in_generator_params = prev_in_gen_params_body
-	p.in_method = prev_in_method
-	p.in_derived_constructor = prev_in_derived_ctor
-	p.in_field_init = prev_in_field_init_fn
+	p.ctx.in_async = prev_async
+	p.ctx.in_generator = prev_gen
+	p.ctx.in_async_params = prev_in_async_params_body
+	p.ctx.in_generator_params = prev_in_gen_params_body
+	p.ctx.in_method = prev_in_method
+	p.ctx.in_derived_constructor = prev_in_derived_ctor
+	p.ctx.in_field_init = prev_in_field_init_fn
 
 	// Retroactive StrictFormalParameters check: if either the enclosing
 	// context was already strict or the body declared `"use strict"`, the
@@ -4222,7 +4135,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// §15.5.1 GeneratorBody and §15.8.1 AsyncFunctionBody also require
 	// UniqueFormalParameters unconditionally - pass strict_override=true
 	// for them regardless of outer strict mode.
-	strict_for_check := p.strict_mode || body_strict
+	strict_for_check := p.ctx.strict_mode || body_strict
 	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — FormalParameters
 	// duplicate-name check. Async / generator function bodies have
 	// UniqueFormalParameters even in sloppy mode (§15.5.1 / §15.8.1
@@ -4252,12 +4165,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// functions whose body opted into strict via a `"use strict"`
 	// directive while the outer scope was sloppy. parse_binding_pattern
 	// fired its strict-binding check at param-parse time, but only if
-	// p.strict_mode was already true; the body-strict promotion happens
-	// later, so we re-walk the params here. Gate on `!p.strict_mode`
-	// (the OUTER state — parse_function_body restores p.strict_mode to
+	// p.ctx.strict_mode was already true; the body-strict promotion happens
+	// later, so we re-walk the params here. Gate on `!p.ctx.strict_mode`
+	// (the OUTER state — parse_function_body restores p.ctx.strict_mode to
 	// the pre-body value before returning) so enclosing-strict callers
 	// don't double-fire.
-	if body_strict && !p.strict_mode {
+	if body_strict && !p.ctx.strict_mode {
 		report_strict_param_pattern_retro(p, params[:])
 	}
 	// §12.6.1.1 — in strict mode (outer or body-promoted), the
@@ -4265,7 +4178,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// Async functions are always strict (§15.8.1). Generator functions
 	// in strict context fire too. TS ambient (`declare`) functions are
 	// exempt: they have no body and are erased at compile time.
-	if id_v, has_id := id.?; has_id && (strict_for_check || async) && !p.in_ambient && !p.source_is_dts {
+	if id_v, has_id := id.?; has_id && (strict_for_check || async) && !p.ctx.in_ambient && !p.source_is_dts {
 		if is_eval_or_arguments(id_v.name) {
 			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
 			report_error_at(p, LexerLoc(id_v.loc.start), msg)
@@ -4274,7 +4187,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// Retroactive strict-reserved function name check when body
 	// promotes to strict and the outer scope was sloppy.
 	// `function package() { 'use strict'; }` is a SyntaxError.
-	if id_v, has_id := id.?; has_id && body_strict && !p.strict_mode && !p.in_ambient && !p.source_is_dts {
+	if id_v, has_id := id.?; has_id && body_strict && !p.ctx.strict_mode && !p.ctx.in_ambient && !p.source_is_dts {
 		is_reserved := is_strict_reserved_name(id_v.name)
 		if !is_reserved && !allow_ts_mode(p) {
 			is_reserved = id_v.name == "static" || id_v.name == "let" || id_v.name == "yield"
@@ -4432,7 +4345,7 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 					nxt := p.lexer.nxt.kind
 					if nxt != .RParen && nxt != .EOF {
 						report_error(p, "A rest parameter must be last in a parameter list")
-					} else if !p.in_ambient && !p.source_is_dts {
+					} else if !p.ctx.in_ambient && !p.source_is_dts {
 						report_error(p, "A rest parameter or binding pattern may not have a trailing comma.")
 					}
 				}
@@ -4716,42 +4629,42 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		reserve(&body.body, 16)
 	}
 
-	prev_in_function := p.in_function
-	prev_in_non_arrow := p.in_non_arrow_function
-	prev_in_generator := p.in_generator
-	prev_in_async := p.in_async
-	prev_strict := p.strict_mode
+	prev_in_function := p.ctx.in_function
+	prev_in_non_arrow := p.ctx.in_non_arrow_function
+	prev_in_generator := p.ctx.in_generator
+	prev_in_async := p.ctx.in_async
+	prev_strict := p.ctx.strict_mode
 	// Labels don't cross function boundaries (§14.13 - LabelSet is
 	// per-function). Move the floor up to the current stack length so
 	// outer labels are invisible for duplicate / break-target checks,
 	// then restore. No copy; the parent labels stay in the backing store.
-	prev_label_floor := p.label_floor
-	p.label_floor = len(p.label_stack)
+	prev_label_floor := p.ctx.label_floor
+	p.ctx.label_floor = len(p.label_stack)
 	// A FunctionBody is its own expression scope - the outer for-init
 	// no_in restriction (set in parse_for_statement so Annex B.3.5
 	// `for (var x = expr in y)` routes through the for-in arm) must
 	// not leak into nested function bodies. Without this, a nested
 	// `function() { if (a && "x" in y) {} }` inside a for-init's
 	// declarator would reject the inner `in`.
-	prev_no_in := p.no_in
-	p.no_in = false
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false
 	// Static block context (§15.7.5) does NOT propagate into nested function
 	// bodies: `class C { static { (() => { class await {} }); } }` is valid.
-	prev_static_block_in_fb := p.in_static_block
-	p.in_static_block = false
+	prev_static_block_in_fb := p.ctx.in_static_block
+	p.ctx.in_static_block = false
 	// §15.7.10 — a nested function binds its own `arguments`, so the
 	// class-field `arguments` ban stops here.
-	prev_field_init_in_fb := p.in_field_init
-	p.in_field_init = false
+	prev_field_init_in_fb := p.ctx.in_field_init
+	p.ctx.in_field_init = false
 	// break/continue context does NOT cross function boundaries.
 	// `while(1) { function f() { break; } }` is a SyntaxError.
-	prev_in_loop_fb := p.in_loop
-	prev_in_switch_fb := p.in_switch
-	p.in_loop = false
-	p.in_switch = false
+	prev_in_loop_fb := p.ctx.in_loop
+	prev_in_switch_fb := p.ctx.in_switch
+	p.ctx.in_loop = false
+	p.ctx.in_switch = false
 
-	p.in_function = true
-	p.in_non_arrow_function = true
+	p.ctx.in_function = true
+	p.ctx.in_non_arrow_function = true
 
 	// Directive prologue tracking. Per ECMA-262 §14.1.1 the prologue is the
 	// leading sequence of ExpressionStatement whose expression is an
@@ -4778,7 +4691,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 						// with no escape sequences. Check raw for backslash.
 						if str_lit.value == "use strict" && !strings.contains(str_lit.raw, "\\") {
 							body_use_strict = true
-							p.strict_mode = true
+							p.ctx.strict_mode = true
 						}
 					} else {
 						in_prologue = false
@@ -4813,22 +4726,22 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		}
 	}
 
-	p.in_function = prev_in_function
-	p.in_non_arrow_function = prev_in_non_arrow
-	p.in_generator = prev_in_generator
-	p.in_async = prev_in_async
-	p.strict_mode = prev_strict
-	p.no_in = prev_no_in
-	p.in_static_block = prev_static_block_in_fb
-	p.in_field_init = prev_field_init_in_fb
-	p.in_loop = prev_in_loop_fb
-	p.in_switch = prev_in_switch_fb
+	p.ctx.in_function = prev_in_function
+	p.ctx.in_non_arrow_function = prev_in_non_arrow
+	p.ctx.in_generator = prev_in_generator
+	p.ctx.in_async = prev_in_async
+	p.ctx.strict_mode = prev_strict
+	p.ctx.no_in = prev_no_in
+	p.ctx.in_static_block = prev_static_block_in_fb
+	p.ctx.in_field_init = prev_field_init_in_fb
+	p.ctx.in_loop = prev_in_loop_fb
+	p.ctx.in_switch = prev_in_switch_fb
 	// Restore the enclosing label floor. Labels pushed inside this body
 	// should have been popped on their LabelledStatement exit; if not
 	// (parse bail-out, etc.) truncate down so leftovers don't pollute
 	// the parent scope.
-	resize(&p.label_stack, p.label_floor)
-	p.label_floor = prev_label_floor
+	resize(&p.label_stack, p.ctx.label_floor)
+	p.ctx.label_floor = prev_label_floor
 	// Surface the directive-prologue result to the caller. `parse_function_
 	// declaration` / `parse_function_expression` / class-method parse /
 	// object-method parse read this immediately after the call to apply
@@ -4922,9 +4835,9 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Set strict mode before parsing the heritage expression so that
 	// `class C extends (function() { with({}); })()` correctly rejects
 	// the `with` statement inside the heritage function expression.
-	prev_strict_class := p.strict_mode
-	p.strict_mode = true
-	defer p.strict_mode = prev_strict_class
+	prev_strict_class := p.ctx.strict_mode
+	p.ctx.strict_mode = true
+	defer p.ctx.strict_mode = prev_strict_class
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
@@ -4974,15 +4887,15 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	// parse_class_element can enable `in_derived_constructor` only for the
 	// instance constructor of a derived class. Saved / restored so nested
 	// class declarations don't leak.
-	prev_class_has_extends := p.class_has_extends
-	p.class_has_extends = (super_class != nil)
-	defer p.class_has_extends = prev_class_has_extends
+	prev_class_has_extends := p.ctx.class_has_extends
+	p.ctx.class_has_extends = (super_class != nil)
+	defer p.ctx.class_has_extends = prev_class_has_extends
 
 	// Thread abstract status so validate_class_body can reject abstract
 	// members in non-abstract classes. The `abstract` keyword was consumed
-	// by the caller; p.class_is_abstract is set before we enter the body.
-	prev_class_is_abstract := p.class_is_abstract
-	defer p.class_is_abstract = prev_class_is_abstract
+	// by the caller; p.ctx.class_is_abstract is set before we enter the body.
+	prev_class_is_abstract := p.ctx.class_is_abstract
+	defer p.ctx.class_is_abstract = prev_class_is_abstract
 
 	// TS: `class X implements Y, Z<T>` - optional after `extends`. OXC emits
 	// `implements: [TSClassImplements{expression, typeArguments}]`. Kessel's
@@ -5079,7 +4992,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 
 	body.loc.end = prev_end_offset(p)
 	report_ts_overload_chain_errors(p, body.body[:])
-	report_private_class_member_errors(p, body.body[:], p.class_is_abstract)
+	report_private_class_member_errors(p, body.body[:], p.ctx.class_is_abstract)
 	report_duplicate_class_member_errors(p, body.body[:])
 
 	// §15.7.3 — resolve pending private-name references against the
@@ -5190,7 +5103,7 @@ class_element_prop_name :: proc(key: ^Expression) -> string {
 // Signatures (body-less methods) must be followed by an implementation.
 // Suppressed in ambient context (declare class / .d.ts).
 report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
-	if !allow_ts_mode(p) || p.in_ambient || p.source_is_dts { return }
+	if !allow_ts_mode(p) || p.ctx.in_ambient || p.source_is_dts { return }
 	if len(body) == 0 { return }
 
 	// Pre-pass: skip pure-sig classes (no impl, single name, only methods).
@@ -5633,7 +5546,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 // (body-less methods) are excluded. Computed properties are excluded.
 report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) {
 	if !allow_ts_mode(p) { return }  // JS uses the private-only check
-	if p.in_ambient || p.source_is_dts { return }
+	if p.ctx.in_ambient || p.source_is_dts { return }
 
 	MemberSeen :: struct {
 		has_get:                       bool,
@@ -5919,7 +5832,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		// §15.7.1 - static ClassElement whose PropName is `"prototype"`
 		// is a SyntaxError. Applies to every static kind: field, method,
 		// getter, setter, accessor. Non-static `prototype` is legal.
-		if elem.static && !elem.computed && !p.in_ambient {
+		if elem.static && !elem.computed && !p.ctx.in_ambient {
 			if class_element_prop_name(elem.key) == "prototype" {
 				report_error(p, "Classes may not have a static member named 'prototype'")
 			}
@@ -6420,10 +6333,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		eat(p)
 		// `[` opens a fresh expression context - the enclosing for-head
 		// no_in restriction does not apply inside computed property keys.
-		prev_no_in_cls := p.no_in
-		p.no_in = false
+		prev_no_in_cls := p.ctx.no_in
+		p.ctx.no_in = false
 		key = parse_assignment_expression(p)
-		p.no_in = prev_no_in_cls
+		p.ctx.no_in = prev_no_in_cls
 		// Array literal `[[]]` / `[[1,2]]` as computed class member key is
 		// rejected by OXC. (Object literal `[{}]` is accepted.)
 		if key != nil {
@@ -6515,10 +6428,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			// class as [[HomeObject]] - `super.x` is legal in this
 			// position (ECMA-262 §15.7.5). But it is not a constructor, so
 			// `super(...)` is not legal; reset `in_derived_constructor`.
-			prev_in_method := p.in_method
-			p.in_method = true
-			prev_in_derived_ctor := p.in_derived_constructor
-			p.in_derived_constructor = false
+			prev_in_method := p.ctx.in_method
+			p.ctx.in_method = true
+			prev_in_derived_ctor := p.ctx.in_derived_constructor
+			p.ctx.in_derived_constructor = false
 			// §15.7.10 ClassFieldDefinitionEvaluation: ClassFieldInitializer
 			// is the body of a SYNTHETIC non-async, non-generator function.
 			// `await` and `yield` MUST NOT be parsed as AwaitExpression /
@@ -6528,39 +6441,39 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			// reserved-word rules (`await` reserved in modules / static
 			// blocks; `yield` reserved in strict). Test262 staging/sm/
 			// fields/await-identifier-{script,module-3}.js.
-			prev_in_async := p.in_async
-			prev_in_generator := p.in_generator
-			prev_in_async_params := p.in_async_params
-			prev_in_generator_params := p.in_generator_params
-			prev_in_field_init := p.in_field_init
+			prev_in_async := p.ctx.in_async
+			prev_in_generator := p.ctx.in_generator
+			prev_in_async_params := p.ctx.in_async_params
+			prev_in_generator_params := p.ctx.in_generator_params
+			prev_in_field_init := p.ctx.in_field_init
 			// §15.7.10 ClassFieldDefinitionEvaluation creates a new
 			// function for the field initialiser. That function has
 			// its own [~Await] scope — it does NOT inherit the
 			// [~Await] from an enclosing static block. So `await`
 			// as an identifier inside a nested class's field init
 			// is valid: `class C { static { class D { x = await } } }`
-			prev_in_static_block_fi := p.in_static_block
-			p.in_async = false
-			p.in_generator = false
-			p.in_async_params = false
-			p.in_generator_params = false
-			p.in_field_init = true
-			p.in_static_block = false
+			prev_in_static_block_fi := p.ctx.in_static_block
+			p.ctx.in_async = false
+			p.ctx.in_generator = false
+			p.ctx.in_async_params = false
+			p.ctx.in_generator_params = false
+			p.ctx.in_field_init = true
+			p.ctx.in_static_block = false
 			init_expr := parse_assignment_expression(p)
-			p.in_async = prev_in_async
-			p.in_generator = prev_in_generator
-			p.in_async_params = prev_in_async_params
-			p.in_generator_params = prev_in_generator_params
-			p.in_field_init = prev_in_field_init
-			p.in_static_block = prev_in_static_block_fi
-			p.in_method = prev_in_method
-			p.in_derived_constructor = prev_in_derived_ctor
+			p.ctx.in_async = prev_in_async
+			p.ctx.in_generator = prev_in_generator
+			p.ctx.in_async_params = prev_in_async_params
+			p.ctx.in_generator_params = prev_in_generator_params
+			p.ctx.in_field_init = prev_in_field_init
+			p.ctx.in_static_block = prev_in_static_block_fi
+			p.ctx.in_method = prev_in_method
+			p.ctx.in_derived_constructor = prev_in_derived_ctor
 			if init_expr != nil {
 				value = init_expr
 				// TS: `declare` fields must not have initializers,
 				// UNLESS both `declare` and `readonly` are present
 				// (OXC allows `declare readonly x = 1;`).
-				if (is_declare || p.in_ambient || p.source_is_dts) && !is_readonly {
+				if (is_declare || p.ctx.in_ambient || p.source_is_dts) && !is_readonly {
 					report_error(p, "Initializers are not allowed in ambient contexts.")
 				}
 				if is_abstract {
@@ -6677,34 +6590,34 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// §15.8.1 / §15.6.1 - await-in-params guard for async methods (same
 	// rule for async generators). Same save/restore as
 	// parse_function_declaration.
-	prev_method_gen_params := p.in_generator_params
-	prev_method_async_params := p.in_async_params
-	p.in_generator_params = is_generator
-	p.in_async_params = is_async
+	prev_method_gen_params := p.ctx.in_generator_params
+	prev_method_async_params := p.ctx.in_async_params
+	p.ctx.in_generator_params = is_generator
+	p.ctx.in_async_params = is_async
 	// Static-block context does not extend into class method parameters.
-	prev_static_block_mparams := p.in_static_block
-	p.in_static_block = false
+	prev_static_block_mparams := p.ctx.in_static_block
+	p.ctx.in_static_block = false
 	// Class body is implicitly strict (§15.7.3); method parameter
 	// parsing inherits strict mode so "yield" / "let" / etc. as param
 	// defaults surface as strict-mode IdentifierReference errors
 	// (§12.6.1.1).
-	prev_strict_params := p.strict_mode
-	p.strict_mode = true
+	prev_strict_params := p.ctx.strict_mode
+	p.ctx.strict_mode = true
 	// `super.x` in a class method's default-param initializer is legal
 	// (param scope inherits the method's [[HomeObject]]). Same
 	// in_method = true save / restore as the body parsing below.
-	prev_method_in_method := p.in_method
-	p.in_method = true
+	prev_method_in_method := p.ctx.in_method
+	p.ctx.in_method = true
 	// `super(...)` in a derived constructor's default-param initializer
 	// is accepted by OXC (the param scope inherits the constructor's
 	// SuperCall eligibility). Set `in_derived_constructor` before params
 	// so super-call checking in parse_assignment_expr picks it up.
-	prev_ctor_params_derived := p.in_derived_constructor
-	if kind == .Constructor && !static_ && p.class_has_extends {
-		p.in_derived_constructor = true
+	prev_ctor_params_derived := p.ctx.in_derived_constructor
+	if kind == .Constructor && !static_ && p.ctx.class_has_extends {
+		p.ctx.in_derived_constructor = true
 	}
 	params := parse_function_params(p)
-	p.in_derived_constructor = prev_ctor_params_derived
+	p.ctx.in_derived_constructor = prev_ctor_params_derived
 	if allow_ts_mode(p) {
 		for param in params {
 			has_modifier := param.accessibility != .None || param.readonly || param.override_
@@ -6719,11 +6632,11 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			}
 		}
 	}
-	p.in_method = prev_method_in_method
-	p.strict_mode = prev_strict_params
-	p.in_generator_params = prev_method_gen_params
-	p.in_async_params = prev_method_async_params
-	p.in_static_block = prev_static_block_mparams
+	p.ctx.in_method = prev_method_in_method
+	p.ctx.strict_mode = prev_strict_params
+	p.ctx.in_generator_params = prev_method_gen_params
+	p.ctx.in_async_params = prev_method_async_params
+	p.ctx.in_static_block = prev_static_block_mparams
 
 	if !expect_token(p, .RParen) {
 		return nil
@@ -6820,7 +6733,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		}
 		// Body stays empty.
 	} else {
-		if p.in_ambient {
+		if p.ctx.in_ambient {
 			report_error(p, "An implementation cannot be declared in ambient contexts")
 		}
 		// OXC reports abstract-with-body for non-constructor methods;
@@ -6834,36 +6747,36 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			}
 		}
 		// Parse body - set context flags
-		prev_in_function := p.in_function
-		prev_in_generator := p.in_generator
-		prev_in_async := p.in_async
-		prev_in_method := p.in_method
-		prev_strict := p.strict_mode
-		prev_in_derived_ctor := p.in_derived_constructor
+		prev_in_function := p.ctx.in_function
+		prev_in_generator := p.ctx.in_generator
+		prev_in_async := p.ctx.in_async
+		prev_in_method := p.ctx.in_method
+		prev_strict := p.ctx.strict_mode
+		prev_in_derived_ctor := p.ctx.in_derived_constructor
 
-		p.in_function = true
-		p.in_generator = is_generator
-		p.in_async = is_async
+		p.ctx.in_function = true
+		p.ctx.in_generator = is_generator
+		p.ctx.in_async = is_async
 		// Class methods (including constructor / getter / setter) are
 		// [[HomeObject]]-bearing contexts - `super.x` / `super[x]` is
 		// lexically legal inside. Class bodies are ALSO implicitly strict
 		// (ECMA-262 §15.7.3), so every method body parses under
 		// strict-mode rules even without a `"use strict"` directive.
-		p.in_method = true
-		p.strict_mode = true
+		p.ctx.in_method = true
+		p.ctx.strict_mode = true
 		// `super(...)` (SuperCall) is only legal in the instance constructor
 		// of a class with `extends` (ECMA-262 §15.7.3). `static` methods
 		// named `constructor` are ordinary static methods and don't qualify.
-		p.in_derived_constructor = kind == .Constructor && !static_ && p.class_has_extends
+		p.ctx.in_derived_constructor = kind == .Constructor && !static_ && p.ctx.class_has_extends
 
 		body = parse_function_body(p)
 
-		p.in_function = prev_in_function
-		p.in_generator = prev_in_generator
-		p.in_async = prev_in_async
-		p.in_method = prev_in_method
-		p.strict_mode = prev_strict
-		p.in_derived_constructor = prev_in_derived_ctor
+		p.ctx.in_function = prev_in_function
+		p.ctx.in_generator = prev_in_generator
+		p.ctx.in_async = prev_in_async
+		p.ctx.in_method = prev_in_method
+		p.ctx.strict_mode = prev_strict
+		p.ctx.in_derived_constructor = prev_in_derived_ctor
 
 		// Class methods always have UniqueFormalParameters — the
 		// MethodDefinition production (§15.4) names the constraint, so
@@ -6974,14 +6887,14 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	// Class static blocks run with the class as [[HomeObject]] - `super.x`
 	// (class-static super) is legal inside. Save/restore so nested regular
 	// functions inside still reset `in_method`.
-	prev_in_method := p.in_method
-	p.in_method = true
-	defer p.in_method = prev_in_method
+	prev_in_method := p.ctx.in_method
+	p.ctx.in_method = true
+	defer p.ctx.in_method = prev_in_method
 	// Static blocks are not constructors - `super(...)` is not legal here
 	// even if the surrounding class has `extends`.
-	prev_in_derived_ctor := p.in_derived_constructor
-	p.in_derived_constructor = false
-	defer p.in_derived_constructor = prev_in_derived_ctor
+	prev_in_derived_ctor := p.ctx.in_derived_constructor
+	p.ctx.in_derived_constructor = false
+	defer p.ctx.in_derived_constructor = prev_in_derived_ctor
 	// §15.7.5 - a static block is its own ClassStaticBlockBody function;
 	// `new.target` and `return` are legal inside (§13.3.12 / §14.10).
 	// Promote in_function so the new.target gate doesn't false-positive.
@@ -6990,41 +6903,41 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	// (§15.7.5: ClassStaticBlockBody : ClassStaticBlockStatementList runs
 	// under [~Yield, ~Await]). Reset both flags so a `function *g() {
 	// class C { static { yield; } } }` correctly rejects the inner yield.
-	prev_in_function_sb := p.in_function
-	p.in_function = true
-	defer p.in_function = prev_in_function_sb
+	prev_in_function_sb := p.ctx.in_function
+	p.ctx.in_function = true
+	defer p.ctx.in_function = prev_in_function_sb
 	// Static block is a non-arrow function for new.target purposes.
-	prev_in_non_arrow_sb := p.in_non_arrow_function
-	p.in_non_arrow_function = true
-	defer p.in_non_arrow_function = prev_in_non_arrow_sb
-	prev_in_generator_sb := p.in_generator
-	p.in_generator = false
-	defer p.in_generator = prev_in_generator_sb
-	prev_in_async_sb := p.in_async
-	p.in_async = false
-	defer p.in_async = prev_in_async_sb
-	prev_in_static_block_sb := p.in_static_block
-	p.in_static_block = true
-	defer p.in_static_block = prev_in_static_block_sb
+	prev_in_non_arrow_sb := p.ctx.in_non_arrow_function
+	p.ctx.in_non_arrow_function = true
+	defer p.ctx.in_non_arrow_function = prev_in_non_arrow_sb
+	prev_in_generator_sb := p.ctx.in_generator
+	p.ctx.in_generator = false
+	defer p.ctx.in_generator = prev_in_generator_sb
+	prev_in_async_sb := p.ctx.in_async
+	p.ctx.in_async = false
+	defer p.ctx.in_async = prev_in_async_sb
+	prev_in_static_block_sb := p.ctx.in_static_block
+	p.ctx.in_static_block = true
+	defer p.ctx.in_static_block = prev_in_static_block_sb
 	// §15.7.5 - `break`/`continue` from the enclosing loop/switch do not
 	// propagate into a static block. Reset the flags.
-	prev_in_loop_sb := p.in_loop
-	p.in_loop = false
-	defer p.in_loop = prev_in_loop_sb
-	prev_in_switch_sb := p.in_switch
-	p.in_switch = false
-	defer p.in_switch = prev_in_switch_sb
+	prev_in_loop_sb := p.ctx.in_loop
+	p.ctx.in_loop = false
+	defer p.ctx.in_loop = prev_in_loop_sb
+	prev_in_switch_sb := p.ctx.in_switch
+	p.ctx.in_switch = false
+	defer p.ctx.in_switch = prev_in_switch_sb
 	// Labels don't cross static block boundaries (§15.7.5).
-	prev_label_floor_sb := p.label_floor
-	p.label_floor = len(p.label_stack)
+	prev_label_floor_sb := p.ctx.label_floor
+	p.ctx.label_floor = len(p.label_stack)
 	defer {
-		resize(&p.label_stack, p.label_floor)
-		p.label_floor = prev_label_floor_sb
+		resize(&p.label_stack, p.ctx.label_floor)
+		p.ctx.label_floor = prev_label_floor_sb
 	}
 	// Class bodies (and therefore static blocks) are implicitly strict.
-	prev_strict_sb := p.strict_mode
-	p.strict_mode = true
-	defer p.strict_mode = prev_strict_sb
+	prev_strict_sb := p.ctx.strict_mode
+	p.ctx.strict_mode = true
+	defer p.ctx.strict_mode = prev_strict_sb
 
 	// Parse block statement. parse_block_statement returns a ^Statement
 	// union wrapping a ^BlockStatement; extract the ^BlockStatement variant
@@ -7108,7 +7021,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 
 	// TS18054 — `await using` inside a class static block is invalid.
 	// Static blocks run synchronously and `await` is not available.
-	if kind == .AwaitUsing && p.in_static_block {
+	if kind == .AwaitUsing && p.ctx.in_static_block {
 		report_error(p, "'await using' statements cannot be used inside a class static block.")
 	}
 
@@ -7116,7 +7029,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// level of a Script (only inside blocks / functions / modules).
 	// Exceptions: `for (using x = ...)` is a for-loop init, not a
 	// top-level statement, so skip when in_for.
-	if !p.in_function && p.block_depth == 0 && !in_for && !p.is_commonjs && (kind == .Using || kind == .AwaitUsing) {
+	if !p.ctx.in_function && p.block_depth == 0 && !in_for && !p.is_commonjs && (kind == .Using || kind == .AwaitUsing) {
 		if st, have := p.force_source_type.(SourceType); have && st == .Script {
 			if kind == .AwaitUsing {
 				report_error(p, "'await using' declaration is not allowed at the top level of a script")
@@ -7142,7 +7055,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// declaration lists (TS1123 is semantic) — skip the parser error
 	// to match OXC's classification for NonInitializedExportInInternalModule.
 	if is_token(p, .Semi) || (is_token(p, .EOF) && !in_for) {
-		if !(allow_ts_mode(p) && p.in_ts_namespace) {
+		if !(allow_ts_mode(p) && p.ctx.in_ts_namespace) {
 			if kind == .Let {
 				report_error(p, "'let' declaration requires a binding name")
 			} else {
@@ -7241,7 +7154,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// runtime disposal state, so TS forbids them in ambient contexts
 	// (`declare namespace`, `declare module`, and `.d.ts`).
 	if kind == .Using || kind == .AwaitUsing {
-		if is_declare || p.in_ambient || p.source_is_dts {
+		if is_declare || p.ctx.in_ambient || p.source_is_dts {
 			kn := "using"
 			if kind == .AwaitUsing { kn = "await using" }
 			msg := fmt.tprintf("'%s' declarations are not allowed in ambient contexts.", kn)
@@ -7267,7 +7180,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		// StatementList ("AwaitUsingDeclaration is contained directly
 		// within the StatementList of either a CaseClause or DefaultClause").
 		// They're allowed inside a sub-block within the case clause.
-		if p.in_case_clause {
+		if p.ctx.in_case_clause {
 			kn := "using"
 			if kind == .AwaitUsing { kn = "await using" }
 			msg := fmt.tprintf("'%s' declaration is not allowed directly inside a switch case clause", kn)
@@ -7286,7 +7199,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// OXC's parser rejects missing initializers in normal TS/TSX files too.
 	// Ambient forms (`declare const x;`, `.d.ts` sources) and for-of/in
 	// declaration heads still skip because the value is supplied externally.
-	if !is_declare && !p.in_ambient && !p.source_is_dts && !in_for && (kind == .Const || kind == .Using || kind == .AwaitUsing) {
+	if !is_declare && !p.ctx.in_ambient && !p.source_is_dts && !in_for && (kind == .Const || kind == .Using || kind == .AwaitUsing) {
 		kind_name: string
 		switch kind {
 		case .Const:       kind_name = "const"
@@ -7306,7 +7219,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 
 	// A destructuring declaration needs an initializer unless the binding is
 	// supplied by a for-in/of head.
-	if !is_declare && !p.in_ambient && !p.source_is_dts && !in_for {
+	if !is_declare && !p.ctx.in_ambient && !p.source_is_dts && !in_for {
 		for d in decl.declarations {
 			if _, have := d.init.(^Expression); have { continue }
 			if _, is_ident := d.id.(^Identifier); !is_ident {
@@ -7392,7 +7305,7 @@ arrow_body_lifts_strict :: proc(body: ArrowFunctionBody) -> bool {
 
 // report_strict_eval_arguments_in_target — §13.15.1 — walk an
 // assignment LHS expression and emit a diagnostic for every Identifier
-// position naming `eval` or `arguments` while p.strict_mode is true.
+// position naming `eval` or `arguments` while p.ctx.strict_mode is true.
 // Recurses through ParenthesizedExpression / ArrayExpression /
 // ObjectExpression / SpreadElement / nested AssignmentExpression
 // default-init so destructuring forms are covered:
@@ -7462,7 +7375,7 @@ is_strict_reserved_binding_name :: #force_inline proc(name: string) -> bool {
 
 // report_strict_param_pattern_retro — when a function body promotes
 // to strict mode via a `"use strict"` directive AND the outer scope
-// was sloppy, the params were parsed under p.strict_mode=false and so
+// was sloppy, the params were parsed under p.ctx.strict_mode=false and so
 // parse_binding_pattern's strict-binding check did NOT fire on them.
 // Walk every BindingIdentifier reachable from the param patterns and
 // emit the strict-mode-reserved diagnostic for each match. Mirrors
@@ -7515,8 +7428,8 @@ walk_strict_param_binding :: proc(p: ^Parser, pat: Pattern) {
 // Mirrors OXC's parser-level "The keyword 'X' is reserved" check.
 // Skips ambient / .d.ts context (reserved words are valid there).
 check_strict_ts_decl_name :: proc(p: ^Parser, name: string, loc: Loc) {
-	if !p.strict_mode { return }
-	if p.in_ambient || p.source_is_dts { return }
+	if !p.ctx.strict_mode { return }
+	if p.ctx.in_ambient || p.source_is_dts { return }
 	// Only strict-reserved FutureReservedWords (implements, interface,
 	// package, private, protected, public) are rejected here.
 	// `eval`/`arguments` and `let`/`static`/`yield` are valid as TS
@@ -7825,7 +7738,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 				report_error(p, "Initializers are not allowed in ambient contexts.")
 			} else if is_declare && kind != .Const {
 				report_error(p, "Initializers are not allowed in ambient contexts.")
-			} else if p.in_ambient && kind != .Const {
+			} else if p.ctx.in_ambient && kind != .Const {
 				report_error(p, "Initializers are not allowed in ambient contexts.")
 			}
 		}
@@ -7952,7 +7865,7 @@ is_strict_reserved_word :: #force_inline proc(t: TokenType) -> bool {
 
 // Strict-mode FutureReservedWords that lex as plain `.Identifier`:
 // used by parse_binding_pattern to gate `var implements = 1;` etc.
-// when `p.strict_mode` is active.
+// when `p.ctx.strict_mode` is active.
 is_strict_reserved_name :: #force_inline proc(name: string) -> bool {
 	n := len(name)
 	if n < 6 || n > 10 { return false }
@@ -7991,14 +7904,14 @@ await_is_reserved_here :: proc(p: ^Parser) -> bool {
 	if p.source_is_dts { return false }
 	// TS ambient declarations (`declare const await: any`) don't execute,
 	// so `await` is not reserved there — even in module code. Matches OXC.
-	if p.in_ambient { return false }
-	if p.in_async || p.in_async_params { return true }
+	if p.ctx.in_ambient { return false }
+	if p.ctx.in_async || p.ctx.in_async_params { return true }
 	// §15.7.5 - class static blocks run under [~Await]; `await` is
 	// a reserved word within ClassStaticBlockBody.
-	if p.in_static_block { return true }
+	if p.ctx.in_static_block { return true }
 	// TS namespace / module body is NOT an async context. `await` is
 	// an identifier there, even if the file is a module.
-	if p.in_ts_namespace { return false }
+	if p.ctx.in_ts_namespace { return false }
 	// ECMA-262 §13.1 says `await` is reserved when the goal symbol is
 	// Module. V8 and Babel enforce this. OXC does NOT — it accepts
 	// `export var await;`, `export function await() {}`, `let await = 1;`
@@ -8019,7 +7932,7 @@ await_is_reserved_here :: proc(p: ^Parser) -> bool {
 // `yield` is reserved in strict mode and inside any GeneratorBody /
 // AsyncGeneratorBody (§12.6.1.1).
 yield_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
-	return p.in_generator || p.in_generator_params || p.strict_mode
+	return p.ctx.in_generator || p.ctx.in_generator_params || p.ctx.strict_mode
 }
 
 // ECMA-262 §12.7.2 - "A code point in a ReservedWord cannot be expressed
@@ -8035,7 +7948,7 @@ yield_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
 // Always-reserved keywords (if / var / return / function / ...) are
 // rejected unconditionally. Strict-only FutureReservedWords (let /
 // static / yield / implements / interface / package / private /
-// protected / public) are rejected only when `p.strict_mode` is on.
+// protected / public) are rejected only when `p.ctx.strict_mode` is on.
 // `yield` / `await` additionally flip to reserved inside a generator /
 // async body even in sloppy mode. Non-reserved contextual keywords
 // (async / of / from / as / let-in-sloppy / ...) pass through.
@@ -8109,7 +8022,7 @@ report_escaped_reserved_word :: #force_inline proc(p: ^Parser) {
 report_escaped_reserved_word_slow :: proc(p: ^Parser) {
 	name := cur_value(p)
 	reserved := is_always_reserved_word_name(name)
-	if !reserved && p.strict_mode {
+	if !reserved && p.ctx.strict_mode {
 		switch name {
 		case "let", "static", "yield",
 		     "implements", "interface", "package",
@@ -8117,7 +8030,7 @@ report_escaped_reserved_word_slow :: proc(p: ^Parser) {
 			reserved = true
 		}
 	}
-	if !reserved && p.in_generator && name == "yield" {
+	if !reserved && p.ctx.in_generator && name == "yield" {
 		reserved = true
 	}
 	if !reserved && name == "await" && await_is_reserved_here(p) {
@@ -8343,8 +8256,8 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// structural error).
 	// In TS ambient contexts (declare namespace/module, .d.ts), strict-mode
 	// reserved words ARE allowed as identifiers.
-	if p.strict_mode && is_strict_reserved_word(p.cur_type) &&
-	   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+	if p.ctx.strict_mode && is_strict_reserved_word(p.cur_type) &&
+	   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
@@ -8358,15 +8271,15 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 
 	// Context-sensitive reserved words for bindings:
 	//   * `yield` is reserved in a GeneratorBody / GeneratorDeclaration
-	//     (ECMA-262 §13.2). `p.in_generator` carries exactly that
+	//     (ECMA-262 §13.2). `p.ctx.in_generator` carries exactly that
 	//     context.
 	//   * `await` is reserved in an AsyncFunction / AsyncGenerator /
-	//     AsyncArrow / Module. We use `p.in_async` for the function
+	//     AsyncArrow / Module. We use `p.ctx.in_async` for the function
 	//     forms; module top-level is covered by the caller that pins
 	//     sourceType=module (future work).
 	// Both tokens already have dedicated TokenTypes in Kessel's lexer,
 	// so the check is a simple kind comparison.
-	if (p.in_generator || p.in_generator_params) && p.cur_type == .Yield {
+	if (p.ctx.in_generator || p.ctx.in_generator_params) && p.cur_type == .Yield {
 		report_error(p, "'yield' is reserved as a binding name inside a generator")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
@@ -8441,7 +8354,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// reject the strict-mode-reserved-name binding clusters in
 		// test262 / babel without --show-semantic-errors.
 		//
-		// Both checks gate on p.strict_mode AND skip when the name has an
+		// Both checks gate on p.ctx.strict_mode AND skip when the name has an
 		// escape sequence — escaped reserved words already produced a
 		// diagnostic via report_escaped_reserved_word above; firing again
 		// would double-report the same source location. id_has_escape was
@@ -8451,8 +8364,8 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		// strict-mode reserved words ARE allowed as identifiers.
 		// Gate: same pattern as the token-type check above —
 		// skip only when in ambient or .d.ts context.
-		if p.strict_mode && !id_has_escape &&
-		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+		if p.ctx.strict_mode && !id_has_escape &&
+		   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 			if is_eval_or_arguments(id_name) {
 				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
 				report_error_at(p, LexerLoc(id_loc.start), msg)
@@ -8531,10 +8444,10 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// parse_class_element / parse_property.
 			computed = true
 			eat(p)
-			prev_no_in_op := p.no_in
-			p.no_in = false
+			prev_no_in_op := p.ctx.no_in
+			p.ctx.no_in = false
 			expr_key := parse_assignment_expression(p)
-			p.no_in = prev_no_in_op
+			p.ctx.no_in = prev_no_in_op
 			if expr_key != nil {
 				key = (^Expression)(expr_key)
 			}
@@ -8641,7 +8554,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					report_error(p, msg)
 				}
 				// Strict-mode reserved words as object-pattern value binding.
-				if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+				if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 					if is_strict_reserved_binding_name(cur_value(p)) {
 						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
 						report_error(p, msg)
@@ -8658,9 +8571,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				// {x = 'a' in {}} in ...)` needs `in` as a binary op
 				// inside the default expression, not the for-in separator.
 				if match_token(p, .Assign) {
-					prev_no_in := p.no_in; p.no_in = false
+					prev_no_in := p.ctx.no_in; p.ctx.no_in = false
 					default_val := parse_assignment_expression(p)
-					p.no_in = prev_no_in
+					p.ctx.no_in = prev_no_in
 					assign := new_node(p, AssignmentPattern)
 					// AssignmentPattern.start is the start of the LHS pattern,
 					// NOT the enclosing property key. For `{ key: value = 1 }`
@@ -8702,9 +8615,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				}
 				val: Pattern = nested
 				if match_token(p, .Assign) {
-					prev_no_in := p.no_in; p.no_in = false
+					prev_no_in := p.ctx.no_in; p.ctx.no_in = false
 					default_val := parse_assignment_expression(p)
-					p.no_in = prev_no_in
+					p.ctx.no_in = prev_no_in
 					assign := new_node(p, AssignmentPattern)
 					// Same LHS-start rule as the identifier case above - the
 					// nested pattern's own span is the start of the
@@ -8732,9 +8645,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				}
 				val: Pattern = nested
 				if match_token(p, .Assign) {
-					prev_no_in := p.no_in; p.no_in = false
+					prev_no_in := p.ctx.no_in; p.ctx.no_in = false
 					default_val := parse_assignment_expression(p)
-					p.no_in = prev_no_in
+					p.ctx.no_in = prev_no_in
 					assign := new_node(p, AssignmentPattern)
 					// Same LHS-start rule - see nested-object case above.
 					assign.loc = get_pattern_loc(nested)
@@ -8758,9 +8671,9 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 		} else if match_token(p, .Assign) {
 			// { key = defaultValue } - shorthand with default
-			prev_no_in := p.no_in; p.no_in = false
+			prev_no_in := p.ctx.no_in; p.ctx.no_in = false
 			default_val := parse_assignment_expression(p)
-			p.no_in = prev_no_in
+			p.ctx.no_in = prev_no_in
 			// Create AssignmentPattern with key as left
 			if k := key; k != nil {
 				val := k.?  // unwrap Maybe
@@ -8776,7 +8689,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						report_error(p, msg)
 					}
 					// Strict-mode reserved words as shorthand-with-default binding.
-					if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+					if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 						if is_strict_reserved_binding_name(v.name) {
 							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
 							report_error_at(p, LexerLoc(v.loc.start), msg)
@@ -8820,7 +8733,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						report_error(p, msg)
 					}
 					// Strict-mode reserved words as shorthand binding.
-					if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+					if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 						if is_strict_reserved_binding_name(v.name) {
 							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
 							report_error_at(p, LexerLoc(v.loc.start), msg)
@@ -8989,7 +8902,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				report_error(p, "'yield' is reserved as a binding name in this context")
 			}
 			// Strict-mode reserved words as array-pattern element binding.
-			if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+			if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 				if is_strict_reserved_binding_name(cur_value(p)) {
 					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
 					report_error(p, msg)
@@ -9006,9 +8919,9 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			// `for (let [x = 'a' in {}] in ...)` parses the `in` as
 			// a binary operator in the default, not the for-in separator.
 			if match_token(p, .Assign) {
-				prev_no_in := p.no_in; p.no_in = false
+				prev_no_in := p.ctx.no_in; p.ctx.no_in = false
 				default_val := parse_assignment_expression(p)
-				p.no_in = prev_no_in
+				p.ctx.no_in = prev_no_in
 				assign := new_node(p, AssignmentPattern)
 				assign.loc = eil
 				assign.left = ident
@@ -9030,9 +8943,9 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 			val: Pattern = nested
 			if match_token(p, .Assign) {
-				prev_no_in := p.no_in; p.no_in = false
+				prev_no_in := p.ctx.no_in; p.ctx.no_in = false
 				default_val := parse_assignment_expression(p)
-				p.no_in = prev_no_in
+				p.ctx.no_in = prev_no_in
 				assign := new_node(p, AssignmentPattern)
 				assign.loc = get_pattern_loc(nested)
 				assign.left = nested
@@ -9053,9 +8966,9 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 			val: Pattern = nested
 			if match_token(p, .Assign) {
-				prev_no_in := p.no_in; p.no_in = false
+				prev_no_in := p.ctx.no_in; p.ctx.no_in = false
 				default_val := parse_assignment_expression(p)
-				p.no_in = prev_no_in
+				p.ctx.no_in = prev_no_in
 				assign := new_node(p, AssignmentPattern)
 				assign.loc = get_pattern_loc(nested)
 				assign.left = nested
@@ -9830,7 +9743,7 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 	// In sloppy mode, FunctionDeclarations in function bodies are var-hoisted
 	// (Annex B.3.2), not lexical. Pass strict so they're only counted as
 	// lexical in strict mode.
-	collect_body_lex_names(body, &body_lex, p.strict_mode)
+	collect_body_lex_names(body, &body_lex, p.ctx.strict_mode)
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
 			report_error_at(p, LexerLoc(off), fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n))
@@ -10004,7 +9917,7 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 			//     both strict and sloppy modes.
 			kind: ScopeBindingKind = .Var
 			if is_block_scope {
-				if !p.strict_mode && !v.async && !v.generator {
+				if !p.ctx.strict_mode && !v.async && !v.generator {
 					kind = .FunctionAnnexB
 				} else {
 					kind = .Lexical
@@ -10540,7 +10453,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// downstream `p.has_module_syntax = true` writes there don't
 	// reflect ES module syntax of the OUTER program. Save and restore
 	// so the namespace body can't pollute the file's classification.
-	restore_module_syntax := p.in_ts_namespace
+	restore_module_syntax := p.ctx.in_ts_namespace
 	prev_module_syntax := p.has_module_syntax
 	prev_pre_scan_done := p.module_pre_scan_done
 	defer if restore_module_syntax {
@@ -10655,7 +10568,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// (only import-equals aliases are valid there). Exception: string-named
 	// module bodies (`declare module "m" { ... }`) where ES imports define
 	// the module's public API.
-	if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
+	if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
 		report_error_at(p, LexerLoc(start.start),
 			"Import declarations in a namespace cannot reference a module.")
 	}
@@ -10739,8 +10652,8 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			report_error_at(p, LexerLoc(local.loc.start), "'await' is reserved as a binding name in module code")
 		}
 		// Strict-mode reserved word as namespace import binding.
-		if p.strict_mode && is_strict_reserved_name(local.name) &&
-		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+		if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
+		   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
 			report_error_at(p, LexerLoc(local.loc.start), msg)
 		}
@@ -10769,8 +10682,8 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			report_error_at(p, LexerLoc(local.loc.start), "'await' is reserved as a binding name in module code")
 		}
 		// Strict-mode reserved word as default import binding.
-		if p.strict_mode && is_strict_reserved_name(local.name) &&
-		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+		if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
+		   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
 			report_error_at(p, LexerLoc(local.loc.start), msg)
 		}
@@ -11200,8 +11113,8 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	}
 	// Strict-mode reserved words as import binding name. Module code is
 	// always strict; explicit strict-mode script imports are also covered.
-	if p.strict_mode && is_strict_reserved_name(local.name) &&
-	   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
+	if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
+	   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
 		report_error_at(p, LexerLoc(local.loc.start), msg)
 	}
@@ -11233,7 +11146,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// See parse_import_declaration: namespace-body exports do not
 	// classify the file as a module. Save/restore so downstream
 	// `p.has_module_syntax = true` writes can't leak out.
-	restore_module_syntax := p.in_ts_namespace
+	restore_module_syntax := p.ctx.in_ts_namespace
 	prev_module_syntax := p.has_module_syntax
 	prev_pre_scan_done := p.module_pre_scan_done
 	defer if restore_module_syntax {
@@ -11255,7 +11168,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 
 	if match_token(p, .Mul) {
 		// TS1233 — `export * from "m"` inside a namespace body is invalid.
-		if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
+		if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
 			report_error_at(p, LexerLoc(start.start),
 				"Export declarations are not permitted in a namespace.")
 		}
@@ -11269,7 +11182,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		// internal names). Exception: `export { x } from "m"` is always invalid
 		// in any namespace (handled after parsing by checking .source).
 		ns_export_named_start := start
-		ns_check_export_named := p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block
+		ns_check_export_named := p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block
 		result_named := parse_export_named(p, start, .Value)
 		if ns_check_export_named && result_named != nil {
 			// Check: if it has a `from` source OR we're in a non-ambient namespace.
@@ -11280,7 +11193,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 			if has_from {
 				report_error_at(p, LexerLoc(ns_export_named_start.start),
 					"Export declarations are not permitted in a namespace.")
-			} else if !p.in_ambient {
+			} else if !p.ctx.in_ambient {
 				report_error_at(p, LexerLoc(ns_export_named_start.start),
 					"Export declarations are not permitted in a namespace.")
 			}
@@ -11302,7 +11215,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 				"'import' and 'export' may appear only with 'sourceType: module'.")
 		}
 		// TS1203 — export assignment inside a namespace body.
-		if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
+		if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
 			report_error_at(p, LexerLoc(start.start),
 				"An export assignment cannot be used in a namespace.")
 		}
@@ -11336,7 +11249,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		nxt := peek_token(p)
 		if nxt.type == .Identifier && nxt.value == "namespace" {
 			// TS1235 — `export as namespace` is only valid at top level.
-			if p.in_ts_namespace && !p.in_ts_module_block {
+			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
 				report_error_at(p, LexerLoc(start.start),
 					"Global module exports may only appear at top level.")
 			}
@@ -11370,7 +11283,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		nxt := peek_token(p)
 		if nxt.type == .LBrace {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
-			if p.in_ts_namespace && !p.in_ts_module_block {
+			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
 				report_error_at(p, LexerLoc(start.start),
 					"Export declarations are not permitted in a namespace.")
 			}
@@ -11379,7 +11292,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		if nxt.type == .Mul {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
-			if p.in_ts_namespace && !p.in_ts_module_block {
+			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
 				report_error_at(p, LexerLoc(start.start),
 					"Export declarations are not permitted in a namespace.")
 			}
@@ -11495,7 +11408,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	// TS1319 — `export default` inside a namespace is invalid.
 	// Exception: inside string-named module declarations (`declare module "m" { ... }`).
-	if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
+	if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
 		report_error_at(p, LexerLoc(start.start),
 			"Export declarations are not permitted in a namespace.")
 	}
@@ -12076,10 +11989,10 @@ parse_assignment_expression :: proc(p: ^Parser) -> ^Expression {
 }
 
 parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
-	prev_private_in_allowed := p.private_in_allowed
-	p.private_in_allowed = int(min_prec) <= int(Precedence.Relational)
+	prev_private_in_allowed := p.ctx.private_in_allowed
+	p.ctx.private_in_allowed = int(min_prec) <= int(Precedence.Relational)
 	left := parse_unary_expr(p)
-	p.private_in_allowed = prev_private_in_allowed
+	p.ctx.private_in_allowed = prev_private_in_allowed
 	if left == nil {
 		return nil
 	}
@@ -12183,7 +12096,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		cur_type := p.cur_type
 
 		// Skip 'in' as binary op when parsing for-loop init
-		if p.no_in && cur_type == .In {
+		if p.ctx.no_in && cur_type == .In {
 			break
 		}
 
@@ -12365,14 +12278,14 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// Track `in`-RHS context so PrivateIdentifier in primary-expr
 		// position is rejected for `#x in #y` while staying legal for
 		// `(#x in y)` (parens reset the flag in parse_primary_expr).
-		prev_in_in_rhs := p.in_in_rhs
-		if cur_type == .In { p.in_in_rhs = true }
+		prev_in_in_rhs := p.ctx.in_in_rhs
+		if cur_type == .In { p.ctx.in_in_rhs = true }
 		// Slice 14: scope_skip is tracked by the checker now
 		// (CheckerContext.scope_skip), set by ck_walk_expr's
 		// BinaryExpression / LogicalExpression cases for the duration
 		// of operand-walks. The parser does not participate.
 		right := parse_expr_with_prec(p, next_min_prec)
-		p.in_in_rhs = prev_in_in_rhs
+		p.ctx.in_in_rhs = prev_in_in_rhs
 		if right == nil {
 			report_error(p, "Expected expression after operator")
 			return left
@@ -12613,7 +12526,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// configurable property). The argument must be a plain Identifier
 			// at this point; --preserve-parens off strips the paren wrapper
 			// so `delete (x)` and `delete x` both reach here.
-			if p.strict_mode {
+			if p.ctx.strict_mode {
 				if _, is_id := unary.argument.(^Identifier); is_id {
 					report_error_at(p, LexerLoc(unary.loc.start), "Deleting an unqualified identifier is not allowed in strict mode")
 				}
@@ -12645,14 +12558,14 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.argument = argument
 		update.prefix = true
 		update.loc.end = prev_end_offset(p)
-		if !is_simple_assignment_target(argument, !p.strict_mode) {
+		if !is_simple_assignment_target(argument, !p.ctx.strict_mode) {
 			report_error(p, "Invalid left-hand side expression in prefix operation")
 		}
 		// §13.4.4 — in strict mode `++` / `--` may not target an
 		// IdentifierReference whose name is `eval` or `arguments`.
 		// Promoted from the semantic checker
 		// (ck_check_strict_update_eval_arguments).
-		if p.strict_mode {
+		if p.ctx.strict_mode {
 			if id, is_id := argument.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
 				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
 				report_error_at(p, LexerLoc(id.loc.start), msg)
@@ -12671,8 +12584,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// lookahead is unambiguously NOT the start of an argument
 		// (semicolon, operator, terminator), fall through. Otherwise
 		// keep the long-standing diagnostic for `await expr` typos.
-	if !p.in_async && !p.in_async_params {
-		at_module_top := !p.in_function && !p.in_field_init
+	if !p.ctx.in_async && !p.ctx.in_async_params {
+		at_module_top := !p.ctx.in_function && !p.ctx.in_field_init
 		// In a Module file, `await` at top level (or any nested
 		// non-function scope) is the AwaitExpression keyword - TLA.
 		// Identifier fall-through only applies to Script source code.
@@ -12686,12 +12599,12 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.has_module_syntax {
 			in_module_file = true
 		}
-		if p.in_static_block {
+		if p.ctx.in_static_block {
 			// §15.7.5 — `await` as AwaitExpression inside a class
 			// static block is a SyntaxError. The static block runs
 			// under [~Await], so `await expr` has no valid meaning.
 			report_error(p, "'await' is not allowed in a class static block")
-		} else if p.in_ts_namespace {
+		} else if p.ctx.in_ts_namespace {
 			// TS namespace body is not an async context. `await` is
 			// an identifier, not a keyword, even in module-mode files.
 			if yield_next_is_expression_argument(p) {
@@ -12721,15 +12634,15 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// §14.13.1 LabelIdentifier - in async context, "await" is a
 		// reserved word, so `await:` as a LabelledStatement head is a
 		// SyntaxError.
-		if p.in_async && p.lexer != nil {
+		if p.ctx.in_async && p.lexer != nil {
 			ensure_nxt(p)
 		}
-		if p.in_async && p.lexer != nil && p.lexer.nxt.kind == .Colon {
+		if p.ctx.in_async && p.lexer != nil && p.lexer.nxt.kind == .Colon {
 			report_error(p, "'await' cannot be used as a label identifier in an async function")
 		}
 		// Top-level `await` is Module syntax. When the caller pinned
 		// `--source-type=script` it's a SyntaxError.
-		if !p.in_function {
+		if !p.ctx.in_function {
 			if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				report_error(p, "Top-level 'await' is only valid in module code")
 			}
@@ -12741,17 +12654,17 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// even though the body itself is async - params are evaluated in
 		// the outer context.
 		// §15.6.1 / §15.8.1 / §15.9.1 "AwaitExpression in formal
-		// parameters" early error: `p.in_async_params` is set by
+		// parameters" early error: `p.ctx.in_async_params` is set by
 		// parse_function_params before calling parse_function_params.
-		if p.in_async_params {
+		if p.ctx.in_async_params {
 			report_error(p, "'await' expression is not allowed in formal parameters of an async function")
 		}
 		current := snap_current(p)
 		eat(p)
-		prev_private_in_allowed := p.private_in_allowed
-		p.private_in_allowed = false
+		prev_private_in_allowed := p.ctx.private_in_allowed
+		p.ctx.private_in_allowed = false
 		argument := parse_unary_expr(p)
-		p.private_in_allowed = prev_private_in_allowed
+		p.ctx.private_in_allowed = prev_private_in_allowed
 		if argument == nil {
 			// `await` without an operand. Legal only as an
 			// IdentifierReference, which is forbidden in async context
@@ -12759,7 +12672,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// tree stays structurally valid; the earlier
 			// "await outside of async function" check at the top of
 			// this branch already covers non-async contexts.
-			if p.in_async || p.in_async_params || !p.in_function {
+			if p.ctx.in_async || p.ctx.in_async_params || !p.ctx.in_function {
 				report_error(p, "'await' expression requires an operand")
 			}
 			id, id_e := new_expr(p, Identifier)
@@ -12775,7 +12688,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		await.argument = argument
 		await.loc.end = prev_end_offset(p)
 		// Top-level await is module syntax
-		if !p.in_function {
+		if !p.ctx.in_function {
 			p.has_module_syntax = true
 		}
 		return await_e
@@ -12805,7 +12718,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// fall through to the identifier path so `yield;`, `yield(1)`,
 		// `yield.x`, `yield + 1`, `yield || 1`, `yield?1:2`,
 		// `` yield`t` `` all behave as OXC / Acorn expect.
-		if p.in_generator {
+		if p.ctx.in_generator {
 			return parse_yield_expr(p)
 		}
 		// §15.5.1 - inside a generator's FormalParameters, even bare
@@ -12813,7 +12726,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// parse_yield_expr's own in_generator_params check fires the
 		// diagnostic; we just have to commit to the YieldExpression
 		// production here so it actually runs.
-		if p.in_generator_params {
+		if p.ctx.in_generator_params {
 			return parse_yield_expr(p)
 		}
 		if yield_next_is_expression_argument(p) {
@@ -12833,7 +12746,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// same check that lives on the slow path has to run here too.
 		report_escaped_reserved_word(p)
 		// §12.6.1.1 strict-mode IdentifierReference reservation.
-		if p.strict_mode {
+		if p.ctx.strict_mode {
 			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(cur_value(p)) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
 				report_error(p, msg)
@@ -12852,8 +12765,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// running when we're in one of those rare scopes. Real-world JS
 		// is overwhelmingly outside any class-field / class-static-block
 		// context, so the early-out hits ~100% of the hot path.
-		if (p.in_static_block || p.in_field_init) && cur_value_eq(p, "arguments") {
-			if p.in_static_block {
+		if (p.ctx.in_static_block || p.ctx.in_field_init) && cur_value_eq(p, "arguments") {
+			if p.ctx.in_static_block {
 				report_error(p, "'arguments' is not allowed in a class static block")
 			} else {
 				report_error(p, "'arguments' cannot appear in a class field initializer")
@@ -12913,11 +12826,11 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.argument = expr
 		update.prefix = false
 		update.loc.end = prev_end_offset(p)
-		if !is_simple_assignment_target(expr, !p.strict_mode) {
+		if !is_simple_assignment_target(expr, !p.ctx.strict_mode) {
 			report_error(p, "Invalid left-hand side expression in postfix operation")
 		}
 		// §13.4.4 — strict-mode `++` / `--` cannot target eval / arguments.
-		if p.strict_mode {
+		if p.ctx.strict_mode {
 			if id, is_id := expr.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
 				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
 				report_error_at(p, LexerLoc(id.loc.start), msg)
@@ -13110,10 +13023,10 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				// Same Expression-not-AssignmentExpression rule as the
 				// non-optional `[...]` case above. Optional-chain subscript
 				// `obj?.[0, 1]` is legal too.
-				prev_no_in_opt := p.no_in
-				p.no_in = false
+				prev_no_in_opt := p.ctx.no_in
+				p.ctx.no_in = false
 				prop := parse_expression(p)
-				p.no_in = prev_no_in_opt
+				p.ctx.no_in = prev_no_in_opt
 				if prop == nil { return nil }
 				if !expect_token(p, .RBracket) { return nil }
 				member, member_e := new_expr(p, MemberExpression)
@@ -13180,10 +13093,10 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// MemberExpression [ Expression ] - Expression includes the
 			// comma operator, so `a[0, 1]` is legal (evaluates to a[1]).
 			// Reset no_in inside `[...]` so `for (x[a in b]; ...)` parses.
-			prev_no_in_sub := p.no_in
-			p.no_in = false
+			prev_no_in_sub := p.ctx.no_in
+			p.ctx.no_in = false
 			prop := parse_expression(p)
-			p.no_in = prev_no_in_sub
+			p.ctx.no_in = prev_no_in_sub
 			if prop == nil { return nil }
 			if !expect_token(p, .RBracket) { return nil }
 			mem2, mem2_e := new_expr(p, MemberExpression)
@@ -13220,7 +13133,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// §15.7.6 SuperCall: `super(...)` is only legal inside the
 			// constructor of a derived class.
 			if _, is_super := expr^.(^Super); is_super {
-				if !p.in_derived_constructor {
+				if !p.ctx.in_derived_constructor {
 					report_error(p, "'super' call is only allowed in the constructor of a derived class")
 				}
 			}
@@ -13660,7 +13573,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// (the OUTER `in` of `#x in #y in z`), this slot is the RHS of
 		// the inner `in`, not its LHS. `in_in_rhs` distinguishes them.
 		if p.lexer != nil { ensure_nxt(p) }
-		invalid_position := p.in_in_rhs || p.no_in || !p.private_in_allowed ||
+		invalid_position := p.ctx.in_in_rhs || p.ctx.no_in || !p.ctx.private_in_allowed ||
 		                    (p.lexer != nil && p.lexer.nxt.kind != .In)
 		if invalid_position {
 			report_error(p, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
@@ -13698,7 +13611,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// §13.3.7 SuperProperty requires [[HomeObject]] (→ in_method).
 		// `super.x` / `super[x]` outside a method body is a SyntaxError.
   ensure_nxt(p)
-		if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.in_method {
+		if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.ctx.in_method {
 			report_error(p, "'super' property access is only valid inside a method")
 		}
 		eat(p)
@@ -13737,7 +13650,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `0<digit>+` where the second char is a decimal digit (not
 		// `x`/`X`/`o`/`O`/`b`/`B`/`.`/`e`/`E`/`n`). Promoted from the
 		// semantic checker (ck_check_legacy_octal_number).
-		if p.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
+		if p.ctx.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
 			report_error_at(p, LexerLoc(num.loc.start), "Legacy octal literals are not allowed in strict mode")
 		}
 		return num_e
@@ -13755,7 +13668,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// in StringLiterals when strict-mode is in effect. Eager check
 		// for already-strict scope. Body-promoted (retroactive) strict
 		// for prologue strings stays on the semantic checker.
-		if p.strict_mode && string_raw_has_forbidden_escape(str.raw) {
+		if p.ctx.strict_mode && string_raw_has_forbidden_escape(str.raw) {
 			report_error_at(p, LexerLoc(str.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 		return str_e
@@ -14077,7 +13990,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// and `await` inside async are handled by the dedicated keyword
 		// paths earlier in parse_unary_expr - we only reach here for
 		// sloppy-mode fall-through.
-		if p.strict_mode {
+		if p.ctx.strict_mode {
 			if is_strict_reserved_word(current.type) || is_strict_reserved_name(current.value) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
 				report_error(p, msg)
@@ -14109,8 +14022,8 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// (the synthetic function does NOT bind `arguments`). Gate on the
 		// rare-context flags FIRST so the string compare doesn't run on
 		// every identifier in the hot path.
-		if (p.in_static_block || p.in_field_init) && current.value == "arguments" {
-			if p.in_static_block {
+		if (p.ctx.in_static_block || p.ctx.in_field_init) && current.value == "arguments" {
+			if p.ctx.in_static_block {
 				report_error(p, "'arguments' is not allowed in a class static block")
 			} else {
 				report_error(p, "'arguments' cannot appear in a class field initializer")
@@ -14177,15 +14090,15 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// We'll restore it below only if the next token is Arrow (for arrow function params).
 		prev_pending_paren := p.pending_paren_start
 		p.pending_paren_start = max(u32)
-		prev_no_in := p.no_in
-		p.no_in = false  // 'in' is always valid inside parentheses
+		prev_no_in := p.ctx.no_in
+		p.ctx.no_in = false  // 'in' is always valid inside parentheses
 		// Parens reset the in-RHS context so `(#x in y)` parses cleanly
 		// even when the surrounding expression is the RHS of another `in`.
-		prev_in_in_rhs := p.in_in_rhs
-		p.in_in_rhs = false
+		prev_in_in_rhs := p.ctx.in_in_rhs
+		p.ctx.in_in_rhs = false
 		expr := parse_expr_with_prec(p, .Comma)
-		p.in_in_rhs = prev_in_in_rhs
-		p.no_in = prev_no_in
+		p.ctx.in_in_rhs = prev_in_in_rhs
+		p.ctx.no_in = prev_no_in
 		if expr == nil {
 			return nil
 		}
@@ -14435,9 +14348,9 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 	// for-in/of heads) must NOT leak into element sub-expressions.
 	// `for ([ x = 'x' in {} ] of y)` needs the inner `'x' in {}` to
 	// parse as a binary expression, not bail at `in`.
-	prev_no_in := p.no_in
-	p.no_in = false
-	defer p.no_in = prev_no_in
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false
+	defer p.ctx.no_in = prev_no_in
 	// Slice 14: scope_skip is now tracked by the checker; the parser
 	// no longer suppresses anything during element-walk.
 
@@ -14538,9 +14451,9 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	// Inside an ObjectExpression literal, `in` is always valid as a
 	// binary operator - same rule as parse_array_expr. Clear no_in so
 	// `for ({a: 'x' in {}} of y)` works.
-	prev_no_in := p.no_in
-	p.no_in = false
-	defer p.no_in = prev_no_in
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false
+	defer p.ctx.no_in = prev_no_in
 	// Slice 14: scope_skip is now tracked by the checker; the parser
 	// no longer suppresses anything during property-walk.
 
@@ -14701,10 +14614,10 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		computed = true
 		// `[` clears the for-head no_in restriction - see parse_class_element /
 		// parse_object_pattern for the parallel resets.
-		prev_no_in_prop := p.no_in
-		p.no_in = false
+		prev_no_in_prop := p.ctx.no_in
+		p.ctx.no_in = false
 		key = parse_assignment_expression(p)
-		p.no_in = prev_no_in_prop
+		p.ctx.no_in = prev_no_in_prop
 		if key == nil {
 			return nil
 		}
@@ -14795,25 +14708,25 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// §15.8.1 - await-in-params guard for async accessors (rare but valid
 		// syntactic reach via `async get`/`async set` in extended proposals;
 		// keeps the invariant symmetric with method shorthand below).
-		prev_gp_obj_acc := p.in_generator_params
-		prev_ap_obj_acc := p.in_async_params
-		prev_sb_obj_acc := p.in_static_block
-		p.in_static_block = false
-		p.in_generator_params = is_generator
-		p.in_async_params = is_async
+		prev_gp_obj_acc := p.ctx.in_generator_params
+		prev_ap_obj_acc := p.ctx.in_async_params
+		prev_sb_obj_acc := p.ctx.in_static_block
+		p.ctx.in_static_block = false
+		p.ctx.in_generator_params = is_generator
+		p.ctx.in_async_params = is_async
 		// `super.x` is legal inside an object-literal accessor parameter
 		// default (e.g. `{ get foo(x = super.bar()) {...} }`) because the
 		// param scope inherits the method's [[HomeObject]]. Set in_method
 		// BEFORE parse_function_params so the default-expression parse
 		// sees it. Save / restore mirrors the body-side scoping.
-		prev_in_method := p.in_method
-		p.in_method = true
-		prev_in_derived_ctor := p.in_derived_constructor
-		p.in_derived_constructor = false
+		prev_in_method := p.ctx.in_method
+		p.ctx.in_method = true
+		prev_in_derived_ctor := p.ctx.in_derived_constructor
+		p.ctx.in_derived_constructor = false
 		params := parse_function_params(p)
-		p.in_generator_params = prev_gp_obj_acc
-		p.in_async_params = prev_ap_obj_acc
-		p.in_static_block = prev_sb_obj_acc
+		p.ctx.in_generator_params = prev_gp_obj_acc
+		p.ctx.in_async_params = prev_ap_obj_acc
+		p.ctx.in_static_block = prev_sb_obj_acc
 		if !expect_token(p, .RParen) {
 			return nil
 		}
@@ -14824,8 +14737,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 		body := parse_function_body(p)
 		body_strict := p.last_body_strict
-		p.in_method = prev_in_method
-		p.in_derived_constructor = prev_in_derived_ctor
+		p.ctx.in_method = prev_in_method
+		p.ctx.in_derived_constructor = prev_in_derived_ctor
 
 		// Getters / setters always have UniqueFormalParameters
 		// (ECMA-262 §15.4.3 / §15.4.4). A setter with two params named
@@ -14848,7 +14761,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 		// §13.1.1 — retroactive strict-mode param check for
 		// `set x(eval) { "use strict"; }` and friends.
-		if body_strict && !p.strict_mode {
+		if body_strict && !p.ctx.strict_mode {
 			report_strict_param_pattern_retro(p, params[:])
 		}
 
@@ -14900,33 +14813,33 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// §15.5.1 / §15.6.1 - yield-in-params guard for generator methods.
 		// §15.8.1 / §15.6.1 - await-in-params guard for async methods
 		// (including async generator method shorthand `async *m() {}`).
-		prev_gp_obj_meth := p.in_generator_params
-		prev_ap_obj_meth := p.in_async_params
+		prev_gp_obj_meth := p.ctx.in_generator_params
+		prev_ap_obj_meth := p.ctx.in_async_params
 		// Static-block context does not extend into method parameters.
-		prev_sb_obj_meth := p.in_static_block
-		p.in_static_block = false
-		p.in_generator_params = is_generator
-		p.in_async_params = is_async
+		prev_sb_obj_meth := p.ctx.in_static_block
+		p.ctx.in_static_block = false
+		p.ctx.in_generator_params = is_generator
+		p.ctx.in_async_params = is_async
 		// `super.x` in a default param of an object-literal method shorthand
 		// is legal (param scope inherits [[HomeObject]]). Same async / gen
 		// context the body runs under has to apply to the params too -
 		// `await` and `yield` in default-param positions are gated by
 		// in_async_params / in_generator_params (already set above).
-		prev_in_generator := p.in_generator
-		prev_in_async := p.in_async
-		prev_in_method := p.in_method
-		prev_in_derived_ctor := p.in_derived_constructor
-		p.in_generator = is_generator
-		p.in_async = is_async
+		prev_in_generator := p.ctx.in_generator
+		prev_in_async := p.ctx.in_async
+		prev_in_method := p.ctx.in_method
+		prev_in_derived_ctor := p.ctx.in_derived_constructor
+		p.ctx.in_generator = is_generator
+		p.ctx.in_async = is_async
 		// Object-literal method shorthand - [[HomeObject]] is the object
 		// literal. `super.x` is legal inside. Object methods are not
 		// constructors, so `super(...)` is not legal.
-		p.in_method = true
-		p.in_derived_constructor = false
+		p.ctx.in_method = true
+		p.ctx.in_derived_constructor = false
 		params := parse_function_params(p)
-		p.in_generator_params = prev_gp_obj_meth
-		p.in_async_params = prev_ap_obj_meth
-		p.in_static_block = prev_sb_obj_meth
+		p.ctx.in_generator_params = prev_gp_obj_meth
+		p.ctx.in_async_params = prev_ap_obj_meth
+		p.ctx.in_static_block = prev_sb_obj_meth
 		if !expect_token(p, .RParen) {
 			return nil
 		}
@@ -14943,10 +14856,10 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 		body := parse_function_body(p)
 		body_strict := p.last_body_strict
-		p.in_generator = prev_in_generator
-		p.in_async = prev_in_async
-		p.in_method = prev_in_method
-		p.in_derived_constructor = prev_in_derived_ctor
+		p.ctx.in_generator = prev_in_generator
+		p.ctx.in_async = prev_in_async
+		p.ctx.in_method = prev_in_method
+		p.ctx.in_derived_constructor = prev_in_derived_ctor
 
 		// Object-literal methods run under UniqueFormalParameters rules
 		// (ECMA-262 §15.4.1 / §15.4.5) — duplicates are always a
@@ -14966,7 +14879,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// hook on parse_function_declaration above). Object-literal
 		// method shorthand inherits the outer scope's strict_mode — it
 		// does not implicitly become strict like class methods do.
-		if body_strict && !p.strict_mode {
+		if body_strict && !p.ctx.strict_mode {
 			report_strict_param_pattern_retro(p, params[:])
 		}
 
@@ -15088,7 +15001,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				// eval / arguments are NOT valid BindingIdentifiers, so the
 				// shorthand fails. Promoted from the semantic checker
 				// (ck_check_shorthand_property_strict_reserved).
-				if k != nil && p.strict_mode {
+				if k != nil && p.ctx.strict_mode {
 					if is_eval_or_arguments(k.name) {
 						msg := fmt.tprintf("'%s' cannot be used as a shorthand property identifier in strict mode", k.name)
 						report_error_at(p, LexerLoc(k.loc.start), msg)
@@ -15129,7 +15042,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 
 	case .String:
 		// §12.9.4.1 — check for octal/\8/\9 escapes in strict mode.
-		if p.strict_mode && len(current.value) > 2 {
+		if p.ctx.strict_mode && len(current.value) > 2 {
 			check_strict_string_escapes(p, current.value, current.start)
 		}
 		eat(p)
@@ -15172,7 +15085,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		// numeric path needs the hook — object property keys (§13.2.5),
 		// destructuring keys, and TS literal-type names go through other
 		// branches that don't surface to runtime evaluation.
-		if p.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
+		if p.ctx.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
 			report_error_at(p, LexerLoc(num.loc.start), "Legacy octal literals are not allowed in strict mode")
 		}
 		return num_e
@@ -15272,9 +15185,9 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 
 	super_class: Maybe(^Expression)
 	// §15.7 - ClassExpression is always strict mode code.
-	prev_strict_cls_expr := p.strict_mode
-	p.strict_mode = true
-	defer p.strict_mode = prev_strict_cls_expr
+	prev_strict_cls_expr := p.ctx.strict_mode
+	p.ctx.strict_mode = true
+	defer p.ctx.strict_mode = prev_strict_cls_expr
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
@@ -15322,15 +15235,15 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	}
 
 	// See parse_class_declaration for the rationale - same save/restore.
-	prev_class_has_extends := p.class_has_extends
-	p.class_has_extends = (super_class != nil)
-	defer p.class_has_extends = prev_class_has_extends
+	prev_class_has_extends := p.ctx.class_has_extends
+	p.ctx.class_has_extends = (super_class != nil)
+	defer p.ctx.class_has_extends = prev_class_has_extends
 
 	// Class expressions are never abstract — reset the flag so nested
 	// class expressions inside abstract class methods don't inherit it.
-	prev_class_is_abstract := p.class_is_abstract
-	p.class_is_abstract = false
-	defer p.class_is_abstract = prev_class_is_abstract
+	prev_class_is_abstract := p.ctx.class_is_abstract
+	p.ctx.class_is_abstract = false
+	defer p.ctx.class_is_abstract = prev_class_is_abstract
 
 	body := parse_class_body(p)
 
@@ -15367,7 +15280,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			// Allowed in: non-arrow function bodies, class field initializers
 			// (the field runs as part of the constructor), class static blocks,
 			// and CommonJS files (the file is wrapped in a function).
-			if !p.in_non_arrow_function && !p.in_field_init && !p.in_static_block && !p.is_commonjs {
+			if !p.ctx.in_non_arrow_function && !p.ctx.in_field_init && !p.ctx.in_static_block && !p.is_commonjs {
 				report_error(p, "'new.target' is only allowed inside functions")
 			}
 			meta, meta_e := new_expr(p, MetaProperty)
@@ -15423,7 +15336,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	// Promote from the checker so parser-only snaps catch it.
 	if callee != nil {
 		if callee_id, is_id := callee^.(^Identifier); is_id && callee_id.name == "await" {
-			await_reserved := p.in_async || p.in_static_block
+			await_reserved := p.ctx.in_async || p.ctx.in_static_block
 			if !await_reserved {
 				if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
 				else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
@@ -15512,9 +15425,9 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 	// even when we're in a for-init position (no_in=true). §13.16:
 	// ArgumentList members are AssignmentExpressions, not restricted.
 	// Fixes `for (a(b in c)[0] in d)` where `b in c` was rejected.
-	saved_no_in := p.no_in
-	p.no_in = false
-	defer p.no_in = saved_no_in
+	saved_no_in := p.ctx.no_in
+	p.ctx.no_in = false
+	defer p.ctx.no_in = saved_no_in
 
 	// Lazy allocation - zero-argument calls (`fn()`) are extremely common
 	// (every method-chain step like `.map().filter().toArray()` has them)
@@ -15629,12 +15542,12 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	// ECMA-262 §15.5.1 - "It is a Syntax Error if FormalParameters
 	// Contains YieldExpression is true." `yield` is not allowed inside
 	// a generator's formal parameter defaults (the generator scope
-	// only starts INSIDE the body). `p.in_generator_params` is set by
+	// only starts INSIDE the body). `p.ctx.in_generator_params` is set by
 	// parse_function_params / parse_class_method before calling
 	// parse_function_params.
 	eat(p) // consume yield
 
-	if p.in_generator_params {
+	if p.ctx.in_generator_params {
 		report_error(p, "'yield' expression is not allowed in formal parameters of a generator")
 	}
 
@@ -15732,9 +15645,9 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 
 		// Template substitution bodies (`${...}`) are independent
 		// AssignmentExpressions - the enclosing no_in must not leak.
-		prev_no_in := p.no_in
-		p.no_in = false
-		defer p.no_in = prev_no_in
+		prev_no_in := p.ctx.no_in
+		p.ctx.no_in = false
+		defer p.ctx.no_in = prev_no_in
 
 		// Parse embedded expressions and middle/tail parts
 		for {
@@ -15889,7 +15802,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// is being committed as an arrow parameter (this conversion is
 		// also used for assignment patterns, but those are reported via
 		// the assignment LHS path).
-		if p.strict_mode {
+		if p.ctx.strict_mode {
 			if is_eval_or_arguments(e.name) {
 				msg := fmt.tprintf("Binding identifier '%s' not allowed in strict mode", e.name)
 				report_error_at(p, LexerLoc(e.loc.start), msg)
@@ -15940,9 +15853,9 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		op := new_node(p, ObjectPattern)
 		op.loc = e.loc
 		op.properties = make([dynamic]ObjectPatternProperty, 0, len(e.properties), p.allocator)
-		prev_nested := p.in_nested_pattern_convert
-		p.in_nested_pattern_convert = true
-		defer p.in_nested_pattern_convert = prev_nested
+		prev_nested := p.ctx.in_nested_pattern_convert
+		p.ctx.in_nested_pattern_convert = true
+		defer p.ctx.in_nested_pattern_convert = prev_nested
 		prop_count := len(e.properties)
 		for prop, idx in e.properties {
 			// Spread element in object expression -> RestElement in pattern.
@@ -16079,9 +15992,9 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		ap := new_node(p, ArrayPattern)
 		ap.loc = e.loc
 		elems := make([]Maybe(Pattern), len(e.elements), p.allocator)
-		prev_nested := p.in_nested_pattern_convert
-		p.in_nested_pattern_convert = true
-		defer p.in_nested_pattern_convert = prev_nested
+		prev_nested := p.ctx.in_nested_pattern_convert
+		p.ctx.in_nested_pattern_convert = true
+		defer p.ctx.in_nested_pattern_convert = prev_nested
 		for i := 0; i < len(e.elements); i += 1 {
 			elem, has_elem := e.elements[i].(^Expression)
 			if !has_elem || elem == nil {
@@ -16161,7 +16074,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// conversion (in_nested_pattern_convert is set by the Array/Object
 		// cases above). Top-level paren-around-identifier is OK.
 		if e == nil { return nil, false }
-		if p.in_nested_pattern_convert {
+		if p.ctx.in_nested_pattern_convert {
 			report_error(p, "Binding element cannot be parenthesized")
 		}
 		return expr_to_pattern(p, e.expression)
@@ -16295,8 +16208,8 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// instead of an identifier. When committing to arrow params, those
 	// nodes are SyntaxErrors per the [Yield] / [Await] grammar params on
 	// CoverParenthesizedExpressionAndArrowParameterList.
-	if left != nil && (p.in_generator || p.in_async || is_async) {
-		walk_arrow_cover_for_yield_await(p, left, p.in_generator, p.in_async || is_async)
+	if left != nil && (p.ctx.in_generator || p.ctx.in_async || is_async) {
+		walk_arrow_cover_for_yield_await(p, left, p.ctx.in_generator, p.ctx.in_async || is_async)
 	}
 	start: Loc
 	if left != nil {
@@ -16341,9 +16254,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// emit the diagnostic. No retroactive cover-walk needed here.
 
 	// Set async context for body parsing
-	prev_async := p.in_async
+	prev_async := p.ctx.in_async
 	if is_async {
-		p.in_async = true
+		p.ctx.in_async = true
 	}
 	// §15.3.4: ArrowFunction ConciseBody is parsed with [~Yield, ~Await]
 	// (unless the arrow itself is async, in which case [~Yield, +Await]).
@@ -16351,12 +16264,12 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// `yield` inside a non-generator arrow in a generator function is
 	// just an identifier, not a YieldExpression. Reset `in_generator`
 	// so the expression parser treats `yield` as an identifier.
-	prev_in_generator := p.in_generator
-	p.in_generator = false
+	prev_in_generator := p.ctx.in_generator
+	p.ctx.in_generator = false
 	// Static block context does NOT propagate into arrow function bodies.
-	prev_static_block_arrow := p.in_static_block
-	p.in_static_block = false
-	defer p.in_static_block = prev_static_block_arrow
+	prev_static_block_arrow := p.ctx.in_static_block
+	p.ctx.in_static_block = false
+	defer p.ctx.in_static_block = prev_static_block_arrow
 	// Parse body. Capture block-vs-expression BEFORE consuming either,
 	// because after parse_block_statement / parse_assignment_expression
 	// the current token is no longer the '{' and the ESTree `expression`
@@ -16365,15 +16278,15 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	body: ArrowFunctionBody
 	if is_block_body {
 		// Block body - need to set in_function for return statement validation
-		prev_in_function := p.in_function
-		p.in_function = true
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
 		// break/continue/labels don't cross arrow function boundaries.
-		prev_in_loop_arrow := p.in_loop
-		prev_in_switch_arrow := p.in_switch
-		prev_label_floor_arrow := p.label_floor
-		p.in_loop = false
-		p.in_switch = false
-		p.label_floor = len(p.label_stack)
+		prev_in_loop_arrow := p.ctx.in_loop
+		prev_in_switch_arrow := p.ctx.in_switch
+		prev_label_floor_arrow := p.ctx.label_floor
+		p.ctx.in_loop = false
+		p.ctx.in_switch = false
+		p.ctx.label_floor = len(p.label_stack)
 		// §15.3.1: arrow block body is a function-scope.
 		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
@@ -16384,11 +16297,11 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				check_arrow_body_strict_prologue(p, bs.body[:])
 			}
 		}
-		p.in_function = prev_in_function
-		p.in_loop = prev_in_loop_arrow
-		p.in_switch = prev_in_switch_arrow
-		resize(&p.label_stack, p.label_floor)
-		p.label_floor = prev_label_floor_arrow
+		p.ctx.in_function = prev_in_function
+		p.ctx.in_loop = prev_in_loop_arrow
+		p.ctx.in_switch = prev_in_switch_arrow
+		resize(&p.label_stack, p.ctx.label_floor)
+		p.ctx.label_floor = prev_label_floor_arrow
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
 		if block_stmt != nil {
 			// parse_block_statement returns ^Statement wrapping ^BlockStatement.
@@ -16415,10 +16328,10 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		// file as a Module (via the top-level-await detector in
 		// parse_unary_expr `.Await`) even though the `await` was properly
 		// scoped to the async arrow.
-		prev_in_function := p.in_function
-		p.in_function = true
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
 		body = parse_assignment_expression(p)
-		p.in_function = prev_in_function
+		p.ctx.in_function = prev_in_function
 		// TS arrow-in-conditional: when the concise body is a parenthesised
 		// expression inside a ternary consequent and `:` follows, the `:`
 		// might be a return-type annotation (not the ternary colon).
@@ -16459,8 +16372,8 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		}
 	}
 
-	p.in_async = prev_async
-	p.in_generator = prev_in_generator
+	p.ctx.in_async = prev_async
+	p.ctx.in_generator = prev_in_generator
 
 	// Convert left to parameters
 	params := make([dynamic]FunctionParameter, 0, 4, p.allocator)
@@ -16497,7 +16410,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		#partial switch e in left {
 		case ^Identifier:
 			// §15.3.1 - ArrowParameters BindingIdentifier checks.
-			if p.strict_mode {
+			if p.ctx.strict_mode {
 				if is_eval_or_arguments(e.name) {
 					report_error(p, fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name))
 				} else if is_strict_reserved_binding_name(e.name) {
@@ -16507,14 +16420,14 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			if e.name == "enum" {
 				report_error(p, "'enum' is a reserved identifier")
 			}
-			if e.name == "await" && (p.in_async || p.in_static_block) {
+			if e.name == "await" && (p.ctx.in_async || p.ctx.in_static_block) {
 				report_error(p, "'await' cannot be used as an arrow parameter in module / async / static-block context")
 			} else if e.name == "await" {
 				if st, have := p.force_source_type.(SourceType); have && st == .Module {
 					report_error(p, "'await' cannot be used as an arrow parameter in module / async / static-block context")
 				}
 			}
-			if e.name == "yield" && (p.in_generator || p.strict_mode) {
+			if e.name == "yield" && (p.ctx.in_generator || p.ctx.strict_mode) {
 				report_error(p, "'yield' cannot be used as an arrow parameter in generator / strict context")
 			}
 			ident := new_node(p, Identifier)
@@ -16618,7 +16531,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					#partial switch arg in expr_ptr^ {
 					case ^Identifier:
 						// §15.3.1 strict-mode checks for multi-param arrow.
-						if p.strict_mode {
+						if p.ctx.strict_mode {
 							if is_eval_or_arguments(arg.name) {
 								report_error_at(p, LexerLoc(arg.loc.start),
 									fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", arg.name))
@@ -16787,7 +16700,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			// arrow params when the body promotes to strict and the
 			// outer scope was NOT strict (the params were parsed in
 			// sloppy mode). Catches `eval => {"use strict"}` etc.
-			if !p.strict_mode {
+			if !p.ctx.strict_mode {
 				report_strict_param_pattern_retro(p, params[:])
 			}
 		}
@@ -16839,8 +16752,8 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	// [+In] regardless of the enclosing [?In] context. This allows
 	// `for (true ? '' in obj : alt; ...)` where `in` inside the true
 	// branch is a relational operator, not a for-in separator.
-	prev_no_in := p.no_in
-	p.no_in = false
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false
 	// Track that we're inside a ternary consequent so that
 	// looks_like_ts_arrow_params suppresses the aggressive
 	// byte-scan that can mistake the ternary `:` for a TS
@@ -16848,7 +16761,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	p.conditional_depth += 1
 	consequent := parse_assignment_expression(p)
 	p.conditional_depth -= 1
-	p.no_in = prev_no_in
+	p.ctx.no_in = prev_no_in
 	if consequent == nil {
 		report_error(p, "Expected expression after '?' in conditional expression")
 		return nil
@@ -17206,7 +17119,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// destructuring pattern too: `[eval] = []`, `({x: arguments} = {})`,
 	// and `[...eval] = []` are all SyntaxErrors. Promoted from the
 	// semantic checker (ck_check_strict_eval_arguments_in_target).
-	if p.strict_mode {
+	if p.ctx.strict_mode {
 		report_strict_eval_arguments_in_target(p, left)
 	}
 
@@ -17247,7 +17160,7 @@ parse_string_literal :: proc(p: ^Parser) -> StringLiteral {
 	// §12.9.4.1 — in strict mode, numeric escape sequences other than
 	// `\0` (not followed by a digit) are forbidden in string literals.
 	// Check the raw token text for `\1`-`\9` or `\0[0-9]`.
-	if p.strict_mode && len(raw) > 2 {
+	if p.ctx.strict_mode && len(raw) > 2 {
 		check_strict_string_escapes(p, raw, loc.start)
 	}
 
@@ -17296,8 +17209,8 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	}
 	eat(p) // consume =>
 
-	prev_async := p.in_async
-	p.in_async = true
+	prev_async := p.ctx.in_async
+	p.ctx.in_async = true
 
 	// Parse body. Capture block-vs-expression BEFORE consuming the body,
 	// so the ESTree `expression` flag reflects the source shape.
@@ -17305,23 +17218,23 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	body: ArrowFunctionBody
 	if is_block_body {
 		// Block body - need to set in_function for return statement validation
-		prev_in_function := p.in_function
-		p.in_function = true
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
 		// break/continue/labels don't cross arrow function boundaries.
-		prev_in_loop_a2 := p.in_loop
-		prev_in_switch_a2 := p.in_switch
-		prev_label_floor_a2 := p.label_floor
-		p.in_loop = false
-		p.in_switch = false
-		p.label_floor = len(p.label_stack)
+		prev_in_loop_a2 := p.ctx.in_loop
+		prev_in_switch_a2 := p.ctx.in_switch
+		prev_label_floor_a2 := p.ctx.label_floor
+		p.ctx.in_loop = false
+		p.ctx.in_switch = false
+		p.ctx.label_floor = len(p.label_stack)
 		// §15.3.1: arrow block body is a function-scope.
 		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
-		p.in_function = prev_in_function
-		p.in_loop = prev_in_loop_a2
-		p.in_switch = prev_in_switch_a2
-		resize(&p.label_stack, p.label_floor)
-		p.label_floor = prev_label_floor_a2
+		p.ctx.in_function = prev_in_function
+		p.ctx.in_loop = prev_in_loop_a2
+		p.ctx.in_switch = prev_in_switch_a2
+		resize(&p.label_stack, p.ctx.label_floor)
+		p.ctx.label_floor = prev_label_floor_a2
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
 		if block_stmt != nil {
 			// Same Bug-H class as the multi-param arrow arm above. Extract the
@@ -17332,13 +17245,13 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 		}
 	} else {
 		// in_function fix - see parse_arrow_function for rationale.
-		prev_in_function := p.in_function
-		p.in_function = true
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
 		body = parse_assignment_expression(p)
-		p.in_function = prev_in_function
+		p.ctx.in_function = prev_in_function
 	}
 
-	p.in_async = prev_async
+	p.ctx.in_async = prev_async
 
 	// Create single param
 	params := make([dynamic]FunctionParameter, 0, 1, p.allocator)
@@ -17385,11 +17298,11 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 	// §15.9.1 - CoverCallExpressionAndAsyncArrowHead Contains
 	// AwaitExpression is a SyntaxError. Flag the params window so the
 	// await-expression constructor reports on entry.
-	prev_in_async_params := p.in_async_params
-	p.in_async_params = true
+	prev_in_async_params := p.ctx.in_async_params
+	p.ctx.in_async_params = true
 	params := parse_function_params(p)
 	report_parameter_modifiers_disallowed(p, params[:])
-	p.in_async_params = prev_in_async_params
+	p.ctx.in_async_params = prev_in_async_params
 
 	if !expect_token(p, .RParen) {
 		return nil
@@ -17424,31 +17337,31 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 	}
 	eat(p)
 
-	prev_async := p.in_async
-	p.in_async = true
+	prev_async := p.ctx.in_async
+	p.ctx.in_async = true
 
 	// Parse body. Capture block-vs-expression before consuming.
 	is_block_body := is_token(p, .LBrace)
 	body: ArrowFunctionBody
 	if is_block_body {
 		// Block body - need to set in_function for return statement validation
-		prev_in_function := p.in_function
-		p.in_function = true
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
 		// break/continue/labels don't cross arrow function boundaries.
-		prev_in_loop_a3 := p.in_loop
-		prev_in_switch_a3 := p.in_switch
-		prev_label_floor_a3 := p.label_floor
-		p.in_loop = false
-		p.in_switch = false
-		p.label_floor = len(p.label_stack)
+		prev_in_loop_a3 := p.ctx.in_loop
+		prev_in_switch_a3 := p.ctx.in_switch
+		prev_label_floor_a3 := p.ctx.label_floor
+		p.ctx.in_loop = false
+		p.ctx.in_switch = false
+		p.ctx.label_floor = len(p.label_stack)
 		// §15.3.1: arrow block body is a function-scope.
 		p.scope_fn_scope_next_block = true
 		block_stmt := parse_block_statement(p)
-		p.in_function = prev_in_function
-		p.in_loop = prev_in_loop_a3
-		p.in_switch = prev_in_switch_a3
-		resize(&p.label_stack, p.label_floor)
-		p.label_floor = prev_label_floor_a3
+		p.ctx.in_function = prev_in_function
+		p.ctx.in_loop = prev_in_loop_a3
+		p.ctx.in_switch = prev_in_switch_a3
+		resize(&p.label_stack, p.ctx.label_floor)
+		p.ctx.label_floor = prev_label_floor_a3
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
 		if block_stmt != nil {
 			// Same Bug-H class as the other two arrow-function arms above.
@@ -17468,13 +17381,13 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 		// body (e.g. `async () => (<x title={await f()}/>)`) falls into the
 		// top-level-await detector in parse_unary_expr `.Await` and spuriously
 		// promotes the whole file to `sourceType: "module"`.
-		prev_in_function := p.in_function
-		p.in_function = true
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
 		body = parse_assignment_expression(p)
-		p.in_function = prev_in_function
+		p.ctx.in_function = prev_in_function
 	}
 
-	p.in_async = prev_async
+	p.ctx.in_async = prev_async
 
 	arrow, arrow_e := new_expr(p, ArrowFunctionExpression)
 	arrow.loc = start
@@ -17512,7 +17425,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 			if !params_are_simple(params[:]) {
 				report_error_at(p, LexerLoc(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 			}
-			if !p.strict_mode {
+			if !p.ctx.strict_mode {
 				report_strict_param_pattern_retro(p, params[:])
 			}
 		}
@@ -17565,11 +17478,11 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	}
 
 	// §13.3.10: ImportCall arguments are AssignmentExpression[+In].
-	prev_no_in := p.no_in
-	p.no_in = false
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false
 	specifier := parse_assignment_expression(p)
 	if specifier == nil {
-		p.no_in = prev_no_in
+		p.ctx.no_in = prev_no_in
 		return nil
 	}
 
@@ -17603,7 +17516,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 		}
 	}
 
-	p.no_in = prev_no_in
+	p.ctx.no_in = prev_no_in
 
 	// consume )
 	if !is_token(p, .RParen) {
@@ -17962,10 +17875,10 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Expected class after decorator")
 		return nil
 	}
-	prev_abs := p.class_is_abstract
-	if is_abstract_class { p.class_is_abstract = true }
+	prev_abs := p.ctx.class_is_abstract
+	if is_abstract_class { p.ctx.class_is_abstract = true }
 	stmt := parse_class_declaration(p)
-	p.class_is_abstract = prev_abs  // prevent leak to next class
+	p.ctx.class_is_abstract = prev_abs  // prevent leak to next class
 	if stmt != nil {
 		#partial switch s in stmt^ {
 		case ^ClassDeclaration:
@@ -20226,7 +20139,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	// `<T>(yield 0)` is fine (parens open AssignmentExpression context).
 	// Distinguish by checking if the expression starts at the same
 	// offset as the `>` end (no intervening paren).
-	if p.in_generator {
+	if p.ctx.in_generator {
 		if ye, ok := expr^.(^YieldExpression); ok {
 			// Check if `yield` directly follows `>` (bare form), or is
 			// inside parens. Walk backwards from yield's start offset.
@@ -20612,17 +20525,17 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 	// Body - block or expression. Mirror parse_arrow_function's treatment.
 	// §15.3.4: Arrow body is parsed with [~Yield, ~Await] (unless async).
 	// Reset in_generator so `yield` inside the arrow body is an identifier.
-	prev_in_generator := p.in_generator
-	p.in_generator = false
-	prev_static_block_ts := p.in_static_block
-	p.in_static_block = false
+	prev_in_generator := p.ctx.in_generator
+	p.ctx.in_generator = false
+	prev_static_block_ts := p.ctx.in_static_block
+	p.ctx.in_static_block = false
 	is_block_body := is_token(p, .LBrace)
 	body: ArrowFunctionBody
 	if is_block_body {
-		prev_in_function := p.in_function
-		p.in_function = true
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
 		block_stmt := parse_block_statement(p)
-		p.in_function = prev_in_function
+		p.ctx.in_function = prev_in_function
 		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
 		if block_stmt != nil {
 			if bs, ok := block_stmt^.(^BlockStatement); ok {
@@ -20637,8 +20550,8 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 		body = parse_assignment_expression(p)
 	}
 
-	p.in_generator = prev_in_generator
-	p.in_static_block = prev_static_block_ts
+	p.ctx.in_generator = prev_in_generator
+	p.ctx.in_static_block = prev_static_block_ts
 
 	arrow, arrow_e := new_expr(p, ArrowFunctionExpression)
 	arrow.loc = start_loc
@@ -20667,7 +20580,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 			if !params_are_simple(params[:]) {
 				report_error_at(p, LexerLoc(start_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 			}
-			if !p.strict_mode {
+			if !p.ctx.strict_mode {
 				report_strict_param_pattern_retro(p, params[:])
 			}
 		}
@@ -21194,7 +21107,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 		if param_is_rest && is_token(p, .Comma) {
    ensure_nxt(p)
 			if p.lexer.nxt.kind == .RParen {
-				if !p.in_ambient && !p.source_is_dts {
+				if !p.ctx.in_ambient && !p.source_is_dts {
 					report_error(p, "A rest parameter or binding pattern may not have a trailing comma.")
 				}
 			} else {
@@ -21671,7 +21584,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 	// fire for in_ambient (set by enclosing declare namespace/module),
 	// NOT for source_is_dts — .d.ts files commonly use top-level
 	// `declare` despite being implicitly ambient, and OXC accepts them.
-	if p.in_ambient {
+	if p.ctx.in_ambient {
 		report_error(p, "A 'declare' modifier cannot be used in an already ambient context.")
 	}
 
@@ -21687,9 +21600,9 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 	// requirement, function has no body requirement, and any nested
 	// namespace / module body inherits the same. Save/restore around
 	// the whole dispatch so nested ambient contexts compose correctly.
-	prev_ambient := p.in_ambient
-	p.in_ambient = true
-	defer p.in_ambient = prev_ambient
+	prev_ambient := p.ctx.in_ambient
+	p.ctx.in_ambient = true
+	defer p.ctx.in_ambient = prev_ambient
 
 	// Dispatch to the right declaration parser and then set `declare=true`
 	// on the returned node. Many of our declaration parsers return
@@ -21725,10 +21638,10 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 				report_error(p, "Line terminator not permitted between 'abstract' and 'class'")
 			}
 			eat(p) // consume `abstract`
-			prev_abs := p.class_is_abstract
-			p.class_is_abstract = true
+			prev_abs := p.ctx.class_is_abstract
+			p.ctx.class_is_abstract = true
 			stmt = parse_class_declaration(p)
-			p.class_is_abstract = prev_abs  // prevent leak
+			p.ctx.class_is_abstract = prev_abs  // prevent leak
 			if stmt != nil {
 				if cls, ok := stmt^.(^ClassDeclaration); ok {
 					cls.expr.abstract = true
@@ -22056,13 +21969,13 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		init: Maybe(^Expression)
 		if match_token(p, .Assign) {
-			prev_in_async := p.in_async
-			prev_in_generator := p.in_generator
-			p.in_async = false
-			p.in_generator = false
+			prev_in_async := p.ctx.in_async
+			prev_in_generator := p.ctx.in_generator
+			p.ctx.in_async = false
+			p.ctx.in_generator = false
 			init = parse_assignment_expression(p)
-			p.in_generator = prev_in_generator
-			p.in_async = prev_in_async
+			p.ctx.in_generator = prev_in_generator
+			p.ctx.in_async = prev_in_async
 		}
 		m := TSEnumMember{loc = ms, id = member_id, initializer = init}; m.loc.end = prev_end_offset(p)
 		bump_append(&members, m)
@@ -22092,7 +22005,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	// TS1061 — enum member without initializer following a member with
 	// a non-literal (computed) initializer. In a non-ambient context,
 	// the auto-increment only works after literal values.
-	if !p.in_ambient && !p.source_is_dts && !is_const {
+	if !p.ctx.in_ambient && !p.source_is_dts && !is_const {
 		// Collect member names for self-reference detection.
 		member_names: map[string]bool
 		member_names.allocator = context.temp_allocator
@@ -22148,9 +22061,9 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Inside a namespace, inside a function, or in a script → error.
 	if allow_ts_mode(p) && !p.source_is_dts {
 		global_ok := false
-		if p.in_ambient {
+		if p.ctx.in_ambient {
 			global_ok = true
-		} else if !p.in_ts_namespace && !p.in_function {
+		} else if !p.ctx.in_ts_namespace && !p.ctx.in_function {
 			global_ok = true
 		}
 		if !global_ok {
@@ -22177,7 +22090,7 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 	blk.loc = body_start; blk.body = stmts
 	blk.loc.end = prev_end_offset(p)
 	if allow_ts_mode(p) {
-		if p.in_ambient || p.source_is_dts {
+		if p.ctx.in_ambient || p.source_is_dts {
 			report_ts_ambient_function_errors(p, stmts[:])
 		} else {
 			report_ts_function_overload_errors(p, stmts[:])
@@ -22197,7 +22110,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// top level of a file, namespace, or module body. Inside a block,
 	// function body, class body, etc. they're a SyntaxError.
 	// Valid positions: program top-level, or inside a namespace body.
-	if allow_ts_mode(p) && (p.block_depth > 0 || p.in_function) && !p.in_ts_namespace {
+	if allow_ts_mode(p) && (p.block_depth > 0 || p.ctx.in_function) && !p.ctx.in_ts_namespace {
 		report_error_at(p, LexerLoc(start.start),
 			"A namespace declaration is only allowed at the top level of a namespace or module.")
 	}
@@ -22214,7 +22127,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// without `declare` is deprecated. Must use `namespace M {}` instead.
 	// `declare module M {}` is valid (standard ambient namespace syntax).
 	// Also exempt .d.ts files where everything is implicitly ambient.
-	if kind == .Module && !is_string_named && !p.in_ambient && !p.source_is_dts {
+	if kind == .Module && !is_string_named && !p.ctx.in_ambient && !p.source_is_dts {
 		report_error_at(p, LexerLoc(start.start),
 			"`module` declarations must have a string name. Use `namespace` instead.")
 	}
@@ -22254,7 +22167,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// but otherwise the block is required.
 	decl := new_node(p, TSModuleDeclaration)
 	decl.loc = start; decl.id = id_expr; decl.kind = kind
-	if !is_token(p, .LBrace) && !p.in_ambient {
+	if !is_token(p, .LBrace) && !p.ctx.in_ambient {
 		report_error(p, "Expected `{` but found `;`")
 	}
 	if is_token(p, .LBrace) {
@@ -22262,18 +22175,18 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		// Ambient context: string-named module, OR already-ambient caller
 		// (nested namespace / module inside a `declare namespace X { ... }`),
 		// OR .d.ts file (all bodies are implicitly ambient).
-		prev_ambient := p.in_ambient
-		p.in_ambient = p.in_ambient || is_string_named || p.source_is_dts
-		defer p.in_ambient = prev_ambient
+		prev_ambient := p.ctx.in_ambient
+		p.ctx.in_ambient = p.ctx.in_ambient || is_string_named || p.source_is_dts
+		defer p.ctx.in_ambient = prev_ambient
 		// TS namespace body is not an async/module-level context for `await`.
-		prev_in_ts_namespace := p.in_ts_namespace
-		p.in_ts_namespace = true
-		defer p.in_ts_namespace = prev_in_ts_namespace
+		prev_in_ts_namespace := p.ctx.in_ts_namespace
+		p.ctx.in_ts_namespace = true
+		defer p.ctx.in_ts_namespace = prev_in_ts_namespace
 		// Track whether we're in a string-named module body (ES imports/exports valid)
 		// vs an identifier-named namespace body (ES imports/exports forbidden).
-		prev_in_ts_module_block := p.in_ts_module_block
-		p.in_ts_module_block = is_string_named
-		defer p.in_ts_module_block = prev_in_ts_module_block
+		prev_in_ts_module_block := p.ctx.in_ts_module_block
+		p.ctx.in_ts_module_block = is_string_named
+		defer p.ctx.in_ts_module_block = prev_in_ts_module_block
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			// Progress guard: when parse_statement_or_declaration hits an
@@ -22297,7 +22210,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		blk.loc = body_start; blk.body = stmts
 		blk.loc.end = prev_end_offset(p)
 		if allow_ts_mode(p) {
-			if p.in_ambient || p.source_is_dts {
+			if p.ctx.in_ambient || p.source_is_dts {
 				report_ts_ambient_function_errors(p, stmts[:])
 			} else {
 				report_ts_function_overload_errors(p, stmts[:])
@@ -22335,21 +22248,21 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		body_start := cur_loc(p); eat(p)
 		// Nested module bodies inherit the ambient context from the outer
 		// call - same save/restore idiom as parse_ts_module_declaration.
-		prev_ambient := p.in_ambient
-		defer p.in_ambient = prev_ambient
+		prev_ambient := p.ctx.in_ambient
+		defer p.ctx.in_ambient = prev_ambient
 		// Also propagate in_ts_namespace into the nested body. Without
 		// this, `namespace Outer.Inner { export const X = 1 }` would let
 		// the `export` decision run with in_ts_namespace=false and
 		// incorrectly classify the file as sourceType=module. The outer
 		// parse_ts_module_declaration sets the flag for the SINGLE-name
 		// case but the dotted-name path skips it.
-		prev_in_ts_namespace := p.in_ts_namespace
-		p.in_ts_namespace = true
-		defer p.in_ts_namespace = prev_in_ts_namespace
+		prev_in_ts_namespace := p.ctx.in_ts_namespace
+		p.ctx.in_ts_namespace = true
+		defer p.ctx.in_ts_namespace = prev_in_ts_namespace
 		// Nested namespace bodies (dotted names) are never string-named modules.
-		prev_in_ts_module_block := p.in_ts_module_block
-		p.in_ts_module_block = false
-		defer p.in_ts_module_block = prev_in_ts_module_block
+		prev_in_ts_module_block := p.ctx.in_ts_module_block
+		p.ctx.in_ts_module_block = false
+		defer p.ctx.in_ts_module_block = prev_in_ts_module_block
 		stmts := make([dynamic]^Statement, 0, 8, p.allocator)
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			// Same progress guard as parse_ts_module_declaration's body loop -
@@ -22369,7 +22282,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		blk.loc = body_start; blk.body = stmts
 		blk.loc.end = prev_end_offset(p)
 		if allow_ts_mode(p) {
-			if p.in_ambient || p.source_is_dts {
+			if p.ctx.in_ambient || p.source_is_dts {
 				report_ts_ambient_function_errors(p, stmts[:])
 			} else {
 				report_ts_function_overload_errors(p, stmts[:])

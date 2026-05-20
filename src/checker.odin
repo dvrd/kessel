@@ -4366,7 +4366,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	// The lifted strict_mode is already applied for body context, but
 	// param patterns are checked under that same strict context (the
 	// parser tracked this with the post-body-prologue
-	// `body_strict || p.strict_mode` rule). Generators / async / async-
+	// `body_strict || p.ctx.strict_mode` rule). Generators / async / async-
 	// generators inherit strict-flavoured uniqueness regardless.
 	if ctx.strict_mode {
 		for pr in fn.params { ck_check_strict_param_pattern(c, pr.pattern) }
@@ -4570,7 +4570,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	ck_check_class_name(c, ctx, cls)
 
 	// §15.7.1 — ClassBody is always strict-mode code (mirrors parser.odin
-	// `prev_strict_class := p.strict_mode; p.strict_mode = true`). The
+	// `prev_strict_class := p.ctx.strict_mode; p.ctx.strict_mode = true`). The
 	// class body also opens a fresh class-element scope: `in_method`,
 	// `in_field_init`, `in_class_static_block`, `in_derived_constructor`
 	// from the enclosing context do NOT carry into class elements (the
@@ -6896,7 +6896,7 @@ ck_check_class_private_static_mismatch :: proc(c: ^Checker, cls: ^ClassExpressio
 //   * Sloppy-mode regular functions with a non-simple parameter list
 //     are also UniqueFormalParameters.
 //
-// `is_strict` mirrors the parser's `strict := p.strict_mode ||
+// `is_strict` mirrors the parser's `strict := p.ctx.strict_mode ||
 // strict_override`; `force_non_simple` mirrors `force_when_non_simple
 // && !params_are_simple(params)`. Callers from ck_walk_function pick
 // the right combination based on the function flavour.
@@ -6950,7 +6950,7 @@ CkBindingFlavour :: enum {
 // `parse_binding_identifier`'s eval/arguments branch (Generic flavour).
 //
 // The parser-side parse_binding_pattern now also fires for plain
-// top-level Identifier bindings under p.strict_mode, so a parameter
+// top-level Identifier bindings under p.ctx.strict_mode, so a parameter
 // like `function f(eval) {}` in an enclosing-strict context gets two
 // diagnostics (parser Generic + checker Parameter). Body-strict
 // promotion (`function f(eval) { "use strict"; }` in a sloppy outer)
