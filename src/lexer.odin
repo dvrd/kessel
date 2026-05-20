@@ -892,12 +892,17 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 		return lex_identifier_escaped(l, start, flags)
 	}
 
-	// ---- Number ----
+	return lex_token_dispatch(l, c, start, flags)
+}
+
+// Core token dispatch — handles numbers, operators, strings, templates.
+// Separated from lex_token so that advance_token's inline hot path can
+// call it directly for cold tokens, skipping the redundant WS-skip +
+// single-char + identifier checks that the inline path already did.
+lex_token_dispatch :: proc(l: ^Lexer, c: u8, start: u32, flags: u8) -> FastToken {
 	if c >= '0' && c <= '9' {
 		return lex_number(l, start, flags)
 	}
-
-	// ---- Operators and complex tokens ----
 	switch c {
 	case '"', '\'':
 		return lex_string(l, start, flags, c)

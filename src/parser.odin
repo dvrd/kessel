@@ -27,7 +27,7 @@ advance_token :: #force_inline proc(p: ^Parser) {
 		if off + 1 < src_len {
 			off += int(src[off] == ' ')
 		}
-		if off < src_len && FAST_TOKEN_START_TABLE[src[off]] {
+		if off < src_len && FAST_TOKEN_START_TABLE[src[off]] && a.template_depth == 0 {
 			// Annex B guard (script mode only)
 			annex_b := !a.is_module_mode && (src[off] == '<' || src[off] == '-')
 			if !annex_b {
@@ -37,7 +37,7 @@ advance_token :: #force_inline proc(p: ^Parser) {
 				start := u32(off)
 				// Single-char token
 				tt := single_char_tokens[c]
-				if tt != .Invalid && a.template_depth == 0 {
+				if tt != .Invalid {
 					a.offset = off + 1
 					a.cur = FastToken{start = start, end = u32(off + 1), kind = tt, flags = flags}
 					a.lit_write_idx ~= 1
@@ -72,11 +72,23 @@ advance_token :: #force_inline proc(p: ^Parser) {
 					p.cur_type = a.cur.kind
 					return
 				}
-				// Fall through to full lex_token for operators/strings/numbers
+				// Cold path: WS already skipped, flags captured.
+				// Backslash (escaped identifier) falls through to full
+				// lex_token which handles \uXXXX. Everything else goes
+				// to lex_token_dispatch (skips redundant WS/ID checks).
+				if c != '\\' {
+					a.offset = off
+					a.cur = lex_token_dispatch(a, c, start, flags)
+					a.lit_write_idx ~= 1
+					p.cur_type = a.cur.kind
+					return
+				}
+				// Backslash: restore had_line_terminator (lex_token re-captures)
+				a.had_line_terminator = (flags & FLAG_NEW_LINE) != 0
 				a.offset = off
 			}
 		}
-		// Cold path: full lexer dispatch
+		// Slow path: WS not done (newline/comment/multi-space) or EOF edge
 		a.cur = lex_token(a)
 	}
 	a.lit_write_idx ~= 1
