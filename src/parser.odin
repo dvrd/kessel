@@ -135,43 +135,13 @@ peek_token :: #force_inline proc(p: ^Parser) -> Token {
 	return Token{type = .EOF}
 }
 
-// Prime the parser's token cache. init_lexer has already captured the
-// literal slot for cur (into cur_lit_*) before lexing nxt overwrote
-// last_lit_*, so the lookup here mirrors advance_token's path.
+// Prime the parser's cached cur_type from the lexer's current token.
 prime_token_cache :: proc(p: ^Parser) {
 	if p.lexer != nil {
-		ft := p.lexer.cur
-		p.cur_type = ft.kind
-		if ft.kind < .LBrace && ft.kind != .EOF && ft.start < ft.end {
-			a := p.lexer
-			if ft.kind == .String {
-				if a.lit_offset[a.lit_write_idx ~ 1] == ft.start && a.lit_type[a.lit_write_idx ~ 1] == .String {
-				} else if ft.end - ft.start >= 2 {
-				}
-			} else if ft.kind <= .TemplateTail {
-				if a.lit_offset[a.lit_write_idx ~ 1] == ft.start && a.lit_type[a.lit_write_idx ~ 1] != .None {
-				}
-			} else if ft.kind == .Identifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
-				if a.lit_offset[a.lit_write_idx ~ 1] == ft.start && a.lit_type[a.lit_write_idx ~ 1] == .Identifier {
-					if s, ok := a.lit_value[a.lit_write_idx ~ 1].(string); ok {
-					}
-				}
-			} else if ft.kind == .PrivateIdentifier && (ft.flags & FLAG_HAS_ESCAPE) != 0 {
-				// Escaped private identifier - see advance_token for the
-				// matching case and rationale (cooked name includes '#').
-				if a.lit_offset[a.lit_write_idx ~ 1] == ft.start && a.lit_type[a.lit_write_idx ~ 1] == .Identifier {
-					if s, ok := a.lit_value[a.lit_write_idx ~ 1].(string); ok {
-					}
-				}
-			}
-		}
+		p.cur_type = p.lexer.cur.kind
 	} else {
 		p.cur_type = .EOF
 	}
-}
-
-peek_dispatch :: #force_inline proc(p: ^Parser) -> Token {
-	return peek_token(p)
 }
 
 // ============================================================================
@@ -2057,7 +2027,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			report_error(p, "'async' keyword must not contain Unicode escape sequences")
 			return parse_expression_or_labeled_statement(p)
 		}
-		next_after_async := peek_dispatch(p)
+		next_after_async := peek_token(p)
 		if next_after_async.type == .Function && !next_after_async.had_line_terminator {
 			return parse_function_declaration(p)
 		}
@@ -2099,7 +2069,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// IdentifierReference (sloppy script): `let = 4;`,
 		// `let.x = 1;`, `let + 1`. Same `[lookahead ∉ { let [ }]`
 		// rule as in for-head; mirror the conservative whitelist.
-		nxt_let := peek_dispatch(p)
+		nxt_let := peek_token(p)
 		let_is_decl := false
 		if nxt_let.type == .LBracket || nxt_let.type == .LBrace ||
 		   is_identifier_like_token(nxt_let.type) {
@@ -2200,7 +2170,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// escaped keyword - this is a SyntaxError.
 		if cur_has_escape(p) && cur_value_eq(p, "async") {
 			// Peek ahead: if this looks like an async function / arrow, error.
-			nxt := peek_dispatch(p)
+			nxt := peek_token(p)
 			if (nxt.type == .Function && !nxt.had_line_terminator) ||
 			   (nxt.type == .Identifier && !nxt.had_line_terminator) ||
 			   (nxt.type == .LParen && !nxt.had_line_terminator) {
@@ -2956,7 +2926,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// committing to a let-declaration, breaking those programs.
 	let_starts_decl := false
 	if is_token(p, .Let) {
-		nxt := peek_dispatch(p)
+		nxt := peek_token(p)
 		// Conservative whitelist of tokens that legally start a
 		// LexicalBinding after `let`. Anything else falls through to
 		// the expression-head path. is_identifier_like_token covers
@@ -3014,7 +2984,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 	await_using_for_decl := false
-	if is_token(p, .Await) && peek_dispatch(p).type == .Using {
+	if is_token(p, .Await) && peek_token(p).type == .Using {
 		using_after_await := peek_token(p)
 		if using_after_await.had_line_terminator {
 			report_error(p, "Line terminator not permitted between 'await' and 'using'")
@@ -6332,11 +6302,11 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	//   - LineTerminator           → ASI-style bare field `accessor\n a;`
 	// Test262 staging/decorators/accessor-as-identifier.js.
 	if is_token(p, .Accessor) {
-		next := peek_dispatch(p)
+		next := peek_token(p)
 		next_starts_name := next.type != .LParen && next.type != .Semi &&
 		                    next.type != .RBrace && next.type != .Assign &&
 		                    next.type != .Comma
-		// peek_dispatch returns the next non-whitespace token; check its
+		// peek_token returns the next non-whitespace token; check its
 		// had_line_terminator flag to detect ASI between `accessor` and
 		// the next token. The peek result's flag reflects whether a LT
 		// crossed BEFORE that token, which is exactly the ASI condition.
@@ -6353,7 +6323,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// starts a method name AND there's no line terminator between them.
 		// When `async` is followed by `(` or `<` it IS the method name
 		// (e.g. `async() {}`, `async<T>() {}`).
-		next := peek_dispatch(p)
+		next := peek_token(p)
 		looks_like_async_method := next.type == .Identifier || next.type == .PrivateIdentifier ||
 			next.type == .LBracket || next.type == .String || next.type == .Number ||
 			next.type == .BigInt || next.type == .Mul ||
@@ -6374,7 +6344,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// (e.g. `public get = function() {}`, `set: boolean;`).
 	if is_token(p, .Get) || is_token(p, .Set) {
 		is_getter := is_token(p, .Get)
-		next := peek_dispatch(p)
+		next := peek_token(p)
 		looks_like_accessor_name := next.type == .Identifier || next.type == .String ||
 			next.type == .Number || next.type == .BigInt || next.type == .LBracket ||
 			next.type == .Mul || next.type == .PrivateIdentifier ||
@@ -8178,26 +8148,6 @@ yield_is_reserved_here :: #force_inline proc(p: ^Parser) -> bool {
 // `yield` / `await` additionally flip to reserved inside a generator /
 // async body even in sloppy mode. Non-reserved contextual keywords
 // (async / of / from / as / let-in-sloppy / ...) pass through.
-// Table: which first bytes can start a reserved word.
-// Only b/c/d/e/f/i/n/r/s/t/v/w. All other first bytes exit immediately.
-reserved_word_first_byte: [256]bool
-
-@(init)
-init_reserved_word_first_byte :: proc "contextless" () {
-	reserved_word_first_byte['b'] = true
-	reserved_word_first_byte['c'] = true
-	reserved_word_first_byte['d'] = true
-	reserved_word_first_byte['e'] = true
-	reserved_word_first_byte['f'] = true
-	reserved_word_first_byte['i'] = true
-	reserved_word_first_byte['n'] = true
-	reserved_word_first_byte['r'] = true
-	reserved_word_first_byte['s'] = true
-	reserved_word_first_byte['t'] = true
-	reserved_word_first_byte['v'] = true
-	reserved_word_first_byte['w'] = true
-}
-
 is_always_reserved_word_name :: #force_inline proc(name: string) -> bool {
 	n := len(name)
 	if n < 2 || n > 10 { return false }
@@ -13934,7 +13884,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .Async:
 		// async function expression or arrow function
 		// Lookahead to check what follows async
-		next := peek_dispatch(p)
+		next := peek_token(p)
 		// ECMA-262 §15.8 / §15.9 Restricted Productions: no LineTerminator
 		// between `async` and the following `function` / BindingIdentifier /
 		// `(`. If there is one, the grammar rule fails and ASI treats `async`
@@ -18517,7 +18467,7 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			bump_append(&children, text)
 		}
 		if is_token(p, .LAngle) {
-			if peek_dispatch(p).type == .Div { break }
+			if peek_token(p).type == .Div { break }
 			nested := parse_jsx_element_or_fragment(p)
 			if nested != nil {
 				#partial switch v in nested^ {
