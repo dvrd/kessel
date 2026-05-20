@@ -1,16 +1,11 @@
 package kessel
 
 
-// Span represents source location information (u32 = up to 4GB source)
-Span :: struct {
-	start: u32,
-	end:   u32,
-}
-
 // Source location — byte offsets only (8 bytes).
 // Line/column are computed lazily by report_error via offset_to_line_col.
 Loc :: struct {
-	span: Span,
+	start: u32,
+	end:   u32,
 }
 
 // ============================================================================
@@ -113,10 +108,6 @@ ESMImportMeta :: struct {
 	start: u32,
 	end:   u32,
 }
-
-// ============================================================================
-// JSX Nodes
-// ============================================================================
 
 JSXElement :: struct {
 	loc:             Loc,
@@ -1091,7 +1082,7 @@ FunctionParameter :: struct {
 	// TS parameter property modifiers. When any is set, the emitter wraps
 	// the parameter in a `TSParameterProperty` node (TS-ESTree shape).
 	// modifier_start is the span.start of the first modifier keyword;
-	// the outer TSParameterProperty node uses [modifier_start, param.loc.span.end].
+	// the outer TSParameterProperty node uses [modifier_start, param.loc.end].
 	accessibility:    ClassAccessibility,  // None = not a parameter property
 	readonly:         bool,
 	override_:             bool,  // named override_ to avoid clash with Odin builtin

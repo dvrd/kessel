@@ -1671,27 +1671,27 @@ report_dts_non_declaration :: proc(p: ^Parser, stmt: ^Statement) {
 dts_stmt_loc :: proc(stmt: ^Statement) -> u32 {
 	if stmt == nil { return 0 }
 	#partial switch v in stmt^ {
-	case ^ExpressionStatement:  if v != nil { return v.loc.span.start }
-	case ^BlockStatement:       if v != nil { return v.loc.span.start }
-	case ^EmptyStatement:       if v != nil { return v.loc.span.start }
-	case ^DebuggerStatement:    if v != nil { return v.loc.span.start }
-	case ^WithStatement:        if v != nil { return v.loc.span.start }
-	case ^ReturnStatement:      if v != nil { return v.loc.span.start }
-	case ^LabeledStatement:     if v != nil { return v.loc.span.start }
-	case ^BreakStatement:       if v != nil { return v.loc.span.start }
-	case ^ContinueStatement:    if v != nil { return v.loc.span.start }
-	case ^IfStatement:          if v != nil { return v.loc.span.start }
-	case ^SwitchStatement:      if v != nil { return v.loc.span.start }
-	case ^ThrowStatement:       if v != nil { return v.loc.span.start }
-	case ^TryStatement:         if v != nil { return v.loc.span.start }
-	case ^WhileStatement:       if v != nil { return v.loc.span.start }
-	case ^DoWhileStatement:     if v != nil { return v.loc.span.start }
-	case ^ForStatement:         if v != nil { return v.loc.span.start }
-	case ^ForInStatement:       if v != nil { return v.loc.span.start }
-	case ^ForOfStatement:       if v != nil { return v.loc.span.start }
-	case ^VariableDeclaration:  if v != nil { return v.loc.span.start }
-	case ^FunctionDeclaration:  if v != nil { return v.loc.span.start }
-	case ^ClassDeclaration:     if v != nil { return v.loc.span.start }
+	case ^ExpressionStatement:  if v != nil { return v.loc.start }
+	case ^BlockStatement:       if v != nil { return v.loc.start }
+	case ^EmptyStatement:       if v != nil { return v.loc.start }
+	case ^DebuggerStatement:    if v != nil { return v.loc.start }
+	case ^WithStatement:        if v != nil { return v.loc.start }
+	case ^ReturnStatement:      if v != nil { return v.loc.start }
+	case ^LabeledStatement:     if v != nil { return v.loc.start }
+	case ^BreakStatement:       if v != nil { return v.loc.start }
+	case ^ContinueStatement:    if v != nil { return v.loc.start }
+	case ^IfStatement:          if v != nil { return v.loc.start }
+	case ^SwitchStatement:      if v != nil { return v.loc.start }
+	case ^ThrowStatement:       if v != nil { return v.loc.start }
+	case ^TryStatement:         if v != nil { return v.loc.start }
+	case ^WhileStatement:       if v != nil { return v.loc.start }
+	case ^DoWhileStatement:     if v != nil { return v.loc.start }
+	case ^ForStatement:         if v != nil { return v.loc.start }
+	case ^ForInStatement:       if v != nil { return v.loc.start }
+	case ^ForOfStatement:       if v != nil { return v.loc.start }
+	case ^VariableDeclaration:  if v != nil { return v.loc.start }
+	case ^FunctionDeclaration:  if v != nil { return v.loc.start }
+	case ^ClassDeclaration:     if v != nil { return v.loc.start }
 	}
 	return 0
 }
@@ -1702,7 +1702,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// shebang, comments, or whitespace) to match ESTree/OXC/Acorn semantics.
 	// `cur_loc` would return the start of the FIRST token, which skips over
 	// leading comments and shebang lines.
-	program.loc = Loc{span = Span{start = 0, end = 0}}
+	program.loc = Loc{start = 0, end = 0}
 	program.type = source_type
 
 	// --force-strict (CLI) opts into strict mode regardless of the body's
@@ -1790,7 +1790,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 				bump_append(&program.body, expr_stmt_s)
 				eat(p)
 				match_semicolon_or_asi(p)
-				expr_stmt.loc.span.end = prev_end_offset(p)
+				expr_stmt.loc.end = prev_end_offset(p)
 			} else {
 				parse_program_item(p, &program.body, loop_start_offset)
 			}
@@ -1814,7 +1814,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// in .js / .jsx mode; `prev_end_offset` would stop at the last consumed
 	// token, which may be earlier when the file has trailing newlines or
 	// comments.
-	program.loc.span.end = u32(p.source_len)
+	program.loc.end = u32(p.source_len)
 
 	// OXC-TS quirk: in .ts / .tsx mode OXC sets program.start = body[0].start
 	// (skipping leading comments/whitespace), while still ending at source.length.
@@ -1822,8 +1822,8 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// effect on .js / .jsx where program.start stays 0.
 	if (p.lang == .TS || p.lang == .TSX) && len(program.body) > 0 {
 		first_loc := get_statement_loc(program.body[0])
-		if first_loc.span.start != 0 || first_loc.span.end != 0 {
-			program.loc.span.start = first_loc.span.start
+		if first_loc.start != 0 || first_loc.end != 0 {
+			program.loc.start = first_loc.start
 		}
 	}
 
@@ -1973,7 +1973,7 @@ check_retroactive_strict_escapes :: proc(p: ^Parser, body: []^Statement) {
 		sl, is_str := expr^.(^StringLiteral)
 		if !is_str { continue }
 		if string_raw_has_forbidden_escape(sl.raw) {
-			report_error_at(p, LexerLoc(sl.loc.span.start),
+			report_error_at(p, LexerLoc(sl.loc.start),
 				"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 	}
@@ -2014,7 +2014,7 @@ check_arrow_body_strict_prologue :: proc(p: ^Parser, body: []^Statement) {
 		if !is_str { break }
 		if i == use_strict_idx { continue } // skip the directive itself
 		if string_raw_has_forbidden_escape(sl.raw) {
-			report_error_at(p, LexerLoc(sl.loc.span.start),
+			report_error_at(p, LexerLoc(sl.loc.start),
 				"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 	}
@@ -2434,7 +2434,7 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Expected '}' at end of block")
 	}
 
-	block.loc.span.end = prev_end_offset(p)
+	block.loc.end = prev_end_offset(p)
 	// §14.2.1 — inline lex/var clash check on this block's body.
 	// is_block_scope=true: BlockStatement is its own lexical scope and
 	// sloppy plain FunctionDeclarations follow Annex B.3.2. Two callers
@@ -2458,7 +2458,7 @@ parse_empty_statement :: proc(p: ^Parser) -> ^Statement {
 
 	empty, empty_s := new_stmt(p, EmptyStatement)
 	empty.loc = start
-	empty.loc.span.end = prev_end_offset(p)
+	empty.loc.end = prev_end_offset(p)
 	return empty_s
 }
 
@@ -2542,7 +2542,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			if p.strict_mode {
 				if is_eval_or_arguments(e.name) || is_strict_reserved_binding_name(e.name) {
 					msg := fmt.tprintf("'%s' cannot be used as a label identifier in strict mode", e.name)
-					report_error_at(p, LexerLoc(e.loc.span.start), msg)
+					report_error_at(p, LexerLoc(e.loc.start), msg)
 				}
 			}
 			// §12.1.1 — `await` is reserved as a LabelIdentifier in module code.
@@ -2553,7 +2553,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 					else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
 				}
 				if await_reserved {
-					report_error_at(p, LexerLoc(e.loc.span.start), "'await' cannot be used as a label identifier in module / async context")
+					report_error_at(p, LexerLoc(e.loc.start), "'await' cannot be used as a label identifier in module / async context")
 				}
 			}
 
@@ -2584,7 +2584,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			p.block_depth -= 1
 			pop(&p.label_stack)
 			pop(&p.label_is_iteration)
-			labeled.loc.span.end = prev_end_offset(p)
+			labeled.loc.end = prev_end_offset(p)
 			// ECMA-262 §14.13.1 - LabelledItem : FunctionDeclaration |
 			// Statement. Statement excludes LexicalDeclaration,
 			// ClassDeclaration, AsyncFunctionDeclaration,
@@ -2665,7 +2665,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	expect_semicolon_or_asi(p)
 
-	expr_stmt.loc.span.end = prev_end_offset(p)
+	expr_stmt.loc.end = prev_end_offset(p)
 	return stmt
 }
 
@@ -2806,7 +2806,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	// same nesting level) is caught by the top-level statement loop's
 	// unknown-token recovery instead.
 
-	if_.loc.span.end = prev_end_offset(p)
+	if_.loc.end = prev_end_offset(p)
 	return if__s
 }
 
@@ -2842,7 +2842,7 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 	while_.loc = start
 	while_.test = test
 	while_.body = body
-	while_.loc.span.end = prev_end_offset(p)
+	while_.loc.end = prev_end_offset(p)
 
 	return while__s
 }
@@ -2892,7 +2892,7 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 	do_.loc = start
 	do_.body = body
 	do_.test = test
-	do_.loc.span.end = prev_end_offset(p)
+	do_.loc.end = prev_end_offset(p)
 
 	return do__s
 }
@@ -3175,8 +3175,8 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					// CoverParenthesizedExpression (`(async)`), so the
 					// lookahead doesn't fire. A backward-walk to `(` would
 					// false-positive on the for-head's own opening paren.
-					span_start := id.loc.span.start
-					span_end := id.loc.span.end
+					span_start := id.loc.start
+					span_end := id.loc.end
 					has_escape := false
 					paren_wrapped := false
 					if p.lexer != nil && int(span_end) <= len(p.lexer.source_bytes) {
@@ -3301,7 +3301,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				if _, ok := d_id.(^ArrayPattern); ok { is_pattern = true }
 				if _, ok := d_id.(^ObjectPattern); ok { is_pattern = true }
 				if is_pattern {
-					report_error_at(p, LexerLoc(left_decl.loc.span.start),
+					report_error_at(p, LexerLoc(left_decl.loc.start),
 						"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
 				}
 			}
@@ -3325,7 +3325,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			if is_in { kind_str = "in" }
 			if len(left_decl.declarations) > 1 {
 				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
-				report_error_at(p, LexerLoc(left_decl.loc.span.start), msg)
+				report_error_at(p, LexerLoc(left_decl.loc.start), msg)
 			} else {
 				annex_b_ok := is_in && !p.strict_mode &&
 				              left_decl.kind == .Var &&
@@ -3339,7 +3339,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					for d in left_decl.declarations {
 						if _, have_init := d.init.(^Expression); have_init {
 							msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_str)
-							report_error_at(p, LexerLoc(left_decl.loc.span.start), msg)
+							report_error_at(p, LexerLoc(left_decl.loc.start), msg)
 							break // one diagnostic per head, matching the checker
 						}
 					}
@@ -3359,7 +3359,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				}
 				if has_type_ann {
 					msg := fmt.tprintf("The left-hand side of a 'for...%s' statement cannot use a type annotation.", kind_str)
-					report_error_at(p, LexerLoc(left_decl.loc.span.start), msg)
+					report_error_at(p, LexerLoc(left_decl.loc.start), msg)
 				}
 			}
 		}
@@ -3409,7 +3409,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 			for_in.right = right
 			for_in.body = body
-			for_in.loc.span.end = prev_end_offset(p)
+			for_in.loc.end = prev_end_offset(p)
 			return for_in_s
 		} else {
 			// for-of or for-await-of - use separate fields
@@ -3423,7 +3423,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			for_of.right = right
 			for_of.body = body
 			for_of.await = await
-			for_of.loc.span.end = prev_end_offset(p)
+			for_of.loc.end = prev_end_offset(p)
 			return for_of_s
 		}
 	}
@@ -3499,7 +3499,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	for_.test = test
 	for_.update = update
 	for_.body = body
-	for_.loc.span.end = prev_end_offset(p)
+	for_.loc.end = prev_end_offset(p)
 
 	return for__s
 }
@@ -3541,7 +3541,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	ret, ret_s := new_stmt(p, ReturnStatement)
 	ret.loc = start
 	ret.argument = argument
-	ret.loc.span.end = prev_end_offset(p)
+	ret.loc.end = prev_end_offset(p)
 
 	return ret_s
 }
@@ -3617,7 +3617,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 		// (e.g. `break \u0069f;`) is a Syntax Error (§12.7.2).
 		report_escaped_reserved_word(p)
 		lbl_loc := cur_loc(p)
-		label_loc = LexerLoc(lbl_loc.span.start)
+		label_loc = LexerLoc(lbl_loc.start)
 		label = LabelIdentifier{
 			loc  = lbl_loc,
 			name = cur_value(p),
@@ -3643,7 +3643,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 			report_error_at(p, label_loc, msg)
 		}
 	} else if !p.in_loop && !p.in_switch && !p.in_ambient {
-		report_error_at(p, LexerLoc(start.span.start), "'break' must be inside a loop or switch")
+		report_error_at(p, LexerLoc(start.start), "'break' must be inside a loop or switch")
 	}
 
 	// §14.9 - BreakStatement requires a `;` (or ASI).
@@ -3652,7 +3652,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	break_, break__s := new_stmt(p, BreakStatement)
 	break_.loc = start
 	break_.label = label
-	break_.loc.span.end = prev_end_offset(p)
+	break_.loc.end = prev_end_offset(p)
 
 	return break__s
 }
@@ -3675,7 +3675,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 		// (e.g. `continue \u0069f;`) is a Syntax Error (§12.7.2).
 		report_escaped_reserved_word(p)
 		lbl_loc := cur_loc(p)
-		label_loc = LexerLoc(lbl_loc.span.start)
+		label_loc = LexerLoc(lbl_loc.start)
 		label = LabelIdentifier{
 			loc  = lbl_loc,
 			name = cur_value(p),
@@ -3701,7 +3701,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 			report_error_at(p, label_loc, msg)
 		}
 	} else if !p.in_loop && !p.in_ambient {
-		report_error_at(p, LexerLoc(start.span.start), "'continue' must be inside a loop")
+		report_error_at(p, LexerLoc(start.start), "'continue' must be inside a loop")
 	}
 
 	// §14.8 - ContinueStatement requires a `;` (or ASI).
@@ -3710,7 +3710,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	cont, cont_s := new_stmt(p, ContinueStatement)
 	cont.loc = start
 	cont.label = label
-	cont.loc.span.end = prev_end_offset(p)
+	cont.loc.end = prev_end_offset(p)
 
 	return cont_s
 }
@@ -3769,7 +3769,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Expected '}' at end of switch statement")
 	}
 
-	switch_.loc.span.end = prev_end_offset(p)
+	switch_.loc.end = prev_end_offset(p)
 	// §14.12.1 - all SwitchCase consequents share a single block-scope
 	// (the switch's StatementList). Flatten the per-case lists into one
 	// slice and queue it for post-parse verification. Probe relevance
@@ -3850,7 +3850,7 @@ parse_switch_case :: proc(p: ^Parser) -> ^SwitchCase {
 		}
 	}
 
-	case_.loc.span.end = prev_end_offset(p)
+	case_.loc.end = prev_end_offset(p)
 	return case_
 }
 
@@ -3898,7 +3898,7 @@ parse_try_statement :: proc(p: ^Parser) -> ^Statement {
 		report_error(p, "Try statement must have catch or finally clause")
 	}
 
-	try_.loc.span.end = prev_end_offset(p)
+	try_.loc.end = prev_end_offset(p)
 	return try__s
 }
 
@@ -3956,7 +3956,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 		param = param,
 		body  = body_ptr^,
 	}
-	clause.loc.span.end = prev_end_offset(p)
+	clause.loc.end = prev_end_offset(p)
 
 	return clause
 }
@@ -3983,7 +3983,7 @@ parse_throw_statement :: proc(p: ^Parser) -> ^Statement {
 	throw_, throw__s := new_stmt(p, ThrowStatement)
 	throw_.loc = start
 	throw_.argument = argument
-	throw_.loc.span.end = prev_end_offset(p)
+	throw_.loc.end = prev_end_offset(p)
 
 	return throw__s
 }
@@ -3996,7 +3996,7 @@ parse_debugger_statement :: proc(p: ^Parser) -> ^Statement {
 
 	debugger, debugger_s := new_stmt(p, DebuggerStatement)
 	debugger.loc = start
-	debugger.loc.span.end = prev_end_offset(p)
+	debugger.loc.end = prev_end_offset(p)
 
 	return debugger_s
 }
@@ -4010,7 +4010,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	// case) so parser-only snaps reject the language/statements/with
 	// strict-mode cluster.
 	if p.strict_mode {
-		report_error_at(p, LexerLoc(start.span.start), "'with' statements are not allowed in strict mode")
+		report_error_at(p, LexerLoc(start.start), "'with' statements are not allowed in strict mode")
 	}
 
 	if !expect_token(p, .LParen) {
@@ -4048,7 +4048,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	with_.loc = start
 	with_.object = object
 	with_.body = body
-	with_.loc.span.end = prev_end_offset(p)
+	with_.loc.end = prev_end_offset(p)
 
 	return with__s
 }
@@ -4380,7 +4380,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// already been evaluated (or contain destructuring / defaults), so the
 	// spec rejects the combination outright.
 	if body_strict && force_non_simple {
-		report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		report_error_at(p, LexerLoc(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 	}
 	// §13.1.1 — retroactive strict-mode binding check on params for
 	// functions whose body opted into strict via a `"use strict"`
@@ -4402,7 +4402,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if id_v, has_id := id.?; has_id && (strict_for_check || async) && !p.in_ambient && !p.source_is_dts {
 		if is_eval_or_arguments(id_v.name) {
 			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
-			report_error_at(p, LexerLoc(id_v.loc.span.start), msg)
+			report_error_at(p, LexerLoc(id_v.loc.start), msg)
 		}
 	}
 	// Retroactive strict-reserved function name check when body
@@ -4415,7 +4415,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		}
 		if is_reserved {
 			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
-			report_error_at(p, LexerLoc(id_v.loc.span.start), msg)
+			report_error_at(p, LexerLoc(id_v.loc.start), msg)
 		}
 	}
 
@@ -4433,19 +4433,19 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if is_ts_no_body && allow_ts_mode(p) {
 		for pr in params {
 			if _, has := pr.default_val.(^Expression); has {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"A parameter initializer is only allowed in a function or constructor implementation.")
 			}
 			if pr.accessibility != .None {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"Parameter properties are only allowed in the implementation constructor.")
 			}
 			if pr.readonly {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"'readonly' parameter properties are only allowed in the implementation constructor.")
 			}
 			if pr.override_ {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"'override' parameter properties are only allowed in the implementation constructor.")
 			}
 		}
@@ -4457,7 +4457,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if !is_ts_no_body && allow_ts_mode(p) {
 		for pr in params {
 			if pr.optional_destructuring {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"A binding pattern parameter cannot be optional in an implementation signature.")
 			}
 		}
@@ -4474,7 +4474,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		expr.type_parameters = type_parameters
 		expr.return_type = return_type
 		expr.no_body = is_ts_no_body
-		expr.loc.span.end = prev_end_offset(p)
+		expr.loc.end = prev_end_offset(p)
 
 		// For function expressions, wrap in ExpressionStatement. The
 		// .expression field is an ^Expression (a union ptr, not a raw ptr
@@ -4484,7 +4484,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		expr_stmt := new_node(p, ExpressionStatement)
 		expr_stmt.loc = start
 		expr_stmt.expression = expr_e
-		expr_stmt.loc.span.end = prev_end_offset(p)
+		expr_stmt.loc.end = prev_end_offset(p)
 
 		stmt := new_node(p, Statement)
 		stmt^ = expr_stmt
@@ -4503,7 +4503,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		return_type = return_type,
 		no_body = is_ts_no_body,
 	}
-	decl.expr.loc.span.end = prev_end_offset(p)
+	decl.expr.loc.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -4592,7 +4592,7 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 			if is_opt {
 				seen_optional = true
 			} else if seen_optional && param.default_val == nil {
-				report_error_at(p, LexerLoc(param.loc.span.start),
+				report_error_at(p, LexerLoc(param.loc.start),
 					"A required parameter cannot follow an optional parameter.")
 			}
 		}
@@ -4633,7 +4633,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	// modifiers before the binding. Save them on the FunctionParameter so
 	// the emitter can wrap the param in TSParameterProperty when set.
 	if allow_ts_mode(p) {
-		mod_start := cur_loc(p).span.start  // position of first modifier (or binding if none)
+		mod_start := cur_loc(p).start  // position of first modifier (or binding if none)
 		found_modifier := false
 		param_access_order := -1
 		param_readonly_order := -1
@@ -4716,17 +4716,17 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			ann := parse_ts_type_annotation(p)
 			if ident, ok := arg_pattern.(^Identifier); ok {
 				ident.type_annotation = ann
-				if ann != nil && ann.loc.span.end > ident.loc.span.end {
-					ident.loc.span.end = ann.loc.span.end
+				if ann != nil && ann.loc.end > ident.loc.end {
+					ident.loc.end = ann.loc.end
 				}
 			}
 		}
-		rest.loc.span.end = prev_end_offset(p)
+		rest.loc.end = prev_end_offset(p)
 
 		// Store RestElement as the pattern
 		param.pattern = rest
 		// Rest parameters cannot have default values
-		param.loc.span.end = prev_end_offset(p)
+		param.loc.end = prev_end_offset(p)
 		return param
 	}
 
@@ -4774,18 +4774,18 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		#partial switch t in pattern {
 		case ^Identifier:
 			t.type_annotation = ann
-			if ann != nil && ann.loc.span.end > t.loc.span.end {
-				t.loc.span.end = ann.loc.span.end
+			if ann != nil && ann.loc.end > t.loc.end {
+				t.loc.end = ann.loc.end
 			}
 		case ^ObjectPattern:
 			t.type_annotation = ann
-			if ann != nil && ann.loc.span.end > t.loc.span.end {
-				t.loc.span.end = ann.loc.span.end
+			if ann != nil && ann.loc.end > t.loc.end {
+				t.loc.end = ann.loc.end
 			}
 		case ^ArrayPattern:
 			t.type_annotation = ann
-			if ann != nil && ann.loc.span.end > t.loc.span.end {
-				t.loc.span.end = ann.loc.span.end
+			if ann != nil && ann.loc.end > t.loc.end {
+				t.loc.end = ann.loc.end
 			}
 		case:
 			// Other Pattern variants (AssignmentPattern, RestElement,
@@ -4819,7 +4819,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		report_error(p, "A parameter cannot have a question mark and an initializer.")
 	}
 
-	param.loc.span.end = prev_end_offset(p)
+	param.loc.end = prev_end_offset(p)
 	return param
 }
 
@@ -4942,7 +4942,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	if body_use_strict {
 		for str_lit in prologue_raws {
 			if str_lit != nil && string_raw_has_forbidden_escape(str_lit.raw) {
-				report_error_at(p, LexerLoc(str_lit.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+				report_error_at(p, LexerLoc(str_lit.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 			}
 		}
 	}
@@ -4975,7 +4975,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		report_error(p, "Expected '}' at end of function body")
 	}
 
-	body.loc.span.end = prev_end_offset(p)
+	body.loc.end = prev_end_offset(p)
 	// §14.2.1 — inline lex/var clash check on this function body.
 	// is_block_scope=false: a FunctionBody is its own function-scope,
 	// so a sloppy plain FunctionDeclaration inside it hoists as .Var
@@ -5091,7 +5091,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		if sc, have := super_class.(^Expression); have && sc != nil {
 			if arrow, is_arrow := sc^.(^ArrowFunctionExpression); is_arrow && arrow != nil {
 				// Check for parentheses via backward source scan.
-				arrow_start := int(arrow.loc.span.start)
+				arrow_start := int(arrow.loc.start)
 				paren_wrapped := false
 				if p.lexer != nil && arrow_start > 0 {
 					pi := arrow_start - 1
@@ -5157,7 +5157,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		type_parameters      = type_parameters,
 		implements           = implements_list,
 	}
-	decl.expr.loc.span.end = prev_end_offset(p)
+	decl.expr.loc.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -5216,7 +5216,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 		report_error(p, "Expected '}' at end of class body")
 	}
 
-	body.loc.span.end = prev_end_offset(p)
+	body.loc.end = prev_end_offset(p)
 	report_ts_overload_chain_errors(p, body.body[:])
 	report_private_class_member_errors(p, body.body[:], p.class_is_abstract)
 	report_duplicate_class_member_errors(p, body.body[:])
@@ -5280,7 +5280,7 @@ resolve_pending_private_refs :: proc(p: ^Parser, elements: []ClassElement, pendi
 		for i in 0..<len(p.pending_priv_refs) {
 			ref := p.pending_priv_refs[i]
 			msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", ref.name)
-			report_error_at(p, LexerLoc(ref.loc.span.start), msg)
+			report_error_at(p, LexerLoc(ref.loc.start), msg)
 		}
 		clear(&p.pending_priv_refs)
 	}
@@ -5345,7 +5345,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 		}
 		val, have := elem.value.?; if !have || val == nil { has_non_method = true; continue }
 		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { has_non_method = true; continue }
-		if fn.body.loc.span.end > fn.body.loc.span.start {
+		if fn.body.loc.end > fn.body.loc.start {
 			has_any_impl = true; break
 		}
 		if elem.kind == .Constructor { has_ctor_sig = true }
@@ -5370,7 +5370,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 			if (elem.kind != .Method && elem.kind != .Constructor) || elem.abstract { continue }
 			val, have := elem.value.?; if !have || val == nil { continue }
 			fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
-			if fn.body.loc.span.end <= fn.body.loc.span.start {
+			if fn.body.loc.end <= fn.body.loc.start {
 				sig_count += 1
 				// Accessibility modifiers or other decorations suggest this is
 				// a deliberate overload/ambient pattern.
@@ -5454,7 +5454,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 			continue
 		}
 
-		has_body := fn.body.loc.span.end > fn.body.loc.span.start
+		has_body := fn.body.loc.end > fn.body.loc.start
 		if chain_active {
 			if has_body {
 				if name != chain_name {
@@ -5489,8 +5489,8 @@ report_overload_flush :: proc(p: ^Parser, body: []ClassElement, start, end_excl:
 		if (elem.kind != .Method && elem.kind != .Constructor) || elem.abstract { continue }
 		val, have := elem.value.?; if !have || val == nil { continue }
 		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
-		if fn.body.loc.span.end > fn.body.loc.span.start { continue }
-		report_error_at(p, LexerLoc(elem.loc.span.start),
+		if fn.body.loc.end > fn.body.loc.start { continue }
+		report_error_at(p, LexerLoc(elem.loc.start),
 			"Function implementation is missing or not immediately following the declaration.")
 	}
 }
@@ -5570,14 +5570,14 @@ report_ts2309_export_assignment :: proc(p: ^Parser, body: []^Statement) {
 		if stmt == nil { continue }
 		#partial switch v in stmt^ {
 		case ^ExportNamedDeclaration:
-			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+			report_error_at(p, LexerLoc(v.loc.start), msg)
 		case ^ExportDefaultDeclaration:
-			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+			report_error_at(p, LexerLoc(v.loc.start), msg)
 		case ^ExportAllDeclaration:
-			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+			report_error_at(p, LexerLoc(v.loc.start), msg)
 		case ^TSExportAssignment:
 			if has_regular || assign_count > 1 {
-				report_error_at(p, LexerLoc(v.loc.span.start), msg)
+				report_error_at(p, LexerLoc(v.loc.start), msg)
 			}
 		}
 	}
@@ -5596,11 +5596,11 @@ report_ts_ambient_function_errors :: proc(p: ^Parser, body: []^Statement) {
 		case ^FunctionDeclaration:
 			if v != nil {
 				if v.generator {
-					report_error_at(p, LexerLoc(v.loc.span.start),
+					report_error_at(p, LexerLoc(v.loc.start),
 						"Generators are not allowed in an ambient context.")
 				}
 				if v.async {
-					report_error_at(p, LexerLoc(v.loc.span.start),
+					report_error_at(p, LexerLoc(v.loc.start),
 						"'async' modifier cannot be used in an ambient context.")
 				}
 			}
@@ -5610,11 +5610,11 @@ report_ts_ambient_function_errors :: proc(p: ^Parser, body: []^Statement) {
 				if decl_stmt, has := v.declaration.?; has && decl_stmt != nil {
 					if fn, ok := decl_stmt^.(^FunctionDeclaration); ok && fn != nil {
 						if fn.generator {
-							report_error_at(p, LexerLoc(fn.loc.span.start),
+							report_error_at(p, LexerLoc(fn.loc.start),
 								"Generators are not allowed in an ambient context.")
 						}
 						if fn.async {
-							report_error_at(p, LexerLoc(fn.loc.span.start),
+							report_error_at(p, LexerLoc(fn.loc.start),
 								"'async' modifier cannot be used in an ambient context.")
 						}
 					}
@@ -5669,7 +5669,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 				if name != chain_name {
 					// TS2389: impl name doesn't match overload chain.
 					msg := fmt.tprintf("Function implementation name must be '%s'.", chain_name)
-					report_error_at(p, LexerLoc(fn.expr.loc.span.start), msg)
+					report_error_at(p, LexerLoc(fn.expr.loc.start), msg)
 				}
 				chain_active = false
 			} else {
@@ -5679,7 +5679,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 					report_error_at(p, LexerLoc(chain_start_loc),
 						"Function implementation is missing or not immediately following the declaration.")
 					chain_name = name
-					chain_start_loc = fn.expr.loc.span.start
+					chain_start_loc = fn.expr.loc.start
 				}
 				// Same name: chain continues.
 			}
@@ -5688,7 +5688,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 				// Start new chain.
 				chain_active = true
 				chain_name = name
-				chain_start_loc = fn.expr.loc.span.start
+				chain_start_loc = fn.expr.loc.start
 			}
 		}
 	}
@@ -5725,7 +5725,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 			if name2 == "" { continue }
 			entry := amb_seen[name2] or_else AmbState{}
 			if entry.has_ambient && entry.has_nonamb {
-				report_error_at(p, LexerLoc(fn2.expr.loc.span.start),
+				report_error_at(p, LexerLoc(fn2.expr.loc.start),
 					"Overload signatures must all be ambient or non-ambient.")
 				delete_key(&amb_seen, name2)
 			}
@@ -5754,7 +5754,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 		if id2, has2 := fn2.expr.id.?; has2 { name2 = id2.name }
 		if name2 == "" { continue }
 		if impl_count[name2] >= 2 {
-			report_error_at(p, LexerLoc(fn2.expr.loc.span.start),
+			report_error_at(p, LexerLoc(fn2.expr.loc.start),
 				"Duplicate function implementation.")
 		}
 	}
@@ -5816,11 +5816,11 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 		if elem.kind == .Constructor {
 			if val, have := elem.value.?; have && val != nil {
 				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					has_body := fn.body.loc.span.end > fn.body.loc.span.start
+					has_body := fn.body.loc.end > fn.body.loc.start
 					if has_body {
 						constructor_impl_count += 1
 						if constructor_impl_count > 1 {
-							report_error_at(p, LexerLoc(elem.loc.span.start),
+							report_error_at(p, LexerLoc(elem.loc.start),
 								"Duplicate constructor implementations are not allowed.")
 						}
 					}
@@ -5838,7 +5838,7 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 			is_overload := false
 			if val, have := elem.value.?; have && val != nil {
 				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					if fn.body.loc.span.end <= fn.body.loc.span.start {
+					if fn.body.loc.end <= fn.body.loc.start {
 						is_overload = true  // body-less method sig
 					}
 				}
@@ -5918,7 +5918,7 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 
 		if dup {
 			msg := fmt.tprintf("Duplicate identifier '%s'.", name)
-			report_error_at(p, LexerLoc(elem.loc.span.start), msg)
+			report_error_at(p, LexerLoc(elem.loc.start), msg)
 		}
 	}
 }
@@ -5991,9 +5991,9 @@ report_duplicate_interface_member_errors :: proc(p: ^Parser, members: []^TSSigna
 			loc := u32(0)
 			if key != nil {
 				#partial switch v in key^ {
-				case ^Identifier: loc = v.loc.span.start
-				case ^StringLiteral: loc = v.loc.span.start
-				case ^NumericLiteral: loc = v.loc.span.start
+				case ^Identifier: loc = v.loc.start
+				case ^StringLiteral: loc = v.loc.start
+				case ^NumericLiteral: loc = v.loc.start
 				}
 			}
 			msg := fmt.tprintf("Duplicate identifier '%s'.", name)
@@ -6065,7 +6065,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		}
 
 		// §15.7.1 — at most one constructor. TS overload signatures
-		// have `FunctionBody.loc.span.start == 0` (body ended with
+		// have `FunctionBody.loc.start == 0` (body ended with
 		// `;`, `parse_function_body` was not called). Real
 		// constructors have a non-zero body start (from `{`).
 		// §15.7.1 "A class definition can have at most one constructor."
@@ -6075,7 +6075,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		if !allow_ts_mode(p) && !elem.static && !elem.computed && elem.kind == .Constructor {
 			if val, has_val := elem.value.?; has_val && val != nil {
 				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					if fn.body.loc.span.end > fn.body.loc.span.start {
+					if fn.body.loc.end > fn.body.loc.start {
 						constructor_count += 1
 						if constructor_count > 1 {
 							report_error(p, "Multiple constructor implementations are not allowed.")
@@ -6131,14 +6131,14 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		// overload signatures were skipped above and don't enter `seen`.
 		if dup {
 			msg := fmt.tprintf("Duplicate private name '#%s'", name)
-			report_error_at(p, LexerLoc(elem.loc.span.start), msg)
+			report_error_at(p, LexerLoc(elem.loc.start), msg)
 		}
 		// §15.7.1 — static and instance elements cannot share the same
 		// private name. Promoted from the semantic checker so parser-only
 		// snaps catch the test262 private-static-mismatch cluster.
 		if static_mismatch {
 			msg := fmt.tprintf("Duplicate private name '#%s'. Static and instance elements cannot share the same private name.", name)
-			report_error_at(p, LexerLoc(elem.loc.span.start), msg)
+			report_error_at(p, LexerLoc(elem.loc.start), msg)
 		}
 	}
 }
@@ -6146,7 +6146,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
-	if len(decorators) > 0 { start.span.start = decorators[0].loc.span.start }
+	if len(decorators) > 0 { start.start = decorators[0].loc.start }
 
 	// Check for static block: static { ... }
 	if is_token(p, .Static) && is_next_token(p, .LBrace) {
@@ -6468,7 +6468,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		} else {
 			big.value = current.value
 		}
-		big.loc.span.end = prev_end_offset(p)
+		big.loc.end = prev_end_offset(p)
 		key = big_e
 		eat(p)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
@@ -6769,7 +6769,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.readonly = is_readonly
 		elem.override_ = is_override
 
-		elem.loc.span.end = prev_end_offset(p)
+		elem.loc.end = prev_end_offset(p)
 		return elem
 	}
 
@@ -6878,9 +6878,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	if kind == .Get || kind == .Set {
 		key_loc: LexerLoc
 		if key != nil {
-			key_loc = LexerLoc(get_expression_loc(key).span.start)
+			key_loc = LexerLoc(get_expression_loc(key).start)
 		} else {
-			key_loc = LexerLoc(start.span.start)
+			key_loc = LexerLoc(start.start)
 		}
 		enforce_accessor_param_shape(p, kind == .Set, params[:], key_loc)
 	}
@@ -7024,7 +7024,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// strict_mode restore above because parse_function_body sets it
 		// just before returning.
 		if p.last_body_strict && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(paren_loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_error_at(p, LexerLoc(paren_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 
 		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
@@ -7066,20 +7066,20 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	if fn_expr.no_body && allow_ts_mode(p) {
 		for pr in params {
 			if _, has := pr.default_val.(^Expression); has {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"A parameter initializer is only allowed in a function or constructor implementation.")
 			}
 			if pr.accessibility != .None {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"Parameter properties are only allowed in the implementation constructor.")
 			}
 			if pr.readonly {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"'readonly' parameter properties are only allowed in the implementation constructor.")
 			}
 		}
 	}
-	fn_expr.loc.span.end = prev_end_offset(p)
+	fn_expr.loc.end = prev_end_offset(p)
 
 	elem := new_node(p, ClassElement)
 	elem.loc = start
@@ -7102,7 +7102,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// methods from overload signatures.
 	elem.optional = field_optional
 
-	elem.loc.span.end = prev_end_offset(p)
+	elem.loc.end = prev_end_offset(p)
 	return elem
 }
 
@@ -7194,7 +7194,7 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	}
 	static_block.generator = false
 	static_block.async = false
-	static_block.loc.span.end = prev_end_offset(p)
+	static_block.loc.end = prev_end_offset(p)
 
 	elem := new_node(p, ClassElement)
 	elem.loc = start
@@ -7204,7 +7204,7 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	elem.computed = false
 	elem.static = false  // Not marked as static - the kind implies it
 
-	elem.loc.span.end = prev_end_offset(p)
+	elem.loc.end = prev_end_offset(p)
 	return elem
 }
 
@@ -7290,7 +7290,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		}
 		decl.declarations = make([dynamic]VariableDeclarator, 0, 2, p.allocator)
 		if consume_semi { match_semicolon_or_asi(p) }
-		decl.loc.span.end = prev_end_offset(p)
+		decl.loc.end = prev_end_offset(p)
 		stmt := new_node(p, Statement); stmt^ = decl; return stmt
 	}
 
@@ -7371,10 +7371,10 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			}
 		}
 		if let_seen {
-			report_error_at(p, LexerLoc(decl.loc.span.start), "'let' is disallowed as a lexically bound name")
+			report_error_at(p, LexerLoc(decl.loc.start), "'let' is disallowed as a lexically bound name")
 		} else if dup_name != "" {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", dup_name)
-			report_error_at(p, LexerLoc(decl.loc.span.start), msg)
+			report_error_at(p, LexerLoc(decl.loc.start), msg)
 		}
 	}
 
@@ -7456,7 +7456,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		}
 	}
 
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 	stmt := new_node(p, Statement)
 	stmt^ = decl
 	return stmt
@@ -7547,7 +7547,7 @@ report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
 		if e == nil { return }
 		if is_eval_or_arguments(e.name) {
 			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
-			report_error_at(p, LexerLoc(e.loc.span.start), msg)
+			report_error_at(p, LexerLoc(e.loc.start), msg)
 		}
 	case ^ParenthesizedExpression:
 		if e != nil { report_strict_eval_arguments_in_target(p, e.expression) }
@@ -7618,10 +7618,10 @@ walk_strict_param_binding :: proc(p: ^Parser, pat: Pattern) {
 		if v == nil { return }
 		if is_eval_or_arguments(v.name) {
 			msg := fmt.tprintf("Parameter name '%s' is not allowed in strict mode", v.name)
-			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+			report_error_at(p, LexerLoc(v.loc.start), msg)
 		} else if is_strict_reserved_binding_name(v.name) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-			report_error_at(p, LexerLoc(v.loc.span.start), msg)
+			report_error_at(p, LexerLoc(v.loc.start), msg)
 		}
 	case ^ObjectPattern:
 		if v == nil { return }
@@ -7656,7 +7656,7 @@ check_strict_ts_decl_name :: proc(p: ^Parser, name: string, loc: Loc) {
 	// declaration names even in strict mode (OXC accepts them).
 	if is_strict_reserved_name(name) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", name)
-		report_error_at(p, LexerLoc(loc.span.start), msg)
+		report_error_at(p, LexerLoc(loc.start), msg)
 	}
 }
 
@@ -7683,7 +7683,7 @@ check_ts_primitive_decl_name :: proc(p: ^Parser, kind: string, name: string, loc
 	if !allow_ts_mode(p) { return }
 	if is_ts_primitive_type_name(name) {
 		msg := fmt.tprintf("%s name cannot be '%s'", kind, name)
-		report_error_at(p, LexerLoc(loc.span.start), msg)
+		report_error_at(p, LexerLoc(loc.start), msg)
 	}
 }
 
@@ -7758,7 +7758,7 @@ enforce_accessor_param_shape :: proc(
 		return
 	}
 	param := params[real_idx]
-	param_loc := LexerLoc(param.loc.span.start)
+	param_loc := LexerLoc(param.loc.start)
 	if _, is_rest := param.pattern.(^RestElement); is_rest {
 		report_error_at(p, param_loc, "Setter parameter cannot be a rest element")
 	}
@@ -7835,7 +7835,7 @@ report_duplicate_param_names :: proc(
 					} else {
 						msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", name_i)
 					}
-					report_error_at(p, LexerLoc(fn_loc.span.start), msg)
+					report_error_at(p, LexerLoc(fn_loc.start), msg)
 					return
 				}
 			}
@@ -7860,7 +7860,7 @@ report_duplicate_param_names :: proc(
 				} else {
 					msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i])
 				}
-				report_error_at(p, LexerLoc(fn_loc.span.start), msg)
+				report_error_at(p, LexerLoc(fn_loc.start), msg)
 				return // one diagnostic per call site, matching the checker
 			}
 		}
@@ -7912,18 +7912,18 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 		#partial switch t in pattern {
 		case ^Identifier:
 			t.type_annotation = ann
-			if ann != nil && ann.loc.span.end > t.loc.span.end {
-				t.loc.span.end = ann.loc.span.end
+			if ann != nil && ann.loc.end > t.loc.end {
+				t.loc.end = ann.loc.end
 			}
 		case ^ObjectPattern:
 			t.type_annotation = ann
-			if ann != nil && ann.loc.span.end > t.loc.span.end {
-				t.loc.span.end = ann.loc.span.end
+			if ann != nil && ann.loc.end > t.loc.end {
+				t.loc.end = ann.loc.end
 			}
 		case ^ArrayPattern:
 			t.type_annotation = ann
-			if ann != nil && ann.loc.span.end > t.loc.span.end {
-				t.loc.span.end = ann.loc.span.end
+			if ann != nil && ann.loc.end > t.loc.end {
+				t.loc.end = ann.loc.end
 			}
 		}
 	}
@@ -7986,7 +7986,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 	decl.id = pattern
 	decl.init = init
 	decl.definite = definite
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 
 	return decl
 }
@@ -8475,7 +8475,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
-		report_error_at(p, LexerLoc(id_loc.span.start), msg)
+		report_error_at(p, LexerLoc(id_loc.start), msg)
 		eat(p)
 		ident := new_node(p, Identifier)
 		ident.loc = id_loc
@@ -8582,10 +8582,10 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 			if is_eval_or_arguments(id_name) {
 				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
-				report_error_at(p, LexerLoc(id_loc.span.start), msg)
+				report_error_at(p, LexerLoc(id_loc.start), msg)
 			} else if is_strict_reserved_name(id_name) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
-				report_error_at(p, LexerLoc(id_loc.span.start), msg)
+				report_error_at(p, LexerLoc(id_loc.start), msg)
 			}
 		}
 		eat(p)
@@ -8631,7 +8631,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			rest_ident.loc = rl
 			rest_ident.name = rn
 			rest.argument = rest_ident
-			rest.loc.span.end = rl.span.end
+			rest.loc.end = rl.end
 			eat(p)
 
 			rest_prop := ObjectPatternProperty{
@@ -8680,7 +8680,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			str_lit.loc = loc_from_token(&current)
 			str_lit.value = current.literal.(string) or_else ""
 			str_lit.raw = current.value
-			str_lit.loc.span.end = cur_offset(p) + u32(len(current.value))
+			str_lit.loc.end = cur_offset(p) + u32(len(current.value))
 			key = str_lit
 			eat(p)
 			// String-literal keys require `:` — they cannot be shorthand.
@@ -8699,7 +8699,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			if v, ok := current.literal.(f64); ok {
 				num_lit.value = v
 			}
-			num_lit.loc.span.end = cur_offset(p) + u32(len(current.value))
+			num_lit.loc.end = cur_offset(p) + u32(len(current.value))
 			key = num_lit
 			eat(p)
 		} else if is_token(p, .BigInt) {
@@ -8717,7 +8717,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			} else {
 				big.value = current.value
 			}
-			big.loc.span.end = cur_offset(p) + u32(len(current.value))
+			big.loc.end = cur_offset(p) + u32(len(current.value))
 			key = (^Expression)(big_e)
 			eat(p)
 		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
@@ -8799,7 +8799,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					assign.loc = value_ident.loc
 					assign.left = value_ident
 					assign.right = default_val
-					assign.loc.span.end = prev_end_offset(p)
+					assign.loc.end = prev_end_offset(p)
 
 					prop := ObjectPatternProperty{
 						loc       = prop_start,
@@ -8808,7 +8808,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						computed  = computed,
 						shorthand = false,
 					}
-					prop.loc.span.end = prev_end_offset(p)
+					prop.loc.end = prev_end_offset(p)
 					bump_append(&obj.properties, prop)
 				} else {
 					prop := ObjectPatternProperty{
@@ -8818,7 +8818,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						computed  = computed,
 						shorthand = false,
 					}
-					prop.loc.span.end = value_ident.loc.span.end
+					prop.loc.end = value_ident.loc.end
 					bump_append(&obj.properties, prop)
 				}
 			} else if is_token(p, .LBrace) {
@@ -8839,7 +8839,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					assign.loc = get_pattern_loc(nested)
 					assign.left = nested
 					assign.right = default_val
-					assign.loc.span.end = prev_end_offset(p)
+					assign.loc.end = prev_end_offset(p)
 					val = assign
 				}
 				prop := ObjectPatternProperty{
@@ -8849,7 +8849,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					computed  = computed,
 						shorthand = false,
 				}
-				prop.loc.span.end = prev_end_offset(p)
+				prop.loc.end = prev_end_offset(p)
 				bump_append(&obj.properties, prop)
 			} else if is_token(p, .LBracket) {
 				// Nested array pattern (possibly with default)
@@ -8867,7 +8867,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					assign.loc = get_pattern_loc(nested)
 					assign.left = nested
 					assign.right = default_val
-					assign.loc.span.end = prev_end_offset(p)
+					assign.loc.end = prev_end_offset(p)
 					val = assign
 				}
 				prop := ObjectPatternProperty{
@@ -8877,7 +8877,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					computed  = computed,
 					shorthand = false,
 				}
-				prop.loc.span.end = prev_end_offset(p)
+				prop.loc.end = prev_end_offset(p)
 				bump_append(&obj.properties, prop)
 			} else {
 				report_error(p, "Expected pattern in object pattern value")
@@ -8906,21 +8906,21 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 						if is_strict_reserved_binding_name(v.name) {
 							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-							report_error_at(p, LexerLoc(v.loc.span.start), msg)
+							report_error_at(p, LexerLoc(v.loc.start), msg)
 						}
 					}
 					left_ident := new_node(p, Identifier)
 					left_ident.loc = v.loc
 					left_ident.name = v.name
 					assign := new_node(p, AssignmentPattern)
-					// Shorthand: prop_start == v.loc.span.start in practice
+					// Shorthand: prop_start == v.loc.start in practice
 					// (the key IS the LHS), but spell it out through
 					// left_ident.loc to stay consistent with the other three
 					// AssignmentPattern sites in parse_object_pattern.
 					assign.loc = left_ident.loc
 					assign.left = left_ident
 					assign.right = default_val
-					assign.loc.span.end = prev_end_offset(p)
+					assign.loc.end = prev_end_offset(p)
 
 					prop := ObjectPatternProperty{
 						loc       = prop_start,
@@ -8929,7 +8929,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						computed  = computed,
 						shorthand = true,
 					}
-					prop.loc.span.end = prev_end_offset(p)
+					prop.loc.end = prev_end_offset(p)
 					bump_append(&obj.properties, prop)
 				}
 			}
@@ -8950,7 +8950,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					if p.strict_mode && !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 						if is_strict_reserved_binding_name(v.name) {
 							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-							report_error_at(p, LexerLoc(v.loc.span.start), msg)
+							report_error_at(p, LexerLoc(v.loc.start), msg)
 						}
 					}
 					// `yield` is reserved in generator bodies; `await` in async.
@@ -8978,7 +8978,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 						computed  = false,
 						shorthand = true,
 					}
-					prop.loc.span.end = left_ident.loc.span.end
+					prop.loc.end = left_ident.loc.end
 					bump_append(&obj.properties, prop)
 				}
 			}
@@ -8993,7 +8993,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 		return nil
 	}
 
-	obj.loc.span.end = prev_end_offset(p)
+	obj.loc.end = prev_end_offset(p)
 	return obj
 }
 
@@ -9076,7 +9076,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				report_error(p, "Expected identifier or pattern after ... in array pattern")
 				return nil
 			}
-			rest.loc.span.end = prev_end_offset(p)
+			rest.loc.end = prev_end_offset(p)
 
 			bump_append(&elements, Maybe(Pattern)(rest))
 
@@ -9140,7 +9140,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				assign.loc = eil
 				assign.left = ident
 				assign.right = default_val
-				assign.loc.span.end = prev_end_offset(p)
+				assign.loc.end = prev_end_offset(p)
 				bump_append(&elements, Maybe(Pattern)(assign))
 			} else {
 				bump_append(&elements, Maybe(Pattern)(ident))
@@ -9164,7 +9164,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				assign.loc = get_pattern_loc(nested)
 				assign.left = nested
 				assign.right = default_val
-				assign.loc.span.end = prev_end_offset(p)
+				assign.loc.end = prev_end_offset(p)
 				val = assign
 			}
 			bump_append(&elements, Maybe(Pattern)(val))
@@ -9187,7 +9187,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				assign.loc = get_pattern_loc(nested)
 				assign.left = nested
 				assign.right = default_val
-				assign.loc.span.end = prev_end_offset(p)
+				assign.loc.end = prev_end_offset(p)
 				val = assign
 			}
 			bump_append(&elements, Maybe(Pattern)(val))
@@ -9206,7 +9206,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 	}
 
 	arr.elements = elements[:]
-	arr.loc.span.end = prev_end_offset(p)
+	arr.loc.end = prev_end_offset(p)
 	return arr
 }
 
@@ -9423,7 +9423,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 							collect_pattern_bound_names_list(decl.id, &decl_names)
 							// Pad offsets so the list aligns with names.
 							for _ in prev_len ..< len(decl_names) {
-								bump_append(&decl_offs, decl.loc.span.start)
+								bump_append(&decl_offs, decl.loc.start)
 							}
 						}
 					}
@@ -9437,14 +9437,14 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 							// skip
 						} else if id, ok := d.id.(BindingIdentifier); ok {
 							bump_append(&decl_names, id.name)
-							bump_append(&decl_offs, id.loc.span.start)
+							bump_append(&decl_offs, id.loc.start)
 						}
 					}
 				case ^ClassDeclaration:
 					if d != nil {
 						if id, ok := d.id.(BindingIdentifier); ok {
 							bump_append(&decl_names, id.name)
-							bump_append(&decl_offs, id.loc.span.start)
+							bump_append(&decl_offs, id.loc.start)
 						}
 					}
 				}
@@ -9473,11 +9473,11 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				switch exported_name in spec.exported {
 				case IdentifierName:
 					var_name = exported_name.name
-					var_off = exported_name.loc.span.start
+					var_off = exported_name.loc.start
 				case ^StringLiteral:
 					if exported_name != nil {
 						var_name = exported_name.value
-						var_off = exported_name.loc.span.start
+						var_off = exported_name.loc.start
 					}
 				}
 				if var_name != "" {
@@ -9502,7 +9502,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			if allow_ts_mode(p) { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
 				report_error(p, "Duplicate exported name 'default'")
-			} else { scope_map_set(&exported, "default", v.loc.span.start) }
+			} else { scope_map_set(&exported, "default", v.loc.start) }
 		case ^ExportAllDeclaration:
 			if v == nil { continue }
 			// `export * as name from "m"` adds `name` to ExportedNames.
@@ -9510,9 +9510,9 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				if _, exists := scope_map_get(&exported, ns_name.name); exists {
 					if !allow_ts_mode(p) {
 						msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
-						report_error_at(p, LexerLoc(ns_name.loc.span.start), msg)
+						report_error_at(p, LexerLoc(ns_name.loc.start), msg)
 					}
-				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.span.start) }
+				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.start) }
 			}
 		}
 	}
@@ -9611,7 +9611,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 		for spec in export.specifiers {
 			if strlit, is_str := spec.local.(^StringLiteral); is_str && strlit != nil {
 				err := ParseError{
-					loc = LexerLoc(strlit.loc.span.start),
+					loc = LexerLoc(strlit.loc.start),
 					message = "A string literal cannot be used as an exported binding without `from`",
 				}
 				bump_append(&p.errors, err)
@@ -9621,7 +9621,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				local_loc: u32 = 0
 				if id, is_id := spec.local.(IdentifierName); is_id {
 					local_name = id.name
-					local_loc = id.loc.span.start
+					local_loc = id.loc.start
 				}
 				if local_name != "" && !module_names[local_name] {
 					msg := fmt.tprintf("Export '%s' is not defined in the module", local_name)
@@ -9851,7 +9851,7 @@ scope_hoist_vars :: proc(p: ^Parser, stmt: ^Statement, vars: ^ScopeMap) {
 		names := make([dynamic]string, 0, 4, context.temp_allocator)
 		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
 		for n in names {
-			scope_map_set_first(vars, n, v.loc.span.start)
+			scope_map_set_first(vars, n, v.loc.start)
 		}
 	case ^BlockStatement:
 		if v == nil { return }
@@ -9917,7 +9917,7 @@ collect_body_lex_names :: proc(body: []^Statement, lex: ^ScopeMap, strict := tru
 			if v == nil || v.kind == .Var { continue }
 			names := make([dynamic]string, 0, 4, context.temp_allocator)
 			for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
-			for n in names { scope_map_set(lex, n, v.loc.span.start) }
+			for n in names { scope_map_set(lex, n, v.loc.start) }
 		case ^FunctionDeclaration:
 			// In sloppy mode (non-strict function bodies), function
 			// declarations hoist as var-like per Annex B.3.2, so they
@@ -9925,13 +9925,13 @@ collect_body_lex_names :: proc(body: []^Statement, lex: ^ScopeMap, strict := tru
 			// lexical in strict mode.
 			if strict && v != nil {
 				if id, ok := v.id.(BindingIdentifier); ok {
-					scope_map_set(lex, id.name, id.loc.span.start)
+					scope_map_set(lex, id.name, id.loc.start)
 				}
 			}
 		case ^ClassDeclaration:
 			if v != nil {
 				if id, ok := v.id.(BindingIdentifier); ok {
-					scope_map_set(lex, id.name, id.loc.span.start)
+					scope_map_set(lex, id.name, id.loc.start)
 				}
 			}
 		// Do NOT recurse into nested blocks, loops, ifs, etc.
@@ -10043,7 +10043,7 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 		if v.kind != .Var { kind = .Lexical }
 		names := make([dynamic]string, 0, 4, context.temp_allocator)
 		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
-		for n in names { scope_add(p, lex, vars, n, v.loc.span.start, kind) }
+		for n in names { scope_add(p, lex, vars, n, v.loc.start, kind) }
 	case ^BlockStatement:
 		// §14.2.1 - Hoist `var` VarDeclaredNames from nested blocks into this
 		// scope so lex/var clashes like `{ { var f; } let f; }` are detected.
@@ -10145,7 +10145,7 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 				// checker still catches it via its own walk).
 				kind = .Lexical
 			}
-			scope_add(p, lex, vars, id.name, id.loc.span.start, kind)
+			scope_add(p, lex, vars, id.name, id.loc.start, kind)
 		}
 	case ^ClassDeclaration:
 		if v == nil { return }
@@ -10153,7 +10153,7 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 		// merging — same reasoning as FunctionDeclaration above.
 		if allow_ts_mode(p) { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+			scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
 		}
 	case ^ImportDeclaration:
 		if v == nil { return }
@@ -10170,11 +10170,11 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 			if spec == nil { continue }
 			switch ss in spec^ {
 			case ImportSpecifier:
-				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
 			case ImportDefaultSpecifier:
-				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
 			case ImportNamespaceSpecifier:
-				scope_add(p, lex, vars, ss.local.name, ss.local.loc.span.start, .Lexical)
+				scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
 			}
 		}
 	case ^ExportNamedDeclaration:
@@ -10187,18 +10187,18 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 				if inner.kind != .Var { kind = .Lexical }
 				names := make([dynamic]string, 0, 4, context.temp_allocator)
 				for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
-				for n in names { scope_add(p, lex, vars, n, inner.loc.span.start, kind) }
+				for n in names { scope_add(p, lex, vars, n, inner.loc.start, kind) }
 			case ^FunctionDeclaration:
 				if inner == nil { break }
 				if allow_ts_mode(p) { break }
 				if id, ok := inner.id.(BindingIdentifier); ok {
-					scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+					scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
 				}
 			case ^ClassDeclaration:
 				if inner == nil { break }
 				if allow_ts_mode(p) { break }
 				if id, ok := inner.id.(BindingIdentifier); ok {
-					scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+					scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
 				}
 			case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
 			     ^TSEnumDeclaration, ^TSModuleDeclaration,
@@ -10226,13 +10226,13 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 					case ^FunctionDeclaration:
 						if decl != nil {
 							if id, ok := decl.id.(BindingIdentifier); ok {
-								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+								scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
 							}
 						}
 					case ^ClassDeclaration:
 						if decl != nil {
 							if id, ok := decl.id.(BindingIdentifier); ok {
-								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+								scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
 							}
 						}
 					}
@@ -10244,13 +10244,13 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 					case ^FunctionExpression:
 						if fn != nil {
 							if id, ok := fn.id.(BindingIdentifier); ok {
-								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+								scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
 							}
 						}
 					case ^ClassExpression:
 						if fn != nil {
 							if id, ok := fn.id.(BindingIdentifier); ok {
-								scope_add(p, lex, vars, id.name, id.loc.span.start, .Lexical)
+								scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
 							}
 						}
 					}
@@ -10386,13 +10386,13 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 					case ^ClassDeclaration:
 						if inner != nil {
 							if id, ok := inner.id.(BindingIdentifier); ok {
-								append(&entries, TSBindingEntry{name = id.name, at = id.loc.span.start, kind = .Class})
+								append(&entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Class})
 							}
 						}
 					case ^FunctionDeclaration:
 						if inner != nil {
 							if id, ok := inner.id.(BindingIdentifier); ok {
-								append(&entries, TSBindingEntry{name = id.name, at = id.loc.span.start, kind = .Function})
+								append(&entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Function})
 							}
 						}
 					case ^VariableDeclaration:
@@ -10400,28 +10400,28 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 							names := make([dynamic]string, 0, 4, context.temp_allocator)
 							for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
 							for n in names {
-								append(&entries, TSBindingEntry{name = n, at = inner.loc.span.start, kind = .VarLike})
+								append(&entries, TSBindingEntry{name = n, at = inner.loc.start, kind = .VarLike})
 							}
 						}
 					case ^TSEnumDeclaration:
 						if inner != nil {
 							kind: TSBindingKind = inner.const_ ? .ConstEnum : .Enum
-							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.span.start, kind = kind})
+							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = kind})
 						}
 					case ^TSInterfaceDeclaration:
 						if inner != nil {
-							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.span.start, kind = .Interface})
+							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = .Interface})
 						}
 					case ^TSTypeAliasDeclaration:
 						if inner != nil {
-							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.span.start, kind = .TypeAlias})
+							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = .TypeAlias})
 						}
 					case ^TSModuleDeclaration:
 						if inner != nil {
 							// Get name from the id expression
 							if inner.id != nil {
 								if ident, ok := inner.id^.(^Identifier); ok && ident != nil {
-									append(&entries, TSBindingEntry{name = ident.name, at = ident.loc.span.start, kind = .Namespace})
+									append(&entries, TSBindingEntry{name = ident.name, at = ident.loc.start, kind = .Namespace})
 								}
 							}
 						}
@@ -10435,13 +10435,13 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 		case ^ClassDeclaration:
 			if v != nil {
 				if id, ok := v.id.(BindingIdentifier); ok {
-					append(&entries, TSBindingEntry{name = id.name, at = id.loc.span.start, kind = .Class})
+					append(&entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Class})
 				}
 			}
 		case ^FunctionDeclaration:
 			if v != nil {
 				if id, ok := v.id.(BindingIdentifier); ok {
-					append(&entries, TSBindingEntry{name = id.name, at = id.loc.span.start, kind = .Function})
+					append(&entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Function})
 				}
 			}
 		case ^VariableDeclaration:
@@ -10449,27 +10449,27 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 				names := make([dynamic]string, 0, 4, context.temp_allocator)
 				for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
 				for n in names {
-					append(&entries, TSBindingEntry{name = n, at = v.loc.span.start, kind = .VarLike})
+					append(&entries, TSBindingEntry{name = n, at = v.loc.start, kind = .VarLike})
 				}
 			}
 		case ^TSEnumDeclaration:
 			if v != nil {
 				kind: TSBindingKind = v.const_ ? .ConstEnum : .Enum
-				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.span.start, kind = kind})
+				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = kind})
 			}
 		case ^TSInterfaceDeclaration:
 			if v != nil {
-				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.span.start, kind = .Interface})
+				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = .Interface})
 			}
 		case ^TSTypeAliasDeclaration:
 			if v != nil {
-				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.span.start, kind = .TypeAlias})
+				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = .TypeAlias})
 			}
 		case ^TSModuleDeclaration:
 			if v != nil {
 				if v.id != nil {
 					if ident, ok := v.id^.(^Identifier); ok && ident != nil {
-						append(&entries, TSBindingEntry{name = ident.name, at = ident.loc.span.start, kind = .Namespace})
+						append(&entries, TSBindingEntry{name = ident.name, at = ident.loc.start, kind = .Namespace})
 					}
 				}
 			}
@@ -10480,11 +10480,11 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 					if spec == nil { continue }
 					switch ss in spec^ {
 					case ImportSpecifier:
-						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.span.start, kind = kind})
+						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
 					case ImportDefaultSpecifier:
-						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.span.start, kind = kind})
+						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
 					case ImportNamespaceSpecifier:
-						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.span.start, kind = kind})
+						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
 					}
 				}
 			}
@@ -10563,15 +10563,15 @@ convert_export_spec_name :: proc(name: ExportSpecifierName) -> ESMExportNameEntr
 		return ESMExportNameEntry{
 			kind = .Name,
 			name = n.name,
-			start = n.loc.span.start,
-			end = n.loc.span.end,
+			start = n.loc.start,
+			end = n.loc.end,
 		}
 	case ^StringLiteral:
 		return ESMExportNameEntry{
 			kind = .Name,
 			name = n.value,
-			start = n.loc.span.start,
-			end = n.loc.span.end,
+			start = n.loc.start,
+			end = n.loc.end,
 		}
 	}
 	return ESMExportNameEntry{}
@@ -10610,8 +10610,8 @@ collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportE
 		entry.localName = ESMNameEntry{
 			kind = .Default,
 			name = s.local.name,
-			start = s.local.loc.span.start,
-			end = s.local.loc.span.end,
+			start = s.local.loc.start,
+			end = s.local.loc.end,
 		}
 	case ImportNamespaceSpecifier:
 		// import * as X from "m"
@@ -10624,22 +10624,22 @@ collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportE
 		entry.localName = ESMNameEntry{
 			kind = .Namespace,
 			name = s.local.name,
-			start = s.local.loc.span.start,
-			end = s.local.loc.span.end,
+			start = s.local.loc.start,
+			end = s.local.loc.end,
 		}
 	case ImportSpecifier:
 		// import { x, y as z } from "m"
 		entry.importName = ESMNameEntry{
 			kind = .Name,
 			name = s.imported.name,
-			start = s.imported.loc.span.start,
-			end = s.imported.loc.span.end,
+			start = s.imported.loc.start,
+			end = s.imported.loc.end,
 		}
 		entry.localName = ESMNameEntry{
 			kind = .Name,
 			name = s.local.name,
-			start = s.local.loc.span.start,
-			end = s.local.loc.span.end,
+			start = s.local.loc.start,
+			end = s.local.loc.end,
 		}
 	}
 	return entry
@@ -10783,7 +10783,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// module bodies (`declare module "m" { ... }`) where ES imports define
 	// the module's public API.
 	if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
-		report_error_at(p, LexerLoc(start.span.start),
+		report_error_at(p, LexerLoc(start.start),
 			"Import declarations in a namespace cannot reference a module.")
 	}
 	// Flag module syntax now so it survives any error recovery below.
@@ -10863,13 +10863,13 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		// §16.2.2 — `await` is reserved as a binding name in module code.
 		// Import declarations are module syntax, so `await` always forbidden.
 		if local.name == "await" {
-			report_error_at(p, LexerLoc(local.loc.span.start), "'await' is reserved as a binding name in module code")
+			report_error_at(p, LexerLoc(local.loc.start), "'await' is reserved as a binding name in module code")
 		}
 		// Strict-mode reserved word as namespace import binding.
 		if p.strict_mode && is_strict_reserved_name(local.name) &&
 		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
-			report_error_at(p, LexerLoc(local.loc.span.start), msg)
+			report_error_at(p, LexerLoc(local.loc.start), msg)
 		}
 		spec := new_node(p, ImportNamespaceSpecifier)
 		spec.loc = star_loc
@@ -10877,7 +10877,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			loc  = local.loc,
 			name = local.name,
 		}
-		spec.loc.span.end = prev_end_offset(p)
+		spec.loc.end = prev_end_offset(p)
 		append_import_spec(&decl.specifiers, spec, p.allocator)
 
 		if !expect_token(p, .From) {
@@ -10893,13 +10893,13 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		local := parse_identifier(p)
 		// §16.2.2 — `await` is reserved as a binding name in module code.
 		if local.name == "await" {
-			report_error_at(p, LexerLoc(local.loc.span.start), "'await' is reserved as a binding name in module code")
+			report_error_at(p, LexerLoc(local.loc.start), "'await' is reserved as a binding name in module code")
 		}
 		// Strict-mode reserved word as default import binding.
 		if p.strict_mode && is_strict_reserved_name(local.name) &&
 		   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
-			report_error_at(p, LexerLoc(local.loc.span.start), msg)
+			report_error_at(p, LexerLoc(local.loc.start), msg)
 		}
 		spec := new_node(p, ImportDefaultSpecifier)
 		spec.loc = local.loc
@@ -10907,7 +10907,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			loc  = local.loc,
 			name = local.name,
 		}
-		spec.loc.span.end = prev_end_offset(p)
+		spec.loc.end = prev_end_offset(p)
 		append_import_spec(&decl.specifiers, spec, p.allocator)
 
 		// Check for comma followed by named imports
@@ -10966,7 +10966,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 					loc  = local2.loc,
 					name = local2.name,
 				}
-				ns_spec.loc.span.end = prev_end_offset(p)
+				ns_spec.loc.end = prev_end_offset(p)
 				append_import_spec(&decl.specifiers, ns_spec, p.allocator)
 			}
 		}
@@ -11006,18 +11006,18 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 
 	// Collect ESM static import record
 	p.has_module_syntax = true
 	if len(decl.specifiers) > 0 {
 		esm_import := ESMStaticImport{
-			start = decl.loc.span.start,
-			end = decl.loc.span.end,
+			start = decl.loc.start,
+			end = decl.loc.end,
 			moduleRequest = {
 				value = decl.source.value,
-				start = decl.source.loc.span.start,
-				end = decl.source.loc.span.end,
+				start = decl.source.loc.start,
+				end = decl.source.loc.end,
 			},
 			entries = make([dynamic]ESMStaticImportEntry, 0, len(decl.specifiers), p.allocator),
 		}
@@ -11057,7 +11057,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	// TS import-equals is module-level syntax. In explicit script mode,
 	// report an error (matches Babel/OXC behavior).
 	if st, have := p.force_source_type.(SourceType); have && st == .Script {
-		report_error_at(p, LexerLoc(start.span.start),
+		report_error_at(p, LexerLoc(start.start),
 			"'import' and 'export' may appear only with 'sourceType: module'.")
 	}
 
@@ -11111,7 +11111,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		if is_token(p, .String) { eat(p) } // "..."
 		if is_token(p, .RParen) { eat(p) } // )
 		match_semicolon_or_asi(p)
-		decl.loc.span.end = prev_end_offset(p)
+		decl.loc.end = prev_end_offset(p)
 		return statement_from(p, decl)
 	}
 	if p.cur_type == .Identifier && cur_value_eq(p, "require") && p.lexer != nil {
@@ -11133,7 +11133,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		ext := new_node(p, TSExternalModuleReference)
 		ext.loc = req_start
 		ext.expression = str_ptr
-		ext.loc.span.end = prev_end_offset(p)
+		ext.loc.end = prev_end_offset(p)
 		decl.module_reference = ext
 	} else {
 		// Entity-name chain: parse a primary identifier, then any `.id` tail.
@@ -11168,7 +11168,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 			mem.property = rhs_expr
 			mem.computed = false
 			mem.optional = false
-			mem.loc.span.end = prev_end_offset(p)
+			mem.loc.end = prev_end_offset(p)
 			current_expr = expression_from(p, mem)
 		}
 		decl.module_reference = current_expr
@@ -11178,13 +11178,13 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	// `import type X = require("...")` is valid; namespace alias is not.
 	if type_alias_error {
 		if _, is_require := decl.module_reference.(^TSExternalModuleReference); !is_require {
-			report_error_at(p, LexerLoc(start.span.start),
+			report_error_at(p, LexerLoc(start.start),
 				"An import alias can not use 'import type'.")
 		}
 	}
 
 	match_semicolon_or_asi(p)
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 
 	stmt := new_node(p, Statement)
 	stmt^ = (^TSImportEqualsDeclaration)(decl)
@@ -11269,9 +11269,9 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// auto-detection state.
 	if !is_string_import && !is_token(p, .As) {
 		if imported.name == "await" {
-			report_error_at(p, LexerLoc(imported.loc.span.start), "'await' is reserved as a binding name in module code")
+			report_error_at(p, LexerLoc(imported.loc.start), "'await' is reserved as a binding name in module code")
 		} else if imported.name == "yield" {
-			report_error_at(p, LexerLoc(imported.loc.span.start), "'yield' is reserved as a binding name in strict mode")
+			report_error_at(p, LexerLoc(imported.loc.start), "'yield' is reserved as a binding name in strict mode")
 		}
 	}
 	if match_token(p, .As) {
@@ -11288,7 +11288,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 			spec.loc = start
 			spec.imported = IdentifierName{loc = imported.loc, name = imported.name}
 			spec.local = BindingIdentifier{loc = local.loc, name = local.name}
-			spec.loc.span.end = prev_end_offset(p)
+			spec.loc.end = prev_end_offset(p)
 			return spec
 		}
 		// `await` / `yield` as the local binding name in module code
@@ -11299,9 +11299,9 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		                  (p.cur_type == .Identifier && cur_value_eq(p, "yield"))
 		local = parse_identifier(p)
 		if local_is_await {
-			report_error_at(p, LexerLoc(local.loc.span.start), "'await' is reserved as a binding name in module code")
+			report_error_at(p, LexerLoc(local.loc.start), "'await' is reserved as a binding name in module code")
 		} else if local_is_yield {
-			report_error_at(p, LexerLoc(local.loc.span.start), "'yield' is reserved as a binding name in strict mode")
+			report_error_at(p, LexerLoc(local.loc.start), "'yield' is reserved as a binding name in strict mode")
 		}
 	} else if is_string_import {
 		// String import names MUST have `as local`.
@@ -11318,7 +11318,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		loc  = local.loc,
 		name = local.name,
 	}
-	spec.loc.span.end = prev_end_offset(p)
+	spec.loc.end = prev_end_offset(p)
 
 	// §16.2.2 — ImportedBinding `eval` / `arguments` early error.
 	// Module code is always strict, so eval/arguments are forbidden.
@@ -11330,7 +11330,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	if p.strict_mode && is_strict_reserved_name(local.name) &&
 	   !(allow_ts_mode(p) && (p.in_ambient || p.source_is_dts)) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
-		report_error_at(p, LexerLoc(local.loc.span.start), msg)
+		report_error_at(p, LexerLoc(local.loc.start), msg)
 	}
 	// Always-reserved word as import binding stays a parser-side
 	// structural error (`import { default }` etc).
@@ -11343,7 +11343,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// ModuleExportNames (`import { default as x }`) but NOT valid
 	// BindingIdentifiers (`import { default }`).  The check only fires
 	// when local == imported (no `as`).
-	if local.loc.span.start == imported.loc.span.start && !is_string_import {
+	if local.loc.start == imported.loc.start && !is_string_import {
 		if is_always_reserved_word_name(local.name) {
 			msg := fmt.tprintf("'%s' is a reserved word and cannot be used as an import binding", local.name)
 			report_error(p, msg)
@@ -11383,7 +11383,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	if match_token(p, .Mul) {
 		// TS1233 — `export * from "m"` inside a namespace body is invalid.
 		if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
-			report_error_at(p, LexerLoc(start.span.start),
+			report_error_at(p, LexerLoc(start.start),
 				"Export declarations are not permitted in a namespace.")
 		}
 		return parse_export_all(p, start, .Value)
@@ -11405,10 +11405,10 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 				has_from = en.source != nil
 			}
 			if has_from {
-				report_error_at(p, LexerLoc(ns_export_named_start.span.start),
+				report_error_at(p, LexerLoc(ns_export_named_start.start),
 					"Export declarations are not permitted in a namespace.")
 			} else if !p.in_ambient {
-				report_error_at(p, LexerLoc(ns_export_named_start.span.start),
+				report_error_at(p, LexerLoc(ns_export_named_start.start),
 					"Export declarations are not permitted in a namespace.")
 			}
 		}
@@ -11425,12 +11425,12 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// In explicit script mode, export-equals is module-level syntax.
 		if st, have := p.force_source_type.(SourceType); have && st == .Script {
-			report_error_at(p, LexerLoc(start.span.start),
+			report_error_at(p, LexerLoc(start.start),
 				"'import' and 'export' may appear only with 'sourceType: module'.")
 		}
 		// TS1203 — export assignment inside a namespace body.
 		if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
-			report_error_at(p, LexerLoc(start.span.start),
+			report_error_at(p, LexerLoc(start.start),
 				"An export assignment cannot be used in a namespace.")
 		}
 		eat(p) // consume `=`
@@ -11443,7 +11443,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		decl := new_node(p, TSExportAssignment)
 		decl.loc = start; decl.expression = expr
-		decl.loc.span.end = prev_end_offset(p)
+		decl.loc.end = prev_end_offset(p)
 		stmt := new_node(p, Statement); stmt^ = decl; return stmt
 	}
 
@@ -11464,7 +11464,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		if nxt.type == .Identifier && nxt.value == "namespace" {
 			// TS1235 — `export as namespace` is only valid at top level.
 			if p.in_ts_namespace && !p.in_ts_module_block {
-				report_error_at(p, LexerLoc(start.span.start),
+				report_error_at(p, LexerLoc(start.start),
 					"Global module exports may only appear at top level.")
 			}
 			eat(p) // consume `as`
@@ -11477,7 +11477,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 			decl := new_node(p, TSNamespaceExportDeclaration)
 			decl.loc = start; decl.id = id
-			decl.loc.span.end = prev_end_offset(p)
+			decl.loc.end = prev_end_offset(p)
 			stmt := new_node(p, Statement); stmt^ = decl; return stmt
 		}
 	}
@@ -11498,7 +11498,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		if nxt.type == .LBrace {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 			if p.in_ts_namespace && !p.in_ts_module_block {
-				report_error_at(p, LexerLoc(start.span.start),
+				report_error_at(p, LexerLoc(start.start),
 					"Export declarations are not permitted in a namespace.")
 			}
 			eat(p) // consume `type`
@@ -11507,7 +11507,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		if nxt.type == .Mul {
 			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
 			if p.in_ts_namespace && !p.in_ts_module_block {
-				report_error_at(p, LexerLoc(start.span.start),
+				report_error_at(p, LexerLoc(start.start),
 					"Export declarations are not permitted in a namespace.")
 			}
 			eat(p) // consume `type`
@@ -11573,7 +11573,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		// `export class {}` is invalid; must use `export default class {}`.
 		if v != nil {
 			if _, has_id := v.id.?; !has_id {
-				report_error_at(p, LexerLoc(v.loc.span.start),
+				report_error_at(p, LexerLoc(v.loc.start),
 					"A class declaration without the 'default' modifier must have a name.")
 			}
 		}
@@ -11611,7 +11611,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	export_decl.loc = start
 	export_decl.declaration = decl_union
 	export_decl.export_kind = export_kind
-	export_decl.loc.span.end = prev_end_offset(p)
+	export_decl.loc.end = prev_end_offset(p)
 
 	// Allocate Statement union and store the pointer
 	stmt := new_node(p, Statement)
@@ -11623,7 +11623,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	// TS1319 — `export default` inside a namespace is invalid.
 	// Exception: inside string-named module declarations (`declare module "m" { ... }`).
 	if p.in_ts_namespace && allow_ts_mode(p) && !p.in_ts_module_block {
-		report_error_at(p, LexerLoc(start.span.start),
+		report_error_at(p, LexerLoc(start.start),
 			"Export declarations are not permitted in a namespace.")
 	}
 
@@ -11750,27 +11750,27 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	decl := new_node(p, ExportDefaultDeclaration)
 	decl.loc = start
 	decl.declaration = def
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 
 	// Collect ESM static export record for export default
 	p.has_module_syntax = true
 	esm_export := ESMStaticExport{
-		start = decl.loc.span.start,
-		end = decl.loc.span.end,
+		start = decl.loc.start,
+		end = decl.loc.end,
 		entries = make([dynamic]ESMStaticExportEntry, 1, p.allocator),
 	}
 	esm_export.entries[0] = ESMStaticExportEntry{
 		exportName = ESMExportNameEntry{
 			kind = .Default,
 			name = "default",
-			start = start.span.start,
-			end = start.span.end,
+			start = start.start,
+			end = start.end,
 		},
 		localName = ESMExportNameEntry{
 			kind = .Default,
 			name = "default",
-			start = start.span.start,
-			end = start.span.end,
+			start = start.start,
+			end = start.end,
 		},
 	}
 	bump_append(&p.staticExports, esm_export)
@@ -11827,17 +11827,17 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 	if !match_semicolon_or_asi_export(p) {
 		report_error(p, "Expected semicolon after export declaration")
 	}
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 
 	// Collect ESM static export record for export * from
 	p.has_module_syntax = true
 	esm_export := ESMStaticExport{
-		start = decl.loc.span.start,
-		end = decl.loc.span.end,
+		start = decl.loc.start,
+		end = decl.loc.end,
 		moduleRequest = {
 			value = decl.source.value,
-			start = decl.source.loc.span.start,
-			end = decl.source.loc.span.end,
+			start = decl.source.loc.start,
+			end = decl.source.loc.end,
 		},
 		entries = make([dynamic]ESMStaticExportEntry, 1, p.allocator),
 	}
@@ -11850,14 +11850,14 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 		exportName = ESMExportNameEntry{
 			kind = .Namespace,
 			name = export_name,
-			start = decl.source.loc.span.start,
-			end = decl.source.loc.span.end,
+			start = decl.source.loc.start,
+			end = decl.source.loc.end,
 		},
 		localName = ESMExportNameEntry{
 			kind = .Namespace,
 			name = export_name,
-			start = decl.source.loc.span.start,
-			end = decl.source.loc.span.end,
+			start = decl.source.loc.start,
+			end = decl.source.loc.end,
 		},
 	}
 	bump_append(&p.staticExports, esm_export)
@@ -11985,7 +11985,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 			local = local,
 			exported = exported,
 		}
-		spec.loc.span.end = prev_end_offset(p)
+		spec.loc.end = prev_end_offset(p)
 		bump_append(&decl.specifiers, spec)
 
 		if !match_token(p, .Comma) {
@@ -12039,21 +12039,21 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		}
 	}
 
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 
 	// Collect ESM static export record for named exports
 	p.has_module_syntax = true
 	if len(decl.specifiers) > 0 {
 		esm_export := ESMStaticExport{
-			start = decl.loc.span.start,
-			end = decl.loc.span.end,
+			start = decl.loc.start,
+			end = decl.loc.end,
 			entries = make([dynamic]ESMStaticExportEntry, 0, len(decl.specifiers), p.allocator),
 		}
 		// Handle export * from "m" case
 		if v, ok := decl.source.?; ok {
 			esm_export.moduleRequest.value = v.value
-			esm_export.moduleRequest.start = v.loc.span.start
-			esm_export.moduleRequest.end = v.loc.span.end
+			esm_export.moduleRequest.start = v.loc.start
+			esm_export.moduleRequest.end = v.loc.end
 		}
 		for spec in decl.specifiers {
 			entry := ESMStaticExportEntry{
@@ -12223,7 +12223,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// YieldExpression node; we recover the paren context by scanning
 		// backwards from the span start, identical to the `**` and `??`
 		// checks above.
-		yield_start := int(loc_from_expr(left).span.start)
+		yield_start := int(loc_from_expr(left).start)
 		paren_wrapped := false
 		if p.lexer != nil && yield_start > 0 {
 			yi := yield_start - 1
@@ -12289,7 +12289,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			as_expr.loc = loc_from_expr(left)
 			as_expr.expression = left
 			as_expr.type_annotation = ts_type
-			as_expr.loc.span.end = prev_end_offset(p)
+			as_expr.loc.end = prev_end_offset(p)
 			left = as_expr_e
 		} else {
 			eat(p)
@@ -12298,7 +12298,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			sat_expr.loc = loc_from_expr(left)
 			sat_expr.expression = left
 			sat_expr.type_annotation = ts_type
-			sat_expr.loc.span.end = prev_end_offset(p)
+			sat_expr.loc.end = prev_end_offset(p)
 			left = sat_expr_e
 		}
 	}
@@ -12423,7 +12423,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				if expr == nil { break }
 				bump_append(&seq.expressions, expr)
 			}
-			seq.loc.span.end = prev_end_offset(p)
+			seq.loc.end = prev_end_offset(p)
 			left = seq_e
 			continue
 		}
@@ -12443,8 +12443,8 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			_, is_await := left.(^AwaitExpression)
 			if is_unary || is_await {
 				lhs_loc := loc_from_expr(left)
-				lhs_start := lhs_loc.span.start
-				lhs_end   := lhs_loc.span.end
+				lhs_start := lhs_loc.start
+				lhs_end   := lhs_loc.end
 				paren_wrapped := false
 				if p.lexer != nil && int(lhs_start) < len(p.lexer.source_bytes) {
 					// Without --preserve-parens the UnaryExpression's span
@@ -12508,7 +12508,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		if _, is_arrow := right.(^ArrowFunctionExpression); is_arrow {
 			paren_wrapped := false
 			if p.lexer != nil {
-				start := int(loc_from_expr(right).span.start)
+				start := int(loc_from_expr(right).start)
 				i := start - 1
 				for i >= 0 {
 					ch := p.lexer.source_bytes[i]
@@ -12529,7 +12529,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// is stripped, so we detect the paren by scanning backwards from the
 		// yield's span start, mirroring the `**` unary check above.
 		if _, is_yield := right.(^YieldExpression); is_yield && cur_type != .Comma {
-			yield_start := int(loc_from_expr(right).span.start)
+			yield_start := int(loc_from_expr(right).start)
 			paren_wrapped := false
 			if p.lexer != nil && yield_start > 0 {
 				i := yield_start - 1
@@ -12556,7 +12556,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		if cur_type == .Nullish {
 			if le, ok := left.(^LogicalExpression); ok &&
 			   (le.operator == .And || le.operator == .Or) {
-				le_start := int(le.loc.span.start)
+				le_start := int(le.loc.start)
 				paren_ok := false
 				if p.lexer != nil && le_start > 0 {
 					pi := le_start - 1
@@ -12573,7 +12573,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			}
 			if le, ok := right.(^LogicalExpression); ok &&
 			   (le.operator == .And || le.operator == .Or) {
-				le_start := int(le.loc.span.start)
+				le_start := int(le.loc.start)
 				paren_ok := false
 				if p.lexer != nil && le_start > 0 {
 					pi := le_start - 1
@@ -12591,7 +12591,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		} else if cur_type == .LogicalOr || cur_type == .LogicalAnd {
 			if le, ok := left.(^LogicalExpression); ok &&
 			   le.operator == .NullishCoalescing {
-				le_start := int(le.loc.span.start)
+				le_start := int(le.loc.start)
 				paren_ok := false
 				if p.lexer != nil && le_start > 0 {
 					pi := le_start - 1
@@ -12613,7 +12613,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			// expressions/coalesce/cannot-chain-head-with-logical-or.js.
 			if le, ok := right.(^LogicalExpression); ok &&
 			   le.operator == .NullishCoalescing {
-				le_start := int(le.loc.span.start)
+				le_start := int(le.loc.start)
 				paren_ok := false
 				if p.lexer != nil && le_start > 0 {
 					pi := le_start - 1
@@ -12637,7 +12637,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			logical.operator = token_to_logical_op(cur_type)
 			logical.left = left
 			logical.right = right
-			logical.loc.span.end = prev_end_offset(p)
+			logical.loc.end = prev_end_offset(p)
 
 			left = logical_e
 			continue
@@ -12649,7 +12649,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		binary.operator = token_to_binary_op(cur_type)
 		binary.left = left
 		binary.right = right
-		binary.loc.span.end = prev_end_offset(p)
+		binary.loc.end = prev_end_offset(p)
 
 		left = binary_e
 	}
@@ -12681,7 +12681,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// (Test262 / OXC parity: `void (yield)` inside a generator is
 		// legal; only the bare-yield form is rejected.)
 		if y, is_yield := argument.(^YieldExpression); is_yield {
-			yield_start := int(y.loc.span.start)
+			yield_start := int(y.loc.start)
 			paren_wrapped := false
 			if p.lexer != nil && yield_start > 0 {
 				pi := yield_start - 1
@@ -12699,7 +12699,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if _, is_arrow := argument.(^ArrowFunctionExpression); is_arrow {
 			paren_wrapped := false
 			if p.lexer != nil {
-				start := int(loc_from_expr(argument).span.start)
+				start := int(loc_from_expr(argument).start)
 				i := start - 1
 				for i >= 0 {
 					ch := p.lexer.source_bytes[i]
@@ -12717,7 +12717,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		unary.operator = token_to_unary_op(current.type)
 		unary.argument = argument
 		unary.prefix = true
-		unary.loc.span.end = prev_end_offset(p)
+		unary.loc.end = prev_end_offset(p)
 		// §13.5.1.1 — `delete o.#priv` is a SyntaxError. PrivateNames
 		// have no observable [[Configurable]] state and the spec rejects
 		// the form outright. Promoted from the semantic checker
@@ -12732,7 +12732,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 			if me, is_member := delete_arg.(^MemberExpression); is_member && me != nil && me.property != nil {
 				if _, is_private := me.property^.(^PrivateIdentifier); is_private {
-					report_error_at(p, LexerLoc(unary.loc.span.start), "Private fields cannot be deleted")
+					report_error_at(p, LexerLoc(unary.loc.start), "Private fields cannot be deleted")
 				}
 			}
 			// §13.5.1.1 — in strict mode, `delete IdentifierReference`
@@ -12742,7 +12742,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// so `delete (x)` and `delete x` both reach here.
 			if p.strict_mode {
 				if _, is_id := unary.argument.(^Identifier); is_id {
-					report_error_at(p, LexerLoc(unary.loc.span.start), "Deleting an unqualified identifier is not allowed in strict mode")
+					report_error_at(p, LexerLoc(unary.loc.start), "Deleting an unqualified identifier is not allowed in strict mode")
 				}
 			}
 		}
@@ -12771,7 +12771,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.operator = .Increment if current.type == .PlusPlus else .Decrement
 		update.argument = argument
 		update.prefix = true
-		update.loc.span.end = prev_end_offset(p)
+		update.loc.end = prev_end_offset(p)
 		if !is_simple_assignment_target(argument, !p.strict_mode) {
 			report_error(p, "Invalid left-hand side expression in prefix operation")
 		}
@@ -12782,7 +12782,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.strict_mode {
 			if id, is_id := argument.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
 				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
-				report_error_at(p, LexerLoc(id.loc.span.start), msg)
+				report_error_at(p, LexerLoc(id.loc.start), msg)
 			}
 		}
 		return update_e
@@ -12894,13 +12894,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// S26 W5b: source-slice (current.value), not literal.
 			// String literals are RODATA-pointing and break raw_transfer.
 			id.name = current.value
-			id.loc.span.end = current.end
+			id.loc.end = current.end
 			return id_e
 		}
 		await, await_e := new_expr(p, AwaitExpression)
 		await.loc = loc_from_token(&current)
 		await.argument = argument
-		await.loc.span.end = prev_end_offset(p)
+		await.loc.end = prev_end_offset(p)
 		// Top-level await is module syntax
 		if !p.in_function {
 			p.has_module_syntax = true
@@ -12915,7 +12915,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		spread, spread_e := new_expr(p, SpreadElement)
 		spread.loc = loc_from_token(&current)
 		spread.argument = argument
-		spread.loc.span.end = prev_end_offset(p)
+		spread.loc.end = prev_end_offset(p)
 		return spread_e
 
 	case .Yield:
@@ -13016,8 +13016,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		id_value  := cur_value(p)
 		eat(p)
 		id, id_e := new_expr(p, Identifier)
-		id.loc.span.start = id_offset
-		id.loc.span.end   = prev_end_offset(p)
+		id.loc.start = id_offset
+		id.loc.end   = prev_end_offset(p)
 		id.name = id_value
 		id.has_escape = id_has_escape
 		expr = id_e
@@ -13039,7 +13039,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.operator = .Increment if current.type == .PlusPlus else .Decrement
 		update.argument = expr
 		update.prefix = false
-		update.loc.span.end = prev_end_offset(p)
+		update.loc.end = prev_end_offset(p)
 		if !is_simple_assignment_target(expr, !p.strict_mode) {
 			report_error(p, "Invalid left-hand side expression in postfix operation")
 		}
@@ -13047,7 +13047,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.strict_mode {
 			if id, is_id := expr.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
 				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
-				report_error_at(p, LexerLoc(id.loc.span.start), msg)
+				report_error_at(p, LexerLoc(id.loc.start), msg)
 			}
 		}
 		return update_e
@@ -13126,8 +13126,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			member, member_e := new_expr(p, MemberExpression)
 			member.loc = loc_from_expr(expr)
 			// OXC includes the `(` in MemberExpression span when object was parenthesized.
-			if p.pending_paren_start != max(u32) && p.pending_paren_start <= member.loc.span.start {
-				member.loc.span.start = p.pending_paren_start
+			if p.pending_paren_start != max(u32) && p.pending_paren_start <= member.loc.start {
+				member.loc.start = p.pending_paren_start
 				p.pending_paren_start = max(u32)
 			}
 			member.object = expr
@@ -13167,7 +13167,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			}
 			member.computed = false
 			member.optional = false
-			member.loc.span.end = prev_end_offset(p)
+			member.loc.end = prev_end_offset(p)
 			expr = member_e
 		case .OptionalChain:
 			if !allow_call {
@@ -13227,7 +13227,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				}
 				member.computed = false
 				member.optional = false // optional flag handled by ChainExpression wrapper
-				member.loc.span.end = prev_end_offset(p)
+				member.loc.end = prev_end_offset(p)
 				expr = member_e
 			} else if is_token(p, .LBracket) {
 				if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
@@ -13249,7 +13249,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				member.property = prop
 				member.computed = true
 				member.optional = false // optional flag handled by ChainExpression wrapper
-				member.loc.span.end = prev_end_offset(p)
+				member.loc.end = prev_end_offset(p)
 				expr = member_e
 			} else if is_token(p, .LParen) {
 				args := parse_arguments(p)
@@ -13258,7 +13258,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.callee = expr
 				call.arguments = args
 				call.optional = false // optional flag handled by ChainExpression wrapper
-				call.loc.span.end = prev_end_offset(p)
+				call.loc.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else if is_open_angle_or_lshift(p) && (p.lang == .TS || p.lang == .TSX) {
 				// `f?.<T>()` - optional-chain call with TS type arguments.
@@ -13278,7 +13278,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.arguments = args
 				call.type_parameters = targs
 				call.optional = false // optional flag handled by ChainExpression wrapper
-				call.loc.span.end = prev_end_offset(p)
+				call.loc.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else {
 				report_error(p, "Unexpected token after ?.")
@@ -13315,14 +13315,14 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if !expect_token(p, .RBracket) { return nil }
 			mem2, mem2_e := new_expr(p, MemberExpression)
 			mem2.loc = loc_from_expr(expr)
-			if saved_bracket_paren != max(u32) && saved_bracket_paren <= mem2.loc.span.start {
-				mem2.loc.span.start = saved_bracket_paren
+			if saved_bracket_paren != max(u32) && saved_bracket_paren <= mem2.loc.start {
+				mem2.loc.start = saved_bracket_paren
 			}
 			mem2.object = expr
 			mem2.property = prop
 			mem2.computed = true
 			mem2.optional = false
-			mem2.loc.span.end = prev_end_offset(p)
+			mem2.loc.end = prev_end_offset(p)
 			expr = mem2_e
 		case .LParen:
 			if !allow_call {
@@ -13360,13 +13360,13 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			args := parse_arguments(p)
 			call := new_node(p, CallExpression)
 			call.loc = loc_from_expr(expr)
-			if saved_paren_start != max(u32) && saved_paren_start <= call.loc.span.start {
-				call.loc.span.start = saved_paren_start
+			if saved_paren_start != max(u32) && saved_paren_start <= call.loc.start {
+				call.loc.start = saved_paren_start
 			}
 			call.callee = expr
 			call.arguments = args
 			call.optional = false
-			call.loc.span.end = prev_end_offset(p)
+			call.loc.end = prev_end_offset(p)
 			expr = expression_from(p, call)
 		case .TemplateHead, .Template:
 			// ECMA-262 §13.3.5 - `TaggedTemplateExpression` is a SyntaxError
@@ -13387,7 +13387,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// escapes surface via `cooked: null` at the consumer. Pass
 			// `tagged=true` so parse_template_literal skips the check.
 			tagged.quasi = parse_template_literal(p, true)
-			tagged.loc.span.end = prev_end_offset(p)
+			tagged.loc.end = prev_end_offset(p)
 			expr = tagged_e
 		case .Not:
 			// TS non-null assertion `x!`. Only consume `!` as a postfix when
@@ -13449,7 +13449,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					chain := new_node(p, ChainExpression)
 					chain.loc = chain_start
 					chain.expression = expr
-					chain.loc.span.end = prev_end_offset(p)
+					chain.loc.end = prev_end_offset(p)
 					return expression_from(p, chain)
 				}
 				return expr
@@ -13466,7 +13466,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			nn, nn_e := new_expr(p, TSNonNullExpression)
 			nn.loc = loc_from_expr(expr)
 			nn.expression = expr
-			nn.loc.span.end = prev_end_offset(p)
+			nn.loc.end = prev_end_offset(p)
 			expr = nn_e
 			continue
 		case .LAngle, .LShift:
@@ -13485,7 +13485,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					chain := new_node(p, ChainExpression)
 					chain.loc = chain_start
 					chain.expression = expr
-					chain.loc.span.end = prev_end_offset(p)
+					chain.loc.end = prev_end_offset(p)
 					return expression_from(p, chain)
 				}
 				return expr
@@ -13559,7 +13559,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					chain := new_node(p, ChainExpression)
 					chain.loc = chain_start
 					chain.expression = expr
-					chain.loc.span.end = prev_end_offset(p)
+					chain.loc.end = prev_end_offset(p)
 					return expression_from(p, chain)
 				}
 				return expr
@@ -13580,7 +13580,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					chain := new_node(p, ChainExpression)
 					chain.loc = chain_start
 					chain.expression = expr
-					chain.loc.span.end = prev_end_offset(p)
+					chain.loc.end = prev_end_offset(p)
 					return expression_from(p, chain)
 				}
 				return expr
@@ -13597,10 +13597,10 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.arguments = args
 				call.type_parameters = targs
 				call.optional = false
-				if saved_paren2 != max(u32) && saved_paren2 <= call.loc.span.start {
-					call.loc.span.start = saved_paren2
+				if saved_paren2 != max(u32) && saved_paren2 <= call.loc.start {
+					call.loc.start = saved_paren2
 				}
-				call.loc.span.end = prev_end_offset(p)
+				call.loc.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 				continue
 			}
@@ -13616,7 +13616,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				chain := new_node(p, ChainExpression)
 				chain.loc = chain_start
 				chain.expression = expr
-				chain.loc.span.end = prev_end_offset(p)
+				chain.loc.end = prev_end_offset(p)
 				inner = expression_from(p, chain)
 				inst_start = chain.loc
 				is_chain = false  // we just sealed the chain
@@ -13625,7 +13625,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			inst.loc = inst_start
 			inst.expression = inner
 			inst.type_arguments = targs
-			inst.loc.span.end = prev_end_offset(p)
+			inst.loc.end = prev_end_offset(p)
 			expr = inst_e
 			continue
 		case:
@@ -13634,7 +13634,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				chain := new_node(p, ChainExpression)
 				chain.loc = chain_start
 				chain.expression = expr
-				chain.loc.span.end = prev_end_offset(p)
+				chain.loc.end = prev_end_offset(p)
 				return expression_from(p, chain)
 			}
 			return expr
@@ -13645,7 +13645,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 		chain := new_node(p, ChainExpression)
 		chain.loc = chain_start
 		chain.expression = expr
-		chain.loc.span.end = prev_end_offset(p)
+		chain.loc.end = prev_end_offset(p)
 		return expression_from(p, chain)
 	}
 	return expr
@@ -13722,7 +13722,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			if meta_name.name == "meta" {
 				// Check the raw source for escape sequences: parse_identifier
 				// uses the cooked name but raw source may have \uXXXX.
-				span_bytes := p.lexer.source_bytes[meta_name.loc.span.start:meta_name.loc.span.end]
+				span_bytes := p.lexer.source_bytes[meta_name.loc.start:meta_name.loc.end]
 				for b in span_bytes {
 					if b == '\\' {
 						report_error(p, "'import.meta' property name must not contain Unicode escape sequences")
@@ -13747,7 +13747,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				loc  = meta_name.loc,
 				name = meta_name.name,
 			}
-			meta_prop.loc.span.end = prev_end_offset(p)
+			meta_prop.loc.end = prev_end_offset(p)
 			p.has_module_syntax = true
 			// `import.meta` is Module syntax. In script sourceType it's a
 			// SyntaxError per ECMA-262 §13.3.12.
@@ -13756,8 +13756,8 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 			// Collect ESM import.meta record
 			esm_import_meta := ESMImportMeta{
-				start = meta_prop.loc.span.start,
-				end = meta_prop.loc.span.end,
+				start = meta_prop.loc.start,
+				end = meta_prop.loc.end,
 			}
 			bump_append(&p.importMetas, esm_import_meta)
 			return meta_prop_e
@@ -13770,7 +13770,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		this, this_e := new_expr(p, ThisExpression)
 		this.loc = loc_from_token(&current)
-		this.loc.span.end = prev_end_offset(p)
+		this.loc.end = prev_end_offset(p)
 		return this_e
 
 	case .PrivateIdentifier:
@@ -13812,7 +13812,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		pid.name = name
 		p.private_id_count += 1
 		eat(p)
-		pid.loc.span.end = prev_end_offset(p)
+		pid.loc.end = prev_end_offset(p)
 		return pid_e
 
 	case .Super:
@@ -13831,14 +13831,14 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		super, super_e := new_expr(p, Super)
 		super.loc = loc_from_token(&current)
-		super.loc.span.end = prev_end_offset(p)
+		super.loc.end = prev_end_offset(p)
 		return super_e
 
 	case .Null:
 		eat(p)
 		nl, nl_e := new_expr(p, NullLiteral)
 		nl.loc = loc_from_token(&current)
-		nl.loc.span.end = prev_end_offset(p)
+		nl.loc.end = prev_end_offset(p)
 		return nl_e
 
 	case .True, .False:
@@ -13846,7 +13846,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		bl := new_node(p, BooleanLiteral)
 		bl.loc = loc_from_token(&current)
 		bl.value = current.type == .True
-		bl.loc.span.end = prev_end_offset(p)
+		bl.loc.end = prev_end_offset(p)
 		return expression_from(p, bl)
 
 	case .Number:
@@ -13857,7 +13857,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if val, ok := current.literal.(f64); ok {
 			num.value = val
 		}
-		num.loc.span.end = prev_end_offset(p)
+		num.loc.end = prev_end_offset(p)
 		// ECMA-262 Annex B.1.1 + §12.9.3.5 — LegacyOctalIntegerLiteral
 		// (`0777`) and NonOctalDecimalIntegerLiteral (`078`) are
 		// SyntaxErrors in strict mode. Both share the shape:
@@ -13865,7 +13865,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `x`/`X`/`o`/`O`/`b`/`B`/`.`/`e`/`E`/`n`). Promoted from the
 		// semantic checker (ck_check_legacy_octal_number).
 		if p.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
-			report_error_at(p, LexerLoc(num.loc.span.start), "Legacy octal literals are not allowed in strict mode")
+			report_error_at(p, LexerLoc(num.loc.start), "Legacy octal literals are not allowed in strict mode")
 		}
 		return num_e
 
@@ -13877,13 +13877,13 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if val, ok := current.literal.(string); ok {
 			str.value = val
 		}
-		str.loc.span.end = prev_end_offset(p)
+		str.loc.end = prev_end_offset(p)
 		// §12.9.4 — LegacyOctalEscapeSequence and \8 / \9 are forbidden
 		// in StringLiterals when strict-mode is in effect. Eager check
 		// for already-strict scope. Body-promoted (retroactive) strict
 		// for prologue strings stays on the semantic checker.
 		if p.strict_mode && string_raw_has_forbidden_escape(str.raw) {
-			report_error_at(p, LexerLoc(str.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			report_error_at(p, LexerLoc(str.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 		return str_e
 
@@ -13896,7 +13896,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// §12.9.3 legacy-octal BigInt (`0123n`) is rejected by the lexer
 		// ("BigInt literal cannot use legacy octal / non-octal-decimal
 		// form") so the checker / parser don't need a second site.
-		big.loc.span.end = prev_end_offset(p)
+		big.loc.end = prev_end_offset(p)
 		return big_e
 
 	case .Async:
@@ -13932,7 +13932,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// rewrite_string's source-base branch fires and produces a
 			// well-formed offset.
 			ident.name = current.value
-			ident.loc.span.end = prev_end_offset(p)
+			ident.loc.end = prev_end_offset(p)
 			return ident_e
 		}
 		async_lt_break := next.had_line_terminator
@@ -13991,7 +13991,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				ident, ident_e := new_expr(p, Identifier)
 				ident.loc = loc_from_token(&current)
 				ident.name = current.value
-				ident.loc.span.end = prev_end_offset(p)
+				ident.loc.end = prev_end_offset(p)
 				return ident_e
 			} else if next.type == .LParen {
 				// `async (...)` is ambiguous: an async arrow head, OR a
@@ -14174,7 +14174,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		ident, ident_e := new_expr(p, Identifier)
 		ident.loc = loc_from_token(&current)
 		ident.name = current.value
-		ident.loc.span.end = prev_end_offset(p)
+		ident.loc.end = prev_end_offset(p)
 		return ident_e
 
 	case .Identifier, .Get, .Set, .From, .Of, .As, .Let, .Static, .Constructor,
@@ -14230,7 +14230,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		id.loc = loc_from_token(&current)
 		id.name = current.value
 		id.has_escape = current.has_escape
-		id.loc.span.end = prev_end_offset(p)
+		id.loc.end = prev_end_offset(p)
 		// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
 		// forbidden in class field initializers and class static blocks
 		// (the synthetic function does NOT bind `arguments`). Gate on the
@@ -14298,7 +14298,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// arrow span starts AT the paren, matching OXC/Acorn/Babel. A nested
 		// `(` would overwrite the outer's stamp - harmless because the inner
 		// is consumed and cleared before the outer reaches `=>`.
-		paren_start := cur_loc(p).span.start
+		paren_start := cur_loc(p).start
 		eat(p)
 		// Save and clear pending_paren_start so nested expressions don't use this paren.
 		// We'll restore it below only if the next token is Arrow (for arrow function params).
@@ -14362,8 +14362,8 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// lower to FunctionParameter via expr_to_pattern.
 		if p.preserve_parens && !is_token(p, .Arrow) {
 			paren_node, paren_node_e := new_expr(p, ParenthesizedExpression)
-			paren_node.loc.span.start = paren_start
-			paren_node.loc.span.end = prev_end_offset(p)
+			paren_node.loc.start = paren_start
+			paren_node.loc.end = prev_end_offset(p)
 			paren_node.expression = expr
 			wrapped := paren_node_e
 			p.last_paren_expr = wrapped
@@ -14412,7 +14412,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			if ce, ok := cls.(^ClassExpression); ok && ce != nil {
 				ce.decorators = decorators
 				if len(decorators) > 0 {
-					ce.loc.span.start = decorators[0].loc.span.start
+					ce.loc.start = decorators[0].loc.start
 				}
 			}
 		}
@@ -14446,7 +14446,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				}
 			}
 		}
-		regex.loc.span.end = prev_end_offset(p)
+		regex.loc.end = prev_end_offset(p)
 		return regex_e
 
 	case .LAngle:
@@ -14584,7 +14584,7 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 				spread, spread_e := new_expr(p, SpreadElement)
 				spread.loc = spread_start // Use location of ... token
 				spread.argument = arg
-				spread.loc.span.end = prev_end_offset(p)
+				spread.loc.end = prev_end_offset(p)
 				bump_append(&arr.elements, Maybe(^Expression)(spread_e))
 			}
 		} else {
@@ -14600,7 +14600,7 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 						is_non_simple = true
 					}
 					if is_non_simple {
-						bump_append(&p.pending_paren_patterns, loc_from_expr(elem).span.start)
+						bump_append(&p.pending_paren_patterns, loc_from_expr(elem).start)
 					}
 				}
 				bump_append(&arr.elements, Maybe(^Expression)(elem))
@@ -14616,7 +14616,7 @@ parse_array_expr :: proc(p: ^Parser) -> ^Expression {
 		return nil
 	}
 
-	arr.loc.span.end = prev_end_offset(p)
+	arr.loc.end = prev_end_offset(p)
 	return expression_from(p, arr)
 }
 
@@ -14729,7 +14729,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 		for &prop in obj.properties {
 			if !property_is_literal_proto_init(&prop) { continue }
 			if proto_seen {
-				dup_off := loc_from_expr(prop.key).span.start
+				dup_off := loc_from_expr(prop.key).start
 				bump_append(&p.pending_proto_dups, dup_off)
 				break
 			}
@@ -14737,7 +14737,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 	}
 
-	obj.loc.span.end = prev_end_offset(p)
+	obj.loc.end = prev_end_offset(p)
 	return expression_from(p, obj)
 }
 
@@ -14760,7 +14760,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		spread, spread_e := new_expr(p, SpreadElement)
 		spread.loc = spread_start // Use the location of the ... token, not the argument
 		spread.argument = arg
-		spread.loc.span.end = prev_end_offset(p)
+		spread.loc.end = prev_end_offset(p)
 
 		prop := new_node(p, Property)
 		prop.loc = start
@@ -14769,7 +14769,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		prop.kind = .Init
 		prop.computed = false
 		prop.shorthand = false
-		prop.loc.span.end = prev_end_offset(p)
+		prop.loc.end = prev_end_offset(p)
 		return prop
 	}
 
@@ -14850,7 +14850,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		} else {
 			big.value = current.value
 		}
-		big.loc.span.end = prev_end_offset(p)
+		big.loc.end = prev_end_offset(p)
 		key = big_e
 		eat(p)
 	} else if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
@@ -14971,7 +14971,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// above), so the only way the non-simple guard fires here is when
 		// that lone setter param is a destructuring / default / rest form.
 		if body_strict && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(fn_start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_error_at(p, LexerLoc(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 		// §13.1.1 — retroactive strict-mode param check for
 		// `set x(eval) { "use strict"; }` and friends.
@@ -14990,9 +14990,9 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// checker had to fire the message in --show-semantic-errors mode).
 		acc_key_loc: LexerLoc
 		if key != nil {
-			acc_key_loc = LexerLoc(get_expression_loc(key).span.start)
+			acc_key_loc = LexerLoc(get_expression_loc(key).start)
 		} else {
-			acc_key_loc = LexerLoc(fn_start.span.start)
+			acc_key_loc = LexerLoc(fn_start.start)
 		}
 		enforce_accessor_param_shape(p, is_setter, params[:], acc_key_loc)
 
@@ -15003,7 +15003,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.generator = is_generator
 		fn.async = is_async
 		fn.return_type = accessor_return_type
-		fn.loc.span.end = prev_end_offset(p)
+		fn.loc.end = prev_end_offset(p)
 		value = fn_e
 	} else if is_token(p, .LParen) || (allow_ts_mode(p) && is_open_angle_or_lshift(p)) {
 		// Method shorthand: foo() {}
@@ -15087,7 +15087,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList for object-literal methods.
 		if body_strict && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(fn_start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_error_at(p, LexerLoc(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 		// §13.1.1 — retroactive strict-mode param check (see the same
 		// hook on parse_function_declaration above). Object-literal
@@ -15110,7 +15110,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		fn.async = is_async
 		fn.type_parameters = method_type_parameters
 		fn.return_type = method_return_type
-		fn.loc.span.end = prev_end_offset(p)
+		fn.loc.end = prev_end_offset(p)
 		value = fn_e
 	} else if match_token(p, .Colon) {
 		// Regular property with value. `async a: v` / `*a: v` are not valid
@@ -15168,10 +15168,10 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			assign.left = key
 		}
 		assign.right = default_val
-		assign.loc.span.end = prev_end_offset(p)
+		assign.loc.end = prev_end_offset(p)
 		shorthand = true
 		value = expression_from(p, assign)
-		bump_append(&p.pending_cover_inits, start.span.start)
+		bump_append(&p.pending_cover_inits, start.start)
 	} else {
 		// Shorthand property: { foo } means { foo: foo }
 		// Not valid for generators/getters/setters
@@ -15218,10 +15218,10 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				if k != nil && p.strict_mode {
 					if is_eval_or_arguments(k.name) {
 						msg := fmt.tprintf("'%s' cannot be used as a shorthand property identifier in strict mode", k.name)
-						report_error_at(p, LexerLoc(k.loc.span.start), msg)
+						report_error_at(p, LexerLoc(k.loc.start), msg)
 					} else if is_strict_reserved_binding_name(k.name) {
 						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", k.name)
-						report_error_at(p, LexerLoc(k.loc.span.start), msg)
+						report_error_at(p, LexerLoc(k.loc.start), msg)
 					}
 				}
 			}
@@ -15237,7 +15237,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	prop.kind = kind
 	prop.computed = computed
 	prop.shorthand = shorthand
-	prop.loc.span.end = prev_end_offset(p)
+	prop.loc.end = prev_end_offset(p)
 
 	return prop
 }
@@ -15251,7 +15251,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		ident, ident_e := new_expr(p, Identifier)
 		ident.loc = loc_from_token(&current)
 		ident.name = current.value
-		ident.loc.span.end = prev_end_offset(p)
+		ident.loc.end = prev_end_offset(p)
 		return ident_e
 
 	case .String:
@@ -15266,7 +15266,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		if val, ok := current.literal.(string); ok {
 			str.value = val
 		}
-		str.loc.span.end = prev_end_offset(p)
+		str.loc.end = prev_end_offset(p)
 		return str_e
 
 	case .BigInt:
@@ -15279,7 +15279,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		} else {
 			big.value = current.value
 		}
-		big.loc.span.end = prev_end_offset(p)
+		big.loc.end = prev_end_offset(p)
 		return big_e
 
 	case .Number:
@@ -15290,7 +15290,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		if val, ok := current.literal.(f64); ok {
 			num.value = val
 		}
-		num.loc.span.end = prev_end_offset(p)
+		num.loc.end = prev_end_offset(p)
 		// §12.9.3.5 (Annex B.1.1) — LegacyOctalIntegerLiteral and
 		// NonOctalDecimalIntegerLiteral are SyntaxErrors in strict mode.
 		// Promoted from the semantic checker (ck_check_legacy_octal_number)
@@ -15300,7 +15300,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		// destructuring keys, and TS literal-type names go through other
 		// branches that don't surface to runtime evaluation.
 		if p.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
-			report_error_at(p, LexerLoc(num.loc.span.start), "Legacy octal literals are not allowed in strict mode")
+			report_error_at(p, LexerLoc(num.loc.start), "Legacy octal literals are not allowed in strict mode")
 		}
 		return num_e
 
@@ -15311,7 +15311,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 			ident, ident_e := new_expr(p, Identifier)
 			ident.loc = loc_from_token(&current)
 			ident.name = current.value
-			ident.loc.span.end = prev_end_offset(p)
+			ident.loc.end = prev_end_offset(p)
 			return ident_e
 		}
 		return nil
@@ -15418,7 +15418,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		// LeftHandSideExpressions. Parenthesised arrows are fine.
 		if sc, have := super_class.(^Expression); have && sc != nil {
 			if arrow, is_arrow := sc^.(^ArrowFunctionExpression); is_arrow && arrow != nil {
-				arrow_start := int(arrow.loc.span.start)
+				arrow_start := int(arrow.loc.start)
 				paren_wrapped := false
 				if p.lexer != nil && arrow_start > 0 {
 					pi := arrow_start - 1
@@ -15469,7 +15469,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	expr.super_type_arguments = super_type_arguments
 	expr.implements = implements_list
 	expr.body = body
-	expr.loc.span.end = prev_end_offset(p)
+	expr.loc.end = prev_end_offset(p)
 
 	return expr_e
 }
@@ -15501,7 +15501,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			meta.loc = start
 			meta.meta = Identifier{loc = start, name = "new"}
 			meta.property = Identifier{loc = loc_from_token(&target_tok), name = "target"}
-			meta.loc.span.end = prev_end_offset(p)
+			meta.loc.end = prev_end_offset(p)
 			return meta_e
 		}
 	}
@@ -15556,7 +15556,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 				else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
 			}
 			if await_reserved {
-				report_error_at(p, LexerLoc(callee_id.loc.span.start), "Cannot use 'await' as an identifier in module / async context")
+				report_error_at(p, LexerLoc(callee_id.loc.start), "Cannot use 'await' as an identifier in module / async context")
 			}
 		}
 	}
@@ -15568,7 +15568,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	// `<T>` is the direct callee (not parenthesized: `new (<T>x)` is OK).
 	if ta, is_ta := callee^.(^TSTypeAssertion); is_ta {
 		// Check if the assertion starts right after `new ` (no parens).
-		if p.lexer != nil && ta.loc.span.start == start.span.start + 4 {
+		if p.lexer != nil && ta.loc.start == start.start + 4 {
 			report_error(p, "Type assertion is not allowed after 'new'")
 		}
 	}
@@ -15625,7 +15625,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	new_.callee = callee
 	new_.arguments = args
 	new_.type_parameters = targs
-	new_.loc.span.end = prev_end_offset(p)
+	new_.loc.end = prev_end_offset(p)
 
 	return new__e
 }
@@ -15676,7 +15676,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 					spread, spread_e := new_expr(p, SpreadElement)
 					spread.loc = spread_start // Use location of ... token, not the argument
 					spread.argument = arg
-					spread.loc.span.end = prev_end_offset(p)
+					spread.loc.end = prev_end_offset(p)
 					bump_append(&args, spread_e)
 				} else {
 					// `...` in argument position must be followed by an
@@ -15803,7 +15803,7 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	yield.loc = start
 	yield.argument = argument
 	yield.delegate = delegate
-	yield.loc.span.end = prev_end_offset(p)
+	yield.loc.end = prev_end_offset(p)
 
 	return yield_e
 }
@@ -15815,8 +15815,8 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 	tmpl, tmpl_e := new_expr(p, TemplateLiteral)
 	tmpl.loc = start
 	// Adjust start to include the opening backtick (lexer sets token after backtick)
-	if tmpl.loc.span.start > 0 {
-		tmpl.loc.span.start -= 1
+	if tmpl.loc.start > 0 {
+		tmpl.loc.start -= 1
 	}
 	tmpl.quasis = make([dynamic]TemplateElement, 0, 4, p.allocator)
 	tmpl.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
@@ -15833,8 +15833,8 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		}
 		bump_append(&tmpl.quasis, elem)
 		eat(p)
-		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
-		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
+		tmpl.loc.end = prev_end_offset(p) + 1 // Include closing backtick
+		p.prev_token_end = tmpl.loc.end // Update for parent nodes
 		// §12.9.6 octal / \\8 / \\9 escape in untagged template:
 		// enforced by the semantic checker (ck_check_template_octal).
 		// Untagged templates reject §12.9.6 invalid EscapeSequences in
@@ -15905,8 +15905,8 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 			}
 		}
 
-		tmpl.loc.span.end = prev_end_offset(p) + 1 // Include closing backtick
-		p.prev_token_end = tmpl.loc.span.end // Update for parent nodes
+		tmpl.loc.end = prev_end_offset(p) + 1 // Include closing backtick
+		p.prev_token_end = tmpl.loc.end // Update for parent nodes
 		// §12.9.6 octal / \\8 / \\9 escape in untagged template (multi-quasi
 		// shape): enforced by the semantic checker (ck_check_template_octal).
 		if !tagged {
@@ -15949,11 +15949,11 @@ walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow
 	#partial switch e in expr^ {
 	case ^YieldExpression:
 		if disallow_yield {
-			report_error_at(p, LexerLoc(e.loc.span.start), "'yield' is not allowed in arrow function parameters")
+			report_error_at(p, LexerLoc(e.loc.start), "'yield' is not allowed in arrow function parameters")
 		}
 	case ^AwaitExpression:
 		if disallow_await {
-			report_error_at(p, LexerLoc(e.loc.span.start), "'await' is not allowed in arrow function parameters")
+			report_error_at(p, LexerLoc(e.loc.start), "'await' is not allowed in arrow function parameters")
 		}
 	case ^SequenceExpression:
 		for inner in e.expressions {
@@ -16021,10 +16021,10 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		if p.strict_mode {
 			if is_eval_or_arguments(e.name) {
 				msg := fmt.tprintf("Binding identifier '%s' not allowed in strict mode", e.name)
-				report_error_at(p, LexerLoc(e.loc.span.start), msg)
+				report_error_at(p, LexerLoc(e.loc.start), msg)
 			} else if is_strict_reserved_binding_name(e.name) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name)
-				report_error_at(p, LexerLoc(e.loc.span.start), msg)
+				report_error_at(p, LexerLoc(e.loc.start), msg)
 			}
 		}
 		return id_ptr, true
@@ -16042,7 +16042,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		if len(p.pending_cover_inits) > 0 {
 			write := 0
 			for off, read in p.pending_cover_inits {
-				if off >= e.loc.span.start && off < e.loc.span.end {
+				if off >= e.loc.start && off < e.loc.end {
 					continue // swallow - this one's covered
 				}
 				p.pending_cover_inits[write] = off
@@ -16057,7 +16057,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		if len(p.pending_proto_dups) > 0 {
 			write := 0
 			for off, read in p.pending_proto_dups {
-				if off >= e.loc.span.start && off < e.loc.span.end {
+				if off >= e.loc.start && off < e.loc.end {
 					continue // swallow - pattern context
 				}
 				p.pending_proto_dups[write] = off
@@ -16086,8 +16086,8 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 						report_error(p, "Rest element must be last in object pattern")
 					} else if p.lexer != nil {
 						src := p.lexer.source_bytes
-						search_start := int(spread.loc.span.end)
-						search_end := int(e.loc.span.end)
+						search_start := int(spread.loc.end)
+						search_end := int(e.loc.end)
 						if search_end > len(src) { search_end = len(src) }
 						for k := search_start; k < search_end; k += 1 {
 							c := src[k]
@@ -16230,8 +16230,8 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 					report_error(p, "Rest element must be last in array pattern")
 				} else if p.lexer != nil {
 					src := p.lexer.source_bytes
-					search_start := int(spread.loc.span.end)
-					search_end := int(e.loc.span.end)
+					search_start := int(spread.loc.end)
+					search_end := int(e.loc.end)
 					if search_end > len(src) { search_end = len(src) }
 					for k := search_start; k < search_end; k += 1 {
 						c := src[k]
@@ -16372,7 +16372,7 @@ check_pattern_parens :: proc(p: ^Parser, pat: Pattern, src: []u8, outer_paren: i
 	if pat == nil { return }
 	switch pp in pat {
 	case ^Identifier:
-		check_span_for_inner_parens(p, int(pp.loc.span.start), int(pp.loc.span.end), src, outer_paren)
+		check_span_for_inner_parens(p, int(pp.loc.start), int(pp.loc.end), src, outer_paren)
 	case ^AssignmentPattern:
 		// `(a) = []` — check the LHS pattern.
 		check_pattern_parens(p, pp.left, src, outer_paren)
@@ -16440,8 +16440,8 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
 			is_empty_params_local = true
 		}
-		if !is_empty_params_local && p.pending_paren_start != max(u32) && p.pending_paren_start <= start.span.start {
-			start.span.start = p.pending_paren_start
+		if !is_empty_params_local && p.pending_paren_start != max(u32) && p.pending_paren_start <= start.start {
+			start.start = p.pending_paren_start
 		}
 	} else {
 		start = cur_loc(p)
@@ -16562,7 +16562,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			if ret_type != nil && is_token(p, .Arrow) {
 				// Try: build inner arrow `(params): RetType => body`.
 				body_expr, _ := body.(^Expression)
-				p.pending_paren_start = loc_from_expr(body_expr).span.start
+				p.pending_paren_start = loc_from_expr(body_expr).start
 				inner_arrow := parse_arrow_function(p, body_expr)
 				// Only commit if the parse succeeded AND a `:` for the
 				// Only commit if the inner arrow succeeded AND a ternary
@@ -16703,7 +16703,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			// the byte preceding the SpreadElement.
 			paren_wrapped_spread := false
 			if p.lexer != nil {
-				i := int(e.loc.span.start) - 1
+				i := int(e.loc.start) - 1
 				for i >= 0 {
 					ch := p.lexer.source_bytes[i]
 					if ch == '(' { paren_wrapped_spread = true; break }
@@ -16749,10 +16749,10 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						// §15.3.1 strict-mode checks for multi-param arrow.
 						if p.strict_mode {
 							if is_eval_or_arguments(arg.name) {
-								report_error_at(p, LexerLoc(arg.loc.span.start),
+								report_error_at(p, LexerLoc(arg.loc.start),
 									fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", arg.name))
 							} else if is_strict_reserved_binding_name(arg.name) {
-								report_error_at(p, LexerLoc(arg.loc.span.start),
+								report_error_at(p, LexerLoc(arg.loc.start),
 									fmt.tprintf("'%s' is a reserved identifier in strict mode", arg.name))
 							}
 						}
@@ -16773,7 +16773,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						// ALREADY covers `...<ident>` exactly. By the time we get
 						// here, the arrow body has also been parsed, so calling
 						// prev_end_offset(p) returns the BODY'S end - which was
-						// stamped onto rest.loc.span.end, blowing the RestElement's
+						// stamped onto rest.loc.end, blowing the RestElement's
 						// span out to cover the entire function (observed on chalk.js
 						// `(model, level, type, ...arguments_) => { ... }` where
 						// params[3].end jumped 458 bytes past the argument name).
@@ -16885,7 +16885,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	arrow.body = body
 	arrow.expression = !is_block_body
 	arrow.async = false
-	arrow.loc.span.end = prev_end_offset(p)
+	arrow.loc.end = prev_end_offset(p)
 
 	for param in params {
 		if pattern_contains_member_expression(param.pattern) {
@@ -16910,7 +16910,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	if is_block_body {
 		if arrow_body_lifts_strict(body) {
 			if !params_are_simple(params[:]) {
-				report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+				report_error_at(p, LexerLoc(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 			}
 			// §13.1.1 — retroactive strict-mode binding check on
 			// arrow params when the body promotes to strict and the
@@ -16937,7 +16937,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	}
 	if !is_single_ident_param && p.lexer != nil && len(params) > 0 {
 		src := p.lexer.source_bytes
-		outer_paren := int(start.span.start)
+		outer_paren := int(start.start)
 		check_parenthesized_binding(p, params[:], src, outer_paren)
 	}
 
@@ -17006,7 +17006,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 		ret_type := parse_ts_type(p)
 		committed := false
 		if ret_type != nil && is_token(p, .Arrow) {
-			p.pending_paren_start = start.span.start
+			p.pending_paren_start = start.start
 			inner := parse_arrow_function(p, consequent)
 			if inner != nil && len(p.errors) == snap_errs && is_token(p, .Colon) {
 				if ia, ok := inner^.(^ArrowFunctionExpression); ok {
@@ -17039,7 +17039,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	cond.test = test
 	cond.consequent = consequent
 	cond.alternate = alternate
-	cond.loc.span.end = prev_end_offset(p)
+	cond.loc.end = prev_end_offset(p)
 
 	return cond_e
 }
@@ -17169,7 +17169,7 @@ validate_pattern_element :: proc(p: ^Parser, expr: ^Expression) {
 	// Without --preserve-parens, check pending_paren_patterns for this
 	// element's start offset. If found, it was parenthesized and non-simple.
 	if !p.preserve_parens && len(p.pending_paren_patterns) > 0 {
-		expr_start := loc_from_expr(expr).span.start
+		expr_start := loc_from_expr(expr).start
 		for off in p.pending_paren_patterns {
 			if off == expr_start {
 				report_error_at(p, LexerLoc(off), "Invalid parenthesized assignment pattern.")
@@ -17189,7 +17189,7 @@ validate_pattern_element :: proc(p: ^Parser, expr: ^Expression) {
 			     ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
 				// These remain valid even when parenthesized at the pattern level.
 			case:
-				report_error_at(p, LexerLoc(e.loc.span.start), "Invalid parenthesized assignment pattern.")
+				report_error_at(p, LexerLoc(e.loc.start), "Invalid parenthesized assignment pattern.")
 			}
 		}
 	case ^AssignmentExpression:
@@ -17346,7 +17346,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	assign.operator = op
 	assign.left = left
 	assign.right = right
-	assign.loc.span.end = prev_end_offset(p)
+	assign.loc.end = prev_end_offset(p)
 
 	return assign_e
 }
@@ -17379,7 +17379,7 @@ parse_string_literal :: proc(p: ^Parser) -> StringLiteral {
 	// `\0` (not followed by a digit) are forbidden in string literals.
 	// Check the raw token text for `\1`-`\9` or `\0[0-9]`.
 	if p.strict_mode && len(raw) > 2 {
-		check_strict_string_escapes(p, raw, loc.span.start)
+		check_strict_string_escapes(p, raw, loc.start)
 	}
 
 	eat(p)
@@ -17487,7 +17487,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	arrow.body = body
 	arrow.expression = !is_block_body
 	arrow.async = true
-	arrow.loc.span.end = prev_end_offset(p)
+	arrow.loc.end = prev_end_offset(p)
 
 	// Single-param async arrow: only one FormalParameter, so nothing
 	// to dedupe. The duplicate check still runs (no-op for n < 2) for
@@ -17616,7 +17616,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 	arrow.expression = !is_block_body
 	arrow.async = true
 	if rt, ok := async_return_type.?; ok { arrow.return_type = rt }
-	arrow.loc.span.end = prev_end_offset(p)
+	arrow.loc.end = prev_end_offset(p)
 
 	// §15.9.1 — async arrow with paren'd params: UniqueFormalParameters
 	// always (regardless of outer strict mode).
@@ -17643,7 +17643,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 	if is_block_body {
 		if arrow_body_lifts_strict(body) {
 			if !params_are_simple(params[:]) {
-				report_error_at(p, LexerLoc(start.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+				report_error_at(p, LexerLoc(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 			}
 			if !p.strict_mode {
 				report_strict_param_pattern_retro(p, params[:])
@@ -17685,7 +17685,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 		import_expr, import_expr_e := new_expr(p, ImportExpression)
 		import_expr.loc = start
 		import_expr.phase = phase
-		import_expr.loc.span.end = prev_end_offset(p)
+		import_expr.loc.end = prev_end_offset(p)
 		return import_expr_e
 	}
 
@@ -17750,7 +17750,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	import_expr.source = specifier
 	import_expr.options = options
 	import_expr.phase = phase
-	import_expr.loc.span.end = prev_end_offset(p)
+	import_expr.loc.end = prev_end_offset(p)
 
 	// Collect ESM dynamic import record.
 	// NOTE: dynamic `import()` expressions are valid in both Scripts and
@@ -17758,8 +17758,8 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	// `import`/`export` declarations (and top-level `await`/`import.meta`)
 	// flip has_module_syntax - matches OXC/Acorn/Babel behaviour.
 	esm_dynamic := ESMDynamicImport{
-		start = import_expr.loc.span.start,
-		end = import_expr.loc.span.end,
+		start = import_expr.loc.start,
+		end = import_expr.loc.end,
 		moduleRequest = {
 			start = 0,
 			end = 0,
@@ -17767,8 +17767,8 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	}
 	// Try to extract module request span from the specifier if it's a string literal
 	if spec_expr, ok := specifier^.(^StringLiteral); ok {
-		esm_dynamic.moduleRequest.start = spec_expr.loc.span.start
-		esm_dynamic.moduleRequest.end = spec_expr.loc.span.end
+		esm_dynamic.moduleRequest.start = spec_expr.loc.start
+		esm_dynamic.moduleRequest.end = spec_expr.loc.end
 	}
 	bump_append(&p.dynamicImports, esm_dynamic)
 
@@ -17808,16 +17808,16 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 		// Span end must cover the value literal - `attr_start` captured only
 		// the key's token span at entry (cur_loc), and was never extended
 		// past the value. The previous shape `{ loc = attr_start, ... }` left
-		// `loc.span.end` equal to the key's end, so `type: "json"` reported
+		// `loc.end` equal to the key's end, so `type: "json"` reported
 		// end=39 (key) instead of end=47 (value).
 		attr_loc := attr_start
-		attr_loc.span.end = value.loc.span.end
+		attr_loc.end = value.loc.end
 		// £16.2.2 ImportDeclaration with Attributes: duplicate attribute keys
 		// are a SyntaxError. Check before appending.
 		for prev in attributes {
 			if prev.key.name == key.name {
 				msg := fmt.tprintf("Duplicate import attribute key '%s'", key.name)
-				bump_append(&p.errors, ParseError{loc = LexerLoc(attr_loc.span.start), message = msg})
+				bump_append(&p.errors, ParseError{loc = LexerLoc(attr_loc.start), message = msg})
 				break
 			}
 		}
@@ -17872,7 +17872,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				mem.property = expression_from(p, prop_id)
 				mem.computed = false
 				mem.optional = false
-				mem.loc.span.end = prev_end_offset(p)
+				mem.loc.end = prev_end_offset(p)
 				expr = expression_from(p, mem)
 			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 				prop_id := new_identifier_from_cur(p)
@@ -17883,7 +17883,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				mem.property = expression_from(p, prop_id)
 				mem.computed = false
 				mem.optional = false
-				mem.loc.span.end = prev_end_offset(p)
+				mem.loc.end = prev_end_offset(p)
 				expr = expression_from(p, mem)
 			} else {
 				report_error(p, "Expected identifier after '.' in decorator")
@@ -17917,7 +17917,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			call.arguments = args
 			call.optional = false
 			call.type_parameters = type_arguments
-			call.loc.span.end = prev_end_offset(p)
+			call.loc.end = prev_end_offset(p)
 			expr = expression_from(p, call)
 			type_arguments = nil // consumed
 		} else if is_token(p, .Dot) {
@@ -17931,7 +17931,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				mem.property = expression_from(p, prop_id)
 				mem.computed = false
 				mem.optional = false
-				mem.loc.span.end = prev_end_offset(p)
+				mem.loc.end = prev_end_offset(p)
 				expr = expression_from(p, mem)
 			} else {
 				report_error(p, "Expected identifier after '.' in decorator")
@@ -17960,7 +17960,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				call.callee = expr
 				call.arguments = args
 				call.optional = true
-				call.loc.span.end = prev_end_offset(p)
+				call.loc.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else if is_token(p, .LBracket) {
 				// Optional computed: `@x?.["y"]`
@@ -17973,7 +17973,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				mem.property = prop
 				mem.computed = true
 				mem.optional = true
-				mem.loc.span.end = prev_end_offset(p)
+				mem.loc.end = prev_end_offset(p)
 				expr = expression_from(p, mem)
 			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 				// Optional member: `@x?.y`
@@ -17985,7 +17985,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				mem.property = expression_from(p, prop_id)
 				mem.computed = false
 				mem.optional = true
-				mem.loc.span.end = prev_end_offset(p)
+				mem.loc.end = prev_end_offset(p)
 				expr = expression_from(p, mem)
 			} else {
 				break
@@ -17997,7 +17997,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
 			tagged.quasi = parse_template_literal(p, true)
-			tagged.loc.span.end = prev_end_offset(p)
+			tagged.loc.end = prev_end_offset(p)
 			expr = tagged_e
 		} else if allow_ts_mode(p) && is_token(p, .Not) && !cur_has_newline(p) {
 			// TS non-null assertion postfix: `@x!`, `@x.y!`.
@@ -18005,7 +18005,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 			nna, nna_e := new_expr(p, TSNonNullExpression)
 			nna.loc = start
 			nna.expression = expr
-			nna.loc.span.end = prev_end_offset(p)
+			nna.loc.end = prev_end_offset(p)
 			expr = nna_e
 		} else {
 			break
@@ -18030,7 +18030,7 @@ parse_decorators :: proc(p: ^Parser) -> [dynamic]Decorator {
 		eat(p)
 		expr := parse_decorator_expression(p)
 		d := Decorator{loc = start, expression = expr}
-		d.loc.span.end = prev_end_offset(p)
+		d.loc.end = prev_end_offset(p)
 		bump_append(&decorators, d)
 	}
 	return decorators
@@ -18104,7 +18104,7 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 		case ^ClassDeclaration:
 			s.expr.decorators = decorators
 			if is_abstract_class { s.expr.abstract = true }
-			if len(decorators) > 0 { s.expr.loc.span.start = decorators[0].loc.span.start }
+			if len(decorators) > 0 { s.expr.loc.start = decorators[0].loc.start }
 		}
 	}
 	return stmt
@@ -18131,20 +18131,20 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 		// Opening fragment `<>` spans [<, >] inclusive of both angle brackets
 		// (2 bytes) - matches OXC's JSXOpeningFragment.{start,end}.
 		opening_loc := start
-		opening_loc.span.end = u32(prev_end_offset(p))
+		opening_loc.end = u32(prev_end_offset(p))
 		children := parse_jsx_children(p)
 		// Closing fragment `</>` spans [<, >] - start is at the `<`, not after `</`.
 		closing_start := cur_loc(p)
 		expect_token(p, .LAngle); expect_token(p, .Div)
 		expect_token(p, .RAngle)
 		closing_loc := closing_start
-		closing_loc.span.end = u32(prev_end_offset(p))
+		closing_loc.end = u32(prev_end_offset(p))
 		frag, frag_e := new_expr(p, JSXFragment)
 		frag.loc = start
 		frag.opening_fragment = JSXOpeningFragment{loc = opening_loc}
 		frag.children = children
 		frag.closing_fragment = JSXClosingFragment{loc = closing_loc}
-		frag.loc.span.end = prev_end_offset(p)
+		frag.loc.end = prev_end_offset(p)
 		return frag_e
 	}
 	name := parse_jsx_element_name(p)
@@ -18154,7 +18154,7 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 		elem.loc = start
 		elem.opening_element = opening
 		elem.children = make([dynamic]JSXChild, 0, 4, p.allocator)
-		elem.loc.span.end = prev_end_offset(p)
+		elem.loc.end = prev_end_offset(p)
 		return expression_from(p, elem)
 	}
 	children := parse_jsx_children(p)
@@ -18173,7 +18173,7 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	elem.opening_element = opening
 	elem.children = children
 	elem.closing_element = closing
-	elem.loc.span.end = prev_end_offset(p)
+	elem.loc.end = prev_end_offset(p)
 	return expression_from(p, elem)
 }
 
@@ -18212,7 +18212,7 @@ parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
 		name := parse_jsx_identifier(p)
 		ns := new_node(p, JSXNamespacedName)
 		ns.loc = ident.loc; ns.namespace = ident; ns.name = name
-		ns.loc.span.end = prev_end_offset(p)
+		ns.loc.end = prev_end_offset(p)
 		return ns
 	}
 	if is_token(p, .Dot) {
@@ -18229,7 +18229,7 @@ parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
 			}
 			member := new_node(p, JSXMemberExpression)
 			member.loc = ident.loc; member.object = obj; member.property = prop
-			member.loc.span.end = prev_end_offset(p)
+			member.loc.end = prev_end_offset(p)
 			obj = member
 		}
 		#partial switch v in obj { case ^JSXMemberExpression: return v }
@@ -18297,7 +18297,7 @@ parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 		name = strings.to_string(sb)
 	}
 	result := JSXIdentifier{loc = start_loc, name = name}
-	result.loc.span.end = prev_end_offset(p)
+	result.loc.end = prev_end_offset(p)
 	return result
 }
 
@@ -18359,7 +18359,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 			expect_token(p, .RBrace)
 			spread := new_node(p, JSXSpreadAttribute)
 			spread.loc = spread_start; spread.argument = expr
-			spread.loc.span.end = prev_end_offset(p)
+			spread.loc.end = prev_end_offset(p)
 			bump_append(&opening.attributes, spread)
 		} else if is_jsx_identifier_token(p) {
 			attr_start := cur_loc(p)
@@ -18415,7 +18415,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					}
 					container, container_e := new_expr(p, JSXExpressionContainer)
 					container.loc = container_start; container.expression = expr
-					container.loc.span.end = prev_end_offset(p)
+					container.loc.end = prev_end_offset(p)
 					attr_value = container_e
 				} else if is_token(p, .LAngle) {
 					attr_value = parse_jsx_element_or_fragment(p)
@@ -18429,13 +18429,13 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 			}
 			attr: JSXAttribute
 			attr.loc = attr_start; attr.name = attr_name; attr.value = attr_value
-			attr.loc.span.end = prev_end_offset(p)
+			attr.loc.end = prev_end_offset(p)
 			bump_append(&opening.attributes, attr)
 		} else { break }
 	}
 	if is_token(p, .Div) { eat(p); opening.self_closing = true }
 	expect_token(p, .RAngle)
-	opening.loc.span.end = prev_end_offset(p)
+	opening.loc.end = prev_end_offset(p)
 	return opening
 }
 
@@ -18445,7 +18445,7 @@ parse_jsx_attribute_name :: proc(p: ^Parser) -> JSXAttributeName {
 		eat(p); name := parse_jsx_identifier(p)
 		ns := new_node(p, JSXNamespacedName)
 		ns.loc = ident.loc; ns.namespace = ident; ns.name = name
-		ns.loc.span.end = prev_end_offset(p)
+		ns.loc.end = prev_end_offset(p)
 		return ns
 	}
 	return ident
@@ -18497,7 +18497,7 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			start := cur_loc(p)
 			// JSXEmptyExpression spans between `{` and `}` (exclusive of both),
 			// matching OXC. `{` is always 1 byte, so empty_start = start + 1.
-			empty_start := start.span.start + 1
+			empty_start := start.start + 1
 			eat(p)
 			// Reset ternary depth across the JSX expression-container
 			// boundary. Inside `{expr}` the surrounding ternary's `:` is
@@ -18516,10 +18516,10 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			if expr != nil { container.expression = expr
 			} else {
 				empty, empty_e := new_expr(p, JSXEmptyExpression)
-				empty.loc = Loc{span = Span{start = empty_start, end = rbrace_start}}
+				empty.loc = Loc{start = empty_start, end = rbrace_start}
 				container.expression = empty_e
 			}
-			container.loc.span.end = prev_end_offset(p)
+			container.loc.end = prev_end_offset(p)
 			bump_append(&children, container)
 		}
 		// Progress guard: if no iteration advanced the cursor (e.g. malformed
@@ -18543,7 +18543,7 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	// Safety: if prev_end_offset is beyond cur.start (shouldn't happen, but
 	// defensive against lexer quirks), clamp to cur.start.
 	if text_start > int(cur_offset(p)) { text_start = int(cur_offset(p)) }
-	start := Loc{span = Span{start = u32(text_start), end = u32(text_start)}}
+	start := Loc{start = u32(text_start), end = u32(text_start)}
 	off := text_start
 	for off < len(src) {
 		c := src[off]
@@ -18579,7 +18579,7 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	}
 	text := new_node(p, JSXText)
 	text.loc = start; text.value = value; text.raw = value
-	text.loc.span.end = u32(off)
+	text.loc.end = u32(off)
 	return text
 }
 
@@ -18590,7 +18590,7 @@ parse_jsx_closing_element :: proc(p: ^Parser, expected: JSXElementName) -> ^JSXC
 	expect_token(p, .RAngle)
 	closing := new_node(p, JSXClosingElement)
 	closing.loc = start; closing.name = name
-	closing.loc.span.end = prev_end_offset(p)
+	closing.loc.end = prev_end_offset(p)
 	return closing
 }
 
@@ -18659,7 +18659,7 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 			inner_ann := new_node(p, TSTypeAnnotation)
 			inner_ann.loc = inner_start
 			inner_ann.type_annotation = inner_ty
-			inner_ann.loc.span.end = prev_end_offset(p)
+			inner_ann.loc.end = prev_end_offset(p)
 			type_ann_opt = inner_ann
 		}
 
@@ -18669,14 +18669,14 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		pred.parameter_name = name_expr
 		pred.type_annotation = type_ann_opt
 		pred.asserts = asserts
-		pred.loc.span.end = prev_end_offset(p)
+		pred.loc.end = prev_end_offset(p)
 
 		// Wrap in TSType then TSTypeAnnotation.
 		tst := new_node(p, TSType); tst^ = pred
 		ann := new_node(p, TSTypeAnnotation)
 		ann.loc = ann_start
 		ann.type_annotation = tst
-		ann.loc.span.end = prev_end_offset(p)
+		ann.loc.end = prev_end_offset(p)
 		return ann
 	}
 
@@ -18685,7 +18685,7 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = ann_start
 	ann.type_annotation = inner
-	ann.loc.span.end = prev_end_offset(p)
+	ann.loc.end = prev_end_offset(p)
 	return ann
 }
 
@@ -18723,7 +18723,7 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 			inner_ann := new_node(p, TSTypeAnnotation)
 			inner_ann.loc = inner_start
 			inner_ann.type_annotation = inner_ty
-			inner_ann.loc.span.end = prev_end_offset(p)
+			inner_ann.loc.end = prev_end_offset(p)
 			inner_ann_opt = inner_ann
 		}
 		pred := new_node(p, TSTypePredicate)
@@ -18731,13 +18731,13 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		pred.parameter_name = name_expr
 		pred.type_annotation = inner_ann_opt
 		pred.asserts = asserts
-		pred.loc.span.end = prev_end_offset(p)
+		pred.loc.end = prev_end_offset(p)
 		pred_ts := new_node(p, TSType)
 		pred_ts^ = pred
 		ann := new_node(p, TSTypeAnnotation)
 		ann.loc = start
 		ann.type_annotation = pred_ts
-		ann.loc.span.end = prev_end_offset(p)
+		ann.loc.end = prev_end_offset(p)
 		return ann
 	}
 	ts_type := parse_ts_type(p)
@@ -18746,7 +18746,7 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	}
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
-	ann.loc.span.end = prev_end_offset(p)
+	ann.loc.end = prev_end_offset(p)
 	return ann
 }
 
@@ -18796,7 +18796,7 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 			inner_ann := new_node(p, TSTypeAnnotation)
 			inner_ann.loc = inner_start
 			inner_ann.type_annotation = inner_ty
-			inner_ann.loc.span.end = prev_end_offset(p)
+			inner_ann.loc.end = prev_end_offset(p)
 			inner_ann_opt = inner_ann
 		}
 		pred := new_node(p, TSTypePredicate)
@@ -18804,13 +18804,13 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 		pred.parameter_name = name_expr
 		pred.type_annotation = inner_ann_opt
 		pred.asserts = asserts
-		pred.loc.span.end = prev_end_offset(p)
+		pred.loc.end = prev_end_offset(p)
 		pred_ts := new_node(p, TSType)
 		pred_ts^ = pred
 		ann := new_node(p, TSTypeAnnotation)
 		ann.loc = start
 		ann.type_annotation = pred_ts
-		ann.loc.span.end = prev_end_offset(p)
+		ann.loc.end = prev_end_offset(p)
 		return ann
 	}
 	ts_type := parse_ts_type(p)
@@ -18819,7 +18819,7 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	}
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
-	ann.loc.span.end = prev_end_offset(p)
+	ann.loc.end = prev_end_offset(p)
 	return ann
 }
 
@@ -18970,7 +18970,7 @@ parse_ts_type :: proc(p: ^Parser) -> ^TSType {
 		if loc := get_ts_type_loc(check); loc != nil { cond.loc = loc^ }
 		cond.check_type = check; cond.extends_type = exts
 		cond.true_type = true_type; cond.false_type = false_type
-		cond.loc.span.end = prev_end_offset(p)
+		cond.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = cond; return r
 	}
 	return check
@@ -18986,7 +18986,7 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 	// The leading pipe is purely cosmetic - the union semantics are
 	// unchanged. Same allowance applies to `&` for intersections (handled
 	// in parse_ts_intersection_type below).
-	leading_pipe_start := cur_loc(p).span.start
+	leading_pipe_start := cur_loc(p).start
 	has_leading_pipe := is_token(p, .BitOr)
 	if has_leading_pipe {
 		eat(p)
@@ -19002,8 +19002,8 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 			types := make([dynamic]^TSType, 0, 1, p.allocator)
 			bump_append(&types, first)
 			u := new_node(p, TSUnionType); u.types = types
-			u.loc.span.start = leading_pipe_start
-			u.loc.span.end = prev_end_offset(p)
+			u.loc.start = leading_pipe_start
+			u.loc.end = prev_end_offset(p)
 			r := new_node(p, TSType); r^ = u; return r
 		}
 		return first
@@ -19022,18 +19022,18 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 	report_unparenthesized_function_type(p, first)
 	u := new_node(p, TSUnionType); u.types = types
 	if has_leading_pipe {
-		u.loc.span.start = leading_pipe_start
+		u.loc.start = leading_pipe_start
 	} else if loc := get_ts_type_loc(first); loc != nil {
 		u.loc = loc^
 	}
-	u.loc.span.end = prev_end_offset(p)
+	u.loc.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = u; return r
 }
 
 parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
 	// Optional leading `&` mirrors the leading-pipe allowance for unions.
 	// `type X = & A & B` is equivalent to `type X = A & B`.
-	leading_amp_start := cur_loc(p).span.start
+	leading_amp_start := cur_loc(p).start
 	has_leading_amp := is_token(p, .BitAnd)
 	if has_leading_amp {
 		eat(p)
@@ -19045,8 +19045,8 @@ parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
 			types := make([dynamic]^TSType, 0, 1, p.allocator)
 			bump_append(&types, first)
 			i := new_node(p, TSIntersectionType); i.types = types
-			i.loc.span.start = leading_amp_start
-			i.loc.span.end = prev_end_offset(p)
+			i.loc.start = leading_amp_start
+			i.loc.end = prev_end_offset(p)
 			r := new_node(p, TSType); r^ = i; return r
 		}
 		return first
@@ -19065,11 +19065,11 @@ parse_ts_intersection_type :: proc(p: ^Parser) -> ^TSType {
 	report_unparenthesized_function_type(p, first)
 	i := new_node(p, TSIntersectionType); i.types = types
 	if has_leading_amp {
-		i.loc.span.start = leading_amp_start
+		i.loc.start = leading_amp_start
 	} else if loc := get_ts_type_loc(first); loc != nil {
 		i.loc = loc^
 	}
-	i.loc.span.end = prev_end_offset(p)
+	i.loc.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = i; return r
 }
 
@@ -19090,7 +19090,7 @@ report_unparenthesized_function_type :: proc(p: ^Parser, t: ^TSType) {
 
 parse_ts_kw :: proc(p: ^Parser, $T: typeid, start: Loc) -> ^TSType {
 	eat(p)
-	node := new_node(p, T); node.loc = start; node.loc.span.end = prev_end_offset(p)
+	node := new_node(p, T); node.loc = start; node.loc.end = prev_end_offset(p)
 	result := new_node(p, TSType); result^ = node
 	return parse_ts_postfix(p, result, start)
 }
@@ -19118,7 +19118,7 @@ parse_ts_constructor_type :: proc(p: ^Parser, start: Loc, abstract: bool) -> ^TS
 	eat(p) // consume `=>`
 	ret_type := parse_ts_type_annotation_bare(p)
 	if ret_type != nil {
-		ret_type.loc.span.start = arrow_start
+		ret_type.loc.start = arrow_start
 	}
 	ctor := new_node(p, TSConstructorType)
 	ctor.loc = start
@@ -19126,7 +19126,7 @@ parse_ts_constructor_type :: proc(p: ^Parser, start: Loc, abstract: bool) -> ^TS
 	ctor.params = params
 	ctor.return_type = ret_type
 	ctor.abstract_ = abstract
-	ctor.loc.span.end = prev_end_offset(p)
+	ctor.loc.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = ctor
 	return parse_ts_postfix(p, r, start)
 }
@@ -19187,7 +19187,7 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		report_error(p, "Expected template middle / tail token in template literal type")
 		break
 	}
-	node.loc.span.end = prev_end_offset(p) + 1 // include trailing backtick
+	node.loc.end = prev_end_offset(p) + 1 // include trailing backtick
 	r := new_node(p, TSType); r^ = node
 	return parse_ts_postfix(p, r, start)
 }
@@ -19248,14 +19248,14 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		eat(p) // consume `=>`
 		ret_type := parse_ts_type_annotation_bare(p)
 		if ret_type != nil {
-			ret_type.loc.span.start = arrow_start
+			ret_type.loc.start = arrow_start
 		}
 		fn := new_node(p, TSFunctionType)
 		fn.loc = start
 		fn.type_parameters = type_params
 		fn.params = params
 		fn.return_type = ret_type
-		fn.loc.span.end = prev_end_offset(p)
+		fn.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = fn
 		return parse_ts_postfix(p, r, start)
 	case .LParen:
@@ -19286,13 +19286,13 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			eat(p) // consume `=>`
 			ret_type := parse_ts_type_annotation_bare(p)
 			if ret_type != nil {
-				ret_type.loc.span.start = arrow_start
+				ret_type.loc.start = arrow_start
 			}
 			fn := new_node(p, TSFunctionType)
 			fn.loc = start
 			fn.params = params
 			fn.return_type = ret_type
-			fn.loc.span.end = prev_end_offset(p)
+			fn.loc.end = prev_end_offset(p)
 			r := new_node(p, TSType); r^ = fn
 			return parse_ts_postfix(p, r, start)
 		}
@@ -19317,7 +19317,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		inner := parse_ts_type(p)
 		p.ts_disallow_conditional_types = saved_disallow
 		expect_token(p, .RParen)
-		pn := new_node(p, TSParenthesizedType); pn.loc = start; pn.type_annotation = inner; pn.loc.span.end = prev_end_offset(p)
+		pn := new_node(p, TSParenthesizedType); pn.loc = start; pn.type_annotation = inner; pn.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = pn; return parse_ts_postfix(p, r, start)
 	case .LBrace:
 		// TS object type literal `{ ... }`. Must thread through parse_ts_postfix
@@ -19374,7 +19374,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					rest := new_node(p, TSRestType)
 					rest.loc = elem_start
 					rest.type_annotation = rest_inner
-					rest.loc.span.end = prev_end_offset(p)
+					rest.loc.end = prev_end_offset(p)
 					rest_t := new_node(p, TSType); rest_t^ = rest
 					named_rest := new_node(p, TSNamedTupleMember)
 					named_rest.loc = elem_start
@@ -19384,14 +19384,14 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					}
 					named_rest.element_type = rest_t
 					named_rest.optional = false
-					named_rest.loc.span.end = prev_end_offset(p)
+					named_rest.loc.end = prev_end_offset(p)
 					elev = new_node(p, TSType); elev^ = named_rest
 				} else {
 					inner := parse_ts_type(p)
 					rest := new_node(p, TSRestType)
 					rest.loc = elem_start
 					rest.type_annotation = inner
-					rest.loc.span.end = prev_end_offset(p)
+					rest.loc.end = prev_end_offset(p)
 					elev = new_node(p, TSType); elev^ = rest
 				}
 			} else {
@@ -19435,7 +19435,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					named_member.label = BindingIdentifier{loc = loc_from_token(&label_tok), name = label_tok.value}
 					named_member.element_type = inner
 					named_member.optional = optional
-					named_member.loc.span.end = prev_end_offset(p)
+					named_member.loc.end = prev_end_offset(p)
 					elev = new_node(p, TSType); elev^ = named_member
 				} else {
 					elev = parse_ts_type(p)
@@ -19445,7 +19445,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 						opt := new_node(p, TSOptionalType)
 						opt.loc = elem_start
 						opt.type_annotation = elev
-						opt.loc.span.end = prev_end_offset(p)
+						opt.loc.end = prev_end_offset(p)
 						elev = new_node(p, TSType); elev^ = opt
 						optional_seen = true
 					} else if optional_seen {
@@ -19459,7 +19459,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		expect_token(p, .RBracket)
 		p.ts_disallow_conditional_types = saved_disallow_ct
 		p.ts_in_tuple_type = saved_in_tuple
-		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.span.end = prev_end_offset(p)
+		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = tup
 		// Same chain as the LBrace branch above - `[T, U][]` (array of tuples)
 		// and `[T, U][N]` (indexed access into a tuple) need parse_ts_postfix.
@@ -19483,7 +19483,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		eat(p)
 		ref := new_node(p, TSTypeReference); ref.loc = start
 		ref.type_name = id_e
-		ref.loc.span.end = prev_end_offset(p)
+		ref.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = ref
 		return parse_ts_postfix(p, r, start)
 	case .Typeof:
@@ -19532,7 +19532,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				tq_mem, tq_mem_e := new_expr(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
 				tq_pid, tq_pid_e := new_expr(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
 				tq_mem.property = tq_pid_e; tq_mem.computed = false; tq_mem.optional = false
-				tq_mem.loc.span.end = prev_end_offset(p)
+				tq_mem.loc.end = prev_end_offset(p)
 				tq_expr = tq_mem_e
 			}
 		} else {
@@ -19544,12 +19544,12 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		if is_open_angle_or_lshift(p) {
 			node.type_parameters = parse_ts_type_arguments(p)
 		}
-		node.loc.span.end = prev_end_offset(p)
+		node.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return parse_ts_postfix(p, r, start)
 	case .Keyof:
 		eat(p); operand := parse_ts_primary_type(p)
 		node := new_node(p, TSTypeOperator); node.loc = start; node.operator = "keyof"; node.type_annotation = operand
-		node.loc.span.end = prev_end_offset(p)
+		node.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
 	case .Unique:
 		// `unique <type>`. The TS spec only defines `unique symbol`, but
@@ -19572,7 +19572,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			operand := parse_ts_primary_type(p)
 			node := new_node(p, TSTypeOperator); node.loc = start
 			node.operator = "unique"; node.type_annotation = operand
-			node.loc.span.end = prev_end_offset(p)
+			node.loc.end = prev_end_offset(p)
 			r := new_node(p, TSType); r^ = node
 			return parse_ts_postfix(p, r, start)
 		}
@@ -19628,7 +19628,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				}
 			}
 		}
-		node.loc.span.end = prev_end_offset(p)
+		node.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node; return r
 	case .Minus, .Plus:
 		// TS prefixed numeric / bigint literal type: `let y: -1 = -1;`,
@@ -19661,11 +19661,11 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		unary.operator = op_kind
 		unary.argument = lit_expr
 		unary.prefix = true
-		unary.loc.span.end = prev_end_offset(p)
+		unary.loc.end = prev_end_offset(p)
 		_ = lit_start
 		node := new_node(p, TSLiteralType); node.loc = start
 		node.literal = unary_e
-		node.loc.span.end = prev_end_offset(p)
+		node.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node
 		return parse_ts_postfix(p, r, start)
 	case .Template:
@@ -19676,7 +19676,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// expression-position template handling exactly.
 		lit := parse_template_literal(p, false)
 		node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit
-		node.loc.span.end = prev_end_offset(p)
+		node.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node
 		return parse_ts_postfix(p, r, start)
 	case .TemplateHead:
@@ -19718,7 +19718,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			bl := new_node(p, BooleanLiteral); bl.loc = start; bl.value = val
 			lit_expr = expression_from(p, bl)
 		}
-		node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit_expr; node.loc.span.end = prev_end_offset(p)
+		node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit_expr; node.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = node
 		return parse_ts_postfix(p, r, start)
 	case .Import:
@@ -19851,7 +19851,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				mem.property = prop_node_e
 				mem.computed = false
 				mem.optional = false
-				mem.loc.span.end = prev_end_offset(p)
+				mem.loc.end = prev_end_offset(p)
 				cur_qual = expression_from(p, mem)
 			}
 			it.qualifier = cur_qual
@@ -19863,7 +19863,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				it.type_parameters = targs
 			}
 		}
-		it.loc.span.end = prev_end_offset(p)
+		it.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = it
 		return parse_ts_postfix(p, r, start)
 	case .Identifier: return parse_ts_identifier_type(p)
@@ -19954,7 +19954,7 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 		// disallowed postfix operators. `intrinsic["foo"]` is not valid.
 		eat(p)
 		node := new_node(p, TSIntrinsicKeyword); node.loc = start
-		node.loc.span.end = prev_end_offset(p)
+		node.loc.end = prev_end_offset(p)
 		result := new_node(p, TSType); result^ = node
 		// Reject indexed access on intrinsic keyword.
 		if is_token(p, .LBracket) {
@@ -19999,7 +19999,7 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 			}
 			node := new_node(p, TSTypeOperator); node.loc = start
 			node.operator = "readonly"; node.type_annotation = operand
-			node.loc.span.end = prev_end_offset(p)
+			node.loc.end = prev_end_offset(p)
 			r := new_node(p, TSType); r^ = node
 			return r
 		}
@@ -20053,7 +20053,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 		if is_next_token(p, .RBracket) {
 			// Array type: `T[]`.
 			eat(p); eat(p)
-			arr := new_node(p, TSArrayType); arr.loc = start; arr.element_type = result; arr.loc.span.end = prev_end_offset(p)
+			arr := new_node(p, TSArrayType); arr.loc = start; arr.element_type = result; arr.loc.end = prev_end_offset(p)
 			result = new_node(p, TSType); result^ = arr
 		} else {
 			// Indexed access type: `T[K]`.
@@ -20062,7 +20062,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 			expect_token(p, .RBracket)
 			iat := new_node(p, TSIndexedAccessType); iat.loc = start
 			iat.object_type = result; iat.index_type = index
-			iat.loc.span.end = prev_end_offset(p)
+			iat.loc.end = prev_end_offset(p)
 			result = new_node(p, TSType); result^ = iat
 		}
 	}
@@ -20108,7 +20108,7 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 		eat(p); prop := parse_identifier_name(p)
 		mem := new_node(p, MemberExpression); mem.loc = start; mem.object = id_expr
 		pid, pid_e := new_expr(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
-		mem.property = pid_e; mem.loc.span.end = prev_end_offset(p)
+		mem.property = pid_e; mem.loc.end = prev_end_offset(p)
 		id_expr = expression_from(p, mem)
 	}
 	targs: Maybe(^TSTypeParameterInstantiation)
@@ -20136,7 +20136,7 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 		}
 	}
 	ref := new_node(p, TSTypeReference); ref.loc = start; ref.type_name = id_expr; ref.type_parameters = targs
-	ref.loc.span.end = prev_end_offset(p)
+	ref.loc.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = ref
 	return parse_ts_postfix(p, r, start)
 }
@@ -20183,7 +20183,7 @@ parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 	expect_close_angle(p)
 	p.ts_in_type_arguments -= 1
 	p.ts_disallow_conditional_types = saved_disallow_ct
-	inst := new_node(p, TSTypeParameterInstantiation); inst.loc = start; inst.params = params; inst.loc.span.end = prev_end_offset(p)
+	inst := new_node(p, TSTypeParameterInstantiation); inst.loc = start; inst.params = params; inst.loc.end = prev_end_offset(p)
 	return inst
 }
 
@@ -20377,7 +20377,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 		if ye, ok := expr^.(^YieldExpression); ok {
 			// Check if `yield` directly follows `>` (bare form), or is
 			// inside parens. Walk backwards from yield's start offset.
-			ye_start := int(ye.loc.span.start)
+			ye_start := int(ye.loc.start)
 			bare_yield := false
 			if p.lexer != nil {
 				src_bytes := p.lexer.source_bytes
@@ -20397,10 +20397,10 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	node.loc = start
 	node.type_annotation = type_ann
 	node.expression = expr
-	node.loc.span.end = prev_end_offset(p)
+	node.loc.end = prev_end_offset(p)
 
 	if p.disallow_ambiguous_jsx_like {
-		report_error_at(p, LexerLoc(start.span.start), "This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead.")
+		report_error_at(p, LexerLoc(start.start), "This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead.")
 	}
 
 	return node_e
@@ -20418,7 +20418,7 @@ check_ts_ambiguous_jsx_like_arrow :: proc(p: ^Parser, expr: ^Expression) {
 	tp, has_tp := tp_opt.?
 	if !has_tp { return }
 	if len(tp.params) == 1 && tp.params[0].constraint == nil && !tp.trailing_comma {
-		report_error_at(p, LexerLoc(tp.loc.span.start), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.")
+		report_error_at(p, LexerLoc(tp.loc.start), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.")
 	}
 }
 
@@ -20509,7 +20509,7 @@ parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
 	// decorate it with our type parameters and extend the span.
 	if arrow_expr, is_arrow := paren_expr^.(^ArrowFunctionExpression); is_arrow {
 		arrow_expr.type_parameters = type_params
-		arrow_expr.loc.span.start = start.span.start
+		arrow_expr.loc.start = start.start
 		return paren_expr
 	}
 
@@ -20531,7 +20531,7 @@ parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
 	case ^ArrowFunctionExpression:
 		a.type_parameters = type_params
 		if rt, ok := return_type.?; ok { a.return_type = rt }
-		a.loc.span.start = start.span.start
+		a.loc.start = start.start
 	}
 	return arrow
 }
@@ -20794,13 +20794,13 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 	arrow.expression = !is_block_body
 	arrow.async = false
 	if rt, ok := return_type.?; ok { arrow.return_type = rt }
-	arrow.loc.span.end = prev_end_offset(p)
+	arrow.loc.end = prev_end_offset(p)
 
 	// TS1689 — destructuring pattern `?` in arrow function (always has body).
 	if allow_ts_mode(p) {
 		for pr in params {
 			if pr.optional_destructuring {
-				report_error_at(p, LexerLoc(pr.loc.span.start),
+				report_error_at(p, LexerLoc(pr.loc.start),
 					"A binding pattern parameter cannot be optional in an implementation signature.")
 			}
 		}
@@ -20812,7 +20812,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 	if is_block_body {
 		if arrow_body_lifts_strict(body) {
 			if !params_are_simple(params[:]) {
-				report_error_at(p, LexerLoc(start_loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+				report_error_at(p, LexerLoc(start_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 			}
 			if !p.strict_mode {
 				report_strict_param_pattern_retro(p, params[:])
@@ -20899,7 +20899,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 			constraint = constraint, default_ = default_,
 			in_ = in_mod, out = out_mod, const_ = const_mod,
 		}
-		param.loc.span.end = prev_end_offset(p)
+		param.loc.end = prev_end_offset(p)
 		bump_append(&params, param)
 		had_trailing_comma = match_token(p, .Comma)
 		if !had_trailing_comma { break }
@@ -20914,7 +20914,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	decl := new_node(p, TSTypeParameterDeclaration)
 	decl.loc = start; decl.params = params
 	decl.trailing_comma = had_trailing_comma
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 	return decl
 }
 
@@ -20941,7 +20941,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	readonly_mod := TSMappedTypeModifier.None
 	// modifier_start: position of the first modifier token (readonly/+/-) before
 	// `[`. Used to set the correct start on index signatures that have a modifier.
-	modifier_start := cur_loc(p).span.start
+	modifier_start := cur_loc(p).start
 
 	// Check `{ readonly [`  - readonly then bracket, plus `+readonly [` / `-readonly [`.
 	// `.Readonly` is not in the lexer - check by string value.
@@ -21013,12 +21013,12 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		param_name_ident.loc = loc_from_token(&param_name_tok)
 		param_name_ident.name = param_name_tok.value
 		key_ann := new_node(p, TSTypeAnnotation)
-		key_ann.loc.span.start = colon_start.span.start
-		key_ann.loc.span.end   = key_type_end
+		key_ann.loc.start = colon_start.start
+		key_ann.loc.end   = key_type_end
 		key_ann.type_annotation = idx_ann
 		sig_loc_start := modifier_start
 		idx_sig := TSIndexSignature{
-			loc = Loc{span = Span{start = sig_loc_start, end = lb_start.span.end}},
+			loc = Loc{start = sig_loc_start, end = lb_start.end},
 			parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
 			type_annotation = val_ann,
 			readonly = readonly_mod == .True,
@@ -21028,10 +21028,10 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			pattern = param_name_ident,
 			type_annotation = key_ann,
 		}
-		fp.loc.span.end = key_type_end
+		fp.loc.end = key_type_end
 		bump_append(&idx_sig.parameters, fp)
 		match_token(p, .Semi); match_token(p, .Comma)
-		idx_sig.loc.span.end = prev_end_offset(p)
+		idx_sig.loc.end = prev_end_offset(p)
 		first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
 		bump_append(&members, first_sig)
 		readonly_mod = .None // consumed; subsequent members are independent
@@ -21043,7 +21043,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		}
 		expect_token(p, .RBrace)
 		lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members
-		lit.loc.span.end = prev_end_offset(p)
+		lit.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = lit; return r
 	}
 
@@ -21073,13 +21073,13 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			key_ident.name = param_name.name
 			optional := match_token(p, .Question)
 			prop := TSPropertySignature{
-				loc = Loc{span = Span{start = lb_start.span.start}},
+				loc = Loc{start = lb_start.start},
 				key = key_ident_e,
 				computed = true, optional = optional,
 				readonly = readonly_mod == .True,
 			}
 			if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
-			prop.loc.span.end = prev_end_offset(p)
+			prop.loc.end = prev_end_offset(p)
 			members := make([dynamic]^TSSignature, 0, 4, p.allocator)
 			first_sig := new_node(p, TSSignature); first_sig^ = prop
 			bump_append(&members, first_sig)
@@ -21092,7 +21092,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			}
 			expect_token(p, .RBrace)
 			lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members
-			lit.loc.span.end = prev_end_offset(p)
+			lit.loc.end = prev_end_offset(p)
 			r := new_node(p, TSType); r^ = lit; return r
 		}
 		if !is_token(p, .In) {
@@ -21120,17 +21120,17 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			param_name_ident.name = param_name.name
 			// TSTypeAnnotation for the key: spans [colon, end-of-key-type].
 			key_ann := new_node(p, TSTypeAnnotation)
-			key_ann.loc.span.start = key_type_start.span.start
-			key_ann.loc.span.end   = key_type_end
+			key_ann.loc.start = key_type_start.start
+			key_ann.loc.end   = key_type_end
 			key_ann.type_annotation = idx_ann
 			// Parameter: spans [start-of-name, end-of-key-type].
 			// OXC ends the parameter at the end of the key type annotation,
 			// NOT at the `]` or the value type.
 			// Use modifier_start as the index signature loc start when a
 			// readonly/+/-readonly modifier preceded the `[`; otherwise use lb_start.
-			sig_loc_start := modifier_start if readonly_mod != .None else lb_start.span.start
+			sig_loc_start := modifier_start if readonly_mod != .None else lb_start.start
 			idx_sig := TSIndexSignature{
-				loc = Loc{span = Span{start = sig_loc_start, end = lb_start.span.end}},
+				loc = Loc{start = sig_loc_start, end = lb_start.end},
 				parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
 				type_annotation = val_ann,
 				readonly = readonly_mod == .True,
@@ -21140,12 +21140,12 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 				pattern = param_name_ident,
 				type_annotation = key_ann,
 			}
-			fp.loc.span.end = key_type_end
+			fp.loc.end = key_type_end
 			bump_append(&idx_sig.parameters, fp)
 			// Consume optional semi/comma BEFORE setting the end span so the
 			// index signature span includes the terminator (matching OXC).
 			match_token(p, .Semi); match_token(p, .Comma)
-			idx_sig.loc.span.end = prev_end_offset(p)
+			idx_sig.loc.end = prev_end_offset(p)
 			first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
 			bump_append(&members, first_sig)
 			for !is_token(p, .RBrace) && !is_token(p, .EOF) {
@@ -21158,7 +21158,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 				if int(cur_offset(p)) == prev_off { eat(p) }
 			}
 			expect_token(p, .RBrace)
-			lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.span.end = prev_end_offset(p)
+			lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.end = prev_end_offset(p)
 			r := new_node(p, TSType); r^ = lit; return r
 		}
 		eat(p) // consume `in`
@@ -21193,7 +21193,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		}
 		mt.name_type = name_type; mt.type_annotation = value_type
 		mt.optional = optional_mod; mt.readonly = readonly_mod
-		mt.loc.span.end = prev_end_offset(p)
+		mt.loc.end = prev_end_offset(p)
 		r := new_node(p, TSType); r^ = mt; return r
 	}
 
@@ -21226,7 +21226,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	}
 	expect_token(p, .RBrace)
 	report_duplicate_interface_member_errors(p, members[:])
-	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.span.end = prev_end_offset(p)
+	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = lit; return r
 }
 
@@ -21272,7 +21272,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 			rest := new_node(p, RestElement)
 			rest.loc = rest_start
 			rest.argument = inner
-			rest.loc.span.end = prev_end_offset(p)
+			rest.loc.end = prev_end_offset(p)
 			pattern = rest
 		} else {
 			pattern = parse_binding_pattern(p)
@@ -21306,7 +21306,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 					ap.loc = param_start
 					ap.left = pattern
 					ap.right = default_expr
-					ap.loc.span.end = prev_end_offset(p)
+					ap.loc.end = prev_end_offset(p)
 					pattern = ap
 				}
 			}
@@ -21322,21 +21322,21 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 		if ann, ok := param_ann.(^TSTypeAnnotation); ok && ann != nil {
 			#partial switch t in pattern {
 			case ^Identifier:
-				if ann.loc.span.end > t.loc.span.end {
-					t.loc.span.end = ann.loc.span.end
+				if ann.loc.end > t.loc.end {
+					t.loc.end = ann.loc.end
 				}
 			case ^ObjectPattern:
-				if ann.loc.span.end > t.loc.span.end {
-					t.loc.span.end = ann.loc.span.end
+				if ann.loc.end > t.loc.end {
+					t.loc.end = ann.loc.end
 				}
 			case ^ArrayPattern:
-				if ann.loc.span.end > t.loc.span.end {
-					t.loc.span.end = ann.loc.span.end
+				if ann.loc.end > t.loc.end {
+					t.loc.end = ann.loc.end
 				}
 			}
 		}
 		fp := TSFunctionParam{loc = param_start, pattern = pattern, type_annotation = param_ann, optional = param_optional}
-		fp.loc.span.end = prev_end_offset(p)
+		fp.loc.end = prev_end_offset(p)
 		bump_append(&params, fp)
 		if param_is_rest && is_token(p, .Comma) {
    ensure_nxt(p)
@@ -21354,7 +21354,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 	return params
 }
 
-// set_ts_sig_end widens a TSSignature's `loc.span.end` in place. Used
+// set_ts_sig_end widens a TSSignature's `loc.end` in place. Used
 // after consuming a trailing `;` / `,` / `}` so the member's span
 // includes the terminator (OXC convention). The signature is a tagged
 // union over value-carrying structs; we have to pattern-match and mutate
@@ -21363,15 +21363,15 @@ set_ts_sig_end :: proc(sig: ^TSSignature, end: u32) {
 	if sig == nil { return }
 	switch v in sig^ {
 	case TSPropertySignature:
-		p := v; p.loc.span.end = end; sig^ = p
+		p := v; p.loc.end = end; sig^ = p
 	case TSMethodSignature:
-		p := v; p.loc.span.end = end; sig^ = p
+		p := v; p.loc.end = end; sig^ = p
 	case TSCallSignatureDeclaration:
-		p := v; p.loc.span.end = end; sig^ = p
+		p := v; p.loc.end = end; sig^ = p
 	case TSConstructSignatureDeclaration:
-		p := v; p.loc.span.end = end; sig^ = p
+		p := v; p.loc.end = end; sig^ = p
 	case TSIndexSignature:
-		p := v; p.loc.span.end = end; sig^ = p
+		p := v; p.loc.end = end; sig^ = p
 	}
 }
 
@@ -21447,7 +21447,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		call_sig := TSCallSignatureDeclaration{
 			loc = start, type_parameters = type_params, params = params, return_type = ret,
 		}
-		call_sig.loc.span.end = prev_end_offset(p)
+		call_sig.loc.end = prev_end_offset(p)
 		sig := new_node(p, TSSignature); sig^ = call_sig; return sig
 	}
 
@@ -21465,7 +21465,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		ctor_sig := TSConstructSignatureDeclaration{
 			loc = start, type_parameters = ctor_type_params, params = params, return_type = ret,
 		}
-		ctor_sig.loc.span.end = prev_end_offset(p)
+		ctor_sig.loc.end = prev_end_offset(p)
 		sig := new_node(p, TSSignature); sig^ = ctor_sig; return sig
 	}
 
@@ -21513,7 +21513,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		eat(p) // `]`
 		if is_token(p, .Colon) { eat(p); _ = parse_ts_type(p) }
 		call_decl := TSCallSignatureDeclaration{loc = start}
-		call_decl.loc.span.end = prev_end_offset(p)
+		call_decl.loc.end = prev_end_offset(p)
 		sig := new_node(p, TSSignature); sig^ = call_decl
 		return sig
 	}
@@ -21526,7 +21526,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		if is_token(p, .RBracket) { eat(p) }
 		if is_token(p, .Colon) { eat(p); _ = parse_ts_type(p) }
 		call_decl2 := TSCallSignatureDeclaration{loc = start}
-		call_decl2.loc.span.end = prev_end_offset(p)
+		call_decl2.loc.end = prev_end_offset(p)
 		sig := new_node(p, TSSignature); sig^ = call_decl2
 		return sig
 	}
@@ -21578,21 +21578,21 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			}
 			// Build the sole parameter with correct span: ends at key-type end.
 			key_ann := new_node(p, TSTypeAnnotation)
-			key_ann.loc.span.start = colon_start.span.start
-			key_ann.loc.span.end   = key_type_end
+			key_ann.loc.start = colon_start.start
+			key_ann.loc.end   = key_type_end
 			key_ann.type_annotation = idx_ann
 			fp := TSFunctionParam{
 				loc = param_start,
 				pattern = param_name_ident,
 				type_annotation = key_ann,
 			}
-			fp.loc.span.end = key_type_end
+			fp.loc.end = key_type_end
 			bump_append(&idx_sig.parameters, fp)
 			// Consume optional semi/comma inside the function so the span includes
 			// the terminator (matching OXC). The caller also tries to match them
 			// but match_token is idempotent when the token is already consumed.
 			match_token(p, .Semi); match_token(p, .Comma)
-			idx_sig.loc.span.end = prev_end_offset(p)
+			idx_sig.loc.end = prev_end_offset(p)
 
 			sig := new_node(p, TSSignature)
 			sig^ = idx_sig
@@ -21615,7 +21615,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			}
 			method.params = parse_ts_sig_params(p)
 			if is_token(p, .Colon) { method.return_type = parse_ts_return_type_annotation(p) }
-			method.loc.span.end = prev_end_offset(p)
+			method.loc.end = prev_end_offset(p)
 			sig^ = method; return sig
 		}
 
@@ -21623,7 +21623,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		sig := new_node(p, TSSignature)
 		prop := TSPropertySignature{loc = start, key = key, computed = true, optional = optional, readonly = readonly}
 		if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
-		prop.loc.span.end = prev_end_offset(p)
+		prop.loc.end = prev_end_offset(p)
 		sig^ = prop; return sig
 	}
 
@@ -21721,7 +21721,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			loc = start, key = accessor_key, computed = accessor_computed,
 			optional = false, kind = accessor_kind, params = params, return_type = ret,
 		}
-		method.loc.span.end = prev_end_offset(p)
+		method.loc.end = prev_end_offset(p)
 		sig := new_node(p, TSSignature)
 		sig^ = method
 		return sig
@@ -21762,7 +21762,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		}
 		method.params = parse_ts_sig_params(p)
 		if is_token(p, .Colon) { method.return_type = parse_ts_return_type_annotation(p) }
-		method.loc.span.end = prev_end_offset(p)
+		method.loc.end = prev_end_offset(p)
 		sig^ = method; return sig
 	}
 
@@ -21770,7 +21770,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	sig := new_node(p, TSSignature)
 	prop := TSPropertySignature{loc = start, key = key, computed = computed, optional = optional, readonly = readonly}
 	if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
-	prop.loc.span.end = prev_end_offset(p)
+	prop.loc.end = prev_end_offset(p)
 	sig^ = prop; return sig
 }
 
@@ -21997,13 +21997,13 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 	// Every declaration variant returned above carries its own `loc` on the
 	// inner pointer; find and overwrite span.start in place.
 	#partial switch inner in stmt^ {
-	case ^FunctionDeclaration:    inner.loc.span.start = declare_start
-	case ^ClassDeclaration:       inner.expr.loc.span.start = declare_start
-	case ^VariableDeclaration:    inner.loc.span.start = declare_start
-	case ^TSEnumDeclaration:      inner.loc.span.start = declare_start
-	case ^TSInterfaceDeclaration: inner.loc.span.start = declare_start
-	case ^TSTypeAliasDeclaration: inner.loc.span.start = declare_start
-	case ^TSModuleDeclaration:    inner.loc.span.start = declare_start
+	case ^FunctionDeclaration:    inner.loc.start = declare_start
+	case ^ClassDeclaration:       inner.expr.loc.start = declare_start
+	case ^VariableDeclaration:    inner.loc.start = declare_start
+	case ^TSEnumDeclaration:      inner.loc.start = declare_start
+	case ^TSInterfaceDeclaration: inner.loc.start = declare_start
+	case ^TSTypeAliasDeclaration: inner.loc.start = declare_start
+	case ^TSModuleDeclaration:    inner.loc.start = declare_start
 	}
 	return stmt
 }
@@ -22032,14 +22032,14 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 			prop := parse_identifier_name(p)
 			mem := new_node(p, MemberExpression); mem.loc = entry_start; mem.object = expr
 			pid, pid_e := new_expr(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
-			mem.property = pid_e; mem.loc.span.end = prev_end_offset(p)
+			mem.property = pid_e; mem.loc.end = prev_end_offset(p)
 			expr = expression_from(p, mem)
 		}
 		type_args: Maybe(^TSTypeParameterInstantiation)
 		if is_open_angle_or_lshift(p) { type_args = parse_ts_type_arguments(p) }
 		entry_end := prev_end_offset(p)
 		h := TSInterfaceHeritage{
-			loc = Loc{span = Span{start = entry_start.span.start, end = entry_end}},
+			loc = Loc{start = entry_start.start, end = entry_end},
 			expression = expr,
 			type_parameters = type_args,
 		}
@@ -22091,8 +22091,8 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	report_duplicate_interface_member_errors(p, members[:])
 	decl := new_node(p, TSInterfaceDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters
 	decl.extends = extends_list
-	decl.body = TSInterfaceBody{loc = body_start, body = members}; decl.body.loc.span.end = prev_end_offset(p)
-	decl.loc.span.end = prev_end_offset(p)
+	decl.body = TSInterfaceBody{loc = body_start, body = members}; decl.body.loc.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }
 
@@ -22110,7 +22110,7 @@ parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	if tp, have := type_parameters.?; have && tp != nil {
 		for &param in tp.params {
 			if param.const_ {
-				report_error_at(p, LexerLoc(param.loc.span.start),
+				report_error_at(p, LexerLoc(param.loc.start),
 					"'const' modifier can only appear on a type parameter of a function, method or class.")
 			}
 		}
@@ -22122,7 +22122,7 @@ parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 	match_semicolon_or_asi(p)
 	decl := new_node(p, TSTypeAliasDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters; decl.type_annotation = type_ann
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }
 
@@ -22211,7 +22211,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			p.in_generator = prev_in_generator
 			p.in_async = prev_in_async
 		}
-		m := TSEnumMember{loc = ms, id = member_id, initializer = init}; m.loc.span.end = prev_end_offset(p)
+		m := TSEnumMember{loc = ms, id = member_id, initializer = init}; m.loc.end = prev_end_offset(p)
 		bump_append(&members, m)
 		if !match_token(p, .Comma) { break }
 	}
@@ -22227,8 +22227,8 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			if name == "" { continue }
 			if name in seen_names {
 				loc := u32(0)
-				if id, ok := m.id^.(^Identifier); ok && id != nil { loc = id.loc.span.start }
-				else if sl, ok2 := m.id^.(^StringLiteral); ok2 && sl != nil { loc = sl.loc.span.start }
+				if id, ok := m.id^.(^Identifier); ok && id != nil { loc = id.loc.start }
+				else if sl, ok2 := m.id^.(^StringLiteral); ok2 && sl != nil { loc = sl.loc.start }
 				msg := fmt.tprintf("Duplicate identifier '%s'.", name)
 				report_error_at(p, LexerLoc(loc), msg)
 			}
@@ -22258,7 +22258,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 				if prev_needs_init {
 					loc := u32(0)
 					if m.id != nil {
-						if id, ok := m.id^.(^Identifier); ok && id != nil { loc = id.loc.span.start }
+						if id, ok := m.id^.(^Identifier); ok && id != nil { loc = id.loc.start }
 					}
 					report_error_at(p, LexerLoc(loc),
 						"Enum member must have initializer.")
@@ -22269,8 +22269,8 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	decl := new_node(p, TSEnumDeclaration); decl.loc = start; decl.id = id
-	decl.body = TSEnumBody{loc = body_start, members = members}; decl.body.loc.span.end = prev_end_offset(p)
-	decl.const_ = is_const; decl.loc.span.end = prev_end_offset(p)
+	decl.body = TSEnumBody{loc = body_start, members = members}; decl.body.loc.end = prev_end_offset(p)
+	decl.const_ = is_const; decl.loc.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }
 
@@ -22301,7 +22301,7 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 			global_ok = true
 		}
 		if !global_ok {
-			report_error_at(p, LexerLoc(start.span.start),
+			report_error_at(p, LexerLoc(start.start),
 				"Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.")
 		}
 	}
@@ -22322,7 +22322,7 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 	expect_token(p, .RBrace)
 	blk := new_node(p, TSModuleBlock)
 	blk.loc = body_start; blk.body = stmts
-	blk.loc.span.end = prev_end_offset(p)
+	blk.loc.end = prev_end_offset(p)
 	if allow_ts_mode(p) {
 		if p.in_ambient || p.source_is_dts {
 			report_ts_ambient_function_errors(p, stmts[:])
@@ -22334,7 +22334,7 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 	}
 	body_union := new_node(p, TSModuleBody); body_union^ = blk
 	decl.body = body_union
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }
 
@@ -22345,7 +22345,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// function body, class body, etc. they're a SyntaxError.
 	// Valid positions: program top-level, or inside a namespace body.
 	if allow_ts_mode(p) && (p.block_depth > 0 || p.in_function) && !p.in_ts_namespace {
-		report_error_at(p, LexerLoc(start.span.start),
+		report_error_at(p, LexerLoc(start.start),
 			"A namespace declaration is only allowed at the top level of a namespace or module.")
 	}
 	eat(p) // consume `namespace` or `module`
@@ -22362,7 +22362,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// `declare module M {}` is valid (standard ambient namespace syntax).
 	// Also exempt .d.ts files where everything is implicitly ambient.
 	if kind == .Module && !is_string_named && !p.in_ambient && !p.source_is_dts {
-		report_error_at(p, LexerLoc(start.span.start),
+		report_error_at(p, LexerLoc(start.start),
 			"`module` declarations must have a string name. Use `namespace` instead.")
 	}
 	id_expr: ^Expression
@@ -22393,7 +22393,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 			body_union^ = inner
 			outer.body = body_union
 		}
-		outer.loc.span.end = prev_end_offset(p)
+		outer.loc.end = prev_end_offset(p)
 		stmt := new_node(p, Statement); stmt^ = outer; return stmt
 	}
 
@@ -22442,7 +22442,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		expect_token(p, .RBrace)
 		blk := new_node(p, TSModuleBlock)
 		blk.loc = body_start; blk.body = stmts
-		blk.loc.span.end = prev_end_offset(p)
+		blk.loc.end = prev_end_offset(p)
 		if allow_ts_mode(p) {
 			if p.in_ambient || p.source_is_dts {
 				report_ts_ambient_function_errors(p, stmts[:])
@@ -22454,7 +22454,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		body_union^ = blk
 		decl.body = body_union
 	}
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }
 
@@ -22514,7 +22514,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		expect_token(p, .RBrace)
 		blk := new_node(p, TSModuleBlock)
 		blk.loc = body_start; blk.body = stmts
-		blk.loc.span.end = prev_end_offset(p)
+		blk.loc.end = prev_end_offset(p)
 		if allow_ts_mode(p) {
 			if p.in_ambient || p.source_is_dts {
 				report_ts_ambient_function_errors(p, stmts[:])
@@ -22526,7 +22526,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 		body_union^ = blk
 		decl.body = body_union
 	}
-	decl.loc.span.end = prev_end_offset(p)
+	decl.loc.end = prev_end_offset(p)
 	return decl
 }
 
@@ -22540,7 +22540,7 @@ cur_offset :: #force_inline proc(p: ^Parser) -> u32 {
 }
 
 // prev_end_offset returns the end offset of the LAST consumed token. Use this
-// for `loc.span.end` to match ESTree/OXC/Acorn/Babel span semantics, which
+// for `loc.end` to match ESTree/OXC/Acorn/Babel span semantics, which
 // END a node at the last character of its last token - excluding any trailing
 // whitespace, newlines, or comments that precede the NEXT token.
 //
@@ -22565,9 +22565,7 @@ cur_value :: #force_inline proc(p: ^Parser) -> string {
 
 cur_loc :: #force_inline proc(p: ^Parser) -> Loc {
 	ft := p.lexer.cur
-	return Loc{
-		span = Span{start = ft.start, end = ft.end},
-	}
+	return Loc{start = ft.start, end = ft.end}
 }
 
 cur_raw_end :: #force_inline proc(p: ^Parser) -> u32 {
@@ -22618,7 +22616,7 @@ snap_current :: #force_inline proc(p: ^Parser) -> TokenSnap {
 }
 
 loc_from_snap :: #force_inline proc(s: ^TokenSnap) -> Loc {
-	return Loc{span = Span{start = s.start, end = s.end}}
+	return Loc{start = s.start, end = s.end}
 }
 
 loc_from_token :: proc{loc_from_token_impl, loc_from_snap}
@@ -22646,12 +22644,7 @@ loc_from_token_impl :: #force_inline proc(t: ^Token) -> Loc {
 	if t.raw_end != 0 && t.raw_end > u32(t.loc) {
 		end = t.raw_end
 	}
-	return Loc{
-		span   = Span{
-			start = u32(t.loc),
-			end   = end,
-		},
-	}
+	return Loc{start = u32(t.loc), end = end}
 }
 
 // Extract loc from any Expression variant. All variants have `loc` as first field.
@@ -22700,13 +22693,13 @@ loc_from_expr :: #force_inline proc(e: ^Expression) -> Loc {
 set_expr_start :: proc(e: ^Expression, start: u32) {
 	if e == nil { return }
 	loc := get_expr_loc_ptr(e)
-	if loc != nil { loc.span.start = start }
+	if loc != nil { loc.start = start }
 }
 
 set_expr_end :: proc(e: ^Expression, end: u32) {
 	if e == nil { return }
 	loc := get_expr_loc_ptr(e)
-	if loc != nil { loc.span.end = end }
+	if loc != nil { loc.end = end }
 }
 
 get_expr_loc_ptr :: proc(e: ^Expression) -> ^Loc {

@@ -575,11 +575,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if lbl, have := v.label.(LabelIdentifier); have {
 			if entry, ok := label_in_scope(ctx, lbl.name); !ok {
 				_ = entry
-				ck_report(c, u32(v.loc.span.start), "Undefined label")
+				ck_report(c, u32(v.loc.start), "Undefined label")
 			}
 		} else {
 			if ctx.iter_depth == 0 && ctx.switch_depth == 0 {
-				ck_report(c, u32(v.loc.span.start), "Illegal break statement: not in a loop or switch")
+				ck_report(c, u32(v.loc.start), "Illegal break statement: not in a loop or switch")
 			}
 		}
 
@@ -588,13 +588,13 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if lbl, have := v.label.(LabelIdentifier); have {
 			entry, ok := label_in_scope(ctx, lbl.name)
 			if !ok {
-				ck_report(c, u32(v.loc.span.start), "Undefined label")
+				ck_report(c, u32(v.loc.start), "Undefined label")
 			} else if !entry.is_iteration {
-				ck_report(c, u32(v.loc.span.start), "Illegal continue statement: label does not target an iteration statement")
+				ck_report(c, u32(v.loc.start), "Illegal continue statement: label does not target an iteration statement")
 			}
 		} else {
 			if ctx.iter_depth == 0 {
-				ck_report(c, u32(v.loc.span.start), "Illegal continue statement: not in a loop")
+				ck_report(c, u32(v.loc.start), "Illegal continue statement: not in a loop")
 			}
 		}
 
@@ -606,7 +606,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if ctx.strict_mode && v.body != nil {
 			if fn, is_fn := v.body^.(^FunctionDeclaration); is_fn && fn != nil {
 				if !fn.async && !fn.generator {
-					ck_report(c, u32(fn.loc.span.start), "Function declaration cannot be a labeled item in strict mode")
+					ck_report(c, u32(fn.loc.start), "Function declaration cannot be a labeled item in strict mode")
 				}
 			}
 		}
@@ -617,11 +617,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		//   * Escaped contextual-reserved words are reserved unconditionally
 		//     (§12.7.2; matches our parser's check_identifier_await_reserved).
 		if v.label.name == "yield" && ctx.strict_mode {
-			ck_report(c, u32(v.label.loc.span.start),
+			ck_report(c, u32(v.label.loc.start),
 				"'yield' is reserved as a label name in strict mode")
 		}
 		if v.label.name == "await" && ctx.source_type == .Module {
-			ck_report(c, u32(v.label.loc.span.start),
+			ck_report(c, u32(v.label.loc.start),
 				"'await' is reserved as a label name in module code")
 		}
 		// §15.7.1 — ClassStaticBlock forbids `await` as a LabelIdentifier
@@ -631,7 +631,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		// reserving `await` even in script files. The module-only branch
 		// above doesn't catch this for script-mode fixtures.
 		if v.label.name == "await" && ctx.in_class_static_block && ctx.source_type != .Module {
-			ck_report(c, u32(v.label.loc.span.start),
+			ck_report(c, u32(v.label.loc.start),
 				"'await' is reserved as a label name in a class static block")
 		}
 		// Escaped reserved word as label — e.g. `aw\u0061it: 1;` in module
@@ -652,12 +652,12 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		}
 		if lbl_is_reserved && c.pending_parser != nil && c.pending_parser.lexer != nil {
 			src := c.pending_parser.lexer.source
-			lbl_start := int(v.label.loc.span.start)
-			lbl_end   := int(v.label.loc.span.end)
+			lbl_start := int(v.label.loc.start)
+			lbl_end   := int(v.label.loc.end)
 			if lbl_start >= 0 && lbl_end > lbl_start && lbl_end <= len(src) {
 				if strings.contains(src[lbl_start:lbl_end], "\\u") {
 					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", v.label.name)
-					ck_report(c, u32(v.label.loc.span.start), msg)
+					ck_report(c, u32(v.label.loc.start), msg)
 				}
 			}
 		}
@@ -666,7 +666,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		entry := CheckerLabel{
 			name         = v.label.name,
 			is_iteration = label_is_iteration_target(v.body),
-			loc_offset   = u32(v.label.loc.span.start),
+			loc_offset   = u32(v.label.loc.start),
 		}
 		bump_append_ck(ctx, entry)
 		ck_walk_stmt(c, ctx, v.body)
@@ -763,7 +763,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		// even within a module). Use function_depth to check: at module
 		// top-level, function_depth is 0.
 		if v.await && !ctx.in_async && !(ctx.source_type == .Module && ctx.function_depth == 0) {
-			ck_report(c, u32(v.loc.span.start),
+			ck_report(c, u32(v.loc.start),
 				"'for await' is only valid in async functions or at the top level of a module")
 		}
 		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, false)
@@ -850,7 +850,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		// §14.11.1 — WithStatement is forbidden in strict mode.
 		if ctx.strict_mode {
-			ck_report(c, u32(v.loc.span.start), "'with' statements are not allowed in strict mode")
+			ck_report(c, u32(v.loc.start), "'with' statements are not allowed in strict mode")
 		}
 		ck_walk_expr(c, ctx, v.object)
 		ck_check_single_stmt_function(c, v.body)
@@ -866,12 +866,12 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil {
 			// TS1221 — generators in ambient context (declare function* or .d.ts).
 			if (ctx.lang == .TS || ctx.lang == .TSX) && v.generator && (v.declare || ctx.is_dts) {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Generators are not allowed in an ambient context.")
 			}
 			// TS1040 — async modifier in ambient context.
 			if (ctx.lang == .TS || ctx.lang == .TSX) && v.async && (v.declare || ctx.is_dts) {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"'async' modifier cannot be used in an ambient context.")
 			}
 			ck_walk_function(c, ctx, &v.expr)
@@ -885,7 +885,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		// through `ck_walk_export_decl` and is not checked here.
 		// OXC: "A class name is required.".
 		if _, has_id := v.id.(BindingIdentifier); !has_id {
-			ck_report(c, u32(v.loc.span.start), "A class name is required.")
+			ck_report(c, u32(v.loc.start), "A class name is required.")
 		}
 		ck_walk_class(c, ctx, &v.expr)
 
@@ -937,7 +937,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				global_ok = true
 			}
 			if !global_ok {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.")
 			}
 		}
@@ -953,10 +953,10 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Interface name cannot be '%s'.", v.id.name)
-				ck_report(c, u32(v.id.loc.span.start), msg)
+				ck_report(c, u32(v.id.loc.start), msg)
 			}
 			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Interface declarations are only valid at the top level of a module or namespace.")
 			}
 			ck_check_ts_interface_member_dups(c, v.body)
@@ -973,10 +973,10 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			// TS2457 — type alias name cannot be a predefined type name.
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Type alias name cannot be '%s'.", v.id.name)
-				ck_report(c, u32(v.id.loc.span.start), msg)
+				ck_report(c, u32(v.id.loc.start), msg)
 			}
 			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Type aliases are only valid at the top level of a module or namespace.")
 			}
 			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
@@ -989,7 +989,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Enum name cannot be '%s'.", v.id.name)
-				ck_report(c, u32(v.id.loc.span.start), msg)
+				ck_report(c, u32(v.id.loc.start), msg)
 			}
 			ck_check_ts_enum_member_dups(c, v)
 		}
@@ -1008,7 +1008,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Import name cannot be '%s'.", v.id.name)
-				ck_report(c, u32(v.id.loc.span.start), msg)
+				ck_report(c, u32(v.id.loc.start), msg)
 			}
 		}
 		// TS1392 import alias + import type — migrated to parser.
@@ -1034,7 +1034,7 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(inner.id.name) {
 				msg := fmt.tprintf("Interface name cannot be '%s'.", inner.id.name)
-				ck_report(c, u32(inner.id.loc.span.start), msg)
+				ck_report(c, u32(inner.id.loc.start), msg)
 			}
 			ck_check_ts_interface_member_dups(c, inner.body)
 			if tp, has := inner.type_parameters.(^TSTypeParameterDeclaration); has {
@@ -1045,7 +1045,7 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(inner.id.name) {
 				msg := fmt.tprintf("Enum name cannot be '%s'.", inner.id.name)
-				ck_report(c, u32(inner.id.loc.span.start), msg)
+				ck_report(c, u32(inner.id.loc.start), msg)
 			}
 		}
 	case ^TSTypeAliasDeclaration:
@@ -1138,7 +1138,7 @@ ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) 
 		for j := 0; j < i; j += 1 {
 			if names[i] == names[j] {
 				msg := fmt.tprintf("Identifier '%s' has already been declared", names[i])
-				ck_report(c, u32(decl.loc.span.start), msg)
+				ck_report(c, u32(decl.loc.start), msg)
 				return
 			}
 		}
@@ -1380,27 +1380,27 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 	case ^ClassDeclaration:
 		if v == nil { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			ts_decl_merge_add(c, seen, id.name, .Class, u32(id.loc.span.start), v.declare)
+			ts_decl_merge_add(c, seen, id.name, .Class, u32(id.loc.start), v.declare)
 		}
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			ts_decl_merge_add(c, seen, id.name, .Function, u32(id.loc.span.start), v.declare)
+			ts_decl_merge_add(c, seen, id.name, .Function, u32(id.loc.start), v.declare)
 		}
 	case ^TSEnumDeclaration:
 		if v == nil { return }
 		ek: DeclMergeKind = v.const_ ? .ConstEnum : .Enum
-		ts_decl_merge_add(c, seen, v.id.name, ek, u32(v.id.loc.span.start), v.declare)
+		ts_decl_merge_add(c, seen, v.id.name, ek, u32(v.id.loc.start), v.declare)
 	case ^TSInterfaceDeclaration:
 		if v == nil { return }
-		ts_decl_merge_add(c, seen, v.id.name, .Interface, u32(v.id.loc.span.start), v.declare)
+		ts_decl_merge_add(c, seen, v.id.name, .Interface, u32(v.id.loc.start), v.declare)
 	case ^TSTypeAliasDeclaration:
 		if v == nil { return }
-		ts_decl_merge_add(c, seen, v.id.name, .TypeAlias, u32(v.id.loc.span.start), v.declare)
+		ts_decl_merge_add(c, seen, v.id.name, .TypeAlias, u32(v.id.loc.start), v.declare)
 	case ^TSModuleDeclaration:
 		if v == nil || v.id == nil { return }
 		if ident, is := v.id^.(^Identifier); is && ident != nil {
-			ts_decl_merge_add(c, seen, ident.name, .Namespace, u32(ident.loc.span.start), v.declare)
+			ts_decl_merge_add(c, seen, ident.name, .Namespace, u32(ident.loc.start), v.declare)
 		}
 	case ^VariableDeclaration:
 		if v == nil { return }
@@ -1415,7 +1415,7 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 		reserve(&names, 4)
 		for d in v.declarations { collect_bound_names(d.id, &names) }
 		for n in names {
-			ts_decl_merge_add(c, seen, n, kind, u32(v.loc.span.start), v.declare)
+			ts_decl_merge_add(c, seen, n, kind, u32(v.loc.start), v.declare)
 		}
 	case ^ImportDeclaration:
 		// Each specifier introduces a local binding. `import type` makes
@@ -1430,11 +1430,11 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 			if spec == nil { continue }
 			switch s in spec^ {
 			case ImportSpecifier:
-				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.span.start), false)
+				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.start), false)
 			case ImportDefaultSpecifier:
-				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.span.start), false)
+				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.start), false)
 			case ImportNamespaceSpecifier:
-				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.span.start), false)
+				ts_decl_merge_add(c, seen, s.local.name, kind, u32(s.local.loc.start), false)
 			}
 		}
 	case ^TSImportEqualsDeclaration:
@@ -1444,7 +1444,7 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 		// per TS2440.
 		if v == nil { return }
 		kind: DeclMergeKind = v.import_kind == .Type ? .ImportType : .ImportEquals
-		ts_decl_merge_add(c, seen, v.id.name, kind, u32(v.id.loc.span.start), false)
+		ts_decl_merge_add(c, seen, v.id.name, kind, u32(v.id.loc.start), false)
 	case ^ExportNamedDeclaration:
 		if v == nil { return }
 		if d, have := v.declaration.(^Declaration); have && d != nil {
@@ -1456,31 +1456,31 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 			case ^ClassDeclaration:
 				if inner != nil {
 					if id, ok := inner.id.(BindingIdentifier); ok {
-						ts_decl_merge_add(c, seen, id.name, .Class, u32(id.loc.span.start), inner.declare)
+						ts_decl_merge_add(c, seen, id.name, .Class, u32(id.loc.start), inner.declare)
 					}
 				}
 			case ^FunctionDeclaration:
 				if inner != nil {
 					if id, ok := inner.id.(BindingIdentifier); ok {
-						ts_decl_merge_add(c, seen, id.name, .Function, u32(id.loc.span.start), inner.declare)
+						ts_decl_merge_add(c, seen, id.name, .Function, u32(id.loc.start), inner.declare)
 					}
 				}
 			case ^TSEnumDeclaration:
 				if inner != nil {
-					ts_decl_merge_add(c, seen, inner.id.name, .Enum, u32(inner.id.loc.span.start), inner.declare)
+					ts_decl_merge_add(c, seen, inner.id.name, .Enum, u32(inner.id.loc.start), inner.declare)
 				}
 			case ^TSInterfaceDeclaration:
 				if inner != nil {
-					ts_decl_merge_add(c, seen, inner.id.name, .Interface, u32(inner.id.loc.span.start), inner.declare)
+					ts_decl_merge_add(c, seen, inner.id.name, .Interface, u32(inner.id.loc.start), inner.declare)
 				}
 			case ^TSTypeAliasDeclaration:
 				if inner != nil {
-					ts_decl_merge_add(c, seen, inner.id.name, .TypeAlias, u32(inner.id.loc.span.start), inner.declare)
+					ts_decl_merge_add(c, seen, inner.id.name, .TypeAlias, u32(inner.id.loc.start), inner.declare)
 				}
 			case ^TSModuleDeclaration:
 				if inner != nil && inner.id != nil {
 					if ident, is := inner.id^.(^Identifier); is && ident != nil {
-						ts_decl_merge_add(c, seen, ident.name, .Namespace, u32(ident.loc.span.start), inner.declare)
+						ts_decl_merge_add(c, seen, ident.name, .Namespace, u32(ident.loc.start), inner.declare)
 					}
 				}
 			case ^VariableDeclaration:
@@ -1496,7 +1496,7 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 					reserve(&names, 4)
 					for d in inner.declarations { collect_bound_names(d.id, &names) }
 					for n in names {
-						ts_decl_merge_add(c, seen, n, kind, u32(inner.loc.span.start), inner.declare)
+						ts_decl_merge_add(c, seen, n, kind, u32(inner.loc.start), inner.declare)
 					}
 				}
 			}
@@ -1522,7 +1522,7 @@ ck_check_ts2434_namespace_ordering :: proc(c: ^Checker, body: []^Statement, is_d
 	ns_name :: proc(m: ^TSModuleDeclaration) -> (string, u32, bool) {
 		if m == nil || m.id == nil { return "", 0, false }
 		if ident, is := m.id^.(^Identifier); is && ident != nil {
-			return ident.name, u32(ident.loc.span.start), true
+			return ident.name, u32(ident.loc.start), true
 		}
 		return "", 0, false
 	}
@@ -1740,7 +1740,7 @@ elem_overload_name :: proc(elem: ClassElement) -> (string, bool) {
 // nonzero span covering the braces.
 @(private="file")
 method_fn_has_body :: #force_inline proc(fn: ^FunctionExpression) -> bool {
-	return fn != nil && fn.body.loc.span.end > fn.body.loc.span.start
+	return fn != nil && fn.body.loc.end > fn.body.loc.start
 }
 
 // elem_is_overloadable_method — true if `elem` is a regular method or
@@ -1814,7 +1814,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 			elem := body.body[i]
 			fn, ok := elem_is_overloadable_method(elem)
 			if !ok || method_fn_has_body(fn) { continue }
-			ck_report(c, u32(elem.loc.span.start),
+			ck_report(c, u32(elem.loc.start),
 				"Function implementation is missing or not immediately following the declaration.")
 		}
 	}
@@ -1861,7 +1861,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 				// as the impl for the chain (TS2389 fires on name mismatch).
 				if name != chain_name {
 					msg := fmt.tprintf("Function implementation name must be '%s'.", chain_name)
-					ck_report(c, u32(elem.loc.span.start), msg)
+					ck_report(c, u32(elem.loc.start), msg)
 				}
 				chain_active = false
 			} else {
@@ -2027,7 +2027,7 @@ ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 		has_tp := false
 		if k == .MethodImpl || k == .MethodSig { has_tp = method_has_type_params(elem) }
 		append(&entries, Entry{
-			at = u32(elem.loc.span.start),
+			at = u32(elem.loc.start),
 			kind = k,
 			key_kind = kk,
 			name = name,
@@ -2158,15 +2158,15 @@ ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression) {
 		if !func.no_body { continue }
 		for param in func.params {
 			if param.accessibility != .None {
-				ck_report(c, u32(param.loc.span.start),
+				ck_report(c, u32(param.loc.start),
 					"Parameter properties are only allowed in the implementation constructor.")
 			}
 			if param.readonly {
-				ck_report(c, u32(param.loc.span.start),
+				ck_report(c, u32(param.loc.start),
 					"'readonly' parameter properties are only allowed in the implementation constructor.")
 			}
 			if param.override_ {
-				ck_report(c, u32(param.loc.span.start),
+				ck_report(c, u32(param.loc.start),
 					"'override' parameter properties are only allowed in the implementation constructor.")
 			}
 		}
@@ -2224,13 +2224,13 @@ ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpr
 			case ^Identifier:
 				if p != nil {
 					param_name = p.name
-					param_loc  = u32(p.loc.span.start)
+					param_loc  = u32(p.loc.start)
 				}
 			case ^AssignmentPattern:
 				if p != nil {
 					if id, ok := p.left.(^Identifier); ok && id != nil {
 						param_name = id.name
-						param_loc  = u32(id.loc.span.start)
+						param_loc  = u32(id.loc.start)
 					}
 				}
 			}
@@ -2267,11 +2267,11 @@ ck_check_ts_enum_member_dups :: proc(c: ^Checker, decl: ^TSEnumDeclaration) {
 		case ^Identifier:
 			if k == nil { continue }
 			name = k.name
-			loc  = u32(k.loc.span.start)
+			loc  = u32(k.loc.start)
 		case ^StringLiteral:
 			if k == nil { continue }
 			name = k.value
-			loc  = u32(k.loc.span.start)
+			loc  = u32(k.loc.start)
 		case:
 			continue  // computed key — skip
 		}
@@ -2304,7 +2304,7 @@ ck_check_ts_type_param_dups :: proc(c: ^Checker, tp: ^TSTypeParameterDeclaration
 		if name == "" { continue }
 		if seen[name] {
 			msg := fmt.tprintf("Duplicate identifier '%s'", name)
-			ck_report(c, u32(p.name.loc.span.start), msg)
+			ck_report(c, u32(p.name.loc.start), msg)
 		} else {
 			seen[name] = true
 		}
@@ -2375,7 +2375,7 @@ ck_check_ts_interface_member_dups :: proc(c: ^Checker, body: TSInterfaceBody) {
 			if !ok { continue }
 			_, has_anno := s.type_annotation.(^TSTypeAnnotation)
 			append(&entries, IfEntry{
-				at = u32(s.loc.span.start), kind = .Property, name = name,
+				at = u32(s.loc.start), kind = .Property, name = name,
 				has_anno = has_anno,
 			})
 		case TSMethodSignature:
@@ -2388,7 +2388,7 @@ ck_check_ts_interface_member_dups :: proc(c: ^Checker, body: TSInterfaceBody) {
 			case .Set:    k = .Set
 			}
 			append(&entries, IfEntry{
-				at = u32(s.loc.span.start), kind = k, name = name, has_anno = true,
+				at = u32(s.loc.start), kind = k, name = name, has_anno = true,
 			})
 		case TSCallSignatureDeclaration, TSConstructSignatureDeclaration, TSIndexSignature:
 			// No name — can't form a name-keyed slot.
@@ -2529,7 +2529,7 @@ fn_decl_overload_name :: proc(fn: ^FunctionDeclaration) -> (name: string, at: u3
 	if fn == nil { return "", 0, false }
 	id, have := fn.id.(BindingIdentifier)
 	if !have { return "", 0, false }
-	return id.name, u32(id.loc.span.start), true
+	return id.name, u32(id.loc.start), true
 }
 
 // ck_check_ts_func_overloads — walks a Statement-list left-to-right;
@@ -2693,7 +2693,7 @@ ck_check_ts2384_ambient_mismatch :: proc(c: ^Checker, body: []^Statement) {
 		if !has_name { continue }
 		entry, found := seen[name]
 		if !found {
-			entry = AmbientState{first_loc = u32(fn.loc.span.start)}
+			entry = AmbientState{first_loc = u32(fn.loc.start)}
 		}
 		if fn.declare {
 			entry.has_ambient = true
@@ -2712,7 +2712,7 @@ ck_check_ts2384_ambient_mismatch :: proc(c: ^Checker, body: []^Statement) {
 		entry, found := seen[name]
 		if !found { continue }
 		if entry.has_ambient && entry.has_nonamb {
-			ck_report(c, u32(fn.loc.span.start),
+			ck_report(c, u32(fn.loc.start),
 				"Overload signatures must all be ambient or non-ambient.")
 			// Remove from map so we only report once per name.
 			delete_key(&seen, name)
@@ -2760,7 +2760,7 @@ ck_ubd_collect_bindings :: proc(pattern: Pattern, decls: ^map[string]u32) {
 	case ^Identifier:
 		if p != nil {
 			if _, exists := decls[p.name]; !exists {
-				decls[p.name] = u32(p.loc.span.start)
+				decls[p.name] = u32(p.loc.start)
 			}
 		}
 	case ^ObjectPattern:
@@ -3138,12 +3138,12 @@ ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32,
 		// name AND we're not inside a closure, flag it.
 		if len(self_name) > 0 && e.name == self_name && closure_depth == 0 {
 			msg := fmt.tprintf("Block-scoped variable '%s' used before its declaration.", e.name)
-			ck_report(c, u32(e.loc.span.start), msg)
+			ck_report(c, u32(e.loc.start), msg)
 			return
 		}
 		decl_off, ok := decls^[e.name]
 		if !ok { return }
-		ref_off := u32(e.loc.span.start)
+		ref_off := u32(e.loc.start)
 		if ref_off >= decl_off { return }
 		msg := fmt.tprintf("Block-scoped variable '%s' used before its declaration.", e.name)
 		ck_report(c, ref_off, msg)
@@ -3319,7 +3319,7 @@ ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody)
 				// Skip for now — too complex.
 			}
 			if !valid {
-				ck_report(c, u32(param.loc.span.start),
+				ck_report(c, u32(param.loc.start),
 					"An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.")
 			}
 		}
@@ -3345,19 +3345,19 @@ ck_check_ts2374_dup_index_sig :: proc(c: ^Checker, body: TSInterfaceBody) {
 			#partial switch t in ta.type_annotation^ {
 			case ^TSStringKeyword:
 				if seen_string {
-					ck_report(c, u32(idx.loc.span.start),
+					ck_report(c, u32(idx.loc.start),
 						"Duplicate index signature for type 'string'.")
 				}
 				seen_string = true
 			case ^TSNumberKeyword:
 				if seen_number {
-					ck_report(c, u32(idx.loc.span.start),
+					ck_report(c, u32(idx.loc.start),
 						"Duplicate index signature for type 'number'.")
 				}
 				seen_number = true
 			case ^TSSymbolKeyword:
 				if seen_symbol {
-					ck_report(c, u32(idx.loc.span.start),
+					ck_report(c, u32(idx.loc.start),
 						"Duplicate index signature for type 'symbol'.")
 				}
 				seen_symbol = true
@@ -3420,7 +3420,7 @@ ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 			if pcount > 0 && prev.param_count > 0 {
 				if pcount != prev.param_count {
 					msg := fmt.tprintf("All declarations of '%s' must have identical type parameters.", name)
-					ck_report(c, u32(iface.id.loc.span.start), msg)
+					ck_report(c, u32(iface.id.loc.start), msg)
 				} else {
 					// Compare parameter names.
 					mismatch := false
@@ -3429,7 +3429,7 @@ ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 					}
 					if mismatch {
 						msg := fmt.tprintf("All declarations of '%s' must have identical type parameters.", name)
-						ck_report(c, u32(iface.id.loc.span.start), msg)
+						ck_report(c, u32(iface.id.loc.start), msg)
 					}
 				}
 			} else if pcount > 0 && prev.param_count == 0 {
@@ -3441,7 +3441,7 @@ ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 			seen[name] = InterfaceInfo{
 				param_count = pcount,
 				param_names = pnames,
-				first_loc   = u32(iface.id.loc.span.start),
+				first_loc   = u32(iface.id.loc.start),
 			}
 		}
 	}
@@ -3465,12 +3465,12 @@ ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allo
 			if v != nil {
 				// TS1221 — generators are not allowed in ambient contexts.
 				if v.generator {
-					ck_report(c, u32(v.loc.span.start),
+					ck_report(c, u32(v.loc.start),
 						"Generators are not allowed in an ambient context.")
 				}
 				// TS1040 — async modifier in ambient context.
 				if v.async {
-					ck_report(c, u32(v.loc.span.start),
+					ck_report(c, u32(v.loc.start),
 						"'async' modifier cannot be used in an ambient context.")
 				}
 			}
@@ -3497,24 +3497,24 @@ ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allo
 			// Get offset from the statement.
 			off := u32(0)
 			#partial switch s in stmt^ {
-			case ^IfStatement:              if s != nil { off = u32(s.loc.span.start) }
-			case ^WhileStatement:           if s != nil { off = u32(s.loc.span.start) }
-			case ^DoWhileStatement:         if s != nil { off = u32(s.loc.span.start) }
-			case ^ForStatement:             if s != nil { off = u32(s.loc.span.start) }
-			case ^ForInStatement:           if s != nil { off = u32(s.loc.span.start) }
-			case ^ForOfStatement:           if s != nil { off = u32(s.loc.span.start) }
-			case ^SwitchStatement:          if s != nil { off = u32(s.loc.span.start) }
-			case ^TryStatement:             if s != nil { off = u32(s.loc.span.start) }
-			case ^ThrowStatement:           if s != nil { off = u32(s.loc.span.start) }
-			case ^ReturnStatement:          if s != nil { off = u32(s.loc.span.start) }
-			case ^BlockStatement:           if s != nil { off = u32(s.loc.span.start) }
-			case ^EmptyStatement:           if s != nil { off = u32(s.loc.span.start) }
-			case ^ExpressionStatement:      if s != nil { off = u32(s.loc.span.start) }
-			case ^LabeledStatement:         if s != nil { off = u32(s.loc.span.start) }
-			case ^BreakStatement:           if s != nil { off = u32(s.loc.span.start) }
-			case ^ContinueStatement:        if s != nil { off = u32(s.loc.span.start) }
-			case ^WithStatement:            if s != nil { off = u32(s.loc.span.start) }
-			case ^DebuggerStatement:        if s != nil { off = u32(s.loc.span.start) }
+			case ^IfStatement:              if s != nil { off = u32(s.loc.start) }
+			case ^WhileStatement:           if s != nil { off = u32(s.loc.start) }
+			case ^DoWhileStatement:         if s != nil { off = u32(s.loc.start) }
+			case ^ForStatement:             if s != nil { off = u32(s.loc.start) }
+			case ^ForInStatement:           if s != nil { off = u32(s.loc.start) }
+			case ^ForOfStatement:           if s != nil { off = u32(s.loc.start) }
+			case ^SwitchStatement:          if s != nil { off = u32(s.loc.start) }
+			case ^TryStatement:             if s != nil { off = u32(s.loc.start) }
+			case ^ThrowStatement:           if s != nil { off = u32(s.loc.start) }
+			case ^ReturnStatement:          if s != nil { off = u32(s.loc.start) }
+			case ^BlockStatement:           if s != nil { off = u32(s.loc.start) }
+			case ^EmptyStatement:           if s != nil { off = u32(s.loc.start) }
+			case ^ExpressionStatement:      if s != nil { off = u32(s.loc.start) }
+			case ^LabeledStatement:         if s != nil { off = u32(s.loc.start) }
+			case ^BreakStatement:           if s != nil { off = u32(s.loc.start) }
+			case ^ContinueStatement:        if s != nil { off = u32(s.loc.start) }
+			case ^WithStatement:            if s != nil { off = u32(s.loc.start) }
+			case ^DebuggerStatement:        if s != nil { off = u32(s.loc.start) }
 			}
 			ck_report(c, off, "Statements are not allowed in ambient contexts.")
 		}
@@ -3532,37 +3532,37 @@ ck_check_ts1038_nested_declare :: proc(c: ^Checker, body: []^Statement) {
 		#partial switch v in stmt^ {
 		case ^VariableDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"A 'declare' modifier cannot be used in an already ambient context.")
 			}
 		case ^FunctionDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"A 'declare' modifier cannot be used in an already ambient context.")
 			}
 		case ^ClassDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"A 'declare' modifier cannot be used in an already ambient context.")
 			}
 		case ^TSModuleDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"A 'declare' modifier cannot be used in an already ambient context.")
 			}
 		case ^TSEnumDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"A 'declare' modifier cannot be used in an already ambient context.")
 			}
 		case ^TSInterfaceDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"A 'declare' modifier cannot be used in an already ambient context.")
 			}
 		case ^TSTypeAliasDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"A 'declare' modifier cannot be used in an already ambient context.")
 			}
 		case ^ExportNamedDeclaration:
@@ -3574,27 +3574,27 @@ ck_check_ts1038_nested_declare :: proc(c: ^Checker, body: []^Statement) {
 			#partial switch inner in d^ {
 			case ^VariableDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.span.start),
+					ck_report(c, u32(inner.loc.start),
 						"A 'declare' modifier cannot be used in an already ambient context.")
 				}
 			case ^FunctionDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.span.start),
+					ck_report(c, u32(inner.loc.start),
 						"A 'declare' modifier cannot be used in an already ambient context.")
 				}
 			case ^ClassDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.span.start),
+					ck_report(c, u32(inner.loc.start),
 						"A 'declare' modifier cannot be used in an already ambient context.")
 				}
 			case ^TSModuleDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.span.start),
+					ck_report(c, u32(inner.loc.start),
 						"A 'declare' modifier cannot be used in an already ambient context.")
 				}
 			case ^TSEnumDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.span.start),
+					ck_report(c, u32(inner.loc.start),
 						"A 'declare' modifier cannot be used in an already ambient context.")
 				}
 			}
@@ -3615,27 +3615,27 @@ ck_check_ts1046_dts_top_level :: proc(c: ^Checker, program: ^Program) {
 		#partial switch v in stmt^ {
 		case ^VariableDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
 			}
 		case ^FunctionDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
 			}
 		case ^ClassDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
 			}
 		case ^TSModuleDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
 			}
 		case ^TSEnumDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
 			}
 		// TSInterfaceDeclaration, TSTypeAliasDeclaration, ImportDeclaration,
@@ -3779,7 +3779,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// passing is_strict = true (so the "in strict mode" message
 		// fires) AND force_non_simple = true (to ensure the check runs
 		// even when the params are simple).
-		ck_check_duplicate_param_names(c, u32(e.loc.span.start), e.params[:], true, true)
+		ck_check_duplicate_param_names(c, u32(e.loc.start), e.params[:], true, true)
 		for pr in e.params {
 			ck_check_arrow_param_pattern(c, ctx, pr.pattern)
 			if ctx.strict_mode { ck_check_strict_param_pattern(c, pr.pattern) }
@@ -3856,7 +3856,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// Test262 module-code/top-level-await/new-await.js.
 		if ctx.source_type == .Module && e.callee != nil {
 			if id, ok := e.callee^.(^Identifier); ok && id != nil && id.name == "await" {
-				ck_report(c, u32(id.loc.span.start),
+				ck_report(c, u32(id.loc.start),
 					"'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'")
 			}
 		}
@@ -3991,7 +3991,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 				// TS2378 — getters must return a value.
 				if prop.kind == .Get && !fn.no_body && (ctx.lang == .TS || ctx.lang == .TSX) {
 					if !ck_body_has_return_value(fn.body.body[:]) {
-						ck_report(c, u32(fn.loc.span.start),
+						ck_report(c, u32(fn.loc.start),
 							"A 'get' accessor must return a value.")
 					}
 				}
@@ -4025,7 +4025,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 				is_valid = true
 			}
 			if !is_valid {
-				ck_report(c, u32(e.loc.span.start),
+				ck_report(c, u32(e.loc.start),
 					"The operand of a 'delete' operator must be a property reference.")
 			}
 		}
@@ -4040,20 +4040,20 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if e == nil { return }
 		// §15.7.5 — ClassStaticBlockBody Contains await is a SyntaxError.
 		if ctx.in_class_static_block {
-			ck_report(c, u32(e.loc.span.start), "'await' is not allowed in a class static block")
+			ck_report(c, u32(e.loc.start), "'await' is not allowed in a class static block")
 		}
 		// §15.7.10 — class field initializers are not async.
 		if ctx.in_field_init {
-			ck_report(c, u32(e.loc.span.start), "'await' is not allowed in a class field initializer")
+			ck_report(c, u32(e.loc.start), "'await' is not allowed in a class field initializer")
 		}
 		// §15.6.1 / arrow-cover: AwaitExpression in formal-parameter
 		// position is forbidden. Same arrow-vs-regular message split as
 		// the YieldExpression case.
 		if ctx.in_params {
 			if ctx.params_is_arrow {
-				ck_report(c, u32(e.loc.span.start), "Await expression is not allowed in arrow function parameters")
+				ck_report(c, u32(e.loc.start), "Await expression is not allowed in arrow function parameters")
 			} else {
-				ck_report(c, u32(e.loc.span.start), "'await' expression is not allowed in formal parameters of an async function")
+				ck_report(c, u32(e.loc.start), "'await' expression is not allowed in formal parameters of an async function")
 			}
 		}
 		ck_walk_expr(c, ctx, e.argument)
@@ -4065,9 +4065,9 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// match the parser's existing arrow-vs-regular split.
 		if ctx.in_params {
 			if ctx.params_is_arrow {
-				ck_report(c, u32(e.loc.span.start), "Yield expression is not allowed in arrow function parameters")
+				ck_report(c, u32(e.loc.start), "Yield expression is not allowed in arrow function parameters")
 			} else {
-				ck_report(c, u32(e.loc.span.start), "'yield' expression is not allowed in formal parameters of a generator")
+				ck_report(c, u32(e.loc.start), "'yield' expression is not allowed in formal parameters of a generator")
 			}
 		}
 		if a, have := e.argument.(^Expression); have && a != nil { ck_walk_expr(c, ctx, a) }
@@ -4137,14 +4137,14 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// in the method's scope, so super IS valid there).
 		if e != nil && ctx.in_class_computed_key && !ctx.in_method &&
 		   (ctx.lang == .TS || ctx.lang == .TSX) {
-			ck_report(c, u32(e.loc.span.start),
+			ck_report(c, u32(e.loc.start),
 				"'super' cannot be referenced in a computed property name.")
 		}
 		// §13.3.7 — SuperProperty / SuperCall is only legal in a
 		// [[HomeObject]]-bearing context (class method / constructor /
 		// field init / static block, or object-literal method).
 		if e != nil && !ctx.in_method && !ctx.in_class_computed_key {
-			ck_report(c, u32(e.loc.span.start), "'super' is only allowed in class methods or object-literal methods")
+			ck_report(c, u32(e.loc.start), "'super' is only allowed in class methods or object-literal methods")
 		}
 	// TS2331 — 'this' cannot be referenced in a module or namespace body.
 	// `this` at the top level of a namespace (not inside a function/method/
@@ -4154,7 +4154,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// TS2465 — 'this' cannot be referenced in a computed property name.
 		if e != nil && ctx.in_class_computed_key &&
 		   (ctx.lang == .TS || ctx.lang == .TSX) {
-			ck_report(c, u32(e.loc.span.start),
+			ck_report(c, u32(e.loc.start),
 				"'this' cannot be referenced in a computed property name.")
 		}
 		// TS2331 — 'this' at the direct body level of a namespace (not
@@ -4162,7 +4162,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if e != nil && ctx.ts_namespace_depth > 0 &&
 		   ctx.function_depth == 0 && !ctx.in_arrow_body &&
 		   (ctx.lang == .TS || ctx.lang == .TSX) {
-			ck_report(c, u32(e.loc.span.start),
+			ck_report(c, u32(e.loc.start),
 				"'this' cannot be referenced in a module or namespace body.")
 		}
 
@@ -4182,7 +4182,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			// entry, so `await;` lexes/parses as an Identifier instead of
 			// an AwaitExpression). The checker fires the early error.
 			if e.name == "await" && ctx.in_class_static_block {
-				ck_report(c, u32(e.loc.span.start),
+				ck_report(c, u32(e.loc.start),
 					"'await' is reserved in a class static block")
 			}
 		}
@@ -4295,13 +4295,13 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 			if name_strict {
 				if is_eval_or_arguments(id.name) {
 					msg := fmt.tprintf("Function name '%s' is not allowed in strict mode", id.name)
-					ck_report(c, u32(id.loc.span.start), msg)
+					ck_report(c, u32(id.loc.start), msg)
 				} else if is_strict_reserved_simple_name(id.name) {
 					// `yield` as fn name in strict mode — parser-side
 					// `report_error` already catches generator name clash;
 					// strict-only reservation is checker-side.
 					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
-					ck_report(c, u32(id.loc.span.start), msg)
+					ck_report(c, u32(id.loc.start), msg)
 				}
 			}
 		}
@@ -4309,7 +4309,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	// TS — function implementations are not allowed in ambient
 	// contexts (.d.ts files, declare module/namespace bodies).
 	if ctx.is_dts && kind == .Plain && !fn.declare && !fn.no_body {
-		ck_report(c, u32(fn.loc.span.start),
+		ck_report(c, u32(fn.loc.start),
 			"An implementation cannot be declared in ambient contexts.")
 	}
 	saved := ck_enter_function(ctx)
@@ -4376,7 +4376,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		for pr in fn.params {
 			if _, has := pr.default_val.(^Expression); has {
 				msg := fmt.tprintf("A parameter initializer is only allowed in a function or constructor implementation.")
-				ck_report(c, u32(pr.loc.span.start), msg)
+				ck_report(c, u32(pr.loc.start), msg)
 			}
 		}
 	}
@@ -4395,7 +4395,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 				for n in self_names {
 					if ck_expr_has_identifier_ref(def, n, context.temp_allocator) {
 						msg := fmt.tprintf("Parameter '%s' cannot reference itself.", n)
-						ck_report(c, u32(pr.loc.span.start), msg)
+						ck_report(c, u32(pr.loc.start), msg)
 						break
 					}
 				}
@@ -4410,7 +4410,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 						if ck_expr_has_identifier_ref(def, fwd_n, context.temp_allocator) {
 							msg := fmt.tprintf("Parameter '%s' cannot reference identifier '%s' declared after it.",
 								ck_pattern_display_name(pr.pattern), fwd_n)
-							ck_report(c, u32(pr.loc.span.start), msg)
+							ck_report(c, u32(pr.loc.start), msg)
 							break  // one diagnostic per param is enough
 						}
 					}
@@ -4430,7 +4430,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	params_simple := params_are_simple(fn.params[:])
 	force_non_simple := !params_simple
 	dup_strict := ctx.strict_mode || fn.async || fn.generator || kind == .Method
-	ck_check_duplicate_param_names(c, u32(fn.loc.span.start), fn.params[:], dup_strict, force_non_simple)
+	ck_check_duplicate_param_names(c, u32(fn.loc.start), fn.params[:], dup_strict, force_non_simple)
 	for pr in fn.params {
 		ck_walk_pattern(c, ctx, pr.pattern)
 		if d, have := pr.default_val.(^Expression); have && d != nil { ck_walk_expr(c, ctx, d) }
@@ -4454,7 +4454,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 				if stmt_contains_super_call(s) { has_super = true; break }
 			}
 			if !has_super {
-				ck_report(c, u32(fn.loc.span.start),
+				ck_report(c, u32(fn.loc.start),
 					"Constructors for derived classes must contain a 'super' call.")
 			}
 		}
@@ -4522,7 +4522,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 		if id, ok := cls.id.(BindingIdentifier); ok {
 			if is_ts_predefined_type_name(id.name) {
 				msg := fmt.tprintf("Class name cannot be '%s'.", id.name)
-				ck_report(c, u32(id.loc.span.start), msg)
+				ck_report(c, u32(id.loc.start), msg)
 			}
 		}
 	}
@@ -4734,7 +4734,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			// TS2378 — getters must return a value.
 			if elem.kind == .Get && !fn.no_body && (ctx.lang == .TS || ctx.lang == .TSX) {
 				if !ck_body_has_return_value(fn.body.body[:]) {
-					ck_report(c, u32(fn.loc.span.start),
+					ck_report(c, u32(fn.loc.start),
 						"A 'get' accessor must return a value.")
 				}
 			}
@@ -4742,7 +4742,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			if (elem.kind == .Get || elem.kind == .Set) && (ctx.lang == .TS || ctx.lang == .TSX) {
 				if len(fn.params) > 0 {
 					if id, ok := fn.params[0].pattern.(^Identifier); ok && id != nil && id.name == "this" {
-						ck_report(c, u32(id.loc.span.start),
+						ck_report(c, u32(id.loc.start),
 							"'get' and 'set' accessors cannot declare 'this' parameters.")
 					}
 				}
@@ -4751,7 +4751,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
 				for param in fn.params {
 					if id, ok := param.pattern.(^Identifier); ok && id != nil && id.optional {
-						ck_report(c, u32(id.loc.span.start),
+						ck_report(c, u32(id.loc.start),
 							"A 'set' accessor cannot have an optional parameter.")
 					}
 				}
@@ -4759,7 +4759,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			// TS1095 — set accessor cannot have a return type annotation.
 			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
 				if _, has_ret := fn.return_type.(^TSTypeAnnotation); has_ret {
-					ck_report(c, u32(fn.loc.span.start),
+					ck_report(c, u32(fn.loc.start),
 						"A 'set' accessor cannot have a return type annotation.")
 				}
 			}
@@ -4863,7 +4863,7 @@ ck_check_setter_return_value :: proc(c: ^Checker, body: []^Statement) {
 		case ^ReturnStatement:
 			if v == nil { continue }
 			if _, has_arg := v.argument.(^Expression); has_arg {
-				ck_report(c, u32(v.loc.span.start),
+				ck_report(c, u32(v.loc.start),
 					"Setters cannot return a value.")
 			}
 		case ^BlockStatement:
@@ -4931,7 +4931,7 @@ ck_check_object_proto_dups :: proc(c: ^Checker, obj: ^ObjectExpression) {
 		prop := &obj.properties[i]
 		if !property_is_literal_proto_init(prop) { continue }
 		if proto_seen {
-			err_off := loc_from_expr(prop.key).span.start
+			err_off := loc_from_expr(prop.key).start
 			ck_report(c, u32(err_off), "Redefinition of __proto__ property")
 		} else {
 			proto_seen = true
@@ -5051,7 +5051,7 @@ ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: 
 			case .Unseen:
 				seen[name] = .Data
 			case .Data, .Getter, .Setter, .GetterSetter:
-				err_off := u32(loc_from_expr(prop.key).span.start)
+				err_off := u32(loc_from_expr(prop.key).start)
 				ck_report(c, err_off,
 					"An object literal cannot have multiple properties with the same name.")
 			}
@@ -5060,13 +5060,13 @@ ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: 
 			case .Unseen:
 				seen[name] = .Getter
 			case .Getter, .GetterSetter:
-				err_off := u32(loc_from_expr(prop.key).span.start)
+				err_off := u32(loc_from_expr(prop.key).start)
 				ck_report(c, err_off,
 					"An object literal cannot have multiple get/set accessors with the same name.")
 			case .Setter:
 				seen[name] = .GetterSetter
 			case .Data:
-				err_off := u32(loc_from_expr(prop.key).span.start)
+				err_off := u32(loc_from_expr(prop.key).start)
 				ck_report(c, err_off,
 					"An object literal cannot have multiple properties with the same name.")
 			}
@@ -5075,13 +5075,13 @@ ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: 
 			case .Unseen:
 				seen[name] = .Setter
 			case .Setter, .GetterSetter:
-				err_off := u32(loc_from_expr(prop.key).span.start)
+				err_off := u32(loc_from_expr(prop.key).start)
 				ck_report(c, err_off,
 					"An object literal cannot have multiple get/set accessors with the same name.")
 			case .Getter:
 				seen[name] = .GetterSetter
 			case .Data:
-				err_off := u32(loc_from_expr(prop.key).span.start)
+				err_off := u32(loc_from_expr(prop.key).start)
 				ck_report(c, err_off,
 					"An object literal cannot have multiple properties with the same name.")
 			}
@@ -5091,7 +5091,7 @@ ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: 
 
 // §14.12.1 — a SwitchStatement may have at most one DefaultClause.
 // Locations anchor at the `default` keyword (which the parser stores
-// as the case's loc.span.start; SwitchCase.test == nil signals default).
+// as the case's loc.start; SwitchCase.test == nil signals default).
 @(private="file")
 ck_check_switch_default_dups :: proc(c: ^Checker, sw: ^SwitchStatement) {
 	if sw == nil { return }
@@ -5100,7 +5100,7 @@ ck_check_switch_default_dups :: proc(c: ^Checker, sw: ^SwitchStatement) {
 		sc := &sw.cases[i]
 		if _, have := sc.test.(^Expression); have { continue } // not a default
 		if default_seen {
-			ck_report(c, u32(sc.loc.span.start), "More than one default clause in switch")
+			ck_report(c, u32(sc.loc.start), "More than one default clause in switch")
 		} else {
 			default_seen = true
 		}
@@ -5133,11 +5133,11 @@ ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^Cla
 		has_body := false
 		if val_expr, vok := elem.value.(^Expression); vok && val_expr != nil {
 			if fn, fok := val_expr^.(^FunctionExpression); fok && fn != nil {
-				has_body = len(fn.body.body) > 0 || fn.body.loc.span.end > fn.body.loc.span.start
+				has_body = len(fn.body.body) > 0 || fn.body.loc.end > fn.body.loc.start
 			}
 		}
 
-		loc := u32(get_expression_loc(elem.key).span.start)
+		loc := u32(get_expression_loc(elem.key).start)
 		if ts_mode {
 			if has_body && constructor_implementation_seen {
 				ck_report(c, loc, "Duplicate constructor implementation in class")
@@ -5171,7 +5171,7 @@ ck_check_unary_delete_private :: proc(c: ^Checker, e: ^UnaryExpression) {
 	if !is_member || me == nil { return }
 	if me.property == nil { return }
 	if _, is_private := me.property^.(^PrivateIdentifier); is_private {
-		ck_report(c, u32(e.loc.span.start), "Private fields cannot be deleted")
+		ck_report(c, u32(e.loc.start), "Private fields cannot be deleted")
 	}
 }
 
@@ -5203,7 +5203,7 @@ ck_check_legacy_octal_number :: proc(c: ^Checker, ctx: ^CheckerContext, num: ^Nu
 	if num == nil { return }
 	if !ctx.strict_mode { return }
 	if !is_legacy_zero_prefixed_integer(num.raw) { return }
-	ck_report(c, u32(num.loc.span.start), "Legacy octal literals are not allowed in strict mode")
+	ck_report(c, u32(num.loc.start), "Legacy octal literals are not allowed in strict mode")
 }
 
 // §12.9.4 — a StringLiteral whose raw source contains a
@@ -5217,7 +5217,7 @@ ck_check_string_octal_escape :: proc(c: ^Checker, ctx: ^CheckerContext, str: ^St
 	if str == nil { return }
 	if !ctx.strict_mode { return }
 	if !string_raw_has_forbidden_escape(str.raw) { return }
-	ck_report(c, u32(str.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+	ck_report(c, u32(str.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 }
 
 // §12.9.3 — a LegacyOctalIntegerLiteral cannot form a BigInt;
@@ -5228,7 +5228,7 @@ ck_check_string_octal_escape :: proc(c: ^Checker, ctx: ^CheckerContext, str: ^St
 ck_check_legacy_octal_bigint :: proc(c: ^Checker, big: ^BigIntLiteral) {
 	if big == nil { return }
 	if !is_legacy_zero_prefixed_integer(big.raw) { return }
-	ck_report(c, u32(big.loc.span.start), "Legacy octal literals cannot be BigInt")
+	ck_report(c, u32(big.loc.start), "Legacy octal literals cannot be BigInt")
 }
 
 // §12.9.6 — inside an UNTAGGED template literal, no quasi may contain a
@@ -5244,7 +5244,7 @@ ck_check_template_octal :: proc(c: ^Checker, ctx: ^CheckerContext, tmpl: ^Templa
 	if !ctx.strict_mode { return }
 	for q in tmpl.quasis {
 		if string_raw_has_forbidden_escape(q.raw) {
-			ck_report(c, u32(tmpl.loc.span.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			ck_report(c, u32(tmpl.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 			return
 		}
 	}
@@ -5278,7 +5278,7 @@ ck_check_var_decl_let_binding :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 	}
 	for n in names {
 		if n == "let" {
-			ck_report(c, u32(decl.loc.span.start), "'let' is disallowed as a lexically bound name")
+			ck_report(c, u32(decl.loc.start), "'let' is disallowed as a lexically bound name")
 			return // one diagnostic per declaration matches parser behaviour
 		}
 	}
@@ -5448,7 +5448,7 @@ expr_find_this :: proc(e: ^Expression) -> u32 {
 	if e == nil { return 0 }
 	#partial switch v in e^ {
 	case ^ThisExpression:
-		if v != nil { return u32(v.loc.span.start) }
+		if v != nil { return u32(v.loc.start) }
 	case ^MemberExpression:
 		if v == nil { return 0 }
 		if r := expr_find_this(v.object); r != 0 { return r }
@@ -5589,7 +5589,7 @@ ck_check_super_call :: proc(c: ^Checker, ctx: ^CheckerContext, call: ^CallExpres
 	if call == nil || call.callee == nil { return }
 	if _, is_super := call.callee^.(^Super); !is_super { return }
 	if ctx.in_derived_constructor { return }
-	ck_report(c, u32(call.loc.span.start), "'super' call is only allowed in the constructor of a derived class")
+	ck_report(c, u32(call.loc.start), "'super' call is only allowed in the constructor of a derived class")
 }
 
 // §13.3.12 / §15.2 — `new.target` is only valid inside a non-arrow
@@ -5612,7 +5612,7 @@ ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty
 	// so top-level `new.target` is legal there. Mirror the parser-side
 	// `p.is_commonjs` carve-out (parser.odin parse_meta_property).
 	if ctx.is_commonjs { return }
-	ck_report(c, u32(mp.loc.span.start), "'new.target' is only allowed inside functions")
+	ck_report(c, u32(mp.loc.start), "'new.target' is only allowed inside functions")
 }
 
 // §15.7.5 / §15.7.10 — `arguments` as IdentifierReference is forbidden
@@ -5635,11 +5635,11 @@ ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty
 ck_check_identifier_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
 	if id == nil || id.name != "arguments" { return }
 	if ctx.in_class_static_block {
-		ck_report(c, u32(id.loc.span.start), "'arguments' is not allowed in a class static block")
+		ck_report(c, u32(id.loc.start), "'arguments' is not allowed in a class static block")
 		return
 	}
 	if ctx.in_field_init {
-		ck_report(c, u32(id.loc.span.start), "'arguments' cannot appear in a class field initializer")
+		ck_report(c, u32(id.loc.start), "'arguments' cannot appear in a class field initializer")
 	}
 }
 
@@ -5680,7 +5680,7 @@ ck_check_ts1016_required_after_optional :: proc(c: ^Checker, params: []FunctionP
 			seen_optional = true
 		} else if seen_optional && param.default_val == nil {
 			// Required (no `?`, no default) after optional → error.
-			ck_report(c, u32(param.loc.span.start),
+			ck_report(c, u32(param.loc.start),
 				"A required parameter cannot follow an optional parameter.")
 		}
 	}
@@ -5690,7 +5690,7 @@ ck_check_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^Functi
 	if fn == nil || fn.no_body { return }
 	if !fn_body_lifts_strict(fn.body) { return }
 	if params_are_simple(fn.params[:]) { return }
-	ck_report(c, u32(fn.loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+	ck_report(c, u32(fn.loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 }
 
 // ck_check_arrow_strict_directive_with_nonsimple_params handles arrow
@@ -5712,7 +5712,7 @@ ck_check_arrow_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^
 	if !sok || str == nil { return }
 	if str.value != "use strict" { return }
 	if params_are_simple(fn.params[:]) { return }
-	ck_report(c, u32(fn.loc.span.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+	ck_report(c, u32(fn.loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 }
 
 // ============================================================================
@@ -5753,7 +5753,7 @@ ck_check_import_export_position :: proc(
 		// Exception: inside `declare module "..."` (ambient module
 		// declarations) and .d.ts files, `export default` IS valid.
 		if is_default && !ctx.is_dts && !ctx.in_ambient_module_decl && (ctx.lang == .TS || ctx.lang == .TSX) {
-			ck_report(c, u32(loc.span.start),
+			ck_report(c, u32(loc.start),
 				"A default export must be at the top level of a file or module declaration.")
 		}
 		return
@@ -5761,13 +5761,13 @@ ck_check_import_export_position :: proc(
 	if ctx.source_type == .Script {
 		msg := "'export' is only valid in module code"
 		if is_import { msg = "'import' is only valid in module code" }
-		ck_report(c, u32(loc.span.start), msg)
+		ck_report(c, u32(loc.start), msg)
 		return
 	}
 	if !was_top_level {
 		msg := "'export' declarations are only allowed at the top level of a module"
 		if is_import { msg = "'import' declarations are only allowed at the top level of a module" }
-		ck_report(c, u32(loc.span.start), msg)
+		ck_report(c, u32(loc.start), msg)
 	}
 }
 
@@ -5787,7 +5787,7 @@ ck_check_assignment_invalid_lhs :: proc(c: ^Checker, e: ^AssignmentExpression) {
 	// errors — every other invalid LHS is a parser-side structural error.
 	#partial switch _ in e.left^ {
 	case ^ArrayExpression, ^ObjectExpression:
-		ck_report(c, u32(e.loc.span.start), "Invalid left-hand side in assignment")
+		ck_report(c, u32(e.loc.start), "Invalid left-hand side in assignment")
 	}
 }
 
@@ -5847,7 +5847,7 @@ ck_check_class_name :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpres
 	if cls == nil { return }
 	id, has_id := cls.id.(BindingIdentifier)
 	if !has_id { return }
-	loc := u32(id.loc.span.start)
+	loc := u32(id.loc.start)
 	name := id.name
 
 	if is_strict_reserved_simple_name(name) {
@@ -5887,7 +5887,7 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 	id, is_id := pat.(^Identifier)
 	if !is_id || id == nil { return }
 	name := id.name
-	loc  := u32(id.loc.span.start)
+	loc  := u32(id.loc.start)
 
 	if ctx.strict_mode {
 		if is_eval_or_arguments(name) {
@@ -6000,7 +6000,7 @@ ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Progra
 						reserve(&names, 4)
 						collect_pattern_bound_names_list(decl.id, &names)
 						for n in names {
-							record(c, &exported, n, u32(decl.loc.span.start))
+							record(c, &exported, n, u32(decl.loc.start))
 						}
 					}
 				case ^FunctionDeclaration:
@@ -6010,29 +6010,29 @@ ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Progra
 					// pattern. Only the implementation contributes a binding.
 					if inner.no_body { break }
 					if id, ok := inner.id.(BindingIdentifier); ok {
-						record(c, &exported, id.name, u32(id.loc.span.start))
+						record(c, &exported, id.name, u32(id.loc.start))
 					}
 				case ^ClassDeclaration:
 					if inner == nil { break }
 					if id, ok := inner.id.(BindingIdentifier); ok {
-						record(c, &exported, id.name, u32(id.loc.span.start))
+						record(c, &exported, id.name, u32(id.loc.start))
 					}
 				}
 			}
 			for spec in v.specifiers {
 				switch en in spec.exported {
 				case IdentifierName:
-					record(c, &exported, en.name, u32(en.loc.span.start))
+					record(c, &exported, en.name, u32(en.loc.start))
 				case ^StringLiteral:
 					if en != nil {
-						record(c, &exported, en.value, u32(en.loc.span.start))
+						record(c, &exported, en.value, u32(en.loc.start))
 					}
 				}
 			}
 		case ^ExportAllDeclaration:
 			if v == nil { continue }
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
-				record(c, &exported, ns_name.name, u32(ns_name.loc.span.start))
+				record(c, &exported, ns_name.name, u32(ns_name.loc.start))
 			}
 		case ^ExportDefaultDeclaration:
 			if v == nil { continue }
@@ -6060,7 +6060,7 @@ ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Progra
 				}
 			}
 			if !skip {
-				record(c, &exported, "default", u32(v.loc.span.start))
+				record(c, &exported, "default", u32(v.loc.start))
 			}
 		}
 	}
@@ -6172,7 +6172,7 @@ ck_check_export_local_defined :: proc(c: ^Checker, program: ^Program) {
 			if !ok { continue }
 			if !(local_name.name in names) {
 				msg := fmt.tprintf("Export '%s' is not defined in the module", local_name.name)
-				ck_report(c, u32(local_name.loc.span.start), msg)
+				ck_report(c, u32(local_name.loc.start), msg)
 			}
 		}
 	}
@@ -6203,7 +6203,7 @@ ck_check_ts_export_assignment :: proc(c: ^Checker, program: ^Program) {
 			// Multiple `export =` (no regular exports): report duplicates.
 			if assign_seen && !has_reg {
 				msg := "An export assignment cannot be used in a module with other exported elements."
-				ck_report(c, u32(v.loc.span.start), msg)
+				ck_report(c, u32(v.loc.start), msg)
 			}
 			assign_seen = true
 			has_assign = true
@@ -6215,13 +6215,13 @@ ck_check_ts_export_assignment :: proc(c: ^Checker, program: ^Program) {
 		if stmt == nil { continue }
 		#partial switch v in stmt^ {
 		case ^ExportNamedDeclaration:
-			ck_report(c, u32(v.loc.span.start), msg)
+			ck_report(c, u32(v.loc.start), msg)
 		case ^ExportDefaultDeclaration:
-			ck_report(c, u32(v.loc.span.start), msg)
+			ck_report(c, u32(v.loc.start), msg)
 		case ^ExportAllDeclaration:
-			ck_report(c, u32(v.loc.span.start), msg)
+			ck_report(c, u32(v.loc.start), msg)
 		case ^TSExportAssignment:
-			ck_report(c, u32(v.loc.span.start), msg)
+			ck_report(c, u32(v.loc.start), msg)
 		}
 	}
 }
@@ -6242,10 +6242,10 @@ ck_check_using_at_script_top :: proc(c: ^Checker, program: ^Program) {
 		if !ok || decl == nil { continue }
 		switch decl.kind {
 		case .Using:
-			ck_report(c, u32(decl.loc.span.start),
+			ck_report(c, u32(decl.loc.start),
 				"'using' declaration is not allowed at the top level of a script")
 		case .AwaitUsing:
-			ck_report(c, u32(decl.loc.span.start),
+			ck_report(c, u32(decl.loc.start),
 				"'await using' declaration is not allowed at the top level of a script")
 		case .Var, .Let, .Const:
 			// not a using-decl
@@ -6277,7 +6277,7 @@ ck_check_if_labelled_function :: proc(c: ^Checker, body: ^Statement) {
 			if v == nil { return }
 			if label_count == 0 { return }  // unlabelled — Annex B allows
 			if v.async || v.generator { return } // parser-side syntax error
-			ck_report(c, u32(v.loc.span.start),
+			ck_report(c, u32(v.loc.start),
 				"Labelled function declaration cannot appear in a single-statement context")
 			return
 		case:
@@ -6309,7 +6309,7 @@ ck_check_single_stmt_function :: proc(c: ^Checker, body: ^Statement) {
 		case ^FunctionDeclaration:
 			if v == nil { return }
 			if v.async || v.generator { return } // parser-side syntax error
-			ck_report(c, u32(v.loc.span.start),
+			ck_report(c, u32(v.loc.start),
 				"Function declaration cannot appear in a single-statement context")
 			return
 		case:
@@ -6335,7 +6335,7 @@ scope_hoist_vars_no_parser :: proc(stmt: ^Statement, vars: ^ScopeMap) {
 		reserve(&names, 4)
 		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
 		for n in names {
-			scope_map_set_first(vars, n, v.loc.span.start)
+			scope_map_set_first(vars, n, v.loc.start)
 		}
 	case ^BlockStatement:
 		if v != nil { for inner in v.body { scope_hoist_vars_no_parser(inner, vars) } }
@@ -6386,9 +6386,9 @@ scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap
 		reserve(&names, 4)
 		for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
 		if v.kind == .Var {
-			for n in names { scope_map_set_first(vars, n, v.loc.span.start) }
+			for n in names { scope_map_set_first(vars, n, v.loc.start) }
 		} else {
-			for n in names { scope_map_set(lex, n, v.loc.span.start) }
+			for n in names { scope_map_set(lex, n, v.loc.start) }
 		}
 	case ^BlockStatement:
 		if v == nil { return }
@@ -6403,24 +6403,24 @@ scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap
 			// In sloppy-mode function bodies (not block scope),
 			// FunctionDeclarations hoist as var-like (Annex B.3.2).
 			if strict || is_block_scope {
-				scope_map_set(lex, id.name, id.loc.span.start)
+				scope_map_set(lex, id.name, id.loc.start)
 			} else {
-				scope_map_set_first(vars, id.name, id.loc.span.start)
+				scope_map_set_first(vars, id.name, id.loc.start)
 			}
 		}
 	case ^ClassDeclaration:
 		if v == nil { return }
 		if id, ok := v.id.(BindingIdentifier); ok {
-			scope_map_set(lex, id.name, id.loc.span.start)
+			scope_map_set(lex, id.name, id.loc.start)
 		}
 	case ^ImportDeclaration:
 		if v == nil { return }
 		for spec in v.specifiers {
 			if spec == nil { continue }
 			switch ss in spec^ {
-			case ImportSpecifier:          scope_map_set(lex, ss.local.name, ss.local.loc.span.start)
-			case ImportDefaultSpecifier:   scope_map_set(lex, ss.local.name, ss.local.loc.span.start)
-			case ImportNamespaceSpecifier: scope_map_set(lex, ss.local.name, ss.local.loc.span.start)
+			case ImportSpecifier:          scope_map_set(lex, ss.local.name, ss.local.loc.start)
+			case ImportDefaultSpecifier:   scope_map_set(lex, ss.local.name, ss.local.loc.start)
+			case ImportNamespaceSpecifier: scope_map_set(lex, ss.local.name, ss.local.loc.start)
 			}
 		}
 	}
@@ -6607,7 +6607,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 	if e, have := left_expr.(^Expression); have && e != nil {
 		if ctx.strict_mode && is_call_expression_target(e) {
 			msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_str)
-			ck_report(c, u32(loc_from_expr(e).span.start), msg)
+			ck_report(c, u32(loc_from_expr(e).start), msg)
 		}
 		return
 	}
@@ -6615,7 +6615,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 	if !have_decl || decl == nil { return }
 	if len(decl.declarations) > 1 {
 		msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
-		ck_report(c, u32(decl.loc.span.start), msg)
+		ck_report(c, u32(decl.loc.start), msg)
 	}
 	for_in_init_ok := is_in &&
 	                  !ctx.strict_mode &&
@@ -6641,7 +6641,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 				if _, ok := pat.type_annotation.(^TSTypeAnnotation); ok { has_ann = true }
 			}
 			if has_ann {
-				ck_report(c, u32(decl.loc.span.start),
+				ck_report(c, u32(decl.loc.start),
 					"The left-hand side of a 'for...in' statement cannot use a type annotation.")
 				return
 			}
@@ -6658,7 +6658,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 				is_destructuring = true
 			}
 			if is_destructuring {
-				ck_report(c, u32(decl.loc.span.start),
+				ck_report(c, u32(decl.loc.start),
 					"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
 				return
 			}
@@ -6685,7 +6685,7 @@ ck_check_unary_delete_local :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^Unary
 	ident, is_id := inner^.(^Identifier)
 	if !is_id || ident == nil { return }
 	msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
-	ck_report(c, u32(e.loc.span.start), msg)
+	ck_report(c, u32(e.loc.start), msg)
 }
 
 // ck_check_catch_param_dups — §15.4.5 — names introduced by a catch
@@ -6704,7 +6704,7 @@ ck_check_catch_param_dups :: proc(c: ^Checker, h: CatchClause) {
 		for j := i + 1; j < len(names); j += 1 {
 			if names[i] == names[j] {
 				msg := fmt.tprintf("Identifier '%s' has already been declared in catch clause", names[i])
-				ck_report(c, u32(h.loc.span.start), msg)
+				ck_report(c, u32(h.loc.start), msg)
 				return
 			}
 		}
@@ -6750,7 +6750,7 @@ ck_check_private_name_resolved :: proc(c: ^Checker, ctx: ^CheckerContext, pid: ^
 	if pid == nil || len(pid.name) == 0 { return }
 	if ck_private_name_in_scope(ctx, pid.name) { return }
 	msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
-	ck_report(c, u32(pid.loc.span.start), msg)
+	ck_report(c, u32(pid.loc.start), msg)
 }
 
 // ck_check_class_private_duplicates — §15.7.1 — PrivateBoundNames of
@@ -6817,7 +6817,7 @@ ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression) {
 			prev.n_set   += 1
 			prev.set_static = elem.static
 		}
-		prev.last_dup_loc = u32(elem.loc.span.start)
+		prev.last_dup_loc = u32(elem.loc.start)
 
 		seen[name] = prev
 	}
@@ -6867,14 +6867,14 @@ ck_check_class_private_static_mismatch :: proc(c: ^Checker, cls: ^ClassExpressio
 		case .Get:
 			if prev.has_set && prev.set_static != elem.static {
 				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-				ck_report(c, u32(elem.loc.span.start), msg)
+				ck_report(c, u32(elem.loc.start), msg)
 			}
 			prev.has_get = true
 			prev.get_static = elem.static
 		case .Set:
 			if prev.has_get && prev.get_static != elem.static {
 				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-				ck_report(c, u32(elem.loc.span.start), msg)
+				ck_report(c, u32(elem.loc.start), msg)
 			}
 			prev.has_set = true
 			prev.set_static = elem.static
@@ -6972,10 +6972,10 @@ ck_check_strict_binding_pattern :: proc(c: ^Checker, pat: Pattern, flavour: CkBi
 			case .Generic:
 				msg = fmt.tprintf("'%s' cannot be used as a binding name in strict mode", v.name)
 			}
-			ck_report(c, u32(v.loc.span.start), msg)
+			ck_report(c, u32(v.loc.start), msg)
 		} else if is_strict_reserved_simple_name(v.name) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-			ck_report(c, u32(v.loc.span.start), msg)
+			ck_report(c, u32(v.loc.start), msg)
 		}
 	case ^ObjectPattern:
 		if v == nil { return }
@@ -7017,7 +7017,7 @@ ck_check_strict_eval_arguments_in_target :: proc(c: ^Checker, expr: ^Expression)
 		if e == nil { return }
 		if is_eval_or_arguments(e.name) {
 			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
-			ck_report(c, u32(e.loc.span.start), msg)
+			ck_report(c, u32(e.loc.start), msg)
 		}
 	case ^ParenthesizedExpression:
 		if e != nil { ck_check_strict_eval_arguments_in_target(c, e.expression) }
@@ -7054,7 +7054,7 @@ ck_check_strict_update_eval_arguments :: proc(c: ^Checker, ctx: ^CheckerContext,
 	if !is_id || ident == nil { return }
 	if is_eval_or_arguments(ident.name) {
 		msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", ident.name)
-		ck_report(c, u32(ident.loc.span.start), msg)
+		ck_report(c, u32(ident.loc.start), msg)
 	}
 }
 
@@ -7110,7 +7110,7 @@ ck_check_identifier_reference_strict :: proc(c: ^Checker, ctx: ^CheckerContext, 
 	if !ctx.strict_mode || id == nil { return }
 	if !is_strict_reserved_simple_name(id.name) { return }
 	msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
-	ck_report(c, u32(id.loc.span.start), msg)
+	ck_report(c, u32(id.loc.start), msg)
 }
 
 // ck_check_module_await_binding — §16.2.2 — the BindingIdentifier
@@ -7123,7 +7123,7 @@ ck_check_module_await_binding :: proc(c: ^Checker, pat: Pattern) {
 	case ^Identifier:
 		if p == nil { return }
 		if p.name == "await" {
-			ck_report(c, u32(p.loc.span.start),
+			ck_report(c, u32(p.loc.start),
 				"'await' is reserved as a binding name in module code")
 		}
 	case ^ArrayPattern:
@@ -7172,7 +7172,7 @@ ck_check_identifier_await_reserved :: proc(c: ^Checker, ctx: ^CheckerContext, id
 	if id == nil || id.name != "await" { return }
 	if !id.has_escape { return }
 	if ctx.in_async || ctx.in_class_static_block {
-		ck_report(c, u32(id.loc.span.start),
+		ck_report(c, u32(id.loc.start),
 			"'await' is not allowed as an identifier in this context")
 	}
 }
@@ -7198,11 +7198,11 @@ ck_walk_import_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^ImportDecl
 		if spec == nil { continue }
 		switch s in spec^ {
 		case ImportSpecifier:
-			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.span.start))
+			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.start))
 		case ImportDefaultSpecifier:
-			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.span.start))
+			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.start))
 		case ImportNamespaceSpecifier:
-			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.span.start))
+			ck_check_import_specifier_local(c, s.local.name, u32(s.local.loc.start))
 		}
 	}
 }

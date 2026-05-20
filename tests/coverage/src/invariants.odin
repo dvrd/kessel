@@ -51,8 +51,8 @@ invariant_report_ok :: proc(r: InvariantReport) -> bool {
 check_program :: proc(program: ^kessel.Program, report: ^InvariantReport) {
 	if program == nil { return }
 
-	prog_start := program.loc.span.start
-	prog_end   := program.loc.span.end
+	prog_start := program.loc.start
+	prog_end   := program.loc.end
 
 	// I3: source_type.
 	if program.type != .Script && program.type != .Module {
@@ -76,63 +76,63 @@ check_statement :: proc(stmt: ^kessel.Statement, parent_start, parent_end: u32, 
 
 	switch s in stmt {
 	case ^kessel.ExpressionStatement:
-		record("ExpressionStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		check_expression(s.expression, s.loc.span.start, s.loc.span.end, report)
+		record("ExpressionStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		check_expression(s.expression, s.loc.start, s.loc.end, report)
 
 	case ^kessel.BlockStatement:
-		record("BlockStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		for sub in s.body { check_statement(sub, s.loc.span.start, s.loc.span.end, report) }
+		record("BlockStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		for sub in s.body { check_statement(sub, s.loc.start, s.loc.end, report) }
 
 	case ^kessel.ReturnStatement:
-		record("ReturnStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("ReturnStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.IfStatement:
-		record("IfStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		check_statement(s.consequent, s.loc.span.start, s.loc.span.end, report)
-		if s.alternate != nil { check_statement(s.alternate.?, s.loc.span.start, s.loc.span.end, report) }
+		record("IfStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		check_statement(s.consequent, s.loc.start, s.loc.end, report)
+		if s.alternate != nil { check_statement(s.alternate.?, s.loc.start, s.loc.end, report) }
 
 	case ^kessel.ForStatement:
-		record("ForStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		check_statement(s.body, s.loc.span.start, s.loc.span.end, report)
+		record("ForStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		check_statement(s.body, s.loc.start, s.loc.end, report)
 
 	case ^kessel.ForInStatement:
-		record("ForInStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		check_statement(s.body, s.loc.span.start, s.loc.span.end, report)
+		record("ForInStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		check_statement(s.body, s.loc.start, s.loc.end, report)
 
 	case ^kessel.ForOfStatement:
-		record("ForOfStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		check_statement(s.body, s.loc.span.start, s.loc.span.end, report)
+		record("ForOfStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		check_statement(s.body, s.loc.start, s.loc.end, report)
 
 	case ^kessel.WhileStatement:
-		record("WhileStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		check_statement(s.body, s.loc.span.start, s.loc.span.end, report)
+		record("WhileStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		check_statement(s.body, s.loc.start, s.loc.end, report)
 
 	case ^kessel.DoWhileStatement:
-		record("DoWhileStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		check_statement(s.body, s.loc.span.start, s.loc.span.end, report)
+		record("DoWhileStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		check_statement(s.body, s.loc.start, s.loc.end, report)
 
 	case ^kessel.SwitchStatement:
-		record("SwitchStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("SwitchStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
 		for &c in s.cases {
-			record("SwitchCase", c.loc.span.start, c.loc.span.end, s.loc.span.start, s.loc.span.end, report)
-			for sub in c.consequent { check_statement(sub, c.loc.span.start, c.loc.span.end, report) }
+			record("SwitchCase", c.loc.start, c.loc.end, s.loc.start, s.loc.end, report)
+			for sub in c.consequent { check_statement(sub, c.loc.start, c.loc.end, report) }
 		}
 
 	case ^kessel.TryStatement:
-		record("TryStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		for sub in s.block.body { check_statement(sub, s.block.loc.span.start, s.block.loc.span.end, report) }
+		record("TryStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		for sub in s.block.body { check_statement(sub, s.block.loc.start, s.block.loc.end, report) }
 		if _, ok := s.handler.?; ok {
 			h := s.handler.?
-			record("CatchClause", h.loc.span.start, h.loc.span.end, s.loc.span.start, s.loc.span.end, report)
-			for sub in h.body.body { check_statement(sub, h.body.loc.span.start, h.body.loc.span.end, report) }
+			record("CatchClause", h.loc.start, h.loc.end, s.loc.start, s.loc.end, report)
+			for sub in h.body.body { check_statement(sub, h.body.loc.start, h.body.loc.end, report) }
 		}
 		if _, ok := s.finalizer.?; ok {
 			f := s.finalizer.?
-			for sub in f.body { check_statement(sub, f.loc.span.start, f.loc.span.end, report) }
+			for sub in f.body { check_statement(sub, f.loc.start, f.loc.end, report) }
 		}
 
 	case ^kessel.VariableDeclaration:
-		record("VariableDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("VariableDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 		// I4: kind validity.
 		switch s.kind {
 		case .Var, .Let, .Const, .Using, .AwaitUsing: // ok
@@ -144,67 +144,67 @@ check_statement :: proc(stmt: ^kessel.Statement, parent_start, parent_end: u32, 
 		}
 
 	case ^kessel.FunctionDeclaration:
-		record("FunctionDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		for sub in s.body.body { check_statement(sub, s.loc.span.start, s.loc.span.end, report) }
+		record("FunctionDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		for sub in s.body.body { check_statement(sub, s.loc.start, s.loc.end, report) }
 
 	case ^kessel.ClassDeclaration:
-		record("ClassDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		for &m in s.body.body { record("ClassElement", m.loc.span.start, m.loc.span.end, s.loc.span.start, s.loc.span.end, report) }
+		record("ClassDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		for &m in s.body.body { record("ClassElement", m.loc.start, m.loc.end, s.loc.start, s.loc.end, report) }
 
 	case ^kessel.ThrowStatement:
-		record("ThrowStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("ThrowStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.EmptyStatement:
-		record("EmptyStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("EmptyStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.DebuggerStatement:
-		record("DebuggerStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("DebuggerStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.BreakStatement:
-		record("BreakStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("BreakStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ContinueStatement:
-		record("ContinueStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("ContinueStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.LabeledStatement:
-		record("LabeledStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
-		check_statement(s.body, s.loc.span.start, s.loc.span.end, report)
+		record("LabeledStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
+		check_statement(s.body, s.loc.start, s.loc.end, report)
 
 	case ^kessel.WithStatement:
-		record("WithStatement", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("WithStatement", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ImportDeclaration:
-		record("ImportDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("ImportDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ExportNamedDeclaration:
-		record("ExportNamedDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("ExportNamedDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ExportDefaultDeclaration:
-		record("ExportDefaultDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("ExportDefaultDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ExportAllDeclaration:
-		record("ExportAllDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("ExportAllDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSInterfaceDeclaration:
-		record("TSInterfaceDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("TSInterfaceDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSTypeAliasDeclaration:
-		record("TSTypeAliasDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("TSTypeAliasDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSEnumDeclaration:
-		record("TSEnumDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("TSEnumDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSModuleDeclaration:
-		record("TSModuleDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("TSModuleDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSImportEqualsDeclaration:
-		record("TSImportEqualsDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("TSImportEqualsDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSExportAssignment:
-		record("TSExportAssignment", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("TSExportAssignment", s.loc.start, s.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSNamespaceExportDeclaration:
-		record("TSNamespaceExportDeclaration", s.loc.span.start, s.loc.span.end, parent_start, parent_end, report)
+		record("TSNamespaceExportDeclaration", s.loc.start, s.loc.end, parent_start, parent_end, report)
 	}
 }
 
@@ -216,126 +216,126 @@ check_expression :: proc(expr: ^kessel.Expression, parent_start, parent_end: u32
 	if expr == nil { return }
 
 	switch e in expr {
-	case ^kessel.NullLiteral:         record("NullLiteral",         e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.BooleanLiteral:      record("BooleanLiteral",      e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.NumericLiteral:      record("NumericLiteral",      e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.StringLiteral:       record("StringLiteral",       e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.BigIntLiteral:       record("BigIntLiteral",       e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.RegExpLiteral:       record("RegExpLiteral",       e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.Identifier:          record("Identifier",          e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.PrivateIdentifier:   record("PrivateIdentifier",   e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.ThisExpression:      record("ThisExpression",      e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.Super:               record("Super",               e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-	case ^kessel.MetaProperty:        record("MetaProperty",        e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+	case ^kessel.NullLiteral:         record("NullLiteral",         e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.BooleanLiteral:      record("BooleanLiteral",      e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.NumericLiteral:      record("NumericLiteral",      e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.StringLiteral:       record("StringLiteral",       e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.BigIntLiteral:       record("BigIntLiteral",       e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.RegExpLiteral:       record("RegExpLiteral",       e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.Identifier:          record("Identifier",          e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.PrivateIdentifier:   record("PrivateIdentifier",   e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.ThisExpression:      record("ThisExpression",      e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.Super:               record("Super",               e.loc.start, e.loc.end, parent_start, parent_end, report)
+	case ^kessel.MetaProperty:        record("MetaProperty",        e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ArrayExpression:
-		record("ArrayExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("ArrayExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ObjectExpression:
-		record("ObjectExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("ObjectExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.FunctionExpression:
-		record("FunctionExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
-		for sub in e.body.body { check_statement(sub, e.loc.span.start, e.loc.span.end, report) }
+		record("FunctionExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
+		for sub in e.body.body { check_statement(sub, e.loc.start, e.loc.end, report) }
 
 	case ^kessel.ArrowFunctionExpression:
-		record("ArrowFunctionExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("ArrowFunctionExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 		switch b in e.body {
 		case ^kessel.BlockStatement:
-			for sub in b.body { check_statement(sub, b.loc.span.start, b.loc.span.end, report) }
+			for sub in b.body { check_statement(sub, b.loc.start, b.loc.end, report) }
 		case ^kessel.Expression:
-			check_expression(b, e.loc.span.start, e.loc.span.end, report)
+			check_expression(b, e.loc.start, e.loc.end, report)
 		}
 
 	case ^kessel.ClassExpression:
-		record("ClassExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("ClassExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.CallExpression:
-		record("CallExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("CallExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.NewExpression:
-		record("NewExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("NewExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.MemberExpression:
-		record("MemberExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("MemberExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.BinaryExpression:
-		record("BinaryExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("BinaryExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.UnaryExpression:
-		record("UnaryExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("UnaryExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.LogicalExpression:
-		record("LogicalExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("LogicalExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.AssignmentExpression:
-		record("AssignmentExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("AssignmentExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ConditionalExpression:
-		record("ConditionalExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("ConditionalExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TemplateLiteral:
-		record("TemplateLiteral", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("TemplateLiteral", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TaggedTemplateExpression:
-		record("TaggedTemplateExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("TaggedTemplateExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.SequenceExpression:
-		record("SequenceExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("SequenceExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.SpreadElement:
-		record("SpreadElement", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("SpreadElement", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.YieldExpression:
-		record("YieldExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("YieldExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.AwaitExpression:
-		record("AwaitExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("AwaitExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ChainExpression:
-		record("ChainExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("ChainExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ImportExpression:
-		record("ImportExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("ImportExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.UpdateExpression:
-		record("UpdateExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("UpdateExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.JSXElement:
-		record("JSXElement", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("JSXElement", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.JSXFragment:
-		record("JSXFragment", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("JSXFragment", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.JSXText:
-		record("JSXText", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("JSXText", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.JSXExpressionContainer:
-		record("JSXExpressionContainer", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("JSXExpressionContainer", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.JSXEmptyExpression:
-		record("JSXEmptyExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("JSXEmptyExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.JSXSpreadChild:
-		record("JSXSpreadChild", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("JSXSpreadChild", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSAsExpression:
-		record("TSAsExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("TSAsExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSSatisfiesExpression:
-		record("TSSatisfiesExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("TSSatisfiesExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSNonNullExpression:
-		record("TSNonNullExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("TSNonNullExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSTypeAssertion:
-		record("TSTypeAssertion", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("TSTypeAssertion", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.TSInstantiationExpression:
-		record("TSInstantiationExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("TSInstantiationExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 
 	case ^kessel.ParenthesizedExpression:
-		record("ParenthesizedExpression", e.loc.span.start, e.loc.span.end, parent_start, parent_end, report)
+		record("ParenthesizedExpression", e.loc.start, e.loc.end, parent_start, parent_end, report)
 	}
 }
 

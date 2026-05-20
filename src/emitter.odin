@@ -988,8 +988,8 @@ emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	// JSX children or error-recovery paths - clamp `end := max(start, end)` so
 	// invalid input is still emitted as well-formed JSON instead of SIGTRAPping.
 	// See K5 (deep JSX child recursion) and fuzz:invalid contract.
-	start := loc.span.start
-	end := loc.span.end
+	start := loc.start
+	end := loc.end
 	if end < start { end = start }
 	start_u16 := to_utf16(e, start)
 	end_u16 := to_utf16(e, end)
@@ -1017,24 +1017,24 @@ emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "\"loc\": { \"start\": { \"line\": ")
 
-		start_line, _ := offset_to_line_col(e.line_offsets, loc.span.start)
+		start_line, _ := offset_to_line_col(e.line_offsets, loc.start)
 		emit_u32(e, start_line)
 		emit_raw(e, ", \"column\": ")
 
 		line_start_byte := e.line_offsets[start_line - 1] if start_line > 0 && start_line - 1 < u32(len(e.line_offsets)) else 0
 		line_start_utf16 := to_utf16(e, line_start_byte)
-		start_utf16 := to_utf16(e, loc.span.start)
+		start_utf16 := to_utf16(e, loc.start)
 		start_col_0indexed := start_utf16 - line_start_utf16
 		emit_u32(e, start_col_0indexed)
 
 		emit_raw(e, " }, \"end\": { \"line\": ")
-		end_line, _ := offset_to_line_col(e.line_offsets, loc.span.end)
+		end_line, _ := offset_to_line_col(e.line_offsets, loc.end)
 		emit_u32(e, end_line)
 		emit_raw(e, ", \"column\": ")
 
 		line_end_start_byte := e.line_offsets[end_line - 1] if end_line > 0 && end_line - 1 < u32(len(e.line_offsets)) else 0
 		line_end_start_utf16 := to_utf16(e, line_end_start_byte)
-		end_utf16 := to_utf16(e, loc.span.end)
+		end_utf16 := to_utf16(e, loc.end)
 		end_col_0indexed := end_utf16 - line_end_start_utf16
 		emit_u32(e, end_col_0indexed)
 
@@ -1049,8 +1049,8 @@ emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 // leading-comma pattern.
 emit_span_leading :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	// Tolerate inverted spans - see note on emit_span_fields.
-	start := loc.span.start
-	end := loc.span.end
+	start := loc.start
+	end := loc.end
 	if end < start { end = start }
 	start_u16 := to_utf16(e, start)
 	end_u16 := to_utf16(e, end)
@@ -1076,24 +1076,24 @@ emit_span_leading :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "\"loc\": { \"start\": { \"line\": ")
 
-		start_line, _ := offset_to_line_col(e.line_offsets, loc.span.start)
+		start_line, _ := offset_to_line_col(e.line_offsets, loc.start)
 		emit_u32(e, start_line)
 		emit_raw(e, ", \"column\": ")
 
 		line_start_byte := e.line_offsets[start_line - 1] if start_line > 0 && start_line - 1 < u32(len(e.line_offsets)) else 0
 		line_start_utf16 := to_utf16(e, line_start_byte)
-		start_utf16 := to_utf16(e, loc.span.start)
+		start_utf16 := to_utf16(e, loc.start)
 		start_col_0indexed := start_utf16 - line_start_utf16
 		emit_u32(e, start_col_0indexed)
 
 		emit_raw(e, " }, \"end\": { \"line\": ")
-		end_line, _ := offset_to_line_col(e.line_offsets, loc.span.end)
+		end_line, _ := offset_to_line_col(e.line_offsets, loc.end)
 		emit_u32(e, end_line)
 		emit_raw(e, ", \"column\": ")
 
 		line_end_start_byte := e.line_offsets[end_line - 1] if end_line > 0 && end_line - 1 < u32(len(e.line_offsets)) else 0
 		line_end_start_utf16 := to_utf16(e, line_end_start_byte)
-		end_utf16 := to_utf16(e, loc.span.end)
+		end_utf16 := to_utf16(e, loc.end)
 		end_col_0indexed := end_utf16 - line_end_start_utf16
 		emit_u32(e, end_col_0indexed)
 
@@ -1374,7 +1374,7 @@ print_function_parameter :: proc(e: ^Emitter, param: FunctionParameter, indent: 
 		emit_indent(e, indent)
 		// Outer span covers the modifier keyword through the param end.
 		outer_start := param.modifier_start
-		outer_end   := param.loc.span.end
+		outer_end   := param.loc.end
 		emit_printf(e, "\"start\": %d,\n", outer_start)
 		emit_indent(e, indent)
 		emit_printf(e, "\"end\": %d,\n", outer_end)
@@ -3148,7 +3148,7 @@ emit_ts_module_qualified_id :: proc(e: ^Emitter, ids: []^Expression, indent: int
 	right_id  := ids[len(ids)-1]
 	left_loc  := get_expression_loc(ids[0])
 	right_loc := get_expression_loc(right_id)
-	span := Loc{ span = { start = left_loc.span.start, end = right_loc.span.end } }
+	span := Loc{start = left_loc.start, end = right_loc.end}
 
 	emit_raw(e, "{\n")
 	emit_indent(e, indent + 1)
@@ -3990,11 +3990,11 @@ emit_jsx_fragment_body :: proc(e: ^Emitter, f: ^JSXFragment, indent: int) {
 	emit_raw(e, "\"type\": \"JSXOpeningFragment\",\n")
 	emit_indent(e, indent + 1)
 	emit_raw(e, "\"start\": ")
-	emit_u32(e, to_utf16(e, f.opening_fragment.loc.span.start))
+	emit_u32(e, to_utf16(e, f.opening_fragment.loc.start))
 	emit_raw(e, ",\n")
 	emit_indent(e, indent + 1)
 	emit_raw(e, "\"end\": ")
-	emit_u32(e, to_utf16(e, f.opening_fragment.loc.span.end))
+	emit_u32(e, to_utf16(e, f.opening_fragment.loc.end))
 	// OXC emits `attributes: []` and `selfClosing: false` on JSXOpeningFragment
 	// in .jsx mode (for ESTree symmetry with JSXOpeningElement) but NOT in
 	// .tsx mode. Mirror that split so the TS-shape compare lines up.
@@ -4017,11 +4017,11 @@ emit_jsx_fragment_body :: proc(e: ^Emitter, f: ^JSXFragment, indent: int) {
 	emit_raw(e, "\"type\": \"JSXClosingFragment\",\n")
 	emit_indent(e, indent + 1)
 	emit_raw(e, "\"start\": ")
-	emit_u32(e, to_utf16(e, f.closing_fragment.loc.span.start))
+	emit_u32(e, to_utf16(e, f.closing_fragment.loc.start))
 	emit_raw(e, ",\n")
 	emit_indent(e, indent + 1)
 	emit_raw(e, "\"end\": ")
-	emit_u32(e, to_utf16(e, f.closing_fragment.loc.span.end))
+	emit_u32(e, to_utf16(e, f.closing_fragment.loc.end))
 	emit_raw(e, "\n")
 	emit_indent(e, indent)
 	emit_raw(e, "}\n")
