@@ -455,9 +455,9 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		bw_string_ref(be, s.source.value)
 	case ^ExportNamedDeclaration:
 		bin_node_header(be, .ExportNamedDeclaration, s.loc)
-		if s.declaration != nil {
+		if decl, ok := s.declaration.?; ok && decl != nil {
 			bw_u8(be, u8(BinValType.Node))
-			bin_emit_statement(be, s.declaration)
+			bin_emit_declaration(be, decl)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
@@ -467,23 +467,23 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 			bin_emit_export_spec_name(be, spec.local)
 			bin_emit_export_spec_name(be, spec.exported)
 		}
-		if s.source != nil {
+		if src, ok := s.source.?; ok {
 			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, s.source.value)
+			bw_string_ref(be, src.value)
 		} else {
 			bw_u8(be, u8(BinValType.Null))
 		}
 	case ^ExportDefaultDeclaration:
 		bin_node_header(be, .ExportDefaultDeclaration, s.loc)
-		bin_emit_statement(be, s.declaration)
+		bin_emit_export_default_def(be, s.declaration)
 	case ^ExportAllDeclaration:
 		bin_node_header(be, .ExportAllDeclaration, s.loc)
 		bw_string_ref(be, s.source.value)
-		if s.exported != nil {
-			bw_u8(be, u8(BinValType.Node))
-			bin_emit_export_spec_name(be, s.exported^)
+		if exported, ok := s.exported.?; ok {
+			bw_u8(be, u8(BinValType.StringRef))
+			bw_string_ref(be, exported.name)
 		} else {
-			bw_u8(be, u8(BinValType.NullNode))
+			bw_u8(be, u8(BinValType.Null))
 		}
 	case:
 		// Unknown statement type — emit as null for now
@@ -530,7 +530,12 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		for q in e.quasis {
 			bin_node_header(be, .TemplateElement, q.loc)
 			bw_bool(be, q.tail)
-			bw_string_ref(be, q.cooked)
+			if cooked, ok := q.cooked.?; ok {
+				bw_u8(be, 1) // has cooked
+				bw_string_ref(be, cooked)
+			} else {
+				bw_u8(be, 0) // no cooked
+			}
 			bw_string_ref(be, q.raw)
 		}
 		bw_u32(be, u32(len(e.expressions)))
@@ -546,19 +551,19 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 	case ^ArrayExpression:
 		bin_node_header(be, .ArrayExpression, e.loc)
 		bw_u32(be, u32(len(e.elements)))
-		for child in e.elements { bin_emit_expression(be, child) }
+		for child in e.elements {
+			if c, ok := child.?; ok && c != nil {
+				bin_emit_expression(be, c)
+			} else {
+				bw_u8(be, u8(BinValType.NullNode))
+			}
+		}
 	case ^ObjectExpression:
 		bin_node_header(be, .ObjectExpression, e.loc)
 		bw_u32(be, u32(len(e.properties)))
-		for prop in e.properties { bin_emit_expression(be, prop) }
-	case ^Property:
-		bin_node_header(be, .Property, e.loc)
-		bw_u8(be, u8(e.kind)) // 0=init, 1=get, 2=set
-		bw_bool(be, e.computed)
-		bw_bool(be, e.shorthand)
-		bw_bool(be, e.method)
-		bin_emit_expression(be, e.key)
-		bin_emit_expression(be, e.value)
+		for prop in e.properties {
+			bin_emit_property(be, prop)
+		}
 	case ^SpreadElement:
 		bin_node_header(be, .SpreadElement, e.loc)
 		bin_emit_expression(be, e.argument)
@@ -609,27 +614,38 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		bin_emit_expression(be, e.alternate)
 	case ^UpdateExpression:
 		bin_node_header(be, .UpdateExpression, e.loc)
-		bw_string_ref(be, e.operator)
+		op_str: string
+		switch e.operator {
+		case .Increment: op_str = "++"
+		case .Decrement: op_str = "--"
+		}
+		bw_string_ref(be, op_str)
 		bw_bool(be, e.prefix)
 		bin_emit_expression(be, e.argument)
 	case ^UnaryExpression:
 		bin_node_header(be, .UnaryExpression, e.loc)
-		bw_string_ref(be, e.operator)
+		bw_string_ref(be, unary_op_to_string(e.operator))
 		bw_bool(be, e.prefix)
 		bin_emit_expression(be, e.argument)
 	case ^BinaryExpression:
 		bin_node_header(be, .BinaryExpression, e.loc)
-		bw_string_ref(be, e.operator)
+		bw_string_ref(be, binary_op_to_string(e.operator))
 		bin_emit_expression(be, e.left)
 		bin_emit_expression(be, e.right)
 	case ^LogicalExpression:
 		bin_node_header(be, .LogicalExpression, e.loc)
-		bw_string_ref(be, e.operator)
+		lop_str: string
+		#partial switch e.operator {
+		case .And: lop_str = "&&"
+		case .Or:  lop_str = "||"
+		case .NullishCoalescing: lop_str = "??"
+		}
+		bw_string_ref(be, lop_str)
 		bin_emit_expression(be, e.left)
 		bin_emit_expression(be, e.right)
 	case ^AssignmentExpression:
 		bin_node_header(be, .AssignmentExpression, e.loc)
-		bw_string_ref(be, e.operator)
+		bw_string_ref(be, assignment_op_to_string(e.operator))
 		bin_emit_expression(be, e.left)
 		bin_emit_expression(be, e.right)
 	case ^SequenceExpression:
@@ -639,9 +655,9 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 	case ^YieldExpression:
 		bin_node_header(be, .YieldExpression, e.loc)
 		bw_bool(be, e.delegate)
-		if e.argument != nil {
+		if arg, ok := e.argument.?; ok && arg != nil {
 			bw_u8(be, u8(BinValType.Node))
-			bin_emit_expression(be, e.argument)
+			bin_emit_expression(be, arg)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
@@ -674,14 +690,16 @@ bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
 	case ^ObjectPattern:
 		bin_node_header(be, .ObjectPattern, p.loc)
 		bw_u32(be, u32(len(p.properties)))
-		for prop in p.properties { bin_emit_expression(be, prop) }
+		for prop in p.properties {
+			bin_emit_obj_pat_prop(be, prop)
+		}
 	case ^ArrayPattern:
 		bin_node_header(be, .ArrayPattern, p.loc)
 		bw_u32(be, u32(len(p.elements)))
 		for elem in p.elements {
-			if elem != nil {
+			if e, ok := elem.?; ok {
 				bw_u8(be, u8(BinValType.Node))
-				bin_emit_pattern(be, elem^)
+				bin_emit_pattern(be, e)
 			} else {
 				bw_u8(be, u8(BinValType.NullNode))
 			}
@@ -701,6 +719,78 @@ bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
 		bin_emit_expression(be, p.property)
 	case:
 		bw_u8(be, u8(BinValType.NullNode))
+	}
+}
+
+@(private="file")
+bin_emit_property :: proc(be: ^BinaryEmitter, prop: Property) {
+	bin_node_header(be, .Property, prop.loc)
+	bw_u8(be, u8(prop.kind))
+	bw_bool(be, prop.computed)
+	bw_bool(be, prop.shorthand)
+	bin_emit_expression(be, prop.key)
+	bin_emit_expression(be, prop.value)
+}
+
+@(private="file")
+bin_emit_obj_pat_prop :: proc(be: ^BinaryEmitter, prop: ObjectPatternProperty) {
+	bin_node_header(be, .Property, prop.loc)
+	bw_bool(be, prop.computed)
+	bw_bool(be, prop.shorthand)
+	// key (Maybe)
+	if key, ok := prop.key.?; ok {
+		switch k in key {
+		case ^Expression:
+			bin_emit_expression(be, k)
+		case IdentifierName:
+			bin_node_header(be, .Identifier, k.loc)
+			bw_string_ref(be, k.name)
+		case ^StringLiteral:
+			if k != nil {
+				bin_node_header(be, .StringLiteral, k.loc)
+				bw_string_ref(be, k.value)
+				bw_string_ref(be, k.raw)
+			} else {
+				bw_u8(be, u8(BinValType.NullNode))
+			}
+		case ^NumericLiteral:
+			if k != nil {
+				bin_node_header(be, .NumericLiteral, k.loc)
+				bw_f64(be, k.value)
+				bw_string_ref(be, k.raw)
+			} else {
+				bw_u8(be, u8(BinValType.NullNode))
+			}
+		}
+	} else {
+		bw_u8(be, u8(BinValType.NullNode))
+	}
+	bin_emit_pattern(be, prop.value)
+}
+
+@(private="file")
+bin_emit_declaration :: proc(be: ^BinaryEmitter, decl: ^Declaration) {
+	if decl == nil { bw_u8(be, u8(BinValType.NullNode)); return }
+	#partial switch d in decl^ {
+	case ^FunctionDeclaration:
+		bin_emit_function_node(be, .FunctionDeclaration, d)
+	case ^VariableDeclaration:
+		bin_emit_var_decl(be, d)
+	case ^ClassDeclaration:
+		bin_emit_class(be, .ClassDeclaration, d)
+	case:
+		bw_u8(be, u8(BinValType.NullNode))
+	}
+}
+
+@(private="file")
+bin_emit_export_default_def :: proc(be: ^BinaryEmitter, def: ^ExportDefaultDef) {
+	if def == nil { bw_u8(be, u8(BinValType.NullNode)); return }
+	switch d in def^ {
+	case ^Declaration:
+		bin_emit_declaration(be, d)
+	case ^Expression:
+		bin_emit_expression(be, d)
 	}
 }
 
@@ -792,9 +882,9 @@ bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 		bw_u8(be, u8(BinValType.Null))
 	}
 	// superClass
-	if class.super_class != nil {
+	if sc, ok := class.super_class.?; ok && sc != nil {
 		bw_u8(be, u8(BinValType.Node))
-		bin_emit_expression(be, class.super_class)
+		bin_emit_expression(be, sc)
 	} else {
 		bw_u8(be, u8(BinValType.NullNode))
 	}
@@ -808,45 +898,44 @@ bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 
 @(private="file")
 bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
-	switch elem.type {
-	case .Method:
+	#partial switch elem.kind {
+	case .StaticBlock:
+		bin_node_header(be, .StaticBlock, elem.loc)
+		if v, ok := elem.value.?; ok && v != nil {
+			bin_emit_expression(be, v) // FunctionExpression wrapping the block body
+		} else {
+			bw_u8(be, u8(BinValType.NullNode))
+		}
+	case .Method, .Get, .Set, .Constructor:
 		bin_node_header(be, .MethodDefinition, elem.loc)
 		bw_u8(be, u8(elem.kind))
 		bw_bool(be, elem.computed)
-		bw_bool(be, elem.static_)
+		bw_bool(be, elem.static)
 		if elem.key != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_expression(be, elem.key)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
-		if elem.value != nil {
+		if v, ok := elem.value.?; ok && v != nil {
 			bw_u8(be, u8(BinValType.Node))
-			bin_emit_expression(be, elem.value)
+			bin_emit_expression(be, v)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
-	case .Property:
+	case: // Property (field definition)
 		bin_node_header(be, .PropertyDefinition, elem.loc)
 		bw_bool(be, elem.computed)
-		bw_bool(be, elem.static_)
+		bw_bool(be, elem.static)
 		if elem.key != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_expression(be, elem.key)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
-		if elem.value != nil {
+		if v, ok := elem.value.?; ok && v != nil {
 			bw_u8(be, u8(BinValType.Node))
-			bin_emit_expression(be, elem.value)
-		} else {
-			bw_u8(be, u8(BinValType.NullNode))
-		}
-	case .StaticBlock:
-		bin_node_header(be, .StaticBlock, elem.loc)
-		if elem.value != nil {
-			bw_u8(be, u8(BinValType.Node))
-			bin_emit_statement(be, elem.value)
+			bin_emit_expression(be, v)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
@@ -882,12 +971,11 @@ bin_emit_finalize :: proc(be: ^BinaryEmitter) {
 	}
 
 	// Second pass: append non-source string bytes
-	cooked_base := u32(len(be.buf))
-	for i, s in be.strings {
+	for s, i in be.strings {
 		ptr := uintptr(raw_data(s))
 		if ptr < source_ptr || ptr >= source_end {
 			// Patch the offset to point into the cooked section
-			entry_off := string_table_off + u32(i) * 8
+			entry_off := string_table_off + u32(uint(i)) * 8
 			actual_off := u32(len(be.buf)) | 0x80000000
 			be.buf[entry_off + 0] = u8(actual_off)
 			be.buf[entry_off + 1] = u8(actual_off >> 8)
