@@ -69,7 +69,7 @@ walk_and_read :: proc(
 
 	if !is_dir(full_root) {
 		fmt.eprintfln("[coverage] vendored corpus missing: %s", full_root)
-		fmt.eprintfln("[coverage] run `tests/runners/oxc_corpus_fetch.sh` first.")
+		fmt.eprintfln("[coverage] vendored corpus not found — ensure tests/vendor/ is populated.")
 		return nil
 	}
 

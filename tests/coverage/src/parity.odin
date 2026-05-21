@@ -89,7 +89,7 @@ assert_vendor_sha :: proc(t: ^testing.T, vendor_root, subdir, expected: string) 
 		return
 	}
 	testing.expectf(t, actual == expected,
-		"%s corpus SHA drift: got %s, expected %s. Run tests/runners/oxc_corpus_fetch.sh and update the OXC manifest deliberately.",
+		"%s corpus SHA drift: got %s, expected %s. Update the vendored corpus and OXC manifest deliberately.",
 		subdir, actual, expected)
 }
 

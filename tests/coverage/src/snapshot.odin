@@ -37,12 +37,11 @@ import "core:slice"
 import "core:strings"
 
 // ============================================================================
-// Per-suite vendored SHA — populated from tests/runners/oxc_corpus_fetch.sh.
-// Re-baseline: when bumping a vendored corpus, update both the SHA constant
-// AND the snap header (the harness writes the SHA into the file).
+// Per-suite vendored SHA. These pin the exact commit of each upstream corpus
+// checked into tests/vendor/. Re-baseline: when bumping a vendored corpus,
+// update both the SHA constant AND the snap header (the harness writes the
+// SHA into the file).
 // ============================================================================
-
-// Synchronized with tests/runners/oxc_corpus_fetch.sh — bump together.
 TYPESCRIPT_SHA          :: "f350b52331494b68c90ab02e2b6d0828d2a22a74"
 BABEL_SHA               :: "4079bcda153cafc76f76d2b683aa0ede0a93864c"
 ESTREE_CONFORMANCE_SHA  :: "9c67f5e33f7a2d122e87d9b8f6eec5f53861cc53"

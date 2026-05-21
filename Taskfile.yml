@@ -9,11 +9,6 @@ vars:
   BENCH_ITERS: 20
 
 tasks:
-
-  # ============================================================
-  # Build
-  # ============================================================
-
   build:
     desc: Build kessel (optimized)
     cmds:
@@ -40,19 +35,8 @@ tasks:
       - tests/coverage/src/*.odin
       - src/*.odin
 
-  # ============================================================
-  # ============================================================
-  # Test — mirrors the OXC workflow: one command for the canonical gate.
-  #
-  #   task test                    Primary gate (coverage snap gate + unit fixtures)
-  #   task test -- --update        Regenerate snaps after a deliberate fix
-  #   task test:quick              Fast dev-loop subset (~8s)
-  #   task test:release            Zero-tolerance pre-release gate
-  # ============================================================
-
   test:
     desc: "Primary gate — coverage snap gate (50K+ fixtures) + unit fixtures."
-    deps: [build]
     silent: false
     cmds:
       - task: test:coverage
@@ -86,10 +70,6 @@ tasks:
     silent: true
     cmds:
       - tests/runners/run_tests.sh
-
-  # ============================================================
-  # Fast dev loop — the checks that matter most, in ~8 seconds.
-  # ============================================================
 
   test:quick:
     desc: "Fast dev-loop gate — unit + regression + invariants + lexer tokens (~8s)."
@@ -145,10 +125,6 @@ tasks:
       - node tests/verifiers/verify_string_escapes.js bench/real_world/lodash.js
       - node tests/verifiers/verify_string_escapes.js bench/real_world/babel.js
 
-  # ============================================================
-  # Fuzzing — differential and invalid-input
-  # ============================================================
-
   test:fuzz:
     desc: "Differential fuzz vs reference (100 random programs, baseline-gated)."
     deps: [build, bench:oxc:build]
@@ -177,10 +153,6 @@ tasks:
     cmds:
       - node tests/verifiers/verify_lexer_tokens.js
 
-  # ============================================================
-  # Pre-release — everything strict, zero tolerance.
-  # ============================================================
-
   test:release:
     desc: "Zero-tolerance pre-release gate — coverage + unit + regression + real-world + estree + fuzz + bench."
     deps: [build, bench:oxc:build]
@@ -197,12 +169,6 @@ tasks:
       - task: test:bench:regression
       - task: test:lexer-tokens
 
-  # ============================================================
-  # OXC reference binary build (Rust) — used by verifiers that diff
-  # against OXC's parser output (verify_regression, verify_string_escapes,
-  # fuzz_diff). Requires a sibling OXC checkout; see bench/oxc_compare/Cargo.toml.
-  # ============================================================
-
   bench:oxc:build:
     desc: Build OXC reference binary (Rust) used by diff-against-OXC verifiers.
     dir: bench/oxc_compare
@@ -211,10 +177,6 @@ tasks:
     status:
       - test -f ../../{{.OXC_BENCH}}
       - test -f ../../bench/oxc_compare/target/release/oxc_cli_equiv
-
-  # ============================================================
-  # Performance regression gate.
-  # ============================================================
 
   test:bench:regression:
     desc: "Performance regression gate — microbench 10 curated files."
@@ -230,44 +192,6 @@ tasks:
     cmds:
       - node tests/verifiers/verify_bench_regression.js --iterations 30 --update
 
-  # ============================================================
-  # Corpus fetch — required before first `task test`.
-  # ============================================================
-
-  test:oxc-corpus:fetch:
-    desc: "Fetch the OXC conformance corpus (test262 + TypeScript + Babel + ESTree). Required before running coverage."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh
-
-  test:oxc-corpus:fetch:test262:
-    desc: "Fetch only the test262 corpus."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh test262
-
-  test:oxc-corpus:fetch:typescript:
-    desc: "Fetch only the TypeScript corpus (~138 MB)."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh typescript
-
-  test:oxc-corpus:fetch:babel:
-    desc: "Fetch only the Babel parser fixtures (~70 MB)."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh babel
-
-  test:oxc-corpus:fetch:estree:
-    desc: "Fetch only the ESTree conformance corpus (~5 MB)."
-    silent: true
-    cmds:
-      - bash tests/runners/oxc_corpus_fetch.sh estree
-
-  # ============================================================
-  # Informational — not gates.
-  # ============================================================
-
   test:conformance:report:
     desc: "Print a human-readable conformance summary from the snap files."
     silent: false
@@ -279,9 +203,6 @@ tasks:
     silent: true
     cmds:
       - node tests/verifiers/report_conformance.js --json
-
-  # Install
-  # ============================================================
 
   install:
     desc: Build and install kessel to ~/.local/bin
@@ -296,10 +217,6 @@ tasks:
     cmds:
       - rm -f {{.INSTALL_DIR}}/kessel
       - echo "Removed {{.INSTALL_DIR}}/kessel"
-
-  # ============================================================
-  # Clean
-  # ============================================================
 
   clean:
     desc: Remove build artifacts
