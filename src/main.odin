@@ -122,6 +122,7 @@ main :: proc() {
 		parse_workers := 0
 		parse_out_dir := ""
 		parse_raw := false
+		parse_binary := false
 		i := 2
 		for i < len(os.args) {
 			// Try CliConfig flags first; cli_try_parse_flag advances i.
@@ -129,6 +130,9 @@ main :: proc() {
 			// Parse-subcommand-specific flags
 			arg := os.args[i]
 			switch {
+			case arg == "--binary":
+				parse_binary = true
+				i += 1
 			case arg == "--raw":
 				parse_raw = true
 				i += 1
@@ -145,7 +149,9 @@ main :: proc() {
 			}
 		}
 		if len(parse_files) == 1 {
-			if parse_raw {
+			if parse_binary {
+				parse_file_binary(parse_files[0], cli)
+			} else if parse_raw {
 				if parse_out_dir != "" {
 					base := filepath_base(parse_files[0])
 					out_path := strings.concatenate({parse_out_dir, "/", base, ".bin"})
@@ -492,7 +498,36 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 }
 
 // ============================================================================
-// Raw transfer: parse and produce binary AST buffer
+// Binary AST: parse and produce compact binary buffer
+// ============================================================================
+
+parse_file_binary :: proc(file_path: string, cli: CliConfig) {
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		os.exit(1)
+	}
+	defer parse_job_close(&job)
+	parse_job_run(&job)
+	if cli.show_semantic_errors { checker_run_for_job(&job) }
+
+	be: BinaryEmitter
+	binary_emitter_init(&be, string(job.source.data), context.allocator)
+	defer binary_emitter_destroy(&be, context.allocator)
+
+	bin_emit_program(&be, job.program)
+	bin_emit_finalize(&be)
+
+	os.write(os.stdout, be.buf[:])
+
+	// Stats on stderr
+	fmt.eprintf("Binary AST: %d bytes (%d nodes, %d strings)\n",
+		len(be.buf), be.node_count, len(be.strings))
+	fmt.eprintf("Parse errors: %d\n", len(job.parser.errors))
+}
+
+// ============================================================================
+// Raw transfer: parse and produce binary AST buffer (legacy)
 // ============================================================================
 
 raw_transfer_file :: proc(file_path: string, out_path: string, cli: CliConfig) {
