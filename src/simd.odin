@@ -1,8 +1,12 @@
 package kessel
 
 // ============================================================================
-// ARM64 NEON SIMD - True SIMD Implementation
-// Uses Odin's SIMD intrinsics for ARM64 NEON
+// Cross-platform SIMD — 128-bit vectorised hot paths
+//
+// Uses Odin's `core:simd` intrinsics which compile to the native ISA:
+// SSE2 on x86-64, NEON on ARM64. The `simd.HAS_HARDWARE_SIMD` constant
+// gates every SIMD block; platforms without 128-bit hardware support
+// fall through to byte-by-byte scalar loops.
 // ============================================================================
 
 import "core:simd"
@@ -16,7 +20,7 @@ Vec16 :: simd.u8x16   // 16 bytes vector
 // Find first quote or backslash — returns (position, is_quote)
 // If returns len(data), neither was found in the scanned range.
 simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: bool, has_newline: bool) {
-	when ODIN_ARCH == .arm64 {
+	when simd.HAS_HARDWARE_SIMD {
 		q_vec: Vec16 = quote
 		b_vec: Vec16 = '\\'
 		nl_vec: Vec16 = '\n'
@@ -71,7 +75,7 @@ simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: b
 // Returns `start` on the first miss (i.e. caller's first byte is already a
 // break). Returns `len(src)` if the whole tail is identifier-continue.
 //
-// On ARM64 NEON we process 16 bytes per iteration with five OR'd range
+// With hardware SIMD we process 16 bytes per iteration with five OR'd range
 // checks: lower / upper / digit / [_$] / ≥ 0x80. A backslash byte is also
 // flagged as a break so the caller can decide between escape decoding and
 // terminating the identifier. The scalar tail handles bytes 0..15 left over.
@@ -105,7 +109,7 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 	// terminated after 2-3. Profile of monaco.js showed lex_identifier (the
 	// caller of this function) at ~5.7 ms wall time, vs OXC's equivalent at
 	// ~2.6 ms. After this change: monaco -4.3 %, cesium -5.4 %.
-	when ODIN_ARCH == .arm64 {
+	when simd.HAS_HARDWARE_SIMD {
 		prefix_end := min(off + 12, src_len)
 		for off < prefix_end {
 			id_class := ID_CONT_TABLE[src[off]]
@@ -163,7 +167,7 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 			off += 16
 		}
 	}
-	// Scalar tail (and full-loop fallback on non-arm64). Mirrors the SIMD
+	// Scalar tail (and full-loop fallback on non-SIMD platforms). Mirrors the SIMD
 	// permissiveness: high bytes are accepted unconditionally and validated
 	// post-hoc by `lex_identifier`. The CHAR_CLASS_TABLE entry for every
 	// byte >= 0x80 is `IdStart`, so the scan terminates only on `\\`,
@@ -207,7 +211,7 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 simd_skip_ascii_ws_run :: proc(src: []u8, start: int) -> int {
 	off := start
 	src_len := len(src)
-	when ODIN_ARCH == .arm64 {
+	when simd.HAS_HARDWARE_SIMD {
 		sp_vec:  Vec16 = ' '
 		tab_vec: Vec16 = 0x09
 		ones:    simd.u8x16 = 0xFF
@@ -229,7 +233,7 @@ simd_skip_ascii_ws_run :: proc(src: []u8, start: int) -> int {
 			off += 16
 		}
 	}
-	// Scalar tail (and full-loop fallback on non-arm64).
+	// Scalar tail (and full-loop fallback on non-SIMD platforms).
 	for off < src_len {
 		c := src[off]
 		if c != ' ' && c != '\t' { return off }
@@ -294,7 +298,7 @@ simd_skip_line_comment :: proc(src: []u8, start: int) -> (end: int, had_nl: bool
 		}
 		off += 16
 	}
-	// Scalar tail (and full-loop fallback on non-arm64).
+	// Scalar tail (and full-loop fallback on non-SIMD platforms).
 	for off < src_len {
 		b := src[off]
 		if b == '\n' || b == '\r' { return off, true }
@@ -456,7 +460,7 @@ simd_skip_block_comment :: proc(src: []u8, start: int) -> (end: int, had_nl: boo
 //
 // Returns len(src) when no candidate is found in the rest of the source.
 simd_find_module_pre_scan_candidate :: #force_inline proc(src: []u8, start: int) -> int {
-	when ODIN_ARCH == .arm64 {
+	when simd.HAS_HARDWARE_SIMD {
 		off := start
 		n   := len(src)
 		slash_v: Vec16 = '/'
@@ -587,7 +591,7 @@ simd_build_utf16_offsets :: proc(source: []u8, alloc: mem.Allocator) -> []u32 {
 		}
 	}
 
-	// Scalar tail (or entire loop on non-ARM64).
+	// Scalar tail (or entire loop when HAS_HARDWARE_SIMD is false).
 	for i < len(source) {
 		table[i] = utf16_pos
 		b := source[i]
