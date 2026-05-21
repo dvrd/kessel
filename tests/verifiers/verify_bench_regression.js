@@ -138,7 +138,7 @@ for (const rel of FILES) {
   try { measureMinUs(abs); } catch (e) { /* ignore \u2014 real pass below will surface it */ }
   const t = measureMinUs(abs);
   measurements[rel] = t;
-  if (VERBOSE) console.log('  measured ' + rel + ': ' + t.toFixed(2) + ' us');
+  if (VERBOSE) console.log('  measured ' + rel + ': ' + (t / 1000).toFixed(3) + ' ms');
 }
 
 // -----------------------------------------------------------------------------
@@ -162,7 +162,7 @@ if (UPDATE) {
   fs.writeFileSync(BASELINE_PATH, JSON.stringify(baseline, null, 2) + '\n');
   console.log('baseline updated: ' + FILES.length + ' file(s) in ' + BASELINE_PATH);
   for (const rel of FILES) {
-    console.log('  ' + rel.padEnd(45) + ' ' + measurements[rel].toFixed(2).padStart(10) + ' us');
+    console.log('  ' + rel.padEnd(45) + ' ' + (measurements[rel] / 1000).toFixed(3).padStart(10) + ' ms');
   }
   process.exit(0);
 }
@@ -195,7 +195,7 @@ const improvements = [];
 let widthName = 0;
 for (const rel of FILES) widthName = Math.max(widthName, rel.length);
 
-console.log('\n' + 'File'.padEnd(widthName) + '   baseline(us)    current(us)   ratio     verdict');
+console.log('\n' + 'File'.padEnd(widthName) + '   baseline(ms)    current(ms)   ratio     verdict');
 console.log('-'.repeat(widthName + 50));
 for (const rel of FILES) {
   const cur = measurements[rel];
@@ -218,8 +218,8 @@ for (const rel of FILES) {
     verdict = 'ok';
   }
   console.log(rel.padEnd(widthName) + '  ' +
-              base.toFixed(2).padStart(10) + '     ' +
-              cur.toFixed(2).padStart(10) + '   ' +
+              (base / 1000).toFixed(3).padStart(10) + '     ' +
+              (cur / 1000).toFixed(3).padStart(10) + '   ' +
               ratio.toFixed(3).padStart(6) + '    ' +
               verdict);
 }
@@ -235,8 +235,8 @@ if (improvements.length > 0) {
   console.log('\nIMPROVEMENTS: ' + improvements.length + ' file(s) faster by >' +
               Math.round((PER_FILE_TOLERANCE - 1) * 100) + '%:');
   for (const r of improvements) {
-    console.log('  ' + r.rel + ': ' + r.base.toFixed(1) + ' \u2192 ' + r.cur.toFixed(1) +
-                ' us (' + (1/r.ratio).toFixed(2) + 'x faster)');
+    console.log('  ' + r.rel + ': ' + (r.base / 1000).toFixed(3) + ' \u2192 ' + (r.cur / 1000).toFixed(3) +
+                ' ms (' + (1/r.ratio).toFixed(2) + 'x faster)');
   }
   console.log('  Run with --update to lock these wins in.');
 }
@@ -246,8 +246,8 @@ if (regressions.length > 0) {
   console.log('\nREGRESSIONS: ' + regressions.length + ' file(s) slower by >' +
               Math.round((PER_FILE_TOLERANCE - 1) * 100) + '%:');
   for (const r of regressions) {
-    console.log('  ' + r.rel + ': ' + r.base.toFixed(1) + ' \u2192 ' + r.cur.toFixed(1) +
-                ' us (' + ((r.ratio - 1) * 100).toFixed(1) + '% slower)');
+    console.log('  ' + r.rel + ': ' + (r.base / 1000).toFixed(3) + ' \u2192 ' + (r.cur / 1000).toFixed(3) +
+                ' ms (' + ((r.ratio - 1) * 100).toFixed(1) + '% slower)');
   }
   failed = true;
 }
