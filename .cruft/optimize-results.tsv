@@ -1,3 +1,0 @@
-timestamp	target	metric	baseline	result	improvement_pct	test_result
-2026-05-19T15:53:34Z	parser real_world regression bench	geo_mean_min_us_ratio	1.000	0.983	1.7	task test passed; bench_regression passed
-2026-05-19T15:53:34Z	bench/real_world/typescript.js	min_us	51854.50	50435.83	2.7	task test passed; bench_regression passed
