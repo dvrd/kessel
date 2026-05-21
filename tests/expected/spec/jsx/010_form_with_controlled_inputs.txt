@@ -2021,16 +2021,10 @@
       "start": 2047,
       "end": 2084,
       "value": " render-prop child returning JSX "
-    },
-    {
-      "type": "Block",
-      "start": 2047,
-      "end": 2084,
-      "value": " render-prop child returning JSX "
     }
   ]
 }
 
 --- Statistics ---
-Arena: used=111608B reserved=16777216B ratio=0%
+Arena: used=109896B reserved=16777216B ratio=0%
 Parse errors: 0
