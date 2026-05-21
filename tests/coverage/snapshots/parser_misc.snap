@@ -1,7 +1,11 @@
 parser_misc Summary:
 AST Parsed     : 84/84 (100.00%)
 Positive Passed: 84/84 (100.00%)
-Negative Passed: 268/273 (98.17%)
+Negative Passed: 264/273 (96.70%)
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/005_duplicate_function_params_strict.js
+Expect Syntax Error: tests/coverage/misc/fail/early_errors/strict_mode/009_duplicate_params_strict_nested.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/020_duplicate_destructured_params.js
+Expect Syntax Error: tests/coverage/misc/fail/negative/021_arrow_duplicate_params.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/061_semantic_duplicate_lexical.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/062_semantic_let_var_clash.js
 Expect Syntax Error: tests/coverage/misc/fail/negative/063_semantic_import_shadow.js
@@ -17,7 +21,6 @@ tests/coverage/misc/fail/early_errors/001_duplicate_proto_object_literal.js:4:29
 tests/coverage/misc/fail/early_errors/002_let_let_in_strict.js:4:5: 'let' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/003_const_without_initializer.js:4:1: Missing initializer in 'const' declaration
 tests/coverage/misc/fail/early_errors/004_duplicate_lexical_declaration.js:3:1: Identifier 'x' has already been declared
-tests/coverage/misc/fail/early_errors/005_duplicate_function_params_strict.js:4:1: Duplicate parameter name 'a' in strict mode
 tests/coverage/misc/fail/early_errors/006_octal_literal_strict.js:4:11: Legacy octal literals are not allowed in strict mode
 tests/coverage/misc/fail/early_errors/007_assign_to_eval_strict.js:4:1: Assignment to 'eval' is not allowed in strict mode
 tests/coverage/misc/fail/early_errors/008_return_outside_function.js:4:8: 'return' outside of function
@@ -42,7 +45,6 @@ tests/coverage/misc/fail/early_errors/strict_mode/005_reserved_protected.js:2:5:
 tests/coverage/misc/fail/early_errors/strict_mode/006_reserved_public.js:2:5: 'public' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/007_reserved_static.js:2:5: 'static' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/008_reserved_yield.js:2:5: 'yield' is a reserved identifier in strict mode
-tests/coverage/misc/fail/early_errors/strict_mode/009_duplicate_params_strict_nested.js:3:5: Duplicate parameter name 'a' in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/010_eval_arguments_assignment.js:2:1: Assignment to 'eval' is not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/011_with_statement.js:4:1: 'with' statements are not allowed in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/012_octal_escape_string.js:6:14: Octal or \8 / \9 escape sequences are not allowed in strict mode
@@ -105,8 +107,6 @@ tests/coverage/misc/fail/negative/016_let_as_lexical_name.js:6:1: 'let' is disal
 tests/coverage/misc/fail/negative/017_static_prototype_class_member.js:9:1: Classes may not have a static member named 'prototype'
 tests/coverage/misc/fail/negative/018_private_identifier_outside_class.js:6:9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 tests/coverage/misc/fail/negative/019_new_dynamic_import.js:3:5: Dynamic 'import()' cannot be invoked with 'new'
-tests/coverage/misc/fail/negative/020_duplicate_destructured_params.js:6:1: Duplicate parameter name 'a' with non-simple parameter list
-tests/coverage/misc/fail/negative/021_arrow_duplicate_params.js:4:11: Duplicate parameter name 'a' in strict mode
 tests/coverage/misc/fail/negative/022_yield_as_binding_in_generator.js:5:6: 'yield' is reserved as a binding name inside a generator
 tests/coverage/misc/fail/negative/023_await_as_binding_in_async.js:6:6: 'await' is reserved as a binding name in this context
 tests/coverage/misc/fail/negative/024_new_target_outside_function.js:4:21: 'new.target' is only allowed inside functions
