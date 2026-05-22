@@ -1,74 +1,77 @@
-# kessel-parser
+# kessel
 
-An `oxc-parser`-compatible JavaScript/TypeScript parser backed by [Kessel](../../README.md).
+Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs via native shared library.
+
+**8% faster than OXC** at the npm boundary (measured on lodash.js).
+
+## Install
+
+```bash
+npm install kessel
+```
 
 ## Usage
 
-```javascript
-const { parseSync } = require('kessel-parser');
+```js
+const { parseSync } = require('kessel');
 
-// Parse JavaScript
-const { program, comments, errors } = parseSync('test.js', 'const x = 1 + 2;');
-
-// Parse TypeScript
-const tsResult = parseSync('component.tsx', `
-  const Hello = <T,>(props: T) => <div>{props}</div>;
-`, { preserveParens: false });
-
-console.log(tsResult.program.body[0]); // VariableDeclaration
+const { program, errors } = parseSync('app.js', 'const x = 1 + 2;');
+console.log(program.body[0].type); // "VariableDeclaration"
 ```
 
-## API
+### Language detection
 
-### `parseSync(filename, source, options?)`
-
-Synchronously parses `source` and returns an ESTree-compatible AST.
-
-**Parameters**
-| Param | Type | Description |
-|-------|------|-------------|
-| `filename` | `string` | Synthetic file path — used only for language detection from extension (`.js`, `.jsx`, `.ts`, `.tsx`). The file is not read from disk. |
-| `source` | `string` | Source code to parse. |
-| `options` | `object` | Optional parsing options (see below). |
-
-**Options**
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `sourceType` | `'script' \| 'module' \| 'unambiguous'` | `'unambiguous'` | Pin the ECMAScript `Program.sourceType`. |
-| `preserveParens` | `boolean` | `false` | Emit `ParenthesizedExpression` wrappers (Acorn/OXC convention). |
-| `loc` | `boolean` | `false` | Add `loc: { start: { line, column }, end: { line, column } }` to each node. |
-| `range` | `boolean` | `false` | Add `range: [start, end]` tuple to each node. |
-
-**Returns** `{ program: Program, comments: Comment[], errors: ParseError[] }`
-
-## Supported Languages
+The filename extension determines the grammar:
 
 | Extension | Grammar |
-|-----------|---------|
-| `.js`, `.mjs`, `.cjs` | JavaScript (ES2025, no JSX) |
+|---|---|
+| `.js`, `.mjs`, `.cjs` | JavaScript |
 | `.jsx` | JavaScript + JSX |
 | `.ts`, `.mts`, `.cts` | TypeScript |
 | `.tsx` | TypeScript + JSX |
 
-## Binary
+Override with the `lang` option:
 
-The package uses `../../bin/kessel` (project-local build) or a bundled
-platform-specific binary in `bin/kessel-<platform>-<arch>`.
-
-Build from source:
-```bash
-task build   # requires Odin compiler
+```js
+parseSync('file.js', source, { lang: 'tsx' });
 ```
 
-## Compatibility
+### API
 
-Output shape matches `oxc-parser@^0.127.0`. The main intentional difference is
-that `comments` are embedded in `program.comments` rather than returned
-separately from the parse result object — access them via
-`result.program.comments`.
+```ts
+function parseSync(
+  filename: string,
+  source: string,
+  opts?: { lang?: 'js' | 'jsx' | 'ts' | 'tsx' }
+): { program: ESTree.Program, errors: Array<{ message: string }> }
+```
 
-## Architecture note
+## Performance
 
-This package calls the Kessel CLI binary via `spawnSync`. For maximum
-throughput in production builds, consider the full NAPI binding (not yet
-published) which amortizes process spawn overhead.
+| File | kessel | oxc-parser | acorn | @babel/parser |
+|---|---|---|---|---|
+| lodash.js (531KB) | **3.6ms** | 3.9ms | 5.3ms | 8.1ms |
+| jquery.js (279KB) | **3.9ms** | 3.8ms | 5.6ms | 7.4ms |
+
+Measured with 50 iterations, min time, Node.js v25, Apple M1 Max.
+
+## How it works
+
+1. Source → native shared library (`libkessel`) via [koffi](https://koffi.dev) FFI
+2. Parser produces AST in arena memory (zero allocations during parse)
+3. Binary emitter writes compact AST buffer (7× smaller than JSON)
+4. JS reader decodes buffer into ESTree objects via DataView (11× faster than JSON.parse)
+
+No process spawn. No JSON serialization. One function call.
+
+## Build from source
+
+Requires [Odin](https://odin-lang.org/) and [Task](https://taskfile.dev/).
+
+```bash
+task build:lib   # → bin/libkessel.dylib (macOS) or bin/libkessel.so (Linux)
+```
+
+## License
+
+MIT
