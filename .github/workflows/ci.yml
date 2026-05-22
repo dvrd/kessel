@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: macos-14  # Apple Silicon for SIMD tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Odin
+        uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: '3.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build
+        run: task build
+
+      - name: Build shared library
+        run: task build:lib
+
+      - name: Test (coverage + unit)
+        run: task test
+
+      - name: Test npm package
+        run: |
+          cd npm/kessel
+          npm install
+          node test.js

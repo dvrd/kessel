@@ -1,0 +1,191 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+# Only one release at a time
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # Skip if the commit is a release commit (avoid infinite loop)
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: check
+        run: |
+          MSG=$(git log -1 --format=%s)
+          if [[ "$MSG" == release:* ]]; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    strategy:
+      matrix:
+        include:
+          - os: macos-14          # Apple Silicon (M1/M2)
+            target: darwin-arm64
+            ext: dylib
+          - os: macos-13          # Intel Mac
+            target: darwin-x64
+            ext: dylib
+          - os: ubuntu-latest     # Linux x64
+            target: linux-x64
+            ext: so
+          # - os: ubuntu-24.04-arm  # Linux ARM64 (when available)
+          #   target: linux-arm64
+          #   ext: so
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Odin
+        uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build shared library
+        run: |
+          mkdir -p bin
+          odin build src -build-mode:shared -out:bin/libkessel.${{ matrix.ext }} -o:speed -no-bounds-check \
+            ${{ matrix.os == 'macos-14' && '-extra-linker-flags:"-undefined dynamic_lookup"' || '' }} \
+            ${{ matrix.os == 'macos-13' && '-extra-linker-flags:"-undefined dynamic_lookup"' || '' }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libkessel-${{ matrix.target }}
+          path: bin/libkessel.${{ matrix.ext }}
+
+  publish:
+    needs: [check, release]
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write    # push commits + tags
+      id-token: write    # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download all platform binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Stage platform binaries
+        run: |
+          mkdir -p npm/kessel/bin
+          cp artifacts/libkessel-darwin-arm64/libkessel.dylib npm/kessel/bin/libkessel-darwin-arm64.dylib || true
+          cp artifacts/libkessel-darwin-x64/libkessel.dylib   npm/kessel/bin/libkessel-darwin-x64.dylib   || true
+          cp artifacts/libkessel-linux-x64/libkessel.so       npm/kessel/bin/libkessel-linux-x64.so       || true
+          # cp artifacts/libkessel-linux-arm64/libkessel.so   npm/kessel/bin/libkessel-linux-arm64.so     || true
+          ls -la npm/kessel/bin/
+
+      - name: Determine version bump
+        id: bump
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -z "$LAST_TAG" ]]; then
+            RANGE="HEAD"
+          else
+            RANGE="$LAST_TAG..HEAD"
+          fi
+          COMMITS=$(git log --oneline --format="%s" $RANGE)
+
+          if echo "$COMMITS" | grep -qE "^(feat|refactor)!:|BREAKING CHANGE"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -qE "^feat"; then
+            BUMP="minor"
+          else
+            BUMP="patch"
+          fi
+
+          CURRENT=$(node -p "require('./npm/kessel/package.json').version")
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+          NEW="$MAJOR.$MINOR.$PATCH"
+
+          echo "bump=$BUMP" >> $GITHUB_OUTPUT
+          echo "version=$NEW" >> $GITHUB_OUTPUT
+          echo "Bump: $BUMP → $NEW"
+
+      - name: Update version
+        run: |
+          cd npm/kessel
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${{ steps.bump.outputs.version }}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      - name: Generate changelog
+        run: |
+          VERSION="${{ steps.bump.outputs.version }}"
+          TODAY=$(date +%Y-%m-%d)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          [[ -z "$LAST_TAG" ]] && RANGE="HEAD" || RANGE="$LAST_TAG..HEAD"
+
+          ENTRY="## [$VERSION] - $TODAY\n"
+
+          FEATS=$(git log --format="%s" $RANGE | grep -E "^feat" | sed 's/^feat[:(]\?//' | sed 's/).*/:/' || true)
+          FIXES=$(git log --format="%s" $RANGE | grep -E "^fix" | sed 's/^fix[:(]\?//' | sed 's/).*/:/' || true)
+          PERFS=$(git log --format="%s" $RANGE | grep -E "^perf" | sed 's/^perf[:(]\?//' | sed 's/).*/:/' || true)
+
+          [[ -n "$FEATS" ]] && ENTRY+="\n### Added\n$(echo "$FEATS" | sed 's/^/- /')\n"
+          [[ -n "$FIXES" ]] && ENTRY+="\n### Fixed\n$(echo "$FIXES" | sed 's/^/- /')\n"
+          [[ -n "$PERFS" ]] && ENTRY+="\n### Performance\n$(echo "$PERFS" | sed 's/^/- /')\n"
+
+          # Prepend to CHANGELOG.md
+          if [[ -f CHANGELOG.md ]]; then
+            HEADER=$(head -5 CHANGELOG.md)
+            BODY=$(tail -n +6 CHANGELOG.md)
+            printf "%s\n\n%b\n%s" "$HEADER" "$ENTRY" "$BODY" > CHANGELOG.md
+          fi
+
+      - name: Install dependencies
+        run: cd npm/kessel && npm install
+
+      - name: Test package
+        run: cd npm/kessel && node test.js
+
+      - name: Commit release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add npm/kessel/package.json CHANGELOG.md
+          git commit -m "release: v${{ steps.bump.outputs.version }}"
+          git tag -a "v${{ steps.bump.outputs.version }}" -m "v${{ steps.bump.outputs.version }}"
+          git push
+          git push --tags
+
+      - name: Publish to npm
+        run: |
+          cd npm/kessel
+          cp ../../CHANGELOG.md .
+          npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
