@@ -27,7 +27,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PKG_DIR="$ROOT/npm/kessel"
+PKG_DIR="$ROOT/npm"
 PKG_JSON="$PKG_DIR/package.json"
 
 # Colors

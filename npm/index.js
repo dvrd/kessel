@@ -25,7 +25,7 @@ function findLib() {
             : process.platform === 'win32' ? 'dll' : 'so';
 
   // 1. Project-local build (monorepo / development)
-  const local = path.resolve(__dirname, '../../bin/libkessel.' + ext);
+  const local = path.resolve(__dirname, '../bin/libkessel.' + ext);
   if (fs.existsSync(local)) return local;
 
   // 2. Bundled platform binary

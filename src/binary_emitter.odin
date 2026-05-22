@@ -4,7 +4,7 @@ package kessel
 // Binary AST Emitter — compact binary format for cross-language consumption
 //
 // Walks the AST (same traversal as emitter.odin's JSON emission) and writes
-// a compact binary stream. A JS reader (npm/kessel-parser/binary-reader.js)
+// a compact binary stream. A JS reader (npm/binary-reader.js)
 // decodes this into ESTree-compatible plain objects using DataView.
 //
 // Format: [Header 16B] [Node stream ...] [String table ...]

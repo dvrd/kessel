@@ -93,12 +93,12 @@ jobs:
 
       - name: Stage platform binaries
         run: |
-          mkdir -p npm/kessel/bin
-          cp artifacts/libkessel-darwin-arm64/libkessel.dylib npm/kessel/bin/libkessel-darwin-arm64.dylib || true
-          cp artifacts/libkessel-darwin-x64/libkessel.dylib   npm/kessel/bin/libkessel-darwin-x64.dylib   || true
-          cp artifacts/libkessel-linux-x64/libkessel.so       npm/kessel/bin/libkessel-linux-x64.so       || true
-          # cp artifacts/libkessel-linux-arm64/libkessel.so   npm/kessel/bin/libkessel-linux-arm64.so     || true
-          ls -la npm/kessel/bin/
+          mkdir -p npm/bin
+          cp artifacts/libkessel-darwin-arm64/libkessel.dylib npm/bin/libkessel-darwin-arm64.dylib || true
+          cp artifacts/libkessel-darwin-x64/libkessel.dylib   npm/bin/libkessel-darwin-x64.dylib   || true
+          cp artifacts/libkessel-linux-x64/libkessel.so       npm/bin/libkessel-linux-x64.so       || true
+          # cp artifacts/libkessel-linux-arm64/libkessel.so   npm/bin/libkessel-linux-arm64.so     || true
+          ls -la npm/bin/
 
       - name: Determine version bump
         id: bump
@@ -119,7 +119,7 @@ jobs:
             BUMP="patch"
           fi
 
-          CURRENT=$(node -p "require('./npm/kessel/package.json').version")
+          CURRENT=$(node -p "require('./npm/package.json').version")
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
           case "$BUMP" in
             major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
@@ -134,7 +134,7 @@ jobs:
 
       - name: Update version
         run: |
-          cd npm/kessel
+          cd npm
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -167,16 +167,16 @@ jobs:
           fi
 
       - name: Install dependencies
-        run: cd npm/kessel && npm install
+        run: cd npm && npm install
 
       - name: Test package
-        run: cd npm/kessel && node test.js
+        run: cd npm && node test.js
 
       - name: Commit release
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add npm/kessel/package.json CHANGELOG.md
+          git add npm/package.json CHANGELOG.md
           git commit -m "release: v${{ steps.bump.outputs.version }}"
           git tag -a "v${{ steps.bump.outputs.version }}" -m "v${{ steps.bump.outputs.version }}"
           git push
@@ -184,7 +184,7 @@ jobs:
 
       - name: Publish to npm
         run: |
-          cd npm/kessel
+          cd npm
           cp ../../CHANGELOG.md .
           npm publish --provenance --access public
         env:

@@ -37,6 +37,6 @@ jobs:
 
       - name: Test npm package
         run: |
-          cd npm/kessel
+          cd npm
           npm install
           node test.js

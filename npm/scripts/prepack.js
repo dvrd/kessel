@@ -16,7 +16,7 @@ const binDir = path.join(__dirname, '..', 'bin');
 const target = path.join(binDir, `libkessel-${platform}-${arch}.${ext}`);
 
 // Copy root CHANGELOG into the package
-const changelogSrc = path.resolve(__dirname, '../../../CHANGELOG.md');
+const changelogSrc = path.resolve(__dirname, '../../CHANGELOG.md');
 const changelogDst = path.join(__dirname, '..', 'CHANGELOG.md');
 if (fs.existsSync(changelogSrc)) {
   fs.copyFileSync(changelogSrc, changelogDst);
@@ -29,7 +29,7 @@ if (fs.existsSync(target)) {
 }
 
 // Try to copy from the project build directory
-const source = path.resolve(__dirname, '../../../bin/libkessel.' + ext);
+const source = path.resolve(__dirname, '../../bin/libkessel.' + ext);
 if (fs.existsSync(source)) {
   fs.mkdirSync(binDir, { recursive: true });
   fs.copyFileSync(source, target);

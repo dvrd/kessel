@@ -24,7 +24,7 @@ const { spawnSync } = require('child_process');
 const oxc = require('oxc-parser');
 const acorn = require('acorn');
 const babel = require('@babel/parser');
-const kessel = require('../npm/kessel');
+const kessel = require('../npm');
 
 const KESSEL_BIN = path.resolve(__dirname, '../bin/kessel');
 
