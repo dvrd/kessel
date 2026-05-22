@@ -91,9 +91,11 @@ const VAR_KINDS = ['var', 'let', 'const', 'using', 'await using'];
 const PROP_KINDS = ['init', 'get', 'set'];
 const CLASS_ELEM_KINDS = ['method', 'get', 'set', 'constructor', 'method']; // StaticBlock mapped to method
 
-// Value type tags
-const VT_NULL = 0, VT_BOOL = 1, VT_U32 = 2, VT_F64 = 3;
-const VT_STR = 4, VT_NODE = 5, VT_ARR = 6, VT_NULL_NODE = 7;
+// Value type tags — must match BinValType in binary_emitter.odin.
+// VT_NODE and VT_NULL_NODE are above the BinNodeType range (0..99)
+// to avoid collisions when peeking at the first byte of a field.
+const VT_NULL = 0, VT_STR = 4;
+const VT_NODE = 0xFD, VT_NULL_NODE = 0xFE;
 
 /**
  * Decode a binary AST buffer into an ESTree-compatible Program object.
@@ -118,6 +120,8 @@ function decode(buffer, source) {
   const strings = buildStringTable(dv, strTableOff, buffer, source);
 
   // Read node stream
+  let depth = 0;
+  const MAX_DEPTH = 512;
   const program = readNode();
   return { program, errors: [] };
 
@@ -146,6 +150,7 @@ function decode(buffer, source) {
 
   function readNodeArray() {
     const count = readU32();
+    if (count > 100000 || off + count > strTableOff) throw new Error('readNodeArray: bogus count ' + count + ' at off ' + off);
     const arr = new Array(count);
     for (let i = 0; i < count; i++) arr[i] = readNode();
     return arr;
@@ -153,6 +158,7 @@ function decode(buffer, source) {
 
   function readNodeOrNullArray() {
     const count = readU32();
+    if (count > 100000 || off + count > strTableOff) throw new Error('readNodeOrNullArray: bogus count ' + count + ' at off ' + off);
     const arr = new Array(count);
     for (let i = 0; i < count; i++) arr[i] = readNodeOrNull();
     return arr;
@@ -160,8 +166,23 @@ function decode(buffer, source) {
 
   function readNode() {
     if (off >= strTableOff) return null;
+    if (++depth > MAX_DEPTH) throw new Error('readNode depth exceeded ' + MAX_DEPTH + ' at offset ' + off);
+    // Peek at the first byte. If it's a NullNode tag (0xFE), consume
+    // just that one byte and return null — the emitter writes NullNode
+    // in bare-node positions for nil/unknown AST nodes.
+    const peek = dv.getUint8(off);
+    if (peek === VT_NULL_NODE) {
+      off++;
+      --depth;
+      return null;
+    }
     const { typeId, start, end } = readNodeHeader();
     const type = TYPE_NAMES[typeId];
+    if (type === undefined) {
+      // Unknown node type — can't parse fields. Return minimal node.
+      --depth;
+      return { type: 'Unknown', start, end };
+    }
     const node = { type, start, end };
 
     switch (typeId) {
@@ -229,14 +250,15 @@ function decode(buffer, source) {
       case T.ObjectExpression:
         node.properties = readNodeArray();
         break;
-      case T.Property:
+      case T.Property: {
         node.kind = PROP_KINDS[readU8()];
         node.computed = readBool();
         node.shorthand = readBool();
-        node.method = node.kind === 'init' && !node.shorthand; // approximate
-        node.key = readNode();
+        node.method = readBool();
+        node.key = readNodeOrNull(); // tagged: VT_NODE or VT_NULL_NODE
         node.value = readNode();
         break;
+      }
       case T.SpreadElement:
         node.argument = readNode();
         break;
@@ -256,7 +278,7 @@ function decode(buffer, source) {
         node.async = readBool();
         node.expression = readBool();
         node.params = readFunctionParams();
-        node.body = readNode();
+        node.body = readNodeOrNull(); // can be null in error-recovery ASTs
         break;
       case T.ClassExpression:
       case T.ClassDeclaration: {
@@ -471,10 +493,76 @@ function decode(buffer, source) {
         node.local = { type: 'Identifier', name: readStr(), start, end };
         node.exported = { type: 'Identifier', name: readStr(), start, end };
         break;
+      // ===================== JSX =====================
+      case T.JSXElement:
+        node.openingElement = readNode(); // JSXOpeningElement
+        node.children = readNodeArray();
+        node.closingElement = readNodeOrNull();
+        break;
+      case T.JSXFragment:
+        node.openingFragment = readNode(); // JSXOpeningFragment
+        node.children = readNodeArray();
+        node.closingFragment = readNode(); // JSXClosingFragment
+        break;
+      case T.JSXOpeningElement:
+        node.selfClosing = readBool();
+        node.name = readNode(); // JSXIdentifier | JSXMemberExpression | JSXNamespacedName
+        node.attributes = readNodeArray();
+        break;
+      case T.JSXClosingElement:
+        node.name = readNode();
+        break;
+      case T.JSXOpeningFragment:
+      case T.JSXClosingFragment:
+        // No fields beyond loc.
+        break;
+      case T.JSXAttribute:
+        node.name = readNode(); // JSXIdentifier or JSXNamespacedName
+        node.value = readNodeOrNull(); // StringLiteral or JSXExpressionContainer or null
+        break;
+      case T.JSXSpreadAttribute:
+        node.argument = readNode();
+        break;
+      case T.JSXExpressionContainer:
+        node.expression = readNode();
+        break;
+      case T.JSXEmptyExpression:
+        break;
+      case T.JSXText:
+        node.value = readStr();
+        node.raw = readStr();
+        break;
+      case T.JSXIdentifier:
+        node.name = readStr();
+        break;
+      case T.JSXMemberExpression:
+        node.object = readNode();
+        node.property = readNode();
+        break;
+      case T.JSXNamespacedName:
+        node.namespace = readNode();
+        node.name = readNode();
+        break;
+      case T.JSXSpreadChild:
+        node.expression = readNode();
+        break;
+      // ===================== TypeScript =====================
+      case T.TSTypeAnnotation:
+      case T.TSTypeReference:
+        // TS types — not decoded for JS consumers. Skip.
+        break;
+      case T.TSAsExpression:
+      case T.TSSatisfiesExpression:
+      case T.TSNonNullExpression:
+      case T.TSTypeAssertion:
+      case T.TSInstantiationExpression:
+        node.expression = readNode();
+        break;
       default:
         // Unknown node type — skip
         break;
     }
+    --depth;
     return node;
   }
 

@@ -139,15 +139,14 @@ BinNodeType :: enum u8 {
 // Value type tags for inline field data
 // ============================================================================
 
+// Value type tags — used as prefixes before nullable node fields.
+// IMPORTANT: these must NOT collide with any BinNodeType value (0..99).
+// Tags 0xFD and 0xFE are safely above the type ID range.
 BinValType :: enum u8 {
-	Null      = 0,
-	Bool      = 1,
-	U32       = 2,
-	F64       = 3,
-	StringRef = 4,  // u32 index into string table
-	Node      = 5,  // next record in stream is the child
-	NodeArray = 6,  // u32 count, then count nodes follow
-	NullNode  = 7,  // nullable node that is nil
+	Null      = 0,   // used for non-node nullable fields (e.g. string tags)
+	StringRef = 4,   // u32 index into string table
+	Node      = 0xFD,  // next record in stream is the child node
+	NullNode  = 0xFE,  // nullable node that is nil
 }
 
 // ============================================================================
@@ -592,10 +591,15 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		bw_bool(be, e.expression)
 		bw_u32(be, u32(len(e.params)))
 		for param in e.params { bin_emit_param(be, param) }
-		// body is ArrowFunctionBody union: ^Expression | ^BlockStatement
+		// body is ArrowFunctionBody union: ^Expression | ^BlockStatement.
+		// Use VT_Node / VT_NullNode tagging so the reader can distinguish.
 		switch b in e.body {
 		case ^Expression:
-			bin_emit_expression(be, b)
+			if b != nil && !expression_inner_nil(b) {
+				bin_emit_expression(be, b)
+			} else {
+				bw_u8(be, u8(BinValType.NullNode))
+			}
 		case ^BlockStatement:
 			if b != nil {
 				bin_node_header(be, .BlockStatement, b.loc)
@@ -694,6 +698,60 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 	case ^ParenthesizedExpression:
 		bin_node_header(be, .ParenthesizedExpression, e.loc)
 		bin_emit_expression(be, e.expression)
+	// ===================== JSX =====================
+	case ^JSXElement:
+		bin_node_header(be, .JSXElement, e.loc)
+		// opening element
+		bin_emit_jsx_opening(be, e.opening_element)
+		// children
+		bw_u32(be, u32(len(e.children)))
+		for child in e.children { bin_emit_jsx_child(be, child) }
+		// closing element (nullable)
+		if ce, ok := e.closing_element.?; ok && ce != nil {
+			bw_u8(be, u8(BinValType.Node))
+			bin_node_header(be, .JSXClosingElement, ce.loc)
+			bin_emit_jsx_elem_name(be, ce.name)
+		} else {
+			bw_u8(be, u8(BinValType.NullNode))
+		}
+	case ^JSXFragment:
+		bin_node_header(be, .JSXFragment, e.loc)
+		// opening fragment
+		bin_node_header(be, .JSXOpeningFragment, e.opening_fragment.loc)
+		// children
+		bw_u32(be, u32(len(e.children)))
+		for child in e.children { bin_emit_jsx_child(be, child) }
+		// closing fragment
+		bin_node_header(be, .JSXClosingFragment, e.closing_fragment.loc)
+	case ^JSXText:
+		bin_node_header(be, .JSXText, e.loc)
+		bw_string_ref(be, e.value)
+		bw_string_ref(be, e.raw)
+	case ^JSXExpressionContainer:
+		bin_node_header(be, .JSXExpressionContainer, e.loc)
+		bin_emit_expression(be, e.expression)
+	case ^JSXEmptyExpression:
+		bin_node_header(be, .JSXEmptyExpression, e.loc)
+	case ^JSXSpreadChild:
+		bin_node_header(be, .JSXSpreadChild, e.loc)
+		bin_emit_expression(be, e.expression)
+	// ===================== TypeScript =====================
+	case ^TSAsExpression:
+		bin_node_header(be, .TSAsExpression, e.loc)
+		bin_emit_expression(be, e.expression)
+		// type_annotation skipped — JS consumer doesn't need it
+	case ^TSSatisfiesExpression:
+		bin_node_header(be, .TSSatisfiesExpression, e.loc)
+		bin_emit_expression(be, e.expression)
+	case ^TSNonNullExpression:
+		bin_node_header(be, .TSNonNullExpression, e.loc)
+		bin_emit_expression(be, e.expression)
+	case ^TSTypeAssertion:
+		bin_node_header(be, .TSTypeAssertion, e.loc)
+		bin_emit_expression(be, e.expression)
+	case ^TSInstantiationExpression:
+		bin_node_header(be, .TSInstantiationExpression, e.loc)
+		bin_emit_expression(be, e.expression)
 	case:
 		bw_u8(be, u8(BinValType.NullNode))
 	}
@@ -739,23 +797,184 @@ bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
 	}
 }
 
+// ============================================================================
+// JSX binary emission helpers
+// ============================================================================
+
+@(private="file")
+bin_emit_jsx_elem_name :: proc(be: ^BinaryEmitter, name: JSXElementName) {
+	switch n in name {
+	case JSXIdentifier:
+		bin_node_header(be, .JSXIdentifier, n.loc)
+		bw_string_ref(be, n.name)
+	case ^JSXMemberExpression:
+		bin_node_header(be, .JSXMemberExpression, n.loc)
+		bin_emit_jsx_member_object(be, n.object)
+		bin_node_header(be, .JSXIdentifier, n.property.loc)
+		bw_string_ref(be, n.property.name)
+	case ^JSXNamespacedName:
+		bin_node_header(be, .JSXNamespacedName, n.loc)
+		bin_node_header(be, .JSXIdentifier, n.namespace.loc)
+		bw_string_ref(be, n.namespace.name)
+		bin_node_header(be, .JSXIdentifier, n.name.loc)
+		bw_string_ref(be, n.name.name)
+	}
+}
+
+@(private="file")
+bin_emit_jsx_member_object :: proc(be: ^BinaryEmitter, obj: JSXMemberObject) {
+	switch o in obj {
+	case JSXIdentifier:
+		bin_node_header(be, .JSXIdentifier, o.loc)
+		bw_string_ref(be, o.name)
+	case ^JSXMemberExpression:
+		bin_node_header(be, .JSXMemberExpression, o.loc)
+		bin_emit_jsx_member_object(be, o.object)
+		bin_node_header(be, .JSXIdentifier, o.property.loc)
+		bw_string_ref(be, o.property.name)
+	}
+}
+
+@(private="file")
+bin_emit_jsx_attr_name :: proc(be: ^BinaryEmitter, name: JSXAttributeName) {
+	switch n in name {
+	case JSXIdentifier:
+		bin_node_header(be, .JSXIdentifier, n.loc)
+		bw_string_ref(be, n.name)
+	case ^JSXNamespacedName:
+		bin_node_header(be, .JSXNamespacedName, n.loc)
+		bin_node_header(be, .JSXIdentifier, n.namespace.loc)
+		bw_string_ref(be, n.namespace.name)
+		bin_node_header(be, .JSXIdentifier, n.name.loc)
+		bw_string_ref(be, n.name.name)
+	}
+}
+
+@(private="file")
+bin_emit_jsx_opening :: proc(be: ^BinaryEmitter, oe: ^JSXOpeningElement) {
+	bin_node_header(be, .JSXOpeningElement, oe.loc)
+	bw_bool(be, oe.self_closing)
+	bin_emit_jsx_elem_name(be, oe.name)
+	// attributes
+	bw_u32(be, u32(len(oe.attributes)))
+	for attr in oe.attributes {
+		switch a in attr {
+		case JSXAttribute:
+			bin_node_header(be, .JSXAttribute, a.loc)
+			bin_emit_jsx_attr_name(be, a.name)
+			if val, ok := a.value.?; ok && val != nil {
+				bw_u8(be, u8(BinValType.Node))
+				bin_emit_expression(be, val)
+			} else {
+				bw_u8(be, u8(BinValType.NullNode))
+			}
+		case ^JSXSpreadAttribute:
+			bin_node_header(be, .JSXSpreadAttribute, a.loc)
+			bin_emit_expression(be, a.argument)
+		}
+	}
+}
+
+@(private="file")
+bin_emit_jsx_child :: proc(be: ^BinaryEmitter, child: JSXChild) {
+	switch c in child {
+	case ^JSXElement:
+		if c != nil {
+			// Re-use expression path — JSXElement is an Expression variant.
+			bin_node_header(be, .JSXElement, c.loc)
+			bin_emit_jsx_opening(be, c.opening_element)
+			bw_u32(be, u32(len(c.children)))
+			for gc in c.children { bin_emit_jsx_child(be, gc) }
+			if ce, ok := c.closing_element.?; ok && ce != nil {
+				bw_u8(be, u8(BinValType.Node))
+				bin_node_header(be, .JSXClosingElement, ce.loc)
+				bin_emit_jsx_elem_name(be, ce.name)
+			} else {
+				bw_u8(be, u8(BinValType.NullNode))
+			}
+		} else {
+			bw_u8(be, u8(BinValType.NullNode))
+		}
+	case ^JSXFragment:
+		if c != nil {
+			bin_node_header(be, .JSXFragment, c.loc)
+			bin_node_header(be, .JSXOpeningFragment, c.opening_fragment.loc)
+			bw_u32(be, u32(len(c.children)))
+			for gc in c.children { bin_emit_jsx_child(be, gc) }
+			bin_node_header(be, .JSXClosingFragment, c.closing_fragment.loc)
+		} else {
+			bw_u8(be, u8(BinValType.NullNode))
+		}
+	case ^JSXText:
+		if c != nil {
+			bin_node_header(be, .JSXText, c.loc)
+			bw_string_ref(be, c.value)
+			bw_string_ref(be, c.raw)
+		} else {
+			bw_u8(be, u8(BinValType.NullNode))
+		}
+	case ^JSXExpressionContainer:
+		if c != nil {
+			bin_node_header(be, .JSXExpressionContainer, c.loc)
+			bin_emit_expression(be, c.expression)
+		} else {
+			bw_u8(be, u8(BinValType.NullNode))
+		}
+	case ^JSXSpreadChild:
+		if c != nil {
+			bin_node_header(be, .JSXSpreadChild, c.loc)
+			bin_emit_expression(be, c.expression)
+		} else {
+			bw_u8(be, u8(BinValType.NullNode))
+		}
+	}
+}
+
 @(private="file")
 bin_emit_property :: proc(be: ^BinaryEmitter, prop: Property) {
+	// SpreadElement path: parser stores spread as Property { key: nil, value: ^SpreadElement }.
+	// Emit as a bare SpreadElement node, matching the JSON emitter.
+	if prop.key == nil && prop.value != nil {
+		if se, ok := prop.value^.(^SpreadElement); ok {
+			bin_node_header(be, .SpreadElement, se.loc)
+			bin_emit_expression(be, se.argument)
+			return
+		}
+	}
 	bin_node_header(be, .Property, prop.loc)
-	bw_u8(be, u8(prop.kind))
+	// ESTree: Method maps to kind="init" + method=true.
+	is_method := prop.kind == .Method
+	kind_byte: u8 = 0 // "init"
+	switch prop.kind {
+	case .Init:   kind_byte = 0
+	case .Get:    kind_byte = 1
+	case .Set:    kind_byte = 2
+	case .Method: kind_byte = 0 // ESTree: method stays kind "init"
+	}
+	bw_u8(be, kind_byte)
 	bw_bool(be, prop.computed)
 	bw_bool(be, prop.shorthand)
-	bin_emit_expression(be, prop.key)
+	bw_bool(be, is_method) // method flag
+	// key (tagged with VT_Node / VT_NullNode)
+	if prop.key != nil && !expression_inner_nil(prop.key) {
+		bw_u8(be, u8(BinValType.Node))
+		bin_emit_expression(be, prop.key)
+	} else {
+		bw_u8(be, u8(BinValType.NullNode))
+	}
 	bin_emit_expression(be, prop.value)
 }
 
 @(private="file")
 bin_emit_obj_pat_prop :: proc(be: ^BinaryEmitter, prop: ObjectPatternProperty) {
 	bin_node_header(be, .Property, prop.loc)
+	bw_u8(be, 0) // kind: always 'init' for pattern properties
 	bw_bool(be, prop.computed)
 	bw_bool(be, prop.shorthand)
-	// key (Maybe)
+	bw_bool(be, false) // method: always false for patterns
+	// key (nullable — tagged with VT_Node / VT_NullNode)
 	if key, ok := prop.key.?; ok {
+		bw_u8(be, u8(BinValType.Node))
 		switch k in key {
 		case ^Expression:
 			bin_emit_expression(be, k)
